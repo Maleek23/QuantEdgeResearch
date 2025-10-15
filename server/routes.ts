@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { searchSymbol } from "./market-api";
 import {
   insertMarketDataSchema,
   insertTradeIdeaSchema,
@@ -40,6 +41,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(data);
     } catch (error) {
       res.status(400).json({ error: "Invalid market data" });
+    }
+  });
+
+  app.get("/api/search-symbol/:symbol", async (req, res) => {
+    try {
+      const symbol = req.params.symbol.toUpperCase();
+      
+      const existing = await storage.getMarketDataBySymbol(symbol);
+      if (existing) {
+        return res.json(existing);
+      }
+
+      const alphaVantageKey = process.env.ALPHA_VANTAGE_API_KEY;
+      const externalData = await searchSymbol(symbol, alphaVantageKey);
+      
+      if (!externalData) {
+        return res.status(404).json({ error: "Symbol not found" });
+      }
+
+      const marketData = await storage.createMarketData({
+        ...externalData,
+        session: "rth",
+        timestamp: new Date().toISOString(),
+        avgVolume: externalData.volume,
+      });
+
+      res.json(marketData);
+    } catch (error) {
+      console.error("Symbol search error:", error);
+      res.status(500).json({ error: "Failed to search symbol" });
     }
   });
 
