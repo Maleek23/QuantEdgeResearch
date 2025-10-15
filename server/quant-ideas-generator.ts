@@ -300,6 +300,17 @@ export async function generateQuantIdeas(
     // Calculate risk/reward ratio
     const riskRewardRatio = (levels.targetPrice - levels.entryPrice) / (levels.entryPrice - levels.stopLoss);
 
+    // For options, calculate strike price and determine call/put based on direction and price action
+    const strikePrice = assetType === 'option' 
+      ? (signal.direction === 'long' 
+          ? Math.round(data.currentPrice * 1.02) // Slightly OTM call for bullish
+          : Math.round(data.currentPrice * 0.98)) // Slightly OTM put for bearish
+      : undefined;
+    
+    const optionType = assetType === 'option'
+      ? (signal.direction === 'long' ? 'call' : 'put')
+      : undefined;
+
     const idea: InsertTradeIdea = {
       symbol: data.symbol,
       assetType: assetType,
@@ -316,6 +327,8 @@ export async function generateQuantIdeas(
       expiryDate: assetType === 'option' 
         ? formatInTimeZone(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000), timezone, 'yyyy-MM-dd')
         : undefined,
+      strikePrice: strikePrice,
+      optionType: optionType,
       source: 'quant'
     };
 

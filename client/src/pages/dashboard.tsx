@@ -18,7 +18,7 @@ import { SymbolDetailModal } from "@/components/symbol-detail-modal";
 import { QuantAIBot } from "@/components/quantai-bot";
 import { getMarketSession, formatCTTime } from "@/lib/utils";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem, ScreenerFilters as Filters } from "@shared/schema";
-import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw, ChevronDown, Calendar, Bot, Sparkles, Brain } from "lucide-react";
+import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw, ChevronDown, Calendar, Bot, Sparkles, Brain, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -428,20 +428,38 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        <Card className="mb-6" data-testid="card-symbol-search">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Search className="h-5 w-5" />
-              Search & Add Symbols
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Search for any stock or crypto to add it to your dashboard. Crypto works instantly (BTC, ETH, SOL, DOGE, etc.). Stocks require Alpha Vantage API key.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <SymbolSearch />
-          </CardContent>
-        </Card>
+        <div className="space-y-4 mb-6">
+          <Card className="border-amber-500/30 bg-amber-500/5" data-testid="card-data-notice">
+            <CardContent className="pt-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-semibold text-amber-300 mb-1">Market Data Notice</h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    <strong className="text-amber-400">Free Tier Limitations:</strong> Stock prices refresh every 60 seconds using free API tiers with rate limits. 
+                    Crypto prices update via CoinGecko (no API key needed). For true real-time data, consider upgrading to premium data providers. 
+                    <span className="text-amber-300 font-medium ml-1">Last refresh: {formatCTTime(lastUpdate)}</span>
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card data-testid="card-symbol-search">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5" />
+                Search & Add Symbols
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Search for any stock or crypto to add it to your dashboard. Crypto works instantly (BTC, ETH, SOL, DOGE, etc.). Stocks require Alpha Vantage API key.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <SymbolSearch />
+            </CardContent>
+          </Card>
+        </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-6">
@@ -563,9 +581,9 @@ export default function Dashboard() {
                                     
                                     return (
                                       <Collapsible key={assetType} defaultOpen={true}>
-                                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors">
+                                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors group">
                                           <div className="flex items-center gap-2">
-                                            <ChevronDown className="h-4 w-4 transition-transform" />
+                                            <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
                                             <span className="font-medium text-sm">{assetType}</span>
                                           </div>
                                           <Badge variant="outline" className="text-xs">

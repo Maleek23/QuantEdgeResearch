@@ -25,6 +25,8 @@ export const tradeIdeas = pgTable("trade_ideas", {
   sessionContext: text("session_context").notNull(),
   timestamp: text("timestamp").notNull(),
   expiryDate: text("expiry_date"), // For options
+  strikePrice: real("strike_price"), // For options
+  optionType: text("option_type"), // 'call' | 'put' for options
   source: text("source").notNull().$type<IdeaSource>().default('quant'), // 'ai' | 'quant'
 });
 

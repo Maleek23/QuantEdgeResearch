@@ -325,6 +325,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sessionContext: aiIdea.sessionContext,
           timestamp: new Date().toISOString(),
           expiryDate: aiIdea.expiryDate || null,
+          strikePrice: aiIdea.assetType === 'option' ? aiIdea.entryPrice * (aiIdea.direction === 'long' ? 1.02 : 0.98) : null,
+          optionType: aiIdea.assetType === 'option' ? (aiIdea.direction === 'long' ? 'call' : 'put') : null,
           source: 'ai'
         });
         savedIdeas.push(tradeIdea);

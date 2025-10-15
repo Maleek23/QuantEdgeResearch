@@ -79,9 +79,19 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                  idea.assetType === 'stock' ? 'STOCK SHARES' : 
                  'CRYPTO'}
               </Badge>
+              {idea.assetType === 'option' && idea.strikePrice && idea.optionType && (
+                <Badge variant="secondary" className="text-xs font-semibold gap-1">
+                  ${idea.strikePrice} {idea.optionType.toUpperCase()}
+                </Badge>
+              )}
             </div>
-            <CardDescription className="mt-2 text-xs" data-testid={`text-trade-time-${idea.symbol}`}>
-              Posted: {formatCTTime(idea.timestamp)} • {idea.sessionContext}
+            <CardDescription className="mt-2 text-xs flex items-center gap-2 flex-wrap" data-testid={`text-trade-time-${idea.symbol}`}>
+              <span>Posted: {formatCTTime(idea.timestamp)} • {idea.sessionContext}</span>
+              {(idea.sessionContext.includes('Regular Trading') || idea.sessionContext.includes('Pre-Market') || idea.sessionContext.includes('After Hours')) && (
+                <Badge variant="outline" className="text-xs font-semibold bg-amber-500/10 text-amber-300 border-amber-500/30">
+                  DAY TRADE
+                </Badge>
+              )}
             </CardDescription>
             {idea.liquidityWarning && (
               <Badge variant="destructive" className="gap-1 mt-2">
