@@ -21,6 +21,11 @@ A professional quantitative trading research platform for discovering day-tradin
 - ✅ Added catalyst feed for market events and news
 - ✅ Set up in-memory storage with realistic seed data
 - ✅ Created all API endpoints for market data, trade ideas, and user preferences
+- ✅ **Universal Symbol Search** - Search and add any stock or crypto to dashboard
+  - CoinGecko API integration for 20+ crypto symbols (no API key needed)
+  - Alpha Vantage API support for stocks (requires API key)
+  - Auto-persistence of searched symbols to market data
+  - Real-time price updates for BTC, ETH, SOL, DOGE, MATIC, LINK, and more
 
 ## Project Architecture
 
@@ -47,31 +52,38 @@ A professional quantitative trading research platform for discovering day-tradin
 - **User Preferences:** Account size, risk limits, holding horizons
 
 ### Key Features
-1. **Real-time Market Dashboard**
+1. **Universal Symbol Search**
+   - Search any stock or crypto symbol
+   - Instant crypto lookup (BTC, ETH, SOL, DOGE, ADA, AVAX, LINK, MATIC, etc.)
+   - Stock lookup with Alpha Vantage API key
+   - Auto-add searched symbols to dashboard
+   - Real-time price display with change percentages
+
+2. **Real-time Market Dashboard**
    - Live price cards with change percentages
    - Market session indicators (pre-market/RTH/after-hours)
    - Asset type badges (stocks, options, crypto)
 
-2. **Trade Ideas Feed**
+3. **Trade Ideas Feed**
    - Entry, target, and stop-loss levels
    - Risk/reward calculations
    - Catalyst summaries and analysis
    - Liquidity warnings for penny stocks
    - Educational disclaimers
 
-3. **Multi-Asset Screener**
+4. **Multi-Asset Screener**
    - Filter by asset type, price range, volume
    - Penny stocks filter (<$5)
    - High IV options filter (>50%)
    - Unusual volume detection (>2x avg)
 
-4. **Risk Calculator**
+5. **Risk Calculator**
    - Position sizing based on risk parameters
    - R:R ratio visualization
    - Potential profit/loss calculations
    - Stop-loss percentage analysis
 
-5. **Catalyst Feed**
+6. **Catalyst Feed**
    - Latest market events and news
    - Impact ratings (high/medium/low)
    - Source citations
@@ -88,6 +100,7 @@ A professional quantitative trading research platform for discovering day-tradin
 - `GET /api/market-data` - Get all market data
 - `GET /api/market-data/:symbol` - Get data by symbol
 - `POST /api/market-data` - Create market data
+- `GET /api/search-symbol/:symbol` - Search for stock/crypto and add to dashboard
 
 ### Trade Ideas
 - `GET /api/trade-ideas` - Get all trade ideas
@@ -145,6 +158,11 @@ A professional quantitative trading research platform for discovering day-tradin
 ## Important Notes
 - All timestamps displayed in America/Chicago (CT) timezone
 - Market session context shown (pre-market 4:00-9:30 AM, RTH 9:30 AM-4:00 PM, after-hours 4:00-8:00 PM CT)
+- **Symbol Search:**
+  - Crypto symbols work instantly via CoinGecko API (no key required)
+  - Supported crypto: BTC, ETH, SOL, DOGE, XRP, ADA, AVAX, MATIC, LINK, UNI, ATOM, DOT, LTC, BCH, ALGO, XLM, NEAR, APT, FIL, IMX
+  - Stock symbols require `ALPHA_VANTAGE_API_KEY` environment variable
+  - Searched symbols are automatically added to market data and persist in memory
 - Educational disclaimers on all trade ideas
 - Liquidity warnings for penny stocks and low-float securities
 - No personalized financial advice - research purposes only
