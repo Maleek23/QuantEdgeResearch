@@ -32,11 +32,21 @@ A professional quantitative trading research platform for discovering day-tradin
   - **Smart Summary Cards**: Actionable insights - Active opportunities, Top Gainer/Loser (clickable)
   - **Watchlist Stars**: One-click add from trade ideas with optimistic UI updates
   - **Improved Visual Hierarchy**: Larger fonts, better spacing, clearer data scanning
-- ✅ **Fresh Ideas System & Layout Optimization** (Latest)
+- ✅ **Fresh Ideas System & Layout Optimization**
   - **FRESH Badge**: Trade ideas posted within 24 hours display pulsing "FRESH" badge for instant visibility
   - **Posted Timestamps**: Clear "Posted: [time] • [session]" format shows when each idea was generated
   - **Prioritized Layout**: Watchlist moved above Catalyst Feed for better visibility of tracked opportunities
   - **Wake Up & Trade**: Users now see fresh, actionable trade ideas immediately when opening the app
+- ✅ **Trade Ideas Tab Restructure & Asset Clarity** (Latest - Oct 15, 2025)
+  - **NEW IDEAS Tab**: Default tab showing all fresh opportunities from last 24 hours across all asset types
+  - **Asset-Specific Tabs**: Organized Stock Options, Stock Shares, and Crypto tabs for focused analysis
+  - **Clear Asset Badges**: "STOCK OPTIONS" vs "STOCK SHARES" vs "CRYPTO" badges eliminate confusion
+  - **Quantitative Entry/Target/Stop Display**: 
+    - Larger prices with uppercase labels (ENTRY PRICE, TARGET, STOP LOSS)
+    - Risk per share and Reward per share calculations in red/green
+    - Gain/risk percentages displayed with targets and stops
+  - **Consistent Filtering**: Search and direction filters work identically across all tabs
+  - **Direction Filters**: All/Long/Short/Daily buttons shared across tabs for unified experience
 
 ## Project Architecture
 
@@ -82,18 +92,24 @@ A professional quantitative trading research platform for discovering day-tradin
    - Market session indicators (pre-market/RTH/after-hours)
    - Asset type badges (stocks, options, crypto)
 
-3. **Trade Ideas Feed with Fresh Indicators**
+3. **Trade Ideas Feed with Fresh Indicators & Tab Organization**
+   - **NEW IDEAS Tab (Default)**: Shows all fresh opportunities from last 24 hours across all asset types
+   - **Asset-Specific Tabs**: Stock Options, Stock Shares, Crypto for focused analysis
    - **FRESH Badge**: Pulsing badge on ideas posted within 24 hours for instant identification
    - **Posted Timestamps**: "Posted: [time] • [session]" format shows when ideas were generated
-   - Entry, target, and stop-loss levels
+   - **Clear Asset Differentiation**: "STOCK OPTIONS" vs "STOCK SHARES" vs "CRYPTO" badges
+   - **Quantitative Entry/Target/Stop Display**:
+     - Uppercase labels (ENTRY PRICE, TARGET, STOP LOSS) with larger prices
+     - Risk per share (red) and Reward per share (green) calculations
+     - Gain/risk percentages with targets and stops
    - Interactive R:R ratio tooltips with plain-English explanations
    - Visual breakdown: "Potential Gain" vs "Max Risk" percentages
    - Catalyst summaries with one-click Google search
    - "View Full Analysis" button opens detailed symbol modal
    - One-click watchlist starring with optimistic updates
+   - Consistent search and direction filtering across all tabs
    - Liquidity warnings for penny stocks
    - Educational disclaimers
-   - Organized by asset type: Options, Stocks, Crypto tabs
 
 4. **Multi-Asset Screener**
    - Filter by asset type, price range, volume
