@@ -23,6 +23,12 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
   const riskDollars = Math.abs(idea.stopLoss - idea.entryPrice);
   const rewardDollars = Math.abs(idea.targetPrice - idea.entryPrice);
 
+  // Check if idea is fresh (from today)
+  const ideaDate = new Date(idea.timestamp);
+  const today = new Date();
+  const isToday = ideaDate.toDateString() === today.toDateString();
+  const isRecent = (today.getTime() - ideaDate.getTime()) < 24 * 60 * 60 * 1000; // Within 24 hours
+
   return (
     <Card className="hover-elevate transition-all" data-testid={`card-trade-idea-${idea.symbol}`}>
       <CardHeader className="space-y-3">
@@ -32,6 +38,11 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
               <CardTitle className="text-xl font-bold font-mono" data-testid={`text-trade-symbol-${idea.symbol}`}>
                 {idea.symbol}
               </CardTitle>
+              {isRecent && (
+                <Badge variant="default" className="bg-primary text-primary-foreground font-bold text-xs animate-pulse" data-testid={`badge-fresh-${idea.symbol}`}>
+                  FRESH
+                </Badge>
+              )}
               <Badge variant={isLong ? "default" : "destructive"} className="font-semibold" data-testid={`badge-direction-${idea.symbol}`}>
                 {isLong ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
                 {idea.direction.toUpperCase()}
@@ -39,7 +50,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
               <Badge variant="outline" className="text-xs">{idea.assetType.toUpperCase()}</Badge>
             </div>
             <CardDescription className="mt-2 text-xs" data-testid={`text-trade-time-${idea.symbol}`}>
-              {formatCTTime(idea.timestamp)} • {idea.sessionContext}
+              Posted: {formatCTTime(idea.timestamp)} • {idea.sessionContext}
             </CardDescription>
             {idea.liquidityWarning && (
               <Badge variant="destructive" className="gap-1 mt-2">

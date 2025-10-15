@@ -577,12 +577,12 @@ export default function Dashboard() {
           </div>
 
           <div className="space-y-6">
-            <CatalystFeed catalysts={catalysts} />
             <WatchlistTable 
               items={watchlist} 
               onRemove={handleRemoveFromWatchlist}
               isRemoving={removeFromWatchlistMutation.isPending}
             />
+            <CatalystFeed catalysts={catalysts} />
           </div>
         </div>
 
