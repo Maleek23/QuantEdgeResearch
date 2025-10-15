@@ -38,9 +38,15 @@ export default function Dashboard() {
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [chatBotOpen, setChatBotOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const currentSession = getMarketSession();
   const currentTime = formatCTTime(new Date());
   const { toast } = useToast();
+  
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+    setCalendarOpen(false);
+  };
 
   const { data: marketData = [], isLoading: marketLoading } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
@@ -594,52 +600,6 @@ export default function Dashboard() {
                         Day Trade
                       </Button>
                     </div>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant={selectedDate ? "default" : "outline"}
-                          size="sm"
-                          className="gap-2"
-                          data-testid="button-calendar-picker"
-                        >
-                          <CalendarIcon className="h-3 w-3" />
-                          {selectedDate ? format(selectedDate, "MMM d") : "Pick Date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="end">
-                        <Calendar
-                          mode="single"
-                          selected={selectedDate}
-                          onSelect={setSelectedDate}
-                          disabled={(date) => date > new Date()}
-                          modifiers={{
-                            hasIdeas: datesWithIdeas,
-                          }}
-                          modifiersClassNames={{
-                            hasIdeas: "font-bold text-primary",
-                          }}
-                          initialFocus
-                          data-testid="calendar-date-picker"
-                        />
-                        {selectedDate && (
-                          <div className="p-3 border-t flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">
-                              Viewing: {format(selectedDate, "MMM d, yyyy")}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedDate(undefined)}
-                              className="h-8 px-2 gap-1"
-                              data-testid="button-clear-date"
-                            >
-                              <X className="h-3 w-3" />
-                              Clear
-                            </Button>
-                          </div>
-                        )}
-                      </PopoverContent>
-                    </Popover>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground border-l pl-2">
                       <Clock className="h-3 w-3" />
                       <span className="hidden sm:inline">Next: {nextRefresh}s</span>
@@ -665,6 +625,60 @@ export default function Dashboard() {
                 {/* NEW IDEAS Tab - with date-based accordion */}
                 <TabsContent value="new" className="mt-0">
                   <CardContent>
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b">
+                      <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant={selectedDate ? "default" : "outline"}
+                            size="default"
+                            className="gap-2"
+                            data-testid="button-calendar-picker"
+                          >
+                            <CalendarIcon className="h-4 w-4" />
+                            {selectedDate ? format(selectedDate, "MMMM d, yyyy") : "All Dates"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={selectedDate}
+                            onSelect={handleDateSelect}
+                            disabled={(date) => date > new Date()}
+                            modifiers={{
+                              hasIdeas: datesWithIdeas,
+                            }}
+                            modifiersClassNames={{
+                              hasIdeas: "font-bold text-primary",
+                            }}
+                            initialFocus
+                            data-testid="calendar-date-picker"
+                          />
+                          {selectedDate && (
+                            <div className="p-3 border-t flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">
+                                Viewing: {format(selectedDate, "MMM d, yyyy")}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedDate(undefined);
+                                  setCalendarOpen(false);
+                                }}
+                                className="h-8 px-2 gap-1"
+                                data-testid="button-clear-date"
+                              >
+                                <X className="h-3 w-3" />
+                                Clear
+                              </Button>
+                            </div>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                      <Badge variant="secondary">
+                        {filteredIdeas.length} {filteredIdeas.length === 1 ? 'idea' : 'ideas'}
+                      </Badge>
+                    </div>
                     {ideasLoading ? (
                       <Skeleton className="h-[400px] w-full" />
                     ) : Object.keys(dateGroups).length > 0 ? (
@@ -690,7 +704,7 @@ export default function Dashboard() {
                               <AccordionItem key={date} value={date} className="border-b border-border">
                                 <AccordionTrigger className="hover:no-underline py-4">
                                   <div className="flex items-center gap-3 w-full">
-                                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                                     <span className="font-semibold">{date}</span>
                                     <Badge variant="secondary" className="ml-auto mr-2">
                                       {totalCount} {totalCount === 1 ? 'idea' : 'ideas'}
