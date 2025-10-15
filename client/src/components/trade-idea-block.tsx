@@ -11,9 +11,10 @@ interface TradeIdeaBlockProps {
   idea: TradeIdea;
   currentPrice?: number;
   onAddToWatchlist?: (idea: TradeIdea) => void;
+  onViewDetails?: (symbol: string) => void;
 }
 
-export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeIdeaBlockProps) {
+export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDetails }: TradeIdeaBlockProps) {
   const [isOpen, setIsOpen] = useState(false);
   
   const isLong = idea.direction === 'long';
@@ -119,7 +120,19 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
           {/* Top Row: Symbol, Direction, Asset Details */}
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-2">
-              <h3 className="text-xl font-bold font-mono" data-testid={`text-symbol-${idea.symbol}`}>
+              <h3 
+                className={cn(
+                  "text-xl font-bold font-mono",
+                  onViewDetails && "cursor-pointer hover:text-primary transition-colors"
+                )}
+                data-testid={`text-symbol-${idea.symbol}`}
+                onClick={(e) => {
+                  if (onViewDetails) {
+                    e.stopPropagation();
+                    onViewDetails(idea.symbol);
+                  }
+                }}
+              >
                 {idea.symbol}
               </h3>
               <Badge 

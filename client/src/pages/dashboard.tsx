@@ -604,6 +604,10 @@ export default function Dashboard() {
                                                 idea={idea}
                                                 currentPrice={symbolData?.currentPrice}
                                                 onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
+                                                onViewDetails={(symbol) => {
+                                                  const data = marketData.find(m => m.symbol === symbol);
+                                                  if (data) handleViewSymbolDetails(data);
+                                                }}
                                               />
                                             );
                                           })}
@@ -643,6 +647,10 @@ export default function Dashboard() {
                                 idea={idea}
                                 currentPrice={symbolData?.currentPrice}
                                 onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
+                                onViewDetails={(symbol) => {
+                                  const data = marketData.find(m => m.symbol === symbol);
+                                  if (data) handleViewSymbolDetails(data);
+                                }}
                               />
                             );
                           })}
@@ -674,6 +682,10 @@ export default function Dashboard() {
                                 idea={idea}
                                 currentPrice={symbolData?.currentPrice}
                                 onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
+                                onViewDetails={(symbol) => {
+                                  const data = marketData.find(m => m.symbol === symbol);
+                                  if (data) handleViewSymbolDetails(data);
+                                }}
                               />
                             );
                           })}
@@ -705,6 +717,10 @@ export default function Dashboard() {
                                 idea={idea}
                                 currentPrice={symbolData?.currentPrice}
                                 onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
+                                onViewDetails={(symbol) => {
+                                  const data = marketData.find(m => m.symbol === symbol);
+                                  if (data) handleViewSymbolDetails(data);
+                                }}
                               />
                             );
                           })}

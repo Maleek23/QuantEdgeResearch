@@ -49,7 +49,10 @@ QuantEdge Research is a professional quantitative trading research platform desi
 - **Multi-Asset Screener:** Filters by asset type, price, volume, penny stocks, high IV options, and unusual volume.
 - **Risk Calculator:** Position sizing, R:R ratio visualization, potential profit/loss calculations, and stop-loss analysis.
 - **Catalyst Feed:** Displays latest market events, news, impact ratings, and source citations.
-- **Symbol Detail Modal:** Comprehensive analysis with Overview, Analysis (analyst ratings, recommendations), and Sentiment (community sentiment, commentary) tabs.
+- **Symbol Detail Modal:** Click any symbol in trade ideas to open comprehensive analysis modal with three tabs:
+  - **Overview:** Key metrics (market cap, volume, 24h high/low) and performance summary
+  - **Analysis:** Analyst ratings with visual breakdown and trading recommendations (BUY/HOLD/SELL)
+  - **Sentiment:** Community sentiment (Bullish/Neutral/Bearish percentages) with trader commentary
 - **Watchlist Management:** Track symbols with price targets, notes, and quick actions.
 - **QuantAI Bot:** AI-powered trading assistant with a sliding chatbot interface. Integrates OpenAI GPT-5, Anthropic Claude Sonnet 4, and Google Gemini 2.5 for conversational insights and AI-generated trade ideas. Includes persistent chat history and intelligent error handling for API billing/credit issues with graceful fallback suggestions.
 - **Quantitative Idea Generator:** An AI-free alternative generating trade ideas based on Momentum, Volume Spike, Bullish/Bearish Breakout, and Mean Reversion signals using technical analysis.
