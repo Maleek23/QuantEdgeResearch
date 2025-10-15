@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { searchSymbol } from "./market-api";
 import { generateTradeIdeas, chatWithQuantAI } from "./ai-service";
+import { generateQuantIdeas } from "./quant-ideas-generator";
 import {
   insertMarketDataSchema,
   insertTradeIdeaSchema,
@@ -263,6 +264,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(prefs);
     } catch (error) {
       res.status(400).json({ error: "Invalid preferences data" });
+    }
+  });
+
+  // Quantitative Idea Generator (No AI required)
+  app.post("/api/quant/generate-ideas", async (req, res) => {
+    try {
+      const schema = z.object({
+        count: z.number().optional().default(8),
+      });
+      const { count } = schema.parse(req.body);
+      
+      // Get current market data and catalysts
+      const marketData = await storage.getAllMarketData();
+      const catalysts = await storage.getAllCatalysts();
+      
+      // Generate quantitative ideas
+      const quantIdeas = await generateQuantIdeas(marketData, catalysts, count);
+      
+      // Save ideas to storage
+      const savedIdeas = [];
+      for (const idea of quantIdeas) {
+        const tradeIdea = await storage.createTradeIdea(idea);
+        savedIdeas.push(tradeIdea);
+      }
+      
+      res.json({ success: true, ideas: savedIdeas, count: savedIdeas.length });
+    } catch (error: any) {
+      console.error("Quant idea generation error:", error);
+      res.status(500).json({ error: error?.message || "Failed to generate quantitative trade ideas" });
     }
   });
 

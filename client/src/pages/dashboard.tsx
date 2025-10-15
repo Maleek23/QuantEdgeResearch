@@ -105,21 +105,21 @@ export default function Dashboard() {
 
   const generateIdeasMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest('POST', '/api/ai/generate-ideas', {
-        marketContext: "Current market conditions with focus on stocks, options, and crypto. Include diverse opportunities across all asset types."
+      return await apiRequest('POST', '/api/quant/generate-ideas', {
+        count: 8
       });
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       toast({
-        title: "AI Ideas Generated!",
-        description: `Generated ${data.count} fresh trade ideas using AI`,
+        title: "Quant Ideas Generated!",
+        description: `Generated ${data.count} ideas using momentum, volume & catalyst signals`,
       });
     },
     onError: () => {
       toast({
         title: "Generation Failed",
-        description: "Failed to generate AI trade ideas. Please try again.",
+        description: "Failed to generate quantitative trade ideas. Please try again.",
         variant: "destructive",
       });
     },
@@ -439,10 +439,10 @@ export default function Dashboard() {
                       onClick={() => generateIdeasMutation.mutate()}
                       disabled={generateIdeasMutation.isPending}
                       className="gap-2"
-                      data-testid="button-generate-ai-ideas"
+                      data-testid="button-generate-ideas"
                     >
                       <Sparkles className={`h-3 w-3 ${generateIdeasMutation.isPending ? 'animate-pulse' : ''}`} />
-                      {generateIdeasMutation.isPending ? 'Generating...' : 'Generate AI Ideas'}
+                      {generateIdeasMutation.isPending ? 'Analyzing...' : 'Generate Ideas'}
                     </Button>
                     <div className="flex gap-1">
                       <Button 
