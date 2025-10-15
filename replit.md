@@ -26,12 +26,17 @@ A professional quantitative trading research platform for discovering day-tradin
   - Alpha Vantage API support for stocks (requires API key)
   - Auto-persistence of searched symbols to market data
   - Real-time price updates for BTC, ETH, SOL, DOGE, MATIC, LINK, and more
-- ✅ **Enhanced UX & Data Presentation** (Latest)
+- ✅ **Enhanced UX & Data Presentation**
   - **R:R Ratio Clarity**: Interactive tooltips explaining "For every $X risked, gain $Y" with visual breakdown
   - **Symbol Detail Modal**: Comprehensive analysis view with 3 tabs (Overview, Analysis, Sentiment)
   - **Smart Summary Cards**: Actionable insights - Active opportunities, Top Gainer/Loser (clickable)
   - **Watchlist Stars**: One-click add from trade ideas with optimistic UI updates
   - **Improved Visual Hierarchy**: Larger fonts, better spacing, clearer data scanning
+- ✅ **Fresh Ideas System & Layout Optimization** (Latest)
+  - **FRESH Badge**: Trade ideas posted within 24 hours display pulsing "FRESH" badge for instant visibility
+  - **Posted Timestamps**: Clear "Posted: [time] • [session]" format shows when each idea was generated
+  - **Prioritized Layout**: Watchlist moved above Catalyst Feed for better visibility of tracked opportunities
+  - **Wake Up & Trade**: Users now see fresh, actionable trade ideas immediately when opening the app
 
 ## Project Architecture
 
@@ -77,15 +82,18 @@ A professional quantitative trading research platform for discovering day-tradin
    - Market session indicators (pre-market/RTH/after-hours)
    - Asset type badges (stocks, options, crypto)
 
-3. **Trade Ideas Feed**
+3. **Trade Ideas Feed with Fresh Indicators**
+   - **FRESH Badge**: Pulsing badge on ideas posted within 24 hours for instant identification
+   - **Posted Timestamps**: "Posted: [time] • [session]" format shows when ideas were generated
    - Entry, target, and stop-loss levels
    - Interactive R:R ratio tooltips with plain-English explanations
    - Visual breakdown: "Potential Gain" vs "Max Risk" percentages
-   - Catalyst summaries and analysis
+   - Catalyst summaries with one-click Google search
    - "View Full Analysis" button opens detailed symbol modal
    - One-click watchlist starring with optimistic updates
    - Liquidity warnings for penny stocks
    - Educational disclaimers
+   - Organized by asset type: Options, Stocks, Crypto tabs
 
 4. **Multi-Asset Screener**
    - Filter by asset type, price range, volume
