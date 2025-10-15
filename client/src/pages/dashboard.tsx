@@ -7,7 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MarketSessionBadge } from "@/components/market-session-badge";
 import { PriceCard } from "@/components/price-card";
-import { TradeIdeaCard } from "@/components/trade-idea-card";
+import { TradeIdeaBlock } from "@/components/trade-idea-block";
 import { RiskCalculator } from "@/components/risk-calculator";
 import { CatalystFeed } from "@/components/catalyst-feed";
 import { ScreenerFilters } from "@/components/screener-filters";
@@ -595,16 +595,14 @@ export default function Dashboard() {
                                             {assetIdeas.length}
                                           </Badge>
                                         </CollapsibleTrigger>
-                                        <CollapsibleContent className="space-y-3 mt-3">
+                                        <CollapsibleContent className="space-y-2 mt-3">
                                           {assetIdeas.map((idea) => {
                                             const symbolData = marketData.find(m => m.symbol === idea.symbol);
                                             return (
-                                              <TradeIdeaCard 
+                                              <TradeIdeaBlock 
                                                 key={idea.id} 
                                                 idea={idea}
                                                 currentPrice={symbolData?.currentPrice}
-                                                changePercent={symbolData?.changePercent}
-                                                onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
                                                 onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
                                               />
                                             );
@@ -634,18 +632,16 @@ export default function Dashboard() {
                     {ideasLoading ? (
                       <Skeleton className="h-[400px] w-full" />
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {filteredIdeas
                           .filter(idea => idea.assetType === "option")
                           .map((idea) => {
                             const symbolData = marketData.find(m => m.symbol === idea.symbol);
                             return (
-                              <TradeIdeaCard 
+                              <TradeIdeaBlock 
                                 key={idea.id} 
                                 idea={idea}
                                 currentPrice={symbolData?.currentPrice}
-                                changePercent={symbolData?.changePercent}
-                                onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
                                 onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
                               />
                             );
@@ -667,18 +663,16 @@ export default function Dashboard() {
                     {ideasLoading ? (
                       <Skeleton className="h-[400px] w-full" />
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {filteredIdeas
                           .filter(idea => idea.assetType === "stock")
                           .map((idea) => {
                             const symbolData = marketData.find(m => m.symbol === idea.symbol);
                             return (
-                              <TradeIdeaCard 
+                              <TradeIdeaBlock 
                                 key={idea.id} 
                                 idea={idea}
                                 currentPrice={symbolData?.currentPrice}
-                                changePercent={symbolData?.changePercent}
-                                onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
                                 onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
                               />
                             );
@@ -700,18 +694,16 @@ export default function Dashboard() {
                     {ideasLoading ? (
                       <Skeleton className="h-[400px] w-full" />
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         {filteredIdeas
                           .filter(idea => idea.assetType === "crypto")
                           .map((idea) => {
                             const symbolData = marketData.find(m => m.symbol === idea.symbol);
                             return (
-                              <TradeIdeaCard 
+                              <TradeIdeaBlock 
                                 key={idea.id} 
                                 idea={idea}
                                 currentPrice={symbolData?.currentPrice}
-                                changePercent={symbolData?.changePercent}
-                                onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
                                 onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
                               />
                             );
