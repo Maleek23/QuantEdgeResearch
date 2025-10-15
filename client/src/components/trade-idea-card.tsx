@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency, formatPercent, formatCTTime, cn } from "@/lib/utils";
 import type { TradeIdea } from "@shared/schema";
-import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink } from "lucide-react";
+import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink, Brain, Sparkles } from "lucide-react";
 
 interface TradeIdeaCardProps {
   idea: TradeIdea;
@@ -41,6 +41,28 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
               {isRecent && (
                 <Badge variant="default" className="bg-primary text-primary-foreground font-bold text-xs animate-pulse" data-testid={`badge-fresh-${idea.symbol}`}>
                   FRESH
+                </Badge>
+              )}
+              {idea.source && (
+                <Badge 
+                  variant={idea.source === 'ai' ? 'secondary' : 'outline'} 
+                  className={cn(
+                    "text-xs font-semibold gap-1",
+                    idea.source === 'ai' ? "bg-purple-500/20 text-purple-300 border-purple-500/30" : "bg-blue-500/20 text-blue-300 border-blue-500/30"
+                  )}
+                  data-testid={`badge-source-${idea.symbol}`}
+                >
+                  {idea.source === 'ai' ? (
+                    <>
+                      <Brain className="h-3 w-3" />
+                      AI
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3 w-3" />
+                      QUANT
+                    </>
+                  )}
                 </Badge>
               )}
               <Badge variant={isLong ? "default" : "destructive"} className="font-semibold" data-testid={`badge-direction-${idea.symbol}`}>
