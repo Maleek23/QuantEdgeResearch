@@ -28,36 +28,45 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
   const calculateDynamicGrade = (): number => {
     if (!currentPrice) return idea.confidenceScore;
     
-    const priceRange = idea.targetPrice - idea.stopLoss;
-    const entryToTarget = idea.targetPrice - idea.entryPrice;
-    const entryToStop = idea.entryPrice - idea.stopLoss;
-    
-    // Calculate how far price has moved from entry
-    const priceFromEntry = currentPrice - idea.entryPrice;
-    const percentToTarget = entryToTarget !== 0 ? (priceFromEntry / entryToTarget) * 100 : 0;
-    
     // Adjust grade based on price movement
     let adjustedScore = idea.confidenceScore;
     
     if (isLong) {
-      // Long position: grade improves as price moves toward target
+      // Long position: grade improves as price moves toward target, degrades toward stop
+      const entryToTarget = idea.targetPrice - idea.entryPrice;
+      const entryToStop = idea.entryPrice - idea.stopLoss;
+      
       if (currentPrice > idea.entryPrice && currentPrice < idea.targetPrice) {
+        // Moving toward target - improve grade
+        const percentToTarget = entryToTarget !== 0 ? ((currentPrice - idea.entryPrice) / entryToTarget) * 100 : 0;
         adjustedScore = Math.min(95, idea.confidenceScore + (percentToTarget * 0.15));
       } else if (currentPrice >= idea.targetPrice) {
         adjustedScore = 95; // At or above target
       } else if (currentPrice < idea.entryPrice) {
-        // Price moving against us
-        const percentToStop = entryToStop !== 0 ? ((idea.entryPrice - currentPrice) / entryToStop) * 100 : 0;
+        // Moving toward stop - degrade grade
+        const distanceToStop = Math.abs(idea.entryPrice - currentPrice);
+        const totalRisk = Math.abs(entryToStop);
+        const percentToStop = totalRisk !== 0 ? (distanceToStop / totalRisk) * 100 : 0;
         adjustedScore = Math.max(50, idea.confidenceScore - (percentToStop * 0.2));
       }
     } else {
-      // Short position: grade improves as price moves toward (lower) target
+      // Short position: grade improves as price moves toward (lower) target, degrades toward (higher) stop
+      const entryToTarget = idea.entryPrice - idea.targetPrice; // Positive for shorts
+      const entryToStop = idea.stopLoss - idea.entryPrice; // Positive for shorts
+      
       if (currentPrice < idea.entryPrice && currentPrice > idea.targetPrice) {
-        adjustedScore = Math.min(95, idea.confidenceScore + (Math.abs(percentToTarget) * 0.15));
+        // Moving toward target - improve grade
+        const distanceToTarget = Math.abs(idea.entryPrice - currentPrice);
+        const totalProfit = Math.abs(entryToTarget);
+        const percentToTarget = totalProfit !== 0 ? (distanceToTarget / totalProfit) * 100 : 0;
+        adjustedScore = Math.min(95, idea.confidenceScore + (percentToTarget * 0.15));
       } else if (currentPrice <= idea.targetPrice) {
         adjustedScore = 95; // At or below target
       } else if (currentPrice > idea.entryPrice) {
-        const percentToStop = entryToStop !== 0 ? ((currentPrice - idea.entryPrice) / entryToStop) * 100 : 0;
+        // Moving toward stop - degrade grade
+        const distanceToStop = Math.abs(currentPrice - idea.entryPrice);
+        const totalRisk = Math.abs(entryToStop);
+        const percentToStop = totalRisk !== 0 ? (distanceToStop / totalRisk) * 100 : 0;
         adjustedScore = Math.max(50, idea.confidenceScore - (percentToStop * 0.2));
       }
     }
@@ -318,7 +327,11 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
               {idea.sessionContext}
             </Badge>
             {isDayTrade() && (
-              <Badge variant="outline" className="text-xs font-semibold bg-amber-500/10 text-amber-300 border-amber-500/30">
+              <Badge 
+                variant="outline" 
+                className="text-xs font-semibold bg-amber-500/10 text-amber-300 border-amber-500/30"
+                data-testid={`badge-day-trade-${idea.symbol}`}
+              >
                 DAY TRADE
               </Badge>
             )}
