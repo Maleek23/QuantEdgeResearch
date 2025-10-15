@@ -12,9 +12,10 @@ import { ScreenerFilters } from "@/components/screener-filters";
 import { WatchlistTable } from "@/components/watchlist-table";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SymbolSearch } from "@/components/symbol-search";
+import { SymbolDetailModal } from "@/components/symbol-detail-modal";
 import { getMarketSession, formatCTTime } from "@/lib/utils";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem, ScreenerFilters as Filters } from "@shared/schema";
-import { TrendingUp, DollarSign, Activity, Settings, Search, Clock } from "lucide-react";
+import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,6 +24,8 @@ import { Input } from "@/components/ui/input";
 export default function Dashboard() {
   const [activeFilters, setActiveFilters] = useState<Filters>({});
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
+  const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
   const currentSession = getMarketSession();
   const currentTime = formatCTTime(new Date());
   const { toast } = useToast();
@@ -102,6 +105,78 @@ export default function Dashboard() {
     return idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase());
   });
 
+  const addToWatchlistMutation = useMutation({
+    mutationFn: async (symbol: string) => {
+      const symbolData = marketData.find(m => m.symbol === symbol);
+      if (!symbolData) throw new Error("Symbol not found");
+      
+      return await apiRequest('POST', '/api/watchlist', {
+        symbol: symbol,
+        assetType: symbolData.assetType,
+        targetPrice: symbolData.currentPrice * 1.1,
+        notes: "Added from dashboard",
+        addedAt: new Date().toISOString(),
+      });
+    },
+    onMutate: async (symbol: string) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/watchlist'] });
+      const previousWatchlist = queryClient.getQueryData<WatchlistItem[]>(['/api/watchlist']);
+      const symbolData = marketData.find(m => m.symbol === symbol);
+      
+      if (symbolData) {
+        const newItem: WatchlistItem = {
+          id: `temp-${Date.now()}`,
+          symbol: symbol,
+          assetType: symbolData.assetType,
+          targetPrice: symbolData.currentPrice * 1.1,
+          notes: "Added from dashboard",
+          addedAt: new Date().toISOString(),
+        };
+        
+        queryClient.setQueryData<WatchlistItem[]>(
+          ['/api/watchlist'],
+          (old = []) => [...old, newItem]
+        );
+      }
+      
+      return { previousWatchlist };
+    },
+    onError: (err, symbol, context) => {
+      queryClient.setQueryData(['/api/watchlist'], context?.previousWatchlist);
+      toast({
+        title: "Error",
+        description: "Failed to add to watchlist. Please try again.",
+        variant: "destructive",
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Added to Watchlist",
+        description: "Symbol successfully added to your watchlist",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/watchlist'] });
+    },
+  });
+
+  const handleViewSymbolDetails = (symbol: MarketData) => {
+    setSelectedSymbol(symbol);
+    setDetailModalOpen(true);
+  };
+
+  const handleAddToWatchlist = (symbol: string) => {
+    addToWatchlistMutation.mutate(symbol);
+  };
+
+  const topGainer = marketData.length > 0 
+    ? marketData.reduce((max, data) => data.changePercent > max.changePercent ? data : max)
+    : null;
+
+  const topLoser = marketData.length > 0
+    ? marketData.reduce((min, data) => data.changePercent < min.changePercent ? data : min)
+    : null;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -131,47 +206,70 @@ export default function Dashboard() {
       <main className="container mx-auto px-4 lg:px-6 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <Card data-testid="card-stat-opportunities">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Opportunities</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-stat-opportunities">
+              <div className="text-3xl font-bold" data-testid="text-stat-opportunities">
                 {tradeIdeas.length}
               </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                {tradeIdeas.filter(t => t.riskRewardRatio >= 2).length} high R:R (≥2:1)
+              </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Across stocks, options & crypto
+                {marketData.length} symbols tracked
               </p>
             </CardContent>
           </Card>
 
-          <Card data-testid="card-stat-symbols">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Tracked Symbols</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <Card data-testid="card-stat-top-gainer" className="hover-elevate cursor-pointer" onClick={() => topGainer && handleViewSymbolDetails(topGainer)}>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Top Gainer</CardTitle>
+              <ArrowUp className="h-4 w-4 text-bullish" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-stat-symbols">
-                {marketData.length}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Real-time market data
-              </p>
+              {topGainer ? (
+                <>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold font-mono">{topGainer.symbol}</span>
+                    <span className="text-sm text-bullish font-semibold">+{topGainer.changePercent.toFixed(2)}%</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 font-mono">
+                    ${topGainer.currentPrice.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {topGainer.assetType.charAt(0).toUpperCase() + topGainer.assetType.slice(1)}
+                  </p>
+                </>
+              ) : (
+                <div className="text-sm text-muted-foreground">No data</div>
+              )}
             </CardContent>
           </Card>
 
-          <Card data-testid="card-stat-catalysts">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Market Catalysts</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
+          <Card data-testid="card-stat-top-loser" className="hover-elevate cursor-pointer" onClick={() => topLoser && handleViewSymbolDetails(topLoser)}>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Top Loser</CardTitle>
+              <ArrowDown className="h-4 w-4 text-bearish" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-stat-catalysts">
-                {catalysts.length}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Events & news tracked
-              </p>
+              {topLoser ? (
+                <>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-bold font-mono">{topLoser.symbol}</span>
+                    <span className="text-sm text-bearish font-semibold">{topLoser.changePercent.toFixed(2)}%</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2 font-mono">
+                    ${topLoser.currentPrice.toFixed(2)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {topLoser.assetType.charAt(0).toUpperCase() + topLoser.assetType.slice(1)}
+                  </p>
+                </>
+              ) : (
+                <div className="text-sm text-muted-foreground">No data</div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -226,9 +324,17 @@ export default function Dashboard() {
                   </div>
                 ) : filteredTradeIdeas.length > 0 ? (
                   <div className="space-y-4">
-                    {filteredTradeIdeas.map((idea) => (
-                      <TradeIdeaCard key={idea.id} idea={idea} />
-                    ))}
+                    {filteredTradeIdeas.map((idea) => {
+                      const symbolData = marketData.find(m => m.symbol === idea.symbol);
+                      return (
+                        <TradeIdeaCard 
+                          key={idea.id} 
+                          idea={idea}
+                          onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
+                          onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
+                        />
+                      );
+                    })}
                   </div>
                 ) : tradeIdeaSearch ? (
                   <Card>
@@ -308,6 +414,13 @@ export default function Dashboard() {
           </p>
         </div>
       </main>
+
+      <SymbolDetailModal
+        symbol={selectedSymbol}
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        onAddToWatchlist={() => selectedSymbol && handleAddToWatchlist(selectedSymbol.symbol)}
+      />
     </div>
   );
 }

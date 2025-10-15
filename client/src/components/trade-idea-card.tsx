@@ -2,18 +2,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency, formatPercent, formatCTTime, cn } from "@/lib/utils";
 import type { TradeIdea } from "@shared/schema";
-import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign } from "lucide-react";
+import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star } from "lucide-react";
 
 interface TradeIdeaCardProps {
   idea: TradeIdea;
+  onViewDetails?: () => void;
+  onAddToWatchlist?: () => void;
 }
 
-export function TradeIdeaCard({ idea }: TradeIdeaCardProps) {
+export function TradeIdeaCard({ idea, onViewDetails, onAddToWatchlist }: TradeIdeaCardProps) {
   const isLong = idea.direction === 'long';
   const stopLossPercent = ((idea.stopLoss - idea.entryPrice) / idea.entryPrice) * 100;
   const targetPercent = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice) * 100;
+  
+  const riskDollars = Math.abs(idea.stopLoss - idea.entryPrice);
+  const rewardDollars = Math.abs(idea.targetPrice - idea.entryPrice);
 
   return (
     <Card className="hover-elevate transition-all" data-testid={`card-trade-idea-${idea.symbol}`}>
@@ -93,33 +99,50 @@ export function TradeIdeaCard({ idea }: TradeIdeaCardProps) {
 
         <Separator />
 
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Badge 
-              variant={idea.riskRewardRatio >= 2 ? "default" : "secondary"} 
-              className={cn(
-                "text-base font-bold py-1.5 px-3",
-                idea.riskRewardRatio >= 2 && "bg-bullish hover:bg-bullish"
-              )}
-              data-testid={`badge-risk-reward-${idea.symbol}`}
-            >
-              {idea.riskRewardRatio.toFixed(2)}:1 R:R
-            </Badge>
-            <div className="space-y-0.5">
-              <div className="text-xs text-muted-foreground">Risk/Reward Ratio</div>
-              <div className="text-xs font-mono">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2 cursor-help">
+                  <Badge 
+                    variant={idea.riskRewardRatio >= 2 ? "default" : "secondary"} 
+                    className={cn(
+                      "text-base font-bold py-1.5 px-3",
+                      idea.riskRewardRatio >= 2 && "bg-bullish hover:bg-bullish"
+                    )}
+                    data-testid={`badge-risk-reward-${idea.symbol}`}
+                  >
+                    {idea.riskRewardRatio.toFixed(2)}:1 R:R
+                  </Badge>
+                  <Info className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs">
+                <p className="font-semibold mb-1">Risk/Reward Ratio Explained</p>
+                <p className="text-xs">For every <strong>${riskDollars.toFixed(2)}</strong> you risk, you could gain <strong>${rewardDollars.toFixed(2)}</strong></p>
+                <p className="text-xs mt-1">Higher ratios (2:1 or better) offer better risk-adjusted returns</p>
+              </TooltipContent>
+            </Tooltip>
+            {idea.expiryDate && (
+              <div className="space-y-1 text-right">
+                <div className="text-xs text-muted-foreground">Expiry</div>
+                <div className="text-sm font-mono font-medium">{idea.expiryDate}</div>
+              </div>
+            )}
+          </div>
+          
+          <div className="bg-muted/30 rounded-md p-3 border border-muted">
+            <div className="flex items-center justify-between text-sm">
+              <div>
+                <span className="text-muted-foreground">Potential Gain: </span>
                 <span className="text-bullish font-semibold">{formatPercent(targetPercent)}</span>
-                <span className="text-muted-foreground mx-1">/</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Max Risk: </span>
                 <span className="text-bearish font-semibold">{formatPercent(Math.abs(stopLossPercent))}</span>
               </div>
             </div>
           </div>
-          {idea.expiryDate && (
-            <div className="space-y-1 text-right">
-              <div className="text-xs text-muted-foreground">Expiry</div>
-              <div className="text-sm font-mono font-medium">{idea.expiryDate}</div>
-            </div>
-          )}
         </div>
 
         <div className="space-y-2">
@@ -127,6 +150,24 @@ export function TradeIdeaCard({ idea }: TradeIdeaCardProps) {
           <p className="text-sm text-muted-foreground leading-relaxed" data-testid={`text-analysis-${idea.symbol}`}>
             {idea.analysis}
           </p>
+        </div>
+
+        <div className="flex gap-2">
+          <Button 
+            onClick={onViewDetails} 
+            className="flex-1"
+            data-testid={`button-view-details-${idea.symbol}`}
+          >
+            View Full Analysis
+          </Button>
+          <Button
+            onClick={onAddToWatchlist}
+            variant="outline"
+            size="icon"
+            data-testid={`button-watchlist-${idea.symbol}`}
+          >
+            <Star className="h-4 w-4" />
+          </Button>
         </div>
 
         <div className="bg-muted/50 rounded-md p-3 border border-muted-border">
