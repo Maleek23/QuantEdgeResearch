@@ -311,6 +311,46 @@ function getProbabilityBand(score: number): string {
   return 'C'; // Below 70: Lower probability (<70%)
 }
 
+// Calculate gem score for prioritizing opportunities
+function calculateGemScore(data: MarketData): number {
+  let score = 0;
+  
+  // Price action strength (0-40 points)
+  const changePercent = Math.abs(data.changePercent || 0);
+  if (changePercent >= 5) {
+    score += 40;
+  } else if (changePercent >= 3) {
+    score += 30;
+  } else if (changePercent >= 1) {
+    score += 20;
+  } else {
+    score += 10;
+  }
+  
+  // Volume strength (0-30 points)
+  if (data.volume && data.avgVolume) {
+    const volumeRatio = data.volume / data.avgVolume;
+    if (volumeRatio >= 3) {
+      score += 30;
+    } else if (volumeRatio >= 2) {
+      score += 20;
+    } else if (volumeRatio >= 1.5) {
+      score += 10;
+    }
+  }
+  
+  // Liquidity (0-30 points)
+  if (data.currentPrice >= 10) {
+    score += 30;
+  } else if (data.currentPrice >= 5) {
+    score += 20;
+  } else if (data.currentPrice >= 1) {
+    score += 10;
+  }
+  
+  return score;
+}
+
 // Main function to generate quantitative trade ideas
 export async function generateQuantIdeas(
   marketData: MarketData[],

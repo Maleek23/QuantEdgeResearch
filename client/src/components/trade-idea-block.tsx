@@ -60,9 +60,25 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
                   {idea.assetType === 'option' ? 'OPTIONS' : idea.assetType === 'stock' ? 'SHARES' : 'CRYPTO'}
                 </span>
                 {idea.assetType === 'option' && idea.strikePrice && idea.optionType && (
-                  <Badge variant="secondary" className="text-xs">
-                    ${idea.strikePrice} {idea.optionType.toUpperCase()}
-                  </Badge>
+                  <>
+                    <Badge 
+                      variant="secondary" 
+                      className="text-xs font-semibold"
+                      data-testid={`badge-strike-${idea.symbol}`}
+                    >
+                      ${idea.strikePrice}
+                    </Badge>
+                    <Badge 
+                      variant="outline" 
+                      className={cn(
+                        "text-xs font-semibold",
+                        idea.optionType === 'call' ? 'border-bullish text-bullish' : 'border-bearish text-bearish'
+                      )}
+                      data-testid={`badge-option-type-${idea.symbol}`}
+                    >
+                      {idea.optionType.toUpperCase()}
+                    </Badge>
+                  </>
                 )}
               </div>
             </div>
@@ -143,11 +159,16 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
         <div className="border-x border-b rounded-b-lg p-4 bg-card/50 space-y-4">
           {/* Quality Signals */}
           {idea.qualitySignals && idea.qualitySignals.length > 0 && (
-            <div>
+            <div data-testid={`quality-signals-${idea.symbol}`}>
               <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Quality Signals</h4>
               <div className="flex flex-wrap gap-2">
                 {idea.qualitySignals.map((signal, idx) => (
-                  <Badge key={idx} variant="outline" className="text-xs">
+                  <Badge 
+                    key={idx} 
+                    variant="outline" 
+                    className="text-xs"
+                    data-testid={`quality-signal-${idea.symbol}-${idx}`}
+                  >
                     {signal}
                   </Badge>
                 ))}

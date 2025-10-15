@@ -344,6 +344,9 @@ export class MemStorage implements IStorage {
         sessionContext: "Regular Trading Hours",
         timestamp: now,
         source: "quant",
+        confidenceScore: 85,
+        qualitySignals: ['Excellent R:R (2.7:1)', 'Strong Momentum', 'High Liquidity'],
+        probabilityBand: 'A',
       },
       {
         symbol: "SPY",
@@ -359,7 +362,12 @@ export class MemStorage implements IStorage {
         sessionContext: "Regular Trading Hours",
         timestamp: now,
         expiryDate: "Oct 27, 2025",
+        strikePrice: 580,
+        optionType: "call",
         source: "quant",
+        confidenceScore: 82,
+        qualitySignals: ['Strong R:R (2.3:1)', 'Exceptional Volume (3x)', 'Bullish Momentum'],
+        probabilityBand: 'A',
       },
       {
         symbol: "SNDL",
@@ -375,6 +383,9 @@ export class MemStorage implements IStorage {
         sessionContext: "Regular Trading Hours",
         timestamp: now,
         source: "quant",
+        confidenceScore: 75,
+        qualitySignals: ['Excellent R:R (3.5:1)', 'High Volume (2.5x)', 'Low Liquidity Risk'],
+        probabilityBand: 'B',
       },
       {
         symbol: "XRP",
@@ -390,6 +401,9 @@ export class MemStorage implements IStorage {
         sessionContext: "24/7 Trading",
         timestamp: now,
         source: "quant",
+        confidenceScore: 78,
+        qualitySignals: ['Strong R:R (2.7:1)', 'Breakout Pattern', 'High Liquidity'],
+        probabilityBand: 'B',
       },
     ];
 
