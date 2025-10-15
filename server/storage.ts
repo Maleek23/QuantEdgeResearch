@@ -19,7 +19,7 @@ export interface IStorage {
   getAllMarketData(): Promise<MarketData[]>;
   getMarketDataBySymbol(symbol: string): Promise<MarketData | undefined>;
   createMarketData(data: InsertMarketData): Promise<MarketData>;
-  updateMarketData(id: string, data: Partial<InsertMarketData>): Promise<MarketData | undefined>;
+  updateMarketData(symbol: string, data: Partial<InsertMarketData>): Promise<MarketData | undefined>;
 
   // Trade Ideas
   getAllTradeIdeas(): Promise<TradeIdea[]>;
@@ -349,11 +349,11 @@ export class MemStorage implements IStorage {
     return marketData;
   }
 
-  async updateMarketData(id: string, data: Partial<InsertMarketData>): Promise<MarketData | undefined> {
-    const existing = this.marketData.get(id);
+  async updateMarketData(symbol: string, data: Partial<InsertMarketData>): Promise<MarketData | undefined> {
+    const existing = Array.from(this.marketData.values()).find((d) => d.symbol === symbol);
     if (!existing) return undefined;
     const updated = { ...existing, ...data } as MarketData;
-    this.marketData.set(id, updated);
+    this.marketData.set(existing.id, updated);
     return updated;
   }
 

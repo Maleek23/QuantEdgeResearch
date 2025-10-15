@@ -74,6 +74,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/refresh-prices", async (_req, res) => {
+    try {
+      const allMarketData = await storage.getAllMarketData();
+      const alphaVantageKey = process.env.ALPHA_VANTAGE_API_KEY;
+      const updated: any[] = [];
+
+      for (const data of allMarketData) {
+        const externalData = await searchSymbol(data.symbol, alphaVantageKey);
+        
+        if (externalData) {
+          const updatedData = await storage.updateMarketData(data.symbol, {
+            currentPrice: externalData.currentPrice,
+            changePercent: externalData.changePercent,
+            volume: externalData.volume,
+            high24h: externalData.high24h,
+            low24h: externalData.low24h,
+            marketCap: externalData.marketCap,
+            timestamp: new Date().toISOString(),
+          });
+          
+          if (updatedData) {
+            updated.push(updatedData);
+          }
+        }
+      }
+
+      res.json({ 
+        success: true, 
+        updated: updated.length,
+        total: allMarketData.length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Price refresh error:", error);
+      res.status(500).json({ error: "Failed to refresh prices" });
+    }
+  });
+
   // Trade Ideas Routes
   app.get("/api/trade-ideas", async (_req, res) => {
     try {
