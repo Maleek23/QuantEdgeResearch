@@ -111,10 +111,21 @@ export default function Dashboard() {
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
-      toast({
-        title: "Quant Ideas Generated!",
-        description: `Generated ${data.count} ideas using momentum, volume & catalyst signals`,
-      });
+      
+      if (data.count === 0 && data.message) {
+        // No new ideas available
+        toast({
+          title: "No New Ideas",
+          description: data.message,
+          variant: "default",
+        });
+      } else {
+        // New ideas generated
+        toast({
+          title: "Quant Ideas Generated!",
+          description: `Generated ${data.count} new ideas using momentum, volume & catalyst signals`,
+        });
+      }
     },
     onError: () => {
       toast({
