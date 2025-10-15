@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MarketSessionBadge } from "@/components/market-session-badge";
@@ -155,6 +156,11 @@ export default function Dashboard() {
     return idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase());
   });
 
+  const filteredIdeas = filteredTradeIdeas.filter((idea) => {
+    if (activeDirection === "all") return true;
+    return idea.direction === activeDirection;
+  });
+
   // Helper functions for date grouping
   const getDateLabel = (dateStr: string): string => {
     const date = new Date(dateStr);
@@ -179,14 +185,18 @@ export default function Dashboard() {
 
   const groupByAssetType = (ideas: TradeIdea[]) => {
     const groups: Record<string, TradeIdea[]> = {
-      'Stock Options': [],
-      'Stock Shares': [],
-      'Crypto': []
+      'STOCK OPTIONS': [],
+      'STOCK SHARES': [],
+      'CRYPTO': []
     };
     ideas.forEach(idea => {
-      if (idea.assetType === 'option') groups['Stock Options'].push(idea);
-      else if (idea.assetType === 'stock') groups['Stock Shares'].push(idea);
-      else if (idea.assetType === 'crypto') groups['Crypto'].push(idea);
+      if (idea.assetType === 'option') {
+        groups['STOCK OPTIONS'].push(idea);
+      } else if (idea.assetType === 'stock') {
+        groups['STOCK SHARES'].push(idea);
+      } else if (idea.assetType === 'crypto') {
+        groups['CRYPTO'].push(idea);
+      }
     });
     return groups;
   };
@@ -379,135 +389,244 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-6">
-            <Card data-testid="card-trade-ideas">
-              <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 flex-wrap">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Trade Ideas
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Organized by date and asset type for easy tracking
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1">
-                    <Button 
-                      variant={activeDirection === "all" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("all")}
-                    >
-                      All
-                    </Button>
-                    <Button 
-                      variant={activeDirection === "long" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("long")}
-                    >
-                      Long
-                    </Button>
-                    <Button 
-                      variant={activeDirection === "short" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("short")}
-                    >
-                      Short
-                    </Button>
+            <Tabs defaultValue="new" className="w-full">
+              <Card data-testid="card-trade-ideas">
+                <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 flex-wrap">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5" />
+                      Trade Ideas
+                    </CardTitle>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground border-l pl-2">
-                    <Clock className="h-3 w-3" />
-                    <span className="hidden sm:inline">Next: {nextRefresh}s</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleManualRefresh}
-                      disabled={refreshPricesMutation.isPending}
-                    >
-                      <RefreshCw className={`h-3 w-3 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`} />
-                    </Button>
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <Button 
+                        variant={activeDirection === "all" ? "default" : "outline"} 
+                        size="sm" 
+                        onClick={() => setActiveDirection("all")}
+                      >
+                        All
+                      </Button>
+                      <Button 
+                        variant={activeDirection === "long" ? "default" : "outline"} 
+                        size="sm" 
+                        onClick={() => setActiveDirection("long")}
+                      >
+                        Long
+                      </Button>
+                      <Button 
+                        variant={activeDirection === "short" ? "default" : "outline"} 
+                        size="sm" 
+                        onClick={() => setActiveDirection("short")}
+                      >
+                        Short
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground border-l pl-2">
+                      <Clock className="h-3 w-3" />
+                      <span className="hidden sm:inline">Next: {nextRefresh}s</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleManualRefresh}
+                        disabled={refreshPricesMutation.isPending}
+                      >
+                        <RefreshCw className={`h-3 w-3 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {ideasLoading ? (
-                  <Skeleton className="h-[400px] w-full" />
-                ) : Object.keys(dateGroups).length > 0 ? (
-                  <Accordion type="multiple" defaultValue={["Today", "Yesterday"]} className="w-full">
-                    {Object.entries(dateGroups)
-                      .sort(([dateA], [dateB]) => {
-                        if (dateA === "Today") return -1;
-                        if (dateB === "Today") return 1;
-                        if (dateA === "Yesterday") return -1;
-                        if (dateB === "Yesterday") return 1;
-                        return new Date(dateB).getTime() - new Date(dateA).getTime();
-                      })
-                      .map(([date, ideas]) => {
-                        const filteredByDirection = ideas.filter(idea => 
-                          activeDirection === "all" || idea.direction === activeDirection
-                        );
-                        const assetGroups = groupByAssetType(filteredByDirection);
-                        const totalCount = filteredByDirection.length;
-                        
-                        if (totalCount === 0) return null;
-                        
-                        return (
-                          <AccordionItem key={date} value={date} className="border-b border-border">
-                            <AccordionTrigger className="hover:no-underline py-4">
-                              <div className="flex items-center gap-3 w-full">
-                                <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-semibold">{date}</span>
-                                <Badge variant="secondary" className="ml-auto mr-2">
-                                  {totalCount} {totalCount === 1 ? 'idea' : 'ideas'}
-                                </Badge>
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="space-y-3 pt-2">
-                              {Object.entries(assetGroups).map(([assetType, assetIdeas]) => {
-                                if (assetIdeas.length === 0) return null;
-                                
-                                return (
-                                  <Collapsible key={assetType} defaultOpen={true}>
-                                    <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors">
-                                      <div className="flex items-center gap-2">
-                                        <ChevronDown className="h-4 w-4 transition-transform" />
-                                        <span className="font-medium text-sm">{assetType}</span>
-                                      </div>
-                                      <Badge variant="outline" className="text-xs">
-                                        {assetIdeas.length}
-                                      </Badge>
-                                    </CollapsibleTrigger>
-                                    <CollapsibleContent className="space-y-3 mt-3">
-                                      {assetIdeas.map((idea) => {
-                                        const symbolData = marketData.find(m => m.symbol === idea.symbol);
-                                        return (
-                                          <TradeIdeaCard 
-                                            key={idea.id} 
-                                            idea={idea}
-                                            currentPrice={symbolData?.currentPrice}
-                                            changePercent={symbolData?.changePercent}
-                                            onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
-                                            onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
-                                          />
-                                        );
-                                      })}
-                                    </CollapsibleContent>
-                                  </Collapsible>
-                                );
-                              })}
-                            </AccordionContent>
-                          </AccordionItem>
-                        );
-                      })}
-                  </Accordion>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <TrendingUp className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
-                    <p className="text-muted-foreground">No trade ideas available</p>
-                    <p className="text-sm text-muted-foreground mt-2">Check back later for new opportunities</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardHeader>
+
+                <TabsList className="mx-6 mb-4 grid w-auto grid-cols-4 gap-2">
+                  <TabsTrigger value="new" data-testid="tab-new-ideas">NEW IDEAS</TabsTrigger>
+                  <TabsTrigger value="options" data-testid="tab-stock-options">Stock Options</TabsTrigger>
+                  <TabsTrigger value="shares" data-testid="tab-stock-shares">Stock Shares</TabsTrigger>
+                  <TabsTrigger value="crypto" data-testid="tab-crypto">Crypto</TabsTrigger>
+                </TabsList>
+
+                {/* NEW IDEAS Tab - with date-based accordion */}
+                <TabsContent value="new" className="mt-0">
+                  <CardContent>
+                    {ideasLoading ? (
+                      <Skeleton className="h-[400px] w-full" />
+                    ) : Object.keys(dateGroups).length > 0 ? (
+                      <Accordion type="multiple" defaultValue={["Today", "Yesterday"]} className="w-full">
+                        {Object.entries(dateGroups)
+                          .sort(([dateA], [dateB]) => {
+                            if (dateA === "Today") return -1;
+                            if (dateB === "Today") return 1;
+                            if (dateA === "Yesterday") return -1;
+                            if (dateB === "Yesterday") return 1;
+                            return new Date(dateB).getTime() - new Date(dateA).getTime();
+                          })
+                          .map(([date, ideas]) => {
+                            const filteredByDirection = ideas.filter(idea => 
+                              activeDirection === "all" || idea.direction === activeDirection
+                            );
+                            const assetGroups = groupByAssetType(filteredByDirection);
+                            const totalCount = filteredByDirection.length;
+                            
+                            if (totalCount === 0) return null;
+                            
+                            return (
+                              <AccordionItem key={date} value={date} className="border-b border-border">
+                                <AccordionTrigger className="hover:no-underline py-4">
+                                  <div className="flex items-center gap-3 w-full">
+                                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                                    <span className="font-semibold">{date}</span>
+                                    <Badge variant="secondary" className="ml-auto mr-2">
+                                      {totalCount} {totalCount === 1 ? 'idea' : 'ideas'}
+                                    </Badge>
+                                  </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="space-y-3 pt-2">
+                                  {Object.entries(assetGroups).map(([assetType, assetIdeas]) => {
+                                    if (assetIdeas.length === 0) return null;
+                                    
+                                    return (
+                                      <Collapsible key={assetType} defaultOpen={true}>
+                                        <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors">
+                                          <div className="flex items-center gap-2">
+                                            <ChevronDown className="h-4 w-4 transition-transform" />
+                                            <span className="font-medium text-sm">{assetType}</span>
+                                          </div>
+                                          <Badge variant="outline" className="text-xs">
+                                            {assetIdeas.length}
+                                          </Badge>
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent className="space-y-3 mt-3">
+                                          {assetIdeas.map((idea) => {
+                                            const symbolData = marketData.find(m => m.symbol === idea.symbol);
+                                            return (
+                                              <TradeIdeaCard 
+                                                key={idea.id} 
+                                                idea={idea}
+                                                currentPrice={symbolData?.currentPrice}
+                                                changePercent={symbolData?.changePercent}
+                                                onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
+                                                onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
+                                              />
+                                            );
+                                          })}
+                                        </CollapsibleContent>
+                                      </Collapsible>
+                                    );
+                                  })}
+                                </AccordionContent>
+                              </AccordionItem>
+                            );
+                          })}
+                      </Accordion>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-12">
+                        <TrendingUp className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
+                        <p className="text-muted-foreground">No trade ideas available</p>
+                        <p className="text-sm text-muted-foreground mt-2">Check back later for new opportunities</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </TabsContent>
+
+                {/* Stock Options Tab */}
+                <TabsContent value="options" className="mt-0">
+                  <CardContent>
+                    {ideasLoading ? (
+                      <Skeleton className="h-[400px] w-full" />
+                    ) : (
+                      <div className="space-y-3">
+                        {filteredIdeas
+                          .filter(idea => idea.assetType === "option")
+                          .map((idea) => {
+                            const symbolData = marketData.find(m => m.symbol === idea.symbol);
+                            return (
+                              <TradeIdeaCard 
+                                key={idea.id} 
+                                idea={idea}
+                                currentPrice={symbolData?.currentPrice}
+                                changePercent={symbolData?.changePercent}
+                                onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
+                                onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
+                              />
+                            );
+                          })}
+                        {filteredIdeas.filter(idea => idea.assetType === "option").length === 0 && (
+                          <div className="flex flex-col items-center justify-center py-12">
+                            <TrendingUp className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
+                            <p className="text-muted-foreground">No stock options ideas</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </TabsContent>
+
+                {/* Stock Shares Tab */}
+                <TabsContent value="shares" className="mt-0">
+                  <CardContent>
+                    {ideasLoading ? (
+                      <Skeleton className="h-[400px] w-full" />
+                    ) : (
+                      <div className="space-y-3">
+                        {filteredIdeas
+                          .filter(idea => idea.assetType === "stock")
+                          .map((idea) => {
+                            const symbolData = marketData.find(m => m.symbol === idea.symbol);
+                            return (
+                              <TradeIdeaCard 
+                                key={idea.id} 
+                                idea={idea}
+                                currentPrice={symbolData?.currentPrice}
+                                changePercent={symbolData?.changePercent}
+                                onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
+                                onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
+                              />
+                            );
+                          })}
+                        {filteredIdeas.filter(idea => idea.assetType === "stock").length === 0 && (
+                          <div className="flex flex-col items-center justify-center py-12">
+                            <TrendingUp className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
+                            <p className="text-muted-foreground">No stock shares ideas</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </TabsContent>
+
+                {/* Crypto Tab */}
+                <TabsContent value="crypto" className="mt-0">
+                  <CardContent>
+                    {ideasLoading ? (
+                      <Skeleton className="h-[400px] w-full" />
+                    ) : (
+                      <div className="space-y-3">
+                        {filteredIdeas
+                          .filter(idea => idea.assetType === "crypto")
+                          .map((idea) => {
+                            const symbolData = marketData.find(m => m.symbol === idea.symbol);
+                            return (
+                              <TradeIdeaCard 
+                                key={idea.id} 
+                                idea={idea}
+                                currentPrice={symbolData?.currentPrice}
+                                changePercent={symbolData?.changePercent}
+                                onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
+                                onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
+                              />
+                            );
+                          })}
+                        {filteredIdeas.filter(idea => idea.assetType === "crypto").length === 0 && (
+                          <div className="flex flex-col items-center justify-center py-12">
+                            <TrendingUp className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
+                            <p className="text-muted-foreground">No crypto ideas</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </TabsContent>
+              </Card>
+            </Tabs>
           </div>
 
           <div className="space-y-6">

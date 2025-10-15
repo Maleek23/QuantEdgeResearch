@@ -37,19 +37,20 @@ A professional quantitative trading research platform for discovering day-tradin
   - **Posted Timestamps**: Clear "Posted: [time] • [session]" format shows when each idea was generated
   - **Prioritized Layout**: Watchlist moved above Catalyst Feed for better visibility of tracked opportunities
   - **Wake Up & Trade**: Users now see fresh, actionable trade ideas immediately when opening the app
-- ✅ **Trade Ideas Restructure & UX Overhaul** (Latest - Oct 15, 2025)
-  - **Date-Based Accordion Organization**: Trade ideas grouped by date (Today/Yesterday/Older) with idea counts
-  - **Asset Type Sub-Sections**: Collapsible sections within each date for Stock Options, Stock Shares, Crypto
+- ✅ **Trade Ideas Tab Structure with NEW IDEAS Accordion** (Latest - Oct 15, 2025)
+  - **4 Tabs Restored**: NEW IDEAS (with date accordion), Stock Options, Stock Shares, Crypto
+  - **NEW IDEAS Tab - Date Accordion**: Trade ideas grouped by date (Today/Yesterday/Older) with:
+    - Collapsible asset type sub-sections (STOCK OPTIONS, STOCK SHARES, CRYPTO)
+    - Idea counts on both date headers and asset sections
+    - Smart date sorting (Today first, then Yesterday, then chronological)
+  - **Asset-Specific Tabs**: Stock Options, Stock Shares, Crypto tabs show filtered lists without accordion
   - **Data Freshness Tracking**: Added `dataSource` (seed/live) and `lastUpdated` fields to track price accuracy
   - **Initial Price Refresh**: Prices fetch from APIs immediately on page load, not just every 60 seconds
-  - **Removed Tab Redundancy**: Single "Trade Ideas" card replaces 4 separate tabs for cleaner UX
-  - **Smart Grouping**: Helper functions organize ideas by date and asset type automatically
-  - **Clear Asset Badges**: "STOCK OPTIONS" vs "STOCK SHARES" vs "CRYPTO" badges in collapsible headers
+  - **Direction Filters**: All/Long/Short buttons filter across all tabs
   - **Quantitative Entry/Target/Stop Display**: 
     - Larger prices with uppercase labels (ENTRY PRICE, TARGET, STOP LOSS)
     - Risk per share and Reward per share calculations in red/green
     - Gain/risk percentages displayed with targets and stops
-  - **Direction Filters**: All/Long/Short buttons filter across entire accordion structure
 
 ## Project Architecture
 
