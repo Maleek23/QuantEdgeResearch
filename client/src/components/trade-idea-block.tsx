@@ -121,17 +121,8 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-2">
               <h3 
-                className={cn(
-                  "text-xl font-bold font-mono",
-                  onViewDetails && "cursor-pointer hover:text-primary transition-colors"
-                )}
+                className="text-xl font-bold font-mono"
                 data-testid={`text-symbol-${idea.symbol}`}
-                onClick={(e) => {
-                  if (onViewDetails) {
-                    e.stopPropagation();
-                    onViewDetails(idea.symbol);
-                  }
-                }}
               >
                 {idea.symbol}
               </h3>
@@ -356,22 +347,38 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
             )}
           </div>
 
-          {/* Action Button */}
-          {onAddToWatchlist && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full gap-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddToWatchlist(idea);
-              }}
-              data-testid={`button-watchlist-${idea.symbol}`}
-            >
-              <Star className="h-4 w-4" />
-              Add to Watchlist
-            </Button>
-          )}
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            {onViewDetails && (
+              <Button
+                variant="default"
+                size="sm"
+                className="flex-1 gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewDetails(idea.symbol);
+                }}
+                data-testid={`button-view-details-${idea.symbol}`}
+              >
+                View Details
+              </Button>
+            )}
+            {onAddToWatchlist && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddToWatchlist(idea);
+                }}
+                data-testid={`button-watchlist-${idea.symbol}`}
+              >
+                <Star className="h-4 w-4" />
+                Add to Watchlist
+              </Button>
+            )}
+          </div>
         </div>
       </CollapsibleContent>
     </Collapsible>

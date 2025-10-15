@@ -39,6 +39,18 @@ export function getMarketSession(): 'pre-market' | 'rth' | 'after-hours' | 'clos
 }
 
 export function formatCurrency(value: number): string {
+  // Handle very small crypto prices (< $0.01)
+  if (value < 0.01 && value > 0) {
+    // Count leading zeros after decimal
+    const str = value.toFixed(10);
+    const match = str.match(/0\.0*[1-9]/);
+    if (match) {
+      const significantDigits = match[0].length - 2; // -2 for "0."
+      return `$${value.toFixed(Math.min(significantDigits + 2, 8))}`;
+    }
+  }
+  
+  // Normal formatting for values >= $0.01
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',

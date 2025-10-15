@@ -16,7 +16,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SymbolSearch } from "@/components/symbol-search";
 import { SymbolDetailModal } from "@/components/symbol-detail-modal";
 import { QuantAIBot } from "@/components/quantai-bot";
-import { getMarketSession, formatCTTime } from "@/lib/utils";
+import { getMarketSession, formatCTTime, formatCurrency } from "@/lib/utils";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem, ScreenerFilters as Filters } from "@shared/schema";
 import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw, ChevronDown, Calendar, Bot, Sparkles, Brain, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -416,7 +416,7 @@ export default function Dashboard() {
                     <span className="text-sm text-bullish font-semibold">+{topGainer.changePercent.toFixed(2)}%</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2 font-mono">
-                    ${topGainer.currentPrice.toFixed(2)}
+                    {formatCurrency(topGainer.currentPrice)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {topGainer.assetType.charAt(0).toUpperCase() + topGainer.assetType.slice(1)}
@@ -441,7 +441,7 @@ export default function Dashboard() {
                     <span className="text-sm text-bearish font-semibold">{topLoser.changePercent.toFixed(2)}%</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2 font-mono">
-                    ${topLoser.currentPrice.toFixed(2)}
+                    {formatCurrency(topLoser.currentPrice)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {topLoser.assetType.charAt(0).toUpperCase() + topLoser.assetType.slice(1)}

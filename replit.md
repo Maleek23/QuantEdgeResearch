@@ -30,7 +30,7 @@ QuantEdge Research is a professional quantitative trading research platform desi
 
 ### Key Features
 - **Universal Symbol Search & Real-Time Pricing:** Search stocks (via Alpha Vantage API) or crypto (via CoinGecko API) with auto-persistence and auto-refresh (every 60 seconds) with manual refresh option. Prices and last update timestamps shown in CT. Prominent data freshness notice explains 60-second refresh cycle and free API tier limitations.
-- **Real-time Market Dashboard:** Smart summary cards with actionable insights (active opportunities, top gainer/loser), live price cards, and market session indicators.
+- **Real-time Market Dashboard:** Smart summary cards with actionable insights (active opportunities, top gainer/loser with micro-cap crypto price support), live price cards, and market session indicators. Properly formats small crypto prices (e.g., $0.00002145 for PEPE) using smart decimal detection up to 8 places.
 - **Trade Ideas Feed:** Tabbed interface (NEW IDEAS, Stock Options, Stock Shares, Crypto) with "NEW IDEAS" tab featuring date-based accordions (Today/Yesterday/Older) with rotating chevron animations and asset-type subsections. Uses compact TradeIdeaBlock components with expandable details to prevent information overload. Displays quantitative entry/target/stop levels, risk/reward per share, gain/risk percentages, catalyst summaries, and one-click watchlist starring. Includes filter buttons (All, Long, Short, Day Trade) to quickly narrow down opportunities by direction or intraday timing.
 - **Quality Scoring System:**
   - **Confidence Score:** 0-100 numeric quality score with 70+ threshold for display filtering
@@ -49,10 +49,11 @@ QuantEdge Research is a professional quantitative trading research platform desi
 - **Multi-Asset Screener:** Filters by asset type, price, volume, penny stocks, high IV options, and unusual volume.
 - **Risk Calculator:** Position sizing, R:R ratio visualization, potential profit/loss calculations, and stop-loss analysis.
 - **Catalyst Feed:** Displays latest market events, news, impact ratings, and source citations.
-- **Symbol Detail Modal:** Click any symbol in trade ideas to open comprehensive analysis modal with three tabs:
+- **Symbol Detail Modal:** Click any symbol in trade ideas or use "View Details" button in expanded blocks to open comprehensive analysis modal with three tabs:
   - **Overview:** Key metrics (market cap, volume, 24h high/low) and performance summary
   - **Analysis:** Analyst ratings with visual breakdown and trading recommendations (BUY/HOLD/SELL)
   - **Sentiment:** Community sentiment (Bullish/Neutral/Bearish percentages) with trader commentary
+  - **Access Points:** Symbol names (clickable links) or "View Details" button in expanded trade idea blocks
 - **Watchlist Management:** Track symbols with price targets, notes, and quick actions.
 - **QuantAI Bot:** AI-powered trading assistant with a sliding chatbot interface. Integrates OpenAI GPT-5, Anthropic Claude Sonnet 4, and Google Gemini 2.5 for conversational insights and AI-generated trade ideas. Includes persistent chat history and intelligent error handling for API billing/credit issues with graceful fallback suggestions.
 - **Quantitative Idea Generator:** An AI-free alternative generating trade ideas based on Momentum, Volume Spike, Bullish/Bearish Breakout, and Mean Reversion signals using technical analysis.
