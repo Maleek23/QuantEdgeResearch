@@ -18,7 +18,7 @@ import { SymbolDetailModal } from "@/components/symbol-detail-modal";
 import { QuantAIBot } from "@/components/quantai-bot";
 import { getMarketSession, formatCTTime } from "@/lib/utils";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem, ScreenerFilters as Filters } from "@shared/schema";
-import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw, ChevronDown, Calendar, Bot, Sparkles } from "lucide-react";
+import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw, ChevronDown, Calendar, Bot, Sparkles, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -103,7 +103,7 @@ export default function Dashboard() {
     refreshPricesMutation.mutate();
   };
 
-  const generateIdeasMutation = useMutation({
+  const generateQuantIdeasMutation = useMutation({
     mutationFn: async () => {
       return await apiRequest('POST', '/api/quant/generate-ideas', {
         count: 8
@@ -120,6 +120,28 @@ export default function Dashboard() {
       toast({
         title: "Generation Failed",
         description: "Failed to generate quantitative trade ideas. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const generateAIIdeasMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/ai/generate-ideas', {
+        marketContext: "Current market conditions with focus on stocks, options, and crypto. Find hidden gems and high-potential opportunities."
+      });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      toast({
+        title: "AI Ideas Generated!",
+        description: `Generated ${data.count} ideas using AI analysis`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "AI Generation Failed",
+        description: "Failed to generate AI trade ideas. Please try again.",
         variant: "destructive",
       });
     },
@@ -436,13 +458,24 @@ export default function Dashboard() {
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => generateIdeasMutation.mutate()}
-                      disabled={generateIdeasMutation.isPending}
+                      onClick={() => generateQuantIdeasMutation.mutate()}
+                      disabled={generateQuantIdeasMutation.isPending || generateAIIdeasMutation.isPending}
                       className="gap-2"
-                      data-testid="button-generate-ideas"
+                      data-testid="button-generate-quant-ideas"
                     >
-                      <Sparkles className={`h-3 w-3 ${generateIdeasMutation.isPending ? 'animate-pulse' : ''}`} />
-                      {generateIdeasMutation.isPending ? 'Analyzing...' : 'Generate Ideas'}
+                      <Sparkles className={`h-3 w-3 ${generateQuantIdeasMutation.isPending ? 'animate-pulse' : ''}`} />
+                      {generateQuantIdeasMutation.isPending ? 'Analyzing...' : 'Quant Ideas'}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => generateAIIdeasMutation.mutate()}
+                      disabled={generateQuantIdeasMutation.isPending || generateAIIdeasMutation.isPending}
+                      className="gap-2"
+                      data-testid="button-generate-ai-ideas"
+                    >
+                      <Brain className={`h-3 w-3 ${generateAIIdeasMutation.isPending ? 'animate-pulse' : ''}`} />
+                      {generateAIIdeasMutation.isPending ? 'Generating...' : 'AI Ideas'}
                     </Button>
                     <div className="flex gap-1">
                       <Button 
