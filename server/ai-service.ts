@@ -66,7 +66,8 @@ For each trade idea, provide:
 - sessionContext: Market session context
 - expiryDate: (only for options, format: "YYYY-MM-DD")
 
-Return valid JSON array of trade ideas. Focus on actionable, research-grade opportunities.`;
+Return valid JSON object with structure: {"ideas": [array of trade ideas]}
+Focus on actionable, research-grade opportunities.`;
 
   const userPrompt = `Generate trade ideas for: ${marketContext}`;
 
@@ -103,20 +104,39 @@ Return valid JSON array of trade ideas. Focus on actionable, research-grade oppo
       })
     ]);
 
-    // Parse responses
-    const openaiIdeas = JSON.parse(openaiResponse.choices[0].message.content || '{"ideas":[]}');
+    // Parse responses - handle both array and object formats
+    const parseIdeas = (content: string): AITradeIdea[] => {
+      try {
+        const parsed = JSON.parse(content);
+        // Handle both array format and object with ideas property
+        if (Array.isArray(parsed)) {
+          return parsed;
+        } else if (parsed.ideas && Array.isArray(parsed.ideas)) {
+          return parsed.ideas;
+        }
+        return [];
+      } catch {
+        return [];
+      }
+    };
+
+    const openaiIdeas = parseIdeas(openaiResponse.choices[0].message.content || '[]');
     
     const anthropicText = anthropicResponse.content.find(block => block.type === 'text');
-    const anthropicIdeas = JSON.parse(anthropicText && 'text' in anthropicText ? anthropicText.text : '{"ideas":[]}');
+    const anthropicIdeas = parseIdeas(anthropicText && 'text' in anthropicText ? anthropicText.text : '[]');
     
-    const geminiIdeas = JSON.parse(geminiResponse.text || '{"ideas":[]}');
+    // Gemini: use text() helper method
+    const geminiText = geminiResponse.text ? await geminiResponse.text() : '';
+    const geminiIdeas = parseIdeas(geminiText);
 
     // Combine all ideas
     const allIdeas: AITradeIdea[] = [
-      ...(openaiIdeas.ideas || []),
-      ...(anthropicIdeas.ideas || []),
-      ...(geminiIdeas.ideas || [])
+      ...openaiIdeas,
+      ...anthropicIdeas,
+      ...geminiIdeas
     ];
+
+    console.log(`Generated ${openaiIdeas.length} ideas from OpenAI, ${anthropicIdeas.length} from Anthropic, ${geminiIdeas.length} from Gemini`);
 
     return allIdeas.slice(0, 10); // Return max 10 ideas
   } catch (error: any) {
