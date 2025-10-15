@@ -25,6 +25,7 @@ export const tradeIdeas = pgTable("trade_ideas", {
   sessionContext: text("session_context").notNull(),
   timestamp: text("timestamp").notNull(),
   expiryDate: text("expiry_date"), // For options
+  source: text("source").notNull().$type<IdeaSource>().default('quant'), // 'ai' | 'quant'
 });
 
 export const insertTradeIdeaSchema = createInsertSchema(tradeIdeas).omit({ id: true });
@@ -33,6 +34,9 @@ export type TradeIdea = typeof tradeIdeas.$inferSelect;
 
 // Data Source Type
 export type DataSource = 'seed' | 'live';
+
+// Idea Source Type
+export type IdeaSource = 'ai' | 'quant';
 
 // Market Data
 export const marketData = pgTable("market_data", {
