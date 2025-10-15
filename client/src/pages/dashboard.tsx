@@ -13,13 +13,15 @@ import { WatchlistTable } from "@/components/watchlist-table";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getMarketSession, formatCTTime } from "@/lib/utils";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem, ScreenerFilters as Filters } from "@shared/schema";
-import { TrendingUp, DollarSign, Activity, Settings } from "lucide-react";
+import { TrendingUp, DollarSign, Activity, Settings, Search, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 
 export default function Dashboard() {
   const [activeFilters, setActiveFilters] = useState<Filters>({});
+  const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
   const currentSession = getMarketSession();
   const currentTime = formatCTTime(new Date());
   const { toast } = useToast();
@@ -92,6 +94,11 @@ export default function Dashboard() {
     if (activeFilters.pennyStocksOnly && data.currentPrice >= 5) return false;
     if (activeFilters.unusualVolume && data.avgVolume && data.volume < data.avgVolume * 2) return false;
     return true;
+  });
+
+  const filteredTradeIdeas = tradeIdeas.filter((idea) => {
+    if (!tradeIdeaSearch) return true;
+    return idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase());
   });
 
   return (
@@ -178,15 +185,43 @@ export default function Dashboard() {
               </TabsList>
 
               <TabsContent value="ideas" className="space-y-4 mt-6">
+                <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Search by symbol (e.g., NVDA, BTC)..."
+                      value={tradeIdeaSearch}
+                      onChange={(e) => setTradeIdeaSearch(e.target.value)}
+                      className="pl-10"
+                      data-testid="input-search-ideas"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span data-testid="text-last-updated">Updates every 60s</span>
+                  </div>
+                </div>
+
                 {ideasLoading ? (
                   <div className="space-y-4">
                     <Skeleton className="h-[400px] w-full" />
                     <Skeleton className="h-[400px] w-full" />
                   </div>
-                ) : tradeIdeas.length > 0 ? (
-                  tradeIdeas.map((idea) => (
-                    <TradeIdeaCard key={idea.id} idea={idea} />
-                  ))
+                ) : filteredTradeIdeas.length > 0 ? (
+                  <div className="space-y-4">
+                    {filteredTradeIdeas.map((idea) => (
+                      <TradeIdeaCard key={idea.id} idea={idea} />
+                    ))}
+                  </div>
+                ) : tradeIdeaSearch ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <Search className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
+                      <p className="text-muted-foreground">No trade ideas found for "{tradeIdeaSearch}"</p>
+                      <p className="text-sm text-muted-foreground mt-1">Try a different symbol</p>
+                    </CardContent>
+                  </Card>
                 ) : (
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center py-12">

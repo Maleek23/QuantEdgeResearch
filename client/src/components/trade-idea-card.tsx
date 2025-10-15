@@ -93,11 +93,25 @@ export function TradeIdeaCard({ idea }: TradeIdeaCardProps) {
 
         <Separator />
 
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Risk/Reward Ratio</div>
-            <div className="text-xl font-bold" data-testid={`text-risk-reward-${idea.symbol}`}>
-              1:{idea.riskRewardRatio.toFixed(2)}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Badge 
+              variant={idea.riskRewardRatio >= 2 ? "default" : "secondary"} 
+              className={cn(
+                "text-base font-bold py-1.5 px-3",
+                idea.riskRewardRatio >= 2 && "bg-bullish hover:bg-bullish"
+              )}
+              data-testid={`badge-risk-reward-${idea.symbol}`}
+            >
+              {idea.riskRewardRatio.toFixed(2)}:1 R:R
+            </Badge>
+            <div className="space-y-0.5">
+              <div className="text-xs text-muted-foreground">Risk/Reward Ratio</div>
+              <div className="text-xs font-mono">
+                <span className="text-bullish font-semibold">{formatPercent(targetPercent)}</span>
+                <span className="text-muted-foreground mx-1">/</span>
+                <span className="text-bearish font-semibold">{formatPercent(Math.abs(stopLossPercent))}</span>
+              </div>
             </div>
           </div>
           {idea.expiryDate && (
