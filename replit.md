@@ -39,10 +39,11 @@ QuantEdge Research is a professional quantitative trading research platform desi
   - **Gem Score:** Prioritization algorithm combining price action (40 pts), volume strength (30 pts), and liquidity (30 pts)
   - **Hard Guards:** Minimum 1.5:1 R:R ratio and 1.2x volume confirmation required for all generated ideas
 - **Day Trading Features:** 
-  - **Options Accuracy:** Strike price and option type (call/put) displayed in dedicated badges for options trade ideas (e.g., "$580 CALL")
+  - **Options Accuracy:** Strike price, option type (call/put), and expiry date displayed in dedicated badges for options trade ideas (e.g., "$580 CALL Exp: Oct 27, 2025")
   - **Intraday Indicators:** "DAY TRADE" badge highlights opportunities during Regular Trading Hours, Pre-Market, and After Hours sessions
   - **Source Differentiation:** Visual badges distinguish AI-generated ideas (Brain icon, purple) from quantitative ideas (Sparkles icon, blue)
   - **Compact Expandable UI:** Trade ideas shown in collapsed state (symbol, price, entry, badges) with click-to-expand for full analysis
+  - **Grade Display:** Confidence score shown as prominent percentage with color coding (80+ green for "should work", 70-79 blue for "good", <70 amber)
   - **Accordion Animations:** Smooth rotating chevron arrows indicate section expansion/collapse state
 - **Multi-Asset Screener:** Filters by asset type, price, volume, penny stocks, high IV options, and unusual volume.
 - **Risk Calculator:** Position sizing, R:R ratio visualization, potential profit/loss calculations, and stop-loss analysis.
