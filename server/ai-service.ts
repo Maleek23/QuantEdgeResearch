@@ -119,8 +119,18 @@ Return valid JSON array of trade ideas. Focus on actionable, research-grade oppo
     ];
 
     return allIdeas.slice(0, 10); // Return max 10 ideas
-  } catch (error) {
+  } catch (error: any) {
     console.error("AI trade idea generation failed:", error);
+    
+    // Provide helpful error messages
+    if (error?.status === 400 && error?.message?.includes('credit balance')) {
+      throw new Error("AI service unavailable: Please check your API credits");
+    } else if (error?.status === 401) {
+      throw new Error("AI service unavailable: Invalid API credentials");
+    } else if (error?.status === 429) {
+      throw new Error("AI service unavailable: Rate limit exceeded");
+    }
+    
     throw new Error("Failed to generate trade ideas");
   }
 }
@@ -155,8 +165,18 @@ Be concise, professional, and data-driven. Use plain language while maintaining 
 
     const textBlock = response.content.find(block => block.type === 'text');
     return textBlock && 'text' in textBlock ? textBlock.text : "I couldn't process that request";
-  } catch (error) {
+  } catch (error: any) {
     console.error("QuantAI chat failed:", error);
+    
+    // Provide helpful error messages based on error type
+    if (error?.status === 400 && error?.message?.includes('credit balance')) {
+      throw new Error("AI service unavailable: Please check your Anthropic API credits at https://console.anthropic.com/settings/billing");
+    } else if (error?.status === 401) {
+      throw new Error("AI service unavailable: Invalid API credentials");
+    } else if (error?.status === 429) {
+      throw new Error("AI service unavailable: Rate limit exceeded. Please try again in a moment.");
+    }
+    
     throw new Error("Failed to process chat message");
   }
 }
