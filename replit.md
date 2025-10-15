@@ -40,10 +40,10 @@ QuantEdge Research is a professional quantitative trading research platform desi
   - **Hard Guards:** Minimum 1.5:1 R:R ratio and 1.2x volume confirmation required for all generated ideas
 - **Day Trading Features:** 
   - **Options Accuracy:** Strike price, option type (call/put), and expiry date displayed in dedicated badges for options trade ideas (e.g., "$580 CALL Exp: Oct 27, 2025")
-  - **Intraday Indicators:** "DAY TRADE" badge highlights opportunities during Regular Trading Hours, Pre-Market, and After Hours sessions
+  - **Intraday Indicators:** "DAY TRADE" badge highlights true intraday opportunities - options expiring TODAY (not weeks/months out), or stocks/crypto during active trading sessions (Regular Trading Hours, Pre-Market, After Hours)
   - **Source Differentiation:** Visual badges distinguish AI-generated ideas (Brain icon, purple) from quantitative ideas (Sparkles icon, blue)
-  - **Compact Expandable UI:** Trade ideas shown in collapsed state with prominent current price, entry, and target visible at a glance
-  - **Grade Display:** Letter grades with +/- modifiers (A+/A-/B+/B/C+/C) with numeric score below, color-coded (90+ green, 80-89 blue, 70-79 amber)
+  - **Compact Expandable UI:** Trade ideas shown in collapsed state with clean 3-column grid layout displaying Current | Entry | Target prices with no overlap, prominent current price (text-2xl) with color-coded change percentage
+  - **Dynamic Grade System:** Letter grades with +/- modifiers (A+/A-/B+/B/C+/C) that adjust in real-time based on market movement - grades improve as price moves toward profit target, degrade as price moves toward stop loss, using absolute distance calculations with 50-95% guardrails for both long and short positions
   - **Enhanced Analysis:** In-depth analysis prominently displayed in expanded view with highlighted background and clickable text selection
   - **Accordion Animations:** Smooth rotating chevron arrows indicate section expansion/collapse state
 - **Multi-Asset Screener:** Filters by asset type, price, volume, penny stocks, high IV options, and unusual volume.
