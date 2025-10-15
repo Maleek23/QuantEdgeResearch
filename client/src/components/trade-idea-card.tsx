@@ -47,7 +47,11 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                 {isLong ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
                 {idea.direction.toUpperCase()}
               </Badge>
-              <Badge variant="outline" className="text-xs">{idea.assetType.toUpperCase()}</Badge>
+              <Badge variant="outline" className="text-xs font-semibold">
+                {idea.assetType === 'option' ? 'STOCK OPTIONS' : 
+                 idea.assetType === 'stock' ? 'STOCK SHARES' : 
+                 'CRYPTO'}
+              </Badge>
             </div>
             <CardDescription className="mt-2 text-xs" data-testid={`text-trade-time-${idea.symbol}`}>
               Posted: {formatCTTime(idea.timestamp)} • {idea.sessionContext}
@@ -91,43 +95,58 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-3 gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <DollarSign className="h-3 w-3" />
-              <span>Entry</span>
+        <div className="bg-muted/20 rounded-lg p-4 border border-muted">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground uppercase font-semibold">
+                <DollarSign className="h-3 w-3" />
+                <span>Entry Price</span>
+              </div>
+              <div className="text-xl font-bold font-mono" data-testid={`text-entry-${idea.symbol}`}>
+                {formatCurrency(idea.entryPrice)}
+              </div>
             </div>
-            <div className="text-lg font-bold font-mono" data-testid={`text-entry-${idea.symbol}`}>
-              {formatCurrency(idea.entryPrice)}
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground uppercase font-semibold">
+                <Target className="h-3 w-3" />
+                <span>Target</span>
+              </div>
+              <div className="space-y-0.5">
+                <div className="text-xl font-bold font-mono text-bullish" data-testid={`text-target-${idea.symbol}`}>
+                  {formatCurrency(idea.targetPrice)}
+                </div>
+                <div className="text-sm font-mono text-bullish font-semibold">
+                  {formatPercent(targetPercent)} gain
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground uppercase font-semibold">
+                <Shield className="h-3 w-3" />
+                <span>Stop Loss</span>
+              </div>
+              <div className="space-y-0.5">
+                <div className="text-xl font-bold font-mono text-bearish" data-testid={`text-stoploss-${idea.symbol}`}>
+                  {formatCurrency(idea.stopLoss)}
+                </div>
+                <div className="text-sm font-mono text-bearish font-semibold">
+                  {formatPercent(stopLossPercent)} risk
+                </div>
+              </div>
             </div>
           </div>
-
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Target className="h-3 w-3" />
-              <span>Target</span>
-            </div>
-            <div className="space-y-0.5">
-              <div className="text-lg font-bold font-mono text-bullish" data-testid={`text-target-${idea.symbol}`}>
-                {formatCurrency(idea.targetPrice)}
+          
+          <div className="mt-3 pt-3 border-t border-muted">
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Risk per share:</span>
+                <span className="font-mono font-bold text-bearish">{formatCurrency(riskDollars)}</span>
               </div>
-              <div className="text-xs font-mono text-bullish">
-                {formatPercent(targetPercent)}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Shield className="h-3 w-3" />
-              <span>Stop Loss</span>
-            </div>
-            <div className="space-y-0.5">
-              <div className="text-lg font-bold font-mono text-bearish" data-testid={`text-stoploss-${idea.symbol}`}>
-                {formatCurrency(idea.stopLoss)}
-              </div>
-              <div className="text-xs font-mono text-bearish">
-                {formatPercent(stopLossPercent)}
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">Reward per share:</span>
+                <span className="font-mono font-bold text-bullish">{formatCurrency(rewardDollars)}</span>
               </div>
             </div>
           </div>

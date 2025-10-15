@@ -330,12 +330,112 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-6">
-            <Tabs defaultValue="stocks" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="options" data-testid="tab-options">Options</TabsTrigger>
-                <TabsTrigger value="stocks" data-testid="tab-stocks">Stocks</TabsTrigger>
+            <Tabs defaultValue="new" className="w-full">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="new" data-testid="tab-new" className="gap-1.5">
+                  <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                  NEW IDEAS
+                </TabsTrigger>
+                <TabsTrigger value="options" data-testid="tab-options">Stock Options</TabsTrigger>
+                <TabsTrigger value="stocks" data-testid="tab-stocks">Stock Shares</TabsTrigger>
                 <TabsTrigger value="crypto" data-testid="tab-crypto">Crypto</TabsTrigger>
               </TabsList>
+
+              {/* NEW IDEAS Tab */}
+              <TabsContent value="new" className="space-y-4 mt-6">
+                <div className="flex flex-col sm:flex-row gap-3 mb-4 justify-between">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="default" className="bg-primary text-primary-foreground">
+                      Fresh opportunities from the last 24 hours
+                    </Badge>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant={activeDirection === "all" ? "default" : "outline"} 
+                        size="sm" 
+                        onClick={() => setActiveDirection("all")}
+                      >
+                        All
+                      </Button>
+                      <Button 
+                        variant={activeDirection === "long" ? "default" : "outline"} 
+                        size="sm" 
+                        onClick={() => setActiveDirection("long")}
+                      >
+                        Long
+                      </Button>
+                      <Button 
+                        variant={activeDirection === "short" ? "default" : "outline"} 
+                        size="sm" 
+                        onClick={() => setActiveDirection("short")}
+                      >
+                        Short
+                      </Button>
+                      <Button 
+                        variant={activeDirection === "daily" ? "default" : "outline"} 
+                        size="sm" 
+                        onClick={() => setActiveDirection("daily")}
+                      >
+                        Daily
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>Last: {formatCTTime(lastUpdate)} • Next: {nextRefresh}s</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleManualRefresh}
+                      disabled={refreshPricesMutation.isPending}
+                      className="gap-2"
+                    >
+                      <RefreshCw className={`h-3 w-3 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                  </div>
+                </div>
+
+                {ideasLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-[400px] w-full" />
+                  </div>
+                ) : (() => {
+                  // Filter by freshness, then by direction
+                  const freshIdeas = filteredTradeIdeas.filter(idea => {
+                    const ideaDate = new Date(idea.timestamp);
+                    const now = new Date();
+                    const isFresh = (now.getTime() - ideaDate.getTime()) < 24 * 60 * 60 * 1000;
+                    const matchesDirection = activeDirection === "all" || idea.direction === activeDirection;
+                    return isFresh && matchesDirection;
+                  });
+                  
+                  return freshIdeas.length > 0 ? (
+                    <div className="space-y-4">
+                      {freshIdeas.map((idea) => {
+                        const symbolData = marketData.find(m => m.symbol === idea.symbol);
+                        return (
+                          <TradeIdeaCard 
+                            key={idea.id} 
+                            idea={idea}
+                            currentPrice={symbolData?.currentPrice}
+                            changePercent={symbolData?.changePercent}
+                            onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
+                            onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
+                          />
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <Card>
+                      <CardContent className="flex flex-col items-center justify-center py-12">
+                        <TrendingUp className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
+                        <p className="text-muted-foreground">No fresh {activeDirection !== "all" ? activeDirection : ""} trade ideas from the last 24 hours</p>
+                        <p className="text-sm text-muted-foreground mt-2">Check back later for new opportunities</p>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
+              </TabsContent>
 
               {/* Options Tab */}
               <TabsContent value="options" className="space-y-4 mt-6">
@@ -390,9 +490,9 @@ export default function Dashboard() {
                   <div className="space-y-4">
                     <Skeleton className="h-[400px] w-full" />
                   </div>
-                ) : tradeIdeas.filter(t => t.assetType === "option" && (activeDirection === "all" || t.direction === activeDirection)).length > 0 ? (
+                ) : filteredTradeIdeas.filter(t => t.assetType === "option" && (activeDirection === "all" || t.direction === activeDirection)).length > 0 ? (
                   <div className="space-y-4">
-                    {tradeIdeas.filter(t => t.assetType === "option" && (activeDirection === "all" || t.direction === activeDirection)).map((idea) => {
+                    {filteredTradeIdeas.filter(t => t.assetType === "option" && (activeDirection === "all" || t.direction === activeDirection)).map((idea) => {
                       const symbolData = marketData.find(m => m.symbol === idea.symbol);
                       return (
                         <TradeIdeaCard 
@@ -469,9 +569,9 @@ export default function Dashboard() {
                   <div className="space-y-4">
                     <Skeleton className="h-[400px] w-full" />
                   </div>
-                ) : tradeIdeas.filter(t => t.assetType === "stock" && (activeDirection === "all" || t.direction === activeDirection)).length > 0 ? (
+                ) : filteredTradeIdeas.filter(t => t.assetType === "stock" && (activeDirection === "all" || t.direction === activeDirection)).length > 0 ? (
                   <div className="space-y-4">
-                    {tradeIdeas.filter(t => t.assetType === "stock" && (activeDirection === "all" || t.direction === activeDirection)).map((idea) => {
+                    {filteredTradeIdeas.filter(t => t.assetType === "stock" && (activeDirection === "all" || t.direction === activeDirection)).map((idea) => {
                       const symbolData = marketData.find(m => m.symbol === idea.symbol);
                       return (
                         <TradeIdeaCard 
@@ -548,9 +648,9 @@ export default function Dashboard() {
                   <div className="space-y-4">
                     <Skeleton className="h-[400px] w-full" />
                   </div>
-                ) : tradeIdeas.filter(t => t.assetType === "crypto" && (activeDirection === "all" || t.direction === activeDirection)).length > 0 ? (
+                ) : filteredTradeIdeas.filter(t => t.assetType === "crypto" && (activeDirection === "all" || t.direction === activeDirection)).length > 0 ? (
                   <div className="space-y-4">
-                    {tradeIdeas.filter(t => t.assetType === "crypto" && (activeDirection === "all" || t.direction === activeDirection)).map((idea) => {
+                    {filteredTradeIdeas.filter(t => t.assetType === "crypto" && (activeDirection === "all" || t.direction === activeDirection)).map((idea) => {
                       const symbolData = marketData.find(m => m.symbol === idea.symbol);
                       return (
                         <TradeIdeaCard 
