@@ -47,6 +47,8 @@ export const marketData = pgTable("market_data", {
   timestamp: text("timestamp").notNull(),
   high24h: real("high_24h"),
   low24h: real("low_24h"),
+  high52Week: real("high_52_week"),
+  low52Week: real("low_52_week"),
   avgVolume: real("avg_volume"),
   dataSource: text("data_source").notNull().$type<DataSource>().default('seed'),
   lastUpdated: text("last_updated").notNull(),

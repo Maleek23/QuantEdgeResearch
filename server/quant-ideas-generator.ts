@@ -44,6 +44,25 @@ function analyzeMarketData(data: MarketData): QuantSignal | null {
     };
   }
 
+  // Breakout signal - price near highs with volume
+  // Detect when price is within 2% of 52-week high and volume is elevated
+  if (data.high52Week && data.currentPrice >= data.high52Week * 0.98 && volumeRatio >= 1.5) {
+    return {
+      type: 'breakout',
+      strength: volumeRatio >= 2.5 ? 'strong' : 'moderate',
+      direction: 'long' // breakout continuation
+    };
+  }
+
+  // Bearish breakdown - price near lows with volume
+  if (data.low52Week && data.currentPrice <= data.low52Week * 1.02 && volumeRatio >= 1.5) {
+    return {
+      type: 'breakout',
+      strength: volumeRatio >= 2.5 ? 'strong' : 'moderate',
+      direction: 'short' // breakdown continuation
+    };
+  }
+
   // Mean reversion - strong oversold/overbought
   if (priceChange <= -7) {
     return {
@@ -94,6 +113,17 @@ function calculateLevels(data: MarketData, signal: QuantSignal) {
       entryPrice = currentPrice;
       targetPrice = currentPrice * 0.88;
       stopLoss = currentPrice * 1.06;
+    }
+  } else if (signal.type === 'breakout') {
+    // Breakout trade - momentum continuation
+    if (signal.direction === 'long') {
+      entryPrice = currentPrice * 1.005; // enter on strength
+      targetPrice = currentPrice * 1.15; // 15% target
+      stopLoss = currentPrice * 0.96; // 4% stop
+    } else {
+      entryPrice = currentPrice * 0.995; // enter on weakness
+      targetPrice = currentPrice * 0.85; // 15% target
+      stopLoss = currentPrice * 1.04; // 4% stop
     }
   } else if (signal.type === 'mean_reversion') {
     // Mean reversion - contrarian
@@ -167,6 +197,21 @@ function generateAnalysis(data: MarketData, signal: QuantSignal): string {
     analysis = `Unusual volume activity (${volumeRatio.toFixed(1)}x normal) suggests smart money positioning. `;
     analysis += `Price ${priceChange >= 0 ? 'holding gains' : 'under pressure'} indicates ${signal.direction === 'long' ? 'accumulation' : 'distribution'}. `;
     analysis += 'Monitor for continuation or reversal signals.';
+  } else if (signal.type === 'breakout') {
+    const nearHigh = data.high52Week && data.currentPrice >= data.high52Week * 0.98;
+    const nearLow = data.low52Week && data.currentPrice <= data.low52Week * 1.02;
+    
+    if (signal.direction === 'long' && nearHigh) {
+      analysis = `Bullish breakout near 52-week high with ${volumeRatio.toFixed(1)}x volume. `;
+      analysis += 'Price clearing resistance indicates strong momentum continuation. ';
+      analysis += signal.strength === 'strong' 
+        ? 'High probability breakout setup with institutional support.' 
+        : 'Monitor for sustained move above resistance.';
+    } else {
+      analysis = `Bearish breakdown near support with ${volumeRatio.toFixed(1)}x volume. `;
+      analysis += 'Price breaking key level suggests acceleration to downside. ';
+      analysis += 'Watch for continuation or failed breakdown reversal.';
+    }
   } else if (signal.type === 'mean_reversion') {
     analysis = `Extreme ${priceChange > 0 ? 'overbought' : 'oversold'} condition (${Math.abs(priceChange).toFixed(1)}% move). `;
     analysis += 'Statistical probability favors mean reversion. ';
