@@ -11,6 +11,7 @@ import { CatalystFeed } from "@/components/catalyst-feed";
 import { ScreenerFilters } from "@/components/screener-filters";
 import { WatchlistTable } from "@/components/watchlist-table";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SymbolSearch } from "@/components/symbol-search";
 import { getMarketSession, formatCTTime } from "@/lib/utils";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem, ScreenerFilters as Filters } from "@shared/schema";
 import { TrendingUp, DollarSign, Activity, Settings, Search, Clock } from "lucide-react";
@@ -174,6 +175,21 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        <Card className="mb-6" data-testid="card-symbol-search">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5" />
+              Search & Add Symbols
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Search for any stock or crypto to add it to your dashboard. Crypto works instantly (BTC, ETH, SOL, DOGE, etc.). Stocks require Alpha Vantage API key.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <SymbolSearch />
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-6">
