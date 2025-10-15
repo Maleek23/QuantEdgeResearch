@@ -24,12 +24,23 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
     ? ((currentPrice - idea.entryPrice) / idea.entryPrice) * 100
     : 0;
 
-  // Determine probability color
-  const probabilityColor = idea.probabilityBand === 'A' 
-    ? 'text-green-400' 
-    : idea.probabilityBand === 'B' 
-      ? 'text-blue-400' 
-      : 'text-muted-foreground';
+  // Calculate letter grade with +/- modifiers
+  const getLetterGrade = (score: number): string => {
+    if (score >= 95) return 'A+';
+    if (score >= 90) return 'A-';
+    if (score >= 85) return 'B+';
+    if (score >= 80) return 'B';
+    if (score >= 75) return 'C+';
+    if (score >= 70) return 'C';
+    return 'D';
+  };
+
+  const getGradeColor = (score: number): string => {
+    if (score >= 90) return 'text-green-400';
+    if (score >= 80) return 'text-blue-400';
+    if (score >= 70) return 'text-amber-400';
+    return 'text-red-400';
+  };
 
   return (
     <Collapsible
@@ -95,12 +106,12 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
             {/* Price Info */}
             <div className="flex flex-col items-start min-w-0">
               <span className="text-xs text-muted-foreground">Current</span>
-              <span className="text-xl font-bold font-mono" data-testid={`text-current-price-${idea.symbol}`}>
+              <span className="text-2xl font-bold font-mono" data-testid={`text-current-price-${idea.symbol}`}>
                 {formatCurrency(displayPrice)}
               </span>
               {currentPrice && (
                 <span className={cn(
-                  "text-xs font-semibold font-mono",
+                  "text-sm font-semibold font-mono",
                   priceChangePercent >= 0 ? "text-bullish" : "text-bearish"
                 )}>
                   {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
@@ -110,8 +121,15 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
 
             <div className="flex flex-col items-start min-w-0">
               <span className="text-xs text-muted-foreground">Entry</span>
-              <span className="text-lg font-semibold font-mono">
+              <span className="text-lg font-semibold font-mono text-blue-400">
                 {formatCurrency(idea.entryPrice)}
+              </span>
+            </div>
+
+            <div className="flex flex-col items-start min-w-0">
+              <span className="text-xs text-muted-foreground">Target</span>
+              <span className="text-lg font-semibold font-mono text-bullish" data-testid={`text-target-preview-${idea.symbol}`}>
+                {formatCurrency(idea.targetPrice)}
               </span>
             </div>
           </div>
@@ -119,12 +137,15 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
           {/* Right: Badges & Expand Arrow */}
           <div className="flex items-center gap-3 flex-shrink-0">
             {/* Confidence Score */}
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center min-w-[60px]">
               <span className="text-xs text-muted-foreground">Grade</span>
               <span className={cn(
-                "text-2xl font-bold font-mono",
-                idea.confidenceScore >= 80 ? "text-green-400" : idea.confidenceScore >= 70 ? "text-blue-400" : "text-amber-400"
+                "text-3xl font-bold",
+                getGradeColor(idea.confidenceScore)
               )} data-testid={`text-confidence-${idea.symbol}`}>
+                {getLetterGrade(idea.confidenceScore)}
+              </span>
+              <span className="text-xs text-muted-foreground font-mono">
                 {idea.confidenceScore}%
               </span>
             </div>
@@ -165,7 +186,7 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
       </CollapsibleTrigger>
 
       <CollapsibleContent>
-        <div className="border-x border-b rounded-b-lg p-4 bg-card/50 space-y-4">
+        <div className="border-x border-b rounded-b-lg p-4 bg-card/50 space-y-4" onClick={(e) => e.stopPropagation()}>
           {/* Quality Signals */}
           {idea.qualitySignals && idea.qualitySignals.length > 0 && (
             <div data-testid={`quality-signals-${idea.symbol}`}>
@@ -215,19 +236,19 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
             </span>
           </div>
 
-          {/* Catalyst */}
-          <div>
-            <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Catalyst</h4>
-            <p className="text-sm" data-testid={`text-catalyst-${idea.symbol}`}>
-              {idea.catalyst}
+          {/* Analysis - Made more prominent */}
+          <div className="bg-muted/30 p-4 rounded-lg border border-muted" onClick={(e) => e.stopPropagation()}>
+            <h4 className="text-sm font-bold mb-3 text-foreground">In-Depth Analysis</h4>
+            <p className="text-base leading-relaxed" data-testid={`text-analysis-${idea.symbol}`}>
+              {idea.analysis}
             </p>
           </div>
 
-          {/* Analysis */}
-          <div>
-            <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Analysis</h4>
-            <p className="text-sm text-muted-foreground" data-testid={`text-analysis-${idea.symbol}`}>
-              {idea.analysis}
+          {/* Catalyst */}
+          <div className="bg-muted/20 p-3 rounded-lg" onClick={(e) => e.stopPropagation()}>
+            <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Catalyst</h4>
+            <p className="text-sm" data-testid={`text-catalyst-${idea.symbol}`}>
+              {idea.catalyst}
             </p>
           </div>
 
