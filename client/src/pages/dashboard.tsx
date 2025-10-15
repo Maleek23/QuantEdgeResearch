@@ -32,7 +32,7 @@ export default function Dashboard() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [nextRefresh, setNextRefresh] = useState<number>(60);
-  const [activeDirection, setActiveDirection] = useState<"long" | "short" | "daily" | "all">("all");
+  const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [chatBotOpen, setChatBotOpen] = useState(false);
   const currentSession = getMarketSession();
   const currentTime = formatCTTime(new Date());
@@ -207,8 +207,29 @@ export default function Dashboard() {
     return idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase());
   });
 
+  // Helper to determine if an idea is a day trade
+  const isDayTrade = (idea: TradeIdea): boolean => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Options: only day trade if expiring TODAY
+    if (idea.assetType === 'option' && idea.expiryDate) {
+      const expiryDate = new Date(idea.expiryDate).toISOString().split('T')[0];
+      return expiryDate === today;
+    }
+    
+    // Stocks/Crypto: day trade if during active trading session
+    if (idea.assetType === 'stock' || idea.assetType === 'crypto') {
+      return idea.sessionContext.includes('Regular Trading') || 
+             idea.sessionContext.includes('Pre-Market') || 
+             idea.sessionContext.includes('After Hours');
+    }
+    
+    return false;
+  };
+
   const filteredIdeas = filteredTradeIdeas.filter((idea) => {
     if (activeDirection === "all") return true;
+    if (activeDirection === "day_trade") return isDayTrade(idea);
     return idea.direction === activeDirection;
   });
 
@@ -505,6 +526,7 @@ export default function Dashboard() {
                         variant={activeDirection === "all" ? "default" : "outline"} 
                         size="sm" 
                         onClick={() => setActiveDirection("all")}
+                        data-testid="filter-all"
                       >
                         All
                       </Button>
@@ -512,6 +534,7 @@ export default function Dashboard() {
                         variant={activeDirection === "long" ? "default" : "outline"} 
                         size="sm" 
                         onClick={() => setActiveDirection("long")}
+                        data-testid="filter-long"
                       >
                         Long
                       </Button>
@@ -519,8 +542,17 @@ export default function Dashboard() {
                         variant={activeDirection === "short" ? "default" : "outline"} 
                         size="sm" 
                         onClick={() => setActiveDirection("short")}
+                        data-testid="filter-short"
                       >
                         Short
+                      </Button>
+                      <Button 
+                        variant={activeDirection === "day_trade" ? "default" : "outline"} 
+                        size="sm" 
+                        onClick={() => setActiveDirection("day_trade")}
+                        data-testid="filter-day-trade"
+                      >
+                        Day Trade
                       </Button>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground border-l pl-2">
