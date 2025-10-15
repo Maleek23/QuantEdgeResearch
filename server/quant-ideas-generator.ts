@@ -227,38 +227,88 @@ function generateAnalysis(data: MarketData, signal: QuantSignal): string {
   return analysis;
 }
 
-// Calculate "gem score" to prioritize interesting opportunities
-function calculateGemScore(data: MarketData): number {
+// Calculate quality/confidence score for trade idea (0-100)
+function calculateConfidenceScore(
+  data: MarketData,
+  signal: QuantSignal,
+  riskRewardRatio: number
+): { score: number; signals: string[] } {
   let score = 0;
+  const qualitySignals: string[] = [];
   const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
   const priceChangeAbs = Math.abs(data.changePercent);
-  
-  // Prioritize low-cap stocks with high volume (potential gems)
-  if (data.marketCap && data.marketCap < 5000000000 && volumeRatio > 2) {
-    score += 50; // Low-cap + unusual volume = gem potential
+
+  // 1. Risk/Reward Ratio Quality (0-25 points)
+  if (riskRewardRatio >= 3) {
+    score += 25;
+    qualitySignals.push('Excellent R:R (3:1+)');
+  } else if (riskRewardRatio >= 2) {
+    score += 20;
+    qualitySignals.push('Strong R:R (2:1+)');
+  } else if (riskRewardRatio >= 1.5) {
+    score += 10;
+    qualitySignals.push('Moderate R:R');
   }
-  
-  // Prioritize penny stocks with significant moves
-  if (data.currentPrice < 5 && priceChangeAbs > 10) {
-    score += 40; // Penny stock with big move
+
+  // 2. Volume Confirmation (0-25 points)
+  if (volumeRatio >= 3) {
+    score += 25;
+    qualitySignals.push('Exceptional Volume (3x+)');
+  } else if (volumeRatio >= 2) {
+    score += 20;
+    qualitySignals.push('Strong Volume (2x+)');
+  } else if (volumeRatio >= 1.5) {
+    score += 15;
+    qualitySignals.push('Above Avg Volume');
+  } else if (volumeRatio >= 1.2) {
+    score += 5;
+    qualitySignals.push('Confirmed Volume');
   }
-  
-  // Prioritize meme coins / low-cap crypto with massive moves
-  if (data.assetType === 'crypto' && data.currentPrice < 0.01 && priceChangeAbs > 20) {
-    score += 60; // Meme coin moonshot potential
+
+  // 3. Signal Strength (0-20 points)
+  if (signal.strength === 'strong') {
+    score += 20;
+    qualitySignals.push('Strong Signal');
+  } else {
+    score += 10;
+    qualitySignals.push('Moderate Signal');
   }
-  
-  // Bonus for extremely high volume ratios
-  if (volumeRatio > 5) {
-    score += 30; // Extremely unusual volume
+
+  // 4. Price Action Quality (0-15 points)
+  if (signal.type === 'breakout' && priceChangeAbs >= 3) {
+    score += 15;
+    qualitySignals.push('Breakout Momentum');
+  } else if (signal.type === 'momentum' && priceChangeAbs >= 5) {
+    score += 15;
+    qualitySignals.push('Strong Trend');
+  } else if (signal.type === 'volume_spike' && volumeRatio >= 5) {
+    score += 15;
+    qualitySignals.push('Institutional Flow');
+  } else if (priceChangeAbs >= 3) {
+    score += 10;
+    qualitySignals.push('Price Confirmation');
   }
-  
-  // Bonus for extreme price moves
-  if (priceChangeAbs > 20) {
-    score += 25; // Wild price action
+
+  // 5. Liquidity Factor (0-15 points)
+  if (data.currentPrice >= 10) {
+    score += 15;
+    qualitySignals.push('High Liquidity');
+  } else if (data.currentPrice >= 5) {
+    score += 10;
+    qualitySignals.push('Adequate Liquidity');
+  } else {
+    score += 0; // Penalty for penny stocks
+    qualitySignals.push('Low Liquidity Risk');
   }
-  
-  return score;
+
+  return { score: Math.min(score, 100), signals: qualitySignals };
+}
+
+// Calculate probability band based on confidence score
+function getProbabilityBand(score: number): string {
+  if (score >= 80) return 'A'; // 80-100: High probability (80%+)
+  if (score >= 70) return 'B'; // 70-79: Good probability (70-79%)
+  return 'C'; // Below 70: Lower probability (<70%)
 }
 
 // Main function to generate quantitative trade ideas
@@ -285,6 +335,23 @@ export async function generateQuantIdeas(
     const catalyst = generateCatalyst(data, signal, catalysts);
     const analysis = generateAnalysis(data, signal);
 
+    // Calculate risk/reward ratio
+    const riskRewardRatio = (levels.targetPrice - levels.entryPrice) / (levels.entryPrice - levels.stopLoss);
+
+    // Calculate confidence score and quality signals
+    const { score: confidenceScore, signals: qualitySignals } = calculateConfidenceScore(data, signal, riskRewardRatio);
+    const probabilityBand = getProbabilityBand(confidenceScore);
+
+    // QUALITY FILTER: Only accept ideas with 70+ confidence (B grade or better)
+    if (confidenceScore < 70) {
+      continue; // Skip low-quality ideas
+    }
+
+    // Additional hard guards for quality
+    if (riskRewardRatio < 1.5) continue; // Minimum R:R requirement
+    const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
+    if (volumeRatio < 1.2) continue; // Minimum volume confirmation
+
     // Determine asset type for options vs shares
     const assetType = data.assetType === 'stock' && Math.random() > 0.5 ? 'option' : data.assetType;
 
@@ -296,9 +363,6 @@ export async function generateQuantIdeas(
         : data.session === 'after-hours'
           ? 'After Hours'
           : 'Market Closed';
-
-    // Calculate risk/reward ratio
-    const riskRewardRatio = (levels.targetPrice - levels.entryPrice) / (levels.entryPrice - levels.stopLoss);
 
     // For options, calculate strike price and determine call/put based on direction and price action
     const strikePrice = assetType === 'option' 
@@ -329,7 +393,10 @@ export async function generateQuantIdeas(
         : undefined,
       strikePrice: strikePrice,
       optionType: optionType,
-      source: 'quant'
+      source: 'quant',
+      confidenceScore: Math.round(confidenceScore),
+      qualitySignals: qualitySignals,
+      probabilityBand: probabilityBand
     };
 
     ideas.push(idea);
@@ -359,6 +426,9 @@ export async function generateQuantIdeas(
       const stopLoss = Number((currentPrice * (direction === 'long' ? 0.95 : 1.05)).toFixed(2));
       const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
 
+      // Quality check for catalyst ideas
+      if (riskRewardRatio < 1.5) continue; // Skip if R:R too low
+
       // Generate session context string
       const sessionContext = symbolData.session === 'rth' 
         ? 'Regular Trading Hours' 
@@ -367,6 +437,18 @@ export async function generateQuantIdeas(
           : symbolData.session === 'after-hours'
             ? 'After Hours'
             : 'Market Closed';
+
+      // Calculate confidence for catalyst ideas (slightly different scoring)
+      const catalystSignal: QuantSignal = {
+        type: 'catalyst_driven',
+        strength: catalyst.impact === 'high' ? 'strong' : 'moderate',
+        direction: direction
+      };
+      const { score: confidenceScore, signals: qualitySignals } = calculateConfidenceScore(symbolData, catalystSignal, riskRewardRatio);
+      const probabilityBand = getProbabilityBand(confidenceScore);
+
+      // Skip if below quality threshold
+      if (confidenceScore < 70) continue;
 
       const idea: InsertTradeIdea = {
         symbol: catalyst.symbol,
@@ -381,7 +463,10 @@ export async function generateQuantIdeas(
         sessionContext: sessionContext,
         timestamp: now.toISOString(),
         liquidityWarning: entryPrice < 5,
-        source: 'quant'
+        source: 'quant',
+        confidenceScore: Math.round(confidenceScore),
+        qualitySignals: qualitySignals,
+        probabilityBand: probabilityBand
       };
 
       ideas.push(idea);

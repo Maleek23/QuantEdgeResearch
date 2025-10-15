@@ -28,6 +28,9 @@ export const tradeIdeas = pgTable("trade_ideas", {
   strikePrice: real("strike_price"), // For options
   optionType: text("option_type"), // 'call' | 'put' for options
   source: text("source").notNull().$type<IdeaSource>().default('quant'), // 'ai' | 'quant'
+  confidenceScore: real("confidence_score").notNull().default(0), // 0-100 quality score
+  qualitySignals: text("quality_signals").array(), // Array of signal names that fired
+  probabilityBand: text("probability_band").notNull().default('C'), // 'A' (80+), 'B' (70-79), 'C' (<70)
 });
 
 export const insertTradeIdeaSchema = createInsertSchema(tradeIdeas).omit({ id: true });
