@@ -325,6 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sessionContext: aiIdea.sessionContext,
           timestamp: new Date().toISOString(),
           expiryDate: aiIdea.expiryDate || null,
+          source: 'ai'
         });
         savedIdeas.push(tradeIdea);
       }

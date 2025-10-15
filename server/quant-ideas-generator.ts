@@ -227,6 +227,40 @@ function generateAnalysis(data: MarketData, signal: QuantSignal): string {
   return analysis;
 }
 
+// Calculate "gem score" to prioritize interesting opportunities
+function calculateGemScore(data: MarketData): number {
+  let score = 0;
+  const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
+  const priceChangeAbs = Math.abs(data.changePercent);
+  
+  // Prioritize low-cap stocks with high volume (potential gems)
+  if (data.marketCap && data.marketCap < 5000000000 && volumeRatio > 2) {
+    score += 50; // Low-cap + unusual volume = gem potential
+  }
+  
+  // Prioritize penny stocks with significant moves
+  if (data.currentPrice < 5 && priceChangeAbs > 10) {
+    score += 40; // Penny stock with big move
+  }
+  
+  // Prioritize meme coins / low-cap crypto with massive moves
+  if (data.assetType === 'crypto' && data.currentPrice < 0.01 && priceChangeAbs > 20) {
+    score += 60; // Meme coin moonshot potential
+  }
+  
+  // Bonus for extremely high volume ratios
+  if (volumeRatio > 5) {
+    score += 30; // Extremely unusual volume
+  }
+  
+  // Bonus for extreme price moves
+  if (priceChangeAbs > 20) {
+    score += 25; // Wild price action
+  }
+  
+  return score;
+}
+
 // Main function to generate quantitative trade ideas
 export async function generateQuantIdeas(
   marketData: MarketData[],
@@ -237,8 +271,11 @@ export async function generateQuantIdeas(
   const timezone = 'America/Chicago';
   const now = new Date();
 
+  // Sort market data by gem score (highest first) to prioritize interesting opportunities
+  const sortedData = [...marketData].sort((a, b) => calculateGemScore(b) - calculateGemScore(a));
+
   // Analyze each market data point
-  for (const data of marketData) {
+  for (const data of sortedData) {
     if (ideas.length >= count) break;
 
     const signal = analyzeMarketData(data);
@@ -278,7 +315,8 @@ export async function generateQuantIdeas(
       liquidityWarning: levels.entryPrice < 5,
       expiryDate: assetType === 'option' 
         ? formatInTimeZone(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000), timezone, 'yyyy-MM-dd')
-        : undefined
+        : undefined,
+      source: 'quant'
     };
 
     ideas.push(idea);
@@ -329,7 +367,8 @@ export async function generateQuantIdeas(
         analysis: `Catalyst-driven ${direction} opportunity. ${catalyst.description} Event impact rated ${catalyst.impact}. Position for ${direction === 'long' ? 'upside' : 'downside'} reaction.`,
         sessionContext: sessionContext,
         timestamp: now.toISOString(),
-        liquidityWarning: entryPrice < 5
+        liquidityWarning: entryPrice < 5,
+        source: 'quant'
       };
 
       ideas.push(idea);
