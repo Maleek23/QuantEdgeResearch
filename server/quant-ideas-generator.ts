@@ -355,7 +355,8 @@ function calculateGemScore(data: MarketData): number {
 export async function generateQuantIdeas(
   marketData: MarketData[],
   catalysts: Catalyst[],
-  count: number = 8
+  count: number = 8,
+  storage?: any
 ): Promise<InsertTradeIdea[]> {
   const ideas: InsertTradeIdea[] = [];
   const timezone = 'America/Chicago';
@@ -414,6 +415,19 @@ export async function generateQuantIdeas(
     const optionType = assetType === 'option'
       ? (signal.direction === 'long' ? 'call' : 'put')
       : undefined;
+
+    // Check for duplicate ideas before creating
+    if (storage) {
+      const duplicate = await storage.findSimilarTradeIdea(
+        data.symbol,
+        signal.direction,
+        levels.entryPrice,
+        24 // Look back 24 hours
+      );
+      if (duplicate) {
+        continue; // Skip this idea, it's too similar to an existing one
+      }
+    }
 
     const idea: InsertTradeIdea = {
       symbol: data.symbol,
@@ -489,6 +503,19 @@ export async function generateQuantIdeas(
 
       // Skip if below quality threshold
       if (confidenceScore < 70) continue;
+
+      // Check for duplicate ideas before creating
+      if (storage) {
+        const duplicate = await storage.findSimilarTradeIdea(
+          catalyst.symbol,
+          direction,
+          entryPrice,
+          24 // Look back 24 hours
+        );
+        if (duplicate) {
+          continue; // Skip this idea, it's too similar to an existing one
+        }
+      }
 
       const idea: InsertTradeIdea = {
         symbol: catalyst.symbol,
