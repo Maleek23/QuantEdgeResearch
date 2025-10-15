@@ -31,11 +31,18 @@ QuantEdge Research is a professional quantitative trading research platform desi
 ### Key Features
 - **Universal Symbol Search & Real-Time Pricing:** Search stocks (via Alpha Vantage API) or crypto (via CoinGecko API) with auto-persistence and auto-refresh (every 60 seconds) with manual refresh option. Prices and last update timestamps shown in CT. Prominent data freshness notice explains 60-second refresh cycle and free API tier limitations.
 - **Real-time Market Dashboard:** Smart summary cards with actionable insights (active opportunities, top gainer/loser), live price cards, and market session indicators.
-- **Trade Ideas Feed:** Tabbed interface (NEW IDEAS, Stock Options, Stock Shares, Crypto) with "NEW IDEAS" tab featuring date-based accordions (Today/Yesterday/Older) with rotating chevron animations and asset-type subsections. Displays quantitative entry/target/stop levels, risk/reward per share, gain/risk percentages, catalyst summaries, and one-click watchlist starring.
+- **Trade Ideas Feed:** Tabbed interface (NEW IDEAS, Stock Options, Stock Shares, Crypto) with "NEW IDEAS" tab featuring date-based accordions (Today/Yesterday/Older) with rotating chevron animations and asset-type subsections. Uses compact TradeIdeaBlock components with expandable details to prevent information overload. Displays quantitative entry/target/stop levels, risk/reward per share, gain/risk percentages, catalyst summaries, and one-click watchlist starring.
+- **Quality Scoring System:**
+  - **Confidence Score:** 0-100 numeric quality score with 70+ threshold for display filtering
+  - **Probability Bands:** A (80-100), B (70-79), C (60-69) grades indicating success probability
+  - **Quality Signals:** Multi-factor scoring based on R:R ratio (min 2.0), volume confirmation, signal strength, and liquidity
+  - **Gem Score:** Prioritization algorithm combining price action (40 pts), volume strength (30 pts), and liquidity (30 pts)
+  - **Hard Guards:** Minimum 1.5:1 R:R ratio and 1.2x volume confirmation required for all generated ideas
 - **Day Trading Features:** 
-  - **Options Accuracy:** Strike price and option type (call/put) displayed in dedicated badges for options trade ideas (e.g., "$185 CALL")
+  - **Options Accuracy:** Strike price and option type (call/put) displayed in dedicated badges for options trade ideas (e.g., "$580 CALL")
   - **Intraday Indicators:** "DAY TRADE" badge highlights opportunities during Regular Trading Hours, Pre-Market, and After Hours sessions
   - **Source Differentiation:** Visual badges distinguish AI-generated ideas (Brain icon, purple) from quantitative ideas (Sparkles icon, blue)
+  - **Compact Expandable UI:** Trade ideas shown in collapsed state (symbol, price, entry, badges) with click-to-expand for full analysis
   - **Accordion Animations:** Smooth rotating chevron arrows indicate section expansion/collapse state
 - **Multi-Asset Screener:** Filters by asset type, price, volume, penny stocks, high IV options, and unusual volume.
 - **Risk Calculator:** Position sizing, R:R ratio visualization, potential profit/loss calculations, and stop-loss analysis.
