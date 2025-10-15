@@ -51,6 +51,13 @@ A professional quantitative trading research platform for discovering day-tradin
     - Larger prices with uppercase labels (ENTRY PRICE, TARGET, STOP LOSS)
     - Risk per share and Reward per share calculations in red/green
     - Gain/risk percentages displayed with targets and stops
+- ✅ **QuantAI Bot - AI-Powered Trading Assistant** (Latest - Oct 15, 2025)
+  - **3 AI Models Integration**: OpenAI GPT-5, Anthropic Claude Sonnet 4, Google Gemini 2.5
+  - **Chatbot Interface**: Sliding panel for conversational market insights
+  - **Generate Trade Ideas**: All 3 AI models work in parallel to create fresh opportunities
+  - **Chat History**: Persistent conversation storage across sessions
+  - **Improved Error Handling**: Helpful messages for API billing, rate limits, authentication issues
+  - **API Requirements**: Requires valid API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY)
 
 ## Project Architecture
 
@@ -147,6 +154,23 @@ A professional quantitative trading research platform for discovering day-tradin
    - Star buttons on trade ideas for instant add
    - Optimistic UI updates for responsive feedback
 
+8. **QuantAI Bot - AI Trading Assistant**
+   - **Chatbot Interface**: Sliding panel accessible from header
+   - **Multi-Model AI**: Uses 3 AI providers for diverse perspectives:
+     - OpenAI GPT-5: Structured trade analysis
+     - Anthropic Claude Sonnet 4: Conversational insights
+     - Google Gemini 2.5: Quick market analysis
+   - **Chat Features**: 
+     - Ask questions about market conditions, strategies, indicators
+     - Persistent conversation history
+     - Educational responses with trading disclaimers
+   - **Generate Trade Ideas**: 
+     - Click button to create 5-10 fresh ideas using all 3 models
+     - Ideas automatically saved with timestamps
+     - Appear in NEW IDEAS tab with FRESH badge
+   - **Error Handling**: Graceful messages for API billing, rate limits, auth issues
+   - **Requirements**: Valid API keys for all 3 providers (see setup section)
+
 ## API Endpoints
 
 ### Market Data
@@ -179,6 +203,12 @@ A professional quantitative trading research platform for discovering day-tradin
 ### Preferences
 - `GET /api/preferences` - Get user preferences
 - `PATCH /api/preferences` - Update preferences
+
+### AI / QuantAI Bot
+- `POST /api/ai/chat` - Send message to QuantAI Bot, receive AI response
+- `GET /api/ai/chat/history` - Get chat conversation history
+- `DELETE /api/ai/chat/history` - Clear chat history
+- `POST /api/ai/generate-ideas` - Generate trade ideas using all 3 AI models
 
 ## Design System
 
@@ -217,6 +247,11 @@ A professional quantitative trading research platform for discovering day-tradin
   - Supported crypto: BTC, ETH, SOL, DOGE, XRP, ADA, AVAX, MATIC, LINK, UNI, ATOM, DOT, LTC, BCH, ALGO, XLM, NEAR, APT, FIL, IMX
   - Stock symbols require `ALPHA_VANTAGE_API_KEY` environment variable
   - Searched symbols are automatically added to market data and persist in memory
+- **QuantAI Bot API Keys:**
+  - Requires 3 API keys to function: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`
+  - All features work without AI keys except chatbot and AI-generated trade ideas
+  - API keys must have active billing/credits to function properly
+  - Error messages provide helpful feedback for billing, rate limit, and authentication issues
 - Educational disclaimers on all trade ideas
 - Liquidity warnings for penny stocks and low-float securities
 - No personalized financial advice - research purposes only
