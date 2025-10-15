@@ -18,12 +18,15 @@ import { SymbolDetailModal } from "@/components/symbol-detail-modal";
 import { QuantAIBot } from "@/components/quantai-bot";
 import { getMarketSession, formatCTTime, formatCurrency } from "@/lib/utils";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem, ScreenerFilters as Filters } from "@shared/schema";
-import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw, ChevronDown, Calendar, Bot, Sparkles, Brain, AlertTriangle } from "lucide-react";
+import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw, ChevronDown, Calendar as CalendarIcon, Bot, Sparkles, Brain, AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format, startOfDay, isSameDay, parseISO } from "date-fns";
 
 export default function Dashboard() {
   const [activeFilters, setActiveFilters] = useState<Filters>({});
@@ -34,6 +37,7 @@ export default function Dashboard() {
   const [nextRefresh, setNextRefresh] = useState<number>(60);
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [chatBotOpen, setChatBotOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const currentSession = getMarketSession();
   const currentTime = formatCTTime(new Date());
   const { toast } = useToast();
@@ -216,9 +220,31 @@ export default function Dashboard() {
   });
 
   const filteredTradeIdeas = tradeIdeas.filter((idea) => {
-    if (!tradeIdeaSearch) return true;
-    return idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase());
+    // Filter by search
+    if (tradeIdeaSearch && !idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase())) {
+      return false;
+    }
+    
+    // Filter by selected date
+    if (selectedDate) {
+      const ideaDate = startOfDay(parseISO(idea.timestamp));
+      const filterDate = startOfDay(selectedDate);
+      if (!isSameDay(ideaDate, filterDate)) {
+        return false;
+      }
+    }
+    
+    return true;
   });
+  
+  // Get unique dates that have trade ideas (for calendar highlighting)
+  const datesWithIdeas = tradeIdeas.reduce((acc, idea) => {
+    const ideaDate = startOfDay(parseISO(idea.timestamp));
+    if (!acc.some(d => isSameDay(d, ideaDate))) {
+      acc.push(ideaDate);
+    }
+    return acc;
+  }, [] as Date[]);
 
   // Helper to determine if an idea is a day trade
   const isDayTrade = (idea: TradeIdea): boolean => {
@@ -568,6 +594,52 @@ export default function Dashboard() {
                         Day Trade
                       </Button>
                     </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant={selectedDate ? "default" : "outline"}
+                          size="sm"
+                          className="gap-2"
+                          data-testid="button-calendar-picker"
+                        >
+                          <CalendarIcon className="h-3 w-3" />
+                          {selectedDate ? format(selectedDate, "MMM d") : "Pick Date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={setSelectedDate}
+                          disabled={(date) => date > new Date()}
+                          modifiers={{
+                            hasIdeas: datesWithIdeas,
+                          }}
+                          modifiersClassNames={{
+                            hasIdeas: "font-bold text-primary",
+                          }}
+                          initialFocus
+                          data-testid="calendar-date-picker"
+                        />
+                        {selectedDate && (
+                          <div className="p-3 border-t flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">
+                              Viewing: {format(selectedDate, "MMM d, yyyy")}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedDate(undefined)}
+                              className="h-8 px-2 gap-1"
+                              data-testid="button-clear-date"
+                            >
+                              <X className="h-3 w-3" />
+                              Clear
+                            </Button>
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground border-l pl-2">
                       <Clock className="h-3 w-3" />
                       <span className="hidden sm:inline">Next: {nextRefresh}s</span>
