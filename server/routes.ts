@@ -1,0 +1,197 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import {
+  insertMarketDataSchema,
+  insertTradeIdeaSchema,
+  insertCatalystSchema,
+  insertWatchlistSchema,
+  insertOptionsDataSchema,
+  insertUserPreferencesSchema,
+} from "@shared/schema";
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Market Data Routes
+  app.get("/api/market-data", async (_req, res) => {
+    try {
+      const data = await storage.getAllMarketData();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch market data" });
+    }
+  });
+
+  app.get("/api/market-data/:symbol", async (req, res) => {
+    try {
+      const data = await storage.getMarketDataBySymbol(req.params.symbol);
+      if (!data) {
+        return res.status(404).json({ error: "Market data not found" });
+      }
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch market data" });
+    }
+  });
+
+  app.post("/api/market-data", async (req, res) => {
+    try {
+      const validated = insertMarketDataSchema.parse(req.body);
+      const data = await storage.createMarketData(validated);
+      res.status(201).json(data);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid market data" });
+    }
+  });
+
+  // Trade Ideas Routes
+  app.get("/api/trade-ideas", async (_req, res) => {
+    try {
+      const ideas = await storage.getAllTradeIdeas();
+      res.json(ideas);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch trade ideas" });
+    }
+  });
+
+  app.get("/api/trade-ideas/:id", async (req, res) => {
+    try {
+      const idea = await storage.getTradeIdeaById(req.params.id);
+      if (!idea) {
+        return res.status(404).json({ error: "Trade idea not found" });
+      }
+      res.json(idea);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch trade idea" });
+    }
+  });
+
+  app.post("/api/trade-ideas", async (req, res) => {
+    try {
+      const validated = insertTradeIdeaSchema.parse(req.body);
+      const idea = await storage.createTradeIdea(validated);
+      res.status(201).json(idea);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid trade idea" });
+    }
+  });
+
+  app.delete("/api/trade-ideas/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteTradeIdea(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Trade idea not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete trade idea" });
+    }
+  });
+
+  // Catalysts Routes
+  app.get("/api/catalysts", async (_req, res) => {
+    try {
+      const catalysts = await storage.getAllCatalysts();
+      res.json(catalysts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch catalysts" });
+    }
+  });
+
+  app.get("/api/catalysts/symbol/:symbol", async (req, res) => {
+    try {
+      const catalysts = await storage.getCatalystsBySymbol(req.params.symbol);
+      res.json(catalysts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch catalysts" });
+    }
+  });
+
+  app.post("/api/catalysts", async (req, res) => {
+    try {
+      const validated = insertCatalystSchema.parse(req.body);
+      const catalyst = await storage.createCatalyst(validated);
+      res.status(201).json(catalyst);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid catalyst data" });
+    }
+  });
+
+  // Watchlist Routes
+  app.get("/api/watchlist", async (_req, res) => {
+    try {
+      const watchlist = await storage.getAllWatchlist();
+      res.json(watchlist);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch watchlist" });
+    }
+  });
+
+  app.post("/api/watchlist", async (req, res) => {
+    try {
+      const validated = insertWatchlistSchema.parse(req.body);
+      const item = await storage.addToWatchlist(validated);
+      res.status(201).json(item);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid watchlist item" });
+    }
+  });
+
+  app.delete("/api/watchlist/:id", async (req, res) => {
+    try {
+      const deleted = await storage.removeFromWatchlist(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Watchlist item not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete watchlist item" });
+    }
+  });
+
+  // Options Data Routes
+  app.get("/api/options/:symbol", async (req, res) => {
+    try {
+      const options = await storage.getOptionsBySymbol(req.params.symbol);
+      res.json(options);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch options data" });
+    }
+  });
+
+  app.post("/api/options", async (req, res) => {
+    try {
+      const validated = insertOptionsDataSchema.parse(req.body);
+      const options = await storage.createOptionsData(validated);
+      res.status(201).json(options);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid options data" });
+    }
+  });
+
+  // User Preferences Routes
+  app.get("/api/preferences", async (_req, res) => {
+    try {
+      const prefs = await storage.getUserPreferences();
+      if (!prefs) {
+        return res.status(404).json({ error: "Preferences not found" });
+      }
+      res.json(prefs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch preferences" });
+    }
+  });
+
+  app.patch("/api/preferences", async (req, res) => {
+    try {
+      const validated = insertUserPreferencesSchema.partial().parse(req.body);
+      const prefs = await storage.updateUserPreferences(validated);
+      res.json(prefs);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid preferences data" });
+    }
+  });
+
+  const httpServer = createServer(app);
+
+  return httpServer;
+}
