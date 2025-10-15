@@ -128,7 +128,16 @@ export function SymbolDetailModal({ symbol, open, onOpenChange, onAddToWatchlist
                         <span className="text-muted-foreground">{rating.rating}</span>
                         <span className="font-semibold">{rating.count} analysts ({rating.percent}%)</span>
                       </div>
-                      <Progress value={rating.percent} className="h-2" />
+                      <Progress 
+                        value={rating.percent} 
+                        className="h-2" 
+                        data-testid={`progress-analyst-${rating.rating.toLowerCase().replace(/\s+/g, '-')}`}
+                        role="progressbar"
+                        aria-label={`${rating.rating} rating: ${rating.percent}%`}
+                        aria-valuenow={rating.percent}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      />
                     </div>
                   ))}
                 </div>
@@ -196,7 +205,16 @@ export function SymbolDetailModal({ symbol, open, onOpenChange, onAddToWatchlist
                     </div>
                   </div>
 
-                  <Progress value={bullishPercent} className="h-3" />
+                  <Progress 
+                    value={bullishPercent} 
+                    className="h-3" 
+                    data-testid="progress-sentiment"
+                    role="progressbar"
+                    aria-label={`Bullish sentiment: ${bullishPercent}%`}
+                    aria-valuenow={bullishPercent}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  />
                   
                   <div className="bg-muted/30 rounded-md p-4 space-y-2">
                     <p className="text-sm font-semibold">What Traders Are Saying</p>

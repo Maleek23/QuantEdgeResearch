@@ -26,6 +26,12 @@ A professional quantitative trading research platform for discovering day-tradin
   - Alpha Vantage API support for stocks (requires API key)
   - Auto-persistence of searched symbols to market data
   - Real-time price updates for BTC, ETH, SOL, DOGE, MATIC, LINK, and more
+- ✅ **Enhanced UX & Data Presentation** (Latest)
+  - **R:R Ratio Clarity**: Interactive tooltips explaining "For every $X risked, gain $Y" with visual breakdown
+  - **Symbol Detail Modal**: Comprehensive analysis view with 3 tabs (Overview, Analysis, Sentiment)
+  - **Smart Summary Cards**: Actionable insights - Active opportunities, Top Gainer/Loser (clickable)
+  - **Watchlist Stars**: One-click add from trade ideas with optimistic UI updates
+  - **Improved Visual Hierarchy**: Larger fonts, better spacing, clearer data scanning
 
 ## Project Architecture
 
@@ -60,14 +66,21 @@ A professional quantitative trading research platform for discovering day-tradin
    - Real-time price display with change percentages
 
 2. **Real-time Market Dashboard**
+   - Smart summary cards showing actionable insights:
+     - Active opportunities + High R:R ideas count
+     - Top Gainer (clickable to view details)
+     - Top Loser (clickable to view details)
    - Live price cards with change percentages
    - Market session indicators (pre-market/RTH/after-hours)
    - Asset type badges (stocks, options, crypto)
 
 3. **Trade Ideas Feed**
    - Entry, target, and stop-loss levels
-   - Risk/reward calculations
+   - Interactive R:R ratio tooltips with plain-English explanations
+   - Visual breakdown: "Potential Gain" vs "Max Risk" percentages
    - Catalyst summaries and analysis
+   - "View Full Analysis" button opens detailed symbol modal
+   - One-click watchlist starring with optimistic updates
    - Liquidity warnings for penny stocks
    - Educational disclaimers
 
@@ -89,10 +102,19 @@ A professional quantitative trading research platform for discovering day-tradin
    - Source citations
    - Event type categorization
 
-6. **Watchlist Management**
+6. **Symbol Detail Modal**
+   - **Overview Tab**: Key metrics (market cap, volume, 24h high/low), performance summary
+   - **Analysis Tab**: Analyst ratings with progress bars, trading recommendation (BUY/HOLD/SELL)
+   - **Sentiment Tab**: Community sentiment breakdown (bullish/bearish/neutral), trader commentary
+   - Accessible from trade ideas, summary cards, and screener results
+   - Add to watchlist directly from modal
+
+7. **Watchlist Management**
    - Symbol tracking with price targets
    - Notes and timestamps
    - Quick view/remove actions
+   - Star buttons on trade ideas for instant add
+   - Optimistic UI updates for responsive feedback
 
 ## API Endpoints
 
