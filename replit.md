@@ -56,7 +56,7 @@ QuantEdge Research is a professional quantitative trading research platform desi
   - **Access Points:** Symbol names (clickable links) or "View Details" button in expanded trade idea blocks
 - **Watchlist Management:** Track symbols with price targets, notes, and quick actions.
 - **QuantAI Bot:** AI-powered trading assistant with a sliding chatbot interface. Integrates OpenAI GPT-5, Anthropic Claude Sonnet 4, and Google Gemini 2.5 for conversational insights and AI-generated trade ideas. Includes persistent chat history and intelligent error handling for API billing/credit issues with graceful fallback suggestions.
-- **Quantitative Idea Generator:** An AI-free alternative generating trade ideas based on Momentum, Volume Spike, Bullish/Bearish Breakout, and Mean Reversion signals using technical analysis.
+- **Quantitative Idea Generator:** An AI-free alternative generating trade ideas based on Momentum, Volume Spike, Bullish/Bearish Breakout, and Mean Reversion signals using technical analysis. Features intelligent deduplication that prevents creating similar ideas within 24 hours (matches by symbol, direction, and entry price within 5%), with helpful "wait for market movements" messaging when no new opportunities are detected.
 
 ### Data Models
 Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, User Preferences.
