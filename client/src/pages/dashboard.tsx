@@ -105,9 +105,10 @@ export default function Dashboard() {
 
   const generateQuantIdeasMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest('POST', '/api/quant/generate-ideas', {
+      const res = await apiRequest('POST', '/api/quant/generate-ideas', {
         count: 8
       });
+      return await res.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
@@ -138,9 +139,10 @@ export default function Dashboard() {
 
   const generateAIIdeasMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest('POST', '/api/ai/generate-ideas', {
+      const res = await apiRequest('POST', '/api/ai/generate-ideas', {
         marketContext: "Current market conditions with focus on stocks, options, and crypto. Find hidden gems and high-potential opportunities."
       });
+      return await res.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
