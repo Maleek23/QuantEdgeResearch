@@ -55,7 +55,7 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
                   {idea.direction.toUpperCase()}
                 </Badge>
               </div>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-xs text-muted-foreground">
                   {idea.assetType === 'option' ? 'OPTIONS' : idea.assetType === 'stock' ? 'SHARES' : 'CRYPTO'}
                 </span>
@@ -78,6 +78,15 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
                     >
                       {idea.optionType.toUpperCase()}
                     </Badge>
+                    {idea.expiryDate && (
+                      <Badge 
+                        variant="outline" 
+                        className="text-xs font-semibold text-muted-foreground"
+                        data-testid={`badge-expiry-${idea.symbol}`}
+                      >
+                        Exp: {idea.expiryDate}
+                      </Badge>
+                    )}
                   </>
                 )}
               </div>
@@ -109,13 +118,13 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
 
           {/* Right: Badges & Expand Arrow */}
           <div className="flex items-center gap-3 flex-shrink-0">
-            {/* Probability Band */}
+            {/* Confidence Score */}
             <div className="flex flex-col items-center">
               <span className="text-xs text-muted-foreground">Grade</span>
-              <span className={cn("text-2xl font-bold", probabilityColor)} data-testid={`text-probability-${idea.symbol}`}>
-                {idea.probabilityBand}
-              </span>
-              <span className="text-xs text-muted-foreground">
+              <span className={cn(
+                "text-2xl font-bold font-mono",
+                idea.confidenceScore >= 80 ? "text-green-400" : idea.confidenceScore >= 70 ? "text-blue-400" : "text-amber-400"
+              )} data-testid={`text-confidence-${idea.symbol}`}>
                 {idea.confidenceScore}%
               </span>
             </div>
