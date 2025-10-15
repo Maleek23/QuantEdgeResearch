@@ -37,16 +37,19 @@ A professional quantitative trading research platform for discovering day-tradin
   - **Posted Timestamps**: Clear "Posted: [time] • [session]" format shows when each idea was generated
   - **Prioritized Layout**: Watchlist moved above Catalyst Feed for better visibility of tracked opportunities
   - **Wake Up & Trade**: Users now see fresh, actionable trade ideas immediately when opening the app
-- ✅ **Trade Ideas Tab Restructure & Asset Clarity** (Latest - Oct 15, 2025)
-  - **NEW IDEAS Tab**: Default tab showing all fresh opportunities from last 24 hours across all asset types
-  - **Asset-Specific Tabs**: Organized Stock Options, Stock Shares, and Crypto tabs for focused analysis
-  - **Clear Asset Badges**: "STOCK OPTIONS" vs "STOCK SHARES" vs "CRYPTO" badges eliminate confusion
+- ✅ **Trade Ideas Restructure & UX Overhaul** (Latest - Oct 15, 2025)
+  - **Date-Based Accordion Organization**: Trade ideas grouped by date (Today/Yesterday/Older) with idea counts
+  - **Asset Type Sub-Sections**: Collapsible sections within each date for Stock Options, Stock Shares, Crypto
+  - **Data Freshness Tracking**: Added `dataSource` (seed/live) and `lastUpdated` fields to track price accuracy
+  - **Initial Price Refresh**: Prices fetch from APIs immediately on page load, not just every 60 seconds
+  - **Removed Tab Redundancy**: Single "Trade Ideas" card replaces 4 separate tabs for cleaner UX
+  - **Smart Grouping**: Helper functions organize ideas by date and asset type automatically
+  - **Clear Asset Badges**: "STOCK OPTIONS" vs "STOCK SHARES" vs "CRYPTO" badges in collapsible headers
   - **Quantitative Entry/Target/Stop Display**: 
     - Larger prices with uppercase labels (ENTRY PRICE, TARGET, STOP LOSS)
     - Risk per share and Reward per share calculations in red/green
     - Gain/risk percentages displayed with targets and stops
-  - **Consistent Filtering**: Search and direction filters work identically across all tabs
-  - **Direction Filters**: All/Long/Short/Daily buttons shared across tabs for unified experience
+  - **Direction Filters**: All/Long/Short buttons filter across entire accordion structure
 
 ## Project Architecture
 

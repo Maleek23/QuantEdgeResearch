@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MarketSessionBadge } from "@/components/market-session-badge";
 import { PriceCard } from "@/components/price-card";
 import { TradeIdeaCard } from "@/components/trade-idea-card";
@@ -15,7 +16,7 @@ import { SymbolSearch } from "@/components/symbol-search";
 import { SymbolDetailModal } from "@/components/symbol-detail-modal";
 import { getMarketSession, formatCTTime } from "@/lib/utils";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem, ScreenerFilters as Filters } from "@shared/schema";
-import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw } from "lucide-react";
+import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw, ChevronDown, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -71,6 +72,16 @@ export default function Dashboard() {
     },
   });
 
+  // Initial price refresh on mount (only once)
+  useEffect(() => {
+    let mounted = true;
+    if (mounted && !refreshPricesMutation.isPending) {
+      refreshPricesMutation.mutate();
+    }
+    return () => { mounted = false; };
+  }, []);
+
+  // Auto-refresh countdown timer
   useEffect(() => {
     const interval = setInterval(() => {
       setNextRefresh((prev) => {
@@ -143,6 +154,44 @@ export default function Dashboard() {
     if (!tradeIdeaSearch) return true;
     return idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase());
   });
+
+  // Helper functions for date grouping
+  const getDateLabel = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) return "Today";
+    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const groupIdeasByDate = (ideas: TradeIdea[]) => {
+    const groups: Record<string, TradeIdea[]> = {};
+    ideas.forEach(idea => {
+      const label = getDateLabel(idea.timestamp);
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(idea);
+    });
+    return groups;
+  };
+
+  const groupByAssetType = (ideas: TradeIdea[]) => {
+    const groups: Record<string, TradeIdea[]> = {
+      'Stock Options': [],
+      'Stock Shares': [],
+      'Crypto': []
+    };
+    ideas.forEach(idea => {
+      if (idea.assetType === 'option') groups['Stock Options'].push(idea);
+      else if (idea.assetType === 'stock') groups['Stock Shares'].push(idea);
+      else if (idea.assetType === 'crypto') groups['Crypto'].push(idea);
+    });
+    return groups;
+  };
+
+  const dateGroups = groupIdeasByDate(filteredTradeIdeas);
 
   const addToWatchlistMutation = useMutation({
     mutationFn: async (symbol: string) => {
@@ -330,350 +379,135 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-6">
-            <Tabs defaultValue="new" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="new" data-testid="tab-new" className="gap-1.5">
-                  <span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                  NEW IDEAS
-                </TabsTrigger>
-                <TabsTrigger value="options" data-testid="tab-options">Stock Options</TabsTrigger>
-                <TabsTrigger value="stocks" data-testid="tab-stocks">Stock Shares</TabsTrigger>
-                <TabsTrigger value="crypto" data-testid="tab-crypto">Crypto</TabsTrigger>
-              </TabsList>
-
-              {/* NEW IDEAS Tab */}
-              <TabsContent value="new" className="space-y-4 mt-6">
-                <div className="flex flex-col sm:flex-row gap-3 mb-4 justify-between">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="default" className="bg-primary text-primary-foreground">
-                      Fresh opportunities from the last 24 hours
-                    </Badge>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant={activeDirection === "all" ? "default" : "outline"} 
-                        size="sm" 
-                        onClick={() => setActiveDirection("all")}
-                      >
-                        All
-                      </Button>
-                      <Button 
-                        variant={activeDirection === "long" ? "default" : "outline"} 
-                        size="sm" 
-                        onClick={() => setActiveDirection("long")}
-                      >
-                        Long
-                      </Button>
-                      <Button 
-                        variant={activeDirection === "short" ? "default" : "outline"} 
-                        size="sm" 
-                        onClick={() => setActiveDirection("short")}
-                      >
-                        Short
-                      </Button>
-                      <Button 
-                        variant={activeDirection === "daily" ? "default" : "outline"} 
-                        size="sm" 
-                        onClick={() => setActiveDirection("daily")}
-                      >
-                        Daily
-                      </Button>
-                    </div>
+            <Card data-testid="card-trade-ideas">
+              <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 flex-wrap">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Trade Ideas
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Organized by date and asset type for easy tracking
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <Button 
+                      variant={activeDirection === "all" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("all")}
+                    >
+                      All
+                    </Button>
+                    <Button 
+                      variant={activeDirection === "long" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("long")}
+                    >
+                      Long
+                    </Button>
+                    <Button 
+                      variant={activeDirection === "short" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("short")}
+                    >
+                      Short
+                    </Button>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>Last: {formatCTTime(lastUpdate)} • Next: {nextRefresh}s</span>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground border-l pl-2">
+                    <Clock className="h-3 w-3" />
+                    <span className="hidden sm:inline">Next: {nextRefresh}s</span>
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={handleManualRefresh}
                       disabled={refreshPricesMutation.isPending}
-                      className="gap-2"
                     >
                       <RefreshCw className={`h-3 w-3 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`} />
-                      Refresh
                     </Button>
                   </div>
                 </div>
-
+              </CardHeader>
+              <CardContent>
                 {ideasLoading ? (
-                  <div className="space-y-4">
-                    <Skeleton className="h-[400px] w-full" />
-                  </div>
-                ) : (() => {
-                  // Filter by freshness, then by direction
-                  const freshIdeas = filteredTradeIdeas.filter(idea => {
-                    const ideaDate = new Date(idea.timestamp);
-                    const now = new Date();
-                    const isFresh = (now.getTime() - ideaDate.getTime()) < 24 * 60 * 60 * 1000;
-                    const matchesDirection = activeDirection === "all" || idea.direction === activeDirection;
-                    return isFresh && matchesDirection;
-                  });
-                  
-                  return freshIdeas.length > 0 ? (
-                    <div className="space-y-4">
-                      {freshIdeas.map((idea) => {
-                        const symbolData = marketData.find(m => m.symbol === idea.symbol);
+                  <Skeleton className="h-[400px] w-full" />
+                ) : Object.keys(dateGroups).length > 0 ? (
+                  <Accordion type="multiple" defaultValue={["Today", "Yesterday"]} className="w-full">
+                    {Object.entries(dateGroups)
+                      .sort(([dateA], [dateB]) => {
+                        if (dateA === "Today") return -1;
+                        if (dateB === "Today") return 1;
+                        if (dateA === "Yesterday") return -1;
+                        if (dateB === "Yesterday") return 1;
+                        return new Date(dateB).getTime() - new Date(dateA).getTime();
+                      })
+                      .map(([date, ideas]) => {
+                        const filteredByDirection = ideas.filter(idea => 
+                          activeDirection === "all" || idea.direction === activeDirection
+                        );
+                        const assetGroups = groupByAssetType(filteredByDirection);
+                        const totalCount = filteredByDirection.length;
+                        
+                        if (totalCount === 0) return null;
+                        
                         return (
-                          <TradeIdeaCard 
-                            key={idea.id} 
-                            idea={idea}
-                            currentPrice={symbolData?.currentPrice}
-                            changePercent={symbolData?.changePercent}
-                            onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
-                            onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
-                          />
+                          <AccordionItem key={date} value={date} className="border-b border-border">
+                            <AccordionTrigger className="hover:no-underline py-4">
+                              <div className="flex items-center gap-3 w-full">
+                                <Calendar className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-semibold">{date}</span>
+                                <Badge variant="secondary" className="ml-auto mr-2">
+                                  {totalCount} {totalCount === 1 ? 'idea' : 'ideas'}
+                                </Badge>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="space-y-3 pt-2">
+                              {Object.entries(assetGroups).map(([assetType, assetIdeas]) => {
+                                if (assetIdeas.length === 0) return null;
+                                
+                                return (
+                                  <Collapsible key={assetType} defaultOpen={true}>
+                                    <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-md bg-muted/50 hover:bg-muted transition-colors">
+                                      <div className="flex items-center gap-2">
+                                        <ChevronDown className="h-4 w-4 transition-transform" />
+                                        <span className="font-medium text-sm">{assetType}</span>
+                                      </div>
+                                      <Badge variant="outline" className="text-xs">
+                                        {assetIdeas.length}
+                                      </Badge>
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent className="space-y-3 mt-3">
+                                      {assetIdeas.map((idea) => {
+                                        const symbolData = marketData.find(m => m.symbol === idea.symbol);
+                                        return (
+                                          <TradeIdeaCard 
+                                            key={idea.id} 
+                                            idea={idea}
+                                            currentPrice={symbolData?.currentPrice}
+                                            changePercent={symbolData?.changePercent}
+                                            onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
+                                            onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
+                                          />
+                                        );
+                                      })}
+                                    </CollapsibleContent>
+                                  </Collapsible>
+                                );
+                              })}
+                            </AccordionContent>
+                          </AccordionItem>
                         );
                       })}
-                    </div>
-                  ) : (
-                    <Card>
-                      <CardContent className="flex flex-col items-center justify-center py-12">
-                        <TrendingUp className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
-                        <p className="text-muted-foreground">No fresh {activeDirection !== "all" ? activeDirection : ""} trade ideas from the last 24 hours</p>
-                        <p className="text-sm text-muted-foreground mt-2">Check back later for new opportunities</p>
-                      </CardContent>
-                    </Card>
-                  );
-                })()}
-              </TabsContent>
-
-              {/* Options Tab */}
-              <TabsContent value="options" className="space-y-4 mt-6">
-                <div className="flex flex-col sm:flex-row gap-3 mb-4 justify-between">
-                  <div className="flex gap-2">
-                    <Button 
-                      variant={activeDirection === "all" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("all")}
-                    >
-                      All
-                    </Button>
-                    <Button 
-                      variant={activeDirection === "long" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("long")}
-                    >
-                      Long
-                    </Button>
-                    <Button 
-                      variant={activeDirection === "short" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("short")}
-                    >
-                      Short
-                    </Button>
-                    <Button 
-                      variant={activeDirection === "daily" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("daily")}
-                    >
-                      Daily
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>Last: {formatCTTime(lastUpdate)} • Next: {nextRefresh}s</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleManualRefresh}
-                      disabled={refreshPricesMutation.isPending}
-                      className="gap-2"
-                    >
-                      <RefreshCw className={`h-3 w-3 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`} />
-                      Refresh
-                    </Button>
-                  </div>
-                </div>
-
-                {ideasLoading ? (
-                  <div className="space-y-4">
-                    <Skeleton className="h-[400px] w-full" />
-                  </div>
-                ) : filteredTradeIdeas.filter(t => t.assetType === "option" && (activeDirection === "all" || t.direction === activeDirection)).length > 0 ? (
-                  <div className="space-y-4">
-                    {filteredTradeIdeas.filter(t => t.assetType === "option" && (activeDirection === "all" || t.direction === activeDirection)).map((idea) => {
-                      const symbolData = marketData.find(m => m.symbol === idea.symbol);
-                      return (
-                        <TradeIdeaCard 
-                          key={idea.id} 
-                          idea={idea}
-                          currentPrice={symbolData?.currentPrice}
-                          changePercent={symbolData?.changePercent}
-                          onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
-                          onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
-                        />
-                      );
-                    })}
-                  </div>
+                  </Accordion>
                 ) : (
-                  <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                      <TrendingUp className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
-                      <p className="text-muted-foreground">No {activeDirection !== "all" ? activeDirection : ""} options trade ideas available</p>
-                    </CardContent>
-                  </Card>
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <TrendingUp className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
+                    <p className="text-muted-foreground">No trade ideas available</p>
+                    <p className="text-sm text-muted-foreground mt-2">Check back later for new opportunities</p>
+                  </div>
                 )}
-              </TabsContent>
-
-              {/* Stocks Tab */}
-              <TabsContent value="stocks" className="space-y-4 mt-6">
-                <div className="flex flex-col sm:flex-row gap-3 mb-4 justify-between">
-                  <div className="flex gap-2">
-                    <Button 
-                      variant={activeDirection === "all" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("all")}
-                    >
-                      All
-                    </Button>
-                    <Button 
-                      variant={activeDirection === "long" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("long")}
-                    >
-                      Long
-                    </Button>
-                    <Button 
-                      variant={activeDirection === "short" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("short")}
-                    >
-                      Short
-                    </Button>
-                    <Button 
-                      variant={activeDirection === "daily" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("daily")}
-                    >
-                      Daily
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>Last: {formatCTTime(lastUpdate)} • Next: {nextRefresh}s</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleManualRefresh}
-                      disabled={refreshPricesMutation.isPending}
-                      className="gap-2"
-                    >
-                      <RefreshCw className={`h-3 w-3 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`} />
-                      Refresh
-                    </Button>
-                  </div>
-                </div>
-
-                {ideasLoading ? (
-                  <div className="space-y-4">
-                    <Skeleton className="h-[400px] w-full" />
-                  </div>
-                ) : filteredTradeIdeas.filter(t => t.assetType === "stock" && (activeDirection === "all" || t.direction === activeDirection)).length > 0 ? (
-                  <div className="space-y-4">
-                    {filteredTradeIdeas.filter(t => t.assetType === "stock" && (activeDirection === "all" || t.direction === activeDirection)).map((idea) => {
-                      const symbolData = marketData.find(m => m.symbol === idea.symbol);
-                      return (
-                        <TradeIdeaCard 
-                          key={idea.id} 
-                          idea={idea}
-                          currentPrice={symbolData?.currentPrice}
-                          changePercent={symbolData?.changePercent}
-                          onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
-                          onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
-                        />
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                      <TrendingUp className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
-                      <p className="text-muted-foreground">No {activeDirection !== "all" ? activeDirection : ""} stock trade ideas available</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </TabsContent>
-
-              {/* Crypto Tab */}
-              <TabsContent value="crypto" className="space-y-4 mt-6">
-                <div className="flex flex-col sm:flex-row gap-3 mb-4 justify-between">
-                  <div className="flex gap-2">
-                    <Button 
-                      variant={activeDirection === "all" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("all")}
-                    >
-                      All
-                    </Button>
-                    <Button 
-                      variant={activeDirection === "long" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("long")}
-                    >
-                      Long
-                    </Button>
-                    <Button 
-                      variant={activeDirection === "short" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("short")}
-                    >
-                      Short
-                    </Button>
-                    <Button 
-                      variant={activeDirection === "daily" ? "default" : "outline"} 
-                      size="sm" 
-                      onClick={() => setActiveDirection("daily")}
-                    >
-                      Daily
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>Last: {formatCTTime(lastUpdate)} • Next: {nextRefresh}s</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleManualRefresh}
-                      disabled={refreshPricesMutation.isPending}
-                      className="gap-2"
-                    >
-                      <RefreshCw className={`h-3 w-3 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`} />
-                      Refresh
-                    </Button>
-                  </div>
-                </div>
-
-                {ideasLoading ? (
-                  <div className="space-y-4">
-                    <Skeleton className="h-[400px] w-full" />
-                  </div>
-                ) : filteredTradeIdeas.filter(t => t.assetType === "crypto" && (activeDirection === "all" || t.direction === activeDirection)).length > 0 ? (
-                  <div className="space-y-4">
-                    {filteredTradeIdeas.filter(t => t.assetType === "crypto" && (activeDirection === "all" || t.direction === activeDirection)).map((idea) => {
-                      const symbolData = marketData.find(m => m.symbol === idea.symbol);
-                      return (
-                        <TradeIdeaCard 
-                          key={idea.id} 
-                          idea={idea}
-                          currentPrice={symbolData?.currentPrice}
-                          changePercent={symbolData?.changePercent}
-                          onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
-                          onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
-                        />
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                      <TrendingUp className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
-                      <p className="text-muted-foreground">No {activeDirection !== "all" ? activeDirection : ""} crypto trade ideas available</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </TabsContent>
-            </Tabs>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="space-y-6">

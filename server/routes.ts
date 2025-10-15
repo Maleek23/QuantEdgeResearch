@@ -65,6 +65,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         session: "rth",
         timestamp: new Date().toISOString(),
         avgVolume: externalData.volume,
+        dataSource: "live",
+        lastUpdated: new Date().toISOString(),
       });
 
       res.json(marketData);
@@ -90,6 +92,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             volume: externalData.volume,
             high24h: externalData.high24h,
             low24h: externalData.low24h,
+            dataSource: "live",
+            lastUpdated: new Date().toISOString(),
             marketCap: externalData.marketCap,
             timestamp: new Date().toISOString(),
           });

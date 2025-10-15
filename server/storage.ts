@@ -82,6 +82,8 @@ export class MemStorage implements IStorage {
         high24h: 227.15,
         low24h: 223.80,
         avgVolume: 52000000,
+        dataSource: "seed",
+        lastUpdated: now,
       },
       {
         symbol: "TSLA",
@@ -95,6 +97,8 @@ export class MemStorage implements IStorage {
         high24h: 262.40,
         low24h: 256.15,
         avgVolume: 88000000,
+        dataSource: "seed",
+        lastUpdated: now,
       },
       {
         symbol: "NVDA",
@@ -108,6 +112,8 @@ export class MemStorage implements IStorage {
         high24h: 140.20,
         low24h: 134.50,
         avgVolume: 42000000,
+        dataSource: "seed",
+        lastUpdated: now,
       },
       {
         symbol: "SPY",
@@ -120,6 +126,8 @@ export class MemStorage implements IStorage {
         high24h: 576.85,
         low24h: 573.20,
         avgVolume: 78000000,
+        dataSource: "seed",
+        lastUpdated: now,
       },
       {
         symbol: "BTC",
@@ -133,6 +141,8 @@ export class MemStorage implements IStorage {
         high24h: 98500.00,
         low24h: 95100.00,
         avgVolume: 28000000000,
+        dataSource: "seed",
+        lastUpdated: now,
       },
       {
         symbol: "ETH",
@@ -146,6 +156,8 @@ export class MemStorage implements IStorage {
         high24h: 3680.00,
         low24h: 3555.00,
         avgVolume: 16500000000,
+        dataSource: "seed",
+        lastUpdated: now,
       },
       {
         symbol: "XRP",
@@ -159,6 +171,8 @@ export class MemStorage implements IStorage {
         high24h: 2.42,
         low24h: 2.28,
         avgVolume: 2100000000,
+        dataSource: "seed",
+        lastUpdated: now,
       },
       {
         symbol: "SNDL",
@@ -172,6 +186,8 @@ export class MemStorage implements IStorage {
         high24h: 1.92,
         low24h: 1.68,
         avgVolume: 85000000,
+        dataSource: "seed",
+        lastUpdated: now,
       },
     ];
 

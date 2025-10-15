@@ -31,6 +31,9 @@ export const insertTradeIdeaSchema = createInsertSchema(tradeIdeas).omit({ id: t
 export type InsertTradeIdea = z.infer<typeof insertTradeIdeaSchema>;
 export type TradeIdea = typeof tradeIdeas.$inferSelect;
 
+// Data Source Type
+export type DataSource = 'seed' | 'live';
+
 // Market Data
 export const marketData = pgTable("market_data", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -45,6 +48,8 @@ export const marketData = pgTable("market_data", {
   high24h: real("high_24h"),
   low24h: real("low_24h"),
   avgVolume: real("avg_volume"),
+  dataSource: text("data_source").notNull().$type<DataSource>().default('seed'),
+  lastUpdated: text("last_updated").notNull(),
 });
 
 export const insertMarketDataSchema = createInsertSchema(marketData).omit({ id: true });
