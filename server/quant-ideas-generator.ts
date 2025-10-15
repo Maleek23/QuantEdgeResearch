@@ -429,7 +429,7 @@ export async function generateQuantIdeas(
       timestamp: now.toISOString(),
       liquidityWarning: levels.entryPrice < 5,
       expiryDate: assetType === 'option' 
-        ? formatInTimeZone(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000), timezone, 'yyyy-MM-dd')
+        ? formatInTimeZone(new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000), timezone, 'MMM d, yyyy')
         : undefined,
       strikePrice: strikePrice,
       optionType: optionType,
