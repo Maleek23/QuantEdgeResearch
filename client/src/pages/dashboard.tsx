@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [nextRefresh, setNextRefresh] = useState<number>(60);
+  const [activeDirection, setActiveDirection] = useState<"long" | "short" | "daily" | "all">("all");
   const currentSession = getMarketSession();
   const currentTime = formatCTTime(new Date());
   const { toast } = useToast();
@@ -329,40 +330,55 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-6">
-            <Tabs defaultValue="ideas" className="w-full">
+            <Tabs defaultValue="stocks" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="ideas" data-testid="tab-trade-ideas">Trade Ideas</TabsTrigger>
-                <TabsTrigger value="screener" data-testid="tab-screener">Screener</TabsTrigger>
-                <TabsTrigger value="calculator" data-testid="tab-calculator">Calculator</TabsTrigger>
+                <TabsTrigger value="options" data-testid="tab-options">Options</TabsTrigger>
+                <TabsTrigger value="stocks" data-testid="tab-stocks">Stocks</TabsTrigger>
+                <TabsTrigger value="crypto" data-testid="tab-crypto">Crypto</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="ideas" className="space-y-4 mt-6">
-                <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="text"
-                      placeholder="Search by symbol (e.g., NVDA, BTC)..."
-                      value={tradeIdeaSearch}
-                      onChange={(e) => setTradeIdeaSearch(e.target.value)}
-                      className="pl-10"
-                      data-testid="input-search-ideas"
-                    />
+              {/* Options Tab */}
+              <TabsContent value="options" className="space-y-4 mt-6">
+                <div className="flex flex-col sm:flex-row gap-3 mb-4 justify-between">
+                  <div className="flex gap-2">
+                    <Button 
+                      variant={activeDirection === "all" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("all")}
+                    >
+                      All
+                    </Button>
+                    <Button 
+                      variant={activeDirection === "long" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("long")}
+                    >
+                      Long
+                    </Button>
+                    <Button 
+                      variant={activeDirection === "short" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("short")}
+                    >
+                      Short
+                    </Button>
+                    <Button 
+                      variant={activeDirection === "daily" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("daily")}
+                    >
+                      Daily
+                    </Button>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span data-testid="text-last-updated">
-                        Last: {formatCTTime(lastUpdate)} • Next: {nextRefresh}s
-                      </span>
-                    </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>Last: {formatCTTime(lastUpdate)} • Next: {nextRefresh}s</span>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleManualRefresh}
                       disabled={refreshPricesMutation.isPending}
                       className="gap-2"
-                      data-testid="button-refresh-prices"
                     >
                       <RefreshCw className={`h-3 w-3 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`} />
                       Refresh
@@ -373,77 +389,189 @@ export default function Dashboard() {
                 {ideasLoading ? (
                   <div className="space-y-4">
                     <Skeleton className="h-[400px] w-full" />
-                    <Skeleton className="h-[400px] w-full" />
                   </div>
-                ) : filteredTradeIdeas.length > 0 ? (
+                ) : tradeIdeas.filter(t => t.assetType === "option" && (activeDirection === "all" || t.direction === activeDirection)).length > 0 ? (
                   <div className="space-y-4">
-                    {filteredTradeIdeas.map((idea) => {
+                    {tradeIdeas.filter(t => t.assetType === "option" && (activeDirection === "all" || t.direction === activeDirection)).map((idea) => {
                       const symbolData = marketData.find(m => m.symbol === idea.symbol);
                       return (
                         <TradeIdeaCard 
                           key={idea.id} 
                           idea={idea}
+                          currentPrice={symbolData?.currentPrice}
+                          changePercent={symbolData?.changePercent}
                           onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
                           onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
                         />
                       );
                     })}
                   </div>
-                ) : tradeIdeaSearch ? (
-                  <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                      <Search className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
-                      <p className="text-muted-foreground">No trade ideas found for "{tradeIdeaSearch}"</p>
-                      <p className="text-sm text-muted-foreground mt-1">Try a different symbol</p>
-                    </CardContent>
-                  </Card>
                 ) : (
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center py-12">
                       <TrendingUp className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
-                      <p className="text-muted-foreground">No trade ideas available</p>
-                      <p className="text-sm text-muted-foreground mt-1">Check back for opportunities</p>
+                      <p className="text-muted-foreground">No {activeDirection !== "all" ? activeDirection : ""} options trade ideas available</p>
                     </CardContent>
                   </Card>
                 )}
               </TabsContent>
 
-              <TabsContent value="screener" className="mt-6">
-                <div className="space-y-6">
-                  <ScreenerFilters onFilterChange={setActiveFilters} />
-                  
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">
-                      Results ({filteredMarketData.length})
-                    </h3>
-                    {marketLoading ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Skeleton className="h-[200px]" />
-                        <Skeleton className="h-[200px]" />
-                        <Skeleton className="h-[200px]" />
-                        <Skeleton className="h-[200px]" />
-                      </div>
-                    ) : filteredMarketData.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {filteredMarketData.map((data) => (
-                          <PriceCard key={data.id} data={data} />
-                        ))}
-                      </div>
-                    ) : (
-                      <Card>
-                        <CardContent className="flex flex-col items-center justify-center py-12">
-                          <Activity className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
-                          <p className="text-muted-foreground">No results match your filters</p>
-                          <p className="text-sm text-muted-foreground mt-1">Try adjusting your criteria</p>
-                        </CardContent>
-                      </Card>
-                    )}
+              {/* Stocks Tab */}
+              <TabsContent value="stocks" className="space-y-4 mt-6">
+                <div className="flex flex-col sm:flex-row gap-3 mb-4 justify-between">
+                  <div className="flex gap-2">
+                    <Button 
+                      variant={activeDirection === "all" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("all")}
+                    >
+                      All
+                    </Button>
+                    <Button 
+                      variant={activeDirection === "long" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("long")}
+                    >
+                      Long
+                    </Button>
+                    <Button 
+                      variant={activeDirection === "short" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("short")}
+                    >
+                      Short
+                    </Button>
+                    <Button 
+                      variant={activeDirection === "daily" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("daily")}
+                    >
+                      Daily
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>Last: {formatCTTime(lastUpdate)} • Next: {nextRefresh}s</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleManualRefresh}
+                      disabled={refreshPricesMutation.isPending}
+                      className="gap-2"
+                    >
+                      <RefreshCw className={`h-3 w-3 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
                   </div>
                 </div>
+
+                {ideasLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-[400px] w-full" />
+                  </div>
+                ) : tradeIdeas.filter(t => t.assetType === "stock" && (activeDirection === "all" || t.direction === activeDirection)).length > 0 ? (
+                  <div className="space-y-4">
+                    {tradeIdeas.filter(t => t.assetType === "stock" && (activeDirection === "all" || t.direction === activeDirection)).map((idea) => {
+                      const symbolData = marketData.find(m => m.symbol === idea.symbol);
+                      return (
+                        <TradeIdeaCard 
+                          key={idea.id} 
+                          idea={idea}
+                          currentPrice={symbolData?.currentPrice}
+                          changePercent={symbolData?.changePercent}
+                          onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
+                          onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <TrendingUp className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
+                      <p className="text-muted-foreground">No {activeDirection !== "all" ? activeDirection : ""} stock trade ideas available</p>
+                    </CardContent>
+                  </Card>
+                )}
               </TabsContent>
 
-              <TabsContent value="calculator" className="mt-6">
-                <RiskCalculator />
+              {/* Crypto Tab */}
+              <TabsContent value="crypto" className="space-y-4 mt-6">
+                <div className="flex flex-col sm:flex-row gap-3 mb-4 justify-between">
+                  <div className="flex gap-2">
+                    <Button 
+                      variant={activeDirection === "all" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("all")}
+                    >
+                      All
+                    </Button>
+                    <Button 
+                      variant={activeDirection === "long" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("long")}
+                    >
+                      Long
+                    </Button>
+                    <Button 
+                      variant={activeDirection === "short" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("short")}
+                    >
+                      Short
+                    </Button>
+                    <Button 
+                      variant={activeDirection === "daily" ? "default" : "outline"} 
+                      size="sm" 
+                      onClick={() => setActiveDirection("daily")}
+                    >
+                      Daily
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>Last: {formatCTTime(lastUpdate)} • Next: {nextRefresh}s</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleManualRefresh}
+                      disabled={refreshPricesMutation.isPending}
+                      className="gap-2"
+                    >
+                      <RefreshCw className={`h-3 w-3 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                  </div>
+                </div>
+
+                {ideasLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-[400px] w-full" />
+                  </div>
+                ) : tradeIdeas.filter(t => t.assetType === "crypto" && (activeDirection === "all" || t.direction === activeDirection)).length > 0 ? (
+                  <div className="space-y-4">
+                    {tradeIdeas.filter(t => t.assetType === "crypto" && (activeDirection === "all" || t.direction === activeDirection)).map((idea) => {
+                      const symbolData = marketData.find(m => m.symbol === idea.symbol);
+                      return (
+                        <TradeIdeaCard 
+                          key={idea.id} 
+                          idea={idea}
+                          currentPrice={symbolData?.currentPrice}
+                          changePercent={symbolData?.changePercent}
+                          onViewDetails={() => symbolData && handleViewSymbolDetails(symbolData)}
+                          onAddToWatchlist={() => handleAddToWatchlist(idea.symbol)}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <TrendingUp className="h-12 w-12 text-muted-foreground opacity-20 mb-3" />
+                      <p className="text-muted-foreground">No {activeDirection !== "all" ? activeDirection : ""} crypto trade ideas available</p>
+                    </CardContent>
+                  </Card>
+                )}
               </TabsContent>
             </Tabs>
           </div>

@@ -5,15 +5,17 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency, formatPercent, formatCTTime, cn } from "@/lib/utils";
 import type { TradeIdea } from "@shared/schema";
-import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star } from "lucide-react";
+import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink } from "lucide-react";
 
 interface TradeIdeaCardProps {
   idea: TradeIdea;
+  currentPrice?: number;
+  changePercent?: number;
   onViewDetails?: () => void;
   onAddToWatchlist?: () => void;
 }
 
-export function TradeIdeaCard({ idea, onViewDetails, onAddToWatchlist }: TradeIdeaCardProps) {
+export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails, onAddToWatchlist }: TradeIdeaCardProps) {
   const isLong = idea.direction === 'long';
   const stopLossPercent = ((idea.stopLoss - idea.entryPrice) / idea.entryPrice) * 100;
   const targetPercent = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice) * 100;
@@ -24,7 +26,7 @@ export function TradeIdeaCard({ idea, onViewDetails, onAddToWatchlist }: TradeId
   return (
     <Card className="hover-elevate transition-all" data-testid={`card-trade-idea-${idea.symbol}`}>
       <CardHeader className="space-y-3">
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <CardTitle className="text-xl font-bold font-mono" data-testid={`text-trade-symbol-${idea.symbol}`}>
@@ -39,18 +41,41 @@ export function TradeIdeaCard({ idea, onViewDetails, onAddToWatchlist }: TradeId
             <CardDescription className="mt-2 text-xs" data-testid={`text-trade-time-${idea.symbol}`}>
               {formatCTTime(idea.timestamp)} • {idea.sessionContext}
             </CardDescription>
+            {idea.liquidityWarning && (
+              <Badge variant="destructive" className="gap-1 mt-2">
+                <AlertTriangle className="h-3 w-3" />
+                Low Liquidity
+              </Badge>
+            )}
           </div>
-          {idea.liquidityWarning && (
-            <Badge variant="destructive" className="gap-1">
-              <AlertTriangle className="h-3 w-3" />
-              Low Liquidity
-            </Badge>
+          
+          {currentPrice !== undefined && (
+            <div className="text-right">
+              <div className="text-xs text-muted-foreground mb-1">Current Price</div>
+              <div className="text-2xl font-bold font-mono" data-testid={`text-current-price-${idea.symbol}`}>
+                {formatCurrency(currentPrice)}
+              </div>
+              {changePercent !== undefined && (
+                <div className={`text-sm font-semibold font-mono ${changePercent >= 0 ? 'text-bullish' : 'text-bearish'}`}>
+                  {changePercent >= 0 ? '+' : ''}{formatPercent(changePercent)}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
         <div className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">Catalyst:</span>
-          <span className="font-medium" data-testid={`text-catalyst-${idea.symbol}`}>{idea.catalyst}</span>
+          <span className="font-medium flex-1" data-testid={`text-catalyst-${idea.symbol}`}>{idea.catalyst}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-auto p-1 text-muted-foreground hover:text-primary"
+            onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(idea.symbol + ' ' + idea.catalyst)}`, '_blank')}
+            data-testid={`button-catalyst-search-${idea.symbol}`}
+          >
+            <ExternalLink className="h-3 w-3" />
+          </Button>
         </div>
       </CardHeader>
 
