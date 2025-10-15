@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { formatCurrency, formatPercent, formatCTTime, cn } from "@/lib/utils";
+import { formatCurrency, formatPercent, formatCTTime, cn, calculateDynamicSignal, type TradeSignal } from "@/lib/utils";
 import type { TradeIdea } from "@shared/schema";
 import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink, Brain, Sparkles } from "lucide-react";
 
@@ -28,6 +28,11 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
   const today = new Date();
   const isToday = ideaDate.toDateString() === today.toDateString();
   const isRecent = (today.getTime() - ideaDate.getTime()) < 24 * 60 * 60 * 1000; // Within 24 hours
+
+  // Calculate dynamic signal if current price is available
+  const dynamicSignal: TradeSignal | null = currentPrice
+    ? calculateDynamicSignal(currentPrice, idea.entryPrice, idea.targetPrice, idea.stopLoss, idea.direction as 'long' | 'short')
+    : null;
 
   return (
     <Card className="hover-elevate transition-all" data-testid={`card-trade-idea-${idea.symbol}`}>
@@ -100,6 +105,53 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
             </div>
           )}
         </div>
+
+        {dynamicSignal && (
+          <div 
+            className={cn(
+              "rounded-lg p-3 border-2 transition-all",
+              dynamicSignal.color === 'green' && "bg-green-500/10 border-green-500/50",
+              dynamicSignal.color === 'blue' && "bg-blue-500/10 border-blue-500/50",
+              dynamicSignal.color === 'yellow' && "bg-amber-500/10 border-amber-500/50",
+              dynamicSignal.color === 'red' && "bg-red-500/10 border-red-500/50",
+              dynamicSignal.color === 'purple' && "bg-purple-500/10 border-purple-500/50",
+              dynamicSignal.color === 'gray' && "bg-muted/20 border-muted"
+            )}
+            data-testid={`signal-${idea.symbol}`}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "font-bold text-xs",
+                      dynamicSignal.color === 'green' && "bg-green-500/20 text-green-300 border-green-500/30",
+                      dynamicSignal.color === 'blue' && "bg-blue-500/20 text-blue-300 border-blue-500/30",
+                      dynamicSignal.color === 'yellow' && "bg-amber-500/20 text-amber-300 border-amber-500/30",
+                      dynamicSignal.color === 'red' && "bg-red-500/20 text-red-300 border-red-500/30",
+                      dynamicSignal.color === 'purple' && "bg-purple-500/20 text-purple-300 border-purple-500/30",
+                      dynamicSignal.color === 'gray' && "bg-muted/30 text-muted-foreground border-muted"
+                    )}
+                    data-testid={`badge-signal-status-${idea.symbol}`}
+                  >
+                    {dynamicSignal.status}
+                  </Badge>
+                  <Badge 
+                    variant="secondary"
+                    className="font-semibold text-xs"
+                    data-testid={`badge-signal-action-${idea.symbol}`}
+                  >
+                    {dynamicSignal.action}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground" data-testid={`text-signal-message-${idea.symbol}`}>
+                  {dynamicSignal.message}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">Catalyst:</span>
@@ -182,14 +234,14 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-2 cursor-help">
                   <Badge 
-                    variant={idea.riskRewardRatio >= 2 ? "default" : "secondary"} 
+                    variant={(idea.riskRewardRatio ?? 0) >= 2 ? "default" : "secondary"} 
                     className={cn(
                       "text-base font-bold py-1.5 px-3",
-                      idea.riskRewardRatio >= 2 && "bg-bullish hover:bg-bullish"
+                      (idea.riskRewardRatio ?? 0) >= 2 && "bg-bullish hover:bg-bullish"
                     )}
                     data-testid={`badge-risk-reward-${idea.symbol}`}
                   >
-                    {idea.riskRewardRatio.toFixed(2)}:1 R:R
+                    {idea.riskRewardRatio?.toFixed(2) ?? '0.00'}:1 R:R
                   </Badge>
                   <Info className="h-4 w-4 text-muted-foreground" />
                 </div>

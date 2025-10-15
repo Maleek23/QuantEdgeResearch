@@ -92,3 +92,134 @@ export function getPriceChangeColor(change: number): string {
   if (change < 0) return 'text-bearish';
   return 'text-muted-foreground';
 }
+
+export type TradeSignal = {
+  status: 'ENTRY ZONE' | 'HOLDING' | 'TAKE PROFIT' | 'STOP OUT' | 'BREAKOUT' | 'INVALIDATED' | 'MONITORING';
+  color: 'green' | 'blue' | 'yellow' | 'red' | 'purple' | 'gray';
+  message: string;
+  action: 'BUY' | 'HOLD' | 'SELL' | 'EXIT' | 'WATCH';
+};
+
+export function calculateDynamicSignal(
+  currentPrice: number,
+  entryPrice: number,
+  targetPrice: number,
+  stopLoss: number,
+  direction: 'long' | 'short'
+): TradeSignal {
+  const entryThreshold = 0.02; // 2% threshold for entry zone
+  const targetThreshold = 0.01; // 1% threshold for target zone
+  const stopThreshold = 0.01; // 1% threshold for stop zone
+
+  if (direction === 'long') {
+    // Long position signals
+    const distanceFromEntry = ((currentPrice - entryPrice) / entryPrice);
+    const distanceFromTarget = ((currentPrice - targetPrice) / targetPrice);
+    const distanceFromStop = ((currentPrice - stopLoss) / stopLoss);
+
+    if (currentPrice <= stopLoss * (1 + stopThreshold)) {
+      return {
+        status: 'STOP OUT',
+        color: 'red',
+        message: `Price hit stop loss at ${formatCurrency(stopLoss)}`,
+        action: 'EXIT'
+      };
+    } else if (currentPrice >= targetPrice * (1 - targetThreshold)) {
+      if (currentPrice > targetPrice * 1.05) {
+        return {
+          status: 'BREAKOUT',
+          color: 'purple',
+          message: `Price surged ${formatPercent((currentPrice - targetPrice) / targetPrice * 100, 1)} beyond target!`,
+          action: 'HOLD'
+        };
+      }
+      return {
+        status: 'TAKE PROFIT',
+        color: 'green',
+        message: `Target reached! Consider taking profits`,
+        action: 'SELL'
+      };
+    } else if (Math.abs(distanceFromEntry) <= entryThreshold) {
+      return {
+        status: 'ENTRY ZONE',
+        color: 'blue',
+        message: `Good entry opportunity near ${formatCurrency(entryPrice)}`,
+        action: 'BUY'
+      };
+    } else if (currentPrice > entryPrice && currentPrice < targetPrice) {
+      const progressPercent = ((currentPrice - entryPrice) / (targetPrice - entryPrice)) * 100;
+      return {
+        status: 'HOLDING',
+        color: 'yellow',
+        message: `${formatPercent(progressPercent, 0)} toward target`,
+        action: 'HOLD'
+      };
+    } else if (currentPrice < entryPrice && currentPrice > stopLoss) {
+      return {
+        status: 'MONITORING',
+        color: 'gray',
+        message: `Below entry, watching for setup`,
+        action: 'WATCH'
+      };
+    }
+  } else {
+    // Short position signals
+    const distanceFromEntry = ((entryPrice - currentPrice) / entryPrice);
+    const distanceFromTarget = ((targetPrice - currentPrice) / targetPrice);
+    const distanceFromStop = ((stopLoss - currentPrice) / stopLoss);
+
+    if (currentPrice >= stopLoss * (1 - stopThreshold)) {
+      return {
+        status: 'STOP OUT',
+        color: 'red',
+        message: `Price hit stop loss at ${formatCurrency(stopLoss)}`,
+        action: 'BUY' // Buy to cover short at a loss
+      };
+    } else if (currentPrice <= targetPrice * (1 + targetThreshold)) {
+      if (currentPrice < targetPrice * 0.95) {
+        return {
+          status: 'BREAKOUT',
+          color: 'purple',
+          message: `Price dropped ${formatPercent(Math.abs((currentPrice - targetPrice) / targetPrice * 100), 1)} beyond target!`,
+          action: 'HOLD'
+        };
+      }
+      return {
+        status: 'TAKE PROFIT',
+        color: 'green',
+        message: `Target reached! Buy to cover short`,
+        action: 'BUY' // Buy to cover short and take profit
+      };
+    } else if (Math.abs(distanceFromEntry) <= entryThreshold) {
+      return {
+        status: 'ENTRY ZONE',
+        color: 'blue',
+        message: `Good short entry near ${formatCurrency(entryPrice)}`,
+        action: 'SELL' // Sell to enter short position
+      };
+    } else if (currentPrice < entryPrice && currentPrice > targetPrice) {
+      const progressPercent = ((entryPrice - currentPrice) / (entryPrice - targetPrice)) * 100;
+      return {
+        status: 'HOLDING',
+        color: 'yellow',
+        message: `${formatPercent(progressPercent, 0)} toward target`,
+        action: 'HOLD'
+      };
+    } else if (currentPrice > entryPrice && currentPrice < stopLoss) {
+      return {
+        status: 'MONITORING',
+        color: 'gray',
+        message: `Above entry, watching for setup`,
+        action: 'WATCH'
+      };
+    }
+  }
+
+  // Default fallback
+  return {
+    status: 'MONITORING',
+    color: 'gray',
+    message: 'Monitoring price action',
+    action: 'WATCH'
+  };
+}
