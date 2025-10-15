@@ -33,6 +33,7 @@ export interface IStorage {
   getTradeIdeaById(id: string): Promise<TradeIdea | undefined>;
   createTradeIdea(idea: InsertTradeIdea): Promise<TradeIdea>;
   deleteTradeIdea(id: string): Promise<boolean>;
+  findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack?: number): Promise<TradeIdea | undefined>;
 
   // Catalysts
   getAllCatalysts(): Promise<Catalyst[]>;
@@ -577,6 +578,25 @@ export class MemStorage implements IStorage {
 
   async deleteTradeIdea(id: string): Promise<boolean> {
     return this.tradeIdeas.delete(id);
+  }
+
+  async findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack: number = 24): Promise<TradeIdea | undefined> {
+    const now = new Date();
+    const cutoffTime = new Date(now.getTime() - hoursBack * 60 * 60 * 1000);
+    
+    const priceThreshold = 0.05; // 5% price difference threshold
+    
+    return Array.from(this.tradeIdeas.values()).find(idea => {
+      const ideaTime = new Date(idea.timestamp);
+      const priceDiff = Math.abs(idea.entryPrice - entryPrice) / entryPrice;
+      
+      return (
+        idea.symbol === symbol &&
+        idea.direction === direction &&
+        priceDiff <= priceThreshold &&
+        ideaTime >= cutoffTime
+      );
+    });
   }
 
   // Catalyst Methods
