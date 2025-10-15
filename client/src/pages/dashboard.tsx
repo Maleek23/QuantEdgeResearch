@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -15,24 +15,26 @@ import { SymbolSearch } from "@/components/symbol-search";
 import { SymbolDetailModal } from "@/components/symbol-detail-modal";
 import { getMarketSession, formatCTTime } from "@/lib/utils";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem, ScreenerFilters as Filters } from "@shared/schema";
-import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown } from "lucide-react";
+import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
   const [activeFilters, setActiveFilters] = useState<Filters>({});
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
   const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [nextRefresh, setNextRefresh] = useState<number>(60);
   const currentSession = getMarketSession();
   const currentTime = formatCTTime(new Date());
   const { toast } = useToast();
 
   const { data: marketData = [], isLoading: marketLoading } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
-    refetchInterval: 30000,
   });
 
   const { data: tradeIdeas = [], isLoading: ideasLoading } = useQuery<TradeIdea[]>({
@@ -49,6 +51,42 @@ export default function Dashboard() {
     queryKey: ['/api/watchlist'],
     refetchOnWindowFocus: true,
   });
+
+  const refreshPricesMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/refresh-prices', {});
+    },
+    onSuccess: () => {
+      setLastUpdate(new Date());
+      setNextRefresh(60);
+      queryClient.invalidateQueries({ queryKey: ['/api/market-data'] });
+    },
+    onError: () => {
+      toast({
+        title: "Refresh Failed",
+        description: "Could not update prices. Trying again shortly.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNextRefresh((prev) => {
+        if (prev <= 1) {
+          refreshPricesMutation.mutate();
+          return 60;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleManualRefresh = () => {
+    refreshPricesMutation.mutate();
+  };
 
   const removeFromWatchlistMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -311,9 +349,24 @@ export default function Dashboard() {
                       data-testid="input-search-ideas"
                     />
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span data-testid="text-last-updated">Updates every 60s</span>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      <span data-testid="text-last-updated">
+                        Last: {formatCTTime(lastUpdate)} • Next: {nextRefresh}s
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleManualRefresh}
+                      disabled={refreshPricesMutation.isPending}
+                      className="gap-2"
+                      data-testid="button-refresh-prices"
+                    >
+                      <RefreshCw className={`h-3 w-3 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
                   </div>
                 </div>
 
