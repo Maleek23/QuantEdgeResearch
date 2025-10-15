@@ -279,8 +279,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const marketData = await storage.getAllMarketData();
       const catalysts = await storage.getAllCatalysts();
       
-      // Generate quantitative ideas
-      const quantIdeas = await generateQuantIdeas(marketData, catalysts, count);
+      // Generate quantitative ideas with deduplication
+      const quantIdeas = await generateQuantIdeas(marketData, catalysts, count, storage);
       
       // Save ideas to storage
       const savedIdeas = [];
@@ -289,7 +289,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         savedIdeas.push(tradeIdea);
       }
       
-      res.json({ success: true, ideas: savedIdeas, count: savedIdeas.length });
+      // Return helpful message when no new ideas are available
+      if (savedIdeas.length === 0) {
+        res.json({ 
+          success: true, 
+          ideas: [], 
+          count: 0,
+          message: "No new trade ideas at this time. Wait for market movements or price changes to generate fresh opportunities."
+        });
+      } else {
+        res.json({ success: true, ideas: savedIdeas, count: savedIdeas.length });
+      }
     } catch (error: any) {
       console.error("Quant idea generation error:", error);
       res.status(500).json({ error: error?.message || "Failed to generate quantitative trade ideas" });
