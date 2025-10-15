@@ -24,6 +24,49 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
     ? ((currentPrice - idea.entryPrice) / idea.entryPrice) * 100
     : 0;
 
+  // Calculate dynamic grade based on market movement
+  const calculateDynamicGrade = (): number => {
+    if (!currentPrice) return idea.confidenceScore;
+    
+    const priceRange = idea.targetPrice - idea.stopLoss;
+    const entryToTarget = idea.targetPrice - idea.entryPrice;
+    const entryToStop = idea.entryPrice - idea.stopLoss;
+    
+    // Calculate how far price has moved from entry
+    const priceFromEntry = currentPrice - idea.entryPrice;
+    const percentToTarget = entryToTarget !== 0 ? (priceFromEntry / entryToTarget) * 100 : 0;
+    
+    // Adjust grade based on price movement
+    let adjustedScore = idea.confidenceScore;
+    
+    if (isLong) {
+      // Long position: grade improves as price moves toward target
+      if (currentPrice > idea.entryPrice && currentPrice < idea.targetPrice) {
+        adjustedScore = Math.min(95, idea.confidenceScore + (percentToTarget * 0.15));
+      } else if (currentPrice >= idea.targetPrice) {
+        adjustedScore = 95; // At or above target
+      } else if (currentPrice < idea.entryPrice) {
+        // Price moving against us
+        const percentToStop = entryToStop !== 0 ? ((idea.entryPrice - currentPrice) / entryToStop) * 100 : 0;
+        adjustedScore = Math.max(50, idea.confidenceScore - (percentToStop * 0.2));
+      }
+    } else {
+      // Short position: grade improves as price moves toward (lower) target
+      if (currentPrice < idea.entryPrice && currentPrice > idea.targetPrice) {
+        adjustedScore = Math.min(95, idea.confidenceScore + (Math.abs(percentToTarget) * 0.15));
+      } else if (currentPrice <= idea.targetPrice) {
+        adjustedScore = 95; // At or below target
+      } else if (currentPrice > idea.entryPrice) {
+        const percentToStop = entryToStop !== 0 ? ((currentPrice - idea.entryPrice) / entryToStop) * 100 : 0;
+        adjustedScore = Math.max(50, idea.confidenceScore - (percentToStop * 0.2));
+      }
+    }
+    
+    return Math.round(adjustedScore);
+  };
+
+  const dynamicScore = calculateDynamicGrade();
+
   // Calculate letter grade with +/- modifiers
   const getLetterGrade = (score: number): string => {
     if (score >= 95) return 'A+';
@@ -42,6 +85,20 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
     return 'text-red-400';
   };
 
+  // Check if this is a true day trade (intraday opportunity)
+  const isDayTrade = () => {
+    if (idea.assetType === 'option') {
+      // Options are only day trades if expiring TODAY
+      const today = new Date().toDateString();
+      const expiryDate = idea.expiryDate ? new Date(idea.expiryDate).toDateString() : null;
+      return expiryDate === today;
+    }
+    // For stocks/crypto, check if it's during active trading session
+    return idea.sessionContext.includes('Regular Trading') || 
+           idea.sessionContext.includes('Pre-Market') || 
+           idea.sessionContext.includes('After Hours');
+  };
+
   return (
     <Collapsible
       open={isOpen}
@@ -49,69 +106,78 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
       className="group hover-elevate active-elevate-2"
     >
       <CollapsibleTrigger className="w-full" data-testid={`block-trade-idea-${idea.symbol}`}>
-        <div className="flex items-center justify-between gap-4 p-4 border rounded-lg bg-card">
-          {/* Left: Symbol, Price, Entry */}
-          <div className="flex items-center gap-4 flex-1 min-w-0">
-            <div className="flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold font-mono" data-testid={`text-symbol-${idea.symbol}`}>
-                  {idea.symbol}
-                </h3>
-                <Badge 
-                  variant={isLong ? "default" : "destructive"} 
-                  className="font-semibold text-xs"
-                  data-testid={`badge-direction-${idea.symbol}`}
-                >
-                  {isLong ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-                  {idea.direction.toUpperCase()}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="text-xs text-muted-foreground">
-                  {idea.assetType === 'option' ? 'OPTIONS' : idea.assetType === 'stock' ? 'SHARES' : 'CRYPTO'}
-                </span>
-                {idea.assetType === 'option' && idea.strikePrice && idea.optionType && (
-                  <>
-                    <Badge 
-                      variant="secondary" 
-                      className="text-xs font-semibold"
-                      data-testid={`badge-strike-${idea.symbol}`}
-                    >
-                      ${idea.strikePrice}
-                    </Badge>
-                    <Badge 
-                      variant="outline" 
-                      className={cn(
-                        "text-xs font-semibold",
-                        idea.optionType === 'call' ? 'border-bullish text-bullish' : 'border-bearish text-bearish'
-                      )}
-                      data-testid={`badge-option-type-${idea.symbol}`}
-                    >
-                      {idea.optionType.toUpperCase()}
-                    </Badge>
-                    {idea.expiryDate && (
-                      <Badge 
-                        variant="outline" 
-                        className="text-xs font-semibold text-muted-foreground"
-                        data-testid={`badge-expiry-${idea.symbol}`}
-                      >
-                        Exp: {idea.expiryDate}
-                      </Badge>
-                    )}
-                  </>
-                )}
-              </div>
+        <div className="p-4 border rounded-lg bg-card">
+          {/* Top Row: Symbol, Direction, Asset Details */}
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-bold font-mono" data-testid={`text-symbol-${idea.symbol}`}>
+                {idea.symbol}
+              </h3>
+              <Badge 
+                variant={isLong ? "default" : "destructive"} 
+                className="font-semibold text-xs"
+                data-testid={`badge-direction-${idea.symbol}`}
+              >
+                {isLong ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                {idea.direction.toUpperCase()}
+              </Badge>
             </div>
+            
+            <ChevronDown 
+              className={cn(
+                "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0",
+                isOpen && "rotate-180"
+              )}
+            />
+          </div>
 
-            {/* Price Info */}
-            <div className="flex flex-col items-start min-w-0">
-              <span className="text-xs text-muted-foreground">Current</span>
-              <span className="text-2xl font-bold font-mono" data-testid={`text-current-price-${idea.symbol}`}>
+          {/* Asset Type & Options Details */}
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <span className="text-xs text-muted-foreground">
+              {idea.assetType === 'option' ? 'OPTIONS' : idea.assetType === 'stock' ? 'SHARES' : 'CRYPTO'}
+            </span>
+            {idea.assetType === 'option' && idea.strikePrice && idea.optionType && (
+              <>
+                <Badge 
+                  variant="secondary" 
+                  className="text-xs font-semibold"
+                  data-testid={`badge-strike-${idea.symbol}`}
+                >
+                  ${idea.strikePrice}
+                </Badge>
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    "text-xs font-semibold",
+                    idea.optionType === 'call' ? 'border-bullish text-bullish' : 'border-bearish text-bearish'
+                  )}
+                  data-testid={`badge-option-type-${idea.symbol}`}
+                >
+                  {idea.optionType.toUpperCase()}
+                </Badge>
+                {idea.expiryDate && (
+                  <Badge 
+                    variant="outline" 
+                    className="text-xs font-semibold text-muted-foreground"
+                    data-testid={`badge-expiry-${idea.symbol}`}
+                  >
+                    Exp: {idea.expiryDate}
+                  </Badge>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Price Grid: Current | Entry | Target */}
+          <div className="grid grid-cols-3 gap-4 mb-3">
+            <div>
+              <span className="text-xs text-muted-foreground block mb-1">Current</span>
+              <span className="text-lg font-bold font-mono block" data-testid={`text-current-price-${idea.symbol}`}>
                 {formatCurrency(displayPrice)}
               </span>
               {currentPrice && (
                 <span className={cn(
-                  "text-sm font-semibold font-mono",
+                  "text-xs font-semibold font-mono",
                   priceChangePercent >= 0 ? "text-bullish" : "text-bearish"
                 )}>
                   {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
@@ -119,38 +185,40 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
               )}
             </div>
 
-            <div className="flex flex-col items-start min-w-0">
-              <span className="text-xs text-muted-foreground">Entry</span>
-              <span className="text-lg font-semibold font-mono text-blue-400">
+            <div>
+              <span className="text-xs text-muted-foreground block mb-1">Entry</span>
+              <span className="text-lg font-bold font-mono text-blue-400 block">
                 {formatCurrency(idea.entryPrice)}
               </span>
             </div>
 
-            <div className="flex flex-col items-start min-w-0">
-              <span className="text-xs text-muted-foreground">Target</span>
-              <span className="text-lg font-semibold font-mono text-bullish" data-testid={`text-target-preview-${idea.symbol}`}>
+            <div>
+              <span className="text-xs text-muted-foreground block mb-1">Target</span>
+              <span className="text-lg font-bold font-mono text-bullish block" data-testid={`text-target-preview-${idea.symbol}`}>
                 {formatCurrency(idea.targetPrice)}
               </span>
             </div>
           </div>
 
-          {/* Right: Badges & Expand Arrow */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            {/* Confidence Score */}
-            <div className="flex flex-col items-center min-w-[60px]">
-              <span className="text-xs text-muted-foreground">Grade</span>
-              <span className={cn(
-                "text-3xl font-bold",
-                getGradeColor(idea.confidenceScore)
-              )} data-testid={`text-confidence-${idea.symbol}`}>
-                {getLetterGrade(idea.confidenceScore)}
-              </span>
-              <span className="text-xs text-muted-foreground font-mono">
-                {idea.confidenceScore}%
-              </span>
+          {/* Bottom Row: Grade & Source */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex flex-col items-center">
+                <span className="text-xs text-muted-foreground">Grade</span>
+                <div className="flex items-baseline gap-1">
+                  <span className={cn(
+                    "text-2xl font-bold",
+                    getGradeColor(dynamicScore)
+                  )} data-testid={`text-confidence-${idea.symbol}`}>
+                    {getLetterGrade(dynamicScore)}
+                  </span>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {dynamicScore}%
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {/* Source Badge */}
             {idea.source && (
               <Badge 
                 variant={idea.source === 'ai' ? 'secondary' : 'outline'} 
@@ -173,14 +241,6 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
                 )}
               </Badge>
             )}
-
-            {/* Expand Arrow */}
-            <ChevronDown 
-              className={cn(
-                "h-5 w-5 text-muted-foreground transition-transform",
-                isOpen && "rotate-180"
-              )}
-            />
           </div>
         </div>
       </CollapsibleTrigger>
@@ -257,7 +317,7 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist }: TradeId
             <Badge variant="outline" className="text-xs">
               {idea.sessionContext}
             </Badge>
-            {(idea.sessionContext.includes('Regular Trading') || idea.sessionContext.includes('Pre-Market') || idea.sessionContext.includes('After Hours')) && (
+            {isDayTrade() && (
               <Badge variant="outline" className="text-xs font-semibold bg-amber-500/10 text-amber-300 border-amber-500/30">
                 DAY TRADE
               </Badge>
