@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MarketSessionBadge } from "@/components/market-session-badge";
 import { PriceCard } from "@/components/price-card";
@@ -21,6 +22,7 @@ export default function Dashboard() {
   const [activeFilters, setActiveFilters] = useState<Filters>({});
   const currentSession = getMarketSession();
   const currentTime = formatCTTime(new Date());
+  const { toast } = useToast();
 
   const { data: marketData = [], isLoading: marketLoading } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
@@ -39,13 +41,37 @@ export default function Dashboard() {
 
   const { data: watchlist = [], isLoading: watchlistLoading } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
+    refetchOnWindowFocus: true,
   });
 
   const removeFromWatchlistMutation = useMutation({
     mutationFn: async (id: string) => {
       await apiRequest('DELETE', `/api/watchlist/${id}`);
     },
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ['/api/watchlist'] });
+      const previousWatchlist = queryClient.getQueryData<WatchlistItem[]>(['/api/watchlist']);
+      queryClient.setQueryData<WatchlistItem[]>(
+        ['/api/watchlist'],
+        (old = []) => old.filter((item) => item.id !== id)
+      );
+      return { previousWatchlist };
+    },
+    onError: (err, id, context) => {
+      queryClient.setQueryData(['/api/watchlist'], context?.previousWatchlist);
+      toast({
+        title: "Error",
+        description: "Failed to remove from watchlist. Please try again.",
+        variant: "destructive",
+      });
+    },
     onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Removed from watchlist",
+      });
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/watchlist'] });
     },
   });
@@ -217,6 +243,7 @@ export default function Dashboard() {
             <WatchlistTable 
               items={watchlist} 
               onRemove={handleRemoveFromWatchlist}
+              isRemoving={removeFromWatchlistMutation.isPending}
             />
           </div>
         </div>

@@ -10,9 +10,10 @@ interface WatchlistTableProps {
   items: WatchlistItem[];
   onRemove?: (id: string) => void;
   onView?: (symbol: string) => void;
+  isRemoving?: boolean;
 }
 
-export function WatchlistTable({ items, onRemove, onView }: WatchlistTableProps) {
+export function WatchlistTable({ items, onRemove, onView, isRemoving }: WatchlistTableProps) {
   return (
     <Card data-testid="card-watchlist">
       <CardHeader>
@@ -74,6 +75,7 @@ export function WatchlistTable({ items, onRemove, onView }: WatchlistTableProps)
                         variant="ghost"
                         size="icon"
                         onClick={() => onRemove(item.id)}
+                        disabled={isRemoving}
                         data-testid={`button-remove-${item.symbol}`}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />

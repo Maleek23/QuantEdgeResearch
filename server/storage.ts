@@ -264,6 +264,36 @@ export class MemStorage implements IStorage {
       this.catalysts.set(id, { ...catalyst, id });
     });
 
+    // Seed watchlist items
+    const seedWatchlist: InsertWatchlist[] = [
+      {
+        symbol: "NVDA",
+        assetType: "stock",
+        targetPrice: 500.00,
+        notes: "Breakout above 495 with strong volume",
+        addedAt: now,
+      },
+      {
+        symbol: "BTC",
+        assetType: "crypto",
+        targetPrice: 45000,
+        notes: "Watching for break above 44k resistance",
+        addedAt: now,
+      },
+      {
+        symbol: "AAPL",
+        assetType: "stock",
+        targetPrice: 185.00,
+        notes: "Earnings beat - targeting 185",
+        addedAt: now,
+      },
+    ];
+
+    seedWatchlist.forEach((item) => {
+      const id = randomUUID();
+      this.watchlist.set(id, { ...item, id });
+    });
+
     // Initialize default user preferences
     this.userPreferences = {
       id: randomUUID(),
