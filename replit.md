@@ -29,15 +29,20 @@ QuantEdge Research is a professional quantitative trading research platform desi
 - **Optimistic UI:** Watchlist additions provide immediate feedback.
 
 ### Key Features
-- **Universal Symbol Search & Real-Time Pricing:** Search stocks (via Alpha Vantage API) or crypto (via CoinGecko API) with auto-persistence and auto-refresh (every 60 seconds) with manual refresh option. Prices and last update timestamps shown in CT.
+- **Universal Symbol Search & Real-Time Pricing:** Search stocks (via Alpha Vantage API) or crypto (via CoinGecko API) with auto-persistence and auto-refresh (every 60 seconds) with manual refresh option. Prices and last update timestamps shown in CT. Prominent data freshness notice explains 60-second refresh cycle and free API tier limitations.
 - **Real-time Market Dashboard:** Smart summary cards with actionable insights (active opportunities, top gainer/loser), live price cards, and market session indicators.
-- **Trade Ideas Feed:** Tabbed interface (NEW IDEAS, Stock Options, Stock Shares, Crypto) with "NEW IDEAS" tab featuring date-based accordions (Today/Yesterday/Older) and asset-type subsections. Displays quantitative entry/target/stop levels, risk/reward per share, gain/risk percentages, catalyst summaries, and one-click watchlist starring.
+- **Trade Ideas Feed:** Tabbed interface (NEW IDEAS, Stock Options, Stock Shares, Crypto) with "NEW IDEAS" tab featuring date-based accordions (Today/Yesterday/Older) with rotating chevron animations and asset-type subsections. Displays quantitative entry/target/stop levels, risk/reward per share, gain/risk percentages, catalyst summaries, and one-click watchlist starring.
+- **Day Trading Features:** 
+  - **Options Accuracy:** Strike price and option type (call/put) displayed in dedicated badges for options trade ideas (e.g., "$185 CALL")
+  - **Intraday Indicators:** "DAY TRADE" badge highlights opportunities during Regular Trading Hours, Pre-Market, and After Hours sessions
+  - **Source Differentiation:** Visual badges distinguish AI-generated ideas (Brain icon, purple) from quantitative ideas (Sparkles icon, blue)
+  - **Accordion Animations:** Smooth rotating chevron arrows indicate section expansion/collapse state
 - **Multi-Asset Screener:** Filters by asset type, price, volume, penny stocks, high IV options, and unusual volume.
 - **Risk Calculator:** Position sizing, R:R ratio visualization, potential profit/loss calculations, and stop-loss analysis.
 - **Catalyst Feed:** Displays latest market events, news, impact ratings, and source citations.
 - **Symbol Detail Modal:** Comprehensive analysis with Overview, Analysis (analyst ratings, recommendations), and Sentiment (community sentiment, commentary) tabs.
 - **Watchlist Management:** Track symbols with price targets, notes, and quick actions.
-- **QuantAI Bot:** AI-powered trading assistant with a sliding chatbot interface. Integrates OpenAI GPT-5, Anthropic Claude Sonnet 4, and Google Gemini 2.5 for conversational insights and AI-generated trade ideas. Includes persistent chat history and robust error handling.
+- **QuantAI Bot:** AI-powered trading assistant with a sliding chatbot interface. Integrates OpenAI GPT-5, Anthropic Claude Sonnet 4, and Google Gemini 2.5 for conversational insights and AI-generated trade ideas. Includes persistent chat history and intelligent error handling for API billing/credit issues with graceful fallback suggestions.
 - **Quantitative Idea Generator:** An AI-free alternative generating trade ideas based on Momentum, Volume Spike, Bullish/Bearish Breakout, and Mean Reversion signals using technical analysis.
 
 ### Data Models

@@ -138,10 +138,15 @@ export default function Dashboard() {
         description: `Generated ${data.count} ideas using AI analysis`,
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || '';
+      const isBillingError = errorMessage.includes('credit') || errorMessage.includes('billing') || errorMessage.includes('quota') || errorMessage.includes('rate limit');
+      
       toast({
-        title: "AI Generation Failed",
-        description: "Failed to generate AI trade ideas. Please try again.",
+        title: isBillingError ? "API Credits Required" : "AI Generation Failed",
+        description: isBillingError 
+          ? "AI provider credits are low or exhausted. Use 'Quant Ideas' for quantitative analysis, or add API credits to continue using AI features."
+          : "Failed to generate AI trade ideas. Please try again or use Quant Ideas instead.",
         variant: "destructive",
       });
     },
