@@ -14,6 +14,13 @@ import type {
   InsertUserPreferences,
 } from "@shared/schema";
 
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
 export interface IStorage {
   // Market Data
   getAllMarketData(): Promise<MarketData[]>;
@@ -45,6 +52,11 @@ export interface IStorage {
   // User Preferences
   getUserPreferences(): Promise<UserPreferences | undefined>;
   updateUserPreferences(prefs: Partial<InsertUserPreferences>): Promise<UserPreferences>;
+
+  // Chat Messages
+  getChatHistory(): Promise<ChatMessage[]>;
+  addChatMessage(message: Omit<ChatMessage, 'id' | 'timestamp'>): Promise<ChatMessage>;
+  clearChatHistory(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -54,6 +66,7 @@ export class MemStorage implements IStorage {
   private watchlist: Map<string, WatchlistItem>;
   private optionsData: Map<string, OptionsData>;
   private userPreferences: UserPreferences | null;
+  private chatHistory: Map<string, ChatMessage>;
 
   constructor() {
     this.marketData = new Map();
@@ -62,6 +75,7 @@ export class MemStorage implements IStorage {
     this.watchlist = new Map();
     this.optionsData = new Map();
     this.userPreferences = null;
+    this.chatHistory = new Map();
     this.seedData();
   }
 
@@ -463,6 +477,25 @@ export class MemStorage implements IStorage {
       this.userPreferences = { ...this.userPreferences, ...prefs };
     }
     return this.userPreferences;
+  }
+
+  // Chat History Methods
+  async getChatHistory(): Promise<ChatMessage[]> {
+    return Array.from(this.chatHistory.values()).sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+  }
+
+  async addChatMessage(message: Omit<ChatMessage, 'id' | 'timestamp'>): Promise<ChatMessage> {
+    const id = randomUUID();
+    const timestamp = new Date().toISOString();
+    const chatMessage: ChatMessage = { ...message, id, timestamp };
+    this.chatHistory.set(id, chatMessage);
+    return chatMessage;
+  }
+
+  async clearChatHistory(): Promise<void> {
+    this.chatHistory.clear();
   }
 }
 

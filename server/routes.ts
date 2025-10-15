@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { searchSymbol } from "./market-api";
+import { generateTradeIdeas, chatWithQuantAI } from "./ai-service";
 import {
   insertMarketDataSchema,
   insertTradeIdeaSchema,
@@ -10,6 +11,7 @@ import {
   insertOptionsDataSchema,
   insertUserPreferencesSchema,
 } from "@shared/schema";
+import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Market Data Routes
@@ -261,6 +263,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(prefs);
     } catch (error) {
       res.status(400).json({ error: "Invalid preferences data" });
+    }
+  });
+
+  // AI QuantBot Routes
+  app.post("/api/ai/generate-ideas", async (req, res) => {
+    try {
+      const schema = z.object({
+        marketContext: z.string().optional().default("Current market conditions with focus on stocks, options, and crypto"),
+      });
+      const { marketContext } = schema.parse(req.body);
+      
+      const aiIdeas = await generateTradeIdeas(marketContext);
+      
+      // Save AI-generated ideas to storage
+      const savedIdeas = [];
+      for (const aiIdea of aiIdeas) {
+        const riskRewardRatio = (aiIdea.targetPrice - aiIdea.entryPrice) / (aiIdea.entryPrice - aiIdea.stopLoss);
+        
+        const tradeIdea = await storage.createTradeIdea({
+          symbol: aiIdea.symbol,
+          assetType: aiIdea.assetType,
+          direction: aiIdea.direction,
+          entryPrice: aiIdea.entryPrice,
+          targetPrice: aiIdea.targetPrice,
+          stopLoss: aiIdea.stopLoss,
+          riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
+          catalyst: aiIdea.catalyst,
+          analysis: aiIdea.analysis,
+          liquidityWarning: aiIdea.entryPrice < 5,
+          sessionContext: aiIdea.sessionContext,
+          timestamp: new Date().toISOString(),
+          expiryDate: aiIdea.expiryDate || null,
+        });
+        savedIdeas.push(tradeIdea);
+      }
+      
+      res.json({ success: true, ideas: savedIdeas, count: savedIdeas.length });
+    } catch (error: any) {
+      console.error("AI idea generation error:", error);
+      res.status(500).json({ error: error?.message || "Failed to generate trade ideas" });
+    }
+  });
+
+  app.post("/api/ai/chat", async (req, res) => {
+    try {
+      const schema = z.object({
+        message: z.string().min(1),
+      });
+      const { message } = schema.parse(req.body);
+      
+      // Get conversation history
+      const history = await storage.getChatHistory();
+      const conversationHistory = history.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+      
+      // Get AI response
+      const aiResponse = await chatWithQuantAI(message, conversationHistory);
+      
+      // Save user message and AI response
+      await storage.addChatMessage({ role: 'user', content: message });
+      const assistantMessage = await storage.addChatMessage({ role: 'assistant', content: aiResponse });
+      
+      res.json({ message: aiResponse, messageId: assistantMessage.id });
+    } catch (error: any) {
+      console.error("Chat error:", error);
+      res.status(500).json({ error: error?.message || "Failed to process chat" });
+    }
+  });
+
+  app.get("/api/ai/chat/history", async (_req, res) => {
+    try {
+      const history = await storage.getChatHistory();
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch chat history" });
+    }
+  });
+
+  app.delete("/api/ai/chat/history", async (_req, res) => {
+    try {
+      await storage.clearChatHistory();
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to clear chat history" });
     }
   });
 

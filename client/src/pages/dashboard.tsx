@@ -15,9 +15,10 @@ import { WatchlistTable } from "@/components/watchlist-table";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SymbolSearch } from "@/components/symbol-search";
 import { SymbolDetailModal } from "@/components/symbol-detail-modal";
+import { QuantAIBot } from "@/components/quantai-bot";
 import { getMarketSession, formatCTTime } from "@/lib/utils";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem, ScreenerFilters as Filters } from "@shared/schema";
-import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw, ChevronDown, Calendar } from "lucide-react";
+import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw, ChevronDown, Calendar, Bot, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,6 +33,7 @@ export default function Dashboard() {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [nextRefresh, setNextRefresh] = useState<number>(60);
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "daily" | "all">("all");
+  const [chatBotOpen, setChatBotOpen] = useState(false);
   const currentSession = getMarketSession();
   const currentTime = formatCTTime(new Date());
   const { toast } = useToast();
@@ -100,6 +102,28 @@ export default function Dashboard() {
   const handleManualRefresh = () => {
     refreshPricesMutation.mutate();
   };
+
+  const generateIdeasMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/ai/generate-ideas', {
+        marketContext: "Current market conditions with focus on stocks, options, and crypto. Include diverse opportunities across all asset types."
+      });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      toast({
+        title: "AI Ideas Generated!",
+        description: `Generated ${data.count} fresh trade ideas using AI`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate AI trade ideas. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const removeFromWatchlistMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -292,6 +316,16 @@ export default function Dashboard() {
               <span className="hidden sm:inline text-sm text-muted-foreground font-mono" data-testid="text-current-time">
                 {currentTime}
               </span>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setChatBotOpen(true)}
+                className="gap-2"
+                data-testid="button-open-quantai"
+              >
+                <Bot className="h-4 w-4" />
+                <span className="hidden sm:inline">QuantAI Bot</span>
+              </Button>
               <ThemeToggle />
               <Button variant="ghost" size="icon" data-testid="button-settings">
                 <Settings className="h-5 w-5" />
@@ -398,7 +432,18 @@ export default function Dashboard() {
                       Trade Ideas
                     </CardTitle>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => generateIdeasMutation.mutate()}
+                      disabled={generateIdeasMutation.isPending}
+                      className="gap-2"
+                      data-testid="button-generate-ai-ideas"
+                    >
+                      <Sparkles className={`h-3 w-3 ${generateIdeasMutation.isPending ? 'animate-pulse' : ''}`} />
+                      {generateIdeasMutation.isPending ? 'Generating...' : 'Generate AI Ideas'}
+                    </Button>
                     <div className="flex gap-1">
                       <Button 
                         variant={activeDirection === "all" ? "default" : "outline"} 
@@ -655,6 +700,8 @@ export default function Dashboard() {
         onOpenChange={setDetailModalOpen}
         onAddToWatchlist={() => selectedSymbol && handleAddToWatchlist(selectedSymbol.symbol)}
       />
+
+      <QuantAIBot isOpen={chatBotOpen} onClose={() => setChatBotOpen(false)} />
     </div>
   );
 }
