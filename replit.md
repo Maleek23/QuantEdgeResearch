@@ -58,12 +58,15 @@ A professional quantitative trading research platform for discovering day-tradin
 - **User Preferences:** Account size, risk limits, holding horizons
 
 ### Key Features
-1. **Universal Symbol Search**
+1. **Universal Symbol Search & Real-Time Pricing**
    - Search any stock or crypto symbol
    - Instant crypto lookup (BTC, ETH, SOL, DOGE, ADA, AVAX, LINK, MATIC, etc.)
    - Stock lookup with Alpha Vantage API key
    - Auto-add searched symbols to dashboard
-   - Real-time price display with change percentages
+   - **Auto-refresh every 60 seconds** - prices update automatically
+   - Manual refresh button with countdown timer
+   - Live price display with change percentages
+   - Last update timestamp in CT timezone
 
 2. **Real-time Market Dashboard**
    - Smart summary cards showing actionable insights:
@@ -123,6 +126,7 @@ A professional quantitative trading research platform for discovering day-tradin
 - `GET /api/market-data/:symbol` - Get data by symbol
 - `POST /api/market-data` - Create market data
 - `GET /api/search-symbol/:symbol` - Search for stock/crypto and add to dashboard
+- `POST /api/refresh-prices` - Refresh all symbol prices from external APIs
 
 ### Trade Ideas
 - `GET /api/trade-ideas` - Get all trade ideas
