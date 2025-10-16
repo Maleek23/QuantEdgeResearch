@@ -35,7 +35,9 @@ QuantEdge Research is a professional quantitative trading research platform desi
 - **Quality Scoring System:**
   - **Confidence Score:** 0-100 numeric quality score with 70+ threshold for display filtering
   - **Probability Bands:** A (80-100), B (70-79), C (60-69) grades indicating success probability
-  - **Quality Signals:** Multi-factor scoring based on R:R ratio (min 2.0), volume confirmation, signal strength, and liquidity
+  - **Quality Signals:** Multi-factor scoring based on R:R ratio (min 2.0), volume confirmation, signal strength, liquidity, RSI/MACD indicators, and multi-timeframe alignment
+  - **Technical Indicators:** RSI (14-period) and MACD (12,26,9) with +10 point bonus for confirmed signals
+  - **Multi-Timeframe Analysis:** Daily (5-day vs 10-day SMA) and Weekly (4-week vs 10-week SMA on aggregated candles) with up to +15 points for strong alignment
   - **Gem Score:** Prioritization algorithm combining price action (40 pts), volume strength (30 pts), and liquidity (30 pts)
   - **Hard Guards:** Minimum 1.5:1 R:R ratio and 1.2x volume confirmation required for all generated ideas
 - **Day Trading Features:** 
@@ -55,8 +57,13 @@ QuantEdge Research is a professional quantitative trading research platform desi
   - **Sentiment:** Community sentiment (Bullish/Neutral/Bearish percentages) with trader commentary
   - **Access Points:** Symbol names (clickable links) or "View Details" button in expanded trade idea blocks
 - **Watchlist Management:** Track symbols with price targets, notes, and quick actions.
-- **QuantAI Bot:** AI-powered trading assistant with a sliding chatbot interface. Integrates OpenAI GPT-5, Anthropic Claude Sonnet 4, and Google Gemini 2.5 for conversational insights and AI-generated trade ideas. Includes persistent chat history and intelligent error handling for API billing/credit issues with graceful fallback suggestions.
-- **Quantitative Idea Generator:** An AI-free alternative generating trade ideas based on Momentum, Volume Spike, Bullish/Bearish Breakout, and Mean Reversion signals using technical analysis. Features intelligent deduplication that prevents creating similar ideas within 24 hours (matches by symbol, direction, and entry price within 5%), with helpful "wait for market movements" messaging when no new opportunities are detected.
+- **QuantAI Bot:** AI-powered trading assistant with a sliding chatbot interface. Features intelligent multi-provider fallback system (Anthropic Claude Sonnet 4 → OpenAI GPT-5 → Google Gemini 2.5) with helpful error messaging for API credit/billing issues. Includes persistent chat history and graceful degradation when primary providers fail.
+- **Quantitative Idea Generator:** An AI-free alternative generating trade ideas based on Momentum, Volume Spike, Bullish/Bearish Breakout, Mean Reversion, RSI Divergence, and MACD Crossover signals using advanced technical analysis. Features:
+  - **RSI Analysis:** 14-period RSI with oversold (<30) and overbought (>70) detection for reversal setups
+  - **MACD Analysis:** 12,26,9 MACD with bullish/bearish crossover signals for trend confirmation
+  - **Multi-Timeframe Confirmation:** Analyzes both daily (5/10-day SMA) and weekly (4/10-week SMA on aggregated candles) trends, requiring alignment for higher confidence
+  - **Intelligent Deduplication:** Prevents creating similar ideas within 24 hours (matches by symbol, direction, and entry price within 5%), with helpful "wait for market movements" messaging when no new opportunities are detected
+- **Performance Tracking:** Record actual trade outcomes with dialog in trade idea blocks. Track WIN/LOSS/BREAKEVEN/STOPPED outcomes, actual exit prices, and realized P&L. Enables measurement of actual win rates against predicted confidence scores.
 
 ### Data Models
 Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, User Preferences.
