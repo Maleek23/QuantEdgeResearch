@@ -28,6 +28,12 @@ The platform features a professional dark theme with a consistent color palette 
 - **Quality Scoring System:** Incorporates Confidence Scores (0-100), Probability Bands (A, B, C grades), and multi-factor Quality Signals based on R:R, volume, indicators (RSI, MACD), and multi-timeframe alignment, with hard guards for minimum R:R and volume confirmation.
 - **Day Trading Features:** Specific handling for options (strike, type, expiry), "DAY TRADE" badges, visual differentiation of AI vs. quantitative ideas, compact expandable UI with dynamic grade system adjusting in real-time, and at-a-glance metrics in collapsed cards (time since posted, P&L, progress bar).
 - **Symbol Detail Modal:** Comprehensive modal with Overview, Analysis (analyst ratings), and Sentiment tabs, accessible from any symbol.
+- **Quick Actions Dialog:** Smart trade idea creation from symbol search with asset-specific recommendations:
+  - **Crypto Assets:** Shows "Crypto Shares" button only (crypto has no options market), creates crypto trade ideas with assetType='crypto'
+  - **Stock Assets:** Shows "Stock Shares" and "Stock Options" buttons, intelligently recommends based on price, momentum, and volume
+  - **Recommendation Engine:** Analyzes price action, volume ratio, and market conditions to suggest optimal trade type with confidence scoring (high/medium/low)
+  - **Direction Analysis:** Automatically determines long/short direction based on momentum and price movement
+  - **Liquidity Warnings:** Displays alerts for penny stocks (<$5) with limited options markets
 - **Watchlist Management:** Full-width section with expandable quantitative analysis for crypto assets (RSI, MACD, Trend, Volume, Support/Resistance cards) and auto-refresh for prices.
 - **QuantAI Bot:** AI-powered trading assistant with a sliding chatbot interface, intelligent multi-provider fallback (Anthropic, OpenAI, Google Gemini), and persistent chat history.
 - **Quantitative Idea Generator:** An AI-free alternative generating trade ideas based on momentum, volume spike, breakout, mean reversion, and indicator divergence/crossover signals. Features a "Hidden Gem Discovery Engine" for crypto, advanced RSI/MACD analysis, multi-timeframe confirmation, and intelligent deduplication.
