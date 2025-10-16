@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,19 +20,36 @@ interface SettingsDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const defaultSettings = {
+  timezone: 'America/Chicago',
+  autoRefresh: true,
+  refreshInterval: '60',
+  notifications: true,
+  soundAlerts: false,
+  minConfidenceScore: '70',
+  showLowLiquidity: false,
+  defaultView: 'new',
+};
+
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const { toast } = useToast();
   
-  const [settings, setSettings] = useState({
-    timezone: 'America/Chicago',
-    autoRefresh: true,
-    refreshInterval: '60',
-    notifications: true,
-    soundAlerts: false,
-    minConfidenceScore: '70',
-    showLowLiquidity: false,
-    defaultView: 'new',
-  });
+  const [settings, setSettings] = useState(defaultSettings);
+
+  // Load settings from localStorage when dialog opens
+  useEffect(() => {
+    if (open) {
+      const saved = localStorage.getItem('quantedge-settings');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setSettings({ ...defaultSettings, ...parsed });
+        } catch (e) {
+          console.error('Failed to parse saved settings:', e);
+        }
+      }
+    }
+  }, [open]);
 
   const handleSave = () => {
     localStorage.setItem('quantedge-settings', JSON.stringify(settings));
@@ -44,17 +61,8 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   };
 
   const handleReset = () => {
-    const defaultSettings = {
-      timezone: 'America/Chicago',
-      autoRefresh: true,
-      refreshInterval: '60',
-      notifications: true,
-      soundAlerts: false,
-      minConfidenceScore: '70',
-      showLowLiquidity: false,
-      defaultView: 'new',
-    };
     setSettings(defaultSettings);
+    localStorage.setItem('quantedge-settings', JSON.stringify(defaultSettings));
     toast({
       title: "Settings reset",
       description: "All settings have been restored to defaults.",
