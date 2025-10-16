@@ -201,6 +201,19 @@ export default function TradeIdeasPage() {
           )}
         </div>
 
+        {/* Asset Type Dropdown - Always Visible */}
+        <Select value={activeAssetType} onValueChange={(value: any) => setActiveAssetType(value)}>
+          <SelectTrigger className="w-[180px]" data-testid="select-asset-type">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Assets</SelectItem>
+            <SelectItem value="stock">Stock Shares</SelectItem>
+            <SelectItem value="option">Stock Options</SelectItem>
+            <SelectItem value="crypto">Crypto</SelectItem>
+          </SelectContent>
+        </Select>
+
         {/* Filters Popover */}
         <Popover>
           <PopoverTrigger asChild>
