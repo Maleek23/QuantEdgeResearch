@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { formatInTimeZone } from "date-fns-tz";
 import type {
   MarketData,
   InsertMarketData,
@@ -360,11 +361,11 @@ export class MemStorage implements IStorage {
         stopLoss: 4.20,
         riskRewardRatio: 2.31,
         catalyst: "Fed dovish comments, VIX compression",
-        analysis: "SPY 580 calls expiring in 2 weeks showing unusual volume spike (3x normal). Implied volatility at 16% with IV rank at 28th percentile suggests options are relatively cheap. Market structure bullish with support holding at 570. Breakout above 578 could trigger gamma squeeze to 585+. Potential gain: +63.8% | Risk: -27.6%",
+        analysis: "SPY 580 calls expiring in 2 days showing unusual volume spike (3x normal). Implied volatility at 16% with IV rank at 28th percentile suggests options are relatively cheap. Market structure bullish with support holding at 570. Breakout above 578 could trigger gamma squeeze to 585+. Potential gain: +63.8% | Risk: -27.6%",
         liquidityWarning: false,
         sessionContext: "Regular Trading Hours",
         timestamp: now,
-        expiryDate: "Oct 27, 2025",
+        expiryDate: formatInTimeZone(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), 'America/Chicago', 'MMM d, yyyy'),
         strikePrice: 580,
         optionType: "call",
         source: "quant",

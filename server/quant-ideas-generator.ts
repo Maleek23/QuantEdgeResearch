@@ -675,7 +675,24 @@ export async function generateQuantIdeas(
       timestamp: now.toISOString(),
       liquidityWarning: levels.entryPrice < 5,
       expiryDate: assetType === 'option' 
-        ? formatInTimeZone(new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000), timezone, 'MMM d, yyyy')
+        ? (() => {
+            // Generate short-term options (1-5 days) with bias toward near-term
+            // 60% chance of 1-2 days, 30% chance of 3-4 days, 10% chance of 5 days
+            const rand = Math.random();
+            let daysToExpiry: number;
+            if (rand < 0.6) {
+              daysToExpiry = Math.random() < 0.5 ? 1 : 2; // 1 or 2 days
+            } else if (rand < 0.9) {
+              daysToExpiry = Math.random() < 0.5 ? 3 : 4; // 3 or 4 days
+            } else {
+              daysToExpiry = 5; // 5 days
+            }
+            return formatInTimeZone(
+              new Date(now.getTime() + daysToExpiry * 24 * 60 * 60 * 1000), 
+              timezone, 
+              'MMM d, yyyy'
+            );
+          })()
         : undefined,
       strikePrice: strikePrice,
       optionType: optionType,

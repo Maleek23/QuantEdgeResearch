@@ -69,6 +69,7 @@ QuantEdge Research is a professional quantitative trading research platform desi
   - **RSI Analysis:** 14-period RSI with oversold (<30) and overbought (>70) detection for reversal setups
   - **MACD Analysis:** 12,26,9 MACD with bullish/bearish crossover signals for trend confirmation
   - **Multi-Timeframe Confirmation:** Analyzes both daily (5/10-day SMA) and weekly (4/10-week SMA on aggregated candles) trends, requiring alignment for higher confidence
+  - **Day Trading Options:** Generates options with short-term expirations (1-5 days) weighted toward near-term opportunities - 60% chance for 1-2 day expirations, 30% for 3-4 days, 10% for 5 days - optimized for day trading strategies
   - **Intelligent Deduplication:** Prevents creating similar ideas within 24 hours (matches by symbol, direction, and entry price within 5%), with helpful "wait for market movements" messaging when no new opportunities are detected
 - **Performance Tracking:** Record actual trade outcomes with dialog in trade idea blocks. Track WIN/LOSS/BREAKEVEN/STOPPED outcomes, actual exit prices, and realized P&L. Enables measurement of actual win rates against predicted confidence scores.
 
