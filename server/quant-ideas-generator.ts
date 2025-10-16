@@ -10,6 +10,7 @@ import {
   analyzeMACD,
   calculateSMA
 } from './technical-indicators';
+import { discoverHiddenCryptoGems, fetchCryptoPrice } from './market-api';
 
 interface QuantSignal {
   type: 'momentum' | 'volume_spike' | 'breakout' | 'mean_reversion' | 'catalyst_driven' | 'rsi_divergence' | 'macd_crossover';
@@ -583,8 +584,41 @@ export async function generateQuantIdeas(
   const timezone = 'America/Chicago';
   const now = new Date();
 
-  // Sort market data by gem score (highest first) to prioritize interesting opportunities
-  const sortedData = [...marketData].sort((a, b) => calculateGemScore(b) - calculateGemScore(a));
+  // DISCOVERY PHASE: Find hidden crypto gems dynamically
+  const hiddenGems = await discoverHiddenCryptoGems(15);
+  console.log(`🔍 Discovered ${hiddenGems.length} hidden crypto gems:`, hiddenGems.map(g => `${g.symbol} ($${g.marketCap.toLocaleString()})`).join(', '));
+
+  // Fetch full market data for discovered gems
+  const discoveredMarketData: MarketData[] = [];
+  for (const gem of hiddenGems) {
+    const priceData = await fetchCryptoPrice(gem.symbol);
+    if (priceData) {
+      discoveredMarketData.push({
+        id: `discovered-${gem.symbol}`,
+        symbol: gem.symbol,
+        assetType: 'crypto',
+        currentPrice: priceData.currentPrice,
+        changePercent: priceData.changePercent,
+        volume: priceData.volume,
+        marketCap: priceData.marketCap,
+        session: 'rth' as any,
+        timestamp: now.toISOString(),
+        high24h: priceData.high24h,
+        low24h: priceData.low24h,
+        avgVolume: priceData.volume / 1.5, // Estimate baseline volume
+        dataSource: 'live' as any,
+        lastUpdated: now.toISOString(),
+      });
+    }
+  }
+
+  // Combine existing market data with discovered hidden gems
+  const combinedData = [...marketData, ...discoveredMarketData];
+
+  // Sort combined data by gem score (highest first) to prioritize interesting opportunities
+  const sortedData = combinedData.sort((a, b) => calculateGemScore(b) - calculateGemScore(a));
+
+  console.log(`📊 Analyzing ${sortedData.length} total symbols (${discoveredMarketData.length} discovered gems)`);
 
   // Analyze each market data point
   for (const data of sortedData) {
