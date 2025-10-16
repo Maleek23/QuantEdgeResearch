@@ -671,17 +671,17 @@ export async function generateQuantIdeas(
     );
     const probabilityBand = getProbabilityBand(confidenceScore);
 
-    // QUALITY FILTER: Accept 70+ for bullish, 65+ for bearish (PUT ideas need lower threshold)
-    const minConfidence = signal.direction === 'short' ? 65 : 70;
+    // QUALITY FILTER: Trust quantitative signals - accept 55+ for bullish, 50+ for bearish
+    const minConfidence = signal.direction === 'short' ? 50 : 55;
     if (confidenceScore < minConfidence) {
       continue; // Skip low-quality ideas
     }
 
     // Additional hard guards for quality
-    if (riskRewardRatio < 1.5) continue; // Minimum R:R requirement
+    if (riskRewardRatio < 1.3) continue; // Minimum R:R requirement (lowered to trust signals)
     const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
     // Relax volume requirement for bearish signals
-    const minVolume = signal.direction === 'short' ? 1.0 : 1.2;
+    const minVolume = signal.direction === 'short' ? 0.8 : 1.0;
     if (volumeRatio < minVolume) continue;
 
     // Determine asset type for options vs shares
@@ -789,7 +789,7 @@ export async function generateQuantIdeas(
       const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
 
       // Quality check for catalyst ideas
-      if (riskRewardRatio < 1.5) continue; // Skip if R:R too low
+      if (riskRewardRatio < 1.3) continue; // Skip if R:R too low (lowered to trust signals)
 
       // Generate session context string
       const sessionContext = symbolData.session === 'rth' 
@@ -809,8 +809,8 @@ export async function generateQuantIdeas(
       const { score: confidenceScore, signals: qualitySignals } = calculateConfidenceScore(symbolData, catalystSignal, riskRewardRatio);
       const probabilityBand = getProbabilityBand(confidenceScore);
 
-      // Skip if below quality threshold
-      if (confidenceScore < 70) continue;
+      // Skip if below quality threshold (lowered to trust catalyst analysis)
+      if (confidenceScore < 55) continue;
 
       // Check for duplicate ideas before creating
       if (storage) {
