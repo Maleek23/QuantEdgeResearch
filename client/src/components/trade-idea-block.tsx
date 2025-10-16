@@ -20,10 +20,13 @@ interface TradeIdeaBlockProps {
   currentPrice?: number;
   onAddToWatchlist?: (idea: TradeIdea) => void;
   onViewDetails?: (symbol: string) => void;
+  isExpanded?: boolean;
+  onToggleExpand?: (ideaId: string) => void;
 }
 
-export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDetails }: TradeIdeaBlockProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDetails, isExpanded, onToggleExpand }: TradeIdeaBlockProps) {
+  const [localIsOpen, setLocalIsOpen] = useState(false);
+  const isOpen = isExpanded !== undefined ? isExpanded : localIsOpen;
   const [perfDialogOpen, setPerfDialogOpen] = useState(false);
   const [outcome, setOutcome] = useState<string>('');
   const [actualExit, setActualExit] = useState<string>('');
@@ -196,10 +199,21 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
   const pl = calculatePL();
   const progress = calculateProgress();
 
+  const handleToggle = (newOpenState: boolean) => {
+    if (onToggleExpand) {
+      // Only toggle if clicking to expand, or if clicking to collapse when already expanded
+      if (newOpenState || isOpen) {
+        onToggleExpand(idea.id);
+      }
+    } else {
+      setLocalIsOpen(newOpenState);
+    }
+  };
+
   return (
     <Collapsible
       open={isOpen}
-      onOpenChange={setIsOpen}
+      onOpenChange={handleToggle}
       className="group hover-elevate active-elevate-2 relative"
     >
       {/* Quick Action Buttons - Positioned Absolutely on Hover */}
@@ -477,12 +491,14 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
             </span>
           </div>
 
-          {/* Analysis - Made more prominent */}
+          {/* Analysis - Made more prominent with max-height to prevent overstimulation */}
           <div className="bg-muted/30 p-4 rounded-lg border border-muted" onClick={(e) => e.stopPropagation()}>
             <h4 className="text-sm font-bold mb-3 text-foreground">In-Depth Analysis</h4>
-            <p className="text-base leading-relaxed" data-testid={`text-analysis-${idea.symbol}`}>
-              {idea.analysis}
-            </p>
+            <div className="max-h-32 overflow-y-auto">
+              <p className="text-base leading-relaxed" data-testid={`text-analysis-${idea.symbol}`}>
+                {idea.analysis}
+              </p>
+            </div>
           </div>
 
           {/* Catalyst */}

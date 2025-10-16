@@ -54,10 +54,16 @@ function getTradeRecommendation(data: MarketData): TradeRecommendation {
   const isExpensive = price > 500; // High price stocks better for options
   const isPennyStock = price < 5; // Penny stocks avoid options
 
-  // Direction analysis
+  // Direction analysis - for high-priced stocks, bias toward LONG unless significant drop
   let direction: 'long' | 'short' | 'neutral' = 'neutral';
-  if (changePercent > 2) direction = 'long';
-  else if (changePercent < -2) direction = 'short';
+  if (isExpensive) {
+    // High-priced stocks: default to LONG unless major selloff
+    direction = changePercent < -3 ? 'short' : 'long';
+  } else if (changePercent > 2) {
+    direction = 'long';
+  } else if (changePercent < -2) {
+    direction = 'short';
+  }
 
   // Recommendation logic
   if (isPennyStock) {

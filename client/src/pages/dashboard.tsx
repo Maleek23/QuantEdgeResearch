@@ -43,6 +43,8 @@ export default function Dashboard() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
+  const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const lastScrollY = useRef(0);
   const currentSession = getMarketSession();
   const currentTime = formatCTTime(new Date());
@@ -51,6 +53,14 @@ export default function Dashboard() {
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
     setCalendarOpen(false);
+  };
+
+  const handleToggleExpand = (ideaId: string) => {
+    setExpandedIdeaId(expandedIdeaId === ideaId ? null : ideaId);
+  };
+
+  const handleCollapseAll = () => {
+    setExpandedIdeaId(null);
   };
 
   const { data: marketData = [], isLoading: marketLoading } = useQuery<MarketData[]>({
@@ -644,6 +654,25 @@ export default function Dashboard() {
                         Day Trade
                       </Button>
                     </div>
+                    <div className="flex gap-1 border-l pl-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCollapseAll}
+                        data-testid="button-collapse-all"
+                      >
+                        <ChevronDown className="h-3 w-3 mr-1" />
+                        Collapse All
+                      </Button>
+                      <Button
+                        variant={viewMode === 'grid' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
+                        data-testid="button-toggle-view"
+                      >
+                        {viewMode === 'grid' ? 'List View' : 'Grid View'}
+                      </Button>
+                    </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground border-l pl-2">
                       <Clock className="h-3 w-3" />
                       <span className="hidden sm:inline">Next: {nextRefresh}s</span>
@@ -770,7 +799,10 @@ export default function Dashboard() {
                                             {assetIdeas.length}
                                           </Badge>
                                         </CollapsibleTrigger>
-                                        <CollapsibleContent className="space-y-2 mt-3">
+                                        <CollapsibleContent 
+                                          className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-3 mt-3' : 'space-y-2 mt-3'}
+                                          data-testid="trade-ideas-container"
+                                        >
                                           {assetIdeas.map((idea) => {
                                             const symbolData = marketData.find(m => m.symbol === idea.symbol);
                                             return (
@@ -783,6 +815,8 @@ export default function Dashboard() {
                                                   const data = marketData.find(m => m.symbol === symbol);
                                                   if (data) handleViewSymbolDetails(data);
                                                 }}
+                                                isExpanded={expandedIdeaId === idea.id}
+                                                onToggleExpand={handleToggleExpand}
                                               />
                                             );
                                           })}
@@ -811,7 +845,7 @@ export default function Dashboard() {
                     {ideasLoading ? (
                       <Skeleton className="h-[400px] w-full" />
                     ) : (
-                      <div className="space-y-2">
+                      <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2'}>
                         {filteredIdeas
                           .filter(idea => idea.assetType === "option")
                           .map((idea) => {
@@ -826,6 +860,8 @@ export default function Dashboard() {
                                   const data = marketData.find(m => m.symbol === symbol);
                                   if (data) handleViewSymbolDetails(data);
                                 }}
+                                isExpanded={expandedIdeaId === idea.id}
+                                onToggleExpand={handleToggleExpand}
                               />
                             );
                           })}
@@ -846,7 +882,7 @@ export default function Dashboard() {
                     {ideasLoading ? (
                       <Skeleton className="h-[400px] w-full" />
                     ) : (
-                      <div className="space-y-2">
+                      <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2'}>
                         {filteredIdeas
                           .filter(idea => idea.assetType === "stock")
                           .map((idea) => {
@@ -861,6 +897,8 @@ export default function Dashboard() {
                                   const data = marketData.find(m => m.symbol === symbol);
                                   if (data) handleViewSymbolDetails(data);
                                 }}
+                                isExpanded={expandedIdeaId === idea.id}
+                                onToggleExpand={handleToggleExpand}
                               />
                             );
                           })}
@@ -881,7 +919,7 @@ export default function Dashboard() {
                     {ideasLoading ? (
                       <Skeleton className="h-[400px] w-full" />
                     ) : (
-                      <div className="space-y-2">
+                      <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2'}>
                         {filteredIdeas
                           .filter(idea => idea.assetType === "crypto")
                           .map((idea) => {
@@ -896,6 +934,8 @@ export default function Dashboard() {
                                   const data = marketData.find(m => m.symbol === symbol);
                                   if (data) handleViewSymbolDetails(data);
                                 }}
+                                isExpanded={expandedIdeaId === idea.id}
+                                onToggleExpand={handleToggleExpand}
                               />
                             );
                           })}
