@@ -333,26 +333,8 @@ export class MemStorage implements IStorage {
       this.marketData.set(id, { ...data, id } as MarketData);
     });
 
-    // Seed trade ideas
+    // Seed trade ideas  
     const seedTradeIdeas: InsertTradeIdea[] = [
-      {
-        symbol: "NVDA",
-        assetType: "stock",
-        direction: "long",
-        entryPrice: 138.50,
-        targetPrice: 148.00,
-        stopLoss: 135.00,
-        riskRewardRatio: 2.71,
-        catalyst: "Strong AI chip demand, Q4 earnings beat expected",
-        analysis: "NVDA showing bullish momentum with consolidation above $135 support. AI sector tailwinds remain strong with data center demand exceeding supply. Technical setup shows higher lows formation with RSI at 58, indicating room for upside. Volume profile suggests accumulation. Target based on measured move from recent breakout pattern. Potential gain: +6.9% | Risk: -2.5%",
-        liquidityWarning: false,
-        sessionContext: "Regular Trading Hours",
-        timestamp: now,
-        source: "quant",
-        confidenceScore: 85,
-        qualitySignals: ['Excellent R:R (2.7:1)', 'Strong Momentum', 'High Liquidity'],
-        probabilityBand: 'A',
-      },
       {
         symbol: "SPY",
         assetType: "option",
@@ -373,6 +355,7 @@ export class MemStorage implements IStorage {
         confidenceScore: 82,
         qualitySignals: ['Strong R:R (2.3:1)', 'Exceptional Volume (3x)', 'Bullish Momentum'],
         probabilityBand: 'A',
+        outcomeStatus: 'open' as OutcomeStatus,
       },
       {
         symbol: "SNDL",
@@ -391,6 +374,7 @@ export class MemStorage implements IStorage {
         confidenceScore: 75,
         qualitySignals: ['Excellent R:R (3.5:1)', 'High Volume (2.5x)', 'Low Liquidity Risk'],
         probabilityBand: 'B',
+        outcomeStatus: 'open' as OutcomeStatus,
       },
       {
         symbol: "XRP",
@@ -409,24 +393,7 @@ export class MemStorage implements IStorage {
         confidenceScore: 78,
         qualitySignals: ['Strong R:R (2.7:1)', 'Breakout Pattern', 'High Liquidity'],
         probabilityBand: 'B',
-      },
-      {
-        symbol: "TSLA",
-        assetType: "stock",
-        direction: "short",
-        entryPrice: 258.92,
-        targetPrice: 240.00,
-        stopLoss: 268.00,
-        riskRewardRatio: 2.08,
-        catalyst: "Production delays, profit taking after recent rally",
-        analysis: "TSLA showing signs of exhaustion after extended rally. RSI at 72 indicating overbought conditions. Cybertruck production delays announced, creating near-term headwinds. Technical breakdown below $255 support would confirm bearish reversal. Volume declining on recent attempts to push higher. Target represents gap fill from previous breakout. Potential gain: +7.3% | Risk: -3.5%",
-        liquidityWarning: false,
-        sessionContext: "Regular Trading Hours",
-        timestamp: now,
-        source: "quant",
-        confidenceScore: 76,
-        qualitySignals: ['Strong R:R (2.1:1)', 'Overbought (RSI 72)', 'High Liquidity'],
-        probabilityBand: 'B',
+        outcomeStatus: 'open' as OutcomeStatus,
       },
       {
         symbol: "PEPE",
@@ -445,6 +412,7 @@ export class MemStorage implements IStorage {
         confidenceScore: 72,
         qualitySignals: ['Strong R:R (2.4:1)', 'Mean Reversion Setup', 'High Volume'],
         probabilityBand: 'B',
+        outcomeStatus: 'open' as OutcomeStatus,
       },
     ];
 
@@ -615,17 +583,7 @@ export class MemStorage implements IStorage {
     const existing = this.tradeIdeas.get(id);
     if (!existing) return undefined;
     
-    const updates: Partial<TradeIdea> = { ...performance };
-    
-    // Calculate actual profit if we have actualExit
-    if (performance.actualExit !== undefined) {
-      const actualProfit = existing.direction === 'long'
-        ? performance.actualExit - existing.entryPrice
-        : existing.entryPrice - performance.actualExit;
-      updates.actualProfit = Number(actualProfit.toFixed(2));
-    }
-    
-    const updated = { ...existing, ...updates };
+    const updated = { ...existing, ...performance };
     this.tradeIdeas.set(id, updated);
     return updated;
   }

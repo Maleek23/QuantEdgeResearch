@@ -132,6 +132,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Skip if already archived
         if (idea.outcomeStatus && idea.outcomeStatus !== 'open') continue;
         
+        // Skip options - we don't have live option prices to compare
+        if (idea.assetType === 'option') continue;
+        
         // Check if idea is stale (7+ days old with no movement)
         const ideaDate = new Date(idea.timestamp);
         if (ideaDate < sevenDaysAgo) {
