@@ -45,7 +45,7 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" className="px-4 py-3">
+            <SidebarMenuButton className="h-auto min-h-12 items-start px-4 py-3">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <TrendingUp className="h-4 w-4" />
               </div>
