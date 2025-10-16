@@ -6,9 +6,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Brain, Sparkles, AlertTriangle, BarChart3 } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Brain, Sparkles, AlertTriangle, BarChart3, Eye, Clock } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -145,17 +146,67 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
            idea.sessionContext.includes('After Hours');
   };
 
+  // Calculate time since posted
+  const getTimeSincePosted = (): string => {
+    const now = new Date();
+    const posted = new Date(idea.createdAt);
+    const diffMs = now.getTime() - posted.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) return `${diffDays}d ago`;
+    if (diffHours > 0) return `${diffHours}h ago`;
+    if (diffMins > 0) return `${diffMins}m ago`;
+    return 'Just now';
+  };
+
+  // Calculate current P&L
+  const calculatePL = (): { value: number; percent: number } => {
+    if (!currentPrice) return { value: 0, percent: 0 };
+    
+    if (isLong) {
+      const plValue = currentPrice - idea.entryPrice;
+      const plPercent = (plValue / idea.entryPrice) * 100;
+      return { value: plValue, percent: plPercent };
+    } else {
+      const plValue = idea.entryPrice - currentPrice;
+      const plPercent = (plValue / idea.entryPrice) * 100;
+      return { value: plValue, percent: plPercent };
+    }
+  };
+
+  // Calculate progress to target (0-100)
+  const calculateProgress = (): number => {
+    if (!currentPrice) return 0;
+
+    if (isLong) {
+      const totalDistance = idea.targetPrice - idea.entryPrice;
+      const currentDistance = currentPrice - idea.entryPrice;
+      const progress = (currentDistance / totalDistance) * 100;
+      return Math.max(0, Math.min(100, progress));
+    } else {
+      const totalDistance = idea.entryPrice - idea.targetPrice;
+      const currentDistance = idea.entryPrice - currentPrice;
+      const progress = (currentDistance / totalDistance) * 100;
+      return Math.max(0, Math.min(100, progress));
+    }
+  };
+
+  const pl = calculatePL();
+  const progress = calculateProgress();
+
   return (
     <Collapsible
       open={isOpen}
       onOpenChange={setIsOpen}
-      className="group hover-elevate active-elevate-2"
+      className="group hover-elevate active-elevate-2 relative"
     >
       <CollapsibleTrigger className="w-full" data-testid={`block-trade-idea-${idea.symbol}`}>
         <div className="p-4 border rounded-lg bg-card">
-          {/* Top Row: Symbol, Direction, Asset Details */}
+          {/* Top Row: Symbol, Direction, Time Posted, Quick Actions */}
           <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h3 
                 className="text-xl font-bold font-mono"
                 data-testid={`text-symbol-${idea.symbol}`}
@@ -170,14 +221,52 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
                 {isLong ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
                 {idea.direction.toUpperCase()}
               </Badge>
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {getTimeSincePosted()}
+              </span>
             </div>
             
-            <ChevronDown 
-              className={cn(
-                "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0",
-                isOpen && "rotate-180"
-              )}
-            />
+            <div className="flex items-center gap-2">
+              {/* Quick Action Buttons - Show on Hover */}
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                {onViewDetails && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewDetails(idea.symbol);
+                    }}
+                    data-testid={`button-quick-view-${idea.symbol}`}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                )}
+                {onAddToWatchlist && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddToWatchlist(idea);
+                    }}
+                    data-testid={`button-quick-star-${idea.symbol}`}
+                  >
+                    <Star className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              
+              <ChevronDown 
+                className={cn(
+                  "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0",
+                  isOpen && "rotate-180"
+                )}
+              />
+            </div>
           </div>
 
           {/* Asset Type & Options Details */}
@@ -248,6 +337,51 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
               </span>
             </div>
           </div>
+
+          {/* Real-time P&L Display */}
+          {currentPrice && (
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-muted-foreground">Unrealized P&L</span>
+                <div className="flex items-baseline gap-2">
+                  <span className={cn(
+                    "text-sm font-bold font-mono",
+                    pl.value >= 0 ? "text-bullish" : "text-bearish"
+                  )}>
+                    {pl.value >= 0 ? '+' : ''}{formatCurrency(pl.value)}
+                  </span>
+                  <span className={cn(
+                    "text-xs font-semibold font-mono",
+                    pl.percent >= 0 ? "text-bullish" : "text-bearish"
+                  )}>
+                    ({pl.percent >= 0 ? '+' : ''}{formatPercent(pl.percent)})
+                  </span>
+                </div>
+              </div>
+              
+              {/* Visual Progress Bar */}
+              <div className="relative">
+                <Progress 
+                  value={progress} 
+                  className={cn(
+                    "h-2",
+                    progress >= 100 ? "bg-bullish/20" : progress < 0 ? "bg-bearish/20" : ""
+                  )}
+                  data-testid={`progress-target-${idea.symbol}`}
+                />
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-xs text-muted-foreground">Entry</span>
+                  <span className={cn(
+                    "text-xs font-semibold",
+                    progress >= 80 ? "text-bullish" : progress >= 50 ? "text-blue-400" : "text-muted-foreground"
+                  )}>
+                    {progress.toFixed(0)}% to target
+                  </span>
+                  <span className="text-xs text-bullish">Target</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Bottom Row: Grade & Source */}
           <div className="flex items-center justify-between">
