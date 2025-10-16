@@ -116,8 +116,12 @@ export default function Dashboard() {
 
   // Header auto-hide on scroll
   useEffect(() => {
+    // Find the scrollable parent (main element with overflow-auto from App.tsx)
+    const scrollableElement = document.querySelector('main.overflow-auto');
+    if (!scrollableElement) return;
+
     const handleScroll = () => {
-      const currentScrollY = window.scrollY;
+      const currentScrollY = scrollableElement.scrollTop;
       
       // Show header when scrolling up or at top
       if (currentScrollY < lastScrollY.current || currentScrollY < 100) {
@@ -131,8 +135,8 @@ export default function Dashboard() {
       lastScrollY.current = currentScrollY;
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    scrollableElement.addEventListener('scroll', handleScroll, { passive: true });
+    return () => scrollableElement.removeEventListener('scroll', handleScroll);
   }, []);
 
   const handleManualRefresh = () => {
