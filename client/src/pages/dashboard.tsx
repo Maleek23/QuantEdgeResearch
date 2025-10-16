@@ -20,7 +20,7 @@ import { SettingsDialog } from "@/components/settings-dialog";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { getMarketSession, formatCTTime, formatCurrency } from "@/lib/utils";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem, ScreenerFilters as Filters } from "@shared/schema";
-import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw, ChevronDown, Calendar as CalendarIcon, Bot, Sparkles, Brain, AlertTriangle, X, User } from "lucide-react";
+import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw, ChevronDown, Calendar as CalendarIcon, Bot, Sparkles, Brain, AlertTriangle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -921,90 +921,6 @@ export default function Dashboard() {
             />
             <CatalystFeed catalysts={catalysts} />
           </div>
-
-          {/* About Section */}
-          <section id="about" className="space-y-6 scroll-mt-20">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight mb-6 flex items-center gap-2">
-                <User className="h-6 w-6 text-primary" />
-                About the Creator
-              </h2>
-            </div>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Profile Photo */}
-                  <div className="lg:col-span-1 flex justify-center lg:justify-start">
-                    <div className="relative">
-                      <img 
-                        src="/attached_assets/malikpic_1760579415191.jpg" 
-                        alt="Abdulmalik Ajisegiri"
-                        className="w-48 h-48 rounded-lg object-cover border-2 border-primary/20"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Profile Info */}
-                  <div className="lg:col-span-2 space-y-4">
-                    <div>
-                      <h3 className="text-2xl font-bold">Abdulmalik Ajisegiri</h3>
-                      <p className="text-lg text-primary font-medium">Model Risk Engineer @ DTCC</p>
-                      <p className="text-sm text-muted-foreground">Dallas Fort-Worth, Texas</p>
-                    </div>
-
-                    <p className="text-muted-foreground leading-relaxed">
-                      Systems engineer specializing in AI/ML model validation, risk analytics, and quantitative methods. 
-                      Currently leading validation efforts for enterprise AI/ML models at DTCC, with expertise in stress testing, 
-                      benchmarking, and model governance following SR 11-7 principles.
-                    </p>
-
-                    <div className="space-y-3">
-                      <div>
-                        <h4 className="text-sm font-semibold mb-2">Education</h4>
-                        <div className="space-y-1 text-sm text-muted-foreground">
-                          <p>• M.S. Systems Engineering - University of Oklahoma (3.8 GPA)</p>
-                          <p>• B.S. Computer Engineering - University of Texas at Arlington</p>
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className="text-sm font-semibold mb-2">Certifications</h4>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="secondary" className="text-xs">CISA Certified</Badge>
-                          <Badge variant="secondary" className="text-xs">MATLAB Certified</Badge>
-                          <Badge variant="secondary" className="text-xs">Simulink Certified</Badge>
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className="text-sm font-semibold mb-2">Connect</h4>
-                        <div className="flex gap-3">
-                          <a 
-                            href="https://www.linkedin.com/in/malikajisegiri" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline"
-                          >
-                            LinkedIn
-                          </a>
-                          <span className="text-muted-foreground">•</span>
-                          <a 
-                            href="https://github.com/Maleek23" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline"
-                          >
-                            GitHub
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
         </div>
         </section>
 
