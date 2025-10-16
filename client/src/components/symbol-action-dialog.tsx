@@ -33,7 +33,7 @@ interface SymbolActionDialogProps {
 }
 
 interface TradeRecommendation {
-  type: 'stock_shares' | 'stock_options';
+  type: 'stock_shares' | 'stock_options' | 'crypto_shares';
   reason: string;
   confidence: 'high' | 'medium' | 'low';
   direction: 'long' | 'short' | 'neutral';
@@ -45,6 +45,27 @@ function getTradeRecommendation(data: MarketData): TradeRecommendation {
   const volume = data.volume;
   const avgVolume = data.avgVolume || volume;
   const volumeRatio = avgVolume > 0 ? volume / avgVolume : 1;
+
+  // Check if crypto - crypto doesn't have options
+  const isCrypto = data.assetType === 'crypto';
+  
+  if (isCrypto) {
+    const direction = changePercent > 2 ? 'long' : changePercent < -2 ? 'short' : 'neutral';
+    const hasHighVolume = volumeRatio > 1.5;
+    const hasStrongMomentum = Math.abs(changePercent) > 3;
+    
+    const confidence = (hasStrongMomentum && hasHighVolume) ? 'high' :
+                       (hasStrongMomentum || hasHighVolume) ? 'medium' : 'low';
+    
+    return {
+      type: 'crypto_shares',
+      reason: hasStrongMomentum 
+        ? `Strong ${changePercent > 0 ? 'upward' : 'downward'} momentum in crypto market - ${Math.abs(changePercent).toFixed(1)}% move with ${volumeRatio.toFixed(1)}x volume.`
+        : 'Crypto shares recommended - 24/7 market access with defined risk.',
+      confidence,
+      direction
+    };
+  }
 
   // Strong momentum = options preferred
   const hasStrongMomentum = Math.abs(changePercent) > 3;
@@ -113,12 +134,13 @@ function getTradeRecommendation(data: MarketData): TradeRecommendation {
 
 export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolActionDialogProps) {
   const { toast } = useToast();
-  const [selectedType, setSelectedType] = useState<'stock_shares' | 'stock_options' | null>(null);
+  const [selectedType, setSelectedType] = useState<'stock_shares' | 'stock_options' | 'crypto_shares' | null>(null);
 
   const recommendation = marketData ? getTradeRecommendation(marketData) : null;
+  const isCrypto = marketData?.assetType === 'crypto';
 
   const createIdeaMutation = useMutation({
-    mutationFn: async (type: 'stock_shares' | 'stock_options') => {
+    mutationFn: async (type: 'stock_shares' | 'stock_options' | 'crypto_shares') => {
       if (!marketData || !recommendation) return;
 
       const entryPrice = marketData.currentPrice;
@@ -132,7 +154,8 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
 
       const idea: InsertTradeIdea = {
         symbol: marketData.symbol,
-        assetType: type === 'stock_options' ? 'option' : 'stock',
+        assetType: type === 'stock_options' ? 'option' : 
+                   type === 'crypto_shares' ? 'crypto' : 'stock',
         direction: recommendation.direction === 'neutral' ? 'long' : recommendation.direction,
         entryPrice: parseFloat(entryPrice.toFixed(2)),
         targetPrice: parseFloat(targetPrice.toFixed(2)),
@@ -140,7 +163,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
         riskRewardRatio: parseFloat(riskRewardRatio.toFixed(2)),
         catalyst: `User-initiated idea from symbol search - ${recommendation.reason}`,
         analysis: `Based on current price action: ${marketData.changePercent >= 0 ? '+' : ''}${marketData.changePercent.toFixed(2)}% move with ${(marketData.volume / (marketData.avgVolume || marketData.volume)).toFixed(1)}x average volume. ${recommendation.reason}`,
-        liquidityWarning: marketData.currentPrice < 5,
+        liquidityWarning: marketData.currentPrice < 5 && type !== 'crypto_shares',
         sessionContext: marketData.session === 'rth' ? 'Regular Trading Hours' : 
                        marketData.session === 'pre-market' ? 'Pre-Market' : 'After Hours',
         timestamp: new Date().toISOString(),
@@ -174,7 +197,8 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
       
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       
-      const typeLabel = data.type === 'stock_options' ? 'Options' : 'Stock Shares';
+      const typeLabel = data.type === 'stock_options' ? 'Options' : 
+                       data.type === 'crypto_shares' ? 'Crypto' : 'Stock Shares';
       
       toast({
         title: "Trade Idea Created",
@@ -193,7 +217,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
     },
   });
 
-  const handleCreateIdea = (type: 'stock_shares' | 'stock_options') => {
+  const handleCreateIdea = (type: 'stock_shares' | 'stock_options' | 'crypto_shares') => {
     setSelectedType(type);
     createIdeaMutation.mutate(type);
   };
@@ -271,7 +295,8 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
                             variant={recommendation.type === 'stock_options' ? 'default' : 'secondary'}
                             data-testid="badge-recommendation-type"
                           >
-                            {recommendation.type === 'stock_options' ? 'Stock Options' : 'Stock Shares'}
+                            {recommendation.type === 'stock_options' ? 'Stock Options' : 
+                             recommendation.type === 'crypto_shares' ? 'Crypto Shares' : 'Stock Shares'}
                           </Badge>
                           <Badge 
                             variant="outline" 
@@ -330,26 +355,37 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
             View Only
           </Button>
           
-          <div className="flex gap-2">
+          {isCrypto ? (
             <Button
-              variant="secondary"
-              onClick={() => handleCreateIdea('stock_shares')}
+              onClick={() => handleCreateIdea('crypto_shares')}
               disabled={createIdeaMutation.isPending}
-              data-testid="button-add-stock-shares"
-            >
-              <DollarSign className="h-4 w-4 mr-2" />
-              {selectedType === 'stock_shares' && createIdeaMutation.isPending ? 'Adding...' : 'Stock Shares'}
-            </Button>
-            
-            <Button
-              onClick={() => handleCreateIdea('stock_options')}
-              disabled={createIdeaMutation.isPending}
-              data-testid="button-add-stock-options"
+              data-testid="button-add-crypto-shares"
             >
               <Plus className="h-4 w-4 mr-2" />
-              {selectedType === 'stock_options' && createIdeaMutation.isPending ? 'Adding...' : 'Stock Options'}
+              {selectedType === 'crypto_shares' && createIdeaMutation.isPending ? 'Adding...' : 'Crypto Shares'}
             </Button>
-          </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => handleCreateIdea('stock_shares')}
+                disabled={createIdeaMutation.isPending}
+                data-testid="button-add-stock-shares"
+              >
+                <DollarSign className="h-4 w-4 mr-2" />
+                {selectedType === 'stock_shares' && createIdeaMutation.isPending ? 'Adding...' : 'Stock Shares'}
+              </Button>
+              
+              <Button
+                onClick={() => handleCreateIdea('stock_options')}
+                disabled={createIdeaMutation.isPending}
+                data-testid="button-add-stock-options"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {selectedType === 'stock_options' && createIdeaMutation.isPending ? 'Adding...' : 'Stock Options'}
+              </Button>
+            </div>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
