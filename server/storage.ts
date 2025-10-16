@@ -13,6 +13,7 @@ import type {
   InsertOptionsData,
   UserPreferences,
   InsertUserPreferences,
+  OutcomeStatus,
 } from "@shared/schema";
 
 export interface ChatMessage {
@@ -36,7 +37,7 @@ export interface IStorage {
   updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined>;
   deleteTradeIdea(id: string): Promise<boolean>;
   findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack?: number): Promise<TradeIdea | undefined>;
-  updateTradeIdeaPerformance(id: string, performance: { outcome?: string; actualExit?: number; exitDate?: string }): Promise<TradeIdea | undefined>;
+  updateTradeIdeaPerformance(id: string, performance: { outcomeStatus?: OutcomeStatus; actualExit?: number; exitDate?: string }): Promise<TradeIdea | undefined>;
 
   // Catalysts
   getAllCatalysts(): Promise<Catalyst[]>;
@@ -610,7 +611,7 @@ export class MemStorage implements IStorage {
     });
   }
 
-  async updateTradeIdeaPerformance(id: string, performance: { outcome?: string; actualExit?: number; exitDate?: string }): Promise<TradeIdea | undefined> {
+  async updateTradeIdeaPerformance(id: string, performance: { outcomeStatus?: OutcomeStatus; actualExit?: number; exitDate?: string }): Promise<TradeIdea | undefined> {
     const existing = this.tradeIdeas.get(id);
     if (!existing) return undefined;
     

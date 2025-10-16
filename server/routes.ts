@@ -136,7 +136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const ideaDate = new Date(idea.timestamp);
         if (ideaDate < sevenDaysAgo) {
           await storage.updateTradeIdeaPerformance(idea.id, { 
-            outcome: 'expired',
+            outcomeStatus: 'expired',
             exitDate: now.toISOString()
           });
           continue;
@@ -153,13 +153,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Long trade: check if price >= target or <= stop
           if (currentPrice >= idea.targetPrice) {
             await storage.updateTradeIdeaPerformance(idea.id, {
-              outcome: 'hit_target',
+              outcomeStatus: 'hit_target',
               actualExit: currentPrice,
               exitDate: now.toISOString()
             });
           } else if (currentPrice <= idea.stopLoss) {
             await storage.updateTradeIdeaPerformance(idea.id, {
-              outcome: 'hit_stop',
+              outcomeStatus: 'hit_stop',
               actualExit: currentPrice,
               exitDate: now.toISOString()
             });
@@ -168,13 +168,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Short trade: check if price <= target or >= stop
           if (currentPrice <= idea.targetPrice) {
             await storage.updateTradeIdeaPerformance(idea.id, {
-              outcome: 'hit_target',
+              outcomeStatus: 'hit_target',
               actualExit: currentPrice,
               exitDate: now.toISOString()
             });
           } else if (currentPrice >= idea.stopLoss) {
             await storage.updateTradeIdeaPerformance(idea.id, {
-              outcome: 'hit_stop',
+              outcomeStatus: 'hit_stop',
               actualExit: currentPrice,
               exitDate: now.toISOString()
             });
@@ -226,9 +226,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/trade-ideas/:id/performance", async (req, res) => {
     try {
-      const { outcome, actualExit, exitDate } = req.body;
+      const { outcomeStatus, actualExit, exitDate } = req.body;
       const updated = await storage.updateTradeIdeaPerformance(req.params.id, {
-        outcome,
+        outcomeStatus,
         actualExit,
         exitDate
       });

@@ -33,7 +33,7 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
   const { toast } = useToast();
 
   const performanceMutation = useMutation({
-    mutationFn: async (data: { outcome: string; actualExit?: number; exitDate: string }) => {
+    mutationFn: async (data: { outcomeStatus: string; actualExit?: number; exitDate: string }) => {
       return await apiRequest('PATCH', `/api/trade-ideas/${idea.id}/performance`, data);
     },
     onSuccess: () => {
@@ -51,7 +51,7 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
   const handlePerformanceSubmit = () => {
     if (!outcome) return;
     performanceMutation.mutate({
-      outcome,
+      outcomeStatus: outcome,
       actualExit: actualExit ? parseFloat(actualExit) : undefined,
       exitDate: new Date().toISOString()
     });
