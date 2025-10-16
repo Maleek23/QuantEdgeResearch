@@ -268,6 +268,11 @@ export default function Dashboard() {
   });
 
   const filteredTradeIdeas = tradeIdeas.filter((idea) => {
+    // Only show active (open) ideas - filter out completed/archived trades
+    if (idea.outcomeStatus && idea.outcomeStatus !== 'open') {
+      return false;
+    }
+    
     // Filter by search
     if (tradeIdeaSearch && !idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase())) {
       return false;
@@ -489,10 +494,10 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold" data-testid="text-stat-opportunities">
-                {tradeIdeas.length}
+                {tradeIdeas.filter(t => !t.outcomeStatus || t.outcomeStatus === 'open').length}
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                {tradeIdeas.filter(t => t.riskRewardRatio >= 2).length} high R:R (≥2:1)
+                {tradeIdeas.filter(t => (!t.outcomeStatus || t.outcomeStatus === 'open') && t.riskRewardRatio >= 2).length} high R:R (≥2:1)
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 {marketData.length} symbols tracked

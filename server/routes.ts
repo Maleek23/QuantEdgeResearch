@@ -122,8 +122,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Trade Ideas Routes
   app.get("/api/trade-ideas", async (_req, res) => {
     try {
+      // Auto-archive ideas that hit target, stop, or are stale
       const ideas = await storage.getAllTradeIdeas();
-      res.json(ideas);
+      const marketData = await storage.getAllMarketData();
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      
+      for (const idea of ideas) {
+        // Skip if already archived
+        if (idea.outcomeStatus && idea.outcomeStatus !== 'open') continue;
+        
+        // Check if idea is stale (7+ days old with no movement)
+        const ideaDate = new Date(idea.timestamp);
+        if (ideaDate < sevenDaysAgo) {
+          await storage.updateTradeIdeaPerformance(idea.id, { 
+            outcome: 'expired',
+            exitDate: now.toISOString()
+          });
+          continue;
+        }
+        
+        // Get current price for the symbol
+        const symbolData = marketData.find(m => m.symbol === idea.symbol);
+        if (!symbolData) continue;
+        
+        const currentPrice = symbolData.currentPrice;
+        
+        // Check if target or stop hit
+        if (idea.direction === 'long') {
+          // Long trade: check if price >= target or <= stop
+          if (currentPrice >= idea.targetPrice) {
+            await storage.updateTradeIdeaPerformance(idea.id, {
+              outcome: 'hit_target',
+              actualExit: currentPrice,
+              exitDate: now.toISOString()
+            });
+          } else if (currentPrice <= idea.stopLoss) {
+            await storage.updateTradeIdeaPerformance(idea.id, {
+              outcome: 'hit_stop',
+              actualExit: currentPrice,
+              exitDate: now.toISOString()
+            });
+          }
+        } else {
+          // Short trade: check if price <= target or >= stop
+          if (currentPrice <= idea.targetPrice) {
+            await storage.updateTradeIdeaPerformance(idea.id, {
+              outcome: 'hit_target',
+              actualExit: currentPrice,
+              exitDate: now.toISOString()
+            });
+          } else if (currentPrice >= idea.stopLoss) {
+            await storage.updateTradeIdeaPerformance(idea.id, {
+              outcome: 'hit_stop',
+              actualExit: currentPrice,
+              exitDate: now.toISOString()
+            });
+          }
+        }
+      }
+      
+      // Fetch updated ideas after archiving
+      const updatedIdeas = await storage.getAllTradeIdeas();
+      res.json(updatedIdeas);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch trade ideas" });
     }
