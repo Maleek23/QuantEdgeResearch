@@ -32,6 +32,7 @@ export interface IStorage {
   getAllTradeIdeas(): Promise<TradeIdea[]>;
   getTradeIdeaById(id: string): Promise<TradeIdea | undefined>;
   createTradeIdea(idea: InsertTradeIdea): Promise<TradeIdea>;
+  updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined>;
   deleteTradeIdea(id: string): Promise<boolean>;
   findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack?: number): Promise<TradeIdea | undefined>;
 
@@ -574,6 +575,14 @@ export class MemStorage implements IStorage {
     const tradeIdea: TradeIdea = { ...idea, id } as TradeIdea;
     this.tradeIdeas.set(id, tradeIdea);
     return tradeIdea;
+  }
+
+  async updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined> {
+    const existing = this.tradeIdeas.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...updates };
+    this.tradeIdeas.set(id, updated);
+    return updated;
   }
 
   async deleteTradeIdea(id: string): Promise<boolean> {
