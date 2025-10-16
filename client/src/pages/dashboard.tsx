@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,10 +10,12 @@ import { SymbolSearch } from "@/components/symbol-search";
 import { SymbolDetailModal } from "@/components/symbol-detail-modal";
 import { QuantAIBot } from "@/components/quantai-bot";
 import { getMarketSession, formatCTTime } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem } from "@shared/schema";
 import { 
   TrendingUp, TrendingDown, Activity, Star, Bot, Sparkles, BarChart3, 
-  AlertCircle, ArrowRight, Target, Shield 
+  AlertCircle, ArrowRight, Target, Shield, Zap 
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -22,6 +24,7 @@ export default function Dashboard() {
   const [chatBotOpen, setChatBotOpen] = useState(false);
   const currentSession = getMarketSession();
   const currentTime = formatCTTime(new Date());
+  const { toast } = useToast();
 
   const { data: marketData = [], isLoading: marketLoading } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
@@ -38,6 +41,27 @@ export default function Dashboard() {
 
   const { data: watchlist = [], isLoading: watchlistLoading } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
+  });
+
+  // Generate Quant Ideas mutation
+  const generateQuantIdeas = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/quant/generate-ideas', {});
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      toast({
+        title: "Quant Ideas Generated",
+        description: `Generated ${data.newIdeas} new quantitative trade ideas`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate quant ideas",
+        variant: "destructive"
+      });
+    }
   });
 
   // Calculate metrics
@@ -81,14 +105,45 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Search & Add Symbols</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SymbolSearch />
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Search & Add Symbols</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SymbolSearch />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Zap className="h-5 w-5" />
+              Generate New Ideas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button 
+              onClick={() => generateQuantIdeas.mutate()}
+              disabled={generateQuantIdeas.isPending}
+              className="w-full gap-2"
+              data-testid="button-generate-quant"
+            >
+              <BarChart3 className="h-4 w-4" />
+              {generateQuantIdeas.isPending ? "Generating..." : "Generate Quant Ideas"}
+            </Button>
+            <Button 
+              onClick={() => setChatBotOpen(true)}
+              variant="outline"
+              className="w-full gap-2"
+              data-testid="button-generate-ai"
+            >
+              <Sparkles className="h-4 w-4" />
+              Ask AI for Ideas
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Metrics Summary */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

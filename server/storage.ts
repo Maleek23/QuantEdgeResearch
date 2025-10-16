@@ -543,7 +543,11 @@ export class MemStorage implements IStorage {
 
   async createTradeIdea(idea: InsertTradeIdea): Promise<TradeIdea> {
     const id = randomUUID();
-    const tradeIdea: TradeIdea = { ...idea, id } as TradeIdea;
+    const tradeIdea: TradeIdea = { 
+      ...idea, 
+      id,
+      outcomeStatus: 'open' 
+    } as TradeIdea;
     this.tradeIdeas.set(id, tradeIdea);
     return tradeIdea;
   }

@@ -20,8 +20,8 @@ QuantEdge Research is a professional quantitative trading research platform desi
 
 ### Multi-Page Architecture (Updated Oct 2025)
 The platform now uses a modern multi-page architecture with deep linking support:
-- **Dashboard (/)** - Legacy all-in-one view (to be deprecated)
-- **Trade Ideas (/trade-ideas)** - Dedicated feed with filters, calendar, date-based accordions, and archived trades
+- **Dashboard (/)** - Metrics-focused overview with quick actions, idea generation buttons, market movers, and recent ideas preview
+- **Trade Ideas (/trade-ideas)** - Unified feed with source filtering (All | AI | Quant | Manual), date-based accordions, and archived trades
 - **Market Overview (/market)** - Live prices, top movers, market stats, catalyst feed
 - **Watchlist (/watchlist)** - Symbol tracking with target prices and asset type filtering
 - **Risk Calculator (/risk)** - Position sizing tool with educational content
@@ -36,8 +36,9 @@ The platform features a professional dark theme with a consistent color palette 
 - **Tech Stack:** React with TypeScript, Tailwind CSS + Shadcn UI, TanStack Query, Wouter, date-fns-tz for the frontend; Express.js with TypeScript, In-memory storage, and Zod validation for the backend.
 - **Core Navigation:** Collapsible sidebar, dedicated About page for creator profile, and robust settings management with localStorage persistence.
 - **Market Data:** Universal symbol search with real-time pricing for stocks (Alpha Vantage) and crypto (CoinGecko), including auto-refresh and clear data freshness indicators.
-- **Real-time Dashboard:** Smart summary cards, live price cards, and market session indicators, with precise formatting for micro-cap crypto prices.
-- **Trade Ideas Feed:** Tabbed interface with date-based accordions for "NEW IDEAS," compact `TradeIdeaBlock` components, and detailed expandable views showing quantitative entry/target/stop levels, R:R, and catalyst summaries. Includes filtering options (All, Long, Short, Day Trade) and a mini calendar for historical navigation.
+- **Real-time Dashboard:** Transformed to metrics-focused overview (69% code reduction from 1009→310 lines). Features quick action cards including Symbol Search and Generate New Ideas section with one-click Quant generation and AI idea request buttons. Displays Active Ideas count with AI/Quant breakdown, High Grade Ideas, Tracked Assets, Market Catalysts metrics. Shows Top Gainers/Losers market movers and Recent Trade Ideas preview with "View All" quick link.
+- **Trade Ideas Feed:** Unified page with source filtering (All Sources | AI | Quant | Manual) using visual badges (AI=Sparkles, Quant=BarChart3, Manual=Brain). Tabbed interface with date-based accordions for "NEW IDEAS," compact `TradeIdeaBlock` components, and detailed expandable views showing quantitative entry/target/stop levels, R:R, and catalyst summaries. Includes direction filtering (All, Long, Short, Day Trade) and mini calendar for historical navigation.
+- **Idea Generation System:** Dual-source architecture with (1) Generate Quant Ideas button triggering POST `/api/quant/generate-ideas` for AI-free quantitative signal generation, and (2) Ask AI for Ideas button opening QuantAI chatbot for conversational idea creation. All ideas tagged with source='ai', 'quant', or 'manual' and filterable on Trade Ideas page.
 - **Quality Scoring System:** Incorporates Confidence Scores (0-100), Probability Bands (A, B, C grades), and multi-factor Quality Signals based on R:R, volume, indicators (RSI, MACD), and multi-timeframe alignment, with hard guards for minimum R:R and volume confirmation.
 - **Day Trading Features:** Specific handling for options (strike, type, expiry), "DAY TRADE" badges, visual differentiation of AI vs. quantitative ideas, compact expandable UI with dynamic grade system adjusting in real-time, and at-a-glance metrics in collapsed cards (time since posted, P&L, progress bar).
 - **Symbol Detail Modal:** Comprehensive modal with Overview, Analysis (analyst ratings), and Sentiment tabs, accessible from any symbol.
