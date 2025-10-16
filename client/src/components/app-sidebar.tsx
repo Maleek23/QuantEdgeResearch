@@ -1,4 +1,4 @@
-import { Home, TrendingUp, Star } from "lucide-react";
+import { Home, TrendingUp, Star, User } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -27,6 +27,11 @@ const menuItems = [
     url: "#watchlist",
     icon: Star,
   },
+  {
+    title: "About",
+    url: "#about",
+    icon: User,
+  },
 ];
 
 export function AppSidebar() {
@@ -37,7 +42,7 @@ export function AppSidebar() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <TrendingUp className="h-4 w-4" />
           </div>
-          <div>
+          <div className="group-data-[collapsible=icon]:hidden">
             <p className="text-sm font-semibold">QuantEdge</p>
             <p className="text-xs text-muted-foreground">Research Platform</p>
           </div>
