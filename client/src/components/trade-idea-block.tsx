@@ -415,12 +415,12 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
                 <div className="flex items-baseline gap-1">
                   <span className={cn(
                     "text-2xl font-bold",
-                    getGradeColor(dynamicScore)
+                    getGradeColor(idea.confidenceScore)
                   )} data-testid={`text-confidence-${idea.symbol}`}>
-                    {getLetterGrade(dynamicScore)}
+                    {idea.probabilityBand || getLetterGrade(idea.confidenceScore)}
                   </span>
                   <span className="text-xs text-muted-foreground font-mono">
-                    {dynamicScore}%
+                    {idea.confidenceScore}%
                   </span>
                 </div>
               </div>

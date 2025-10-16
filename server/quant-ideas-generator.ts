@@ -531,10 +531,16 @@ function calculateConfidenceScore(
 }
 
 // Calculate probability band based on confidence score
+// ALIGNED with frontend display logic in trade-idea-block.tsx
 function getProbabilityBand(score: number): string {
-  if (score >= 80) return 'A'; // 80-100: High probability (80%+)
-  if (score >= 70) return 'B'; // 70-79: Good probability (70-79%)
-  return 'C'; // Below 70: Lower probability (<70%)
+  if (score >= 95) return 'A+';
+  if (score >= 90) return 'A-';
+  if (score >= 85) return 'B+';
+  if (score >= 80) return 'B';
+  if (score >= 75) return 'B-';
+  if (score >= 70) return 'C+';
+  if (score >= 65) return 'C';
+  return 'C-';
 }
 
 // Calculate gem score for prioritizing opportunities

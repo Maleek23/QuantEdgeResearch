@@ -24,6 +24,7 @@ export default function TradeIdeasPage() {
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
   const [activeAssetType, setActiveAssetType] = useState<"all" | "stock" | "option" | "crypto">("all");
+  const [activeGrade, setActiveGrade] = useState<"all" | "A" | "B" | "C">("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
@@ -92,7 +93,7 @@ export default function TradeIdeasPage() {
     setExpandedIdeaId(null);
   };
 
-  // Filter ideas by search, direction, source, asset type, date, and screener filters
+  // Filter ideas by search, direction, source, asset type, grade, date, and screener filters
   const filteredIdeas = tradeIdeas.filter(idea => {
     const matchesSearch = !tradeIdeaSearch || 
       idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase()) ||
@@ -108,11 +109,13 @@ export default function TradeIdeasPage() {
     
     const matchesAssetType = activeAssetType === "all" || idea.assetType === activeAssetType;
     
+    const matchesGrade = activeGrade === "all" || idea.probabilityBand?.startsWith(activeGrade) || false;
+    
     const matchesDate = !selectedDate || isSameDay(parseISO(idea.timestamp), selectedDate);
     
     const matchesFilters = (!activeFilters.assetType || activeFilters.assetType.includes(idea.assetType));
     
-    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesDate && matchesFilters;
+    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDate && matchesFilters;
   });
 
   // Group by date
@@ -273,39 +276,56 @@ export default function TradeIdeasPage() {
                 Manual
               </Button>
 
-              {/* Asset Type Filters */}
+              {/* Asset Type Dropdown */}
+              <div className="h-6 w-px bg-border mx-1" />
+              <Select value={activeAssetType} onValueChange={(value: any) => setActiveAssetType(value)}>
+                <SelectTrigger className="w-[160px] h-9" data-testid="select-asset-type">
+                  <SelectValue placeholder="Asset Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Assets</SelectItem>
+                  <SelectItem value="stock">Stock Shares</SelectItem>
+                  <SelectItem value="option">Stock Options</SelectItem>
+                  <SelectItem value="crypto">Crypto</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Grade Filters */}
               <div className="h-6 w-px bg-border mx-1" />
               <Button
-                variant={activeAssetType === "all" ? "default" : "outline"}
+                variant={activeGrade === "all" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setActiveAssetType("all")}
-                data-testid="filter-asset-all"
+                onClick={() => setActiveGrade("all")}
+                data-testid="filter-grade-all"
               >
-                All Assets
+                All Grades
               </Button>
               <Button
-                variant={activeAssetType === "stock" ? "default" : "outline"}
+                variant={activeGrade === "A" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setActiveAssetType("stock")}
-                data-testid="filter-asset-stock"
+                onClick={() => setActiveGrade("A")}
+                data-testid="filter-grade-a"
+                className="gap-1"
               >
-                Stock Shares
+                Grade A
               </Button>
               <Button
-                variant={activeAssetType === "option" ? "default" : "outline"}
+                variant={activeGrade === "B" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setActiveAssetType("option")}
-                data-testid="filter-asset-option"
+                onClick={() => setActiveGrade("B")}
+                data-testid="filter-grade-b"
+                className="gap-1"
               >
-                Stock Options
+                Grade B
               </Button>
               <Button
-                variant={activeAssetType === "crypto" ? "default" : "outline"}
+                variant={activeGrade === "C" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setActiveAssetType("crypto")}
-                data-testid="filter-asset-crypto"
+                onClick={() => setActiveGrade("C")}
+                data-testid="filter-grade-c"
+                className="gap-1"
               >
-                Crypto
+                Grade C
               </Button>
 
               {/* View Mode Toggle */}
