@@ -125,8 +125,8 @@ Focus on actionable, research-grade opportunities.`;
     const anthropicText = anthropicResponse.content.find(block => block.type === 'text');
     const anthropicIdeas = parseIdeas(anthropicText && 'text' in anthropicText ? anthropicText.text : '[]');
     
-    // Gemini: use text() helper method
-    const geminiText = geminiResponse.text ? await geminiResponse.text() : '';
+    // Gemini: use text getter
+    const geminiText = geminiResponse.text || '';
     const geminiIdeas = parseIdeas(geminiText);
 
     // Combine all ideas
@@ -168,8 +168,8 @@ Your role:
 
 Be concise, professional, and data-driven. Use plain language while maintaining technical accuracy.`;
 
+  // Try Anthropic (Claude) first - best conversational AI
   try {
-    // Use Claude for chat (best conversational AI)
     const response = await getAnthropic().messages.create({
       model: DEFAULT_ANTHROPIC_MODEL,
       max_tokens: 1024,
@@ -188,16 +188,56 @@ Be concise, professional, and data-driven. Use plain language while maintaining 
   } catch (error: any) {
     console.error("QuantAI chat failed:", error);
     
-    // Provide helpful error messages based on error type
-    if (error?.status === 400 && error?.message?.includes('credit balance')) {
-      throw new Error("AI service unavailable: Please check your Anthropic API credits at https://console.anthropic.com/settings/billing");
-    } else if (error?.status === 401) {
-      throw new Error("AI service unavailable: Invalid API credentials");
-    } else if (error?.status === 429) {
-      throw new Error("AI service unavailable: Rate limit exceeded. Please try again in a moment.");
+    // Try OpenAI as fallback
+    try {
+      console.log("Falling back to OpenAI for chat...");
+      const openaiResponse = await getOpenAI().chat.completions.create({
+        model: "gpt-5",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...conversationHistory.map(msg => ({
+            role: msg.role as 'system' | 'user' | 'assistant',
+            content: msg.content
+          })),
+          { role: "user", content: userMessage }
+        ],
+        max_completion_tokens: 1024,
+      });
+
+      return openaiResponse.choices[0].message.content || "I couldn't process that request";
+    } catch (openaiError: any) {
+      console.error("OpenAI chat also failed:", openaiError);
+      
+      // Try Gemini as final fallback
+      try {
+        console.log("Falling back to Gemini for chat...");
+        const conversationText = conversationHistory.map(msg => msg.content).join('\n');
+        const fullPrompt = conversationText ? `${conversationText}\n\n${userMessage}` : userMessage;
+        
+        const geminiResponse = await getGemini().models.generateContent({
+          model: "gemini-2.5-pro",
+          config: {
+            systemInstruction: systemPrompt,
+          },
+          contents: fullPrompt,
+        });
+
+        return geminiResponse.text || "I couldn't process that request";
+      } catch (geminiError: any) {
+        console.error("All AI providers failed for chat:", geminiError);
+        
+        // Provide helpful error message
+        if (error?.status === 400 && error?.message?.includes('credit balance')) {
+          throw new Error("AI service unavailable: Anthropic credits low. Please add OpenAI or Gemini credits, or upgrade Anthropic at https://console.anthropic.com/settings/billing");
+        } else if (error?.status === 401) {
+          throw new Error("AI service unavailable: Please check your API keys for OpenAI, Anthropic, or Gemini");
+        } else if (error?.status === 429) {
+          throw new Error("AI service unavailable: Rate limits exceeded on all providers. Please try again in a moment.");
+        }
+        
+        throw new Error("Failed to process chat message - all AI providers unavailable");
+      }
     }
-    
-    throw new Error("Failed to process chat message");
   }
 }
 

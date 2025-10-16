@@ -9,6 +9,9 @@ export type MarketSession = 'pre-market' | 'rth' | 'after-hours' | 'closed';
 // Asset Types
 export type AssetType = 'stock' | 'option' | 'crypto';
 
+// Performance Tracking Outcome Types
+export type OutcomeStatus = 'open' | 'hit_target' | 'hit_stop' | 'manual_exit' | 'expired';
+
 // Trade Idea
 export const tradeIdeas = pgTable("trade_ideas", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -31,6 +34,13 @@ export const tradeIdeas = pgTable("trade_ideas", {
   confidenceScore: real("confidence_score").notNull().default(0), // 0-100 quality score
   qualitySignals: text("quality_signals").array(), // Array of signal names that fired
   probabilityBand: text("probability_band").notNull().default('C'), // 'A' (80+), 'B' (70-79), 'C' (<70)
+  
+  // Performance Tracking Fields
+  outcomeStatus: text("outcome_status").$type<OutcomeStatus>().default('open'), // Tracks if trade worked
+  exitPrice: real("exit_price"), // Actual exit price when closed
+  realizedPnL: real("realized_pnl"), // Actual profit/loss in dollars
+  exitDate: text("exit_date"), // When trade was closed
+  outcomeNotes: text("outcome_notes"), // Additional notes about outcome
 });
 
 export const insertTradeIdeaSchema = createInsertSchema(tradeIdeas).omit({ id: true });
