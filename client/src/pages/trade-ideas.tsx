@@ -11,14 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { TradeIdea, ScreenerFilters as Filters } from "@shared/schema";
-import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X } from "lucide-react";
+import type { TradeIdea, ScreenerFilters as Filters, IdeaSource } from "@shared/schema";
+import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO } from "date-fns";
 
 export default function TradeIdeasPage() {
   const [activeFilters, setActiveFilters] = useState<Filters>({});
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
+  const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
@@ -42,7 +43,7 @@ export default function TradeIdeasPage() {
     setExpandedIdeaId(null);
   };
 
-  // Filter ideas by search, direction, date, and screener filters
+  // Filter ideas by search, direction, source, date, and screener filters
   const filteredIdeas = tradeIdeas.filter(idea => {
     const matchesSearch = !tradeIdeaSearch || 
       idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase()) ||
@@ -54,11 +55,13 @@ export default function TradeIdeasPage() {
       (activeDirection === "day_trade" && isDayTrade) ||
       (activeDirection !== "day_trade" && idea.direction === activeDirection);
     
+    const matchesSource = activeSource === "all" || idea.source === activeSource;
+    
     const matchesDate = !selectedDate || isSameDay(parseISO(idea.timestamp), selectedDate);
     
     const matchesFilters = (!activeFilters.assetType || activeFilters.assetType.includes(idea.assetType));
     
-    return matchesSearch && matchesDirection && matchesDate && matchesFilters;
+    return matchesSearch && matchesDirection && matchesSource && matchesDate && matchesFilters;
   });
 
   // Group by date
@@ -155,6 +158,39 @@ export default function TradeIdeasPage() {
                 data-testid="filter-daytrade"
               >
                 Day Trade
+              </Button>
+
+              {/* Source Filters */}
+              <div className="h-6 w-px bg-border mx-1" />
+              <Button
+                variant={activeSource === "ai" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveSource("ai")}
+                data-testid="filter-ai"
+                className="gap-1"
+              >
+                <Sparkles className="h-3 w-3" />
+                AI
+              </Button>
+              <Button
+                variant={activeSource === "quant" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveSource("quant")}
+                data-testid="filter-quant"
+                className="gap-1"
+              >
+                <TrendingUpIcon className="h-3 w-3" />
+                Quant
+              </Button>
+              <Button
+                variant={activeSource === "manual" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveSource("manual")}
+                data-testid="filter-manual"
+                className="gap-1"
+              >
+                <UserPlus className="h-3 w-3" />
+                Manual
               </Button>
 
               {/* Calendar */}

@@ -267,6 +267,18 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
                 {isLong ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
                 {idea.direction.toUpperCase()}
               </Badge>
+              <Badge 
+                variant="outline" 
+                className="font-semibold text-xs gap-1"
+                data-testid={`badge-source-${idea.symbol}`}
+              >
+                {idea.source === 'ai' && <Sparkles className="h-3 w-3" />}
+                {idea.source === 'quant' && <BarChart3 className="h-3 w-3" />}
+                {idea.source === 'manual' && <Brain className="h-3 w-3" />}
+                {idea.source === 'ai' && 'AI'}
+                {idea.source === 'quant' && 'QUANT'}
+                {idea.source === 'manual' && 'MANUAL'}
+              </Badge>
               <span className="text-xs text-muted-foreground flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 {getTimeSincePosted()}
