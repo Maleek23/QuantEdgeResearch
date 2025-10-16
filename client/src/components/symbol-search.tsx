@@ -4,14 +4,14 @@ import { queryClient } from "@/lib/queryClient";
 import { Search, Loader2, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { SymbolActionDialog } from "@/components/symbol-action-dialog";
 import type { MarketData } from "@shared/schema";
 
 export function SymbolSearch() {
   const [search, setSearch] = useState("");
   const [searchResult, setSearchResult] = useState<MarketData | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const searchMutation = useMutation({
@@ -24,6 +24,7 @@ export function SymbolSearch() {
     },
     onSuccess: (data) => {
       setSearchResult(data);
+      setDialogOpen(true);
       queryClient.invalidateQueries({ queryKey: ['/api/market-data'] });
       toast({
         title: "Symbol Found",
@@ -32,6 +33,7 @@ export function SymbolSearch() {
     },
     onError: () => {
       setSearchResult(null);
+      setDialogOpen(false);
       toast({
         title: "Symbol Not Found",
         description: "Try another symbol. Stocks require Alpha Vantage API key. Crypto: BTC, ETH, SOL, DOGE, etc.",
@@ -87,38 +89,11 @@ export function SymbolSearch() {
         </Button>
       </div>
       
-      {searchResult && (
-        <Card className="border-primary/20" data-testid="card-search-result">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-semibold text-lg" data-testid="text-result-symbol">
-                      {searchResult.symbol}
-                    </span>
-                    <Badge variant="outline" data-testid="badge-result-type">
-                      {searchResult.assetType}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Added to your dashboard</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="font-mono text-2xl font-bold" data-testid="text-result-price">
-                  ${searchResult.currentPrice.toLocaleString(undefined, { 
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: searchResult.currentPrice >= 100 ? 2 : 4
-                  })}
-                </div>
-                <div className={`text-sm font-medium ${searchResult.changePercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  {searchResult.changePercent >= 0 ? '+' : ''}{searchResult.changePercent.toFixed(2)}%
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <SymbolActionDialog 
+        open={dialogOpen} 
+        onOpenChange={setDialogOpen}
+        marketData={searchResult}
+      />
     </div>
   );
 }
