@@ -45,13 +45,13 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-sidebar-border px-4 py-3">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" className="data-[state=collapsed]:justify-center">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <SidebarMenuButton size="lg">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <TrendingUp className="h-4 w-4" />
               </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">QuantEdge</span>
-                <span className="truncate text-xs text-muted-foreground">Research Platform</span>
+              <div className="flex flex-col gap-0.5 leading-none">
+                <span className="font-semibold">QuantEdge</span>
+                <span className="text-xs text-muted-foreground">Research Platform</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
