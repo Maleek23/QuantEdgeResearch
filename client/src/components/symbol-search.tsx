@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { Search, Loader2, Plus } from "lucide-react";
+import { Search, Loader2, Plus, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -64,10 +64,20 @@ export function SymbolSearch() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyPress={handleKeyPress}
-            className="pl-10"
+            className="pl-10 pr-10"
             disabled={searchMutation.isPending}
             data-testid="input-symbol-search"
           />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              data-testid="button-clear-search"
+              type="button"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
         <Button
           onClick={handleSearch}
