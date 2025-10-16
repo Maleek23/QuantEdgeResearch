@@ -1,6 +1,7 @@
 import { User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import profileImage from "@assets/malikpic_1760579415191.jpg";
 
 export default function About() {
   return (
@@ -22,7 +23,7 @@ export default function About() {
             <div className="lg:col-span-1 flex justify-center lg:justify-start">
               <div className="relative">
                 <img 
-                  src="/attached_assets/malikpic_1760579415191.jpg" 
+                  src={profileImage} 
                   alt="Abdulmalik Ajisegiri"
                   className="w-48 h-48 rounded-lg object-cover border-2 border-primary/20"
                   data-testid="img-profile"
