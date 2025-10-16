@@ -12,10 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, ScreenerFilters as Filters, IdeaSource } from "@shared/schema";
-import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List } from "lucide-react";
+import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO } from "date-fns";
 
 export default function TradeIdeasPage() {
@@ -175,113 +177,108 @@ export default function TradeIdeasPage() {
         </div>
       </div>
 
-      {/* Filters Toolbar */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="relative flex-1 w-full sm:max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none z-10" />
-              <Input
-                placeholder="Search symbols or catalysts..."
-                value={tradeIdeaSearch}
-                onChange={(e) => setTradeIdeaSearch(e.target.value)}
-                className="pl-10 pr-10"
-                data-testid="input-search-ideas"
-              />
-              {tradeIdeaSearch && (
-                <button
-                  type="button"
-                  onClick={() => setTradeIdeaSearch("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  data-testid="button-clear-search"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+      {/* Simplified Filter Bar */}
+      <div className="flex items-center gap-3">
+        {/* Search */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Search symbols or catalysts..."
+            value={tradeIdeaSearch}
+            onChange={(e) => setTradeIdeaSearch(e.target.value)}
+            className="pl-10 pr-10"
+            data-testid="input-search-ideas"
+          />
+          {tradeIdeaSearch && (
+            <button
+              type="button"
+              onClick={() => setTradeIdeaSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              data-testid="button-clear-search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Filters Popover */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="default" className="gap-2" data-testid="button-filters">
+              <SlidersHorizontal className="h-4 w-4" />
+              Filters
+              {(activeAssetType !== "all" || activeSource !== "all" || activeGrade !== "all" || activeDirection !== "all" || selectedDate) && (
+                <Badge variant="secondary" className="ml-1">
+                  {[activeAssetType !== "all", activeSource !== "all", activeGrade !== "all", activeDirection !== "all", selectedDate].filter(Boolean).length}
+                </Badge>
               )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* Asset Type Dropdown */}
-              <Select value={activeAssetType} onValueChange={(value: any) => setActiveAssetType(value)}>
-                <SelectTrigger className="w-[130px] h-9" data-testid="select-asset-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Assets</SelectItem>
-                  <SelectItem value="stock">Shares</SelectItem>
-                  <SelectItem value="option">Options</SelectItem>
-                  <SelectItem value="crypto">Crypto</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Source Dropdown */}
-              <Select value={activeSource} onValueChange={(value: any) => setActiveSource(value)}>
-                <SelectTrigger className="w-[130px] h-9" data-testid="select-source">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sources</SelectItem>
-                  <SelectItem value="ai">AI</SelectItem>
-                  <SelectItem value="quant">Quant</SelectItem>
-                  <SelectItem value="manual">Manual</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Grade Dropdown */}
-              <Select value={activeGrade} onValueChange={(value: any) => setActiveGrade(value)}>
-                <SelectTrigger className="w-[120px] h-9" data-testid="select-grade">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Grades</SelectItem>
-                  <SelectItem value="A">Grade A</SelectItem>
-                  <SelectItem value="B">Grade B</SelectItem>
-                  <SelectItem value="C">Grade C</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* View Mode Toggle */}
-              <div className="flex items-center gap-1 ml-1">
-                <Button
-                  variant={viewMode === "list" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                  data-testid="button-view-list"
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === "grid" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("grid")}
-                  data-testid="button-view-grid"
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </Button>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-96" align="end">
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold mb-3">Filter Trade Ideas</h4>
               </div>
-            </div>
-          </div>
-        </CardHeader>
 
-        {/* Advanced Filters Collapsible */}
-        <CardContent className="pt-0">
-          <Collapsible>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="w-full" data-testid="button-advanced-filters">
-                <TrendingUp className="h-4 w-4 mr-2" />
-                Advanced Filters
-                <ChevronDown className="h-4 w-4 ml-auto" />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-4">
-              <div className="flex items-center gap-3 flex-wrap">
-                {/* Direction Filters */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Direction:</span>
+              {/* Asset Type */}
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Asset Type</Label>
+                <Select value={activeAssetType} onValueChange={(value: any) => setActiveAssetType(value)}>
+                  <SelectTrigger data-testid="select-asset-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Assets</SelectItem>
+                    <SelectItem value="stock">Stock Shares</SelectItem>
+                    <SelectItem value="option">Stock Options</SelectItem>
+                    <SelectItem value="crypto">Crypto</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Source */}
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Source</Label>
+                <Select value={activeSource} onValueChange={(value: any) => setActiveSource(value)}>
+                  <SelectTrigger data-testid="select-source">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sources</SelectItem>
+                    <SelectItem value="ai">AI Generated</SelectItem>
+                    <SelectItem value="quant">Quantitative</SelectItem>
+                    <SelectItem value="manual">Manual Entry</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Grade */}
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Quality Grade</Label>
+                <Select value={activeGrade} onValueChange={(value: any) => setActiveGrade(value)}>
+                  <SelectTrigger data-testid="select-grade">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Grades</SelectItem>
+                    <SelectItem value="A">Grade A (High Confidence)</SelectItem>
+                    <SelectItem value="B">Grade B (Medium Confidence)</SelectItem>
+                    <SelectItem value="C">Grade C (Lower Confidence)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Separator />
+
+              {/* Direction */}
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Direction</Label>
+                <div className="flex gap-2">
                   <Button
                     variant={activeDirection === "all" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setActiveDirection("all")}
+                    className="flex-1"
                     data-testid="filter-all"
                   >
                     All
@@ -290,6 +287,7 @@ export default function TradeIdeasPage() {
                     variant={activeDirection === "long" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setActiveDirection("long")}
+                    className="flex-1"
                     data-testid="filter-long"
                   >
                     Long
@@ -298,6 +296,7 @@ export default function TradeIdeasPage() {
                     variant={activeDirection === "short" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setActiveDirection("short")}
+                    className="flex-1"
                     data-testid="filter-short"
                   >
                     Short
@@ -306,55 +305,83 @@ export default function TradeIdeasPage() {
                     variant={activeDirection === "day_trade" ? "default" : "outline"}
                     size="sm"
                     onClick={() => setActiveDirection("day_trade")}
+                    className="flex-1"
                     data-testid="filter-daytrade"
                   >
-                    Day Trade
+                    Day
                   </Button>
                 </div>
+              </div>
 
-                {/* Date Filter */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">Date:</span>
-                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" data-testid="button-calendar">
-                        <CalendarIcon className="h-4 w-4 mr-2" />
-                        {selectedDate ? format(selectedDate, "MMM d") : "All Dates"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="end">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={handleDateSelect}
-                        modifiers={{ hasIdeas: datesWithIdeas }}
-                        modifiersClassNames={{ hasIdeas: "bg-primary/10 font-bold" }}
-                        data-testid="calendar-filter"
-                      />
-                      {selectedDate && (
-                        <div className="p-2 border-t">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => {
-                              setSelectedDate(undefined);
-                              setCalendarOpen(false);
-                            }}
-                            data-testid="button-clear-date"
-                          >
-                            Clear Date Filter
-                          </Button>
-                        </div>
-                      )}
-                    </PopoverContent>
-                  </Popover>
+              {/* Date */}
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">Date</Label>
+                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start" data-testid="button-calendar">
+                      <CalendarIcon className="h-4 w-4 mr-2" />
+                      {selectedDate ? format(selectedDate, "MMM d, yyyy") : "All Dates"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={handleDateSelect}
+                      modifiers={{ hasIdeas: datesWithIdeas }}
+                      modifiersClassNames={{ hasIdeas: "bg-primary/10 font-bold" }}
+                      data-testid="calendar-filter"
+                    />
+                    {selectedDate && (
+                      <div className="p-2 border-t">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => {
+                            setSelectedDate(undefined);
+                            setCalendarOpen(false);
+                          }}
+                          data-testid="button-clear-date"
+                        >
+                          Clear Date
+                        </Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* View Mode */}
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">View Mode</Label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={viewMode === "list" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                    className="flex-1 gap-2"
+                    data-testid="button-view-list"
+                  >
+                    <List className="h-4 w-4" />
+                    List
+                  </Button>
+                  <Button
+                    variant={viewMode === "grid" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setViewMode("grid")}
+                    className="flex-1 gap-2"
+                    data-testid="button-view-grid"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                    Grid
+                  </Button>
                 </div>
               </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </CardContent>
-      </Card>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
 
       {/* Trade Ideas Feed */}
       <Tabs defaultValue="new" className="space-y-4">
