@@ -163,6 +163,14 @@ export default function TradeIdeasPage() {
               {/* Source Filters */}
               <div className="h-6 w-px bg-border mx-1" />
               <Button
+                variant={activeSource === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveSource("all")}
+                data-testid="filter-source-all"
+              >
+                All Sources
+              </Button>
+              <Button
                 variant={activeSource === "ai" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setActiveSource("ai")}
