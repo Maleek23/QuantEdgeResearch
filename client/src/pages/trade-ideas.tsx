@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, ScreenerFilters as Filters, IdeaSource } from "@shared/schema";
-import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3 } from "lucide-react";
+import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO } from "date-fns";
 
 export default function TradeIdeasPage() {
@@ -22,6 +22,7 @@ export default function TradeIdeasPage() {
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
+  const [activeAssetType, setActiveAssetType] = useState<"all" | "stock" | "option" | "crypto">("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
@@ -90,7 +91,7 @@ export default function TradeIdeasPage() {
     setExpandedIdeaId(null);
   };
 
-  // Filter ideas by search, direction, source, date, and screener filters
+  // Filter ideas by search, direction, source, asset type, date, and screener filters
   const filteredIdeas = tradeIdeas.filter(idea => {
     const matchesSearch = !tradeIdeaSearch || 
       idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase()) ||
@@ -104,11 +105,13 @@ export default function TradeIdeasPage() {
     
     const matchesSource = activeSource === "all" || idea.source === activeSource;
     
+    const matchesAssetType = activeAssetType === "all" || idea.assetType === activeAssetType;
+    
     const matchesDate = !selectedDate || isSameDay(parseISO(idea.timestamp), selectedDate);
     
     const matchesFilters = (!activeFilters.assetType || activeFilters.assetType.includes(idea.assetType));
     
-    return matchesSearch && matchesDirection && matchesSource && matchesDate && matchesFilters;
+    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesDate && matchesFilters;
   });
 
   // Group by date
@@ -269,6 +272,60 @@ export default function TradeIdeasPage() {
                 Manual
               </Button>
 
+              {/* Asset Type Filters */}
+              <div className="h-6 w-px bg-border mx-1" />
+              <Button
+                variant={activeAssetType === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveAssetType("all")}
+                data-testid="filter-asset-all"
+              >
+                All Assets
+              </Button>
+              <Button
+                variant={activeAssetType === "stock" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveAssetType("stock")}
+                data-testid="filter-asset-stock"
+              >
+                Stock Shares
+              </Button>
+              <Button
+                variant={activeAssetType === "option" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveAssetType("option")}
+                data-testid="filter-asset-option"
+              >
+                Stock Options
+              </Button>
+              <Button
+                variant={activeAssetType === "crypto" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveAssetType("crypto")}
+                data-testid="filter-asset-crypto"
+              >
+                Crypto
+              </Button>
+
+              {/* View Mode Toggle */}
+              <div className="h-6 w-px bg-border mx-1" />
+              <Button
+                variant={viewMode === "list" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("list")}
+                data-testid="button-view-list"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={viewMode === "grid" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("grid")}
+                data-testid="button-view-grid"
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+
               {/* Calendar */}
               <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
@@ -372,7 +429,7 @@ export default function TradeIdeasPage() {
                         </Badge>
                       </div>
                     </AccordionTrigger>
-                    <AccordionContent className="px-4 pb-4 space-y-3">
+                    <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-3'}`}>
                       {ideas
                         .filter(i => i.outcomeStatus === 'open')
                         .map(idea => (
@@ -403,7 +460,7 @@ export default function TradeIdeasPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-3">
+            <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-3'}>
               {filteredIdeas
                 .filter(i => i.outcomeStatus !== 'open')
                 .map(idea => (
