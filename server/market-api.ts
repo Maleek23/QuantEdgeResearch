@@ -193,6 +193,85 @@ export interface HiddenCryptoGem {
   marketCapRank?: number;
 }
 
+/**
+ * Fetch real historical daily prices for accurate technical analysis
+ * Returns array of closing prices from oldest to newest
+ */
+export async function fetchHistoricalPrices(
+  symbol: string,
+  assetType: AssetType,
+  periods: number = 60,
+  apiKey?: string
+): Promise<number[]> {
+  try {
+    if (assetType === 'crypto') {
+      // Fetch CoinGecko historical data
+      const coinId = CRYPTO_SYMBOL_MAP[symbol.toUpperCase()];
+      if (!coinId) {
+        console.log(`No CoinGecko mapping for ${symbol}, using fallback`);
+        return [];
+      }
+
+      const response = await fetch(
+        `${COINGECKO_API}/coins/${coinId}/market_chart?vs_currency=usd&days=${periods}&interval=daily`
+      );
+
+      if (!response.ok) {
+        console.log(`CoinGecko historical data error for ${symbol}`);
+        return [];
+      }
+
+      const data = await response.json();
+      // CoinGecko returns [timestamp, price] arrays
+      const prices = data.prices.map((p: [number, number]) => p[1]);
+      
+      console.log(`✅ Fetched ${prices.length} real historical prices for ${symbol} (crypto)`);
+      return prices;
+    }
+
+    // Fetch Alpha Vantage historical data for stocks
+    if (!apiKey) {
+      console.log(`No Alpha Vantage API key, cannot fetch historical data for ${symbol}`);
+      return [];
+    }
+
+    const response = await fetch(
+      `${ALPHA_VANTAGE_API}?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${apiKey}&outputsize=compact`
+    );
+
+    if (!response.ok) {
+      console.log(`Alpha Vantage historical data error for ${symbol}`);
+      return [];
+    }
+
+    const data = await response.json();
+
+    // Check for rate limit or errors
+    if (data.Information || data.Note) {
+      console.log(`Alpha Vantage rate limit or error for ${symbol}: ${data.Information || data.Note}`);
+      return [];
+    }
+
+    const timeSeries = data["Time Series (Daily)"];
+    if (!timeSeries) {
+      console.log(`No time series data for ${symbol}`);
+      return [];
+    }
+
+    // Extract closing prices, sorted from oldest to newest
+    const prices = Object.keys(timeSeries)
+      .sort() // Sort dates chronologically (oldest first)
+      .slice(-periods) // Take last N periods
+      .map(date => parseFloat(timeSeries[date]["4. close"]));
+
+    console.log(`✅ Fetched ${prices.length} real historical prices for ${symbol} (stock)`);
+    return prices;
+  } catch (error) {
+    console.error(`Error fetching historical prices for ${symbol}:`, error);
+    return [];
+  }
+}
+
 export async function discoverHiddenCryptoGems(limit: number = 10): Promise<HiddenCryptoGem[]> {
   try {
     const marketCapResponse = await fetch(

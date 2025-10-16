@@ -10,7 +10,7 @@ import {
   analyzeMACD,
   calculateSMA
 } from './technical-indicators';
-import { discoverHiddenCryptoGems, fetchCryptoPrice } from './market-api';
+import { discoverHiddenCryptoGems, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
 
 interface QuantSignal {
   type: 'momentum' | 'volume_spike' | 'breakout' | 'mean_reversion' | 'catalyst_driven' | 'rsi_divergence' | 'macd_crossover';
@@ -27,33 +27,33 @@ interface MultiTimeframeAnalysis {
   strength: 'strong' | 'moderate' | 'weak';
 }
 
-// Simulate historical price data for technical indicator calculations
-// In production, this would come from a real data source
-function generateHistoricalPrices(currentPrice: number, changePercent: number, periods: number = 50): number[] {
+// DEPRECATED: Synthetic price generation - replaced with real historical data
+// Kept as fallback only when API fails
+function generateHistoricalPricesFallback(currentPrice: number, changePercent: number, periods: number = 50): number[] {
   const prices: number[] = [];
-  const volatility = 0.02; // 2% daily volatility
-  
-  // Start from oldest price and work forward to current
+  const volatility = 0.02;
   let price = currentPrice / (1 + changePercent / 100);
   
   for (let i = 0; i < periods - 1; i++) {
-    // Random walk with drift
     const randomChange = (Math.random() - 0.5) * volatility;
-    const drift = changePercent / 100 / periods; // Spread the change over periods
+    const drift = changePercent / 100 / periods;
     price = price * (1 + drift + randomChange);
     prices.push(price);
   }
   
-  // Add current price as most recent
   prices.push(currentPrice);
-  
   return prices;
 }
 
 // Multi-timeframe analysis: Check if daily and weekly trends align
-function analyzeMultiTimeframe(data: MarketData): MultiTimeframeAnalysis {
-  // Generate enough daily prices for both timeframes (need 50 days for weekly 50-day SMA)
-  const dailyPrices = generateHistoricalPrices(data.currentPrice, data.changePercent, 60);
+async function analyzeMultiTimeframe(
+  data: MarketData, 
+  historicalPrices: number[]
+): Promise<MultiTimeframeAnalysis> {
+  // Use real historical prices instead of synthetic data
+  const dailyPrices = historicalPrices.length > 0 
+    ? historicalPrices 
+    : generateHistoricalPricesFallback(data.currentPrice, data.changePercent, 60);
   
   // Create proper weekly candles by aggregating every 5 daily closes
   const weeklyPrices: number[] = [];
