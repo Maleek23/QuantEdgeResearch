@@ -178,3 +178,71 @@ export async function searchSymbol(
 
   return null;
 }
+
+export interface HiddenCryptoGem {
+  symbol: string;
+  name: string;
+  currentPrice: number;
+  marketCap: number;
+  volume24h: number;
+  priceChange24h: number;
+  volumeSpike: boolean;
+  priceGap: boolean;
+  anomalyScore: number;
+}
+
+export async function discoverHiddenCryptoGems(limit: number = 10): Promise<HiddenCryptoGem[]> {
+  try {
+    const response = await fetch(
+      `${COINGECKO_API}/coins/markets?vs_currency=usd&order=volume_desc&per_page=250&page=1&sparkline=false&price_change_percentage=24h`
+    );
+
+    if (!response.ok) {
+      console.error("CoinGecko API error:", response.statusText);
+      return [];
+    }
+
+    const data = await response.json();
+
+    const hiddenGems: HiddenCryptoGem[] = data
+      .map((coin: any, index: number) => {
+        const marketCap = coin.market_cap || 0;
+        const volume24h = coin.total_volume || 0;
+        const priceChange = Math.abs(coin.price_change_percentage_24h || 0);
+        const volumeToMarketCapRatio = marketCap > 0 ? volume24h / marketCap : 0;
+
+        const volumeSpike = volumeToMarketCapRatio > 0.15;
+        const priceGap = priceChange > 5;
+        
+        let anomalyScore = 0;
+        if (volumeSpike) anomalyScore += 40;
+        if (priceGap) anomalyScore += 30;
+        if (index > 20) anomalyScore += 30;
+
+        return {
+          symbol: coin.symbol.toUpperCase(),
+          name: coin.name,
+          currentPrice: coin.current_price,
+          marketCap: marketCap,
+          volume24h: volume24h,
+          priceChange24h: coin.price_change_percentage_24h || 0,
+          volumeSpike,
+          priceGap,
+          anomalyScore,
+        };
+      })
+      .filter((gem: HiddenCryptoGem) => 
+        gem.marketCap >= 50_000_000 &&
+        gem.marketCap <= 2_000_000_000 &&
+        gem.volume24h >= 5_000_000 &&
+        gem.anomalyScore > 0
+      )
+      .sort((a: HiddenCryptoGem, b: HiddenCryptoGem) => b.anomalyScore - a.anomalyScore)
+      .slice(0, limit);
+
+    return hiddenGems;
+  } catch (error) {
+    console.error("Error discovering hidden crypto gems:", error);
+    return [];
+  }
+}

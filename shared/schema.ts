@@ -53,6 +53,57 @@ export type DataSource = 'seed' | 'live';
 // Idea Source Type
 export type IdeaSource = 'ai' | 'quant';
 
+// Hidden Gem Discovery Criteria
+export interface HiddenGemCriteria {
+  stocks: {
+    marketCapMin: number;      // $50M minimum
+    marketCapMax: number;      // $5B maximum for "hidden" status
+    volumeMultiplier: number;  // 3x average volume spike
+    priceGapMin: number;       // 5% price gap minimum
+    minLiquidity: number;      // Minimum daily volume for safety
+  };
+  crypto: {
+    marketCapMin: number;      // $50M minimum
+    marketCapMax: number;      // $2B maximum for emerging assets
+    volumeMin: number;         // $5M+ daily volume
+    excludeTopN: number;       // Exclude top 20 by market cap
+  };
+  options: {
+    volumeMultiplier: number;  // 5x baseline OI/volume
+    minUnderlyingLiquidity: number;
+  };
+}
+
+// Anomaly Detection Signals
+export interface AnomalySignals {
+  volumeSpike: boolean;        // Volume >3x average
+  priceGap: boolean;          // Price gap >5%
+  relativeStrength: boolean;  // Outperforming sector
+  unusualFlow: boolean;       // Options: OI/volume spike
+  emergingTrend: boolean;     // Multi-timeframe alignment
+}
+
+// Default Hidden Gem Criteria
+export const DEFAULT_HIDDEN_GEM_CRITERIA: HiddenGemCriteria = {
+  stocks: {
+    marketCapMin: 50_000_000,      // $50M
+    marketCapMax: 5_000_000_000,   // $5B
+    volumeMultiplier: 3.0,
+    priceGapMin: 5.0,
+    minLiquidity: 500_000,         // $500K daily volume
+  },
+  crypto: {
+    marketCapMin: 50_000_000,      // $50M
+    marketCapMax: 2_000_000_000,   // $2B
+    volumeMin: 5_000_000,          // $5M daily
+    excludeTopN: 20,
+  },
+  options: {
+    volumeMultiplier: 5.0,
+    minUnderlyingLiquidity: 1_000_000,
+  },
+};
+
 // Market Data
 export const marketData = pgTable("market_data", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
