@@ -189,35 +189,42 @@ export interface HiddenCryptoGem {
   volumeSpike: boolean;
   priceGap: boolean;
   anomalyScore: number;
+  coinId?: string;
+  marketCapRank?: number;
 }
 
 export async function discoverHiddenCryptoGems(limit: number = 10): Promise<HiddenCryptoGem[]> {
   try {
-    const response = await fetch(
-      `${COINGECKO_API}/coins/markets?vs_currency=usd&order=volume_desc&per_page=250&page=1&sparkline=false&price_change_percentage=24h`
+    const marketCapResponse = await fetch(
+      `${COINGECKO_API}/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=true&price_change_percentage=24h`
     );
 
-    if (!response.ok) {
-      console.error("CoinGecko API error:", response.statusText);
+    if (!marketCapResponse.ok) {
+      console.error("CoinGecko API error:", marketCapResponse.statusText);
       return [];
     }
 
-    const data = await response.json();
+    const allCoins = await marketCapResponse.json();
 
-    const hiddenGems: HiddenCryptoGem[] = data
-      .map((coin: any, index: number) => {
+    const top20ByMarketCap = new Set(
+      allCoins.slice(0, 20).map((coin: any) => coin.id)
+    );
+
+    const hiddenGems: HiddenCryptoGem[] = allCoins
+      .map((coin: any, marketCapRank: number) => {
         const marketCap = coin.market_cap || 0;
         const volume24h = coin.total_volume || 0;
         const priceChange = Math.abs(coin.price_change_percentage_24h || 0);
+        
         const volumeToMarketCapRatio = marketCap > 0 ? volume24h / marketCap : 0;
-
-        const volumeSpike = volumeToMarketCapRatio > 0.15;
-        const priceGap = priceChange > 5;
+        const highTurnover = volumeToMarketCapRatio > 0.15;
+        const priceGap = priceChange >= 5.0;
         
         let anomalyScore = 0;
-        if (volumeSpike) anomalyScore += 40;
-        if (priceGap) anomalyScore += 30;
-        if (index > 20) anomalyScore += 30;
+        if (priceGap) anomalyScore += 50;
+        if (highTurnover) anomalyScore += 25;
+        if (marketCapRank > 50 && marketCapRank <= 150) anomalyScore += 25;
+        if (marketCapRank > 150) anomalyScore += 15;
 
         return {
           symbol: coin.symbol.toUpperCase(),
@@ -226,20 +233,25 @@ export async function discoverHiddenCryptoGems(limit: number = 10): Promise<Hidd
           marketCap: marketCap,
           volume24h: volume24h,
           priceChange24h: coin.price_change_percentage_24h || 0,
-          volumeSpike,
+          volumeSpike: highTurnover,
           priceGap,
           anomalyScore,
+          coinId: coin.id,
+          marketCapRank: marketCapRank + 1,
         };
       })
-      .filter((gem: HiddenCryptoGem) => 
+      .filter((gem: any) => 
+        !top20ByMarketCap.has(gem.coinId) &&
         gem.marketCap >= 50_000_000 &&
         gem.marketCap <= 2_000_000_000 &&
         gem.volume24h >= 5_000_000 &&
-        gem.anomalyScore > 0
+        gem.priceGap
       )
-      .sort((a: HiddenCryptoGem, b: HiddenCryptoGem) => b.anomalyScore - a.anomalyScore)
+      .sort((a: any, b: any) => b.anomalyScore - a.anomalyScore)
       .slice(0, limit);
 
+    console.log(`✅ Discovery: ${hiddenGems.length} hidden gems found (excluded top-20, required 5%+ price movement, $50M-$2B cap)`);
+    
     return hiddenGems;
   } catch (error) {
     console.error("Error discovering hidden crypto gems:", error);

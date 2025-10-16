@@ -66,11 +66,13 @@ QuantEdge Research is a professional quantitative trading research platform desi
 - **Watchlist Management:** Track symbols with price targets, notes, and quick actions.
 - **QuantAI Bot:** AI-powered trading assistant with a sliding chatbot interface. Features intelligent multi-provider fallback system (Anthropic Claude Sonnet 4 → OpenAI GPT-5 → Google Gemini 2.5) with helpful error messaging for API credit/billing issues. Includes persistent chat history and graceful degradation when primary providers fail.
 - **Quantitative Idea Generator:** An AI-free alternative generating trade ideas based on Momentum, Volume Spike, Bullish/Bearish Breakout, Mean Reversion, RSI Divergence, and MACD Crossover signals using advanced technical analysis. Features:
+  - **Hidden Gem Discovery Engine:** Dynamically discovers lesser-known crypto opportunities ($50M-$2B market cap, $5M+ daily volume, excluded top-20 by market cap) using CoinGecko markets API with anomaly detection (5%+ price movement, high turnover ratio)
   - **RSI Analysis:** 14-period RSI with oversold (<30) and overbought (>70) detection for reversal setups
   - **MACD Analysis:** 12,26,9 MACD with bullish/bearish crossover signals for trend confirmation
   - **Multi-Timeframe Confirmation:** Analyzes both daily (5/10-day SMA) and weekly (4/10-week SMA on aggregated candles) trends, requiring alignment for higher confidence
   - **Day Trading Options:** Generates options with short-term expirations (1-5 days) weighted toward near-term opportunities - 60% chance for 1-2 day expirations, 30% for 3-4 days, 10% for 5 days - optimized for day trading strategies
   - **Intelligent Deduplication:** Prevents creating similar ideas within 24 hours (matches by symbol, direction, and entry price within 5%), with helpful "wait for market movements" messaging when no new opportunities are detected
+  - **Seed Data Philosophy:** Platform showcases diverse hidden gems (RENDER, ONDO, JUP, PENDLE) in the $850M-$1.8B range rather than generic mainstream tickers
 - **Performance Tracking & Auto-Archiving:** 
   - **Manual Recording:** Record actual trade outcomes via "Track Performance" dialog in trade idea blocks. Options: Win (Hit Target), Loss (Hit Stop), Manual Exit, Expired. Track actual exit prices and realized P&L for win rate analysis.
   - **Auto-Archiving System:** Trade ideas automatically archive when: (1) Stock/crypto price hits target → outcomeStatus='hit_target', (2) Price hits stop loss → outcomeStatus='hit_stop', (3) Idea is 7+ days old → outcomeStatus='expired'. Auto-archiving runs on every GET /api/trade-ideas request, checking current market prices against entry/target/stop levels. **Note:** Options are excluded from auto-archiving since live option prices are not available.
