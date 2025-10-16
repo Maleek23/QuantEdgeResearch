@@ -285,11 +285,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/watchlist", async (req, res) => {
     try {
+      console.log("POST /api/watchlist - Request body:", JSON.stringify(req.body));
       const validated = insertWatchlistSchema.parse(req.body);
+      console.log("POST /api/watchlist - Validated:", JSON.stringify(validated));
       const item = await storage.addToWatchlist(validated);
       res.status(201).json(item);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid watchlist item" });
+    } catch (error: any) {
+      console.error("POST /api/watchlist - Validation error:", error);
+      res.status(400).json({ error: "Invalid watchlist item", details: error?.message || error });
     }
   });
 

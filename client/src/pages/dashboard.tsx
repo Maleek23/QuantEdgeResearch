@@ -411,14 +411,14 @@ export default function Dashboard() {
         variant: "destructive",
       });
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      // Invalidate and refetch watchlist
+      await queryClient.invalidateQueries({ queryKey: ['/api/watchlist'] });
+      
       toast({
         title: "Added to Watchlist",
         description: "Symbol successfully added to your watchlist",
       });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/watchlist'] });
     },
   });
 

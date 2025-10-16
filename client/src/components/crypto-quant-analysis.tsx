@@ -174,7 +174,7 @@ export function CryptoQuantAnalysis({ symbol }: CryptoQuantAnalysisProps) {
       </div>
 
       {/* Support/Resistance Card */}
-      <Card data-testid={`support-resistance-card-${symbol}`}>
+      <Card data-testid={`sr-card-${symbol}`}>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Target className="h-4 w-4 text-primary" />
@@ -182,14 +182,15 @@ export function CryptoQuantAnalysis({ symbol }: CryptoQuantAnalysisProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center">
-              <p className="text-xs text-muted-foreground mb-1">Support</p>
-              <p className="text-lg font-bold font-mono text-bullish" data-testid={`support-level-${symbol}`}>
-                {formatCurrency(supportResistance.support)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {supportResistance.distanceToSupport}% away
+          {supportResistance ? (
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground mb-1">Support</p>
+                <p className="text-lg font-bold font-mono text-bullish" data-testid={`support-level-${symbol}`}>
+                  {formatCurrency(supportResistance.support)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {supportResistance.distanceToSupport}% away
               </p>
             </div>
             <div className="text-center border-l border-r">
@@ -211,6 +212,11 @@ export function CryptoQuantAnalysis({ symbol }: CryptoQuantAnalysisProps) {
               </p>
             </div>
           </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Support/Resistance data unavailable
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
