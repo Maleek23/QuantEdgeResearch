@@ -348,6 +348,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Quantitative Analysis for Single Symbol
+  app.get("/api/quant/analyze/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const marketData = await storage.getMarketDataBySymbol(symbol.toUpperCase());
+      
+      if (!marketData) {
+        return res.status(404).json({ error: "Symbol not found in market data" });
+      }
+
+      // Import technical indicators
+      const { 
+        calculateRSI, 
+        calculateMACD, 
+        calculateSMA, 
+        analyzeRSI, 
+        analyzeMACD,
+        calculateBollingerBands
+      } = await import("./technical-indicators");
+
+      // Generate simulated historical prices (last 60 days)
+      const generateHistoricalPrices = (currentPrice: number, changePercent: number, periods: number = 60): number[] => {
+        const prices: number[] = [];
+        const dailyChange = changePercent / 100;
+        const volatility = Math.abs(dailyChange) * 2;
+        
+        for (let i = periods; i >= 0; i--) {
+          const daysAgo = i;
+          const trend = (dailyChange / periods) * (periods - daysAgo);
+          const noise = (Math.random() - 0.5) * volatility * currentPrice;
+          const price = currentPrice * (1 - trend) + noise;
+          prices.push(Math.max(price, currentPrice * 0.5));
+        }
+        
+        return prices;
+      };
+
+      const historicalPrices = generateHistoricalPrices(marketData.currentPrice, marketData.changePercent, 60);
+      
+      // Calculate technical indicators
+      const rsi = calculateRSI(historicalPrices, 14);
+      const macd = calculateMACD(historicalPrices, 12, 26, 9);
+      const sma20 = calculateSMA(historicalPrices, 20);
+      const sma50 = calculateSMA(historicalPrices, 50);
+      const bollinger = calculateBollingerBands(historicalPrices, 20, 2);
+      
+      // Analyze signals
+      const rsiAnalysis = analyzeRSI(rsi);
+      const macdAnalysis = analyzeMACD(macd);
+      
+      // Volume analysis
+      const avgVolume = marketData.avgVolume || marketData.volume;
+      const volumeRatio = marketData.volume / avgVolume;
+      const volumeSignal = volumeRatio > 1.5 ? 'high' : volumeRatio > 1.2 ? 'above_average' : volumeRatio < 0.8 ? 'low' : 'normal';
+      
+      // Trend analysis
+      const currentPrice = marketData.currentPrice;
+      const trend = currentPrice > sma20 && sma20 > sma50 ? 'strong_uptrend' :
+                    currentPrice > sma20 ? 'uptrend' :
+                    currentPrice < sma20 && sma20 < sma50 ? 'strong_downtrend' :
+                    'downtrend';
+      
+      // Support/Resistance (Bollinger Bands)
+      const supportResistance = {
+        support: bollinger.lower,
+        resistance: bollinger.upper,
+        midpoint: bollinger.middle,
+        distanceToSupport: ((currentPrice - bollinger.lower) / currentPrice * 100).toFixed(2),
+        distanceToResistance: ((bollinger.upper - currentPrice) / currentPrice * 100).toFixed(2)
+      };
+      
+      res.json({
+        symbol: marketData.symbol,
+        assetType: marketData.assetType,
+        currentPrice: marketData.currentPrice,
+        changePercent: marketData.changePercent,
+        analysis: {
+          rsi: {
+            value: rsi,
+            signal: rsiAnalysis.signal,
+            strength: rsiAnalysis.strength,
+            direction: rsiAnalysis.direction,
+            interpretation: rsi < 30 ? 'Oversold - Potential buy signal' :
+                           rsi > 70 ? 'Overbought - Potential sell signal' :
+                           'Neutral range'
+          },
+          macd: {
+            value: macd.macd,
+            signal: macd.signal,
+            histogram: macd.histogram,
+            analysis: macdAnalysis.signal,
+            strength: macdAnalysis.strength,
+            direction: macdAnalysis.direction,
+            crossover: macdAnalysis.crossover,
+            interpretation: macdAnalysis.crossover ? 'Crossover imminent - Watch closely' :
+                           macd.histogram > 0 ? 'Bullish momentum' :
+                           'Bearish momentum'
+          },
+          trend: {
+            direction: trend,
+            sma20,
+            sma50,
+            priceVsSMA20: ((currentPrice - sma20) / sma20 * 100).toFixed(2) + '%',
+            priceVsSMA50: ((currentPrice - sma50) / sma50 * 100).toFixed(2) + '%'
+          },
+          volume: {
+            current: marketData.volume,
+            average: avgVolume,
+            ratio: Number(volumeRatio.toFixed(2)),
+            signal: volumeSignal,
+            interpretation: volumeSignal === 'high' ? 'Strong interest - High volume' :
+                           volumeSignal === 'above_average' ? 'Elevated activity' :
+                           volumeSignal === 'low' ? 'Low participation' :
+                           'Normal trading activity'
+          },
+          supportResistance
+        },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error("Quant analysis error:", error);
+      res.status(500).json({ error: error?.message || "Failed to analyze symbol" });
+    }
+  });
+
   // Quantitative Idea Generator (No AI required)
   app.post("/api/quant/generate-ideas", async (req, res) => {
     try {

@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatCurrency, formatCTTime } from "@/lib/utils";
+import { CryptoQuantAnalysis } from "./crypto-quant-analysis";
 import type { WatchlistItem } from "@shared/schema";
-import { Star, Trash2, Eye } from "lucide-react";
+import { Star, Trash2, Eye, BarChart2, ChevronDown } from "lucide-react";
 
 interface WatchlistTableProps {
   items: WatchlistItem[];
@@ -14,6 +17,11 @@ interface WatchlistTableProps {
 }
 
 export function WatchlistTable({ items, onRemove, onView, isRemoving }: WatchlistTableProps) {
+  const [expandedAnalysis, setExpandedAnalysis] = useState<string | null>(null);
+
+  const toggleAnalysis = (itemId: string) => {
+    setExpandedAnalysis(expandedAnalysis === itemId ? null : itemId);
+  };
   return (
     <Card data-testid="card-watchlist">
       <CardHeader>
@@ -30,59 +38,93 @@ export function WatchlistTable({ items, onRemove, onView, isRemoving }: Watchlis
           {items.length > 0 ? (
             <div className="space-y-3">
               {items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border hover-elevate transition-all group"
-                  data-testid={`watchlist-item-${item.symbol}`}
+                <Collapsible 
+                  key={item.id} 
+                  open={expandedAnalysis === item.id}
+                  onOpenChange={() => toggleAnalysis(item.id)}
                 >
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold font-mono" data-testid={`text-watchlist-symbol-${item.symbol}`}>
-                        {item.symbol}
-                      </span>
-                      <Badge variant="outline" className="text-xs">
-                        {item.assetType.toUpperCase()}
-                      </Badge>
-                    </div>
-                    {item.targetPrice && (
-                      <div className="text-sm text-muted-foreground">
-                        Target: <span className="font-mono font-medium">{formatCurrency(item.targetPrice)}</span>
+                  <div
+                    className="rounded-lg border border-border overflow-visible hover-elevate transition-all"
+                    data-testid={`watchlist-item-${item.symbol}`}
+                  >
+                    <div className="flex items-center justify-between p-3 group">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold font-mono" data-testid={`text-watchlist-symbol-${item.symbol}`}>
+                            {item.symbol}
+                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            {item.assetType.toUpperCase()}
+                          </Badge>
+                          {item.assetType === 'crypto' && (
+                            <Badge variant="secondary" className="text-xs">
+                              Quant Analysis Available
+                            </Badge>
+                          )}
+                        </div>
+                        {item.targetPrice && (
+                          <div className="text-sm text-muted-foreground">
+                            Target: <span className="font-mono font-medium">{formatCurrency(item.targetPrice)}</span>
+                          </div>
+                        )}
+                        {item.notes && (
+                          <div className="text-xs text-muted-foreground truncate">
+                            {item.notes}
+                          </div>
+                        )}
+                        <div className="text-xs text-muted-foreground font-mono">
+                          Added {formatCTTime(item.addedAt)}
+                        </div>
                       </div>
-                    )}
-                    {item.notes && (
-                      <div className="text-xs text-muted-foreground truncate">
-                        {item.notes}
-                      </div>
-                    )}
-                    <div className="text-xs text-muted-foreground font-mono">
-                      Added {formatCTTime(item.addedAt)}
-                    </div>
-                  </div>
 
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {onView && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onView(item.symbol)}
-                        data-testid={`button-view-${item.symbol}`}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {onRemove && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onRemove(item.id)}
-                        disabled={isRemoving}
-                        data-testid={`button-remove-${item.symbol}`}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    )}
+                      <div className="flex items-center gap-1">
+                        {item.assetType === 'crypto' && (
+                          <CollapsibleTrigger asChild>
+                            <Button
+                              variant={expandedAnalysis === item.id ? "default" : "outline"}
+                              size="sm"
+                              className="gap-1"
+                              data-testid={`button-analyze-${item.symbol}`}
+                            >
+                              <BarChart2 className="h-3 w-3" />
+                              <span className="hidden sm:inline">Analyze</span>
+                              <ChevronDown className={`h-3 w-3 transition-transform ${expandedAnalysis === item.id ? 'rotate-180' : ''}`} />
+                            </Button>
+                          </CollapsibleTrigger>
+                        )}
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {onView && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onView(item.symbol)}
+                              data-testid={`button-view-${item.symbol}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {onRemove && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onRemove(item.id)}
+                              disabled={isRemoving}
+                              data-testid={`button-remove-${item.symbol}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <CollapsibleContent>
+                      <div className="px-3 pb-3 pt-1 border-t border-border/50">
+                        <CryptoQuantAnalysis symbol={item.symbol} />
+                      </div>
+                    </CollapsibleContent>
                   </div>
-                </div>
+                </Collapsible>
               ))}
             </div>
           ) : (
