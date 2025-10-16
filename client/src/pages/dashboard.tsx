@@ -52,13 +52,36 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       toast({
         title: "Quant Ideas Generated",
-        description: `Generated ${data.newIdeas} new quantitative trade ideas`,
+        description: `Generated ${data.count || data.newIdeas || 0} new quantitative trade ideas`,
       });
     },
     onError: (error: any) => {
       toast({
         title: "Generation Failed",
         description: error.message || "Failed to generate quant ideas",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Generate AI Ideas mutation
+  const generateAIIdeas = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/ai/generate-ideas', {
+        marketContext: "Current market conditions with focus on stocks, options, and crypto"
+      });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      toast({
+        title: "AI Ideas Generated",
+        description: `Generated ${data.count || 0} new AI-powered trade ideas`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate AI ideas",
         variant: "destructive"
       });
     }
@@ -133,13 +156,14 @@ export default function Dashboard() {
               {generateQuantIdeas.isPending ? "Generating..." : "Generate Quant Ideas"}
             </Button>
             <Button 
-              onClick={() => setChatBotOpen(true)}
+              onClick={() => generateAIIdeas.mutate()}
+              disabled={generateAIIdeas.isPending}
               variant="outline"
               className="w-full gap-2"
               data-testid="button-generate-ai"
             >
               <Sparkles className="h-4 w-4" />
-              Ask AI for Ideas
+              {generateAIIdeas.isPending ? "Generating..." : "Generate AI Ideas"}
             </Button>
           </CardContent>
         </Card>

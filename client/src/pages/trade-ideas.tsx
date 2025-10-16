@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -11,8 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, ScreenerFilters as Filters, IdeaSource } from "@shared/schema";
-import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus } from "lucide-react";
+import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3 } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO } from "date-fns";
 
 export default function TradeIdeasPage() {
@@ -24,10 +26,55 @@ export default function TradeIdeasPage() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const { toast } = useToast();
 
   const { data: tradeIdeas = [], isLoading: ideasLoading } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
     refetchInterval: 60000,
+  });
+
+  // Generate Quant Ideas mutation
+  const generateQuantIdeas = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/quant/generate-ideas', {});
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      toast({
+        title: "Quant Ideas Generated",
+        description: `Generated ${data.count || data.newIdeas || 0} new quantitative trade ideas`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate quant ideas",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Generate AI Ideas mutation
+  const generateAIIdeas = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/ai/generate-ideas', {
+        marketContext: "Current market conditions with focus on stocks, options, and crypto"
+      });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      toast({
+        title: "AI Ideas Generated",
+        description: `Generated ${data.count || 0} new AI-powered trade ideas`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate AI ideas",
+        variant: "destructive"
+      });
+    }
   });
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -97,6 +144,27 @@ export default function TradeIdeasPage() {
               {newIdeasCount} NEW
             </Badge>
           )}
+          <Button 
+            onClick={() => generateQuantIdeas.mutate()}
+            disabled={generateQuantIdeas.isPending}
+            size="sm"
+            className="gap-2"
+            data-testid="button-generate-quant-ideas"
+          >
+            <BarChart3 className="h-4 w-4" />
+            {generateQuantIdeas.isPending ? "Generating..." : "Generate Quant"}
+          </Button>
+          <Button 
+            onClick={() => generateAIIdeas.mutate()}
+            disabled={generateAIIdeas.isPending}
+            size="sm"
+            variant="outline"
+            className="gap-2"
+            data-testid="button-generate-ai-ideas"
+          >
+            <Sparkles className="h-4 w-4" />
+            {generateAIIdeas.isPending ? "Generating..." : "Generate AI"}
+          </Button>
         </div>
       </div>
 
