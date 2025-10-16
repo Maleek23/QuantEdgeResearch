@@ -71,7 +71,11 @@ QuantEdge Research is a professional quantitative trading research platform desi
   - **Multi-Timeframe Confirmation:** Analyzes both daily (5/10-day SMA) and weekly (4/10-week SMA on aggregated candles) trends, requiring alignment for higher confidence
   - **Day Trading Options:** Generates options with short-term expirations (1-5 days) weighted toward near-term opportunities - 60% chance for 1-2 day expirations, 30% for 3-4 days, 10% for 5 days - optimized for day trading strategies
   - **Intelligent Deduplication:** Prevents creating similar ideas within 24 hours (matches by symbol, direction, and entry price within 5%), with helpful "wait for market movements" messaging when no new opportunities are detected
-- **Performance Tracking:** Record actual trade outcomes with dialog in trade idea blocks. Track WIN/LOSS/BREAKEVEN/STOPPED outcomes, actual exit prices, and realized P&L. Enables measurement of actual win rates against predicted confidence scores.
+- **Performance Tracking & Auto-Archiving:** 
+  - **Manual Recording:** Record actual trade outcomes via "Track Performance" dialog in trade idea blocks. Options: Win (Hit Target), Loss (Hit Stop), Manual Exit, Expired. Track actual exit prices and realized P&L for win rate analysis.
+  - **Auto-Archiving System:** Trade ideas automatically archive when: (1) Price hits target → outcomeStatus='hit_target', (2) Price hits stop loss → outcomeStatus='hit_stop', (3) Idea is 7+ days old → outcomeStatus='expired'. Auto-archiving runs on every GET /api/trade-ideas request, checking current market prices against entry/target/stop levels.
+  - **Active Feed Filtering:** Dashboard filters out completed trades (outcomeStatus !== 'open'), showing only active opportunities. "Active Opportunities" stat counts only open ideas. Historical data preserved in storage but hidden from active feed to reduce clutter.
+  - **Lifecycle States:** outcomeStatus field tracks idea lifecycle: 'open' (active), 'hit_target' (reached target), 'hit_stop' (stopped out), 'manual_exit' (user closed), 'expired' (stale/old). All archived ideas removed from active views but retained for historical analysis.
 
 ### Data Models
 Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, User Preferences.

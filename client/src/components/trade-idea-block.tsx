@@ -572,10 +572,10 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
                         <SelectValue placeholder="Select outcome" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="WIN">Win</SelectItem>
-                        <SelectItem value="LOSS">Loss</SelectItem>
-                        <SelectItem value="BREAKEVEN">Break Even</SelectItem>
-                        <SelectItem value="STOPPED">Stopped Out</SelectItem>
+                        <SelectItem value="hit_target" data-testid="option-hit-target">Win (Hit Target)</SelectItem>
+                        <SelectItem value="hit_stop" data-testid="option-hit-stop">Loss (Hit Stop)</SelectItem>
+                        <SelectItem value="manual_exit" data-testid="option-manual-exit">Manual Exit</SelectItem>
+                        <SelectItem value="expired" data-testid="option-expired">Expired</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
