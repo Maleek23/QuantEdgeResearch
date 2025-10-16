@@ -1,4 +1,5 @@
 import { Home, TrendingUp, Star, User } from "lucide-react";
+import { Link } from "wouter";
 import {
   Sidebar,
   SidebarContent,
@@ -14,23 +15,27 @@ import {
 const menuItems = [
   {
     title: "Dashboard",
-    url: "#overview",
+    url: "/",
     icon: Home,
+    isHash: false,
   },
   {
     title: "Trade Ideas",
     url: "#trade-ideas",
     icon: TrendingUp,
+    isHash: true,
   },
   {
     title: "Watchlist",
     url: "#watchlist",
     icon: Star,
+    isHash: true,
   },
   {
     title: "About",
-    url: "#about",
+    url: "/about",
     icon: User,
+    isHash: false,
   },
 ];
 
@@ -61,14 +66,25 @@ export function AppSidebar() {
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a 
-                      href={item.url}
-                      className="flex items-center gap-3"
-                      data-testid={`nav-${item.title.toLowerCase().replace(' ', '-')}`}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </a>
+                    {item.isHash ? (
+                      <a 
+                        href={item.url}
+                        className="flex items-center gap-3"
+                        data-testid={`nav-${item.title.toLowerCase().replace(' ', '-')}`}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </a>
+                    ) : (
+                      <Link 
+                        href={item.url}
+                        className="flex items-center gap-3"
+                        data-testid={`nav-${item.title.toLowerCase().replace(' ', '-')}`}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
