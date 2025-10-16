@@ -845,7 +845,10 @@ export default function Dashboard() {
                     {ideasLoading ? (
                       <Skeleton className="h-[400px] w-full" />
                     ) : (
-                      <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2'}>
+                      <div 
+                        className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2'}
+                        data-testid="trade-ideas-container"
+                      >
                         {filteredIdeas
                           .filter(idea => idea.assetType === "option")
                           .map((idea) => {
@@ -882,7 +885,10 @@ export default function Dashboard() {
                     {ideasLoading ? (
                       <Skeleton className="h-[400px] w-full" />
                     ) : (
-                      <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2'}>
+                      <div 
+                        className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2'}
+                        data-testid="trade-ideas-container"
+                      >
                         {filteredIdeas
                           .filter(idea => idea.assetType === "stock")
                           .map((idea) => {
@@ -919,7 +925,10 @@ export default function Dashboard() {
                     {ideasLoading ? (
                       <Skeleton className="h-[400px] w-full" />
                     ) : (
-                      <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2'}>
+                      <div 
+                        className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-3' : 'space-y-2'}
+                        data-testid="trade-ideas-container"
+                      >
                         {filteredIdeas
                           .filter(idea => idea.assetType === "crypto")
                           .map((idea) => {
