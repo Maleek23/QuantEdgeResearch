@@ -398,16 +398,16 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 lg:px-6">
-          <div className="flex h-16 items-center justify-between gap-4">
+          <div className="flex h-14 items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <Activity className="h-6 w-6 text-primary" />
-                <h1 className="text-xl font-bold" data-testid="text-app-title">QuantEdge Research</h1>
+                <Activity className="h-5 w-5 text-primary" />
+                <h1 className="text-lg font-bold" data-testid="text-app-title">QuantEdge Research</h1>
               </div>
               <MarketSessionBadge session={currentSession} />
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <span className="hidden sm:inline text-sm text-muted-foreground font-mono" data-testid="text-current-time">
                 {currentTime}
               </span>
@@ -431,6 +431,7 @@ export default function Dashboard() {
       </header>
 
       <main className="container mx-auto px-4 lg:px-6 py-6">
+        <section id="overview">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <Card data-testid="card-stat-opportunities">
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
@@ -533,7 +534,9 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+        </section>
 
+        <section id="trade-ideas">
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-6">
             <Tabs defaultValue="new" className="w-full">
@@ -871,7 +874,7 @@ export default function Dashboard() {
             </Tabs>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-6" id="watchlist">
             <WatchlistTable 
               items={watchlist} 
               onRemove={handleRemoveFromWatchlist}
@@ -880,6 +883,7 @@ export default function Dashboard() {
             <CatalystFeed catalysts={catalysts} />
           </div>
         </div>
+        </section>
 
         <div className="mt-8 p-4 bg-muted/30 rounded-lg border border-muted-border">
           <p className="text-sm text-muted-foreground leading-relaxed">
