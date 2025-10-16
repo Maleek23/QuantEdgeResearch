@@ -1,7 +1,7 @@
 # QuantEdge Research - Trading Platform
 
 ## Overview
-QuantEdge Research is a professional quantitative trading research platform designed to identify day-trading opportunities across US equities, options, and crypto markets. It aims to provide educational, research-grade trade ideas, comprehensive risk management tools, and real-time market analysis. The platform emphasizes risk controls and educational disclaimers, presenting information via a professional dark-themed UI optimized for rapid data scanning.
+QuantEdge Research is a professional quantitative trading research platform designed to identify day-trading opportunities across US equities, options, and crypto markets. Its primary purpose is to provide educational, research-grade trade ideas, comprehensive risk management tools, and real-time market analysis. The platform aims to offer robust risk controls and clear educational disclaimers, all presented through a professional dark-themed UI optimized for rapid data scanning. The project envisions empowering users with actionable insights and research capabilities to improve their trading strategies.
 
 ## User Preferences
 - All timestamps should be displayed in America/Chicago timezone with market session context.
@@ -16,78 +16,29 @@ QuantEdge Research is a professional quantitative trading research platform desi
 
 ## System Architecture
 
-### Tech Stack
-**Frontend:** React with TypeScript, Tailwind CSS + Shadcn UI, TanStack Query, Wouter, date-fns-tz.
-**Backend:** Express.js with TypeScript, In-memory storage (MemStorage), Zod validation, RESTful API design.
-
 ### UI/UX Decisions
-- **Dark Theme:** Professional dark background with green for bullish/positive, red for bearish/negative, amber for neutral/warning, and blue for primary actions.
-- **Typography:** Inter for UI/labels, JetBrains Mono for prices/tickers/timestamps.
-- **Components:** Cards with hover elevation, badges, sticky-header tables, responsive grids, loading skeletons.
-- **Data Presentation:** Emphasis on visual hierarchy with larger fonts, better spacing, clear data scanning, and interactive tooltips for R:R ratios.
-- **Freshness Indicators:** Pulsing "FRESH" badge for ideas posted within 24 hours, clear "Posted: [time] • [session]" timestamps.
-- **Optimistic UI:** Watchlist additions provide immediate feedback.
-- **Smart Notifications:** New trade idea notifications display stock symbols (e.g., "Generated 3 ideas: AAPL, TSLA, BTC") for both quant and AI-generated ideas.
+The platform features a professional dark theme with a consistent color palette (green for bullish, red for bearish, amber for neutral/warning, blue for actions). Typography uses Inter for UI and JetBrains Mono for financial data. Components include cards with hover effects, badges, sticky-header tables, responsive grids, and loading skeletons. Data presentation prioritizes visual hierarchy, clear scanning, and interactive tooltips. Key UI elements include pulsing "FRESH" badges, smart notifications for new ideas, and optimistic UI updates for quick actions.
 
-### Key Features
-- **Collapsible Sidebar Navigation:** Professional sidebar with icon-only collapse mode organizing platform into pages (Dashboard, About) and dashboard sections (Trade Ideas, Watchlist). Features toggle button in header, route-based navigation for pages, anchor navigation for dashboard sections, smooth expand/collapse transitions, and logo that shows icon-only when collapsed. Updated October 2025 to move About to separate page.
-- **About Page:** Standalone page at `/about` featuring creator profile with photo, bio, education (M.S. Systems Engineering - University of Oklahoma, B.S. Computer Engineering - UT Arlington), certifications (CISA, MATLAB, Simulink), and social links (LinkedIn, GitHub). Highlights experience in AI/ML model validation and risk analytics at DTCC.
-- **Settings Management:** Comprehensive settings dialog with persistence to localStorage. Includes Display Preferences (timezone, default view), Data & Refresh (auto-refresh toggle, refresh interval), Notifications (enable/disable, sound alerts), and Trade Idea Preferences (minimum confidence score, low liquidity warnings). Settings hydrate from localStorage on dialog open and persist on save/reset.
-- **Header Auto-Hide:** Scroll-based header visibility to maximize screen space. Header hides when scrolling down past 100px and reappears when scrolling up. Uses CSS transforms with 300ms transition. Scroll listener attached to main.overflow-auto element with useRef pattern to avoid listener recreation.
-- **Universal Symbol Search & Real-Time Pricing:** Search stocks (via Alpha Vantage API) or crypto (via CoinGecko API) with auto-persistence and auto-refresh (every 60 seconds) with manual refresh option. Prices and last update timestamps shown in CT. Prominent data freshness notice explains 60-second refresh cycle and free API tier limitations.
-- **Real-time Market Dashboard:** Smart summary cards with actionable insights (active opportunities, top gainer/loser with micro-cap crypto price support), live price cards, and market session indicators. Properly formats small crypto prices (e.g., $0.00002145 for PEPE) using smart decimal detection up to 8 places.
-- **Trade Ideas Feed:** Tabbed interface (NEW IDEAS, Stock Options, Stock Shares, Crypto) with "NEW IDEAS" tab featuring date-based accordions (Today/Yesterday/Older) with rotating chevron animations and asset-type subsections. Uses compact TradeIdeaBlock components with expandable details to prevent information overload. Displays quantitative entry/target/stop levels, risk/reward per share, gain/risk percentages, catalyst summaries, and one-click watchlist starring. Includes filter buttons (All, Long, Short, Day Trade) to quickly narrow down opportunities by direction or intraday timing. Features a mini calendar date picker to navigate and filter trade ideas by historical dates (future dates disabled), with bold highlighting on dates containing ideas and a clear button to reset filters.
-- **Quality Scoring System:**
-  - **Confidence Score:** 0-100 numeric quality score with 70+ threshold for display filtering
-  - **Probability Bands:** A (80-100), B (70-79), C (60-69) grades indicating success probability
-  - **Quality Signals:** Multi-factor scoring based on R:R ratio (min 2.0), volume confirmation, signal strength, liquidity, RSI/MACD indicators, and multi-timeframe alignment
-  - **Technical Indicators:** RSI (14-period) and MACD (12,26,9) with +10 point bonus for confirmed signals
-  - **Multi-Timeframe Analysis:** Daily (5-day vs 10-day SMA) and Weekly (4-week vs 10-week SMA on aggregated candles) with up to +15 points for strong alignment
-  - **Gem Score:** Prioritization algorithm combining price action (40 pts), volume strength (30 pts), and liquidity (30 pts)
-  - **Hard Guards:** Minimum 1.5:1 R:R ratio and 1.2x volume confirmation required for all generated ideas
-- **Day Trading Features:** 
-  - **Options Accuracy:** Strike price, option type (call/put), and expiry date displayed in dedicated badges for options trade ideas (e.g., "$580 CALL Exp: Oct 27, 2025")
-  - **Intraday Indicators:** "DAY TRADE" badge highlights true intraday opportunities - options expiring TODAY (not weeks/months out), or stocks/crypto during active trading sessions (Regular Trading Hours, Pre-Market, After Hours)
-  - **Source Differentiation:** Visual badges distinguish AI-generated ideas (Brain icon, purple) from quantitative ideas (Sparkles icon, blue)
-  - **Compact Expandable UI:** Trade ideas shown in collapsed state with clean 3-column grid layout displaying Current | Entry | Target prices with no overlap, prominent current price (text-2xl) with color-coded change percentage
-  - **Dynamic Grade System:** Letter grades with +/- modifiers (A+/A-/B+/B/C+/C) that adjust in real-time based on market movement - grades improve as price moves toward profit target, degrade as price moves toward stop loss, using absolute distance calculations with 50-95% guardrails for both long and short positions
-  - **Enhanced Analysis:** In-depth analysis prominently displayed in expanded view with highlighted background and clickable text selection
-  - **Accordion Animations:** Smooth rotating chevron arrows indicate section expansion/collapse state
-  - **At-a-Glance Metrics in Collapsed Cards:** Trade idea cards display time since posted (e.g., "2h ago") with Clock icon, real-time P&L showing dollar value and percentage change (color-coded green/red), visual progress bar indicating distance to target (0-100%), and quick action buttons (Eye/Star icons) appearing on hover for instant access to symbol details and watchlist
-  - **Intelligent UI Interactions:** Quick action buttons positioned absolutely with semi-transparent background to avoid button nesting issues, smooth opacity transitions on hover, lightweight calculations guarded against missing data, and all interactive elements tagged with data-testid for automation testing
-- **Multi-Asset Screener:** Filters by asset type, price, volume, penny stocks, high IV options, and unusual volume.
-- **Risk Calculator:** Position sizing, R:R ratio visualization, potential profit/loss calculations, and stop-loss analysis.
-- **Catalyst Feed:** Displays latest market events, news, impact ratings, and source citations.
-- **Symbol Detail Modal:** Click any symbol in trade ideas or use "View Details" button in expanded blocks to open comprehensive analysis modal with three tabs:
-  - **Overview:** Key metrics (market cap, volume, 24h high/low) and performance summary
-  - **Analysis:** Analyst ratings with visual breakdown and trading recommendations (BUY/HOLD/SELL)
-  - **Sentiment:** Community sentiment (Bullish/Neutral/Bearish percentages) with trader commentary
-  - **Access Points:** Symbol names (clickable links) or "View Details" button in expanded trade idea blocks
-- **Watchlist Management:** Track symbols with price targets, notes, and quick actions.
-- **QuantAI Bot:** AI-powered trading assistant with a sliding chatbot interface. Features intelligent multi-provider fallback system (Anthropic Claude Sonnet 4 → OpenAI GPT-5 → Google Gemini 2.5) with helpful error messaging for API credit/billing issues. Includes persistent chat history and graceful degradation when primary providers fail.
-- **Quantitative Idea Generator:** An AI-free alternative generating trade ideas based on Momentum, Volume Spike, Bullish/Bearish Breakout, Mean Reversion, RSI Divergence, and MACD Crossover signals using advanced technical analysis. Features:
-  - **Hidden Gem Discovery Engine:** Dynamically discovers lesser-known crypto opportunities ($50M-$2B market cap, $5M+ daily volume, excluded top-20 by market cap) using CoinGecko markets API with anomaly detection (3%+ price gap OR 10%+ turnover ratio). Successfully filters out large-cap cryptos (BTC $2.2T, ETH $474B, XRP $142B, AVAX $9B) and generates actual hidden gems like WBNB, CAKE, SNX, PUMP, FIL, TIA in the $500M-$1.4B range. Updated October 2025 to fix catalyst generation bug and use discovered price data directly.
-  - **RSI Analysis:** 14-period RSI with oversold (<30) and overbought (>70) detection for reversal setups
-  - **MACD Analysis:** 12,26,9 MACD with bullish/bearish crossover signals for trend confirmation
-  - **Multi-Timeframe Confirmation:** Analyzes both daily (5/10-day SMA) and weekly (4/10-week SMA on aggregated candles) trends, requiring alignment for higher confidence
-  - **Day Trading Options:** Generates options with short-term expirations (1-5 days) weighted toward near-term opportunities - 60% chance for 1-2 day expirations, 30% for 3-4 days, 10% for 5 days - optimized for day trading strategies
-  - **Intelligent Deduplication:** Prevents creating similar ideas within 24 hours (matches by symbol, direction, and entry price within 5%), with helpful "wait for market movements" messaging when no new opportunities are detected
-  - **Seed Data Philosophy:** Platform showcases diverse hidden gems (RENDER, ONDO, JUP, PENDLE) in the $850M-$1.8B range rather than generic mainstream tickers
-- **Performance Tracking & Auto-Archiving:** 
-  - **Manual Recording:** Record actual trade outcomes via "Track Performance" dialog in trade idea blocks. Options: Win (Hit Target), Loss (Hit Stop), Manual Exit, Expired. Track actual exit prices and realized P&L for win rate analysis.
-  - **Auto-Archiving System:** Trade ideas automatically archive when: (1) Stock/crypto price hits target → outcomeStatus='hit_target', (2) Price hits stop loss → outcomeStatus='hit_stop', (3) Idea is 7+ days old → outcomeStatus='expired'. Auto-archiving runs on every GET /api/trade-ideas request, checking current market prices against entry/target/stop levels. **Note:** Options are excluded from auto-archiving since live option prices are not available.
-  - **Active Feed Filtering:** Dashboard filters out completed trades (outcomeStatus !== 'open'), showing only active opportunities. "Active Opportunities" stat counts only open ideas. Historical data preserved in storage but hidden from active feed to reduce clutter.
-  - **Lifecycle States:** outcomeStatus field tracks idea lifecycle: 'open' (active), 'hit_target' (reached target), 'hit_stop' (stopped out), 'manual_exit' (user closed), 'expired' (stale/old). All archived ideas removed from active views but retained for historical analysis.
+### Technical Implementations & Feature Specifications
+- **Tech Stack:** React with TypeScript, Tailwind CSS + Shadcn UI, TanStack Query, Wouter, date-fns-tz for the frontend; Express.js with TypeScript, In-memory storage, and Zod validation for the backend.
+- **Core Navigation:** Collapsible sidebar, dedicated About page for creator profile, and robust settings management with localStorage persistence.
+- **Market Data:** Universal symbol search with real-time pricing for stocks (Alpha Vantage) and crypto (CoinGecko), including auto-refresh and clear data freshness indicators.
+- **Real-time Dashboard:** Smart summary cards, live price cards, and market session indicators, with precise formatting for micro-cap crypto prices.
+- **Trade Ideas Feed:** Tabbed interface with date-based accordions for "NEW IDEAS," compact `TradeIdeaBlock` components, and detailed expandable views showing quantitative entry/target/stop levels, R:R, and catalyst summaries. Includes filtering options (All, Long, Short, Day Trade) and a mini calendar for historical navigation.
+- **Quality Scoring System:** Incorporates Confidence Scores (0-100), Probability Bands (A, B, C grades), and multi-factor Quality Signals based on R:R, volume, indicators (RSI, MACD), and multi-timeframe alignment, with hard guards for minimum R:R and volume confirmation.
+- **Day Trading Features:** Specific handling for options (strike, type, expiry), "DAY TRADE" badges, visual differentiation of AI vs. quantitative ideas, compact expandable UI with dynamic grade system adjusting in real-time, and at-a-glance metrics in collapsed cards (time since posted, P&L, progress bar).
+- **Symbol Detail Modal:** Comprehensive modal with Overview, Analysis (analyst ratings), and Sentiment tabs, accessible from any symbol.
+- **Watchlist Management:** Full-width section with expandable quantitative analysis for crypto assets (RSI, MACD, Trend, Volume, Support/Resistance cards) and auto-refresh for prices.
+- **QuantAI Bot:** AI-powered trading assistant with a sliding chatbot interface, intelligent multi-provider fallback (Anthropic, OpenAI, Google Gemini), and persistent chat history.
+- **Quantitative Idea Generator:** An AI-free alternative generating trade ideas based on momentum, volume spike, breakout, mean reversion, and indicator divergence/crossover signals. Features a "Hidden Gem Discovery Engine" for crypto, advanced RSI/MACD analysis, multi-timeframe confirmation, and intelligent deduplication.
+- **Performance Tracking & Auto-Archiving:** Allows manual recording of trade outcomes and automatic archiving of ideas when targets are hit, stop losses are triggered, or ideas expire (7+ days old). Active feeds filter out completed trades, preserving historical data.
 
-### Data Models
-Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, User Preferences.
-
-### API Endpoints
-Comprehensive RESTful API for Market Data (search, refresh), Trade Ideas (CRUD), Catalysts (CRUD), Watchlist (CRUD), Options (GET/POST), Preferences (GET/PATCH), and AI/QuantAI Bot (chat, generate ideas, chat history).
+### System Design Choices
+The system uses a RESTful API design for all core functionalities. Data models include Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. The design emphasizes modularity, responsiveness, and clear separation of concerns between frontend and backend.
 
 ## External Dependencies
-- **CoinGecko API:** For crypto symbol search and real-time prices (no API key required).
-- **Alpha Vantage API:** For stock symbol lookup and market data (requires `ALPHA_VANTAGE_API_KEY`).
-- **OpenAI API:** For GPT-5 integration within QuantAI Bot (requires `OPENAI_API_KEY`).
-- **Anthropic API:** For Claude Sonnet 4 integration within QuantAI Bot (requires `ANTHROPIC_API_KEY`).
-- **Google Gemini API:** For Gemini 2.5 integration within QuantAI Bot (requires `GEMINI_API_KEY`).
+- **CoinGecko API:** For crypto symbol search and real-time prices.
+- **Alpha Vantage API:** For stock symbol lookup and market data.
+- **OpenAI API:** For GPT-5 integration within the QuantAI Bot.
+- **Anthropic API:** For Claude Sonnet 4 integration within the QuantAI Bot.
+- **Google Gemini API:** For Gemini 2.5 integration within the QuantAI Bot.
