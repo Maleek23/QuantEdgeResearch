@@ -7,6 +7,10 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import Dashboard from "@/pages/dashboard";
+import TradeIdeasPage from "@/pages/trade-ideas";
+import MarketPage from "@/pages/market";
+import WatchlistPage from "@/pages/watchlist";
+import RiskCalculatorPage from "@/pages/risk-calculator";
 import About from "@/pages/about";
 import NotFound from "@/pages/not-found";
 
@@ -14,6 +18,10 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
+      <Route path="/trade-ideas" component={TradeIdeasPage} />
+      <Route path="/market" component={MarketPage} />
+      <Route path="/watchlist" component={WatchlistPage} />
+      <Route path="/risk" component={RiskCalculatorPage} />
       <Route path="/about" component={About} />
       <Route component={NotFound} />
     </Switch>

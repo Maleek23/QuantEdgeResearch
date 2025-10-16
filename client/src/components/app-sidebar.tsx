@@ -1,5 +1,5 @@
-import { Home, TrendingUp, Star, User } from "lucide-react";
-import { Link } from "wouter";
+import { Home, TrendingUp, BarChart2, Star, Calculator, User } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import {
   Sidebar,
   SidebarContent,
@@ -12,34 +12,24 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 
-const menuItems = [
-  {
-    title: "Dashboard",
-    url: "/",
-    icon: Home,
-    isHash: false,
-  },
-  {
-    title: "Trade Ideas",
-    url: "#trade-ideas",
-    icon: TrendingUp,
-    isHash: true,
-  },
-  {
-    title: "Watchlist",
-    url: "#watchlist",
-    icon: Star,
-    isHash: true,
-  },
-  {
-    title: "About",
-    url: "/about",
-    icon: User,
-    isHash: false,
-  },
+const researchItems = [
+  { title: "Dashboard", url: "/", icon: Home },
+  { title: "Trade Ideas", url: "/trade-ideas", icon: TrendingUp },
+  { title: "Market", url: "/market", icon: BarChart2 },
+  { title: "Watchlist", url: "/watchlist", icon: Star },
+];
+
+const toolItems = [
+  { title: "Risk Calculator", url: "/risk", icon: Calculator },
+];
+
+const systemItems = [
+  { title: "About", url: "/about", icon: User },
 ];
 
 export function AppSidebar() {
+  const [location] = useLocation();
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
@@ -59,32 +49,68 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent>
+        {/* Research Section */}
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Research</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {researchItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    {item.isHash ? (
-                      <a 
-                        href={item.url}
-                        className="flex items-center gap-3"
-                        data-testid={`nav-${item.title.toLowerCase().replace(' ', '-')}`}
-                      >
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </a>
-                    ) : (
-                      <Link 
-                        href={item.url}
-                        className="flex items-center gap-3"
-                        data-testid={`nav-${item.title.toLowerCase().replace(' ', '-')}`}
-                      >
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    )}
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link 
+                      href={item.url}
+                      className="flex items-center gap-3"
+                      data-testid={`nav-${item.title.toLowerCase().replace(' ', '-')}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Tools Section */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Tools</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {toolItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link 
+                      href={item.url}
+                      className="flex items-center gap-3"
+                      data-testid={`nav-${item.title.toLowerCase().replace(' ', '-')}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* System Section */}
+        <SidebarGroup>
+          <SidebarGroupLabel>System</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {systemItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link 
+                      href={item.url}
+                      className="flex items-center gap-3"
+                      data-testid={`nav-${item.title.toLowerCase().replace(' ', '-')}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
