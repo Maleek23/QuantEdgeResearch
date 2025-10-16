@@ -42,6 +42,8 @@ export default function Dashboard() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [headerVisible, setHeaderVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
   const currentSession = getMarketSession();
   const currentTime = formatCTTime(new Date());
   const { toast } = useToast();
@@ -111,6 +113,27 @@ export default function Dashboard() {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Header auto-hide on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // Show header when scrolling up or at top
+      if (currentScrollY < lastScrollY || currentScrollY < 100) {
+        setHeaderVisible(true);
+      } 
+      // Hide header when scrolling down (after 100px from top)
+      else if (currentScrollY > 100 && currentScrollY > lastScrollY) {
+        setHeaderVisible(false);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
 
   const handleManualRefresh = () => {
     refreshPricesMutation.mutate();
@@ -399,7 +422,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className={`sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-transform duration-300 ${!headerVisible ? '-translate-y-full' : 'translate-y-0'}`}>
         <div className="container mx-auto px-4 lg:px-6">
           <div className="flex h-14 items-center justify-between gap-4">
             <div className="flex items-center gap-4">
