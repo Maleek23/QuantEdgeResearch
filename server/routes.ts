@@ -371,24 +371,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         calculateBollingerBands
       } = await import("./technical-indicators");
 
-      // Generate simulated historical prices (last 60 days)
-      const generateHistoricalPrices = (currentPrice: number, changePercent: number, periods: number = 60): number[] => {
-        const prices: number[] = [];
-        const dailyChange = changePercent / 100;
-        const volatility = Math.abs(dailyChange) * 2;
-        
-        for (let i = periods; i >= 0; i--) {
-          const daysAgo = i;
-          const trend = (dailyChange / periods) * (periods - daysAgo);
-          const noise = (Math.random() - 0.5) * volatility * currentPrice;
-          const price = currentPrice * (1 - trend) + noise;
-          prices.push(Math.max(price, currentPrice * 0.5));
-        }
-        
-        return prices;
-      };
+      // Import market API for real historical data
+      const { fetchHistoricalPrices } = await import("./market-api");
 
-      const historicalPrices = generateHistoricalPrices(marketData.currentPrice, marketData.changePercent, 60);
+      // Fetch REAL historical prices instead of synthetic data
+      const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
+      let historicalPrices = await fetchHistoricalPrices(
+        marketData.symbol, 
+        marketData.assetType, 
+        60, 
+        apiKey
+      );
+
+      // Fallback to synthetic if API fails (for development/testing)
+      if (historicalPrices.length === 0) {
+        console.log(`⚠️  Using fallback synthetic prices for ${marketData.symbol}`);
+        const generateFallback = (currentPrice: number, changePercent: number, periods: number = 60): number[] => {
+          const prices: number[] = [];
+          const dailyChange = changePercent / 100;
+          const volatility = Math.abs(dailyChange) * 2;
+          
+          for (let i = periods; i >= 0; i--) {
+            const daysAgo = i;
+            const trend = (dailyChange / periods) * (periods - daysAgo);
+            const noise = (Math.random() - 0.5) * volatility * currentPrice;
+            const price = currentPrice * (1 - trend) + noise;
+            prices.push(Math.max(price, currentPrice * 0.5));
+          }
+          return prices;
+        };
+        historicalPrices = generateFallback(marketData.currentPrice, marketData.changePercent, 60);
+      } else {
+        console.log(`✅ Using ${historicalPrices.length} real historical prices for ${marketData.symbol}`);
+      }
       
       // Calculate technical indicators
       const rsi = calculateRSI(historicalPrices, 14);

@@ -106,7 +106,7 @@ async function analyzeMultiTimeframe(
 }
 
 // Analyze market data for quantitative signals with RSI/MACD integration
-function analyzeMarketData(data: MarketData): QuantSignal | null {
+function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantSignal | null {
   const priceChange = data.changePercent;
   const volume = data.volume || 0;
   const avgVolume = data.avgVolume || volume;
@@ -185,9 +185,13 @@ function analyzeMarketData(data: MarketData): QuantSignal | null {
   }
 
   // RSI and MACD Analysis - Advanced Technical Signals
-  const historicalPrices = generateHistoricalPrices(data.currentPrice, data.changePercent, 50);
-  const rsi = calculateRSI(historicalPrices, 14);
-  const macd = calculateMACD(historicalPrices);
+  // Use real historical prices if provided, fallback to synthetic only if empty
+  const prices = historicalPrices.length > 0 
+    ? historicalPrices 
+    : generateHistoricalPricesFallback(data.currentPrice, data.changePercent, 50);
+  
+  const rsi = calculateRSI(prices, 14);
+  const macd = calculateMACD(prices);
   
   const rsiAnalysis = analyzeRSI(rsi);
   const macdAnalysis = analyzeMACD(macd);
@@ -604,7 +608,7 @@ export async function generateQuantIdeas(
     high52Week: null,
     low52Week: null,
     avgVolume: gem.volume24h / 1.5, // Estimate baseline volume
-    dataSource: 'discovery' as const,
+    dataSource: 'live' as const, // Discovered from live API data
     lastUpdated: now.toISOString(),
   }));
 
@@ -634,20 +638,25 @@ export async function generateQuantIdeas(
   for (const data of sortedData) {
     if (ideas.length >= count) break;
 
-    const signal = analyzeMarketData(data);
+    // Fetch real historical prices FIRST for accurate analysis (fallback to synthetic if API fails)
+    const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
+    const historicalPrices = await fetchHistoricalPrices(data.symbol, data.assetType, 60, apiKey);
+    
+    // Analyze with REAL historical prices
+    const signal = analyzeMarketData(data, historicalPrices);
     if (!signal) continue;
 
     const levels = calculateLevels(data, signal);
     const catalyst = generateCatalyst(data, signal, catalysts);
     const analysis = generateAnalysis(data, signal);
-
+    
     // Multi-timeframe analysis for enhanced confidence
-    const mtfAnalysis = analyzeMultiTimeframe(data);
+    const mtfAnalysis = await analyzeMultiTimeframe(data, historicalPrices);
 
     // Calculate risk/reward ratio
     const riskRewardRatio = (levels.targetPrice - levels.entryPrice) / (levels.entryPrice - levels.stopLoss);
 
-    // Calculate confidence score and quality signals with multi-timeframe analysis
+    // Calculate confidence score and quality signals with multi-timeframe analysis  
     const { score: confidenceScore, signals: qualitySignals } = calculateConfidenceScore(
       data, 
       signal, 
