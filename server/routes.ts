@@ -163,6 +163,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/trade-ideas/:id/performance", async (req, res) => {
+    try {
+      const { outcome, actualExit, exitDate } = req.body;
+      const updated = await storage.updateTradeIdeaPerformance(req.params.id, {
+        outcome,
+        actualExit,
+        exitDate
+      });
+      if (!updated) {
+        return res.status(404).json({ error: "Trade idea not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update performance" });
+    }
+  });
+
   // Catalysts Routes
   app.get("/api/catalysts", async (_req, res) => {
     try {
