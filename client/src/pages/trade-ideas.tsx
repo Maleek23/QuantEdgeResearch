@@ -25,7 +25,7 @@ export default function TradeIdeasPage() {
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
-  const [activeAssetType, setActiveAssetType] = useState<"all" | "stock" | "option" | "crypto">("all");
+  const [activeAssetType, setActiveAssetType] = useState<"stock" | "option" | "crypto">("stock");
   const [activeGrade, setActiveGrade] = useState<"all" | "A" | "B" | "C">("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -109,7 +109,7 @@ export default function TradeIdeasPage() {
     
     const matchesSource = activeSource === "all" || idea.source === activeSource;
     
-    const matchesAssetType = activeAssetType === "all" || idea.assetType === activeAssetType;
+    const matchesAssetType = idea.assetType === activeAssetType;
     
     const matchesGrade = activeGrade === "all" || idea.probabilityBand?.startsWith(activeGrade) || false;
     
@@ -120,11 +120,11 @@ export default function TradeIdeasPage() {
     return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDate && matchesFilters;
   });
 
-  // Group by date
+  // Group by asset type
   const groupedIdeas = filteredIdeas.reduce((acc, idea) => {
-    const date = format(parseISO(idea.timestamp), "yyyy-MM-dd");
-    if (!acc[date]) acc[date] = [];
-    acc[date].push(idea);
+    const assetType = idea.assetType;
+    if (!acc[assetType]) acc[assetType] = [];
+    acc[assetType].push(idea);
     return acc;
   }, {} as Record<string, TradeIdea[]>);
 
@@ -207,7 +207,6 @@ export default function TradeIdeasPage() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Assets</SelectItem>
             <SelectItem value="stock">Stock Shares</SelectItem>
             <SelectItem value="option">Stock Options</SelectItem>
             <SelectItem value="crypto">Crypto</SelectItem>
@@ -220,9 +219,9 @@ export default function TradeIdeasPage() {
             <Button variant="outline" size="default" className="gap-2" data-testid="button-filters">
               <SlidersHorizontal className="h-4 w-4" />
               Filters
-              {(activeAssetType !== "all" || activeSource !== "all" || activeGrade !== "all" || activeDirection !== "all" || selectedDate) && (
+              {(activeSource !== "all" || activeGrade !== "all" || activeDirection !== "all" || selectedDate) && (
                 <Badge variant="secondary" className="ml-1">
-                  {[activeAssetType !== "all", activeSource !== "all", activeGrade !== "all", activeDirection !== "all", selectedDate].filter(Boolean).length}
+                  {[activeSource !== "all", activeGrade !== "all", activeDirection !== "all", selectedDate].filter(Boolean).length}
                 </Badge>
               )}
             </Button>
@@ -237,11 +236,10 @@ export default function TradeIdeasPage() {
               <div className="space-y-2">
                 <Label className="text-sm text-muted-foreground">Asset Type</Label>
                 <Select value={activeAssetType} onValueChange={(value: any) => setActiveAssetType(value)}>
-                  <SelectTrigger data-testid="select-asset-type">
+                  <SelectTrigger data-testid="select-asset-type-popover">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Assets</SelectItem>
                     <SelectItem value="stock">Stock Shares</SelectItem>
                     <SelectItem value="option">Stock Options</SelectItem>
                     <SelectItem value="crypto">Crypto</SelectItem>
@@ -430,32 +428,44 @@ export default function TradeIdeasPage() {
             <Accordion type="single" collapsible className="space-y-4">
               {Object.entries(groupedIdeas)
                 .filter(([, ideas]) => ideas.some(i => i.outcomeStatus === 'open'))
-                .sort(([a], [b]) => b.localeCompare(a))
-                .map(([date, ideas]) => (
-                  <AccordionItem key={date} value={date} className="border rounded-lg">
-                    <AccordionTrigger className="px-4 hover:no-underline" data-testid={`accordion-date-${date}`}>
-                      <div className="flex items-center gap-3">
-                        <span className="font-semibold">{format(parseISO(date), "EEEE, MMMM d, yyyy")}</span>
-                        <Badge variant="outline" data-testid={`badge-count-${date}`}>
-                          {ideas.filter(i => i.outcomeStatus === 'open').length} ideas
-                        </Badge>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-3'}`}>
-                      {ideas
-                        .filter(i => i.outcomeStatus === 'open')
-                        .map(idea => (
-                          <TradeIdeaBlock
-                            key={idea.id}
-                            idea={idea}
-                            isExpanded={expandedIdeaId === idea.id}
-                            onToggleExpand={() => handleToggleExpand(idea.id)}
-                            data-testid={`idea-card-${idea.id}`}
-                          />
-                        ))}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
+                .sort(([a], [b]) => {
+                  const order = { 'stock': 0, 'option': 1, 'crypto': 2 };
+                  return (order[a as keyof typeof order] || 0) - (order[b as keyof typeof order] || 0);
+                })
+                .map(([assetType, ideas]) => {
+                  const assetTypeLabels = {
+                    'stock': 'Stock Shares',
+                    'option': 'Stock Options', 
+                    'crypto': 'Crypto'
+                  };
+                  const label = assetTypeLabels[assetType as keyof typeof assetTypeLabels] || assetType;
+                  
+                  return (
+                    <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
+                      <AccordionTrigger className="px-4 hover:no-underline" data-testid={`accordion-asset-${assetType}`}>
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold">{label}</span>
+                          <Badge variant="outline" data-testid={`badge-count-${assetType}`}>
+                            {ideas.filter(i => i.outcomeStatus === 'open').length} ideas
+                          </Badge>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-3'}`}>
+                        {ideas
+                          .filter(i => i.outcomeStatus === 'open')
+                          .map(idea => (
+                            <TradeIdeaBlock
+                              key={idea.id}
+                              idea={idea}
+                              isExpanded={expandedIdeaId === idea.id}
+                              onToggleExpand={() => handleToggleExpand(idea.id)}
+                              data-testid={`idea-card-${idea.id}`}
+                            />
+                          ))}
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
             </Accordion>
           )}
         </TabsContent>
