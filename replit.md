@@ -27,6 +27,7 @@ QuantEdge Research is a professional quantitative trading research platform desi
 - **Data Presentation:** Emphasis on visual hierarchy with larger fonts, better spacing, clear data scanning, and interactive tooltips for R:R ratios.
 - **Freshness Indicators:** Pulsing "FRESH" badge for ideas posted within 24 hours, clear "Posted: [time] • [session]" timestamps.
 - **Optimistic UI:** Watchlist additions provide immediate feedback.
+- **Smart Notifications:** New trade idea notifications display stock symbols (e.g., "Generated 3 ideas: AAPL, TSLA, BTC") for both quant and AI-generated ideas.
 
 ### Key Features
 - **Universal Symbol Search & Real-Time Pricing:** Search stocks (via Alpha Vantage API) or crypto (via CoinGecko API) with auto-persistence and auto-refresh (every 60 seconds) with manual refresh option. Prices and last update timestamps shown in CT. Prominent data freshness notice explains 60-second refresh cycle and free API tier limitations.

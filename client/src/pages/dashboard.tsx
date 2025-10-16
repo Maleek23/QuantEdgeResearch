@@ -131,10 +131,11 @@ export default function Dashboard() {
           variant: "default",
         });
       } else {
-        // New ideas generated
+        // New ideas generated - show symbols
+        const symbols = data.ideas?.map((idea: TradeIdea) => idea.symbol).join(', ') || '';
         toast({
           title: "Quant Ideas Generated!",
-          description: `Generated ${data.count} new ideas using momentum, volume & catalyst signals`,
+          description: `Generated ${data.count} new idea${data.count !== 1 ? 's' : ''}: ${symbols}`,
         });
       }
     },
@@ -156,9 +157,10 @@ export default function Dashboard() {
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      const symbols = data.ideas?.map((idea: TradeIdea) => idea.symbol).join(', ') || '';
       toast({
         title: "AI Ideas Generated!",
-        description: `Generated ${data.count} ideas using AI analysis`,
+        description: `Generated ${data.count} idea${data.count !== 1 ? 's' : ''}: ${symbols}`,
       });
     },
     onError: (error: any) => {
