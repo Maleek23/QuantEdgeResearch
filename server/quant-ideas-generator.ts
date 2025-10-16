@@ -129,8 +129,8 @@ function analyzeMarketData(data: MarketData): QuantSignal | null {
     };
   }
 
-  // Moderate momentum (3-5% move)
-  if (Math.abs(priceChange) >= 3 && volumeRatio >= 1.2) {
+  // Moderate momentum (2-5% move) - LOWERED from 3% to 2% for more sensitivity
+  if (Math.abs(priceChange) >= 2 && volumeRatio >= 1.2) {
     return {
       type: 'momentum',
       strength: 'moderate',
@@ -154,6 +154,15 @@ function analyzeMarketData(data: MarketData): QuantSignal | null {
       type: 'breakout',
       strength: volumeRatio >= 2.5 ? 'strong' : 'moderate',
       direction: 'short' // breakdown continuation
+    };
+  }
+
+  // Weak bearish momentum - catch smaller down moves for PUT opportunities
+  if (priceChange <= -1.5 && volumeRatio >= 1.0) {
+    return {
+      type: 'momentum',
+      strength: 'weak',
+      direction: 'short'
     };
   }
 
@@ -443,9 +452,12 @@ function calculateConfidenceScore(
   if (signal.strength === 'strong') {
     score += 20;
     qualitySignals.push('Strong Signal');
+  } else if (signal.strength === 'moderate') {
+    score += 15;
+    qualitySignals.push('Moderate Signal');
   } else {
     score += 10;
-    qualitySignals.push('Moderate Signal');
+    qualitySignals.push('Weak Signal');
   }
 
   // 4. Price Action Quality (0-15 points)
@@ -492,6 +504,21 @@ function calculateConfidenceScore(
     } else if (mtfAnalysis.strength === 'moderate') {
       score += 5;
       qualitySignals.push('Partial Timeframe Support');
+    }
+  }
+
+  // 8. Bearish Momentum Bonus - Help PUT ideas qualify (0-20 points)
+  if (signal.direction === 'short' && data.changePercent < 0) {
+    const downMoveSize = Math.abs(data.changePercent);
+    if (downMoveSize >= 3) {
+      score += 20;
+      qualitySignals.push('Strong Bearish Momentum');
+    } else if (downMoveSize >= 2) {
+      score += 15;
+      qualitySignals.push('Moderate Bearish Momentum');
+    } else if (downMoveSize >= 1.5) {
+      score += 10;
+      qualitySignals.push('Bearish Pressure');
     }
   }
 
@@ -585,15 +612,18 @@ export async function generateQuantIdeas(
     );
     const probabilityBand = getProbabilityBand(confidenceScore);
 
-    // QUALITY FILTER: Only accept ideas with 70+ confidence (B grade or better)
-    if (confidenceScore < 70) {
+    // QUALITY FILTER: Accept 70+ for bullish, 65+ for bearish (PUT ideas need lower threshold)
+    const minConfidence = signal.direction === 'short' ? 65 : 70;
+    if (confidenceScore < minConfidence) {
       continue; // Skip low-quality ideas
     }
 
     // Additional hard guards for quality
     if (riskRewardRatio < 1.5) continue; // Minimum R:R requirement
     const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
-    if (volumeRatio < 1.2) continue; // Minimum volume confirmation
+    // Relax volume requirement for bearish signals
+    const minVolume = signal.direction === 'short' ? 1.0 : 1.2;
+    if (volumeRatio < minVolume) continue;
 
     // Determine asset type for options vs shares
     const assetType = data.assetType === 'stock' && Math.random() > 0.5 ? 'option' : data.assetType;
