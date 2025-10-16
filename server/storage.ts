@@ -333,7 +333,9 @@ export class MemStorage implements IStorage {
       this.marketData.set(id, { ...data, id } as MarketData);
     });
 
-    // Seed trade ideas showcasing hidden gems (lesser-known opportunities)
+    // No seed trade ideas - let the hidden gem discovery system populate them dynamically
+    // Users can click "Generate Quant Ideas" to discover current opportunities based on live market data
+    /*
     const seedTradeIdeas: InsertTradeIdea[] = [
       {
         symbol: "RENDER",
@@ -417,6 +419,7 @@ export class MemStorage implements IStorage {
       const id = randomUUID();
       this.tradeIdeas.set(id, { ...idea, id } as TradeIdea);
     });
+    */
 
     // Seed catalysts
     const seedCatalysts: InsertCatalyst[] = [

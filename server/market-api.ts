@@ -217,14 +217,14 @@ export async function discoverHiddenCryptoGems(limit: number = 10): Promise<Hidd
         const priceChange = Math.abs(coin.price_change_percentage_24h || 0);
         
         const volumeToMarketCapRatio = marketCap > 0 ? volume24h / marketCap : 0;
-        const highTurnover = volumeToMarketCapRatio > 0.15;
-        const priceGap = priceChange >= 5.0;
+        const highTurnover = volumeToMarketCapRatio > 0.10;
+        const priceGap = priceChange >= 3.0;
         
         let anomalyScore = 0;
-        if (priceGap) anomalyScore += 50;
-        if (highTurnover) anomalyScore += 25;
-        if (marketCapRank > 50 && marketCapRank <= 150) anomalyScore += 25;
-        if (marketCapRank > 150) anomalyScore += 15;
+        if (priceGap) anomalyScore += 40;
+        if (highTurnover) anomalyScore += 30;
+        if (marketCapRank > 50 && marketCapRank <= 150) anomalyScore += 20;
+        if (marketCapRank > 150) anomalyScore += 10;
 
         return {
           symbol: coin.symbol.toUpperCase(),
@@ -245,12 +245,12 @@ export async function discoverHiddenCryptoGems(limit: number = 10): Promise<Hidd
         gem.marketCap >= 50_000_000 &&
         gem.marketCap <= 2_000_000_000 &&
         gem.volume24h >= 5_000_000 &&
-        gem.priceGap
+        (gem.priceGap || gem.volumeSpike)
       )
       .sort((a: any, b: any) => b.anomalyScore - a.anomalyScore)
       .slice(0, limit);
 
-    console.log(`✅ Discovery: ${hiddenGems.length} hidden gems found (excluded top-20, required 5%+ price movement, $50M-$2B cap)`);
+    console.log(`✅ Discovery: ${hiddenGems.length} hidden gems found (excluded top-20, required 3%+ move OR 10%+ turnover, $50M-$2B cap)`);
     
     return hiddenGems;
   } catch (error) {

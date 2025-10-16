@@ -588,39 +588,47 @@ export async function generateQuantIdeas(
   const hiddenGems = await discoverHiddenCryptoGems(15);
   console.log(`🔍 Discovered ${hiddenGems.length} hidden crypto gems:`, hiddenGems.map(g => `${g.symbol} ($${g.marketCap.toLocaleString()})`).join(', '));
 
-  // Fetch full market data for discovered gems
-  const discoveredMarketData: MarketData[] = [];
-  for (const gem of hiddenGems) {
-    const priceData = await fetchCryptoPrice(gem.symbol);
-    if (priceData) {
-      discoveredMarketData.push({
-        id: `discovered-${gem.symbol}`,
-        symbol: gem.symbol,
-        assetType: 'crypto',
-        currentPrice: priceData.currentPrice,
-        changePercent: priceData.changePercent,
-        volume: priceData.volume,
-        marketCap: priceData.marketCap || null,
-        session: 'rth' as any,
-        timestamp: now.toISOString(),
-        high24h: priceData.high24h || null,
-        low24h: priceData.low24h || null,
-        high52Week: null,
-        low52Week: null,
-        avgVolume: priceData.volume / 1.5, // Estimate baseline volume
-        dataSource: 'live' as any,
-        lastUpdated: now.toISOString(),
-      });
-    }
-  }
+  // Convert discovered gems directly to MarketData (no need to fetch prices again!)
+  const discoveredMarketData: MarketData[] = hiddenGems.map(gem => ({
+    id: `discovered-${gem.symbol}`,
+    symbol: gem.symbol,
+    assetType: 'crypto' as const,
+    currentPrice: gem.currentPrice,
+    changePercent: gem.priceChange24h,
+    volume: gem.volume24h,
+    marketCap: gem.marketCap,
+    session: 'rth' as const,
+    timestamp: now.toISOString(),
+    high24h: null,
+    low24h: null,
+    high52Week: null,
+    low52Week: null,
+    avgVolume: gem.volume24h / 1.5, // Estimate baseline volume
+    dataSource: 'discovery' as const,
+    lastUpdated: now.toISOString(),
+  }));
 
-  // Combine existing market data with discovered hidden gems
-  const combinedData = [...marketData, ...discoveredMarketData];
+  // Filter out large-cap cryptos from existing market data (>$2B) - only use discovered gems for crypto
+  const filteredMarketData = marketData.filter(d => {
+    if (d.assetType === 'crypto') {
+      // For crypto, only keep if marketCap exists AND is within hidden gem range
+      const keep = d.marketCap !== null && d.marketCap !== undefined && d.marketCap <= 2_000_000_000;
+      if (!keep) {
+        console.log(`  ⚠️  Filtered out large-cap crypto: ${d.symbol} (${d.marketCap ? '$' + (d.marketCap / 1e9).toFixed(1) + 'B' : 'no cap data'})`);
+      }
+      return keep;
+    }
+    // Keep all non-crypto assets (stocks, options)
+    return true;
+  });
+
+  // Combine filtered market data with discovered hidden gems
+  const combinedData = [...filteredMarketData, ...discoveredMarketData];
 
   // Sort combined data by gem score (highest first) to prioritize interesting opportunities
   const sortedData = combinedData.sort((a, b) => calculateGemScore(b) - calculateGemScore(a));
 
-  console.log(`📊 Analyzing ${sortedData.length} total symbols (${discoveredMarketData.length} discovered gems)`);
+  console.log(`📊 Analysis pool: ${sortedData.length} total (${filteredMarketData.length} existing + ${discoveredMarketData.length} discovered)`);
 
   // Analyze each market data point
   for (const data of sortedData) {
@@ -752,8 +760,8 @@ export async function generateQuantIdeas(
     for (const catalyst of recentCatalysts) {
       if (ideas.length >= count) break;
       
-      // Find market data for this symbol
-      const symbolData = marketData.find(d => d.symbol === catalyst.symbol);
+      // Find market data for this symbol (use FILTERED data to respect large-cap crypto exclusions)
+      const symbolData = filteredMarketData.find(d => d.symbol === catalyst.symbol);
       if (!symbolData) continue;
 
       const isPositiveCatalyst = catalyst.impact === 'high' || catalyst.eventType === 'earnings';
@@ -804,7 +812,7 @@ export async function generateQuantIdeas(
 
       const idea: InsertTradeIdea = {
         symbol: catalyst.symbol,
-        assetType: 'stock',
+        assetType: symbolData.assetType,
         direction: direction,
         entryPrice: entryPrice,
         targetPrice: targetPrice,
