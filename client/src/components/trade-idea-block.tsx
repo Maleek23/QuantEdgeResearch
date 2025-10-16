@@ -149,7 +149,7 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
   // Calculate time since posted
   const getTimeSincePosted = (): string => {
     const now = new Date();
-    const posted = new Date(idea.createdAt);
+    const posted = new Date(idea.timestamp);
     const diffMs = now.getTime() - posted.getTime();
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMins / 60);
@@ -202,9 +202,41 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
       onOpenChange={setIsOpen}
       className="group hover-elevate active-elevate-2 relative"
     >
+      {/* Quick Action Buttons - Positioned Absolutely on Hover */}
+      <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+        {onViewDetails && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 bg-background/80 backdrop-blur-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewDetails(idea.symbol);
+            }}
+            data-testid={`button-quick-view-${idea.symbol}`}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+        )}
+        {onAddToWatchlist && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 bg-background/80 backdrop-blur-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToWatchlist(idea);
+            }}
+            data-testid={`button-quick-star-${idea.symbol}`}
+          >
+            <Star className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
       <CollapsibleTrigger className="w-full" data-testid={`block-trade-idea-${idea.symbol}`}>
         <div className="p-4 border rounded-lg bg-card">
-          {/* Top Row: Symbol, Direction, Time Posted, Quick Actions */}
+          {/* Top Row: Symbol, Direction, Time Posted */}
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 
@@ -227,46 +259,12 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
               </span>
             </div>
             
-            <div className="flex items-center gap-2">
-              {/* Quick Action Buttons - Show on Hover */}
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                {onViewDetails && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewDetails(idea.symbol);
-                    }}
-                    data-testid={`button-quick-view-${idea.symbol}`}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                )}
-                {onAddToWatchlist && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAddToWatchlist(idea);
-                    }}
-                    data-testid={`button-quick-star-${idea.symbol}`}
-                  >
-                    <Star className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-              
-              <ChevronDown 
-                className={cn(
-                  "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0",
-                  isOpen && "rotate-180"
-                )}
-              />
-            </div>
+            <ChevronDown 
+              className={cn(
+                "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0",
+                isOpen && "rotate-180"
+              )}
+            />
           </div>
 
           {/* Asset Type & Options Details */}

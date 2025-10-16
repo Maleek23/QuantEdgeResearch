@@ -16,6 +16,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SymbolSearch } from "@/components/symbol-search";
 import { SymbolDetailModal } from "@/components/symbol-detail-modal";
 import { QuantAIBot } from "@/components/quantai-bot";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { getMarketSession, formatCTTime, formatCurrency } from "@/lib/utils";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem, ScreenerFilters as Filters } from "@shared/schema";
 import { TrendingUp, DollarSign, Activity, Settings, Search, Clock, Star, ArrowUp, ArrowDown, RefreshCw, ChevronDown, Calendar as CalendarIcon, Bot, Sparkles, Brain, AlertTriangle, X } from "lucide-react";
@@ -400,6 +401,7 @@ export default function Dashboard() {
         <div className="container mx-auto px-4 lg:px-6">
           <div className="flex h-14 items-center justify-between gap-4">
             <div className="flex items-center gap-4">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
               <div className="flex items-center gap-2">
                 <Activity className="h-5 w-5 text-primary" />
                 <h1 className="text-lg font-bold" data-testid="text-app-title">QuantEdge Research</h1>
