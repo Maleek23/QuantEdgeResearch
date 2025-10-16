@@ -2,9 +2,16 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Brain, Sparkles, AlertTriangle } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Brain, Sparkles, AlertTriangle, BarChart3 } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { TradeIdea, MarketData } from "@shared/schema";
 
 interface TradeIdeaBlockProps {
@@ -16,6 +23,35 @@ interface TradeIdeaBlockProps {
 
 export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDetails }: TradeIdeaBlockProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [perfDialogOpen, setPerfDialogOpen] = useState(false);
+  const [outcome, setOutcome] = useState<string>('');
+  const [actualExit, setActualExit] = useState<string>('');
+  const { toast } = useToast();
+
+  const performanceMutation = useMutation({
+    mutationFn: async (data: { outcome: string; actualExit?: number; exitDate: string }) => {
+      return await apiRequest('PATCH', `/api/trade-ideas/${idea.id}/performance`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      toast({ title: "Performance recorded", description: "Trade outcome has been saved" });
+      setPerfDialogOpen(false);
+      setOutcome('');
+      setActualExit('');
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to record performance", variant: "destructive" });
+    }
+  });
+
+  const handlePerformanceSubmit = () => {
+    if (!outcome) return;
+    performanceMutation.mutate({
+      outcome,
+      actualExit: actualExit ? parseFloat(actualExit) : undefined,
+      exitDate: new Date().toISOString()
+    });
+  };
   
   const isLong = idea.direction === 'long';
   const displayPrice = currentPrice ?? idea.entryPrice;
@@ -363,6 +399,61 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
                 View Details
               </Button>
             )}
+            <Dialog open={perfDialogOpen} onOpenChange={setPerfDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                  data-testid={`button-track-performance-${idea.symbol}`}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Track Performance
+                </Button>
+              </DialogTrigger>
+              <DialogContent onClick={(e) => e.stopPropagation()}>
+                <DialogHeader>
+                  <DialogTitle>Track Performance - {idea.symbol}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="outcome">Outcome</Label>
+                    <Select value={outcome} onValueChange={setOutcome}>
+                      <SelectTrigger id="outcome" data-testid="select-outcome">
+                        <SelectValue placeholder="Select outcome" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="WIN">Win</SelectItem>
+                        <SelectItem value="LOSS">Loss</SelectItem>
+                        <SelectItem value="BREAKEVEN">Break Even</SelectItem>
+                        <SelectItem value="STOPPED">Stopped Out</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="exit-price">Exit Price (optional)</Label>
+                    <Input
+                      id="exit-price"
+                      type="number"
+                      step="0.01"
+                      value={actualExit}
+                      onChange={(e) => setActualExit(e.target.value)}
+                      placeholder="Enter exit price"
+                      data-testid="input-exit-price"
+                    />
+                  </div>
+                  <Button
+                    onClick={handlePerformanceSubmit}
+                    disabled={!outcome || performanceMutation.isPending}
+                    className="w-full"
+                    data-testid="button-submit-performance"
+                  >
+                    {performanceMutation.isPending ? 'Saving...' : 'Save Performance'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
             {onAddToWatchlist && (
               <Button
                 variant="outline"

@@ -35,6 +35,7 @@ export interface IStorage {
   updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined>;
   deleteTradeIdea(id: string): Promise<boolean>;
   findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack?: number): Promise<TradeIdea | undefined>;
+  updateTradeIdeaPerformance(id: string, performance: { outcome?: string; actualExit?: number; exitDate?: string }): Promise<TradeIdea | undefined>;
 
   // Catalysts
   getAllCatalysts(): Promise<Catalyst[]>;
@@ -606,6 +607,25 @@ export class MemStorage implements IStorage {
         ideaTime >= cutoffTime
       );
     });
+  }
+
+  async updateTradeIdeaPerformance(id: string, performance: { outcome?: string; actualExit?: number; exitDate?: string }): Promise<TradeIdea | undefined> {
+    const existing = this.tradeIdeas.get(id);
+    if (!existing) return undefined;
+    
+    const updates: Partial<TradeIdea> = { ...performance };
+    
+    // Calculate actual profit if we have actualExit
+    if (performance.actualExit !== undefined) {
+      const actualProfit = existing.direction === 'long'
+        ? performance.actualExit - existing.entryPrice
+        : existing.entryPrice - performance.actualExit;
+      updates.actualProfit = Number(actualProfit.toFixed(2));
+    }
+    
+    const updated = { ...existing, ...updates };
+    this.tradeIdeas.set(id, updated);
+    return updated;
   }
 
   // Catalyst Methods

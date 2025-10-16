@@ -51,36 +51,41 @@ function generateHistoricalPrices(currentPrice: number, changePercent: number, p
 
 // Multi-timeframe analysis: Check if daily and weekly trends align
 function analyzeMultiTimeframe(data: MarketData): MultiTimeframeAnalysis {
-  // Generate daily prices (50 days)
-  const dailyPrices = generateHistoricalPrices(data.currentPrice, data.changePercent, 50);
+  // Generate enough daily prices for both timeframes (need 50 days for weekly 50-day SMA)
+  const dailyPrices = generateHistoricalPrices(data.currentPrice, data.changePercent, 60);
   
-  // Generate weekly prices (simulated from daily - take every 5th price)
+  // Create proper weekly candles by aggregating every 5 daily closes
   const weeklyPrices: number[] = [];
-  for (let i = 0; i < dailyPrices.length; i += 5) {
+  for (let i = 4; i < dailyPrices.length; i += 5) {
+    // Take the close of each 5-day period (Friday close in a weekly candle)
     weeklyPrices.push(dailyPrices[i]);
   }
   
-  // Calculate daily trend using SMA comparison
-  const dailySMA20 = calculateSMA(dailyPrices, 20);
-  const dailySMA50 = calculateSMA(dailyPrices, 50);
+  // Calculate daily trend using 5-day vs 10-day SMA on daily data
+  const dailySMA5 = calculateSMA(dailyPrices, 5);
+  const dailySMA10 = calculateSMA(dailyPrices, 10);
   const currentPrice = dailyPrices[dailyPrices.length - 1];
   
   let dailyTrend: 'bullish' | 'bearish' | 'neutral' = 'neutral';
-  if (currentPrice > dailySMA20 && dailySMA20 > dailySMA50) {
+  if (currentPrice > dailySMA5 && dailySMA5 > dailySMA10) {
     dailyTrend = 'bullish';
-  } else if (currentPrice < dailySMA20 && dailySMA20 < dailySMA50) {
+  } else if (currentPrice < dailySMA5 && dailySMA5 < dailySMA10) {
     dailyTrend = 'bearish';
   }
   
-  // Calculate weekly trend
+  // Calculate weekly trend using 4-week vs 10-week SMA on weekly candles
+  // (20 days = 4 weeks, 50 days = 10 weeks)
+  const weeklySMA4 = calculateSMA(weeklyPrices, Math.min(4, weeklyPrices.length));
   const weeklySMA10 = calculateSMA(weeklyPrices, Math.min(10, weeklyPrices.length));
-  const weeklyPrice = weeklyPrices[weeklyPrices.length - 1];
+  const currentWeeklyPrice = weeklyPrices[weeklyPrices.length - 1];
   
   let weeklyTrend: 'bullish' | 'bearish' | 'neutral' = 'neutral';
-  if (weeklyPrice > weeklySMA10) {
-    weeklyTrend = 'bullish';
-  } else if (weeklyPrice < weeklySMA10) {
-    weeklyTrend = 'bearish';
+  if (weeklyPrices.length >= 10) {
+    if (currentWeeklyPrice > weeklySMA4 && weeklySMA4 > weeklySMA10) {
+      weeklyTrend = 'bullish';
+    } else if (currentWeeklyPrice < weeklySMA4 && weeklySMA4 < weeklySMA10) {
+      weeklyTrend = 'bearish';
+    }
   }
   
   // Check alignment
