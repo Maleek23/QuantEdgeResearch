@@ -200,188 +200,65 @@ export default function TradeIdeasPage() {
               )}
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Direction Filters */}
-              <Button
-                variant={activeDirection === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveDirection("all")}
-                data-testid="filter-all"
-              >
-                All
-              </Button>
-              <Button
-                variant={activeDirection === "long" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveDirection("long")}
-                data-testid="filter-long"
-              >
-                Long
-              </Button>
-              <Button
-                variant={activeDirection === "short" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveDirection("short")}
-                data-testid="filter-short"
-              >
-                Short
-              </Button>
-              <Button
-                variant={activeDirection === "day_trade" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveDirection("day_trade")}
-                data-testid="filter-daytrade"
-              >
-                Day Trade
-              </Button>
-
-              {/* Source Filters */}
-              <div className="h-6 w-px bg-border mx-1" />
-              <Button
-                variant={activeSource === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveSource("all")}
-                data-testid="filter-source-all"
-              >
-                All Sources
-              </Button>
-              <Button
-                variant={activeSource === "ai" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveSource("ai")}
-                data-testid="filter-ai"
-                className="gap-1"
-              >
-                <Sparkles className="h-3 w-3" />
-                AI
-              </Button>
-              <Button
-                variant={activeSource === "quant" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveSource("quant")}
-                data-testid="filter-quant"
-                className="gap-1"
-              >
-                <TrendingUpIcon className="h-3 w-3" />
-                Quant
-              </Button>
-              <Button
-                variant={activeSource === "manual" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveSource("manual")}
-                data-testid="filter-manual"
-                className="gap-1"
-              >
-                <UserPlus className="h-3 w-3" />
-                Manual
-              </Button>
-
+            <div className="flex items-center gap-2">
               {/* Asset Type Dropdown */}
-              <div className="h-6 w-px bg-border mx-1" />
               <Select value={activeAssetType} onValueChange={(value: any) => setActiveAssetType(value)}>
-                <SelectTrigger className="w-[160px] h-9" data-testid="select-asset-type">
-                  <SelectValue placeholder="Asset Type" />
+                <SelectTrigger className="w-[130px] h-9" data-testid="select-asset-type">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Assets</SelectItem>
-                  <SelectItem value="stock">Stock Shares</SelectItem>
-                  <SelectItem value="option">Stock Options</SelectItem>
+                  <SelectItem value="stock">Shares</SelectItem>
+                  <SelectItem value="option">Options</SelectItem>
                   <SelectItem value="crypto">Crypto</SelectItem>
                 </SelectContent>
               </Select>
 
-              {/* Grade Filters */}
-              <div className="h-6 w-px bg-border mx-1" />
-              <Button
-                variant={activeGrade === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveGrade("all")}
-                data-testid="filter-grade-all"
-              >
-                All Grades
-              </Button>
-              <Button
-                variant={activeGrade === "A" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveGrade("A")}
-                data-testid="filter-grade-a"
-                className="gap-1"
-              >
-                Grade A
-              </Button>
-              <Button
-                variant={activeGrade === "B" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveGrade("B")}
-                data-testid="filter-grade-b"
-                className="gap-1"
-              >
-                Grade B
-              </Button>
-              <Button
-                variant={activeGrade === "C" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveGrade("C")}
-                data-testid="filter-grade-c"
-                className="gap-1"
-              >
-                Grade C
-              </Button>
+              {/* Source Dropdown */}
+              <Select value={activeSource} onValueChange={(value: any) => setActiveSource(value)}>
+                <SelectTrigger className="w-[130px] h-9" data-testid="select-source">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sources</SelectItem>
+                  <SelectItem value="ai">AI</SelectItem>
+                  <SelectItem value="quant">Quant</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Grade Dropdown */}
+              <Select value={activeGrade} onValueChange={(value: any) => setActiveGrade(value)}>
+                <SelectTrigger className="w-[120px] h-9" data-testid="select-grade">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Grades</SelectItem>
+                  <SelectItem value="A">Grade A</SelectItem>
+                  <SelectItem value="B">Grade B</SelectItem>
+                  <SelectItem value="C">Grade C</SelectItem>
+                </SelectContent>
+              </Select>
 
               {/* View Mode Toggle */}
-              <div className="h-6 w-px bg-border mx-1" />
-              <Button
-                variant={viewMode === "list" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("list")}
-                data-testid="button-view-list"
-              >
-                <List className="h-4 w-4" />
-              </Button>
-              <Button
-                variant={viewMode === "grid" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setViewMode("grid")}
-                data-testid="button-view-grid"
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </Button>
-
-              {/* Calendar */}
-              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" data-testid="button-calendar">
-                    <CalendarIcon className="h-4 w-4 mr-2" />
-                    {selectedDate ? format(selectedDate, "MMM d") : "All Dates"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={handleDateSelect}
-                    modifiers={{ hasIdeas: datesWithIdeas }}
-                    modifiersClassNames={{ hasIdeas: "bg-primary/10 font-bold" }}
-                    data-testid="calendar-filter"
-                  />
-                  {selectedDate && (
-                    <div className="p-2 border-t">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => {
-                          setSelectedDate(undefined);
-                          setCalendarOpen(false);
-                        }}
-                        data-testid="button-clear-date"
-                      >
-                        Clear Date Filter
-                      </Button>
-                    </div>
-                  )}
-                </PopoverContent>
-              </Popover>
+              <div className="flex items-center gap-1 ml-1">
+                <Button
+                  variant={viewMode === "list" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  data-testid="button-view-list"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "grid" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setViewMode("grid")}
+                  data-testid="button-view-grid"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -397,8 +274,82 @@ export default function TradeIdeasPage() {
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-4">
-              <div className="text-sm text-muted-foreground text-center py-4">
-                Additional filters coming soon
+              <div className="flex items-center gap-3 flex-wrap">
+                {/* Direction Filters */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Direction:</span>
+                  <Button
+                    variant={activeDirection === "all" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setActiveDirection("all")}
+                    data-testid="filter-all"
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant={activeDirection === "long" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setActiveDirection("long")}
+                    data-testid="filter-long"
+                  >
+                    Long
+                  </Button>
+                  <Button
+                    variant={activeDirection === "short" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setActiveDirection("short")}
+                    data-testid="filter-short"
+                  >
+                    Short
+                  </Button>
+                  <Button
+                    variant={activeDirection === "day_trade" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setActiveDirection("day_trade")}
+                    data-testid="filter-daytrade"
+                  >
+                    Day Trade
+                  </Button>
+                </div>
+
+                {/* Date Filter */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Date:</span>
+                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" data-testid="button-calendar">
+                        <CalendarIcon className="h-4 w-4 mr-2" />
+                        {selectedDate ? format(selectedDate, "MMM d") : "All Dates"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={handleDateSelect}
+                        modifiers={{ hasIdeas: datesWithIdeas }}
+                        modifiersClassNames={{ hasIdeas: "bg-primary/10 font-bold" }}
+                        data-testid="calendar-filter"
+                      />
+                      {selectedDate && (
+                        <div className="p-2 border-t">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => {
+                              setSelectedDate(undefined);
+                              setCalendarOpen(false);
+                            }}
+                            data-testid="button-clear-date"
+                          >
+                            Clear Date Filter
+                          </Button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
             </CollapsibleContent>
           </Collapsible>
