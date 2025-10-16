@@ -1,4 +1,4 @@
-import { Home, TrendingUp, Star, Calculator, Filter, BarChart3, Settings } from "lucide-react";
+import { Home, TrendingUp, Star } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -9,7 +9,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
-  SidebarFooter,
 } from "@/components/ui/sidebar";
 
 const menuItems = [
@@ -27,21 +26,6 @@ const menuItems = [
     title: "Watchlist",
     url: "#watchlist",
     icon: Star,
-  },
-  {
-    title: "Risk Calculator",
-    url: "#risk-calculator",
-    icon: Calculator,
-  },
-  {
-    title: "Screener",
-    url: "#screener",
-    icon: Filter,
-  },
-  {
-    title: "Performance",
-    url: "#performance",
-    icon: BarChart3,
   },
 ];
 
@@ -83,23 +67,6 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter className="border-t border-sidebar-border px-4 py-3">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <a 
-                href="#settings" 
-                className="flex items-center gap-3"
-                data-testid="nav-settings"
-              >
-                <Settings className="h-4 w-4" />
-                <span>Settings</span>
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
     </Sidebar>
   );
 }

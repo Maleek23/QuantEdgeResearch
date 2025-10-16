@@ -16,6 +16,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SymbolSearch } from "@/components/symbol-search";
 import { SymbolDetailModal } from "@/components/symbol-detail-modal";
 import { QuantAIBot } from "@/components/quantai-bot";
+import { SettingsDialog } from "@/components/settings-dialog";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { getMarketSession, formatCTTime, formatCurrency } from "@/lib/utils";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem, ScreenerFilters as Filters } from "@shared/schema";
@@ -38,6 +39,7 @@ export default function Dashboard() {
   const [nextRefresh, setNextRefresh] = useState<number>(60);
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [chatBotOpen, setChatBotOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const currentSession = getMarketSession();
@@ -424,7 +426,12 @@ export default function Dashboard() {
                 <span className="hidden sm:inline">QuantAI Bot</span>
               </Button>
               <ThemeToggle />
-              <Button variant="ghost" size="icon" data-testid="button-settings">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setSettingsOpen(true)}
+                data-testid="button-settings"
+              >
                 <Settings className="h-5 w-5" />
               </Button>
             </div>
@@ -905,6 +912,8 @@ export default function Dashboard() {
       />
 
       <QuantAIBot isOpen={chatBotOpen} onClose={() => setChatBotOpen(false)} />
+      
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 }
