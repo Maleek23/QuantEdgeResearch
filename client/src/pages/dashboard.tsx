@@ -591,8 +591,8 @@ export default function Dashboard() {
         </section>
 
         <section id="trade-ideas">
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div className="xl:col-span-2 space-y-6">
+        <div className="space-y-6">
+          <div className="w-full">
             <Tabs defaultValue="new" className="w-full">
               <Card data-testid="card-trade-ideas">
                 <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 flex-wrap">
@@ -967,14 +967,20 @@ export default function Dashboard() {
             </Tabs>
           </div>
 
-          <div className="space-y-6" id="watchlist">
-            <WatchlistTable 
-              items={watchlist} 
-              onRemove={handleRemoveFromWatchlist}
-              isRemoving={removeFromWatchlistMutation.isPending}
-            />
-            <CatalystFeed catalysts={catalysts} />
-          </div>
+          <section id="watchlist">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2">
+                <WatchlistTable 
+                  items={watchlist} 
+                  onRemove={handleRemoveFromWatchlist}
+                  isRemoving={removeFromWatchlistMutation.isPending}
+                />
+              </div>
+              <div>
+                <CatalystFeed catalysts={catalysts} />
+              </div>
+            </div>
+          </section>
         </div>
         </section>
 
