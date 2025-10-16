@@ -269,18 +269,11 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
 
           {/* Asset Type & Options Details */}
           <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <span className="text-xs text-muted-foreground">
+            <Badge variant="secondary" className="text-xs font-semibold">
               {idea.assetType === 'option' ? 'OPTIONS' : idea.assetType === 'stock' ? 'SHARES' : 'CRYPTO'}
-            </span>
-            {idea.assetType === 'option' && idea.strikePrice && idea.optionType && (
+            </Badge>
+            {idea.assetType === 'option' && idea.strikePrice !== undefined && idea.optionType && (
               <>
-                <Badge 
-                  variant="secondary" 
-                  className="text-xs font-semibold"
-                  data-testid={`badge-strike-${idea.symbol}`}
-                >
-                  ${idea.strikePrice}
-                </Badge>
                 <Badge 
                   variant="outline" 
                   className={cn(
@@ -290,6 +283,13 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
                   data-testid={`badge-option-type-${idea.symbol}`}
                 >
                   {idea.optionType.toUpperCase()}
+                </Badge>
+                <Badge 
+                  variant="secondary" 
+                  className="text-xs font-semibold"
+                  data-testid={`badge-strike-${idea.symbol}`}
+                >
+                  Strike: ${idea.strikePrice}
                 </Badge>
                 {idea.expiryDate && (
                   <Badge 

@@ -610,8 +610,8 @@ export async function generateQuantIdeas(
     // For options, calculate strike price and determine call/put based on direction and price action
     const strikePrice = assetType === 'option' 
       ? (signal.direction === 'long' 
-          ? Math.round(data.currentPrice * 1.02) // Slightly OTM call for bullish
-          : Math.round(data.currentPrice * 0.98)) // Slightly OTM put for bearish
+          ? Number((data.currentPrice * 1.02).toFixed(2)) // Slightly OTM call for bullish (keep decimals)
+          : Number((data.currentPrice * 0.98).toFixed(2))) // Slightly OTM put for bearish (keep decimals)
       : undefined;
     
     const optionType = assetType === 'option'
