@@ -23,6 +23,44 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+export interface PerformanceStats {
+  overall: {
+    totalIdeas: number;
+    openIdeas: number;
+    closedIdeas: number;
+    wonIdeas: number;
+    lostIdeas: number;
+    expiredIdeas: number;
+    winRate: number;
+    avgPercentGain: number;
+    avgHoldingTimeMinutes: number;
+  };
+  bySource: {
+    source: string;
+    totalIdeas: number;
+    wonIdeas: number;
+    lostIdeas: number;
+    winRate: number;
+    avgPercentGain: number;
+  }[];
+  byAssetType: {
+    assetType: string;
+    totalIdeas: number;
+    wonIdeas: number;
+    lostIdeas: number;
+    winRate: number;
+    avgPercentGain: number;
+  }[];
+  bySignalType: {
+    signal: string;
+    totalIdeas: number;
+    wonIdeas: number;
+    lostIdeas: number;
+    winRate: number;
+    avgPercentGain: number;
+  }[];
+}
+
 export interface IStorage {
   // Market Data
   getAllMarketData(): Promise<MarketData[]>;
@@ -37,7 +75,9 @@ export interface IStorage {
   updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined>;
   deleteTradeIdea(id: string): Promise<boolean>;
   findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack?: number): Promise<TradeIdea | undefined>;
-  updateTradeIdeaPerformance(id: string, performance: { outcomeStatus?: OutcomeStatus; actualExit?: number; exitDate?: string }): Promise<TradeIdea | undefined>;
+  updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes'>>): Promise<TradeIdea | undefined>;
+  getOpenTradeIdeas(): Promise<TradeIdea[]>;
+  getPerformanceStats(): Promise<PerformanceStats>;
 
   // Catalysts
   getAllCatalysts(): Promise<Catalyst[]>;
@@ -605,13 +645,152 @@ export class MemStorage implements IStorage {
     });
   }
 
-  async updateTradeIdeaPerformance(id: string, performance: { outcomeStatus?: OutcomeStatus; actualExit?: number; exitDate?: string }): Promise<TradeIdea | undefined> {
+  async updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes'>>): Promise<TradeIdea | undefined> {
     const existing = this.tradeIdeas.get(id);
     if (!existing) return undefined;
     
-    const updated = { ...existing, ...performance };
+    // Calculate actualHoldingTimeMinutes if not provided or is 0
+    let holdingTimeMinutes: number | null = performance.actualHoldingTimeMinutes ?? null;
+    if (performance.exitDate && (!holdingTimeMinutes || holdingTimeMinutes === 0)) {
+      const createdAt = new Date(existing.timestamp);
+      const exitedAt = new Date(performance.exitDate);
+      const diffMs = exitedAt.getTime() - createdAt.getTime();
+      holdingTimeMinutes = Math.floor(diffMs / (1000 * 60));
+    }
+    
+    const updated = { 
+      ...existing, 
+      ...performance,
+      actualHoldingTimeMinutes: holdingTimeMinutes
+    };
     this.tradeIdeas.set(id, updated);
     return updated;
+  }
+
+  async getOpenTradeIdeas(): Promise<TradeIdea[]> {
+    return Array.from(this.tradeIdeas.values()).filter(
+      (idea) => idea.outcomeStatus === 'open'
+    );
+  }
+
+  async getPerformanceStats(): Promise<PerformanceStats> {
+    const allIdeas = Array.from(this.tradeIdeas.values());
+    const closedIdeas = allIdeas.filter((idea) => idea.outcomeStatus !== 'open');
+    const wonIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'hit_target');
+    const lostIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'hit_stop');
+    const expiredIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'expired');
+
+    // Overall stats
+    const winRate = closedIdeas.length > 0 ? (wonIdeas.length / closedIdeas.length) * 100 : 0;
+    const avgPercentGain = closedIdeas.length > 0
+      ? closedIdeas.reduce((sum, idea) => sum + (idea.percentGain || 0), 0) / closedIdeas.length
+      : 0;
+    const avgHoldingTime = closedIdeas.filter(i => i.actualHoldingTimeMinutes).length > 0
+      ? closedIdeas.filter(i => i.actualHoldingTimeMinutes).reduce((sum, idea) => sum + (idea.actualHoldingTimeMinutes || 0), 0) / closedIdeas.filter(i => i.actualHoldingTimeMinutes).length
+      : 0;
+
+    // By source
+    const sourceMap = new Map<string, TradeIdea[]>();
+    closedIdeas.forEach((idea) => {
+      const source = idea.source || 'unknown';
+      if (!sourceMap.has(source)) {
+        sourceMap.set(source, []);
+      }
+      sourceMap.get(source)!.push(idea);
+    });
+
+    const bySource = Array.from(sourceMap.entries()).map(([source, ideas]) => {
+      const won = ideas.filter((i) => i.outcomeStatus === 'hit_target').length;
+      const lost = ideas.filter((i) => i.outcomeStatus === 'hit_stop').length;
+      const rate = ideas.length > 0 ? (won / ideas.length) * 100 : 0;
+      const avgGain = ideas.length > 0
+        ? ideas.reduce((sum, i) => sum + (i.percentGain || 0), 0) / ideas.length
+        : 0;
+
+      return {
+        source,
+        totalIdeas: ideas.length,
+        wonIdeas: won,
+        lostIdeas: lost,
+        winRate: rate,
+        avgPercentGain: avgGain,
+      };
+    });
+
+    // By asset type
+    const assetTypeMap = new Map<string, TradeIdea[]>();
+    closedIdeas.forEach((idea) => {
+      const assetType = idea.assetType || 'unknown';
+      if (!assetTypeMap.has(assetType)) {
+        assetTypeMap.set(assetType, []);
+      }
+      assetTypeMap.get(assetType)!.push(idea);
+    });
+
+    const byAssetType = Array.from(assetTypeMap.entries()).map(([assetType, ideas]) => {
+      const won = ideas.filter((i) => i.outcomeStatus === 'hit_target').length;
+      const lost = ideas.filter((i) => i.outcomeStatus === 'hit_stop').length;
+      const rate = ideas.length > 0 ? (won / ideas.length) * 100 : 0;
+      const avgGain = ideas.length > 0
+        ? ideas.reduce((sum, i) => sum + (i.percentGain || 0), 0) / ideas.length
+        : 0;
+
+      return {
+        assetType,
+        totalIdeas: ideas.length,
+        wonIdeas: won,
+        lostIdeas: lost,
+        winRate: rate,
+        avgPercentGain: avgGain,
+      };
+    });
+
+    // By signal type (quality signals)
+    const signalMap = new Map<string, TradeIdea[]>();
+    closedIdeas.forEach((idea) => {
+      const signals = idea.qualitySignals || [];
+      signals.forEach((signal) => {
+        if (!signalMap.has(signal)) {
+          signalMap.set(signal, []);
+        }
+        signalMap.get(signal)!.push(idea);
+      });
+    });
+
+    const bySignalType = Array.from(signalMap.entries()).map(([signal, ideas]) => {
+      const won = ideas.filter((i) => i.outcomeStatus === 'hit_target').length;
+      const lost = ideas.filter((i) => i.outcomeStatus === 'hit_stop').length;
+      const rate = ideas.length > 0 ? (won / ideas.length) * 100 : 0;
+      const avgGain = ideas.length > 0
+        ? ideas.reduce((sum, i) => sum + (i.percentGain || 0), 0) / ideas.length
+        : 0;
+
+      return {
+        signal,
+        totalIdeas: ideas.length,
+        wonIdeas: won,
+        lostIdeas: lost,
+        winRate: rate,
+        avgPercentGain: avgGain,
+      };
+    });
+
+    return {
+      overall: {
+        totalIdeas: allIdeas.length,
+        openIdeas: allIdeas.filter((i) => i.outcomeStatus === 'open').length,
+        closedIdeas: closedIdeas.length,
+        wonIdeas: wonIdeas.length,
+        lostIdeas: lostIdeas.length,
+        expiredIdeas: expiredIdeas.length,
+        winRate,
+        avgPercentGain,
+        avgHoldingTimeMinutes: avgHoldingTime,
+      },
+      bySource,
+      byAssetType,
+      bySignalType,
+    };
   }
 
   // Catalyst Methods

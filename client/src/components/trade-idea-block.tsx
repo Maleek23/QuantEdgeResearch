@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ExplainabilityPanel } from "@/components/explainability-panel";
 import { TradeIdeaDetailModal } from "@/components/trade-idea-detail-modal";
 import { TradingAdvice } from "@/components/trading-advice";
+import { ManualOutcomeRecorder } from "@/components/manual-outcome-recorder";
 import type { TradeIdea } from "@shared/schema";
 
 interface TradeIdeaBlockProps {
@@ -29,10 +30,7 @@ interface TradeIdeaBlockProps {
 export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDetails, isExpanded, onToggleExpand }: TradeIdeaBlockProps) {
   const [localIsOpen, setLocalIsOpen] = useState(false);
   const isOpen = isExpanded !== undefined ? isExpanded : localIsOpen;
-  const [perfDialogOpen, setPerfDialogOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
-  const [outcome, setOutcome] = useState<string>('');
-  const [actualExit, setActualExit] = useState<string>('');
   const [priceUpdated, setPriceUpdated] = useState(false);
   const prevPriceRef = useRef<number | undefined>(currentPrice);
   const { toast } = useToast();
@@ -47,31 +45,6 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
     prevPriceRef.current = currentPrice;
   }, [currentPrice]);
 
-  const performanceMutation = useMutation({
-    mutationFn: async (data: { outcomeStatus: string; actualExit?: number; exitDate: string }) => {
-      return await apiRequest('PATCH', `/api/trade-ideas/${idea.id}/performance`, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
-      toast({ title: "Performance recorded", description: "Trade outcome has been saved" });
-      setPerfDialogOpen(false);
-      setOutcome('');
-      setActualExit('');
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to record performance", variant: "destructive" });
-    }
-  });
-
-  const handlePerformanceSubmit = () => {
-    if (!outcome) return;
-    performanceMutation.mutate({
-      outcomeStatus: outcome,
-      actualExit: actualExit ? parseFloat(actualExit) : undefined,
-      exitDate: new Date().toISOString()
-    });
-  };
-  
   const isLong = idea.direction === 'long';
   const priceChangePercent = currentPrice 
     ? ((currentPrice - idea.entryPrice) / idea.entryPrice) * 100
@@ -320,57 +293,16 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
                 Add to Watchlist
               </Button>
             )}
-            <Dialog open={perfDialogOpen} onOpenChange={setPerfDialogOpen}>
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={(e) => e.stopPropagation()}
-                  data-testid={`button-record-outcome-${idea.symbol}`}
-                >
-                  Record Outcome
-                </Button>
-              </DialogTrigger>
-              <DialogContent onClick={(e) => e.stopPropagation()}>
-                <DialogHeader>
-                  <DialogTitle>Record Trade Outcome</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div>
-                    <Label htmlFor="outcome">Outcome</Label>
-                    <Select value={outcome} onValueChange={setOutcome}>
-                      <SelectTrigger id="outcome">
-                        <SelectValue placeholder="Select outcome" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="hit_target">Hit Target</SelectItem>
-                        <SelectItem value="hit_stop">Hit Stop Loss</SelectItem>
-                        <SelectItem value="manual_exit">Manual Exit</SelectItem>
-                        <SelectItem value="expired">Expired</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="exit-price">Exit Price (optional)</Label>
-                    <Input
-                      id="exit-price"
-                      type="number"
-                      step="0.01"
-                      value={actualExit}
-                      onChange={(e) => setActualExit(e.target.value)}
-                      placeholder={idea.entryPrice.toString()}
-                    />
-                  </div>
-                  <Button
-                    onClick={handlePerformanceSubmit}
-                    disabled={!outcome || performanceMutation.isPending}
-                    className="w-full"
-                  >
-                    {performanceMutation.isPending ? 'Saving...' : 'Save Outcome'}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            {idea.outcomeStatus === 'open' && (
+              <div onClick={(e) => e.stopPropagation()} className="flex-1">
+                <ManualOutcomeRecorder
+                  ideaId={idea.id}
+                  symbol={idea.symbol}
+                  entryPrice={idea.entryPrice}
+                  direction={idea.direction}
+                />
+              </div>
+            )}
           </div>
         </div>
       </CollapsibleContent>

@@ -157,13 +157,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (currentPrice >= idea.targetPrice) {
             await storage.updateTradeIdeaPerformance(idea.id, {
               outcomeStatus: 'hit_target',
-              actualExit: currentPrice,
+              exitPrice: currentPrice,
               exitDate: now.toISOString()
             });
           } else if (currentPrice <= idea.stopLoss) {
             await storage.updateTradeIdeaPerformance(idea.id, {
               outcomeStatus: 'hit_stop',
-              actualExit: currentPrice,
+              exitPrice: currentPrice,
               exitDate: now.toISOString()
             });
           }
@@ -172,13 +172,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (currentPrice <= idea.targetPrice) {
             await storage.updateTradeIdeaPerformance(idea.id, {
               outcomeStatus: 'hit_target',
-              actualExit: currentPrice,
+              exitPrice: currentPrice,
               exitDate: now.toISOString()
             });
           } else if (currentPrice >= idea.stopLoss) {
             await storage.updateTradeIdeaPerformance(idea.id, {
               outcomeStatus: 'hit_stop',
-              actualExit: currentPrice,
+              exitPrice: currentPrice,
               exitDate: now.toISOString()
             });
           }
@@ -229,18 +229,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/trade-ideas/:id/performance", async (req, res) => {
     try {
-      const { outcomeStatus, actualExit, exitDate } = req.body;
-      const updated = await storage.updateTradeIdeaPerformance(req.params.id, {
-        outcomeStatus,
-        actualExit,
-        exitDate
-      });
+      const performanceUpdate = req.body;
+      const updated = await storage.updateTradeIdeaPerformance(req.params.id, performanceUpdate);
       if (!updated) {
         return res.status(404).json({ error: "Trade idea not found" });
       }
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Failed to update performance" });
+    }
+  });
+
+  // Performance Tracking Routes
+  app.post("/api/performance/validate", async (_req, res) => {
+    try {
+      const { PerformanceValidator } = await import("./performance-validator");
+      const openIdeas = await storage.getOpenTradeIdeas();
+      const marketData = await storage.getAllMarketData();
+      
+      // Build price map
+      const priceMap = new Map<string, number>();
+      marketData.forEach((data) => {
+        priceMap.set(data.symbol, data.currentPrice);
+      });
+
+      // Validate all open ideas
+      const validationResults = PerformanceValidator.validateBatch(openIdeas, priceMap);
+      const now = new Date().toISOString();
+      
+      // Update ideas that need changes
+      const updated: any[] = [];
+      for (const [ideaId, result] of Array.from(validationResults.entries())) {
+        const updatedIdea = await storage.updateTradeIdeaPerformance(ideaId, {
+          outcomeStatus: result.outcomeStatus,
+          exitPrice: result.exitPrice,
+          percentGain: result.percentGain,
+          realizedPnL: result.realizedPnL,
+          resolutionReason: result.resolutionReason,
+          exitDate: result.exitDate,
+          actualHoldingTimeMinutes: result.actualHoldingTimeMinutes,
+          validatedAt: now,
+        });
+        if (updatedIdea) {
+          updated.push(updatedIdea);
+        }
+      }
+
+      // Stamp validatedAt on ALL open ideas that were checked, even if no state change
+      for (const idea of openIdeas) {
+        if (!validationResults.has(idea.id)) {
+          // Idea was checked but didn't need update - still stamp validatedAt
+          await storage.updateTradeIdeaPerformance(idea.id, {
+            validatedAt: now,
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        validated: openIdeas.length,
+        updated: updated.length,
+        timestamp: new Date().toISOString(),
+        results: updated,
+      });
+    } catch (error) {
+      console.error("Validation error:", error);
+      res.status(500).json({ error: "Failed to validate trade ideas" });
+    }
+  });
+
+  app.get("/api/performance/stats", async (_req, res) => {
+    try {
+      const stats = await storage.getPerformanceStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Stats error:", error);
+      res.status(500).json({ error: "Failed to fetch performance stats" });
+    }
+  });
+
+  app.get("/api/performance/export", async (_req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const closedIdeas = allIdeas.filter((idea) => idea.outcomeStatus !== 'open');
+      
+      // Build CSV
+      const headers = [
+        'ID', 'Symbol', 'Asset Type', 'Direction', 'Source', 
+        'Entry Price', 'Target Price', 'Stop Loss', 'Exit Price',
+        'R:R Ratio', 'Percent Gain', 'Outcome Status', 'Resolution Reason',
+        'Created At', 'Exit Date', 'Holding Time (min)',
+        'Confidence Score', 'Probability Band', 'Quality Signals',
+        'Catalyst'
+      ].join(',');
+
+      const rows = closedIdeas.map((idea) => {
+        return [
+          idea.id,
+          idea.symbol,
+          idea.assetType,
+          idea.direction,
+          idea.source || 'unknown',
+          idea.entryPrice,
+          idea.targetPrice,
+          idea.stopLoss,
+          idea.exitPrice || '',
+          idea.riskRewardRatio,
+          idea.percentGain || '',
+          idea.outcomeStatus,
+          idea.resolutionReason || '',
+          idea.timestamp,
+          idea.exitDate || '',
+          idea.actualHoldingTimeMinutes || '',
+          idea.confidenceScore,
+          idea.probabilityBand,
+          (idea.qualitySignals || []).join(';'),
+          `"${idea.catalyst.replace(/"/g, '""')}"`, // Escape quotes in catalyst
+        ].join(',');
+      });
+
+      const csv = [headers, ...rows].join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="trade-ideas-performance.csv"');
+      res.send(csv);
+    } catch (error) {
+      console.error("Export error:", error);
+      res.status(500).json({ error: "Failed to export data" });
     }
   });
 

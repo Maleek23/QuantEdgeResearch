@@ -12,6 +12,7 @@ import TradeIdeasPage from "@/pages/trade-ideas";
 import MarketPage from "@/pages/market";
 import WatchlistPage from "@/pages/watchlist";
 import RiskCalculatorPage from "@/pages/risk-calculator";
+import PerformancePage from "@/pages/performance";
 import About from "@/pages/about";
 import NotFound from "@/pages/not-found";
 
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/market" component={MarketPage} />
       <Route path="/watchlist" component={WatchlistPage} />
       <Route path="/risk" component={RiskCalculatorPage} />
+      <Route path="/performance" component={PerformancePage} />
       <Route path="/about" component={About} />
       <Route component={NotFound} />
     </Switch>

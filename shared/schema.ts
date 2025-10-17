@@ -12,6 +12,9 @@ export type AssetType = 'stock' | 'option' | 'crypto';
 // Performance Tracking Outcome Types
 export type OutcomeStatus = 'open' | 'hit_target' | 'hit_stop' | 'manual_exit' | 'expired';
 
+// Resolution Reason - How outcome was determined
+export type ResolutionReason = 'auto_target_hit' | 'auto_stop_hit' | 'auto_expired' | 'manual_user_won' | 'manual_user_lost' | 'manual_user_breakeven';
+
 // Trade Idea
 export const tradeIdeas = pgTable("trade_ideas", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -46,6 +49,10 @@ export const tradeIdeas = pgTable("trade_ideas", {
   realizedPnL: real("realized_pnl"), // Actual profit/loss in dollars
   exitDate: text("exit_date"), // When trade was closed
   outcomeNotes: text("outcome_notes"), // Additional notes about outcome
+  resolutionReason: text("resolution_reason").$type<ResolutionReason>(), // How outcome was determined
+  actualHoldingTimeMinutes: integer("actual_holding_time_minutes"), // How long trade was held
+  percentGain: real("percent_gain"), // Actual % gain or loss
+  validatedAt: text("validated_at"), // When auto-validation last checked this idea
   
   // Data Quality Tracking
   dataSourceUsed: text("data_source_used"), // 'tradier', 'yahoo', 'coingecko', 'alphavantage', 'estimated'
