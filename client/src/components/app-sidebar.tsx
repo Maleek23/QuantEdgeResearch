@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const researchItems = [
-  { title: "Dashboard", url: "/", icon: Home },
+  { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Trade Ideas", url: "/trade-ideas", icon: TrendingUp },
   { title: "Market", url: "/market", icon: BarChart2 },
   { title: "Watchlist", url: "/watchlist", icon: Star },

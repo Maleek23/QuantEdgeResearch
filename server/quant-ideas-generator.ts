@@ -223,91 +223,77 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   return null;
 }
 
-// Calculate entry, target, and stop based on signal type
+// Calculate entry, target, and stop based on REAL-TIME market prices for ACTIVE trading
+// Entry = CURRENT market price (immediate execution)
+// Target/Stop = Calculated from entry for actionable levels
 function calculateLevels(data: MarketData, signal: QuantSignal) {
-  const currentPrice = data.currentPrice;
-  const priceChange = data.changePercent;
-  
-  let entryPrice = currentPrice;
+  // ✅ ACTIVE TRADING: Entry is ALWAYS current market price for immediate execution
+  const entryPrice = data.currentPrice;
   let targetPrice: number;
   let stopLoss: number;
 
   if (signal.type === 'momentum') {
     // Momentum trade - ride the trend
     if (signal.direction === 'long') {
-      entryPrice = currentPrice * 0.995; // slight pullback entry
-      targetPrice = currentPrice * 1.08; // 8% target
-      stopLoss = currentPrice * 0.96; // 4% stop
+      targetPrice = entryPrice * 1.08; // 8% target from entry
+      stopLoss = entryPrice * 0.96; // 4% stop from entry
     } else {
-      entryPrice = currentPrice * 1.005;
-      targetPrice = currentPrice * 0.92; // 8% target
-      stopLoss = currentPrice * 1.04; // 4% stop
+      targetPrice = entryPrice * 0.92; // 8% target from entry
+      stopLoss = entryPrice * 1.04; // 4% stop from entry
     }
   } else if (signal.type === 'volume_spike') {
     // Volume breakout
     if (signal.direction === 'long') {
-      entryPrice = currentPrice;
-      targetPrice = currentPrice * 1.12; // 12% target
-      stopLoss = currentPrice * 0.94; // 6% stop
+      targetPrice = entryPrice * 1.12; // 12% target from entry
+      stopLoss = entryPrice * 0.94; // 6% stop from entry
     } else {
-      entryPrice = currentPrice;
-      targetPrice = currentPrice * 0.88;
-      stopLoss = currentPrice * 1.06;
+      targetPrice = entryPrice * 0.88;
+      stopLoss = entryPrice * 1.06;
     }
   } else if (signal.type === 'breakout') {
     // Breakout trade - momentum continuation
     if (signal.direction === 'long') {
-      entryPrice = currentPrice * 1.005; // enter on strength
-      targetPrice = currentPrice * 1.15; // 15% target
-      stopLoss = currentPrice * 0.96; // 4% stop
+      targetPrice = entryPrice * 1.15; // 15% target from entry
+      stopLoss = entryPrice * 0.96; // 4% stop from entry
     } else {
-      entryPrice = currentPrice * 0.995; // enter on weakness
-      targetPrice = currentPrice * 0.85; // 15% target
-      stopLoss = currentPrice * 1.04; // 4% stop
+      targetPrice = entryPrice * 0.85; // 15% target from entry
+      stopLoss = entryPrice * 1.04; // 4% stop from entry
     }
   } else if (signal.type === 'mean_reversion') {
     // Mean reversion - contrarian
     if (signal.direction === 'long') {
-      entryPrice = currentPrice * 0.99; // buy the dip
-      targetPrice = currentPrice * 1.15; // bounce target
-      stopLoss = currentPrice * 0.92; // 8% stop
+      targetPrice = entryPrice * 1.15; // bounce target from entry
+      stopLoss = entryPrice * 0.92; // 8% stop from entry
     } else {
-      entryPrice = currentPrice * 1.01;
-      targetPrice = currentPrice * 0.85;
-      stopLoss = currentPrice * 1.08;
+      targetPrice = entryPrice * 0.85;
+      stopLoss = entryPrice * 1.08;
     }
   } else if (signal.type === 'rsi_divergence') {
     // RSI-based mean reversion
     if (signal.direction === 'long') {
-      entryPrice = currentPrice * 0.995; // oversold bounce entry
-      targetPrice = currentPrice * 1.12; // 12% reversal target
-      stopLoss = currentPrice * 0.94; // 6% stop
+      targetPrice = entryPrice * 1.12; // 12% reversal target from entry
+      stopLoss = entryPrice * 0.94; // 6% stop from entry
     } else {
-      entryPrice = currentPrice * 1.005;
-      targetPrice = currentPrice * 0.88;
-      stopLoss = currentPrice * 1.06;
+      targetPrice = entryPrice * 0.88;
+      stopLoss = entryPrice * 1.06;
     }
   } else if (signal.type === 'macd_crossover') {
     // MACD trend following
     if (signal.direction === 'long') {
-      entryPrice = currentPrice; // enter on crossover
-      targetPrice = currentPrice * 1.1; // 10% trend target
-      stopLoss = currentPrice * 0.95; // 5% stop
+      targetPrice = entryPrice * 1.1; // 10% trend target from entry
+      stopLoss = entryPrice * 0.95; // 5% stop from entry
     } else {
-      entryPrice = currentPrice;
-      targetPrice = currentPrice * 0.9;
-      stopLoss = currentPrice * 1.05;
+      targetPrice = entryPrice * 0.9;
+      stopLoss = entryPrice * 1.05;
     }
   } else {
     // Default case
     if (signal.direction === 'long') {
-      entryPrice = currentPrice;
-      targetPrice = currentPrice * 1.1;
-      stopLoss = currentPrice * 0.95;
+      targetPrice = entryPrice * 1.1;
+      stopLoss = entryPrice * 0.95;
     } else {
-      entryPrice = currentPrice;
-      targetPrice = currentPrice * 0.9;
-      stopLoss = currentPrice * 1.05;
+      targetPrice = entryPrice * 0.9;
+      stopLoss = entryPrice * 1.05;
     }
   }
 
