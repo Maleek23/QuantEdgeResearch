@@ -696,16 +696,34 @@ export async function generateQuantIdeas(
           ? 'After Hours'
           : 'Market Closed';
 
-    // For options, calculate strike price and determine call/put based on direction and price action
-    const strikePrice = assetType === 'option' 
-      ? (signal.direction === 'long' 
-          ? Number((data.currentPrice * 1.02).toFixed(2)) // Slightly OTM call for bullish (keep decimals)
-          : Number((data.currentPrice * 0.98).toFixed(2))) // Slightly OTM put for bearish (keep decimals)
-      : undefined;
+    // For options, use Tradier to find optimal strike based on Greeks, fallback to simple calculation
+    let strikePrice: number | undefined = undefined;
+    let optionType: 'call' | 'put' | undefined = undefined;
     
-    const optionType = assetType === 'option'
-      ? (signal.direction === 'long' ? 'call' : 'put')
-      : undefined;
+    if (assetType === 'option') {
+      // Try to use Tradier for intelligent strike selection
+      const tradierKey = process.env.TRADIER_API_KEY;
+      if (tradierKey) {
+        try {
+          const { findOptimalStrike } = await import('./tradier-api');
+          const optimalStrike = await findOptimalStrike(data.symbol, data.currentPrice, signal.direction, tradierKey);
+          if (optimalStrike) {
+            strikePrice = optimalStrike.strike;
+            optionType = optimalStrike.optionType;
+          }
+        } catch (error) {
+          console.log(`Tradier options chain unavailable for ${data.symbol}, using fallback strike`);
+        }
+      }
+      
+      // Fallback to simple calculation if Tradier unavailable
+      if (!strikePrice) {
+        strikePrice = signal.direction === 'long' 
+          ? Number((data.currentPrice * 1.02).toFixed(2)) // Slightly OTM call for bullish
+          : Number((data.currentPrice * 0.98).toFixed(2)); // Slightly OTM put for bearish
+        optionType = signal.direction === 'long' ? 'call' : 'put';
+      }
+    }
 
     // Check for duplicate ideas before creating
     if (storage) {
