@@ -198,11 +198,8 @@ export async function searchSymbol(
     return await fetchCryptoPrice(upperSymbol);
   }
 
-  if (alphaVantageKey) {
-    return await fetchStockPrice(upperSymbol, alphaVantageKey);
-  }
-
-  return null;
+  // Always try stock price fetch - Tradier will be used if available, with fallbacks
+  return await fetchStockPrice(upperSymbol, alphaVantageKey);
 }
 
 export interface HiddenCryptoGem {
