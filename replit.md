@@ -58,8 +58,21 @@ The platform features a professional dark theme with a consistent color palette 
 The system uses a RESTful API design for all core functionalities. Data models include Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. The design emphasizes modularity, responsiveness, and clear separation of concerns between frontend and backend.
 
 ## External Dependencies
-- **CoinGecko API:** For crypto symbol search and real-time prices.
-- **Alpha Vantage API:** For stock symbol lookup and market data.
+
+### **Data Sources (As of Oct 2025)**
+- **✅ CoinGecko API (Primary for Crypto):** Real-time prices, historical data, market cap rankings. **Status: Working**
+- **✅ Yahoo Finance (Primary for Stocks):** Real-time quotes, unlimited requests, free. **Status: Working**
+- **✅ Alpha Vantage API (Fallback for Stocks):** Historical data, rate-limited (25-500 req/day). **Status: Working**
+- **❌ Tradier API (Inactive):** Real-time quotes, options chains, unlimited access. **Status: Invalid API Key (expired/inactive)**
+
+### **AI Providers**
 - **OpenAI API:** For GPT-5 integration within the QuantAI Bot.
 - **Anthropic API:** For Claude Sonnet 4 integration within the QuantAI Bot.
 - **Google Gemini API:** For Gemini 2.5 integration within the QuantAI Bot.
+
+### **Data Flow Hierarchy**
+1. **Stocks:** Yahoo Finance → Alpha Vantage (if rate limited) → Skip
+2. **Crypto:** CoinGecko → Skip
+3. **Options:** Not currently available (Tradier inactive)
+
+**Note:** Tradier API key needs renewal to enable options chain data and unlimited stock quotes. Current system functions with Yahoo Finance (stocks) and CoinGecko (crypto).
