@@ -460,24 +460,30 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
           {/* Explainability Panel - Show exact technical indicators (if available) */}
           <ExplainabilityPanel idea={idea} />
 
-          {/* Quality Signals - Fallback for ideas without full indicator data */}
-          {idea.qualitySignals && idea.qualitySignals.length > 0 && (
-            <div data-testid={`quality-signals-${idea.symbol}`}>
-              <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Quality Signals</h4>
-              <div className="flex flex-wrap gap-2">
-                {idea.qualitySignals.map((signal, idx) => (
-                  <Badge 
-                    key={idx} 
-                    variant="outline" 
-                    className="text-xs"
-                    data-testid={`quality-signal-${idea.symbol}-${idx}`}
-                  >
-                    {signal}
-                  </Badge>
-                ))}
+          {/* Trade Timing & Duration */}
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <Clock className="h-4 w-4 text-amber-400 mt-0.5" />
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-amber-300">Trade Timeframe</span>
+                  {isDayTrade() && (
+                    <Badge variant="outline" className="text-xs bg-amber-500/20 text-amber-300 border-amber-500/30">
+                      DAY TRADE
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {isDayTrade() 
+                    ? "Enter at market open or on breakout. Exit by end of day or when target/stop is hit."
+                    : "Swing trade: Hold for 2-5 days or until target/stop is reached. Monitor daily for exit signals."}
+                </p>
+                <p className="text-xs text-amber-400/80">
+                  ⏰ Idea valid for 24 hours from posting
+                </p>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Price Levels */}
           <div className="grid grid-cols-3 gap-4">
@@ -532,15 +538,6 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
             <Badge variant="outline" className="text-xs">
               {idea.sessionContext}
             </Badge>
-            {isDayTrade() && (
-              <Badge 
-                variant="outline" 
-                className="text-xs font-semibold bg-amber-500/10 text-amber-300 border-amber-500/30"
-                data-testid={`badge-day-trade-${idea.symbol}`}
-              >
-                DAY TRADE
-              </Badge>
-            )}
             {idea.liquidityWarning && (
               <Badge variant="destructive" className="gap-1 text-xs">
                 <AlertTriangle className="h-3 w-3" />
