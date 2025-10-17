@@ -20,15 +20,16 @@ QuantEdge Research is a professional quantitative trading research platform desi
 ## System Architecture
 
 ### Multi-Page Architecture (Updated Oct 2025)
-The platform now uses a modern multi-page architecture with deep linking support:
-- **Dashboard (/)** - Metrics-focused overview with quick actions, idea generation buttons, market movers, and recent ideas preview
+The platform now uses a modern multi-page architecture with professional onboarding:
+- **Landing Page (/)** - Professional onboarding with hero section, feature showcase (6 cards), "How It Works" timeline (4 steps), and CTA buttons. New users see value proposition immediately before entering app.
+- **Dashboard (/dashboard)** - Metrics-focused overview with quick actions, idea generation buttons, market movers, and recent ideas preview
 - **Trade Ideas (/trade-ideas)** - Unified feed with source filtering (All | AI | Quant | Manual), date-based accordions, and archived trades
 - **Market Overview (/market)** - Live prices, top movers, market stats, catalyst feed
 - **Watchlist (/watchlist)** - Symbol tracking with target prices and asset type filtering
 - **Risk Calculator (/risk)** - Position sizing tool with educational content
 - **About (/about)** - Creator profile and platform information
 
-Sidebar navigation organized into logical groups: Research (Dashboard, Trade Ideas, Market, Watchlist) / Tools (Risk Calculator) / System (About). Active states tracked via wouter's useLocation hook.
+Landing page features hero with dual-engine architecture badge, 3 key metrics (8 signal types, 3 AI providers, real-time data), and clear CTAs routing to /dashboard. Sidebar navigation (only visible on app pages) organized into logical groups: Research (Dashboard, Trade Ideas, Market, Watchlist) / Tools (Risk Calculator) / System (About). Active states tracked via wouter's useLocation hook.
 
 ### UI/UX Decisions
 The platform features a professional dark theme with a consistent color palette (green for bullish, red for bearish, amber for neutral/warning, blue for actions). Typography uses Inter for UI and JetBrains Mono for financial data. Components include cards with hover effects, badges, sticky-header tables, responsive grids, and loading skeletons. Data presentation prioritizes visual hierarchy, clear scanning, and interactive tooltips. Key UI elements include pulsing "FRESH" badges, smart notifications for new ideas, and optimistic UI updates for quick actions.
@@ -58,7 +59,7 @@ The platform features a professional dark theme with a consistent color palette 
   - **Liquidity Warnings:** Displays alerts for penny stocks (<$5) with limited options markets
 - **Watchlist Management:** Full-width section with expandable quantitative analysis for crypto assets (RSI, MACD, Trend, Volume, Support/Resistance cards) and auto-refresh for prices.
 - **QuantAI Bot:** AI-powered trading assistant with sliding chatbot interface, ChatGPT-style UI with proper markdown rendering, intelligent multi-provider fallback (Anthropic, OpenAI, Google Gemini), and persistent chat history. **Auto-Save Trade Ideas (Oct 2025):** Automatically detects trade requests (e.g., "give me trade ideas for NVDA") and parses AI responses to extract structured trade ideas, saving them directly to Trade Ideas feed with AI badge. Features smart detection to distinguish trade requests from educational questions, real-time toast notifications, and manual "Save as Trade Idea" backup button for edge cases.
-- **Quantitative Idea Generator:** An AI-free alternative generating trade ideas based on momentum, volume spike, breakout, mean reversion, and indicator divergence/crossover signals. Features a "Hidden Gem Discovery Engine" for crypto, advanced RSI/MACD analysis, multi-timeframe confirmation, and intelligent deduplication. **Strategic Asset Distribution (Oct 2025):** Implements strict quota enforcement to deliver balanced mix of 3 stock shares, 3 options, and 2 crypto ideas (40%/35%/25% split). Uses interleaved sorting to prevent single asset type domination, shortfall-based priority logic for stock/option selection, and relaxed quality filters for crypto to ensure all asset types are represented.
+- **Quantitative Idea Generator:** An AI-free alternative generating trade ideas based on momentum, volume spike, breakout, mean reversion, and indicator divergence/crossover signals. Features a "Hidden Gem Discovery Engine" for crypto, advanced RSI/MACD analysis, multi-timeframe confirmation, and intelligent deduplication. **Strategic Asset Distribution (Oct 2025):** Implements strict quota enforcement to deliver balanced mix of 3 stock shares, 3 options, and 2 crypto ideas (40%/35%/25% split). Uses interleaved sorting to prevent single asset type domination, shortfall-based priority logic for stock/option selection, and relaxed quality filters for crypto to ensure all asset types are represented. **Real-Time Entry Prices (Oct 2025):** Entry price now equals CURRENT market price for immediate execution (not percentage-based theoretical). Target/stop calculated from live entry price using signal-specific risk/reward ratios. Provides active trading opportunities with actionable "get in/get out" levels.
 - **Performance Tracking & Auto-Archiving:** Allows manual recording of trade outcomes and automatic archiving of ideas when targets are hit, stop losses are triggered, or ideas expire (7+ days old). Active feeds filter out completed trades, preserving historical data.
 
 ### System Design Choices
