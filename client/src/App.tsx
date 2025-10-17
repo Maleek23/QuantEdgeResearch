@@ -50,6 +50,11 @@ function App() {
               <div className="flex h-screen w-full">
                 <AppSidebar />
                 <div className="flex flex-col flex-1 overflow-hidden">
+                  {/* Mobile header with hamburger menu */}
+                  <header className="flex lg:hidden items-center gap-2 p-4 border-b bg-background">
+                    <SidebarTrigger data-testid="button-mobile-menu" />
+                    <h1 className="text-lg font-semibold">QuantEdge</h1>
+                  </header>
                   <main className="flex-1 overflow-auto">
                     <Router />
                   </main>

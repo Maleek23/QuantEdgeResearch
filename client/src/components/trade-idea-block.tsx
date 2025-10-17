@@ -8,11 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ExplainabilityPanel } from "@/components/explainability-panel";
+import { TradeIdeaDetailModal } from "@/components/trade-idea-detail-modal";
+import { TradingAdvice } from "@/components/trading-advice";
 import type { TradeIdea } from "@shared/schema";
 
 interface TradeIdeaBlockProps {
@@ -28,6 +30,7 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
   const [localIsOpen, setLocalIsOpen] = useState(false);
   const isOpen = isExpanded !== undefined ? isExpanded : localIsOpen;
   const [perfDialogOpen, setPerfDialogOpen] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [outcome, setOutcome] = useState<string>('');
   const [actualExit, setActualExit] = useState<string>('');
   const [priceUpdated, setPriceUpdated] = useState(false);
@@ -156,7 +159,7 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
             <div className="mb-4">
               <div className="flex items-baseline gap-2">
                 <span className={cn(
-                  "text-3xl font-bold font-mono",
+                  "text-xl font-bold font-mono",
                   priceUpdated && "price-update"
                 )} data-testid={`text-current-price-${idea.symbol}`}>
                   {formatCurrency(currentPrice)}
@@ -192,6 +195,13 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
               </div>
             </div>
           </div>
+
+          {/* Real-Time Trading Advice */}
+          {currentPrice && (
+            <div className="pt-3 border-t">
+              <TradingAdvice idea={idea} currentPrice={currentPrice} />
+            </div>
+          )}
 
           {/* Time Windows */}
           {(idea.entryValidUntil || idea.exitBy) && (
@@ -266,6 +276,18 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-4 border-t">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDetailModalOpen(true);
+              }}
+              data-testid={`button-view-analysis-${idea.symbol}`}
+            >
+              <Maximize2 className="h-3.5 w-3.5 mr-2" />
+              View Full Analysis
+            </Button>
             {onViewDetails && (
               <Button
                 variant="outline"
@@ -277,7 +299,7 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
                 data-testid={`button-view-details-${idea.symbol}`}
               >
                 <Eye className="h-3.5 w-3.5 mr-2" />
-                View Details
+                Symbol Details
               </Button>
             )}
             {onAddToWatchlist && (
@@ -348,6 +370,18 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
           </div>
         </div>
       </CollapsibleContent>
+
+      {/* Trade Idea Detail Modal */}
+      <TradeIdeaDetailModal
+        idea={idea}
+        currentPrice={currentPrice}
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+        onAddToWatchlist={onAddToWatchlist ? () => {
+          onAddToWatchlist(idea);
+          setDetailModalOpen(false);
+        } : undefined}
+      />
     </Collapsible>
   );
 }
