@@ -821,17 +821,31 @@ export async function generateQuantIdeas(
       liquidityWarning: levels.entryPrice < 5,
       expiryDate: assetType === 'option' 
         ? (() => {
-            // Generate short-term options (1-5 days) with bias toward near-term
-            // 60% chance of 1-2 days, 30% chance of 3-4 days, 10% chance of 5 days
+            // Options expire on Fridays - find next valid Friday in Chicago timezone
+            // Distribute: 60% this week's Friday, 30% next week's Friday, 10% week after
             const rand = Math.random();
-            let daysToExpiry: number;
+            let weeksOut: number;
             if (rand < 0.6) {
-              daysToExpiry = Math.random() < 0.5 ? 1 : 2; // 1 or 2 days
+              weeksOut = 0; // This week's Friday
             } else if (rand < 0.9) {
-              daysToExpiry = Math.random() < 0.5 ? 3 : 4; // 3 or 4 days
+              weeksOut = 1; // Next week's Friday
             } else {
-              daysToExpiry = 5; // 5 days
+              weeksOut = 2; // Week after next Friday
             }
+            
+            // Get current day of week in Chicago timezone (0=Sunday, 5=Friday)
+            const currentDayStr = formatInTimeZone(now, timezone, 'i'); // ISO day (1=Mon, 7=Sun)
+            const currentHour = parseInt(formatInTimeZone(now, timezone, 'H'));
+            const currentDay = parseInt(currentDayStr) % 7; // Convert to JS format (0=Sun, 6=Sat)
+            
+            // Find days until next Friday
+            let daysUntilFriday = (5 - currentDay + 7) % 7;
+            if (daysUntilFriday === 0 && currentHour >= 16) {
+              // After 4pm on Friday, use next Friday
+              daysUntilFriday = 7;
+            }
+            
+            const daysToExpiry = daysUntilFriday + (weeksOut * 7);
             return formatInTimeZone(
               new Date(now.getTime() + daysToExpiry * 24 * 60 * 60 * 1000), 
               timezone, 
