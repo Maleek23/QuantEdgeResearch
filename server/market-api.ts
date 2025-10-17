@@ -1,4 +1,5 @@
 import type { AssetType } from "@shared/schema";
+import { getTradierQuote, getTradierHistory } from './tradier-api';
 
 export interface ExternalMarketData {
   symbol: string;
@@ -6,6 +7,7 @@ export interface ExternalMarketData {
   currentPrice: number;
   changePercent: number;
   volume: number;
+  avgVolume?: number;
   marketCap?: number;
   high24h?: number;
   low24h?: number;
@@ -119,6 +121,30 @@ export async function fetchStockPrice(
   symbol: string,
   apiKey?: string
 ): Promise<ExternalMarketData | null> {
+  // Try Tradier first (unlimited, real-time)
+  const tradierKey = process.env.TRADIER_API_KEY;
+  if (tradierKey) {
+    try {
+      const quote = await getTradierQuote(symbol, tradierKey);
+      if (quote) {
+        return {
+          symbol: quote.symbol.toUpperCase(),
+          assetType: "stock",
+          currentPrice: quote.last,
+          changePercent: quote.change_percentage,
+          volume: quote.volume,
+          avgVolume: quote.average_volume,
+          high24h: quote.high,
+          low24h: quote.low,
+          marketCap: undefined, // Tradier doesn't provide market cap
+        };
+      }
+    } catch (error) {
+      console.error(`Tradier quote error for ${symbol}, falling back:`, error);
+    }
+  }
+
+  // Fallback to Alpha Vantage if available
   if (apiKey) {
     try {
       const response = await fetch(
@@ -229,7 +255,17 @@ export async function fetchHistoricalPrices(
       return prices;
     }
 
-    // Fetch Alpha Vantage historical data for stocks
+    // Try Tradier first for stock historical data (unlimited)
+    const tradierKey = process.env.TRADIER_API_KEY;
+    if (tradierKey) {
+      const prices = await getTradierHistory(symbol, periods, tradierKey);
+      if (prices.length > 0) {
+        console.log(`✅ Fetched ${prices.length} real historical prices for ${symbol} (Tradier)`);
+        return prices;
+      }
+    }
+
+    // Fallback to Alpha Vantage historical data for stocks
     if (!apiKey) {
       console.log(`No Alpha Vantage API key, cannot fetch historical data for ${symbol}`);
       return [];
