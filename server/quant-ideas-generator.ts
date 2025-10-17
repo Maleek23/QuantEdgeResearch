@@ -27,33 +27,25 @@ interface MultiTimeframeAnalysis {
   strength: 'strong' | 'moderate' | 'weak';
 }
 
-// DEPRECATED: Synthetic price generation - replaced with real historical data
-// Kept as fallback only when API fails
-function generateHistoricalPricesFallback(currentPrice: number, changePercent: number, periods: number = 50): number[] {
-  const prices: number[] = [];
-  const volatility = 0.02;
-  let price = currentPrice / (1 + changePercent / 100);
-  
-  for (let i = 0; i < periods - 1; i++) {
-    const randomChange = (Math.random() - 0.5) * volatility;
-    const drift = changePercent / 100 / periods;
-    price = price * (1 + drift + randomChange);
-    prices.push(price);
-  }
-  
-  prices.push(currentPrice);
-  return prices;
-}
+// REMOVED: Synthetic price fallback was generating fake trade ideas
+// System now fails safely when real data is unavailable
 
 // Multi-timeframe analysis: Check if daily and weekly trends align
 async function analyzeMultiTimeframe(
   data: MarketData, 
   historicalPrices: number[]
 ): Promise<MultiTimeframeAnalysis> {
-  // Use real historical prices instead of synthetic data
-  const dailyPrices = historicalPrices.length > 0 
-    ? historicalPrices 
-    : generateHistoricalPricesFallback(data.currentPrice, data.changePercent, 60);
+  // Require real historical prices - no synthetic fallback
+  if (historicalPrices.length === 0) {
+    return {
+      dailyTrend: 'neutral',
+      weeklyTrend: 'neutral',
+      aligned: false,
+      strength: 'weak'
+    };
+  }
+  
+  const dailyPrices = historicalPrices;
   
   // Create proper weekly candles by aggregating every 5 daily closes
   const weeklyPrices: number[] = [];
@@ -185,10 +177,12 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   }
 
   // RSI and MACD Analysis - Advanced Technical Signals
-  // Use real historical prices if provided, fallback to synthetic only if empty
-  const prices = historicalPrices.length > 0 
-    ? historicalPrices 
-    : generateHistoricalPricesFallback(data.currentPrice, data.changePercent, 50);
+  // Require real historical prices - no synthetic fallback
+  if (historicalPrices.length === 0) {
+    return null; // Cannot analyze without real data
+  }
+  
+  const prices = historicalPrices;
   
   const rsi = calculateRSI(prices, 14);
   const macd = calculateMACD(prices);
@@ -674,17 +668,36 @@ export async function generateQuantIdeas(
     return false; // Unknown asset type - reject
   };
 
+  // Data quality tracking
+  const dataQuality = {
+    processed: 0,
+    noHistoricalData: 0,
+    noSignal: 0,
+    lowQuality: 0,
+    quotaFull: 0
+  };
+
   // Analyze each market data point
   for (const data of sortedData) {
     if (ideas.length >= count) break;
+    dataQuality.processed++;
 
-    // Fetch real historical prices FIRST for accurate analysis (fallback to synthetic if API fails)
+    // Fetch real historical prices - REQUIRED for accurate analysis (no synthetic fallback)
     const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
     const historicalPrices = await fetchHistoricalPrices(data.symbol, data.assetType, 60, apiKey);
     
-    // Analyze with REAL historical prices
+    if (historicalPrices.length === 0) {
+      dataQuality.noHistoricalData++;
+      console.log(`  ⚠️  ${data.symbol}: Skipped - no historical data available`);
+      continue;
+    }
+    
+    // Analyze with REAL historical prices only
     const signal = analyzeMarketData(data, historicalPrices);
-    if (!signal) continue;
+    if (!signal) {
+      dataQuality.noSignal++;
+      continue;
+    }
 
     const levels = calculateLevels(data, signal);
     const catalyst = generateCatalyst(data, signal, catalysts);
@@ -722,11 +735,20 @@ export async function generateQuantIdeas(
       minVolume = signal.direction === 'short' ? 0.8 : 1.0;
     }
     
-    if (confidenceScore < minConfidence) continue;
-    if (riskRewardRatio < minRiskReward) continue;
+    if (confidenceScore < minConfidence) {
+      dataQuality.lowQuality++;
+      continue;
+    }
+    if (riskRewardRatio < minRiskReward) {
+      dataQuality.lowQuality++;
+      continue;
+    }
     
     const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
-    if (volumeRatio < minVolume) continue;
+    if (volumeRatio < minVolume) {
+      dataQuality.lowQuality++;
+      continue;
+    }
 
     // Intelligent asset type selection based on distribution targets
     let assetType = data.assetType;
@@ -863,6 +885,7 @@ export async function generateQuantIdeas(
 
     // Check if we should accept this asset type based on distribution
     if (!shouldAcceptAssetType(assetType)) {
+      dataQuality.quotaFull++;
       continue; // Skip this idea to maintain balanced distribution
     }
     
@@ -876,6 +899,15 @@ export async function generateQuantIdeas(
   
   console.log(`✅ Generated ${ideas.length} ideas: ${assetTypeCount.stock} stock shares, ${assetTypeCount.option} options, ${assetTypeCount.crypto} crypto`);
   
+  // Data quality report
+  console.log(`📊 Data Quality Report:`);
+  console.log(`   Candidates processed: ${dataQuality.processed}`);
+  console.log(`   ❌ No historical data: ${dataQuality.noHistoricalData}`);
+  console.log(`   ❌ No signal detected: ${dataQuality.noSignal}`);
+  console.log(`   ❌ Low quality (filters): ${dataQuality.lowQuality}`);
+  console.log(`   ⛔ Quota full (rejected): ${dataQuality.quotaFull}`);
+  console.log(`   ✅ Ideas generated: ${ideas.length}`);
+  
   // Warn if target distribution was not met
   if (assetTypeCount.stock < targetDistribution.stock) {
     console.log(`⚠️  Stock shares: generated ${assetTypeCount.stock}, target was ${targetDistribution.stock}`);
@@ -885,6 +917,11 @@ export async function generateQuantIdeas(
   }
   if (assetTypeCount.crypto < targetDistribution.crypto) {
     console.log(`⚠️  Crypto: generated ${assetTypeCount.crypto}, target was ${targetDistribution.crypto}`);
+  }
+  
+  // Critical data quality warning
+  if (dataQuality.noHistoricalData > 0) {
+    console.log(`🚨 WARNING: ${dataQuality.noHistoricalData} candidates skipped due to missing historical data - ideas are based on real data only!`);
   }
 
   // If we don't have enough ideas, generate some based on catalysts
