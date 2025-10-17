@@ -692,8 +692,16 @@ export async function generateQuantIdeas(
     // Multi-timeframe analysis for enhanced confidence
     const mtfAnalysis = await analyzeMultiTimeframe(data, historicalPrices);
 
-    // Calculate risk/reward ratio
-    const riskRewardRatio = (levels.targetPrice - levels.entryPrice) / (levels.entryPrice - levels.stopLoss);
+    // Calculate risk/reward ratio with guards
+    const riskDistance = Math.abs(levels.entryPrice - levels.stopLoss);
+    const rewardDistance = Math.abs(levels.targetPrice - levels.entryPrice);
+    let riskRewardRatio = riskDistance > 0 ? rewardDistance / riskDistance : 0;
+    
+    // Guard against extreme values
+    if (!isFinite(riskRewardRatio) || isNaN(riskRewardRatio)) {
+      riskRewardRatio = 0;
+    }
+    riskRewardRatio = Math.min(riskRewardRatio, 99.9); // Cap at reasonable max
 
     // Calculate confidence score and quality signals with multi-timeframe analysis  
     const { score: confidenceScore, signals: qualitySignals } = calculateConfidenceScore(
@@ -990,7 +998,16 @@ export async function generateQuantIdeas(
       const entryPrice = Number((currentPrice * 0.998).toFixed(2));
       const targetPrice = Number((currentPrice * (direction === 'long' ? 1.1 : 0.9)).toFixed(2));
       const stopLoss = Number((currentPrice * (direction === 'long' ? 0.95 : 1.05)).toFixed(2));
-      const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
+      // Calculate risk/reward ratio with guards
+      const riskDistance = Math.abs(entryPrice - stopLoss);
+      const rewardDistance = Math.abs(targetPrice - entryPrice);
+      let riskRewardRatio = riskDistance > 0 ? rewardDistance / riskDistance : 0;
+      
+      // Guard against extreme values
+      if (!isFinite(riskRewardRatio) || isNaN(riskRewardRatio)) {
+        riskRewardRatio = 0;
+      }
+      riskRewardRatio = Math.min(riskRewardRatio, 99.9);
 
       // Quality check for catalyst ideas
       if (riskRewardRatio < 1.3) continue; // Skip if R:R too low (lowered to trust signals)

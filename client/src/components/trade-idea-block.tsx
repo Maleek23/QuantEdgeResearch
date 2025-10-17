@@ -254,7 +254,11 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
           <div className="grid grid-cols-2 gap-4 pt-4 border-t">
             <div>
               <div className="text-xs text-muted-foreground mb-1">R:R Ratio</div>
-              <div className="text-sm font-semibold">{idea.riskRewardRatio.toFixed(1)}:1</div>
+              <div className="text-sm font-semibold">
+                {isFinite(idea.riskRewardRatio) && !isNaN(idea.riskRewardRatio) 
+                  ? `${idea.riskRewardRatio.toFixed(1)}:1` 
+                  : 'N/A'}
+              </div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground mb-1">Source</div>

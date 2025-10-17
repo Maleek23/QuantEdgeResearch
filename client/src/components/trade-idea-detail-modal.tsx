@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ export function TradeIdeaDetailModal({
                   {idea.direction.toUpperCase()}
                 </Badge>
               </DialogTitle>
-              <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+              <DialogDescription className="flex items-center gap-2 mt-2 text-sm">
                 <span>{idea.assetType === 'option' ? 'Option' : idea.assetType === 'stock' ? 'Stock' : 'Crypto'}</span>
                 <span>•</span>
                 <span>Grade: {getLetterGrade(idea.confidenceScore)}</span>
@@ -67,7 +67,7 @@ export function TradeIdeaDetailModal({
                     </span>
                   </>
                 )}
-              </div>
+              </DialogDescription>
             </div>
             {onAddToWatchlist && (
               <Button variant="outline" size="sm" onClick={onAddToWatchlist}>
@@ -153,7 +153,11 @@ export function TradeIdeaDetailModal({
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex justify-between items-center p-3 rounded-lg bg-muted/30">
                   <span className="text-sm text-muted-foreground">Risk:Reward</span>
-                  <span className="text-sm font-semibold">{idea.riskRewardRatio.toFixed(1)}:1</span>
+                  <span className="text-sm font-semibold">
+                    {isFinite(idea.riskRewardRatio) && !isNaN(idea.riskRewardRatio) 
+                      ? `${idea.riskRewardRatio.toFixed(1)}:1` 
+                      : 'N/A'}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center p-3 rounded-lg bg-muted/30">
                   <span className="text-sm text-muted-foreground">Source</span>
