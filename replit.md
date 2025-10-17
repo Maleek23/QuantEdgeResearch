@@ -32,6 +32,12 @@ Sidebar navigation organized into logical groups: Research (Dashboard, Trade Ide
 ### UI/UX Decisions
 The platform features a professional dark theme with a consistent color palette (green for bullish, red for bearish, amber for neutral/warning, blue for actions). Typography uses Inter for UI and JetBrains Mono for financial data. Components include cards with hover effects, badges, sticky-header tables, responsive grids, and loading skeletons. Data presentation prioritizes visual hierarchy, clear scanning, and interactive tooltips. Key UI elements include pulsing "FRESH" badges, smart notifications for new ideas, and optimistic UI updates for quick actions.
 
+**Recent UI/UX Enhancements (Oct 2025):**
+- **Glowing Verification Badges:** Real data badges pulse with subtle glow animation (2s infinite loop) using CSS `glow-pulse` keyframes. Applied to all success-variant badges to highlight verified market data without overwhelming the interface.
+- **Real-Time Price Display:** Trade idea cards show live market prices (30s refresh interval) with prominent 2xl font-mono styling. Prices pulse/scale (300ms animation) when values change, using ref-based change detection to trigger exactly once per update.
+- **Simplified Card Layout:** Redesigned for faster scanning with large symbol/price at top, grade badge in top-right, compact single-row info (asset type + data quality + source + time), and side-by-side entry/target boxes.
+- **Accessible View Toggle:** List/Grid view mode controls moved from inside Filters popover to compact button group next to Filters in header for one-click access.
+
 ### Technical Implementations & Feature Specifications
 - **Tech Stack:** React with TypeScript, Tailwind CSS + Shadcn UI, TanStack Query, Wouter, date-fns-tz for the frontend; Express.js with TypeScript, In-memory storage, and Zod validation for the backend.
 - **Core Navigation:** Collapsible sidebar, dedicated About page for creator profile, and robust settings management with localStorage persistence.

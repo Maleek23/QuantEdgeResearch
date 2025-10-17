@@ -58,11 +58,11 @@ export function DataQualityBadge({ assetType, dataSource, className }: DataQuali
 
     // Default: assume real data if no specific source
     return {
-      icon: Database,
+      icon: CheckCircle2,
       label: 'Verified',
       color: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
       tooltip: 'Data verified from market APIs.',
-      variant: 'default' as const
+      variant: 'success' as const  // Changed to success so glow effect applies
     };
   };
 
