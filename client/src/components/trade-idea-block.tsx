@@ -114,6 +114,23 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {/* Outcome Badge for closed ideas */}
+              {idea.outcomeStatus && idea.outcomeStatus !== 'open' && (
+                <Badge 
+                  variant={
+                    idea.outcomeStatus === 'hit_target' ? 'default' : 
+                    idea.outcomeStatus === 'hit_stop' ? 'destructive' : 
+                    'secondary'
+                  }
+                  className="font-semibold"
+                  data-testid={`badge-outcome-${idea.symbol}`}
+                >
+                  {idea.outcomeStatus === 'hit_target' ? 'HIT TARGET' :
+                   idea.outcomeStatus === 'hit_stop' ? 'HIT STOP' :
+                   idea.outcomeStatus === 'expired' ? 'EXPIRED' :
+                   'CLOSED'}
+                </Badge>
+              )}
               <div className="text-right">
                 <div className="text-xs text-muted-foreground">Grade</div>
                 <div className="text-lg font-semibold">{getLetterGrade(idea.confidenceScore)}</div>

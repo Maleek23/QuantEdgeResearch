@@ -51,6 +51,22 @@ export function TradeIdeaDetailModal({
                   {isLong ? <ArrowUpRight className="h-4 w-4 mr-1" /> : <ArrowDownRight className="h-4 w-4 mr-1" />}
                   {idea.direction.toUpperCase()}
                 </Badge>
+                {/* Outcome Badge for closed ideas */}
+                {idea.outcomeStatus && idea.outcomeStatus !== 'open' && (
+                  <Badge 
+                    variant={
+                      idea.outcomeStatus === 'hit_target' ? 'default' : 
+                      idea.outcomeStatus === 'hit_stop' ? 'destructive' : 
+                      'secondary'
+                    }
+                    className="text-sm font-semibold"
+                  >
+                    {idea.outcomeStatus === 'hit_target' ? 'HIT TARGET' :
+                     idea.outcomeStatus === 'hit_stop' ? 'HIT STOP' :
+                     idea.outcomeStatus === 'expired' ? 'EXPIRED' :
+                     'CLOSED'}
+                  </Badge>
+                )}
               </DialogTitle>
               <DialogDescription className="flex items-center gap-2 mt-2 text-sm">
                 <span>{idea.assetType === 'option' ? 'Option' : idea.assetType === 'stock' ? 'Stock' : 'Crypto'}</span>
