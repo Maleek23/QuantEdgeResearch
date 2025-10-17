@@ -50,6 +50,52 @@ interface AITradeIdea {
   expiryDate?: string;
 }
 
+// Parse trade ideas from conversational text
+export async function parseTradeIdeasFromText(text: string): Promise<AITradeIdea[]> {
+  const systemPrompt = `You are a trade idea extraction specialist. Parse the given text and extract any trade ideas mentioned.
+
+For each trade idea found, extract:
+- symbol: Stock ticker or crypto symbol
+- assetType: "stock", "option", or "crypto" 
+- direction: "long" or "short" (or "buy"/"sell")
+- entryPrice: Suggested entry price (extract from text or estimate based on context)
+- targetPrice: Price target
+- stopLoss: Stop loss price (if not mentioned, calculate 2-3% below entry for long, above for short)
+- catalyst: Why this trade (from the text)
+- analysis: The reasoning provided
+- sessionContext: Brief market context
+- expiryDate: (only for options, format: "YYYY-MM-DD")
+
+Return valid JSON object with structure: {"ideas": [array of trade ideas]}
+If no clear trade ideas are found, return empty array.`;
+
+  try {
+    // Try OpenAI first (fastest)
+    const openaiResponse = await getOpenAI().chat.completions.create({
+      model: "gpt-5",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Extract trade ideas from this text:\n\n${text}` }
+      ],
+      response_format: { type: "json_object" },
+      max_completion_tokens: 1024,
+    });
+
+    const content = openaiResponse.choices[0].message.content || '{"ideas":[]}';
+    const parsed = JSON.parse(content);
+    
+    if (Array.isArray(parsed)) {
+      return parsed;
+    } else if (parsed.ideas && Array.isArray(parsed.ideas)) {
+      return parsed.ideas;
+    }
+    return [];
+  } catch (error) {
+    console.error("Failed to parse trade ideas:", error);
+    return [];
+  }
+}
+
 // Generate trade ideas using all 3 AI models
 export async function generateTradeIdeas(marketContext: string): Promise<AITradeIdea[]> {
   const systemPrompt = `You are a quantitative trading analyst. Generate 3-4 high-quality trade ideas based on current market conditions.

@@ -619,6 +619,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Parse chat message and extract trade ideas
+  app.post("/api/ai/parse-chat-idea", async (req, res) => {
+    try {
+      const schema = z.object({
+        messageId: z.string(),
+        content: z.string(),
+      });
+      const { messageId, content } = schema.parse(req.body);
+      
+      // Use AI to extract structured trade ideas from conversational text
+      const { parseTradeIdeasFromText } = await import("./ai-service");
+      const extractedIdeas = await parseTradeIdeasFromText(content);
+      
+      // Save extracted ideas to storage
+      const savedIdeas = [];
+      for (const idea of extractedIdeas) {
+        const riskRewardRatio = (idea.targetPrice - idea.entryPrice) / (idea.entryPrice - idea.stopLoss);
+        
+        const tradeIdea = await storage.createTradeIdea({
+          symbol: idea.symbol,
+          assetType: idea.assetType,
+          direction: idea.direction,
+          entryPrice: idea.entryPrice,
+          targetPrice: idea.targetPrice,
+          stopLoss: idea.stopLoss,
+          riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
+          catalyst: idea.catalyst || "From AI chat conversation",
+          analysis: idea.analysis || "Extracted from conversational response",
+          liquidityWarning: idea.entryPrice < 5,
+          sessionContext: idea.sessionContext || "Chat-suggested trade",
+          timestamp: new Date().toISOString(),
+          expiryDate: idea.expiryDate || null,
+          strikePrice: idea.assetType === 'option' ? idea.entryPrice * (idea.direction === 'long' ? 1.02 : 0.98) : null,
+          optionType: idea.assetType === 'option' ? (idea.direction === 'long' ? 'call' : 'put') : null,
+          source: 'ai'
+        });
+        savedIdeas.push(tradeIdea);
+      }
+      
+      res.json({ success: true, ideas: savedIdeas, count: savedIdeas.length });
+    } catch (error: any) {
+      console.error("Parse chat idea error:", error);
+      res.status(500).json({ error: error?.message || "Failed to parse trade ideas" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
