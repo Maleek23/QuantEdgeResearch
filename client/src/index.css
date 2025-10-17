@@ -331,4 +331,34 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+
+  /* Glow animation for verification badges */
+  @keyframes glow-pulse {
+    0%, 100% {
+      box-shadow: 0 0 5px currentColor, 0 0 10px currentColor;
+      opacity: 1;
+    }
+    50% {
+      box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+      opacity: 0.9;
+    }
+  }
+
+  .badge-glow {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  /* Subtle pulse for real-time price updates */
+  @keyframes price-pulse {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+  }
+
+  .price-update {
+    animation: price-pulse 0.3s ease-in-out;
+  }
 }

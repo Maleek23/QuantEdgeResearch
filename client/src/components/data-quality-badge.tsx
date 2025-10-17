@@ -69,12 +69,11 @@ export function DataQualityBadge({ assetType, dataSource, className }: DataQuali
   const quality = getQualityInfo();
   const Icon = quality.icon;
 
-  // Simple badge without tooltip to avoid button nesting issues
-  // Tooltip explanation will be shown in the expanded details view instead
+  // Simple badge with glow animation for verified data
   return (
     <Badge 
       variant="outline" 
-      className={`${quality.color} gap-1 border ${className}`}
+      className={`${quality.color} gap-1 border ${quality.variant === 'success' ? 'badge-glow' : ''} ${className}`}
       data-testid={`badge-data-quality-${quality.label.toLowerCase().replace(/\s+/g, '-')}`}
       title={quality.tooltip}
     >

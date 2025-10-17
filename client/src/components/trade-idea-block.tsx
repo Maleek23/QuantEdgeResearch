@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -32,7 +32,20 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
   const [perfDialogOpen, setPerfDialogOpen] = useState(false);
   const [outcome, setOutcome] = useState<string>('');
   const [actualExit, setActualExit] = useState<string>('');
+  const [priceUpdated, setPriceUpdated] = useState(false);
+  const prevPriceRef = useRef<number | undefined>(currentPrice);
   const { toast } = useToast();
+
+  // Trigger animation when price changes
+  useEffect(() => {
+    if (currentPrice !== undefined && prevPriceRef.current !== undefined && currentPrice !== prevPriceRef.current) {
+      setPriceUpdated(true);
+      prevPriceRef.current = currentPrice; // Update ref immediately after detecting change
+      const timer = setTimeout(() => setPriceUpdated(false), 300); // Match animation duration
+      return () => clearTimeout(timer);
+    }
+    prevPriceRef.current = currentPrice; // Update ref for initial mount or when price is undefined
+  }, [currentPrice]);
 
   const performanceMutation = useMutation({
     mutationFn: async (data: { outcomeStatus: string; actualExit?: number; exitDate: string }) => {
@@ -252,120 +265,124 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
 
       <CollapsibleTrigger className="w-full" data-testid={`block-trade-idea-${idea.symbol}`}>
         <div className="p-4 border rounded-lg bg-card">
-          {/* Top Row: Symbol, Direction, Time Posted */}
+          {/* Top Row: Symbol with Real-Time Price & Direction */}
           <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 
-                className="text-xl font-bold font-mono"
-                data-testid={`text-symbol-${idea.symbol}`}
-              >
-                {idea.symbol}
-              </h3>
-              <Badge 
-                variant={isLong ? "default" : "destructive"} 
-                className="font-semibold text-xs"
-                data-testid={`badge-direction-${idea.symbol}`}
-              >
-                {isLong ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
-                {idea.direction.toUpperCase()}
-              </Badge>
-              <Badge 
-                variant="outline" 
-                className="font-semibold text-xs gap-1"
-                data-testid={`badge-source-${idea.symbol}`}
-              >
-                {idea.source === 'ai' && <Sparkles className="h-3 w-3" />}
-                {idea.source === 'quant' && <BarChart3 className="h-3 w-3" />}
-                {idea.source === 'manual' && <Brain className="h-3 w-3" />}
-                {idea.source === 'ai' && 'AI'}
-                {idea.source === 'quant' && 'QUANT'}
-                {idea.source === 'manual' && 'MANUAL'}
-              </Badge>
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {getTimeSincePosted()}
-              </span>
+            <div className="flex items-center gap-3 flex-1">
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <h3 
+                    className="text-2xl font-bold font-mono"
+                    data-testid={`text-symbol-${idea.symbol}`}
+                  >
+                    {idea.symbol}
+                  </h3>
+                  <Badge 
+                    variant={isLong ? "default" : "destructive"} 
+                    className="font-semibold"
+                    data-testid={`badge-direction-${idea.symbol}`}
+                  >
+                    {isLong ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+                    {idea.direction.toUpperCase()}
+                  </Badge>
+                </div>
+                {/* Real-Time Price Display */}
+                {currentPrice && (
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className={cn(
+                      "text-2xl font-bold font-mono",
+                      priceUpdated && "price-update",
+                      priceChangePercent >= 0 ? "text-bullish" : "text-bearish"
+                    )} data-testid={`text-current-price-${idea.symbol}`}>
+                      {formatCurrency(currentPrice)}
+                    </span>
+                    <span className={cn(
+                      "text-sm font-semibold font-mono",
+                      priceChangePercent >= 0 ? "text-bullish" : "text-bearish"
+                    )}>
+                      {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
             
-            <ChevronDown 
-              className={cn(
-                "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0",
-                isOpen && "rotate-180"
-              )}
-            />
+            <div className="flex items-center gap-2">
+              <div className="text-right">
+                <div className="text-xs text-muted-foreground mb-1">Grade</div>
+                <Badge variant="outline" className={cn(
+                  "font-bold",
+                  getLetterGrade(dynamicScore).startsWith('A') && 'border-bullish text-bullish',
+                  getLetterGrade(dynamicScore).startsWith('B') && 'border-amber-500 text-amber-400',
+                  getLetterGrade(dynamicScore).startsWith('C') && 'border-muted text-muted-foreground'
+                )}>
+                  {getLetterGrade(dynamicScore)}
+                </Badge>
+              </div>
+              <ChevronDown 
+                className={cn(
+                  "h-5 w-5 text-muted-foreground transition-transform flex-shrink-0",
+                  isOpen && "rotate-180"
+                )}
+              />
+            </div>
           </div>
 
-          {/* Asset Type & Options Details */}
+          {/* Compact Info Row */}
           <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <Badge variant="secondary" className="text-xs font-semibold">
+            <Badge variant="secondary" className="text-xs">
               {idea.assetType === 'option' ? 'OPTIONS' : idea.assetType === 'stock' ? 'SHARES' : 'CRYPTO'}
             </Badge>
             
-            {/* Data Quality Badge */}
             <DataQualityBadge 
               assetType={idea.assetType} 
               dataSource={idea.dataSourceUsed || undefined}
             />
+            
+            <Badge variant="outline" className="text-xs gap-1" data-testid={`badge-source-${idea.symbol}`}>
+              {idea.source === 'ai' && <Sparkles className="h-3 w-3" />}
+              {idea.source === 'quant' && <BarChart3 className="h-3 w-3" />}
+              {idea.source === 'ai' && 'AI'}
+              {idea.source === 'quant' && 'QUANT'}
+            </Badge>
+            
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {getTimeSincePosted()}
+            </span>
             
             {idea.assetType === 'option' && idea.strikePrice !== undefined && idea.optionType && (
               <>
                 <Badge 
                   variant="outline" 
                   className={cn(
-                    "text-xs font-semibold",
+                    "text-xs",
                     idea.optionType === 'call' ? 'border-bullish text-bullish' : 'border-bearish text-bearish'
                   )}
                   data-testid={`badge-option-type-${idea.symbol}`}
                 >
-                  {idea.optionType.toUpperCase()}
-                </Badge>
-                <Badge 
-                  variant="secondary" 
-                  className="text-xs font-semibold"
-                  data-testid={`badge-strike-${idea.symbol}`}
-                >
-                  Strike: ${idea.strikePrice}
+                  {idea.optionType.toUpperCase()} ${idea.strikePrice}
                 </Badge>
                 {idea.expiryDate && (
-                  <Badge 
-                    variant="outline" 
-                    className="text-xs font-semibold text-muted-foreground"
-                    data-testid={`badge-expiry-${idea.symbol}`}
-                  >
-                    Exp: {idea.expiryDate}
+                  <Badge variant="outline" className="text-xs text-muted-foreground" data-testid={`badge-expiry-${idea.symbol}`}>
+                    {idea.expiryDate}
                   </Badge>
                 )}
               </>
             )}
           </div>
 
-          {/* Price Grid: Current | Entry | Target */}
-          <div className="grid grid-cols-3 gap-4 mb-3">
-            <div>
-              <span className="text-xs text-muted-foreground block mb-1">Current</span>
-              <span className="text-lg font-bold font-mono block" data-testid={`text-current-price-${idea.symbol}`}>
-                {formatCurrency(displayPrice)}
-              </span>
-              {currentPrice && (
-                <span className={cn(
-                  "text-xs font-semibold font-mono",
-                  priceChangePercent >= 0 ? "text-bullish" : "text-bearish"
-                )}>
-                  {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
-                </span>
-              )}
-            </div>
-
-            <div>
-              <span className="text-xs text-muted-foreground block mb-1">Entry</span>
-              <span className="text-lg font-bold font-mono text-blue-400 block">
+          {/* Simplified Price Targets */}
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="flex justify-between items-center px-3 py-2 rounded-md bg-background/50">
+              <span className="text-xs text-muted-foreground">Entry</span>
+              <span className="text-sm font-bold font-mono text-blue-400">
                 {formatCurrency(idea.entryPrice)}
               </span>
             </div>
 
-            <div>
-              <span className="text-xs text-muted-foreground block mb-1">Target</span>
-              <span className="text-lg font-bold font-mono text-bullish block" data-testid={`text-target-preview-${idea.symbol}`}>
+            <div className="flex justify-between items-center px-3 py-2 rounded-md bg-background/50">
+              <span className="text-xs text-muted-foreground">Target</span>
+              <span className="text-sm font-bold font-mono text-bullish" data-testid={`text-target-preview-${idea.symbol}`}>
                 {formatCurrency(idea.targetPrice)}
               </span>
             </div>

@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { TradeIdea, ScreenerFilters as Filters, IdeaSource } from "@shared/schema";
+import type { TradeIdea, ScreenerFilters as Filters, IdeaSource, MarketData } from "@shared/schema";
 import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO } from "date-fns";
 
@@ -37,6 +37,18 @@ export default function TradeIdeasPage() {
     queryKey: ['/api/trade-ideas'],
     refetchInterval: 60000,
   });
+
+  // Fetch market data for real-time prices
+  const { data: marketData = [] } = useQuery<MarketData[]>({
+    queryKey: ['/api/market-data'],
+    refetchInterval: 30000, // Refresh every 30 seconds for live prices
+  });
+
+  // Create a map of symbol to current price
+  const priceMap = marketData.reduce((acc, data) => {
+    acc[data.symbol] = data.currentPrice;
+    return acc;
+  }, {} as Record<string, number>);
 
   // Generate Quant Ideas mutation
   const generateQuantIdeas = useMutation({
@@ -201,6 +213,28 @@ export default function TradeIdeasPage() {
           )}
         </div>
 
+        {/* View Mode Toggle */}
+        <div className="flex items-center gap-1 border rounded-md p-1">
+          <Button
+            variant={viewMode === "list" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("list")}
+            className="h-8 px-3"
+            data-testid="button-view-list"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "grid" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("grid")}
+            className="h-8 px-3"
+            data-testid="button-view-grid"
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+        </div>
+
         {/* Filters Popover */}
         <Popover>
           <PopoverTrigger asChild>
@@ -352,32 +386,6 @@ export default function TradeIdeasPage() {
                 </Popover>
               </div>
 
-              {/* View Mode */}
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">View Mode</Label>
-                <div className="flex gap-2">
-                  <Button
-                    variant={viewMode === "list" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setViewMode("list")}
-                    className="flex-1 gap-2"
-                    data-testid="button-view-list"
-                  >
-                    <List className="h-4 w-4" />
-                    List
-                  </Button>
-                  <Button
-                    variant={viewMode === "grid" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setViewMode("grid")}
-                    className="flex-1 gap-2"
-                    data-testid="button-view-grid"
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                    Grid
-                  </Button>
-                </div>
-              </div>
             </div>
           </PopoverContent>
         </Popover>
@@ -446,6 +454,7 @@ export default function TradeIdeasPage() {
                             <TradeIdeaBlock
                               key={idea.id}
                               idea={idea}
+                              currentPrice={priceMap[idea.symbol]}
                               isExpanded={expandedIdeaId === idea.id}
                               onToggleExpand={() => handleToggleExpand(idea.id)}
                               data-testid={`idea-card-${idea.id}`}
@@ -478,6 +487,7 @@ export default function TradeIdeasPage() {
                   <TradeIdeaBlock
                     key={idea.id}
                     idea={idea}
+                    currentPrice={priceMap[idea.symbol]}
                     isExpanded={expandedIdeaId === idea.id}
                     onToggleExpand={() => handleToggleExpand(idea.id)}
                     data-testid={`archived-idea-card-${idea.id}`}
