@@ -16,6 +16,24 @@ interface ChatMessage {
   timestamp: string;
 }
 
+// Typing effect component for assistant messages
+function TypingMessage({ content }: { content: string }) {
+  const [displayedContent, setDisplayedContent] = useState("");
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (currentIndex < content.length) {
+      const timeout = setTimeout(() => {
+        setDisplayedContent(prev => prev + content[currentIndex]);
+        setCurrentIndex(prev => prev + 1);
+      }, 15); // 15ms per character for smooth typing
+      return () => clearTimeout(timeout);
+    }
+  }, [currentIndex, content]);
+
+  return <p className="text-sm whitespace-pre-wrap">{displayedContent}</p>;
+}
+
 interface QuantAIBotProps {
   isOpen: boolean;
   onClose: () => void;
@@ -24,6 +42,7 @@ interface QuantAIBotProps {
 export function QuantAIBot({ isOpen, onClose }: QuantAIBotProps) {
   const [message, setMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [lastMessageId, setLastMessageId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { data: chatHistory = [], refetch } = useQuery<ChatMessage[]>({
@@ -35,9 +54,13 @@ export function QuantAIBot({ isOpen, onClose }: QuantAIBotProps) {
     mutationFn: async (userMessage: string) => {
       return await apiRequest('POST', '/api/ai/chat', { message: userMessage });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setMessage("");
       queryClient.invalidateQueries({ queryKey: ['/api/ai/chat/history'] });
+      // Track the latest message to show typing effect
+      if (data && chatHistory.length > 0) {
+        setLastMessageId(chatHistory[chatHistory.length - 1]?.id);
+      }
     },
     onError: () => {
       toast({
@@ -78,6 +101,16 @@ export function QuantAIBot({ isOpen, onClose }: QuantAIBotProps) {
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [chatHistory]);
+
+  // Update last message ID when history changes
+  useEffect(() => {
+    if (chatHistory.length > 0) {
+      const latestMsg = chatHistory[chatHistory.length - 1];
+      if (latestMsg.role === 'assistant' && latestMsg.id !== lastMessageId) {
+        setLastMessageId(latestMsg.id);
+      }
     }
   }, [chatHistory]);
 
@@ -135,31 +168,41 @@ export function QuantAIBot({ isOpen, onClose }: QuantAIBotProps) {
               </p>
             </div>
           ) : (
-            chatHistory.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
+            chatHistory.map((msg, index) => {
+              const isLatestAssistant = msg.role === 'assistant' && msg.id === lastMessageId;
+              const isJustReceived = isLatestAssistant && index === chatHistory.length - 1;
+              
+              return (
                 <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
-                    msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  }`}
+                  key={msg.id}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  {msg.role === 'assistant' && (
-                    <div className="flex items-center gap-2 mb-1">
-                      <Bot className="h-3 w-3" />
-                      <span className="text-xs font-medium">QuantAI</span>
-                    </div>
-                  )}
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                  <span className="text-xs opacity-70 mt-1 block">
-                    {new Date(msg.timestamp).toLocaleTimeString()}
-                  </span>
+                  <div
+                    className={`max-w-[80%] rounded-lg p-3 ${
+                      msg.role === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted'
+                    }`}
+                  >
+                    {msg.role === 'assistant' && (
+                      <div className="flex items-center gap-2 mb-1">
+                        <Bot className="h-3 w-3" />
+                        <span className="text-xs font-medium">QuantAI</span>
+                      </div>
+                    )}
+                    {/* Show typing effect for the latest assistant message */}
+                    {isJustReceived ? (
+                      <TypingMessage content={msg.content} />
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    )}
+                    <span className="text-xs opacity-70 mt-1 block">
+                      {new Date(msg.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
           {sendMessageMutation.isPending && (
             <div className="flex justify-start">
