@@ -41,6 +41,18 @@ export const tradeIdeas = pgTable("trade_ideas", {
   realizedPnL: real("realized_pnl"), // Actual profit/loss in dollars
   exitDate: text("exit_date"), // When trade was closed
   outcomeNotes: text("outcome_notes"), // Additional notes about outcome
+  
+  // Data Quality Tracking
+  dataSourceUsed: text("data_source_used"), // 'tradier', 'yahoo', 'coingecko', 'alphavantage', 'estimated'
+  
+  // Explainability - Technical Indicator Values (for transparency)
+  rsiValue: real("rsi_value"), // Actual RSI value (0-100)
+  macdLine: real("macd_line"), // MACD line value
+  macdSignal: real("macd_signal"), // MACD signal line value
+  macdHistogram: real("macd_histogram"), // MACD histogram value
+  volumeRatio: real("volume_ratio"), // Current volume / average volume
+  priceVs52WeekHigh: real("price_vs_52week_high"), // Distance from 52-week high (%)
+  priceVs52WeekLow: real("price_vs_52week_low"), // Distance from 52-week low (%)
 });
 
 export const insertTradeIdeaSchema = createInsertSchema(tradeIdeas).omit({ id: true });

@@ -13,6 +13,8 @@ import { ChevronDown, TrendingUp, TrendingDown, Star, Brain, Sparkles, AlertTria
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { DataQualityBadge } from "@/components/data-quality-badge";
+import { ExplainabilityPanel } from "@/components/explainability-panel";
 import type { TradeIdea, MarketData } from "@shared/schema";
 
 interface TradeIdeaBlockProps {
@@ -298,6 +300,13 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
             <Badge variant="secondary" className="text-xs font-semibold">
               {idea.assetType === 'option' ? 'OPTIONS' : idea.assetType === 'stock' ? 'SHARES' : 'CRYPTO'}
             </Badge>
+            
+            {/* Data Quality Badge */}
+            <DataQualityBadge 
+              assetType={idea.assetType} 
+              dataSource={idea.dataSourceUsed || undefined}
+            />
+            
             {idea.assetType === 'option' && idea.strikePrice !== undefined && idea.optionType && (
               <>
                 <Badge 
@@ -454,7 +463,10 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
 
       <CollapsibleContent>
         <div className="border-x border-b rounded-b-lg p-4 bg-card/50 space-y-4" onClick={(e) => e.stopPropagation()}>
-          {/* Quality Signals */}
+          {/* Explainability Panel - Show exact technical indicators (if available) */}
+          <ExplainabilityPanel idea={idea} />
+
+          {/* Quality Signals - Fallback for ideas without full indicator data */}
           {idea.qualitySignals && idea.qualitySignals.length > 0 && (
             <div data-testid={`quality-signals-${idea.symbol}`}>
               <h4 className="text-sm font-semibold mb-2 text-muted-foreground">Quality Signals</h4>

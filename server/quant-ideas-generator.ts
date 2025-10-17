@@ -828,6 +828,19 @@ export async function generateQuantIdeas(
       }
     }
 
+    // Determine data source used (based on known working APIs)
+    const dataSourceUsed = assetType === 'crypto' 
+      ? 'coingecko'  // CoinGecko for crypto prices
+      : assetType === 'option' 
+        ? 'estimated'  // Options strikes estimated (Tradier API inactive)
+        : 'yahoo';     // Yahoo Finance for stock prices (primary, unlimited)
+
+    // Calculate volume ratio for transparency
+    const actualVolumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : null;
+
+    // TODO: Extract RSI/MACD values from signal detection for full transparency
+    // For now, we populate what's available and will enhance in next iteration
+    
     const idea: InsertTradeIdea = {
       symbol: data.symbol,
       assetType: assetType,
@@ -841,6 +854,14 @@ export async function generateQuantIdeas(
       sessionContext: sessionContext,
       timestamp: now.toISOString(),
       liquidityWarning: levels.entryPrice < 5,
+      
+      // Data quality tracking
+      dataSourceUsed: dataSourceUsed,
+      
+      // Explainability fields (partial - will enhance to include RSI/MACD)
+      volumeRatio: actualVolumeRatio,
+      // TODO: Add rsiValue, macdLine, macdSignal, macdHistogram from signal detection
+      
       expiryDate: assetType === 'option' 
         ? (() => {
             // Options expire on Fridays - find next valid Friday in Chicago timezone
