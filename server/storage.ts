@@ -333,9 +333,24 @@ export class MemStorage implements IStorage {
       this.marketData.set(id, { ...data, id } as MarketData);
     });
 
-    // No seed trade ideas - let the hidden gem discovery system populate them dynamically
-    // Users can click "Generate Quant Ideas" to discover current opportunities based on live market data
-    /*
+    // Seed trade ideas with time windows
+    // Time window helpers for seed data
+    const getEntryValidUntil = (assetType: string) => {
+      const minutesValid = assetType === 'crypto' ? 120 : 90;
+      const validUntilDate = new Date(Date.now() + minutesValid * 60 * 1000);
+      return formatInTimeZone(validUntilDate, 'America/Chicago', 'h:mm a zzz');
+    };
+    
+    const getExitBy = (assetType: string) => {
+      if (assetType === 'crypto') {
+        const exitDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        return formatInTimeZone(exitDate, 'America/Chicago', 'MMM d, h:mm a zzz');
+      } else {
+        // Stocks: Exit by market close
+        return formatInTimeZone(new Date(), 'America/Chicago', 'MMM d') + ' 4:00 PM EST';
+      }
+    };
+
     const seedTradeIdeas: InsertTradeIdea[] = [
       {
         symbol: "RENDER",
@@ -350,6 +365,8 @@ export class MemStorage implements IStorage {
         liquidityWarning: false,
         sessionContext: "24/7 Trading",
         timestamp: now,
+        entryValidUntil: getEntryValidUntil('crypto'),
+        exitBy: getExitBy('crypto'),
         source: "quant",
         confidenceScore: 78,
         qualitySignals: ['Strong R:R (2.5:1)', 'Volume Spike (2.8x)', 'Emerging Sector'],
@@ -369,6 +386,8 @@ export class MemStorage implements IStorage {
         liquidityWarning: false,
         sessionContext: "24/7 Trading",
         timestamp: now,
+        entryValidUntil: getEntryValidUntil('crypto'),
+        exitBy: getExitBy('crypto'),
         source: "quant",
         confidenceScore: 82,
         qualitySignals: ['Excellent R:R (3.6:1)', 'Institutional Flow', 'RWA Narrative'],
@@ -388,6 +407,8 @@ export class MemStorage implements IStorage {
         liquidityWarning: false,
         sessionContext: "24/7 Trading",
         timestamp: now,
+        entryValidUntil: getEntryValidUntil('crypto'),
+        exitBy: getExitBy('crypto'),
         source: "quant",
         confidenceScore: 76,
         qualitySignals: ['Strong R:R (2.7:1)', 'Revenue Growth', 'DeFi Leader'],
@@ -407,6 +428,8 @@ export class MemStorage implements IStorage {
         liquidityWarning: false,
         sessionContext: "24/7 Trading",
         timestamp: now,
+        entryValidUntil: getEntryValidUntil('crypto'),
+        exitBy: getExitBy('crypto'),
         source: "quant",
         confidenceScore: 80,
         qualitySignals: ['Excellent R:R (3.8:1)', 'TVL Expansion', 'Innovation Leader'],
@@ -419,7 +442,6 @@ export class MemStorage implements IStorage {
       const id = randomUUID();
       this.tradeIdeas.set(id, { ...idea, id } as TradeIdea);
     });
-    */
 
     // Seed catalysts
     const seedCatalysts: InsertCatalyst[] = [
