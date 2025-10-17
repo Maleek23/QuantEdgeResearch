@@ -506,11 +506,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate quantitative ideas with deduplication
       const quantIdeas = await generateQuantIdeas(marketData, catalysts, count, storage);
       
-      // Save ideas to storage
+      // Save ideas to storage and send Discord alerts
       const savedIdeas = [];
       for (const idea of quantIdeas) {
         const tradeIdea = await storage.createTradeIdea(idea);
         savedIdeas.push(tradeIdea);
+      }
+      
+      // Send Discord notification for batch
+      if (savedIdeas.length > 0) {
+        const { sendBatchSummaryToDiscord } = await import("./discord-service");
+        sendBatchSummaryToDiscord(savedIdeas, 'quant').catch(err => 
+          console.error('Discord notification failed:', err)
+        );
       }
       
       // Return helpful message when no new ideas are available
@@ -540,7 +548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const aiIdeas = await generateTradeIdeas(marketContext);
       
-      // Save AI-generated ideas to storage
+      // Save AI-generated ideas to storage and send Discord alerts
       const savedIdeas = [];
       for (const aiIdea of aiIdeas) {
         const riskRewardRatio = (aiIdea.targetPrice - aiIdea.entryPrice) / (aiIdea.entryPrice - aiIdea.stopLoss);
@@ -564,6 +572,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           source: 'ai'
         });
         savedIdeas.push(tradeIdea);
+      }
+      
+      // Send Discord notification for batch
+      if (savedIdeas.length > 0) {
+        const { sendBatchSummaryToDiscord } = await import("./discord-service");
+        sendBatchSummaryToDiscord(savedIdeas, 'ai').catch(err => 
+          console.error('Discord notification failed:', err)
+        );
       }
       
       res.json({ success: true, ideas: savedIdeas, count: savedIdeas.length });
@@ -631,6 +647,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (savedIdeas.length > 0) {
             console.log(`✅ Auto-saved ${savedIdeas.length} trade ideas from chat to Trade Ideas feed`);
+            
+            // Send individual Discord alerts for chat-generated ideas
+            const { sendTradeIdeaToDiscord } = await import("./discord-service");
+            for (const idea of savedIdeas) {
+              sendTradeIdeaToDiscord(idea).catch(err => 
+                console.error('Discord notification failed:', err)
+              );
+            }
           }
         } catch (parseError) {
           console.log("Could not auto-parse trade ideas from chat response:", parseError);
