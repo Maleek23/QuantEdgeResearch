@@ -388,6 +388,34 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
             </div>
           </div>
 
+          {/* Time Windows for Day Trading */}
+          {(idea.entryValidUntil || idea.exitBy) && (
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              {idea.entryValidUntil && (
+                <div className="flex flex-col px-3 py-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+                  <span className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Enter By
+                  </span>
+                  <span className="text-xs font-bold font-mono text-amber-400" data-testid={`text-entry-valid-${idea.symbol}`}>
+                    {idea.entryValidUntil}
+                  </span>
+                </div>
+              )}
+              {idea.exitBy && (
+                <div className="flex flex-col px-3 py-2 rounded-md bg-red-500/10 border border-red-500/20">
+                  <span className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Exit By
+                  </span>
+                  <span className="text-xs font-bold font-mono text-red-400" data-testid={`text-exit-by-${idea.symbol}`}>
+                    {idea.exitBy}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Real-time P&L Display */}
           {currentPrice && (
             <div className="mb-3">

@@ -27,6 +27,11 @@ export const tradeIdeas = pgTable("trade_ideas", {
   liquidityWarning: boolean("liquidity_warning").default(false),
   sessionContext: text("session_context").notNull(),
   timestamp: text("timestamp").notNull(),
+  
+  // Time Windows for Day Trading
+  entryValidUntil: text("entry_valid_until"), // When entry window closes (e.g., +2 hours)
+  exitBy: text("exit_by"), // Max hold time / exit deadline (e.g., market close)
+  
   expiryDate: text("expiry_date"), // For options
   strikePrice: real("strike_price"), // For options
   optionType: text("option_type"), // 'call' | 'put' for options

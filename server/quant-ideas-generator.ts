@@ -824,6 +824,38 @@ export async function generateQuantIdeas(
     // Calculate volume ratio for transparency
     const actualVolumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : null;
 
+    // Calculate time windows for day trading
+    const entryValidUntil = (() => {
+      // Entry window: 90 minutes for stocks/options, 2 hours for crypto
+      const minutesValid = assetType === 'crypto' ? 120 : 90;
+      const validUntilDate = new Date(now.getTime() + minutesValid * 60 * 1000);
+      return formatInTimeZone(validUntilDate, timezone, 'h:mm a zzz');
+    })();
+
+    const exitBy = (() => {
+      if (assetType === 'option') {
+        // Options: Hold until expiry or sooner if target/stop hit
+        return 'Expiry or Target/Stop';
+      } else if (assetType === 'crypto') {
+        // Crypto: 24/7 market, suggest 24-hour max hold for day trades
+        const exitDate = new Date(now.getTime() + 24 * 60 * 1000);
+        return formatInTimeZone(exitDate, timezone, 'MMM d, h:mm a zzz');
+      } else {
+        // Stocks: Exit by market close (4 PM ET)
+        const currentHour = parseInt(formatInTimeZone(now, timezone, 'H'));
+        if (currentHour >= 16) {
+          // After market close, suggest tomorrow's close
+          const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+          return formatInTimeZone(tomorrow, timezone, 'MMM d') + ' 4:00 PM EST';
+        } else {
+          // Today's market close
+          return formatInTimeZone(now, timezone, 'MMM d') + ' 4:00 PM EST';
+        }
+      }
+    })();
+    
+    console.log(`⏰ ${data.symbol} time windows: Entry by ${entryValidUntil}, Exit by ${exitBy}`);
+
     // TODO: Extract RSI/MACD values from signal detection for full transparency
     // For now, we populate what's available and will enhance in next iteration
     
@@ -839,6 +871,11 @@ export async function generateQuantIdeas(
       analysis: analysis,
       sessionContext: sessionContext,
       timestamp: now.toISOString(),
+      
+      // Time windows for day trading
+      entryValidUntil: entryValidUntil,
+      exitBy: exitBy,
+      
       liquidityWarning: levels.entryPrice < 5,
       
       // Data quality tracking
