@@ -15,7 +15,7 @@ QuantEdge Research is a professional quantitative trading research platform desi
 - Provide helpful error messages for API billing, rate limits, and authentication issues.
 - Liquidity warnings should be displayed for penny stocks and low-float securities.
 - No personalized financial advice should be offered; it is for research purposes only.
-- GitHub repository: https://github.com/Maleek23
+- GitHub repository: https://github.com/Maleek23/QuantEdge
 
 ## System Architecture
 
