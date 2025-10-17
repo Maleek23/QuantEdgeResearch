@@ -852,6 +852,277 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Signal Intelligence & ML Routes
+  app.get("/api/ml/signal-intelligence", async (_req, res) => {
+    try {
+      const stats = await storage.getPerformanceStats();
+      const allIdeas = await storage.getAllTradeIdeas();
+      const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open');
+      
+      // 🧠 ML GUARD: Require minimum data to prevent learning from noise
+      if (closedIdeas.length < 10) {
+        return res.json({
+          signalAnalysis: [],
+          topCombinations: [],
+          assetComparison: [],
+          insights: [`Need at least 10 closed trades for reliable signal intelligence (currently have ${closedIdeas.length})`],
+          totalAnalyzedTrades: closedIdeas.length,
+          timestamp: new Date().toISOString(),
+          insufficientData: true
+        });
+      }
+      
+      // Analyze signal effectiveness
+      const signalAnalysis = stats.bySignalType.map(signalStat => {
+        const signalIdeas = closedIdeas.filter(i => 
+          i.qualitySignals?.includes(signalStat.signal)
+        );
+        
+        const avgHoldingTime = signalIdeas
+          .filter(i => i.actualHoldingTimeMinutes !== null)
+          .map(i => i.actualHoldingTimeMinutes!)
+          .reduce((sum, time, _, arr) => sum + time / arr.length, 0) || 0;
+        
+        const avgRR = signalIdeas
+          .map(i => i.riskRewardRatio)
+          .reduce((sum, rr, _, arr) => sum + rr / arr.length, 0) || 0;
+        
+        // Reliability score: win rate weighted by sample size
+        const sampleSizeWeight = Math.min(signalStat.totalIdeas / 20, 1); // Max weight at 20+ samples
+        const reliabilityScore = signalStat.winRate * sampleSizeWeight;
+        
+        // Calculate edge (expected value)
+        const avgWin = signalIdeas
+          .filter(i => i.outcomeStatus === 'hit_target' && i.percentGain !== null)
+          .map(i => i.percentGain!)
+          .reduce((sum, gain, _, arr) => sum + Math.abs(gain) / arr.length, 0) || 0;
+          
+        const avgLoss = signalIdeas
+          .filter(i => i.outcomeStatus === 'hit_stop' && i.percentGain !== null)
+          .map(i => i.percentGain!)
+          .reduce((sum, loss, _, arr) => sum + Math.abs(loss) / arr.length, 0) || 0;
+        
+        const expectancy = (signalStat.winRate / 100 * avgWin) - ((100 - signalStat.winRate) / 100 * avgLoss);
+        
+        return {
+          signal: signalStat.signal,
+          totalTrades: signalStat.totalIdeas,
+          winRate: signalStat.winRate,
+          avgPercentGain: signalStat.avgPercentGain,
+          avgHoldingTimeMinutes: avgHoldingTime,
+          avgRiskReward: avgRR,
+          reliabilityScore,
+          expectancy,
+          avgWinSize: avgWin,
+          avgLossSize: avgLoss,
+          grade: reliabilityScore >= 60 ? 'A' : reliabilityScore >= 40 ? 'B' : 'C'
+        };
+      }).sort((a, b) => b.reliabilityScore - a.reliabilityScore);
+      
+      // 🧠 ML-FIXED: Analyze ALL closed ideas to get accurate win/loss rates for combinations
+      // CRITICAL: Must evaluate both wins AND losses to calculate true win rates
+      const signalCombos = new Map<string, { count: number; wins: number; totalGain: number }>();
+      
+      closedIdeas.forEach(idea => {
+        if (idea.qualitySignals && idea.qualitySignals.length >= 2) {
+          const signals = typeof idea.qualitySignals === 'string' 
+            ? JSON.parse(idea.qualitySignals) 
+            : idea.qualitySignals;
+          
+          // Generate all combinations of 2 signals
+          for (let i = 0; i < signals.length; i++) {
+            for (let j = i + 1; j < signals.length; j++) {
+              const combo = [signals[i], signals[j]].sort().join(' + ');
+              const existing = signalCombos.get(combo) || { count: 0, wins: 0, totalGain: 0 };
+              signalCombos.set(combo, {
+                count: existing.count + 1,
+                wins: existing.wins + (idea.outcomeStatus === 'hit_target' ? 1 : 0),
+                totalGain: existing.totalGain + (idea.percentGain || 0)
+              });
+            }
+          }
+        }
+      });
+      
+      const topCombos = Array.from(signalCombos.entries())
+        .filter(([_, stats]) => stats.count >= 3) // Minimum 3 occurrences
+        .map(([combo, stats]) => ({
+          combination: combo,
+          occurrences: stats.count,
+          winRate: (stats.wins / stats.count) * 100,
+          avgGain: stats.totalGain / stats.count
+        }))
+        .sort((a, b) => b.winRate - a.winRate)
+        .slice(0, 10);
+      
+      // Asset type performance comparison
+      const assetComparison = stats.byAssetType.map(asset => {
+        const assetIdeas = closedIdeas.filter(i => i.assetType === asset.assetType);
+        const avgHoldingTime = assetIdeas
+          .filter(i => i.actualHoldingTimeMinutes !== null)
+          .map(i => i.actualHoldingTimeMinutes!)
+          .reduce((sum, time, _, arr) => sum + time / arr.length, 0) || 0;
+        
+        return {
+          assetType: asset.assetType,
+          totalTrades: asset.totalIdeas,
+          winRate: asset.winRate,
+          avgPercentGain: asset.avgPercentGain,
+          avgHoldingTimeMinutes: avgHoldingTime
+        };
+      });
+      
+      // Generate actionable insights
+      const insights: string[] = [];
+      
+      if (signalAnalysis.length > 0) {
+        const bestSignal = signalAnalysis[0];
+        if (bestSignal.reliabilityScore >= 60) {
+          insights.push(`🎯 Your most reliable signal is "${bestSignal.signal}" with ${bestSignal.winRate.toFixed(1)}% win rate`);
+        }
+        
+        const worstSignal = signalAnalysis[signalAnalysis.length - 1];
+        if (worstSignal.winRate < 40 && worstSignal.totalTrades >= 5) {
+          insights.push(`⚠️ Avoid "${worstSignal.signal}" - only ${worstSignal.winRate.toFixed(1)}% win rate`);
+        }
+      }
+      
+      if (topCombos.length > 0 && topCombos[0].winRate >= 70) {
+        insights.push(`✨ Winning pattern: ${topCombos[0].combination} (${topCombos[0].winRate.toFixed(1)}% win rate)`);
+      }
+      
+      if (assetComparison.length > 0) {
+        const bestAsset = assetComparison.reduce((best, asset) => 
+          asset.winRate > best.winRate ? asset : best
+        );
+        insights.push(`💰 Best performing asset: ${bestAsset.assetType.toUpperCase()} (${bestAsset.winRate.toFixed(1)}% win rate)`);
+      }
+      
+      res.json({
+        signalAnalysis,
+        topCombinations: topCombos,
+        assetComparison,
+        insights,
+        totalAnalyzedTrades: closedIdeas.length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error("Signal intelligence error:", error);
+      res.status(500).json({ error: error?.message || "Failed to analyze signals" });
+    }
+  });
+
+  // ML Pattern Learning endpoint
+  app.get("/api/ml/learned-patterns", async (_req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open' && i.percentGain !== null);
+      
+      if (closedIdeas.length < 10) {
+        return res.json({
+          ready: false,
+          message: "Need at least 10 closed trades to learn patterns",
+          currentCount: closedIdeas.length
+        });
+      }
+      
+      // Learn signal effectiveness weights
+      const signalWeights = new Map<string, number>();
+      const stats = await storage.getPerformanceStats();
+      
+      stats.bySignalType.forEach(signal => {
+        // Calculate weight adjustment based on performance
+        // Baseline: 1.0, Range: 0.5 to 1.5
+        const winRateBonus = (signal.winRate - 50) / 100; // -0.5 to +0.5
+        const sampleSizeBonus = Math.min(signal.totalIdeas / 40, 0.25); // Up to +0.25 for 40+ trades
+        const weight = 1.0 + winRateBonus + sampleSizeBonus;
+        
+        signalWeights.set(signal.signal, Math.max(0.5, Math.min(1.5, weight)));
+      });
+      
+      // Learn optimal time windows by asset type
+      const timeWindows = ['stock', 'option', 'crypto'].map(assetType => {
+        const assetIdeas = closedIdeas.filter(i => i.assetType === assetType && i.actualHoldingTimeMinutes);
+        const winningIdeas = assetIdeas.filter(i => i.outcomeStatus === 'hit_target');
+        
+        const avgWinningTime = winningIdeas.length > 0
+          ? winningIdeas.reduce((sum, i) => sum + i.actualHoldingTimeMinutes!, 0) / winningIdeas.length
+          : 120; // Default 2 hours
+        
+        return {
+          assetType,
+          optimalHoldingMinutes: Math.round(avgWinningTime),
+          sampleSize: winningIdeas.length
+        };
+      });
+      
+      res.json({
+        ready: true,
+        signalWeights: Object.fromEntries(signalWeights),
+        timeWindows,
+        trainedOn: closedIdeas.length,
+        lastUpdated: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error("Pattern learning error:", error);
+      res.status(500).json({ error: error?.message || "Failed to learn patterns" });
+    }
+  });
+
+  // Win rate trend data for charting
+  app.get("/api/ml/win-rate-trend", async (_req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const closedIdeas = allIdeas
+        .filter(i => i.outcomeStatus !== 'open')
+        .sort((a, b) => new Date(a.exitDate || a.timestamp).getTime() - new Date(b.exitDate || b.timestamp).getTime());
+      
+      if (closedIdeas.length === 0) {
+        return res.json({ dataPoints: [], cumulativePnL: [] });
+      }
+      
+      // Calculate rolling win rate (window of 10 trades)
+      const windowSize = 10;
+      const dataPoints: { date: string; winRate: number; tradesInWindow: number }[] = [];
+      const cumulativePnL: { date: string; totalPnL: number; cumulativeGain: number }[] = [];
+      
+      let cumulativeGainPercent = 0;
+      let totalPnL = 0;
+      
+      for (let i = 0; i < closedIdeas.length; i++) {
+        const idea = closedIdeas[i];
+        
+        // Update cumulative metrics
+        cumulativeGainPercent += idea.percentGain || 0;
+        totalPnL += idea.realizedPnL || 0;
+        
+        cumulativePnL.push({
+          date: idea.exitDate || idea.timestamp,
+          totalPnL,
+          cumulativeGain: cumulativeGainPercent
+        });
+        
+        // Calculate rolling win rate
+        if (i >= windowSize - 1) {
+          const window = closedIdeas.slice(i - windowSize + 1, i + 1);
+          const wins = window.filter(w => w.outcomeStatus === 'hit_target').length;
+          const winRate = (wins / windowSize) * 100;
+          
+          dataPoints.push({
+            date: idea.exitDate || idea.timestamp,
+            winRate,
+            tradesInWindow: windowSize
+          });
+        }
+      }
+      
+      res.json({ dataPoints, cumulativePnL });
+    } catch (error: any) {
+      console.error("Win rate trend error:", error);
+      res.status(500).json({ error: error?.message || "Failed to get win rate trend" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

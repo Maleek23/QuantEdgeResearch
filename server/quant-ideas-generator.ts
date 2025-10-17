@@ -12,6 +12,25 @@ import {
 } from './technical-indicators';
 import { discoverHiddenCryptoGems, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
 
+// Machine Learning: Fetch learned signal weights from performance data
+async function fetchLearnedWeights(): Promise<Map<string, number>> {
+  try {
+    const response = await fetch('http://localhost:5000/api/ml/learned-patterns');
+    const data = await response.json();
+    
+    if (!data.ready || !data.signalWeights) {
+      console.log('📊 ML patterns not ready yet - using default weights');
+      return new Map();
+    }
+    
+    console.log(`🧠 ML-Enhanced: Loaded ${Object.keys(data.signalWeights).length} signal weights from ${data.trainedOn} trades`);
+    return new Map(Object.entries(data.signalWeights));
+  } catch (error) {
+    console.log('📊 Using default weights (ML patterns unavailable)');
+    return new Map();
+  }
+}
+
 interface QuantSignal {
   type: 'momentum' | 'volume_spike' | 'breakout' | 'mean_reversion' | 'catalyst_driven' | 'rsi_divergence' | 'macd_crossover';
   strength: 'strong' | 'moderate' | 'weak';
@@ -395,11 +414,13 @@ function generateAnalysis(data: MarketData, signal: QuantSignal): string {
 }
 
 // Calculate quality/confidence score for trade idea (0-100)
+// 🧠 ML-ENHANCED: Now accepts learned weights from historical performance
 function calculateConfidenceScore(
   data: MarketData,
   signal: QuantSignal,
   riskRewardRatio: number,
-  mtfAnalysis?: MultiTimeframeAnalysis
+  mtfAnalysis?: MultiTimeframeAnalysis,
+  learnedWeights?: Map<string, number>
 ): { score: number; signals: string[] } {
   let score = 0;
   const qualitySignals: string[] = [];
@@ -507,7 +528,25 @@ function calculateConfidenceScore(
     }
   }
 
-  return { score: Math.min(score, 100), signals: qualitySignals };
+  // 🧠 ML ENHANCEMENT: Apply learned signal weights from historical performance
+  if (learnedWeights && learnedWeights.size > 0) {
+    const baseScore = score;
+    qualitySignals.forEach(signalName => {
+      const weight = learnedWeights.get(signalName);
+      if (weight !== undefined && weight !== 1.0) {
+        // Apply weight adjustment: boost high-performing signals, reduce underperformers
+        const adjustment = (weight - 1.0) * 10; // ±5 points max per signal
+        score += adjustment;
+      }
+    });
+    
+    if (Math.abs(score - baseScore) > 1) {
+      const boost = score > baseScore;
+      qualitySignals.push(boost ? '🧠 ML-Boosted' : '🧠 ML-Adjusted');
+    }
+  }
+
+  return { score: Math.min(Math.max(score, 0), 100), signals: qualitySignals };
 }
 
 // Calculate probability band based on confidence score
@@ -573,6 +612,9 @@ export async function generateQuantIdeas(
   const ideas: InsertTradeIdea[] = [];
   const timezone = 'America/Chicago';
   const now = new Date();
+
+  // 🧠 ML ENHANCEMENT: Load learned signal weights from performance data
+  const learnedWeights = await fetchLearnedWeights();
 
   // DISCOVERY PHASE: Find hidden crypto gems dynamically
   const hiddenGems = await discoverHiddenCryptoGems(15);
@@ -708,7 +750,8 @@ export async function generateQuantIdeas(
       data, 
       signal, 
       riskRewardRatio,
-      mtfAnalysis
+      mtfAnalysis,
+      learnedWeights  // 🧠 ML enhancement
     );
     const probabilityBand = getProbabilityBand(confidenceScore);
 
@@ -1027,7 +1070,13 @@ export async function generateQuantIdeas(
         strength: catalyst.impact === 'high' ? 'strong' : 'moderate',
         direction: direction
       };
-      const { score: confidenceScore, signals: qualitySignals } = calculateConfidenceScore(symbolData, catalystSignal, riskRewardRatio);
+      const { score: confidenceScore, signals: qualitySignals } = calculateConfidenceScore(
+        symbolData, 
+        catalystSignal, 
+        riskRewardRatio,
+        undefined,  // No MTF analysis for catalyst ideas
+        learnedWeights  // 🧠 ML enhancement
+      );
       const probabilityBand = getProbabilityBand(confidenceScore);
 
       // Skip if below quality threshold (lowered to trust catalyst analysis)

@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Download, TrendingUp, TrendingDown, Activity, Target, XCircle, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { format, parseISO } from 'date-fns';
 
 interface PerformanceStats {
   overall: {
@@ -43,9 +45,19 @@ interface PerformanceStats {
   }>;
 }
 
+interface TrendData {
+  dataPoints: Array<{ date: string; winRate: number; tradesInWindow: number }>;
+  cumulativePnL: Array<{ date: string; totalPnL: number; cumulativeGain: number }>;
+}
+
 export default function PerformancePage() {
   const { data: stats, isLoading } = useQuery<PerformanceStats>({
     queryKey: ['/api/performance/stats'],
+  });
+
+  const { data: trends } = useQuery<TrendData>({
+    queryKey: ['/api/ml/win-rate-trend'],
+    enabled: !!stats && stats.overall.closedIdeas > 0,
   });
 
   const handleExport = () => {
@@ -201,6 +213,131 @@ export default function PerformancePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Performance Trends Charts */}
+      {stats.overall.closedIdeas >= 10 && trends && trends.dataPoints.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Win Rate Trend */}
+          <Card data-testid="card-win-rate-trend">
+            <CardHeader>
+              <CardTitle>Win Rate Trend</CardTitle>
+              <CardDescription>
+                Rolling 10-trade win rate over time
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={trends.dataPoints}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="date" 
+                    tickFormatter={(date) => format(parseISO(date), 'MMM d')}
+                    className="text-xs"
+                  />
+                  <YAxis 
+                    domain={[0, 100]}
+                    tickFormatter={(value) => `${value}%`}
+                    className="text-xs"
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => [`${value.toFixed(1)}%`, 'Win Rate']}
+                    labelFormatter={(date) => format(parseISO(date as string), 'MMM d, yyyy')}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="winRate" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(var(--primary))' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Cumulative P&L */}
+          <Card data-testid="card-cumulative-pnl">
+            <CardHeader>
+              <CardTitle>Equity Curve</CardTitle>
+              <CardDescription>
+                Cumulative percent gain over time
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={trends.cumulativePnL}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="date" 
+                    tickFormatter={(date) => format(parseISO(date), 'MMM d')}
+                    className="text-xs"
+                  />
+                  <YAxis 
+                    tickFormatter={(value) => `${value > 0 ? '+' : ''}${value.toFixed(1)}%`}
+                    className="text-xs"
+                  />
+                  <Tooltip 
+                    formatter={(value: number) => [`${value > 0 ? '+' : ''}${value.toFixed(2)}%`, 'Cumulative Gain']}
+                    labelFormatter={(date) => format(parseISO(date as string), 'MMM d, yyyy')}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="cumulativeGain" 
+                    stroke="hsl(var(--primary))" 
+                    fill="hsl(var(--primary) / 0.2)"
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Smart Insights (if enough data) */}
+      {stats.overall.closedIdeas >= 5 && (
+        <Card className="border-primary/20 bg-primary/5" data-testid="card-insights">
+          <CardHeader>
+            <CardTitle>Smart Insights</CardTitle>
+            <CardDescription>
+              Data-driven recommendations based on your performance
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {stats.overall.winRate >= 60 ? (
+              <p className="text-sm">✅ Strong performance! Your win rate is above 60%.</p>
+            ) : stats.overall.winRate < 50 ? (
+              <p className="text-sm">⚠️ Win rate below 50%. Review losing trades to identify patterns.</p>
+            ) : (
+              <p className="text-sm">📊 Win rate around 50%. Focus on improving risk/reward ratio.</p>
+            )}
+            
+            {stats.bySource.length > 0 && (
+              (() => {
+                const bestSource = stats.bySource.reduce((best, source) => 
+                  source.winRate > best.winRate && source.totalIdeas >= 3 ? source : best
+                );
+                return bestSource.totalIdeas >= 3 ? (
+                  <p className="text-sm">
+                    🎯 Your best strategy: <strong>{bestSource.source.toUpperCase()}</strong> ideas 
+                    ({bestSource.winRate.toFixed(1)}% win rate)
+                  </p>
+                ) : null;
+              })()
+            )}
+            
+            {stats.overall.avgPercentGain > 0 && stats.overall.closedIdeas >= 5 && (
+              <p className="text-sm">
+                💰 Positive expectancy: Average gain of +{stats.overall.avgPercentGain.toFixed(2)}% per trade
+              </p>
+            )}
+
+            <p className="text-sm text-muted-foreground mt-4">
+              💡 View the <strong>Signal Intelligence</strong> page for deeper pattern analysis
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* By Source */}
       <Card data-testid="card-performance-by-source">

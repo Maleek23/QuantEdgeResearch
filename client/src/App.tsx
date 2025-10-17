@@ -13,6 +13,7 @@ import MarketPage from "@/pages/market";
 import WatchlistPage from "@/pages/watchlist";
 import RiskCalculatorPage from "@/pages/risk-calculator";
 import PerformancePage from "@/pages/performance";
+import SignalIntelligencePage from "@/pages/signal-intelligence";
 import About from "@/pages/about";
 import NotFound from "@/pages/not-found";
 
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/watchlist" component={WatchlistPage} />
       <Route path="/risk" component={RiskCalculatorPage} />
       <Route path="/performance" component={PerformancePage} />
+      <Route path="/signals" component={SignalIntelligencePage} />
       <Route path="/about" component={About} />
       <Route component={NotFound} />
     </Switch>

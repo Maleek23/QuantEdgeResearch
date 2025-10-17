@@ -1,4 +1,4 @@
-import { Home, TrendingUp, BarChart2, Star, Calculator, Target, User } from "lucide-react";
+import { Home, TrendingUp, BarChart2, Star, Calculator, Target, User, Sparkles } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -21,6 +21,7 @@ const researchItems = [
 
 const toolItems = [
   { title: "Performance", url: "/performance", icon: Target },
+  { title: "Signal Intelligence", url: "/signals", icon: Sparkles },
   { title: "Risk Calculator", url: "/risk", icon: Calculator },
 ];
 
