@@ -10,7 +10,7 @@ import {
   analyzeMACD,
   calculateSMA
 } from './technical-indicators';
-import { discoverHiddenCryptoGems, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
+import { discoverHiddenCryptoGems, discoverStockGems, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
 
 // Machine Learning: Fetch learned signal weights from performance data
 async function fetchLearnedWeights(): Promise<Map<string, number>> {
@@ -616,13 +616,40 @@ export async function generateQuantIdeas(
   // 🧠 ML ENHANCEMENT: Load learned signal weights from performance data
   const learnedWeights = await fetchLearnedWeights();
 
-  // DISCOVERY PHASE: Find hidden crypto gems dynamically
-  const hiddenGems = await discoverHiddenCryptoGems(15);
-  console.log(`🔍 Discovered ${hiddenGems.length} hidden crypto gems:`, hiddenGems.map(g => `${g.symbol} ($${g.marketCap.toLocaleString()})`).join(', '));
+  // 🔍 DISCOVERY PHASE: Dynamically scan the entire market for opportunities
+  console.log('🔍 Starting market-wide discovery...');
+  
+  // Discover stock movers and breakouts (gainers, losers, most active)
+  const stockGems = await discoverStockGems(30);
+  console.log(`  ✓ Stock discovery: ${stockGems.length} movers found`);
+  
+  // Discover hidden crypto gems (small-caps with anomalies)
+  const cryptoGems = await discoverHiddenCryptoGems(15);
+  console.log(`  ✓ Crypto discovery: ${cryptoGems.length} gems found`);
 
-  // Convert discovered gems directly to MarketData (no need to fetch prices again!)
-  const discoveredMarketData: MarketData[] = hiddenGems.map(gem => ({
-    id: `discovered-${gem.symbol}`,
+  // Convert discovered stock gems to MarketData
+  const discoveredStockData: MarketData[] = stockGems.map(gem => ({
+    id: `stock-gem-${gem.symbol}`,
+    symbol: gem.symbol,
+    assetType: 'stock' as const,
+    currentPrice: gem.currentPrice,
+    changePercent: gem.changePercent,
+    volume: gem.volume,
+    marketCap: gem.marketCap,
+    session: 'rth' as const,
+    timestamp: now.toISOString(),
+    high24h: null,
+    low24h: null,
+    high52Week: null,
+    low52Week: null,
+    avgVolume: gem.volume / 1.3, // Estimate baseline volume
+    dataSource: 'live' as const,
+    lastUpdated: now.toISOString(),
+  }));
+  
+  // Convert discovered crypto gems to MarketData
+  const discoveredCryptoData: MarketData[] = cryptoGems.map(gem => ({
+    id: `crypto-gem-${gem.symbol}`,
     symbol: gem.symbol,
     assetType: 'crypto' as const,
     currentPrice: gem.currentPrice,
@@ -635,27 +662,27 @@ export async function generateQuantIdeas(
     low24h: null,
     high52Week: null,
     low52Week: null,
-    avgVolume: gem.volume24h / 1.5, // Estimate baseline volume
-    dataSource: 'live' as const, // Discovered from live API data
+    avgVolume: gem.volume24h / 1.5,
+    dataSource: 'live' as const,
     lastUpdated: now.toISOString(),
   }));
 
-  // Filter out large-cap cryptos from existing market data (>$2B) - only use discovered gems for crypto
-  const filteredMarketData = marketData.filter(d => {
-    if (d.assetType === 'crypto') {
-      // For crypto, only keep if marketCap exists AND is within hidden gem range
-      const keep = d.marketCap !== null && d.marketCap !== undefined && d.marketCap <= 2_000_000_000;
-      if (!keep) {
-        console.log(`  ⚠️  Filtered out large-cap crypto: ${d.symbol} (${d.marketCap ? '$' + (d.marketCap / 1e9).toFixed(1) + 'B' : 'no cap data'})`);
+  // 🔥 PRIORITIZE DISCOVERED GEMS: Use dynamic discovery instead of static database symbols
+  // Only use database symbols as fallback if discovery fails
+  console.log(`💎 Using ${discoveredStockData.length} discovered stocks + ${discoveredCryptoData.length} discovered cryptos`);
+  
+  const combinedData = [...discoveredStockData, ...discoveredCryptoData];
+  
+  // Only add database symbols as fallback if we didn't get enough from discovery
+  if (combinedData.length < count * 2) {
+    console.log('📊 Adding fallback symbols from database...');
+    marketData.forEach(d => {
+      // Skip if we already have this symbol from discovery
+      if (!combinedData.some(gem => gem.symbol === d.symbol)) {
+        combinedData.push(d);
       }
-      return keep;
-    }
-    // Keep all non-crypto assets (stocks, options)
-    return true;
-  });
-
-  // Combine filtered market data with discovered hidden gems
-  const combinedData = [...filteredMarketData, ...discoveredMarketData];
+    });
+  }
 
   // Separate by asset type for balanced iteration
   const stockData = combinedData.filter(d => d.assetType === 'stock').sort((a, b) => calculateGemScore(b) - calculateGemScore(a));
@@ -672,7 +699,8 @@ export async function generateQuantIdeas(
     if (ci < cryptoData.length) sortedData.push(cryptoData[ci++]);
   }
 
-  console.log(`📊 Analysis pool: ${sortedData.length} total (${filteredMarketData.length} existing + ${discoveredMarketData.length} discovered)`);
+  console.log(`📊 Processing ${sortedData.length} candidates (${stockData.length} stocks, ${cryptoData.length} crypto)`);
+  console.log(`   Top movers: ${sortedData.slice(0, 10).map(d => `${d.symbol} ${d.changePercent > 0 ? '+' : ''}${d.changePercent.toFixed(1)}%`).join(', ')}${sortedData.length > 10 ? '...' : ''}`);
 
   // Track asset type distribution to ensure balanced mix
   const assetTypeCount = { stock: 0, option: 0, crypto: 0 };
@@ -1031,7 +1059,7 @@ export async function generateQuantIdeas(
       if (ideas.length >= count) break;
       
       // Find market data for this symbol (use FILTERED data to respect large-cap crypto exclusions)
-      const symbolData = filteredMarketData.find(d => d.symbol === catalyst.symbol);
+      const symbolData = combinedData.find((d: MarketData) => d.symbol === catalyst.symbol);
       if (!symbolData) continue;
 
       const isPositiveCatalyst = catalyst.impact === 'high' || catalyst.eventType === 'earnings';

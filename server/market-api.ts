@@ -370,3 +370,94 @@ export async function discoverHiddenCryptoGems(limit: number = 10): Promise<Hidd
     return [];
   }
 }
+
+// 🔍 STOCK MARKET SCREENER: Discover high-volume movers and breakout candidates
+// Similar to crypto gem finder but for stocks across the entire market
+interface StockGem {
+  symbol: string;
+  currentPrice: number;
+  changePercent: number;
+  volume: number;
+  marketCap: number;
+}
+
+export async function discoverStockGems(limit: number = 30): Promise<StockGem[]> {
+  const gems: StockGem[] = [];
+  
+  try {
+    console.log('🔍 Scanning stock market for movers and breakouts...');
+    
+    // Fetch multiple categories to get a diverse set of opportunities
+    const categories = [
+      { name: 'gainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_gainers&count=25' },
+      { name: 'losers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_losers&count=25' },
+      { name: 'mostActive', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_actives&count=25' }
+    ];
+    
+    for (const category of categories) {
+      try {
+        const response = await fetch(category.url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        });
+        
+        if (!response.ok) {
+          console.log(`⚠️  Yahoo ${category.name} endpoint returned ${response.status}`);
+          continue;
+        }
+        
+        const data = await response.json();
+        const quotes = data?.finance?.result?.[0]?.quotes || [];
+        
+        console.log(`  ✓ Found ${quotes.length} stocks in ${category.name}`);
+        
+        for (const quote of quotes) {
+          // Filter criteria: 
+          // - Price > $1 (avoid penny stocks)
+          // - Price < $500 (avoid expensive stocks that are hard to trade)
+          // - Volume exists
+          // - Market cap > $50M (avoid micro caps)
+          const price = quote.regularMarketPrice?.raw || quote.regularMarketPrice;
+          const change = quote.regularMarketChangePercent?.raw || quote.regularMarketChangePercent || 0;
+          const volume = quote.regularMarketVolume?.raw || quote.regularMarketVolume || 0;
+          const marketCap = quote.marketCap?.raw || quote.marketCap || 0;
+          
+          if (!price || price < 1 || price > 500) continue;
+          if (volume < 100000) continue; // Minimum 100K volume
+          if (marketCap < 50_000_000) continue; // Min $50M market cap
+          
+          gems.push({
+            symbol: quote.symbol,
+            currentPrice: price,
+            changePercent: change,
+            volume: volume,
+            marketCap: marketCap
+          });
+        }
+      } catch (error) {
+        console.log(`  ⚠️  Failed to fetch ${category.name}:`, error instanceof Error ? error.message : 'Unknown error');
+      }
+    }
+    
+    // Remove duplicates (same symbol might appear in multiple categories)
+    const uniqueGems = new Map<string, StockGem>();
+    gems.forEach(gem => {
+      if (!uniqueGems.has(gem.symbol)) {
+        uniqueGems.set(gem.symbol, gem);
+      }
+    });
+    
+    // Sort by absolute price change (both gainers and losers are interesting)
+    const sortedGems = Array.from(uniqueGems.values())
+      .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
+      .slice(0, limit);
+    
+    console.log(`🎯 Discovered ${sortedGems.length} stock gems: ${sortedGems.slice(0, 5).map(g => `${g.symbol} (${g.changePercent > 0 ? '+' : ''}${g.changePercent.toFixed(1)}%)`).join(', ')}${sortedGems.length > 5 ? '...' : ''}`);
+    
+    return sortedGems;
+  } catch (error) {
+    console.error('❌ Stock discovery error:', error);
+    return [];
+  }
+}
