@@ -50,7 +50,7 @@ interface AITradeIdea {
   expiryDate?: string;
 }
 
-// Parse trade ideas from conversational text
+// Parse trade ideas from conversational text with multi-provider fallback
 export async function parseTradeIdeasFromText(text: string): Promise<AITradeIdea[]> {
   const systemPrompt = `You are a trade idea extraction specialist. Parse the given text and extract any trade ideas mentioned.
 
@@ -69,13 +69,15 @@ For each trade idea found, extract:
 Return valid JSON object with structure: {"ideas": [array of trade ideas]}
 If no clear trade ideas are found, return empty array.`;
 
+  const userPrompt = `Extract trade ideas from this text:\n\n${text}`;
+
+  // Try OpenAI first (fastest with JSON mode)
   try {
-    // Try OpenAI first (fastest)
     const openaiResponse = await getOpenAI().chat.completions.create({
       model: "gpt-5",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: `Extract trade ideas from this text:\n\n${text}` }
+        { role: "user", content: userPrompt }
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: 1024,
@@ -90,9 +92,64 @@ If no clear trade ideas are found, return empty array.`;
       return parsed.ideas;
     }
     return [];
-  } catch (error) {
-    console.error("Failed to parse trade ideas:", error);
-    return [];
+  } catch (openaiError) {
+    console.log("OpenAI parsing failed, trying Anthropic...", openaiError);
+    
+    // Fallback to Anthropic
+    try {
+      const anthropicResponse = await getAnthropic().messages.create({
+        model: DEFAULT_ANTHROPIC_MODEL,
+        max_tokens: 1024,
+        messages: [
+          {
+            role: "user",
+            content: `${systemPrompt}\n\n${userPrompt}`
+          }
+        ],
+      });
+
+      const content = anthropicResponse.content[0].type === 'text' 
+        ? anthropicResponse.content[0].text 
+        : '{"ideas":[]}';
+      
+      // Extract JSON from markdown code blocks if present
+      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+      
+      const parsed = JSON.parse(jsonStr);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      } else if (parsed.ideas && Array.isArray(parsed.ideas)) {
+        return parsed.ideas;
+      }
+      return [];
+    } catch (anthropicError) {
+      console.log("Anthropic parsing failed, trying Gemini...", anthropicError);
+      
+      // Fallback to Gemini
+      try {
+        const geminiResponse = await getGemini().models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: `${systemPrompt}\n\n${userPrompt}`,
+          config: {
+            responseMimeType: "application/json"
+          }
+        });
+
+        const content = geminiResponse.text || '{"ideas":[]}';
+        const parsed = JSON.parse(content);
+        
+        if (Array.isArray(parsed)) {
+          return parsed;
+        } else if (parsed.ideas && Array.isArray(parsed.ideas)) {
+          return parsed.ideas;
+        }
+        return [];
+      } catch (geminiError) {
+        console.error("All AI providers failed to parse trade ideas:", geminiError);
+        return [];
+      }
+    }
   }
 }
 
