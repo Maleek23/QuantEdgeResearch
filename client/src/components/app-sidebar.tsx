@@ -35,14 +35,16 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton className="h-auto min-h-12 items-start px-4 py-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <TrendingUp className="h-4 w-4" />
-              </div>
-              <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
-                <span className="font-semibold">QuantEdge</span>
-                <span className="text-xs text-muted-foreground">Research Platform</span>
-              </div>
+            <SidebarMenuButton asChild className="h-auto min-h-12 items-start px-4 py-3">
+              <Link href="/" data-testid="nav-home">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <TrendingUp className="h-4 w-4" />
+                </div>
+                <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
+                  <span className="font-semibold">QuantEdge</span>
+                  <span className="text-xs text-muted-foreground">Research Platform</span>
+                </div>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
