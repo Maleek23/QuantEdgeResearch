@@ -594,7 +594,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.addChatMessage({ role: 'user', content: message });
       const assistantMessage = await storage.addChatMessage({ role: 'assistant', content: aiResponse });
       
-      res.json({ message: aiResponse, messageId: assistantMessage.id });
+      // Auto-detect if user is asking for trade ideas (not educational)
+      const isTradeRequest = /(?:give|show|find|suggest|recommend|any).*(?:trade|idea|stock|buy|sell|position)/i.test(message);
+      const isEducational = /(?:what is|how does|explain|define|meaning of)/i.test(message);
+      
+      let savedIdeas = [];
+      if (isTradeRequest && !isEducational) {
+        // Automatically parse and save trade ideas from the response
+        try {
+          const { parseTradeIdeasFromText } = await import("./ai-service");
+          const extractedIdeas = await parseTradeIdeasFromText(aiResponse);
+          
+          for (const idea of extractedIdeas) {
+            const riskRewardRatio = (idea.targetPrice - idea.entryPrice) / (idea.entryPrice - idea.stopLoss);
+            
+            const tradeIdea = await storage.createTradeIdea({
+              symbol: idea.symbol,
+              assetType: idea.assetType,
+              direction: idea.direction,
+              entryPrice: idea.entryPrice,
+              targetPrice: idea.targetPrice,
+              stopLoss: idea.stopLoss,
+              riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
+              catalyst: idea.catalyst || "From AI chat conversation",
+              analysis: idea.analysis || "AI-suggested trade opportunity",
+              liquidityWarning: idea.entryPrice < 5,
+              sessionContext: idea.sessionContext || "Chat-suggested trade",
+              timestamp: new Date().toISOString(),
+              expiryDate: idea.expiryDate || null,
+              strikePrice: idea.assetType === 'option' ? idea.entryPrice * (idea.direction === 'long' ? 1.02 : 0.98) : null,
+              optionType: idea.assetType === 'option' ? (idea.direction === 'long' ? 'call' : 'put') : null,
+              source: 'ai'
+            });
+            savedIdeas.push(tradeIdea);
+          }
+          
+          if (savedIdeas.length > 0) {
+            console.log(`✅ Auto-saved ${savedIdeas.length} trade ideas from chat to Trade Ideas feed`);
+          }
+        } catch (parseError) {
+          console.log("Could not auto-parse trade ideas from chat response:", parseError);
+        }
+      }
+      
+      res.json({ 
+        message: aiResponse, 
+        messageId: assistantMessage.id,
+        autoSavedIdeas: savedIdeas.length,
+        isTradeResponse: isTradeRequest && !isEducational
+      });
     } catch (error: any) {
       console.error("Chat error:", error);
       res.status(500).json({ error: error?.message || "Failed to process chat" });

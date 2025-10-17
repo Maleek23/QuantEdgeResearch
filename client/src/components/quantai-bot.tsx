@@ -42,13 +42,18 @@ function TypingMessage({ content }: { content: string }) {
   );
 }
 
-// Markdown message component with "Save as Trade Idea" feature
-function MarkdownMessage({ content, messageId }: { content: string; messageId: string }) {
+// Markdown message component with manual "Save as Trade Idea" backup
+function MarkdownMessage({ content, messageId, wasAutoSaved }: { content: string; messageId: string; wasAutoSaved?: boolean }) {
   const { toast } = useToast();
   const [showSaveButton, setShowSaveButton] = useState(false);
 
-  // Detect if message contains trade ideas (strict criteria to avoid false positives)
+  // Detect if message contains trade ideas (manual backup only if not auto-saved)
   useEffect(() => {
+    if (wasAutoSaved) {
+      setShowSaveButton(false); // Already saved automatically
+      return;
+    }
+    
     // Must have explicit price targets with $ or specific price levels
     const hasPriceTarget = /(?:entry|target|stop)\s*(?:price)?:?\s*\$?\d+\.?\d*/i.test(content);
     
@@ -61,9 +66,9 @@ function MarkdownMessage({ content, messageId }: { content: string; messageId: s
     // Avoid educational/explanatory content
     const isEducational = /(?:what is|how does|explain|definition|example|for instance|illustration)/i.test(content);
     
-    // Show button only if: has specific trade structure AND NOT educational
+    // Show button only if: has specific trade structure AND NOT educational AND NOT auto-saved
     setShowSaveButton((hasPriceTarget || hasTradeAction) && hasStockSymbol && !isEducational);
-  }, [content]);
+  }, [content, wasAutoSaved]);
 
   const saveAsTradeIdea = useMutation({
     mutationFn: async () => {
@@ -129,6 +134,7 @@ export function QuantAIBot({ isOpen, onClose }: QuantAIBotProps) {
   const [message, setMessage] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [lastMessageId, setLastMessageId] = useState<string | null>(null);
+  const [autoSavedMessageIds, setAutoSavedMessageIds] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   const { data: chatHistory = [], refetch } = useQuery<ChatMessage[]>({
@@ -140,12 +146,24 @@ export function QuantAIBot({ isOpen, onClose }: QuantAIBotProps) {
     mutationFn: async (userMessage: string) => {
       return await apiRequest('POST', '/api/ai/chat', { message: userMessage });
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       setMessage("");
       queryClient.invalidateQueries({ queryKey: ['/api/ai/chat/history'] });
+      
       // Track the latest message to show typing effect
       if (data && chatHistory.length > 0) {
         setLastMessageId(chatHistory[chatHistory.length - 1]?.id);
+      }
+      
+      // If trade ideas were auto-saved, notify user and refresh feed
+      if (data.autoSavedIdeas && data.autoSavedIdeas > 0) {
+        queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+        // Track this message as auto-saved
+        setAutoSavedMessageIds(prev => new Set(prev).add(data.messageId));
+        toast({
+          title: "Trade Ideas Added! 🎯",
+          description: `Automatically saved ${data.autoSavedIdeas} trade idea(s) to your feed`,
+        });
       }
     },
     onError: () => {
@@ -285,7 +303,11 @@ export function QuantAIBot({ isOpen, onClose }: QuantAIBotProps) {
                     {isJustReceived ? (
                       <TypingMessage content={msg.content} />
                     ) : msg.role === 'assistant' ? (
-                      <MarkdownMessage content={msg.content} messageId={msg.id} />
+                      <MarkdownMessage 
+                        content={msg.content} 
+                        messageId={msg.id}
+                        wasAutoSaved={autoSavedMessageIds.has(msg.id)}
+                      />
                     ) : (
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                     )}
