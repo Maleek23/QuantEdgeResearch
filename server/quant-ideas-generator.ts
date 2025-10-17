@@ -635,17 +635,43 @@ export async function generateQuantIdeas(
   // Combine filtered market data with discovered hidden gems
   const combinedData = [...filteredMarketData, ...discoveredMarketData];
 
-  // Sort combined data by gem score (highest first) to prioritize interesting opportunities
-  const sortedData = combinedData.sort((a, b) => calculateGemScore(b) - calculateGemScore(a));
+  // Separate by asset type for balanced iteration
+  const stockData = combinedData.filter(d => d.assetType === 'stock').sort((a, b) => calculateGemScore(b) - calculateGemScore(a));
+  const cryptoData = combinedData.filter(d => d.assetType === 'crypto').sort((a, b) => calculateGemScore(b) - calculateGemScore(a));
+  
+  // Interleave asset types to ensure balanced distribution (2 stocks, then 1 crypto pattern)
+  const sortedData: typeof combinedData = [];
+  let si = 0, ci = 0;
+  while (si < stockData.length || ci < cryptoData.length) {
+    // Add 2 stocks
+    if (si < stockData.length) sortedData.push(stockData[si++]);
+    if (si < stockData.length) sortedData.push(stockData[si++]);
+    // Add 1 crypto
+    if (ci < cryptoData.length) sortedData.push(cryptoData[ci++]);
+  }
 
   console.log(`📊 Analysis pool: ${sortedData.length} total (${filteredMarketData.length} existing + ${discoveredMarketData.length} discovered)`);
 
   // Track asset type distribution to ensure balanced mix
   const assetTypeCount = { stock: 0, option: 0, crypto: 0 };
   const targetDistribution = {
-    stock: Math.floor(count * 0.4),  // 40% stock shares
-    option: Math.floor(count * 0.35), // 35% options
-    crypto: Math.ceil(count * 0.25)   // 25% crypto
+    stock: Math.round(count * 0.4),  // 40% stock shares (3 for count=8)
+    option: Math.round(count * 0.35), // 35% options (3 for count=8)
+    crypto: 0   // Will be calculated to fill remaining
+  };
+  // Ensure targets add up to count by allocating remainder to crypto
+  targetDistribution.crypto = count - targetDistribution.stock - targetDistribution.option;
+
+  // Helper to check if we should accept this asset type based on distribution targets
+  const shouldAcceptAssetType = (assetType: string): boolean => {
+    if (ideas.length >= count) return false;
+    
+    // Strict rule: Only accept if this asset type is below its target
+    if (assetType === 'stock') return assetTypeCount.stock < targetDistribution.stock;
+    if (assetType === 'option') return assetTypeCount.option < targetDistribution.option;
+    if (assetType === 'crypto') return assetTypeCount.crypto < targetDistribution.crypto;
+    
+    return false; // Unknown asset type - reject
   };
 
   // Analyze each market data point
@@ -706,16 +732,24 @@ export async function generateQuantIdeas(
     let assetType = data.assetType;
     
     if (data.assetType === 'stock') {
-      // For stocks, decide between stock shares vs options based on targets
-      const needsOptions = assetTypeCount.option < targetDistribution.option;
-      const needsShares = assetTypeCount.stock < targetDistribution.stock;
+      // For stocks, decide between stock shares vs options - prioritize what's furthest from target
+      const stockShortfall = targetDistribution.stock - assetTypeCount.stock;
+      const optionShortfall = targetDistribution.option - assetTypeCount.option;
       
-      if (needsOptions && !needsShares) {
-        assetType = 'option';
-      } else if (!needsOptions && needsShares) {
+      if (stockShortfall > 0 && optionShortfall <= 0) {
+        // Only stock shares needed
         assetType = 'stock';
+      } else if (optionShortfall > 0 && stockShortfall <= 0) {
+        // Only options needed
+        assetType = 'option';
+      } else if (stockShortfall > optionShortfall) {
+        // Stock shares further from target, prioritize it
+        assetType = 'stock';
+      } else if (optionShortfall > stockShortfall) {
+        // Options further from target, prioritize it
+        assetType = 'option';
       } else {
-        // Both needed or neither full - prefer options for volatile moves, shares for steady trends
+        // Equal shortfall - use market characteristics to decide
         assetType = (Math.abs(data.changePercent) > 3 || signal.strength === 'strong') ? 'option' : 'stock';
       }
     }
@@ -813,6 +847,11 @@ export async function generateQuantIdeas(
       probabilityBand: probabilityBand
     };
 
+    // Check if we should accept this asset type based on distribution
+    if (!shouldAcceptAssetType(assetType)) {
+      continue; // Skip this idea to maintain balanced distribution
+    }
+    
     ideas.push(idea);
     
     // Track asset type for distribution
@@ -822,6 +861,17 @@ export async function generateQuantIdeas(
   }
   
   console.log(`✅ Generated ${ideas.length} ideas: ${assetTypeCount.stock} stock shares, ${assetTypeCount.option} options, ${assetTypeCount.crypto} crypto`);
+  
+  // Warn if target distribution was not met
+  if (assetTypeCount.stock < targetDistribution.stock) {
+    console.log(`⚠️  Stock shares: generated ${assetTypeCount.stock}, target was ${targetDistribution.stock}`);
+  }
+  if (assetTypeCount.option < targetDistribution.option) {
+    console.log(`⚠️  Options: generated ${assetTypeCount.option}, target was ${targetDistribution.option}`);
+  }
+  if (assetTypeCount.crypto < targetDistribution.crypto) {
+    console.log(`⚠️  Crypto: generated ${assetTypeCount.crypto}, target was ${targetDistribution.crypto}`);
+  }
 
   // If we don't have enough ideas, generate some based on catalysts
   if (ideas.length < count && catalysts.length > 0) {
