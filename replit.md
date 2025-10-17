@@ -3,6 +3,8 @@
 ## Overview
 QuantEdge Research is a professional quantitative trading research platform designed to identify day-trading opportunities across US equities, options, and crypto markets. Its primary purpose is to provide educational, research-grade trade ideas, comprehensive risk management tools, and real-time market analysis. The platform aims to offer robust risk controls and clear educational disclaimers, all presented through a professional dark-themed UI optimized for rapid data scanning. The platform integrates real historical data, improving model accuracy significantly.
 
+**NEW: Machine Learning Enhancement** - The platform now features adaptive learning capabilities that improve trade idea quality over time by analyzing historical performance data, identifying winning patterns, and adjusting confidence scores based on signal effectiveness.
+
 ## User Preferences
 - All timestamps should be displayed in America/Chicago timezone with market session context.
 - The UI should be a professional dark-themed interface optimized for rapid data scanning.
@@ -28,11 +30,19 @@ The platform is built with a React/TypeScript frontend using Tailwind CSS, Shadc
 **Performance Tracking System:** A comprehensive analytics suite that validates trade outcomes, tracks win rates, and enables data-driven strategy improvement. Features include:
 - **Auto-Validation Service:** Automatically checks current prices against targets/stops for all open ideas, marking them as won/lost/expired with accurate holding times and percent gains. Stamps validation timestamps on all checked ideas for dashboard transparency.
 - **Manual Outcome Recording:** User-friendly dialog allowing traders to manually record outcomes (won/lost/breakeven) with exit prices and notes. Backend automatically calculates holding times from idea timestamp to exit time.
-- **Performance Dashboard:** Professional analytics page (/performance) displaying overall metrics (total ideas, win rate, average gain, average holding time) plus detailed breakdowns by source (AI vs Quant vs Manual), asset type (stocks vs options vs crypto), and signal type (which technical indicators work best).
+- **Performance Dashboard:** Professional analytics page (/performance) displaying overall metrics (total ideas, win rate, average gain, average holding time) plus detailed breakdowns by source (AI vs Quant vs Manual), asset type (stocks vs options vs crypto), and signal type (which technical indicators work best). **NEW: Enhanced with win rate trend chart, cumulative P&L equity curve, and smart insights panel.**
 - **Outcome Badges:** Visual indicators on trade idea cards and detail modals showing outcome status (HIT TARGET in green, HIT STOP in red, EXPIRED/CLOSED in neutral).
 - **CSV Export:** Export all trade ideas with complete performance data for external analysis in Excel or Google Sheets.
 - **Tab Organization:** Trade Ideas page separates NEW IDEAS (open positions) from ARCHIVED (closed positions) for easy portfolio management.
 - **Real-time Cache Invalidation:** Performance stats update immediately after manual recording or auto-validation to ensure live accuracy.
+
+**Machine Learning System (NEW):** Adaptive intelligence that learns from historical performance to improve future trade ideas:
+- **Signal Intelligence Page (/signals):** Dedicated analytics page showing which technical indicators perform best, signal combination win rates, reliability scores, and expectancy calculations. Requires minimum 10 closed trades for statistical significance.
+- **Learned Pattern Analyzer:** ML endpoint that calculates optimal signal weights based on historical win/loss data. Trained on closed trades and updates dynamically as more data becomes available.
+- **Adaptive Confidence Scoring:** Quant generator fetches learned weights and applies them to confidence calculations. High-performing signals boost confidence scores (🧠 ML-Boosted), underperforming signals reduce them (🧠 ML-Adjusted).
+- **Win Rate Visualization:** Rolling 10-trade window chart showing performance trends over time on Performance page.
+- **Equity Curve Tracking:** Cumulative P&L chart displaying total gains/losses progression on Performance page.
+- **Minimum Data Guard:** All ML features require 10+ closed trades to prevent learning from statistical noise and ensure reliable insights.
 
 ### System Design Choices
 The system employs a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences, emphasizing modularity, responsiveness, and clear separation of concerns. Comprehensive data quality and error handling are implemented to guard against invalid numeric values in calculations, displaying "N/A" for professional presentation.
