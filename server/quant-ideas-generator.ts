@@ -640,6 +640,14 @@ export async function generateQuantIdeas(
 
   console.log(`📊 Analysis pool: ${sortedData.length} total (${filteredMarketData.length} existing + ${discoveredMarketData.length} discovered)`);
 
+  // Track asset type distribution to ensure balanced mix
+  const assetTypeCount = { stock: 0, option: 0, crypto: 0 };
+  const targetDistribution = {
+    stock: Math.floor(count * 0.4),  // 40% stock shares
+    option: Math.floor(count * 0.35), // 35% options
+    crypto: Math.ceil(count * 0.25)   // 25% crypto
+  };
+
   // Analyze each market data point
   for (const data of sortedData) {
     if (ideas.length >= count) break;
@@ -671,21 +679,47 @@ export async function generateQuantIdeas(
     );
     const probabilityBand = getProbabilityBand(confidenceScore);
 
-    // QUALITY FILTER: Trust quantitative signals - accept 55+ for bullish, 50+ for bearish
-    const minConfidence = signal.direction === 'short' ? 50 : 55;
-    if (confidenceScore < minConfidence) {
-      continue; // Skip low-quality ideas
+    // QUALITY FILTER: Trust quantitative signals - adjust thresholds by asset type
+    let minConfidence: number;
+    let minRiskReward: number;
+    let minVolume: number;
+    
+    if (data.assetType === 'crypto') {
+      // More lenient for crypto (different market dynamics)
+      minConfidence = signal.direction === 'short' ? 45 : 50;
+      minRiskReward = 1.2; // Crypto can have tighter stops
+      minVolume = 0.6; // Crypto volume can be more erratic
+    } else {
+      // Standard thresholds for stocks
+      minConfidence = signal.direction === 'short' ? 50 : 55;
+      minRiskReward = 1.3;
+      minVolume = signal.direction === 'short' ? 0.8 : 1.0;
     }
-
-    // Additional hard guards for quality
-    if (riskRewardRatio < 1.3) continue; // Minimum R:R requirement (lowered to trust signals)
+    
+    if (confidenceScore < minConfidence) continue;
+    if (riskRewardRatio < minRiskReward) continue;
+    
     const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
-    // Relax volume requirement for bearish signals
-    const minVolume = signal.direction === 'short' ? 0.8 : 1.0;
     if (volumeRatio < minVolume) continue;
 
-    // Determine asset type for options vs shares
-    const assetType = data.assetType === 'stock' && Math.random() > 0.5 ? 'option' : data.assetType;
+    // Intelligent asset type selection based on distribution targets
+    let assetType = data.assetType;
+    
+    if (data.assetType === 'stock') {
+      // For stocks, decide between stock shares vs options based on targets
+      const needsOptions = assetTypeCount.option < targetDistribution.option;
+      const needsShares = assetTypeCount.stock < targetDistribution.stock;
+      
+      if (needsOptions && !needsShares) {
+        assetType = 'option';
+      } else if (!needsOptions && needsShares) {
+        assetType = 'stock';
+      } else {
+        // Both needed or neither full - prefer options for volatile moves, shares for steady trends
+        assetType = (Math.abs(data.changePercent) > 3 || signal.strength === 'strong') ? 'option' : 'stock';
+      }
+    }
+    // Crypto stays as crypto (already filtered to hidden gems only)
 
     // Generate session context string
     const sessionContext = data.session === 'rth' 
@@ -780,7 +814,14 @@ export async function generateQuantIdeas(
     };
 
     ideas.push(idea);
+    
+    // Track asset type for distribution
+    if (assetType === 'stock') assetTypeCount.stock++;
+    else if (assetType === 'option') assetTypeCount.option++;
+    else if (assetType === 'crypto') assetTypeCount.crypto++;
   }
+  
+  console.log(`✅ Generated ${ideas.length} ideas: ${assetTypeCount.stock} stock shares, ${assetTypeCount.option} options, ${assetTypeCount.crypto} crypto`);
 
   // If we don't have enough ideas, generate some based on catalysts
   if (ideas.length < count && catalysts.length > 0) {
