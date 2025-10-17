@@ -25,7 +25,7 @@ export default function TradeIdeasPage() {
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
-  const [activeAssetType, setActiveAssetType] = useState<"stock" | "option" | "crypto">("stock");
+  const [activeAssetType, setActiveAssetType] = useState<"stock" | "option" | "crypto" | "all">("all");
   const [activeGrade, setActiveGrade] = useState<"all" | "A" | "B" | "C">("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -109,7 +109,7 @@ export default function TradeIdeasPage() {
     
     const matchesSource = activeSource === "all" || idea.source === activeSource;
     
-    const matchesAssetType = idea.assetType === activeAssetType;
+    const matchesAssetType = activeAssetType === "all" || idea.assetType === activeAssetType;
     
     const matchesGrade = activeGrade === "all" || idea.probabilityBand?.startsWith(activeGrade) || false;
     
@@ -207,9 +207,9 @@ export default function TradeIdeasPage() {
             <Button variant="outline" size="default" className="gap-2" data-testid="button-filters">
               <SlidersHorizontal className="h-4 w-4" />
               Filters
-              {(activeSource !== "all" || activeGrade !== "all" || activeDirection !== "all" || selectedDate) && (
+              {(activeAssetType !== "all" || activeSource !== "all" || activeGrade !== "all" || activeDirection !== "all" || selectedDate) && (
                 <Badge variant="secondary" className="ml-1">
-                  {[activeSource !== "all", activeGrade !== "all", activeDirection !== "all", selectedDate].filter(Boolean).length}
+                  {[activeAssetType !== "all", activeSource !== "all", activeGrade !== "all", activeDirection !== "all", selectedDate].filter(Boolean).length}
                 </Badge>
               )}
             </Button>
@@ -228,6 +228,7 @@ export default function TradeIdeasPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">All Asset Types</SelectItem>
                     <SelectItem value="stock">Stock Shares</SelectItem>
                     <SelectItem value="option">Stock Options</SelectItem>
                     <SelectItem value="crypto">Crypto</SelectItem>
