@@ -15,6 +15,16 @@ import type {
   InsertUserPreferences,
   OutcomeStatus,
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, and, gte, desc, sql as drizzleSql } from "drizzle-orm";
+import {
+  tradeIdeas,
+  marketData as marketDataTable,
+  catalysts as catalystsTable,
+  watchlist as watchlistTable,
+  optionsData as optionsDataTable,
+  userPreferences as userPreferencesTable,
+} from "@shared/schema";
 
 export interface ChatMessage {
   id: string;
@@ -885,4 +895,292 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database Storage Implementation (from javascript_database blueprint)
+export class DatabaseStorage implements IStorage {
+  private chatHistory: Map<string, ChatMessage>; // Keep chat in memory for now
+
+  constructor() {
+    this.chatHistory = new Map();
+  }
+
+  // Market Data Methods
+  async getAllMarketData(): Promise<MarketData[]> {
+    return await db.select().from(marketDataTable);
+  }
+
+  async getMarketDataBySymbol(symbol: string): Promise<MarketData | undefined> {
+    const [data] = await db.select().from(marketDataTable).where(eq(marketDataTable.symbol, symbol));
+    return data || undefined;
+  }
+
+  async createMarketData(data: InsertMarketData): Promise<MarketData> {
+    const [created] = await db.insert(marketDataTable).values(data).returning();
+    return created;
+  }
+
+  async updateMarketData(symbol: string, data: Partial<InsertMarketData>): Promise<MarketData | undefined> {
+    const [updated] = await db.update(marketDataTable)
+      .set(data)
+      .where(eq(marketDataTable.symbol, symbol))
+      .returning();
+    return updated || undefined;
+  }
+
+  // Trade Ideas Methods
+  async getAllTradeIdeas(): Promise<TradeIdea[]> {
+    return await db.select().from(tradeIdeas).orderBy(desc(tradeIdeas.timestamp));
+  }
+
+  async getTradeIdeaById(id: string): Promise<TradeIdea | undefined> {
+    const [idea] = await db.select().from(tradeIdeas).where(eq(tradeIdeas.id, id));
+    return idea || undefined;
+  }
+
+  async createTradeIdea(idea: InsertTradeIdea): Promise<TradeIdea> {
+    const [created] = await db.insert(tradeIdeas).values(idea).returning();
+    return created;
+  }
+
+  async updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined> {
+    const [updated] = await db.update(tradeIdeas)
+      .set(updates)
+      .where(eq(tradeIdeas.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteTradeIdea(id: string): Promise<boolean> {
+    const result = await db.delete(tradeIdeas).where(eq(tradeIdeas.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack: number = 24): Promise<TradeIdea | undefined> {
+    const cutoffTime = new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
+    const tolerance = entryPrice * 0.02; // 2% price tolerance
+
+    const results = await db.select().from(tradeIdeas)
+      .where(
+        and(
+          eq(tradeIdeas.symbol, symbol),
+          eq(tradeIdeas.direction, direction),
+          gte(tradeIdeas.timestamp, cutoffTime)
+        )
+      );
+
+    return results.find(idea => 
+      Math.abs(idea.entryPrice - entryPrice) <= tolerance
+    );
+  }
+
+  async updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes'>>): Promise<TradeIdea | undefined> {
+    const existing = await this.getTradeIdeaById(id);
+    if (!existing) return undefined;
+    
+    // Calculate actualHoldingTimeMinutes if not provided or is 0
+    let holdingTimeMinutes: number | null = performance.actualHoldingTimeMinutes ?? null;
+    if (performance.exitDate && (!holdingTimeMinutes || holdingTimeMinutes === 0)) {
+      const createdAt = new Date(existing.timestamp);
+      const exitedAt = new Date(performance.exitDate);
+      const diffMs = exitedAt.getTime() - createdAt.getTime();
+      holdingTimeMinutes = Math.floor(diffMs / (1000 * 60));
+    }
+
+    const [updated] = await db.update(tradeIdeas)
+      .set({ ...performance, actualHoldingTimeMinutes: holdingTimeMinutes })
+      .where(eq(tradeIdeas.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async getOpenTradeIdeas(): Promise<TradeIdea[]> {
+    return await db.select().from(tradeIdeas).where(eq(tradeIdeas.outcomeStatus, 'open'));
+  }
+
+  async getPerformanceStats(): Promise<PerformanceStats> {
+    const allIdeas = await this.getAllTradeIdeas();
+    
+    const openIdeas = allIdeas.filter(i => i.outcomeStatus === 'open');
+    const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open');
+    const wonIdeas = closedIdeas.filter(i => i.outcomeStatus === 'hit_target');
+    const lostIdeas = closedIdeas.filter(i => i.outcomeStatus === 'hit_stop');
+    const expiredIdeas = closedIdeas.filter(i => i.outcomeStatus === 'expired' || i.outcomeStatus === 'manual_exit');
+
+    const calculateAvg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+    
+    const closedGains = closedIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
+    const closedHoldingTimes = closedIdeas.filter(i => i.actualHoldingTimeMinutes !== null).map(i => i.actualHoldingTimeMinutes!);
+
+    // Group by source
+    const bySource = ['ai', 'quant', 'manual'].map(source => {
+      const sourceIdeas = closedIdeas.filter(i => i.source === source);
+      const sourceWon = sourceIdeas.filter(i => i.outcomeStatus === 'hit_target');
+      const sourceLost = sourceIdeas.filter(i => i.outcomeStatus === 'hit_stop');
+      const sourceGains = sourceIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
+      
+      return {
+        source,
+        totalIdeas: sourceIdeas.length,
+        wonIdeas: sourceWon.length,
+        lostIdeas: sourceLost.length,
+        winRate: sourceIdeas.length > 0 ? (sourceWon.length / sourceIdeas.length) * 100 : 0,
+        avgPercentGain: calculateAvg(sourceGains),
+      };
+    });
+
+    // Group by asset type
+    const byAssetType = ['stock', 'option', 'crypto'].map(assetType => {
+      const assetIdeas = closedIdeas.filter(i => i.assetType === assetType);
+      const assetWon = assetIdeas.filter(i => i.outcomeStatus === 'hit_target');
+      const assetLost = assetIdeas.filter(i => i.outcomeStatus === 'hit_stop');
+      const assetGains = assetIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
+      
+      return {
+        assetType,
+        totalIdeas: assetIdeas.length,
+        wonIdeas: assetWon.length,
+        lostIdeas: assetLost.length,
+        winRate: assetIdeas.length > 0 ? (assetWon.length / assetIdeas.length) * 100 : 0,
+        avgPercentGain: calculateAvg(assetGains),
+      };
+    });
+
+    // Group by signal type
+    const signalMap = new Map<string, TradeIdea[]>();
+    closedIdeas.forEach(idea => {
+      if (idea.qualitySignals) {
+        idea.qualitySignals.forEach(signal => {
+          if (!signalMap.has(signal)) signalMap.set(signal, []);
+          signalMap.get(signal)!.push(idea);
+        });
+      }
+    });
+
+    const bySignalType = Array.from(signalMap.entries()).map(([signal, ideas]) => {
+      const signalWon = ideas.filter(i => i.outcomeStatus === 'hit_target');
+      const signalLost = ideas.filter(i => i.outcomeStatus === 'hit_stop');
+      const signalGains = ideas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
+      
+      return {
+        signal,
+        totalIdeas: ideas.length,
+        wonIdeas: signalWon.length,
+        lostIdeas: signalLost.length,
+        winRate: ideas.length > 0 ? (signalWon.length / ideas.length) * 100 : 0,
+        avgPercentGain: calculateAvg(signalGains),
+      };
+    });
+
+    return {
+      overall: {
+        totalIdeas: allIdeas.length,
+        openIdeas: openIdeas.length,
+        closedIdeas: closedIdeas.length,
+        wonIdeas: wonIdeas.length,
+        lostIdeas: lostIdeas.length,
+        expiredIdeas: expiredIdeas.length,
+        winRate: closedIdeas.length > 0 ? (wonIdeas.length / closedIdeas.length) * 100 : 0,
+        avgPercentGain: calculateAvg(closedGains),
+        avgHoldingTimeMinutes: calculateAvg(closedHoldingTimes),
+      },
+      bySource,
+      byAssetType,
+      bySignalType,
+    };
+  }
+
+  // Catalyst Methods
+  async getAllCatalysts(): Promise<Catalyst[]> {
+    return await db.select().from(catalystsTable).orderBy(desc(catalystsTable.timestamp));
+  }
+
+  async getCatalystsBySymbol(symbol: string): Promise<Catalyst[]> {
+    return await db.select().from(catalystsTable)
+      .where(eq(catalystsTable.symbol, symbol))
+      .orderBy(desc(catalystsTable.timestamp));
+  }
+
+  async createCatalyst(catalyst: InsertCatalyst): Promise<Catalyst> {
+    const [created] = await db.insert(catalystsTable).values(catalyst).returning();
+    return created;
+  }
+
+  // Watchlist Methods
+  async getAllWatchlist(): Promise<WatchlistItem[]> {
+    return await db.select().from(watchlistTable).orderBy(desc(watchlistTable.addedAt));
+  }
+
+  async getWatchlistItem(id: string): Promise<WatchlistItem | undefined> {
+    const [item] = await db.select().from(watchlistTable).where(eq(watchlistTable.id, id));
+    return item || undefined;
+  }
+
+  async addToWatchlist(item: InsertWatchlist): Promise<WatchlistItem> {
+    const [created] = await db.insert(watchlistTable).values(item).returning();
+    return created;
+  }
+
+  async removeFromWatchlist(id: string): Promise<boolean> {
+    const result = await db.delete(watchlistTable).where(eq(watchlistTable.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  // Options Data Methods
+  async getOptionsBySymbol(symbol: string): Promise<OptionsData[]> {
+    return await db.select().from(optionsDataTable).where(eq(optionsDataTable.symbol, symbol));
+  }
+
+  async createOptionsData(data: InsertOptionsData): Promise<OptionsData> {
+    const [created] = await db.insert(optionsDataTable).values(data).returning();
+    return created;
+  }
+
+  // User Preferences Methods
+  async getUserPreferences(): Promise<UserPreferences | undefined> {
+    const [prefs] = await db.select().from(userPreferencesTable);
+    return prefs || undefined;
+  }
+
+  async updateUserPreferences(prefs: Partial<InsertUserPreferences>): Promise<UserPreferences> {
+    const existing = await this.getUserPreferences();
+    
+    if (!existing) {
+      const [created] = await db.insert(userPreferencesTable).values({
+        accountSize: 10000,
+        maxRiskPerTrade: 1,
+        defaultCapitalPerIdea: 1000,
+        defaultOptionsBudget: 250,
+        preferredAssets: ["stock", "option", "crypto"],
+        holdingHorizon: "intraday",
+        ...prefs,
+      }).returning();
+      return created;
+    } else {
+      const [updated] = await db.update(userPreferencesTable)
+        .set(prefs)
+        .where(eq(userPreferencesTable.id, existing.id))
+        .returning();
+      return updated;
+    }
+  }
+
+  // Chat History Methods (in-memory for now - not in schema)
+  async getChatHistory(): Promise<ChatMessage[]> {
+    return Array.from(this.chatHistory.values()).sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+  }
+
+  async addChatMessage(message: Omit<ChatMessage, 'id' | 'timestamp'>): Promise<ChatMessage> {
+    const id = randomUUID();
+    const timestamp = new Date().toISOString();
+    const chatMessage: ChatMessage = { ...message, id, timestamp };
+    this.chatHistory.set(id, chatMessage);
+    return chatMessage;
+  }
+
+  async clearChatHistory(): Promise<void> {
+    this.chatHistory.clear();
+  }
+}
+
+export const storage = new DatabaseStorage();
