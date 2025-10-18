@@ -52,10 +52,12 @@ The system employs a RESTful API design. Data models cover Market Data, Trade Id
 ## External Dependencies
 
 ### Data Sources
--   **CoinGecko API:** Primary for Crypto (real-time prices, historical data, market cap rankings).
--   **Yahoo Finance:** Primary for Stocks (real-time quotes, unlimited requests).
--   **Alpha Vantage API:** Fallback for Stocks (historical data, rate-limited).
--   **Tradier API:** Inactive (options chains, unlimited access).
+-   **CoinGecko API:** Primary for Crypto (real-time prices, historical data, market cap rankings, market-wide discovery).
+-   **Yahoo Finance:** Primary for Stocks (real-time quotes, **market-wide stock discovery via screener API**, historical data - unlimited requests).
+-   **Alpha Vantage API:** Fallback for Stocks (historical data, rate-limited to 25/day).
+-   **Tradier API:** Inactive (options chains, 401 authentication errors).
+
+**NEW: Dynamic Market-Wide Stock Discovery** - The platform scans the ENTIRE stock market (not just hardcoded symbols) to discover high-volume movers and breakout candidates. Yahoo Finance screener endpoints provide top gainers, losers, and most active stocks with filtering criteria: $1-$500 price range, 100K+ volume, $50M+ market cap. Discovers 30+ opportunities per scan including hidden gems like LBRT (+28.3%), IRON (+21.0%), PRAX (+16.8%), HIMS (-15.8%). Stock discovery mirrors the successful crypto gem finder pattern.
 
 ### AI Providers
 -   **OpenAI API:** For GPT-5 integration.
@@ -63,6 +65,10 @@ The system employs a RESTful API design. Data models cover Market Data, Trade Id
 -   **Google Gemini API:** For Gemini 2.5 integration.
 
 ### Data Flow Hierarchy
-1.  **Stocks:** Yahoo Finance → Alpha Vantage (if rate limited) → Skip
-2.  **Crypto:** CoinGecko → Skip
-3.  **Options:** Not currently available (Tradier inactive)
+1.  **Stock Current Prices:** Tradier → Alpha Vantage → Yahoo Finance
+2.  **Stock Historical Data:** Tradier → Alpha Vantage → **Yahoo Finance (UNLIMITED fallback)**
+3.  **Stock Discovery:** Yahoo Finance screener (gainers/losers/mostActive - unlimited)
+4.  **Crypto Current Prices:** CoinGecko
+5.  **Crypto Historical Data:** CoinGecko
+6.  **Crypto Discovery:** CoinGecko market rankings (filters top-20, targets $50M-$2B cap with 3%+ moves or 10%+ turnover)
+7.  **Options:** Not currently available (Tradier inactive)

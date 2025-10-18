@@ -202,6 +202,47 @@ export async function searchSymbol(
   return await fetchStockPrice(upperSymbol, alphaVantageKey);
 }
 
+/**
+ * Fetch historical daily prices from Yahoo Finance (UNLIMITED)
+ * Returns array of closing prices from oldest to newest
+ */
+async function fetchYahooHistoricalPrices(
+  symbol: string,
+  periods: number = 60
+): Promise<number[]> {
+  try {
+    // Calculate date range (periods days ago to today)
+    const endDate = Math.floor(Date.now() / 1000);
+    const startDate = endDate - (periods * 24 * 60 * 60);
+    
+    const response = await fetch(
+      `${YAHOO_FINANCE_API}/${symbol}?interval=1d&period1=${startDate}&period2=${endDate}`
+    );
+
+    if (!response.ok) {
+      console.log(`Yahoo Finance historical data error for ${symbol}: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const result = data?.chart?.result?.[0];
+    
+    if (!result || !result.timestamp || !result.indicators?.quote?.[0]?.close) {
+      console.log(`No Yahoo Finance historical data for ${symbol}`);
+      return [];
+    }
+
+    // Extract closing prices (filter out null values)
+    const closePrices = result.indicators.quote[0].close.filter((price: number | null) => price !== null);
+    
+    console.log(`✅ Fetched ${closePrices.length} real historical prices for ${symbol} (Yahoo Finance)`);
+    return closePrices;
+  } catch (error) {
+    console.error(`Yahoo Finance historical error for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
+    return [];
+  }
+}
+
 export interface HiddenCryptoGem {
   symbol: string;
   name: string;
@@ -255,50 +296,52 @@ export async function fetchHistoricalPrices(
     // Try Tradier first for stock historical data (unlimited)
     const tradierKey = process.env.TRADIER_API_KEY;
     if (tradierKey) {
-      const prices = await getTradierHistory(symbol, periods, tradierKey);
-      if (prices.length > 0) {
-        console.log(`✅ Fetched ${prices.length} real historical prices for ${symbol} (Tradier)`);
-        return prices;
+      try {
+        const prices = await getTradierHistory(symbol, periods, tradierKey);
+        if (prices.length > 0) {
+          console.log(`✅ Fetched ${prices.length} real historical prices for ${symbol} (Tradier)`);
+          return prices;
+        }
+      } catch (error) {
+        console.log(`Tradier error for ${symbol}, trying next source`);
       }
     }
 
     // Fallback to Alpha Vantage historical data for stocks
-    if (!apiKey) {
-      console.log(`No Alpha Vantage API key, cannot fetch historical data for ${symbol}`);
-      return [];
+    if (apiKey) {
+      try {
+        const response = await fetch(
+          `${ALPHA_VANTAGE_API}?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${apiKey}&outputsize=compact`
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+
+          // Check for rate limit or errors
+          if (!data.Information && !data.Note) {
+            const timeSeries = data["Time Series (Daily)"];
+            if (timeSeries) {
+              // Extract closing prices, sorted from oldest to newest
+              const prices = Object.keys(timeSeries)
+                .sort() // Sort dates chronologically (oldest first)
+                .slice(-periods) // Take last N periods
+                .map(date => parseFloat(timeSeries[date]["4. close"]));
+
+              console.log(`✅ Fetched ${prices.length} real historical prices for ${symbol} (Alpha Vantage)`);
+              return prices;
+            }
+          } else {
+            console.log(`Alpha Vantage rate limit or error for ${symbol}: ${data.Information || data.Note}`);
+          }
+        }
+      } catch (error) {
+        console.log(`Alpha Vantage error for ${symbol}, trying Yahoo Finance`);
+      }
     }
 
-    const response = await fetch(
-      `${ALPHA_VANTAGE_API}?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${apiKey}&outputsize=compact`
-    );
-
-    if (!response.ok) {
-      console.log(`Alpha Vantage historical data error for ${symbol}`);
-      return [];
-    }
-
-    const data = await response.json();
-
-    // Check for rate limit or errors
-    if (data.Information || data.Note) {
-      console.log(`Alpha Vantage rate limit or error for ${symbol}: ${data.Information || data.Note}`);
-      return [];
-    }
-
-    const timeSeries = data["Time Series (Daily)"];
-    if (!timeSeries) {
-      console.log(`No time series data for ${symbol}`);
-      return [];
-    }
-
-    // Extract closing prices, sorted from oldest to newest
-    const prices = Object.keys(timeSeries)
-      .sort() // Sort dates chronologically (oldest first)
-      .slice(-periods) // Take last N periods
-      .map(date => parseFloat(timeSeries[date]["4. close"]));
-
-    console.log(`✅ Fetched ${prices.length} real historical prices for ${symbol} (stock)`);
-    return prices;
+    // Final fallback: Yahoo Finance (UNLIMITED, always available)
+    console.log(`Trying Yahoo Finance for ${symbol} historical data...`);
+    return await fetchYahooHistoricalPrices(symbol, periods);
   } catch (error) {
     console.error(`Error fetching historical prices for ${symbol}:`, error);
     return [];
