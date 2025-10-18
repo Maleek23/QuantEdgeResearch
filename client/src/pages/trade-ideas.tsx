@@ -57,6 +57,7 @@ export default function TradeIdeasPage() {
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       toast({
         title: "Quant Ideas Generated",
         description: `Generated ${data.count || data.newIdeas || 0} new quantitative trade ideas`,
@@ -80,6 +81,7 @@ export default function TradeIdeasPage() {
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       toast({
         title: "AI Ideas Generated",
         description: `Generated ${data.count || 0} new AI-powered trade ideas`,

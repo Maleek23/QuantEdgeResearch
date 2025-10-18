@@ -239,6 +239,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
       if (!data || !marketData) return;
       
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       
       const typeLabel = data.type === 'stock_options' ? 'Options' : 
                        data.type === 'crypto_shares' ? 'Crypto' : 'Stock Shares';
@@ -373,6 +374,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
       if (!marketData) return;
       
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       
       toast({
         title: "Manual Trade Idea Created",
