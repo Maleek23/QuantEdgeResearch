@@ -32,6 +32,37 @@ A Machine Learning System enhances trade ideas by analyzing historical performan
 ### System Design Choices
 The system uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) managed by Drizzle ORM. All critical data is stored permanently. The user schema is simplified for future Discord integration, with subscription tiers managed externally via Discord.
 
+### Access Control & Administration
+
+**Current Access Tiers:**
+- **Free Tier**: Public access to browse and view all content (no restrictions currently enforced)
+- **Premium Tier** ($39.99/month): Full feature access including AI generation, quantitative ideas, and performance tracking (currently all features public, enforcement planned with Discord OAuth)
+- **Admin Tier**: Platform management access via password-protected `/admin` panel
+
+**Admin Panel Features:**
+Located at `/admin`, password-protected using the `ADMIN_PASSWORD` environment variable:
+- **Dashboard**: Real-time system statistics (total users, premium users, active trade ideas, win rate)
+- **User Management**: View all registered users, subscription tiers, and Discord associations
+- **Trade Ideas**: Browse all trade ideas across the platform with outcomes and performance data
+- **System Tools**: 
+  - Export platform data to CSV
+  - Clear test data
+  - Refresh cache/invalidate queries
+  - Database monitoring
+
+**Technical Implementation:**
+- Admin authentication uses simple password verification via `x-admin-password` header
+- `requireAdmin` middleware protects all admin routes
+- `requirePremium` middleware created but not enforced (awaiting Discord OAuth integration)
+- Admin password transmitted in cleartext headers (acceptable for MVP, consider JWT/hashing for production)
+
+**Next Steps - Discord OAuth Integration:**
+1. Implement Discord OAuth login flow
+2. Sync Discord roles with platform subscription tiers
+3. Enable `requirePremium` middleware on AI/Quant generation endpoints
+4. Add upgrade prompts for free users attempting premium features
+5. Auto-refresh user tier when Discord roles change
+
 ## External Dependencies
 
 ### Data Sources
