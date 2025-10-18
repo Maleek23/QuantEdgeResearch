@@ -55,14 +55,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allUsers = await storage.getAllUsers();
       const allIdeas = await storage.getAllTradeIdeas();
-      const closedIdeas = allIdeas.filter(i => i.outcome);
-      const wonIdeas = closedIdeas.filter(i => i.outcome === 'won');
+      const closedIdeas = allIdeas.filter(i => i.outcomeStatus && i.outcomeStatus !== 'open');
+      const wonIdeas = closedIdeas.filter(i => i.outcomeStatus === 'hit_target');
       
       res.json({
         totalUsers: allUsers.length,
         premiumUsers: allUsers.filter(u => u.subscriptionTier === 'premium' || u.subscriptionTier === 'admin').length,
         totalIdeas: allIdeas.length,
-        activeIdeas: allIdeas.filter(i => !i.outcome).length,
+        activeIdeas: allIdeas.filter(i => i.outcomeStatus === 'open').length,
         closedIdeas: closedIdeas.length,
         winRate: closedIdeas.length > 0 ? Math.round((wonIdeas.length / closedIdeas.length) * 100) : 0,
         dbSize: "N/A"
@@ -111,8 +111,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           i.entryPrice,
           i.targetPrice,
           i.stopLoss,
-          i.outcome || 'open',
-          new Date(i.createdAt).toISOString()
+          i.outcomeStatus || 'open',
+          new Date(i.timestamp).toISOString()
         ].join(','))
       ].join('\n');
       

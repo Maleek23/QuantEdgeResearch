@@ -12,31 +12,51 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 export default function AdminPanel() {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
   const { toast } = useToast();
 
   const { data: stats } = useQuery({
     queryKey: ['/api/admin/stats'],
-    enabled: isAuthenticated
+    enabled: isAuthenticated && !!adminPassword,
+    queryFn: async () => {
+      const res = await fetch('/api/admin/stats', {
+        headers: { 'x-admin-password': adminPassword }
+      });
+      if (!res.ok) throw new Error('Failed to fetch stats');
+      return res.json();
+    }
   });
 
   const { data: users } = useQuery({
     queryKey: ['/api/admin/users'],
-    enabled: isAuthenticated
+    enabled: isAuthenticated && !!adminPassword,
+    queryFn: async () => {
+      const res = await fetch('/api/admin/users', {
+        headers: { 'x-admin-password': adminPassword }
+      });
+      if (!res.ok) throw new Error('Failed to fetch users');
+      return res.json();
+    }
   });
 
   const { data: allIdeas } = useQuery({
     queryKey: ['/api/admin/ideas'],
-    enabled: isAuthenticated
+    enabled: isAuthenticated && !!adminPassword,
+    queryFn: async () => {
+      const res = await fetch('/api/admin/ideas', {
+        headers: { 'x-admin-password': adminPassword }
+      });
+      if (!res.ok) throw new Error('Failed to fetch ideas');
+      return res.json();
+    }
   });
 
   const handleLogin = async () => {
     try {
-      const response = await apiRequest('/api/admin/verify', {
-        method: 'POST',
-        body: JSON.stringify({ password })
-      });
+      const response = await apiRequest('POST', '/api/admin/verify', { password });
       
       if (response.ok) {
+        setAdminPassword(password); // Store password for subsequent requests
         setIsAuthenticated(true);
         toast({ title: "Admin access granted" });
       } else {
@@ -51,7 +71,10 @@ export default function AdminPanel() {
     if (!confirm("Clear all test trade ideas? This cannot be undone.")) return;
     
     try {
-      await apiRequest('/api/admin/clear-test-data', { method: 'POST' });
+      await fetch('/api/admin/clear-test-data', {
+        method: 'POST',
+        headers: { 'x-admin-password': adminPassword }
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/ideas'] });
       toast({ title: "Test data cleared" });
     } catch (error) {
@@ -61,7 +84,9 @@ export default function AdminPanel() {
 
   const handleExportData = async () => {
     try {
-      const response = await fetch('/api/admin/export-csv');
+      const response = await fetch('/api/admin/export-csv', {
+        headers: { 'x-admin-password': adminPassword }
+      });
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -127,9 +152,9 @@ export default function AdminPanel() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalUsers || 0}</div>
+            <div className="text-2xl font-bold">{(stats as any)?.totalUsers || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {stats?.premiumUsers || 0} premium
+              {(stats as any)?.premiumUsers || 0} premium
             </p>
           </CardContent>
         </Card>
@@ -140,9 +165,9 @@ export default function AdminPanel() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.totalIdeas || 0}</div>
+            <div className="text-2xl font-bold">{(stats as any)?.totalIdeas || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {stats?.activeIdeas || 0} active
+              {(stats as any)?.activeIdeas || 0} active
             </p>
           </CardContent>
         </Card>
@@ -153,9 +178,9 @@ export default function AdminPanel() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.winRate || 0}%</div>
+            <div className="text-2xl font-bold">{(stats as any)?.winRate || 0}%</div>
             <p className="text-xs text-muted-foreground">
-              {stats?.closedIdeas || 0} closed
+              {(stats as any)?.closedIdeas || 0} closed
             </p>
           </CardContent>
         </Card>
@@ -166,7 +191,7 @@ export default function AdminPanel() {
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.dbSize || "N/A"}</div>
+            <div className="text-2xl font-bold">{(stats as any)?.dbSize || "N/A"}</div>
             <p className="text-xs text-muted-foreground">Storage used</p>
           </CardContent>
         </Card>
@@ -187,7 +212,7 @@ export default function AdminPanel() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {users?.map((user: any) => (
+                {(users as any[])?.map((user: any) => (
                   <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
                       <p className="font-medium">{user.discordUsername || user.email || `User ${user.id}`}</p>
@@ -213,19 +238,19 @@ export default function AdminPanel() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {allIdeas?.map((idea: any) => (
+                {(allIdeas as any[])?.map((idea: any) => (
                   <div key={idea.id} className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
                       <p className="font-medium">{idea.symbol}</p>
                       <p className="text-sm text-muted-foreground">
-                        {idea.source} • {new Date(idea.createdAt).toLocaleString()}
+                        {idea.source} • {new Date(idea.timestamp).toLocaleString()}
                       </p>
                     </div>
                     <div className="flex gap-2">
                       <Badge>{idea.assetType}</Badge>
-                      {idea.outcome && (
-                        <Badge variant={idea.outcome === 'won' ? 'default' : 'destructive'}>
-                          {idea.outcome}
+                      {idea.outcomeStatus && idea.outcomeStatus !== 'open' && (
+                        <Badge variant={idea.outcomeStatus === 'hit_target' ? 'default' : 'destructive'}>
+                          {idea.outcomeStatus}
                         </Badge>
                       )}
                     </div>
