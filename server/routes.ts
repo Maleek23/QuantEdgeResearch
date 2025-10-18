@@ -13,7 +13,7 @@ import {
   insertUserPreferencesSchema,
 } from "@shared/schema";
 import { z } from "zod";
-import { setupAuth } from "./replitAuth";
+import { setupAuth, isAuthenticated, isPremium } from "./replitAuth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication setup (Replit Auth)
@@ -658,8 +658,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Quantitative Idea Generator (No AI required)
-  app.post("/api/quant/generate-ideas", async (req, res) => {
+  // Quantitative Idea Generator (Premium only)
+  app.post("/api/quant/generate-ideas", isPremium, async (req, res) => {
     try {
       const schema = z.object({
         count: z.number().optional().default(8),
@@ -705,8 +705,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI QuantBot Routes
-  app.post("/api/ai/generate-ideas", async (req, res) => {
+  // AI QuantBot Routes (Premium only)
+  app.post("/api/ai/generate-ideas", isPremium, async (req, res) => {
     try {
       const schema = z.object({
         marketContext: z.string().optional().default("Current market conditions with focus on stocks, options, and crypto"),
@@ -756,7 +756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/ai/chat", async (req, res) => {
+  app.post("/api/ai/chat", isPremium, async (req, res) => {
     try {
       const schema = z.object({
         message: z.string().min(1),
@@ -858,8 +858,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Parse chat message and extract trade ideas
-  app.post("/api/ai/parse-chat-idea", async (req, res) => {
+  // Parse chat message and extract trade ideas (Premium only)
+  app.post("/api/ai/parse-chat-idea", isPremium, async (req, res) => {
     try {
       const schema = z.object({
         messageId: z.string(),

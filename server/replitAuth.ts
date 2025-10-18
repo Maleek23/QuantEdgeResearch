@@ -166,8 +166,15 @@ export const isPremium: RequestHandler = async (req, res, next) => {
     const userId = user.claims.sub;
     const dbUser = await storage.getUser(userId);
     
-    if (!dbUser || (dbUser.subscriptionTier !== 'premium' && dbUser.subscriptionTier !== 'pro' && dbUser.subscriptionTier !== 'admin')) {
+    // Check subscription tier
+    const premiumTiers = ['premium', 'pro', 'admin'];
+    if (!dbUser || !premiumTiers.includes(dbUser.subscriptionTier || '')) {
       return res.status(403).json({ message: "Premium subscription required" });
+    }
+    
+    // Check subscription status (except for admin which bypasses status check)
+    if (dbUser.subscriptionTier !== 'admin' && dbUser.subscriptionStatus !== 'active') {
+      return res.status(403).json({ message: "Active subscription required" });
     }
     
     next();
