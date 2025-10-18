@@ -51,36 +51,13 @@ export default function LearnMore() {
     }
   ];
 
-  const authSteps = [
-    {
-      number: 1,
-      title: "Click Login/Sign Up",
-      description: "Start authentication from landing"
-    },
-    {
-      number: 2,
-      title: "Replit OAuth",
-      description: "Redirected to Replit's login page"
-    },
-    {
-      number: 3,
-      title: "Account Creation",
-      description: "Auto-created or existing account"
-    },
-    {
-      number: 4,
-      title: "Dashboard Access",
-      description: "Session created, full access granted"
-    }
-  ];
-
   const securityFeatures = [
-    "OAuth 2.0 + OpenID Connect authentication",
-    "Passwords managed by Replit (never stored in our database)",
-    "PostgreSQL session storage with 1-week TTL",
-    "HTTPS-only secure cookies with httpOnly and sameSite",
-    "Automatic token refresh for seamless experience",
-    "User data isolation (all trades scoped to userId)"
+    "Discord community-based membership management",
+    "Role-based access control (Free vs Premium tiers)",
+    "No passwords stored - Discord handles all authentication",
+    "Automatic tier tracking via Discord roles",
+    "Secure payment processing for Premium subscriptions",
+    "User data isolation and privacy protection"
   ];
 
   const disclaimers = [
@@ -111,11 +88,11 @@ export default function LearnMore() {
             </p>
             <div className="flex flex-wrap gap-4 justify-center animate-fade-up animate-delay-200">
               <Button 
-                onClick={() => window.location.href = '/api/login'}
+                onClick={() => window.location.href = 'https://discord.gg/quantedge'}
                 data-testid="button-get-started"
                 className="btn-magnetic px-8 py-6 text-lg neon-accent"
               >
-                Get Started
+                Join Discord
                 <ArrowRight className="h-5 w-5 ml-2" />
               </Button>
               <Button 
@@ -174,33 +151,34 @@ export default function LearnMore() {
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
               <div className="inline-flex items-center gap-2 glass-intense px-6 py-3 rounded-full mb-6 neon-cyan-glow">
-                <Lock className="h-5 w-5 text-cyan-500" />
-                <span className="font-semibold">Powered by Replit Auth</span>
+                <MessageCircle className="h-5 w-5 text-cyan-500" />
+                <span className="font-semibold">Discord Community-Powered</span>
               </div>
               <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
-                How Login & Signup Works
+                Join Our Discord Community
               </h2>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                No forms to fill out, no passwords to remember. QuantEdge uses Replit Auth 
-                for secure, seamless authentication.
+                All membership tiers are managed through our Discord server. Join to access premium signals, 
+                analytics, and connect with fellow traders.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-4 gap-6 mb-16">
-              {authSteps.map((step) => (
-                <div key={step.number} className="text-center relative" data-testid={`auth-step-${step.number}`}>
-                  <div className="relative mb-6">
-                    <div className="h-20 w-20 rounded-3xl glass-intense flex items-center justify-center text-3xl font-bold mx-auto neon-cyan-glow">
-                      {step.number}
-                    </div>
-                    {step.number < 4 && (
-                      <ChevronRight className="hidden md:block absolute top-8 -right-8 h-6 w-6 text-primary/50" />
-                    )}
-                  </div>
-                  <h3 className="font-bold mb-2 text-display">{step.title}</h3>
-                  <p className="text-sm text-muted-foreground">{step.description}</p>
-                </div>
-              ))}
+            <div className="grid md:grid-cols-3 gap-8 mb-16">
+              <div className="text-center">
+                <div className="h-20 w-20 rounded-3xl glass-intense flex items-center justify-center text-3xl font-bold mx-auto neon-cyan-glow mb-6">1</div>
+                <h3 className="font-bold mb-2 text-display">Join Discord</h3>
+                <p className="text-sm text-muted-foreground">Click the invite link to join our community server</p>
+              </div>
+              <div className="text-center">
+                <div className="h-20 w-20 rounded-3xl glass-intense flex items-center justify-center text-3xl font-bold mx-auto neon-cyan-glow mb-6">2</div>
+                <h3 className="font-bold mb-2 text-display">Choose Tier</h3>
+                <p className="text-sm text-muted-foreground">Free access or Premium ($39.99/mo) for live signals</p>
+              </div>
+              <div className="text-center">
+                <div className="h-20 w-20 rounded-3xl glass-intense flex items-center justify-center text-3xl font-bold mx-auto neon-cyan-glow mb-6">3</div>
+                <h3 className="font-bold mb-2 text-display">Get Access</h3>
+                <p className="text-sm text-muted-foreground">Receive your role and access premium channels</p>
+              </div>
             </div>
 
             <div className="gradient-border-card">
@@ -208,40 +186,74 @@ export default function LearnMore() {
                 <CardContent className="p-10">
                   <div className="flex items-start gap-6 mb-8">
                     <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0 spotlight">
-                      <Key className="h-8 w-8 text-primary" />
+                      <MessageCircle className="h-8 w-8 text-primary" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold mb-3 text-display">Supported Login Methods</h3>
+                      <h3 className="text-2xl font-bold mb-3 text-display">Membership Tiers</h3>
                       <p className="text-muted-foreground">
-                        Choose from multiple authentication providers managed by Replit
+                        Choose the tier that works best for your trading research needs
                       </p>
                     </div>
                   </div>
                   
-                  <div className="grid md:grid-cols-2 gap-4 mb-8">
-                    <div className="flex items-center gap-4 p-4 glass-card rounded-xl spotlight">
-                      <Cloud className="h-6 w-6 text-blue-500" />
-                      <span className="font-medium">Google Account</span>
+                  <div className="grid md:grid-cols-2 gap-6 mb-8">
+                    <div className="glass-card rounded-xl p-6">
+                      <h4 className="font-bold text-xl mb-2">Free Tier</h4>
+                      <div className="text-3xl font-bold text-gradient mb-4">$0/mo</div>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li className="flex items-start gap-2">
+                          <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>View public performance ledger</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>Access historical trade ideas archive</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>Basic market data and tools</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>Community Discord access</span>
+                        </li>
+                      </ul>
                     </div>
-                    <div className="flex items-center gap-4 p-4 glass-card rounded-xl spotlight">
-                      <Zap className="h-6 w-6 text-purple-500" />
-                      <span className="font-medium">GitHub Account</span>
-                    </div>
-                    <div className="flex items-center gap-4 p-4 glass-card rounded-xl spotlight">
-                      <Users className="h-6 w-6 text-cyan-500" />
-                      <span className="font-medium">X (Twitter)</span>
-                    </div>
-                    <div className="flex items-center gap-4 p-4 glass-card rounded-xl spotlight">
-                      <Shield className="h-6 w-6 text-green-500" />
-                      <span className="font-medium">Email/Password</span>
+                    <div className="glass-card rounded-xl p-6 border-2 border-primary/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-bold text-xl">Premium Tier</h4>
+                        <Badge className="badge-shimmer">Popular</Badge>
+                      </div>
+                      <div className="text-3xl font-bold text-gradient mb-4">$39.99/mo</div>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li className="flex items-start gap-2">
+                          <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>Everything in Free</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>Real-time trade signals (AI + Quant)</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>Instant Discord alerts</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>Advanced analytics & ML insights</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span>Premium Discord channels</span>
+                        </li>
+                      </ul>
                     </div>
                   </div>
 
                   <div className="glass-intense rounded-xl p-6">
                     <p className="text-sm text-muted-foreground">
-                      <strong className="text-foreground">Important:</strong> Your passwords are NEVER stored 
-                      in QuantEdge's database. Authentication is handled entirely by Replit's secure OAuth system. 
-                      We only receive your basic profile information (name, email, ID) after you authenticate.
+                      <strong className="text-foreground">How it works:</strong> Join our Discord server, subscribe to the Premium tier via payment link, 
+                      and you'll automatically receive the Premium role with access to exclusive channels and features.
                     </p>
                   </div>
                 </CardContent>
@@ -381,16 +393,16 @@ export default function LearnMore() {
                 </p>
                 <Button 
                   size="lg"
-                  onClick={() => window.location.href = '/api/login'}
-                  data-testid="button-cta-signup"
+                  onClick={() => window.location.href = 'https://discord.gg/quantedge'}
+                  data-testid="button-cta-join-discord"
                   className="btn-magnetic px-10 py-7 text-lg neon-accent"
                 >
-                  <Lock className="h-5 w-5 mr-2" />
-                  Sign Up Securely
+                  <MessageCircle className="h-5 w-5 mr-2" />
+                  Join Discord Community
                   <Sparkles className="h-5 w-5 ml-2" />
                 </Button>
                 <p className="text-sm text-muted-foreground/70 mt-6">
-                  No credit card required • Free tier available • Secure OAuth authentication
+                  Free access available • Premium: $39.99/month • Discord-managed membership
                 </p>
               </CardContent>
             </Card>
