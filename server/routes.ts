@@ -65,7 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Generate JWT token
         const token = generateAdminToken();
         
-        // Set secure HTTP-only cookie
+        // Set secure HTTP-only cookie (primary auth method)
         res.cookie('admin_token', token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
@@ -74,9 +74,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         logger.info('Admin logged in successfully', { ip: req.ip });
+        // DO NOT return token in response - it's in HTTP-only cookie
         res.json({ 
           success: true,
-          token, // Also return token for API clients
           expiresIn: '24h'
         });
       } else {

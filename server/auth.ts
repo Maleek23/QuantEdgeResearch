@@ -2,7 +2,17 @@ import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from './logger';
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'your-secret-key-change-in-production';
+// Require JWT_SECRET - fail fast if not configured
+function getJWTSecret(): string {
+  const secret = process.env.JWT_SECRET || process.env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error('CRITICAL: JWT_SECRET or SESSION_SECRET environment variable must be set for admin authentication');
+  }
+  return secret;
+}
+
+const JWT_SECRET = getJWTSecret();
+
 const JWT_EXPIRES_IN = '24h'; // Admin sessions last 24 hours
 
 export interface AdminTokenPayload {

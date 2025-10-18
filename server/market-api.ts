@@ -1,5 +1,6 @@
 import type { AssetType } from "@shared/schema";
 import { getTradierQuote, getTradierHistory } from './tradier-api';
+import { logger } from './logger';
 
 export interface ExternalMarketData {
   symbol: string;
@@ -69,7 +70,7 @@ export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketDa
       low24h: marketData.low_24h.usd,
     };
   } catch (error) {
-    console.error(`Error fetching crypto price for ${symbol}:`, error);
+    logger.error(`Error fetching crypto price for ${symbol}`, { error: error instanceof Error ? error.message : String(error) });
     return null;
   }
 }
@@ -112,7 +113,7 @@ export async function fetchYahooFinancePrice(
       marketCap: meta.marketCap,
     };
   } catch (error) {
-    console.error(`Error fetching Yahoo Finance price for ${symbol}:`, error);
+    logger.error(`Error fetching Yahoo Finance price for ${symbol}:`, error);
     return null;
   }
 }
@@ -140,7 +141,7 @@ export async function fetchStockPrice(
         };
       }
     } catch (error) {
-      console.error(`Tradier quote error for ${symbol}, falling back:`, error);
+      logger.error(`Tradier quote error for ${symbol}, falling back:`, error);
     }
   }
 
@@ -152,21 +153,21 @@ export async function fetchStockPrice(
       );
 
       if (!response.ok) {
-        console.log(`Alpha Vantage API error for ${symbol}, falling back to Yahoo Finance`);
+        logger.info(`Alpha Vantage API error for ${symbol}, falling back to Yahoo Finance`);
         return await fetchYahooFinancePrice(symbol);
       }
 
       const data = await response.json();
       
       if (data.Information && data.Information.includes("rate limit")) {
-        console.log(`Alpha Vantage rate limit hit for ${symbol}, falling back to Yahoo Finance`);
+        logger.info(`Alpha Vantage rate limit hit for ${symbol}, falling back to Yahoo Finance`);
         return await fetchYahooFinancePrice(symbol);
       }
 
       const quote = data["Global Quote"];
 
       if (!quote || !quote["05. price"]) {
-        console.log(`No Alpha Vantage data for ${symbol}, falling back to Yahoo Finance`);
+        logger.info(`No Alpha Vantage data for ${symbol}, falling back to Yahoo Finance`);
         return await fetchYahooFinancePrice(symbol);
       }
 
@@ -180,7 +181,7 @@ export async function fetchStockPrice(
         low24h: parseFloat(quote["04. low"]),
       };
     } catch (error) {
-      console.error(`Error fetching stock price for ${symbol}:`, error);
+      logger.error(`Error fetching stock price for ${symbol}:`, error);
       return await fetchYahooFinancePrice(symbol);
     }
   }
@@ -220,7 +221,7 @@ async function fetchYahooHistoricalPrices(
     );
 
     if (!response.ok) {
-      console.log(`Yahoo Finance historical data error for ${symbol}: ${response.status}`);
+      logger.info(`Yahoo Finance historical data error for ${symbol}: ${response.status}`);
       return [];
     }
 
@@ -228,17 +229,17 @@ async function fetchYahooHistoricalPrices(
     const result = data?.chart?.result?.[0];
     
     if (!result || !result.timestamp || !result.indicators?.quote?.[0]?.close) {
-      console.log(`No Yahoo Finance historical data for ${symbol}`);
+      logger.info(`No Yahoo Finance historical data for ${symbol}`);
       return [];
     }
 
     // Extract closing prices (filter out null values)
     const closePrices = result.indicators.quote[0].close.filter((price: number | null) => price !== null);
     
-    console.log(`✅ Fetched ${closePrices.length} real historical prices for ${symbol} (Yahoo Finance)`);
+    logger.info(`✅ Fetched ${closePrices.length} real historical prices for ${symbol} (Yahoo Finance)`);
     return closePrices;
   } catch (error) {
-    console.error(`Yahoo Finance historical error for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
+    logger.error(`Yahoo Finance historical error for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
     return [];
   }
 }
@@ -272,7 +273,7 @@ export async function fetchHistoricalPrices(
       // Fetch CoinGecko historical data
       const coinId = CRYPTO_SYMBOL_MAP[symbol.toUpperCase()];
       if (!coinId) {
-        console.log(`No CoinGecko mapping for ${symbol}, using fallback`);
+        logger.info(`No CoinGecko mapping for ${symbol}, using fallback`);
         return [];
       }
 
@@ -281,7 +282,7 @@ export async function fetchHistoricalPrices(
       );
 
       if (!response.ok) {
-        console.log(`CoinGecko historical data error for ${symbol}`);
+        logger.info(`CoinGecko historical data error for ${symbol}`);
         return [];
       }
 
@@ -289,7 +290,7 @@ export async function fetchHistoricalPrices(
       // CoinGecko returns [timestamp, price] arrays
       const prices = data.prices.map((p: [number, number]) => p[1]);
       
-      console.log(`✅ Fetched ${prices.length} real historical prices for ${symbol} (crypto)`);
+      logger.info(`✅ Fetched ${prices.length} real historical prices for ${symbol} (crypto)`);
       return prices;
     }
 
@@ -299,11 +300,11 @@ export async function fetchHistoricalPrices(
       try {
         const prices = await getTradierHistory(symbol, periods, tradierKey);
         if (prices.length > 0) {
-          console.log(`✅ Fetched ${prices.length} real historical prices for ${symbol} (Tradier)`);
+          logger.info(`✅ Fetched ${prices.length} real historical prices for ${symbol} (Tradier)`);
           return prices;
         }
       } catch (error) {
-        console.log(`Tradier error for ${symbol}, trying next source`);
+        logger.info(`Tradier error for ${symbol}, trying next source`);
       }
     }
 
@@ -327,23 +328,23 @@ export async function fetchHistoricalPrices(
                 .slice(-periods) // Take last N periods
                 .map(date => parseFloat(timeSeries[date]["4. close"]));
 
-              console.log(`✅ Fetched ${prices.length} real historical prices for ${symbol} (Alpha Vantage)`);
+              logger.info(`✅ Fetched ${prices.length} real historical prices for ${symbol} (Alpha Vantage)`);
               return prices;
             }
           } else {
-            console.log(`Alpha Vantage rate limit or error for ${symbol}: ${data.Information || data.Note}`);
+            logger.info(`Alpha Vantage rate limit or error for ${symbol}: ${data.Information || data.Note}`);
           }
         }
       } catch (error) {
-        console.log(`Alpha Vantage error for ${symbol}, trying Yahoo Finance`);
+        logger.info(`Alpha Vantage error for ${symbol}, trying Yahoo Finance`);
       }
     }
 
     // Final fallback: Yahoo Finance (UNLIMITED, always available)
-    console.log(`Trying Yahoo Finance for ${symbol} historical data...`);
+    logger.info(`Trying Yahoo Finance for ${symbol} historical data...`);
     return await fetchYahooHistoricalPrices(symbol, periods);
   } catch (error) {
-    console.error(`Error fetching historical prices for ${symbol}:`, error);
+    logger.error(`Error fetching historical prices for ${symbol}:`, error);
     return [];
   }
 }
@@ -355,7 +356,7 @@ export async function discoverHiddenCryptoGems(limit: number = 10): Promise<Hidd
     );
 
     if (!marketCapResponse.ok) {
-      console.error("CoinGecko API error:", marketCapResponse.statusText);
+      logger.error("CoinGecko API error:", marketCapResponse.statusText);
       return [];
     }
 
@@ -405,11 +406,11 @@ export async function discoverHiddenCryptoGems(limit: number = 10): Promise<Hidd
       .sort((a: any, b: any) => b.anomalyScore - a.anomalyScore)
       .slice(0, limit);
 
-    console.log(`✅ Discovery: ${hiddenGems.length} hidden gems found (excluded top-20, required 3%+ move OR 10%+ turnover, $50M-$2B cap)`);
+    logger.info(`✅ Discovery: ${hiddenGems.length} hidden gems found (excluded top-20, required 3%+ move OR 10%+ turnover, $50M-$2B cap)`);
     
     return hiddenGems;
   } catch (error) {
-    console.error("Error discovering hidden crypto gems:", error);
+    logger.error("Error discovering hidden crypto gems:", error);
     return [];
   }
 }
@@ -428,7 +429,7 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
   const gems: StockGem[] = [];
   
   try {
-    console.log('🔍 Scanning stock market for movers and breakouts...');
+    logger.info('🔍 Scanning stock market for movers and breakouts...');
     
     // Fetch multiple categories to get a diverse set of opportunities
     const categories = [
@@ -446,14 +447,14 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
         });
         
         if (!response.ok) {
-          console.log(`⚠️  Yahoo ${category.name} endpoint returned ${response.status}`);
+          logger.info(`⚠️  Yahoo ${category.name} endpoint returned ${response.status}`);
           continue;
         }
         
         const data = await response.json();
         const quotes = data?.finance?.result?.[0]?.quotes || [];
         
-        console.log(`  ✓ Found ${quotes.length} stocks in ${category.name}`);
+        logger.info(`  ✓ Found ${quotes.length} stocks in ${category.name}`);
         
         for (const quote of quotes) {
           // Filter criteria: 
@@ -479,7 +480,7 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
           });
         }
       } catch (error) {
-        console.log(`  ⚠️  Failed to fetch ${category.name}:`, error instanceof Error ? error.message : 'Unknown error');
+        logger.info(`  ⚠️  Failed to fetch ${category.name}:`, error instanceof Error ? error.message : 'Unknown error');
       }
     }
     
@@ -496,11 +497,11 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
       .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
       .slice(0, limit);
     
-    console.log(`🎯 Discovered ${sortedGems.length} stock gems: ${sortedGems.slice(0, 5).map(g => `${g.symbol} (${g.changePercent > 0 ? '+' : ''}${g.changePercent.toFixed(1)}%)`).join(', ')}${sortedGems.length > 5 ? '...' : ''}`);
+    logger.info(`🎯 Discovered ${sortedGems.length} stock gems: ${sortedGems.slice(0, 5).map(g => `${g.symbol} (${g.changePercent > 0 ? '+' : ''}${g.changePercent.toFixed(1)}%)`).join(', ')}${sortedGems.length > 5 ? '...' : ''}`);
     
     return sortedGems;
   } catch (error) {
-    console.error('❌ Stock discovery error:', error);
+    logger.error('❌ Stock discovery error:', error);
     return [];
   }
 }

@@ -1,5 +1,6 @@
 // Discord webhook service for automated trade alerts
 import type { TradeIdea } from "@shared/schema";
+import { logger } from './logger';
 
 interface DiscordEmbed {
   title: string;
@@ -118,7 +119,7 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
-    console.log('⚠️ Discord webhook URL not configured - skipping alert');
+    logger.info('⚠️ Discord webhook URL not configured - skipping alert');
     return;
   }
   
@@ -141,9 +142,9 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
       throw new Error(`Discord webhook failed: ${response.status} ${response.statusText}`);
     }
     
-    console.log(`✅ Discord alert sent: ${idea.symbol} ${idea.direction.toUpperCase()}`);
+    logger.info(`✅ Discord alert sent: ${idea.symbol} ${idea.direction.toUpperCase()}`);
   } catch (error) {
-    console.error('❌ Failed to send Discord alert:', error);
+    logger.error('❌ Failed to send Discord alert:', error);
   }
 }
 
@@ -162,7 +163,7 @@ export async function sendDiscordAlert(alert: {
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
-    console.log('⚠️ Discord webhook URL not configured - skipping watchlist alert');
+    logger.info('⚠️ Discord webhook URL not configured - skipping watchlist alert');
     return;
   }
   
@@ -223,9 +224,9 @@ export async function sendDiscordAlert(alert: {
       throw new Error(`Discord watchlist alert failed: ${response.status} ${response.statusText}`);
     }
     
-    console.log(`✅ Discord watchlist alert sent: ${alert.symbol} ${alert.alertType.toUpperCase()}`);
+    logger.info(`✅ Discord watchlist alert sent: ${alert.symbol} ${alert.alertType.toUpperCase()}`);
   } catch (error) {
-    console.error('❌ Failed to send Discord watchlist alert:', error);
+    logger.error('❌ Failed to send Discord watchlist alert:', error);
   }
 }
 
@@ -276,9 +277,9 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
     });
     
     if (response.ok) {
-      console.log(`✅ Discord batch summary sent: ${ideas.length} ${source} ideas`);
+      logger.info(`✅ Discord batch summary sent: ${ideas.length} ${source} ideas`);
     }
   } catch (error) {
-    console.error('❌ Failed to send Discord batch summary:', error);
+    logger.error('❌ Failed to send Discord batch summary:', error);
   }
 }

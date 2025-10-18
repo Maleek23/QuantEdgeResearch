@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI } from "@google/genai";
 import type { TradeIdea, InsertTradeIdea } from "@shared/schema";
+import { logger } from './logger';
 
 // The newest Anthropic model is "claude-sonnet-4-20250514"
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
@@ -93,7 +94,7 @@ If no clear trade ideas are found, return empty array.`;
     }
     return [];
   } catch (openaiError) {
-    console.log("OpenAI parsing failed, trying Anthropic...", openaiError);
+    logger.info("OpenAI parsing failed, trying Anthropic...", openaiError);
     
     // Fallback to Anthropic
     try {
@@ -124,7 +125,7 @@ If no clear trade ideas are found, return empty array.`;
       }
       return [];
     } catch (anthropicError) {
-      console.log("Anthropic parsing failed, trying Gemini...", anthropicError);
+      logger.info("Anthropic parsing failed, trying Gemini...", anthropicError);
       
       // Fallback to Gemini
       try {
@@ -146,7 +147,7 @@ If no clear trade ideas are found, return empty array.`;
         }
         return [];
       } catch (geminiError) {
-        console.error("All AI providers failed to parse trade ideas:", geminiError);
+        logger.error("All AI providers failed to parse trade ideas:", geminiError);
         return [];
       }
     }
@@ -239,11 +240,11 @@ Focus on actionable, research-grade opportunities.`;
       ...geminiIdeas
     ];
 
-    console.log(`Generated ${openaiIdeas.length} ideas from OpenAI, ${anthropicIdeas.length} from Anthropic, ${geminiIdeas.length} from Gemini`);
+    logger.info(`Generated ${openaiIdeas.length} ideas from OpenAI, ${anthropicIdeas.length} from Anthropic, ${geminiIdeas.length} from Gemini`);
 
     return allIdeas.slice(0, 10); // Return max 10 ideas
   } catch (error: any) {
-    console.error("AI trade idea generation failed:", error);
+    logger.error("AI trade idea generation failed:", error);
     
     // Provide helpful error messages
     if (error?.status === 400 && error?.message?.includes('credit balance')) {
@@ -289,11 +290,11 @@ Be concise, professional, and data-driven. Use plain language while maintaining 
     const textBlock = response.content.find(block => block.type === 'text');
     return textBlock && 'text' in textBlock ? textBlock.text : "I couldn't process that request";
   } catch (error: any) {
-    console.error("QuantAI chat failed:", error);
+    logger.error("QuantAI chat failed:", error);
     
     // Try OpenAI as fallback
     try {
-      console.log("Falling back to OpenAI for chat...");
+      logger.info("Falling back to OpenAI for chat...");
       const openaiResponse = await getOpenAI().chat.completions.create({
         model: "gpt-5",
         messages: [
@@ -309,11 +310,11 @@ Be concise, professional, and data-driven. Use plain language while maintaining 
 
       return openaiResponse.choices[0].message.content || "I couldn't process that request";
     } catch (openaiError: any) {
-      console.error("OpenAI chat also failed:", openaiError);
+      logger.error("OpenAI chat also failed:", openaiError);
       
       // Try Gemini as final fallback
       try {
-        console.log("Falling back to Gemini for chat...");
+        logger.info("Falling back to Gemini for chat...");
         const conversationText = conversationHistory.map(msg => msg.content).join('\n');
         const fullPrompt = conversationText ? `${conversationText}\n\n${userMessage}` : userMessage;
         
@@ -327,7 +328,7 @@ Be concise, professional, and data-driven. Use plain language while maintaining 
 
         return geminiResponse.text || "I couldn't process that request";
       } catch (geminiError: any) {
-        console.error("All AI providers failed for chat:", geminiError);
+        logger.error("All AI providers failed for chat:", geminiError);
         
         // Provide helpful error message
         if (error?.status === 400 && error?.message?.includes('credit balance')) {
@@ -364,7 +365,7 @@ Keep it concise and actionable.`;
 
     return response.text || "Unable to generate analysis";
   } catch (error) {
-    console.error("Quick analysis failed:", error);
+    logger.error("Quick analysis failed:", error);
     return "Market analysis currently unavailable";
   }
 }

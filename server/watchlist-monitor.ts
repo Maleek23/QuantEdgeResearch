@@ -3,6 +3,7 @@ import { watchlist } from '@shared/schema';
 import { eq, and, gt } from 'drizzle-orm';
 import { fetchStockPrice, fetchCryptoPrice } from './market-api';
 import { sendDiscordAlert } from './discord-service';
+import { logger } from './logger';
 
 // Watchlist Price Alert Types
 type AlertType = 'entry' | 'stop' | 'target';
@@ -32,11 +33,11 @@ export async function monitorWatchlist(): Promise<PriceAlert[]> {
       .where(eq(watchlist.alertsEnabled, true));
     
     if (watchlistItems.length === 0) {
-      console.log('📊 Watchlist Monitor: No items with alerts enabled');
+      logger.info('📊 Watchlist Monitor: No items with alerts enabled');
       return [];
     }
     
-    console.log(`📊 Watchlist Monitor: Checking ${watchlistItems.length} items...`);
+    logger.info(`📊 Watchlist Monitor: Checking ${watchlistItems.length} items...`);
     
     // Check each watchlist item
     for (const item of watchlistItems) {
@@ -53,7 +54,7 @@ export async function monitorWatchlist(): Promise<PriceAlert[]> {
         }
         
         if (!currentPrice) {
-          console.log(`⚠️ Watchlist Monitor: Could not fetch price for ${item.symbol}`);
+          logger.info(`⚠️ Watchlist Monitor: Could not fetch price for ${item.symbol}`);
           continue;
         }
         
@@ -116,18 +117,18 @@ export async function monitorWatchlist(): Promise<PriceAlert[]> {
         }
         
       } catch (error) {
-        console.error(`❌ Watchlist Monitor: Error checking ${item.symbol}:`, error);
+        logger.error(`❌ Watchlist Monitor: Error checking ${item.symbol}:`, error);
       }
     }
     
     if (triggeredAlerts.length > 0) {
-      console.log(`🔔 Watchlist Monitor: ${triggeredAlerts.length} alerts triggered!`);
+      logger.info(`🔔 Watchlist Monitor: ${triggeredAlerts.length} alerts triggered!`);
     }
     
     return triggeredAlerts;
     
   } catch (error) {
-    console.error('❌ Watchlist Monitor: Fatal error:', error);
+    logger.error('❌ Watchlist Monitor: Fatal error:', error);
     return [];
   }
 }
@@ -159,10 +160,10 @@ async function sendWatchlistAlert(item: any, alert: PriceAlert): Promise<void> {
       });
     }
     
-    console.log(`✅ Watchlist Alert Sent: ${alert.symbol} ${alert.alertType.toUpperCase()} - $${alert.currentPrice.toFixed(2)}`);
+    logger.info(`✅ Watchlist Alert Sent: ${alert.symbol} ${alert.alertType.toUpperCase()} - $${alert.currentPrice.toFixed(2)}`);
     
   } catch (error) {
-    console.error(`❌ Failed to send watchlist alert for ${alert.symbol}:`, error);
+    logger.error(`❌ Failed to send watchlist alert for ${alert.symbol}:`, error);
   }
 }
 
@@ -171,7 +172,7 @@ async function sendWatchlistAlert(item: any, alert: PriceAlert): Promise<void> {
  * Checks every 5 minutes by default
  */
 export function startWatchlistMonitor(intervalMinutes: number = 5): NodeJS.Timeout {
-  console.log(`🚀 Starting Watchlist Monitor (interval: ${intervalMinutes} minutes)`);
+  logger.info(`🚀 Starting Watchlist Monitor (interval: ${intervalMinutes} minutes)`);
   
   // Run immediately on start
   monitorWatchlist();

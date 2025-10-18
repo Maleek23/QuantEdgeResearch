@@ -11,6 +11,7 @@ import {
   calculateSMA
 } from './technical-indicators';
 import { discoverHiddenCryptoGems, discoverStockGems, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
+import { logger } from './logger';
 
 // Machine Learning: Fetch learned signal weights from performance data
 async function fetchLearnedWeights(): Promise<Map<string, number>> {
@@ -19,14 +20,14 @@ async function fetchLearnedWeights(): Promise<Map<string, number>> {
     const data = await response.json();
     
     if (!data.ready || !data.signalWeights) {
-      console.log('📊 ML patterns not ready yet - using default weights');
+      logger.info('📊 ML patterns not ready yet - using default weights');
       return new Map();
     }
     
-    console.log(`🧠 ML-Enhanced: Loaded ${Object.keys(data.signalWeights).length} signal weights from ${data.trainedOn} trades`);
+    logger.info(`🧠 ML-Enhanced: Loaded ${Object.keys(data.signalWeights).length} signal weights from ${data.trainedOn} trades`);
     return new Map(Object.entries(data.signalWeights));
   } catch (error) {
-    console.log('📊 Using default weights (ML patterns unavailable)');
+    logger.info('📊 Using default weights (ML patterns unavailable)');
     return new Map();
   }
 }
@@ -617,15 +618,15 @@ export async function generateQuantIdeas(
   const learnedWeights = await fetchLearnedWeights();
 
   // 🔍 DISCOVERY PHASE: Dynamically scan the entire market for opportunities
-  console.log('🔍 Starting market-wide discovery...');
+  logger.info('🔍 Starting market-wide discovery...');
   
   // Discover stock movers and breakouts (gainers, losers, most active)
   const stockGems = await discoverStockGems(30);
-  console.log(`  ✓ Stock discovery: ${stockGems.length} movers found`);
+  logger.info(`  ✓ Stock discovery: ${stockGems.length} movers found`);
   
   // Discover hidden crypto gems (small-caps with anomalies)
   const cryptoGems = await discoverHiddenCryptoGems(15);
-  console.log(`  ✓ Crypto discovery: ${cryptoGems.length} gems found`);
+  logger.info(`  ✓ Crypto discovery: ${cryptoGems.length} gems found`);
 
   // Convert discovered stock gems to MarketData
   const discoveredStockData: MarketData[] = stockGems.map(gem => ({
@@ -669,13 +670,13 @@ export async function generateQuantIdeas(
 
   // 🔥 PRIORITIZE DISCOVERED GEMS: Use dynamic discovery instead of static database symbols
   // Only use database symbols as fallback if discovery fails
-  console.log(`💎 Using ${discoveredStockData.length} discovered stocks + ${discoveredCryptoData.length} discovered cryptos`);
+  logger.info(`💎 Using ${discoveredStockData.length} discovered stocks + ${discoveredCryptoData.length} discovered cryptos`);
   
   const combinedData = [...discoveredStockData, ...discoveredCryptoData];
   
   // Only add database symbols as fallback if we didn't get enough from discovery
   if (combinedData.length < count * 2) {
-    console.log('📊 Adding fallback symbols from database...');
+    logger.info('📊 Adding fallback symbols from database...');
     marketData.forEach(d => {
       // Skip if we already have this symbol from discovery
       if (!combinedData.some(gem => gem.symbol === d.symbol)) {
@@ -699,8 +700,8 @@ export async function generateQuantIdeas(
     if (ci < cryptoData.length) sortedData.push(cryptoData[ci++]);
   }
 
-  console.log(`📊 Processing ${sortedData.length} candidates (${stockData.length} stocks, ${cryptoData.length} crypto)`);
-  console.log(`   Top movers: ${sortedData.slice(0, 10).map(d => `${d.symbol} ${d.changePercent > 0 ? '+' : ''}${d.changePercent.toFixed(1)}%`).join(', ')}${sortedData.length > 10 ? '...' : ''}`);
+  logger.info(`📊 Processing ${sortedData.length} candidates (${stockData.length} stocks, ${cryptoData.length} crypto)`);
+  logger.info(`   Top movers: ${sortedData.slice(0, 10).map(d => `${d.symbol} ${d.changePercent > 0 ? '+' : ''}${d.changePercent.toFixed(1)}%`).join(', ')}${sortedData.length > 10 ? '...' : ''}`);
 
   // Track asset type distribution to ensure balanced mix
   const assetTypeCount = { stock: 0, option: 0, crypto: 0 };
@@ -744,7 +745,7 @@ export async function generateQuantIdeas(
     
     if (historicalPrices.length === 0) {
       dataQuality.noHistoricalData++;
-      console.log(`  ⚠️  ${data.symbol}: Skipped - no historical data available`);
+      logger.info(`  ⚠️  ${data.symbol}: Skipped - no historical data available`);
       continue;
     }
     
@@ -867,7 +868,7 @@ export async function generateQuantIdeas(
             optionType = optimalStrike.optionType;
           }
         } catch (error) {
-          console.log(`Tradier options chain unavailable for ${data.symbol}, using fallback strike`);
+          logger.info(`Tradier options chain unavailable for ${data.symbol}, using fallback strike`);
         }
       }
       
@@ -933,7 +934,7 @@ export async function generateQuantIdeas(
       }
     })();
     
-    console.log(`⏰ ${data.symbol} time windows: Entry by ${entryValidUntil}, Exit by ${exitBy}`);
+    logger.info(`⏰ ${data.symbol} time windows: Entry by ${entryValidUntil}, Exit by ${exitBy}`);
 
     // TODO: Extract RSI/MACD values from signal detection for full transparency
     // For now, we populate what's available and will enhance in next iteration
@@ -1020,31 +1021,31 @@ export async function generateQuantIdeas(
     else if (assetType === 'crypto') assetTypeCount.crypto++;
   }
   
-  console.log(`✅ Generated ${ideas.length} ideas: ${assetTypeCount.stock} stock shares, ${assetTypeCount.option} options, ${assetTypeCount.crypto} crypto`);
+  logger.info(`✅ Generated ${ideas.length} ideas: ${assetTypeCount.stock} stock shares, ${assetTypeCount.option} options, ${assetTypeCount.crypto} crypto`);
   
   // Data quality report
-  console.log(`📊 Data Quality Report:`);
-  console.log(`   Candidates processed: ${dataQuality.processed}`);
-  console.log(`   ❌ No historical data: ${dataQuality.noHistoricalData}`);
-  console.log(`   ❌ No signal detected: ${dataQuality.noSignal}`);
-  console.log(`   ❌ Low quality (filters): ${dataQuality.lowQuality}`);
-  console.log(`   ⛔ Quota full (rejected): ${dataQuality.quotaFull}`);
-  console.log(`   ✅ Ideas generated: ${ideas.length}`);
+  logger.info(`📊 Data Quality Report:`);
+  logger.info(`   Candidates processed: ${dataQuality.processed}`);
+  logger.info(`   ❌ No historical data: ${dataQuality.noHistoricalData}`);
+  logger.info(`   ❌ No signal detected: ${dataQuality.noSignal}`);
+  logger.info(`   ❌ Low quality (filters): ${dataQuality.lowQuality}`);
+  logger.info(`   ⛔ Quota full (rejected): ${dataQuality.quotaFull}`);
+  logger.info(`   ✅ Ideas generated: ${ideas.length}`);
   
   // Warn if target distribution was not met
   if (assetTypeCount.stock < targetDistribution.stock) {
-    console.log(`⚠️  Stock shares: generated ${assetTypeCount.stock}, target was ${targetDistribution.stock}`);
+    logger.info(`⚠️  Stock shares: generated ${assetTypeCount.stock}, target was ${targetDistribution.stock}`);
   }
   if (assetTypeCount.option < targetDistribution.option) {
-    console.log(`⚠️  Options: generated ${assetTypeCount.option}, target was ${targetDistribution.option}`);
+    logger.info(`⚠️  Options: generated ${assetTypeCount.option}, target was ${targetDistribution.option}`);
   }
   if (assetTypeCount.crypto < targetDistribution.crypto) {
-    console.log(`⚠️  Crypto: generated ${assetTypeCount.crypto}, target was ${targetDistribution.crypto}`);
+    logger.info(`⚠️  Crypto: generated ${assetTypeCount.crypto}, target was ${targetDistribution.crypto}`);
   }
   
   // Critical data quality warning
   if (dataQuality.noHistoricalData > 0) {
-    console.log(`🚨 WARNING: ${dataQuality.noHistoricalData} candidates skipped due to missing historical data - ideas are based on real data only!`);
+    logger.info(`🚨 WARNING: ${dataQuality.noHistoricalData} candidates skipped due to missing historical data - ideas are based on real data only!`);
   }
 
   // If we don't have enough ideas, generate some based on catalysts

@@ -202,11 +202,15 @@ export default function AdminPanel() {
 
   const handlePasswordSubmit = async () => {
     try {
-      await apiRequest('POST', '/api/admin/verify', { password });
-      // If we reach here, auth succeeded (apiRequest throws on error)
+      const response = await apiRequest('POST', '/api/admin/login', { password }) as { success: boolean; expiresIn: string };
+      // JWT token is now stored in HTTP-only cookie automatically (not accessible via JS)
+      // Keep password in state for backward compatibility with legacy endpoints
       setAdminPassword(password);
       setAuthStep('authenticated');
-      toast({ title: "Admin access granted", description: "Welcome back" });
+      toast({ 
+        title: "Admin access granted", 
+        description: `Session expires in ${response.expiresIn}` 
+      });
     } catch (error) {
       toast({ title: "Invalid password", variant: "destructive" });
     }

@@ -1,6 +1,8 @@
 // Tradier API integration for real-time market data and options chains
 // Replaces rate-limited Alpha Vantage with unlimited Tradier access
 
+import { logger } from './logger';
+
 interface TradierQuote {
   symbol: string;
   description: string;
@@ -108,7 +110,7 @@ function getBaseUrl(apiKey: string): string {
 export async function getTradierQuote(symbol: string, apiKey?: string): Promise<TradierQuote | null> {
   const key = apiKey || process.env.TRADIER_API_KEY;
   if (!key) {
-    console.error('Tradier API key not found');
+    logger.error('Tradier API key not found');
     return null;
   }
 
@@ -122,7 +124,7 @@ export async function getTradierQuote(symbol: string, apiKey?: string): Promise<
     });
 
     if (!response.ok) {
-      console.error(`Tradier quote error for ${symbol}: ${response.status} ${response.statusText}`);
+      logger.error(`Tradier quote error for ${symbol}: ${response.status} ${response.statusText}`);
       return null;
     }
 
@@ -135,7 +137,7 @@ export async function getTradierQuote(symbol: string, apiKey?: string): Promise<
 
     return quote;
   } catch (error) {
-    console.error(`Tradier quote fetch error for ${symbol}:`, error);
+    logger.error(`Tradier quote fetch error for ${symbol}:`, error);
     return null;
   }
 }
@@ -148,7 +150,7 @@ export async function getTradierHistory(
 ): Promise<number[]> {
   const key = apiKey || process.env.TRADIER_API_KEY;
   if (!key) {
-    console.error('Tradier API key not found');
+    logger.error('Tradier API key not found');
     return [];
   }
 
@@ -172,7 +174,7 @@ export async function getTradierHistory(
     );
 
     if (!response.ok) {
-      console.error(`Tradier history error for ${symbol}: ${response.status}`);
+      logger.error(`Tradier history error for ${symbol}: ${response.status}`);
       return [];
     }
 
@@ -186,7 +188,7 @@ export async function getTradierHistory(
     // Return closing prices in chronological order
     return history.map(day => day.close);
   } catch (error) {
-    console.error(`Tradier history fetch error for ${symbol}:`, error);
+    logger.error(`Tradier history fetch error for ${symbol}:`, error);
     return [];
   }
 }
@@ -199,7 +201,7 @@ export async function getTradierOptionsChain(
 ): Promise<TradierOption[]> {
   const key = apiKey || process.env.TRADIER_API_KEY;
   if (!key) {
-    console.error('Tradier API key not found');
+    logger.error('Tradier API key not found');
     return [];
   }
 
@@ -226,7 +228,7 @@ export async function getTradierOptionsChain(
     }
 
     if (!targetExpiration) {
-      console.error(`No expiration found for ${symbol}`);
+      logger.error(`No expiration found for ${symbol}`);
       return [];
     }
 
@@ -241,7 +243,7 @@ export async function getTradierOptionsChain(
     );
 
     if (!response.ok) {
-      console.error(`Tradier options chain error for ${symbol}: ${response.status}`);
+      logger.error(`Tradier options chain error for ${symbol}: ${response.status}`);
       return [];
     }
 
@@ -250,7 +252,7 @@ export async function getTradierOptionsChain(
     
     return options;
   } catch (error) {
-    console.error(`Tradier options chain fetch error for ${symbol}:`, error);
+    logger.error(`Tradier options chain fetch error for ${symbol}:`, error);
     return [];
   }
 }
@@ -263,7 +265,7 @@ export async function getTradierMarketStatus(apiKey?: string): Promise<{
 } | null> {
   const key = apiKey || process.env.TRADIER_API_KEY;
   if (!key) {
-    console.error('Tradier API key not found');
+    logger.error('Tradier API key not found');
     return null;
   }
 
@@ -277,7 +279,7 @@ export async function getTradierMarketStatus(apiKey?: string): Promise<{
     });
 
     if (!response.ok) {
-      console.error(`Tradier market clock error: ${response.status}`);
+      logger.error(`Tradier market clock error: ${response.status}`);
       return null;
     }
 
@@ -290,7 +292,7 @@ export async function getTradierMarketStatus(apiKey?: string): Promise<{
       timestamp: clock.timestamp
     };
   } catch (error) {
-    console.error('Tradier market clock fetch error:', error);
+    logger.error('Tradier market clock fetch error:', error);
     return null;
   }
 }
