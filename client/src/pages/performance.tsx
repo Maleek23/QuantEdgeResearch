@@ -202,28 +202,40 @@ export default function PerformancePage() {
 
       {/* Overall Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card data-testid="card-total-ideas">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
-            <CardTitle className="text-sm font-medium">Total Ideas</CardTitle>
-            <Activity className="w-4 h-4 text-muted-foreground" />
+        <Card className="stat-card shadow-lg border-primary/20" data-testid="card-total-ideas">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
+            <CardTitle className="text-sm font-semibold tracking-wide">Total Ideas</CardTitle>
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Activity className="w-4 h-4 text-primary" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-mono">
+          <CardContent className="space-y-1">
+            <div className="text-3xl font-bold font-mono tracking-tight">
               {stats.overall.totalIdeas}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {stats.overall.openIdeas} open • {stats.overall.closedIdeas} closed
+            <p className="text-xs text-muted-foreground flex items-center gap-2">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                {stats.overall.openIdeas} open
+              </span>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-muted-foreground"></span>
+                {stats.overall.closedIdeas} closed
+              </span>
             </p>
           </CardContent>
         </Card>
 
-        <Card data-testid="card-win-rate">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
-            <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
-            <Target className="w-4 h-4 text-muted-foreground" />
+        <Card className={`stat-card shadow-lg ${stats.overall.winRate >= 50 ? 'stat-card-bullish border-green-500/20' : 'border-red-500/20'}`} data-testid="card-win-rate">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
+            <CardTitle className="text-sm font-semibold tracking-wide">Win Rate</CardTitle>
+            <div className={`p-2 rounded-lg ${stats.overall.winRate >= 50 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+              <Target className={`w-4 h-4 ${stats.overall.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`} />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-mono">
+          <CardContent className="space-y-1">
+            <div className={`text-3xl font-bold font-mono tracking-tight ${stats.overall.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
               {stats.overall.winRate.toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">
@@ -232,17 +244,19 @@ export default function PerformancePage() {
           </CardContent>
         </Card>
 
-        <Card data-testid="card-avg-gain">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
-            <CardTitle className="text-sm font-medium">Avg Gain</CardTitle>
-            {stats.overall.avgPercentGain >= 0 ? (
-              <TrendingUp className="w-4 h-4 text-green-500" />
-            ) : (
-              <TrendingDown className="w-4 h-4 text-red-500" />
-            )}
+        <Card className={`stat-card shadow-lg ${stats.overall.avgPercentGain >= 0 ? 'stat-card-bullish border-green-500/20' : 'stat-card-bearish border-red-500/20'}`} data-testid="card-avg-gain">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
+            <CardTitle className="text-sm font-semibold tracking-wide">Avg Gain</CardTitle>
+            <div className={`p-2 rounded-lg ${stats.overall.avgPercentGain >= 0 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+              {stats.overall.avgPercentGain >= 0 ? (
+                <TrendingUp className="w-4 h-4 text-green-500" />
+              ) : (
+                <TrendingDown className="w-4 h-4 text-red-500" />
+              )}
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold font-mono ${
+          <CardContent className="space-y-1">
+            <div className={`text-3xl font-bold font-mono tracking-tight ${
               stats.overall.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
             }`}>
               {stats.overall.avgPercentGain >= 0 ? '+' : ''}
@@ -254,13 +268,15 @@ export default function PerformancePage() {
           </CardContent>
         </Card>
 
-        <Card data-testid="card-avg-holding-time">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-1">
-            <CardTitle className="text-sm font-medium">Avg Hold Time</CardTitle>
-            <Clock className="w-4 h-4 text-muted-foreground" />
+        <Card className="stat-card shadow-lg border-primary/20" data-testid="card-avg-holding-time">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
+            <CardTitle className="text-sm font-semibold tracking-wide">Avg Hold Time</CardTitle>
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Clock className="w-4 h-4 text-primary" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-mono">
+          <CardContent className="space-y-1">
+            <div className="text-3xl font-bold font-mono tracking-tight">
               {formatTime(stats.overall.avgHoldingTimeMinutes)}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -272,18 +288,24 @@ export default function PerformancePage() {
 
       {/* Detailed Trades List */}
       {closedIdeas.length > 0 && (
-        <Card data-testid="card-trade-history">
-          <CardHeader>
-            <div className="flex items-center justify-between">
+        <Card className="shadow-lg overflow-hidden" data-testid="card-trade-history">
+          <CardHeader className="bg-gradient-to-r from-card to-muted/30 border-b border-border/50">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <CardTitle>Trade History</CardTitle>
-                <CardDescription>
-                  Detailed view of all closed trade ideas ({filteredIdeas.length} of {closedIdeas.length} shown)
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Activity className="w-5 h-5 text-primary" />
+                  </div>
+                  Trade History
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Detailed view of all closed trade ideas • {filteredIdeas.length} of {closedIdeas.length} shown
                 </CardDescription>
               </div>
               <div className="flex gap-2">
                 <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                  <SelectTrigger className="w-32" data-testid="select-source-filter">
+                  <SelectTrigger className="w-36 shadow-sm" data-testid="select-source-filter">
+                    <Filter className="w-3 h-3 mr-2" />
                     <SelectValue placeholder="Source" />
                   </SelectTrigger>
                   <SelectContent>
@@ -295,7 +317,8 @@ export default function PerformancePage() {
                 </Select>
 
                 <Select value={outcomeFilter} onValueChange={setOutcomeFilter}>
-                  <SelectTrigger className="w-32" data-testid="select-outcome-filter">
+                  <SelectTrigger className="w-36 shadow-sm" data-testid="select-outcome-filter">
+                    <Filter className="w-3 h-3 mr-2" />
                     <SelectValue placeholder="Outcome" />
                   </SelectTrigger>
                   <SelectContent>
@@ -308,20 +331,20 @@ export default function PerformancePage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b">
-                  <tr className="text-muted-foreground">
-                    <th className="text-left py-3 px-2">Symbol</th>
-                    <th className="text-left py-3 px-2">Source</th>
-                    <th className="text-left py-3 px-2">Type</th>
-                    <th className="text-left py-3 px-2">Direction</th>
-                    <th className="text-right py-3 px-2">Entry</th>
-                    <th className="text-right py-3 px-2">Exit</th>
-                    <th className="text-right py-3 px-2">P&L</th>
-                    <th className="text-center py-3 px-2">Outcome</th>
-                    <th className="text-right py-3 px-2">Date</th>
+              <table className="pro-table">
+                <thead>
+                  <tr>
+                    <th className="text-left">Symbol</th>
+                    <th className="text-left">Source</th>
+                    <th className="text-left">Type</th>
+                    <th className="text-left">Direction</th>
+                    <th className="text-right">Entry</th>
+                    <th className="text-right">Exit</th>
+                    <th className="text-right">P&L</th>
+                    <th className="text-center">Outcome</th>
+                    <th className="text-right">Date</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -336,8 +359,7 @@ export default function PerformancePage() {
                       .sort((a, b) => new Date(b.exitDate || b.timestamp).getTime() - new Date(a.exitDate || a.timestamp).getTime())
                       .map((idea) => (
                         <tr 
-                          key={idea.id} 
-                          className="border-b hover-elevate"
+                          key={idea.id}
                           data-testid={`row-trade-${idea.symbol}`}
                         >
                           <td className="py-3 px-2">
@@ -489,9 +511,15 @@ export default function PerformancePage() {
 
       {/* Smart Insights (if enough data) */}
       {stats.overall.closedIdeas >= 5 && (
-        <Card className="border-primary/20 bg-primary/5" data-testid="card-insights">
+        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg overflow-hidden" data-testid="card-insights">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10" />
           <CardHeader>
-            <CardTitle>Smart Insights</CardTitle>
+            <CardTitle className="text-xl font-bold flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/20">
+                <TrendingUp className="w-5 h-5 text-primary" />
+              </div>
+              Smart Insights
+            </CardTitle>
             <CardDescription>
               Data-driven recommendations based on your performance
             </CardDescription>
@@ -533,9 +561,9 @@ export default function PerformancePage() {
       )}
 
       {/* By Source */}
-      <Card data-testid="card-performance-by-source">
-        <CardHeader>
-          <CardTitle>Performance by Source</CardTitle>
+      <Card className="shadow-lg" data-testid="card-performance-by-source">
+        <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
+          <CardTitle className="text-xl font-bold">Performance by Source</CardTitle>
           <CardDescription>
             Compare AI vs Quant vs Manual trade ideas
           </CardDescription>
@@ -585,9 +613,9 @@ export default function PerformancePage() {
       </Card>
 
       {/* By Asset Type */}
-      <Card data-testid="card-performance-by-asset">
-        <CardHeader>
-          <CardTitle>Performance by Asset Type</CardTitle>
+      <Card className="shadow-lg" data-testid="card-performance-by-asset">
+        <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
+          <CardTitle className="text-xl font-bold">Performance by Asset Type</CardTitle>
           <CardDescription>
             Compare stocks vs options vs crypto
           </CardDescription>
@@ -634,9 +662,9 @@ export default function PerformancePage() {
 
       {/* By Signal Type */}
       {stats.bySignalType.length > 0 && (
-        <Card data-testid="card-performance-by-signal">
-          <CardHeader>
-            <CardTitle>Performance by Signal Type</CardTitle>
+        <Card className="shadow-lg" data-testid="card-performance-by-signal">
+          <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
+            <CardTitle className="text-xl font-bold">Performance by Signal Type</CardTitle>
             <CardDescription>
               Which technical signals perform best
             </CardDescription>
