@@ -15,6 +15,7 @@ import WatchlistPage from "@/pages/watchlist";
 import RiskCalculatorPage from "@/pages/risk-calculator";
 import PerformancePage from "@/pages/performance";
 import SignalIntelligencePage from "@/pages/signal-intelligence";
+import AdminPanel from "@/pages/admin";
 import About from "@/pages/about";
 import NotFound from "@/pages/not-found";
 
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/risk" component={RiskCalculatorPage} />
       <Route path="/performance" component={PerformancePage} />
       <Route path="/signals" component={SignalIntelligencePage} />
+      <Route path="/admin" component={AdminPanel} />
       <Route path="/about" component={About} />
       <Route component={NotFound} />
     </Switch>
@@ -44,8 +46,8 @@ function App() {
     "--sidebar-width-icon": "3rem",
   };
 
-  // Show public landing pages without sidebar
-  const publicPages = ['/', '/learn-more'];
+  // Show public landing pages without sidebar (admin page handles its own layout)
+  const publicPages = ['/', '/learn-more', '/admin'];
   if (publicPages.includes(location)) {
     return (
       <QueryClientProvider client={queryClient}>

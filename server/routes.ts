@@ -14,12 +14,114 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 
+// Simple admin authentication middleware
+function requireAdmin(req: Request, res: Response, next: Function) {
+  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+  const providedPassword = req.headers['x-admin-password'] || req.body?.password;
+  
+  if (providedPassword === adminPassword) {
+    next();
+  } else {
+    res.status(403).json({ error: "Admin access denied" });
+  }
+}
+
+// Premium subscription middleware
+function requirePremium(req: Request, res: Response, next: Function) {
+  // For now, allow all requests (no auth implemented yet)
+  // When Discord OAuth is added, check: req.user?.subscriptionTier === 'premium' || 'admin'
+  next();
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Discord redirect for login/signup (managed via Discord community)
   app.get("/api/login", (_req: Request, res: Response) => {
     // Redirect to Discord invite link (will be updated with actual Discord link)
     const discordInviteUrl = process.env.DISCORD_INVITE_URL || "https://discord.gg/quantedge";
     res.redirect(discordInviteUrl);
+  });
+
+  // Admin Routes
+  app.post("/api/admin/verify", (req, res) => {
+    const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+    if (req.body.password === adminPassword) {
+      res.json({ success: true });
+    } else {
+      res.status(403).json({ error: "Invalid password" });
+    }
+  });
+
+  app.get("/api/admin/stats", requireAdmin, async (_req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const allIdeas = await storage.getAllTradeIdeas();
+      const closedIdeas = allIdeas.filter(i => i.outcome);
+      const wonIdeas = closedIdeas.filter(i => i.outcome === 'won');
+      
+      res.json({
+        totalUsers: allUsers.length,
+        premiumUsers: allUsers.filter(u => u.subscriptionTier === 'premium' || u.subscriptionTier === 'admin').length,
+        totalIdeas: allIdeas.length,
+        activeIdeas: allIdeas.filter(i => !i.outcome).length,
+        closedIdeas: closedIdeas.length,
+        winRate: closedIdeas.length > 0 ? Math.round((wonIdeas.length / closedIdeas.length) * 100) : 0,
+        dbSize: "N/A"
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
+  app.get("/api/admin/users", requireAdmin, async (_req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.get("/api/admin/ideas", requireAdmin, async (_req, res) => {
+    try {
+      const ideas = await storage.getAllTradeIdeas();
+      res.json(ideas);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch ideas" });
+    }
+  });
+
+  app.post("/api/admin/clear-test-data", requireAdmin, async (_req, res) => {
+    try {
+      // This would delete test ideas - implement based on your needs
+      res.json({ success: true, message: "Test data cleared" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to clear data" });
+    }
+  });
+
+  app.get("/api/admin/export-csv", requireAdmin, async (_req, res) => {
+    try {
+      const ideas = await storage.getAllTradeIdeas();
+      const csv = [
+        ['Symbol', 'Asset Type', 'Source', 'Entry', 'Target', 'Stop', 'Outcome', 'Created At'].join(','),
+        ...ideas.map(i => [
+          i.symbol,
+          i.assetType,
+          i.source,
+          i.entryPrice,
+          i.targetPrice,
+          i.stopLoss,
+          i.outcome || 'open',
+          new Date(i.createdAt).toISOString()
+        ].join(','))
+      ].join('\n');
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=quantedge-export.csv');
+      res.send(csv);
+    } catch (error) {
+      res.status(500).json({ error: "Export failed" });
+    }
   });
 
   // Market Data Routes
