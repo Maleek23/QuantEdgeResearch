@@ -323,6 +323,8 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
         source: 'manual',
         confidenceScore: 60, // Default for manual entries
         probabilityBand: 'C', // Default for manual entries
+        isPublic: true, // Manual ideas are public by default
+        visibility: 'public', // Manual ideas are public by default
       };
       
       const response = await apiRequest('POST', '/api/trade-ideas', idea);
