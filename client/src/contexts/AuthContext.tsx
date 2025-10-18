@@ -1,9 +1,21 @@
-// Reference: blueprint:javascript_log_in_with_replit
+import { createContext, useContext } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
 import { getQueryFn } from "@/lib/queryClient";
 
-export function useAuth() {
+interface AuthContextType {
+  user: User | null | undefined;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  isPremium: boolean;
+  isAdmin: boolean;
+  login: () => void;
+  logout: () => void;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: user, isLoading } = useQuery<User>({
     queryKey: ["/api/auth/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
@@ -14,7 +26,7 @@ export function useAuth() {
     staleTime: Infinity,
   });
 
-  return {
+  const value: AuthContextType = {
     user,
     isLoading,
     isAuthenticated: !!user,
@@ -27,4 +39,14 @@ export function useAuth() {
       window.location.href = "/api/logout";
     },
   };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
 }

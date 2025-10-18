@@ -33,7 +33,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  app.get("/api/auth/me", async (req: Request, res: Response) => {
+  app.get("/api/auth/user", async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
     }
@@ -54,6 +54,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     // Return only safe user profile fields
+    res.json({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profileImageUrl: user.profileImageUrl,
+      subscriptionTier: user.subscriptionTier,
+      subscriptionStatus: user.subscriptionStatus,
+      subscriptionEndsAt: user.subscriptionEndsAt,
+      createdAt: user.createdAt,
+    });
+  });
+
+  // Legacy endpoint for backwards compatibility
+  app.get("/api/auth/me", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    
+    const userSession = req.user as any;
+    const userId = userSession?.claims?.sub;
+    
+    if (!userId) {
+      return res.status(401).json({ error: "Invalid session" });
+    }
+    
+    const user = await storage.getUser(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
     res.json({
       id: user.id,
       email: user.email,

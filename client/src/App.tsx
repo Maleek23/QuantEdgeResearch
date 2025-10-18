@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { useAuth } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import TradeIdeasPage from "@/pages/trade-ideas";
@@ -83,10 +83,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
-        <TooltipProvider>
-          <AuthenticatedApp />
-          <Toaster />
-        </TooltipProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <AuthenticatedApp />
+            <Toaster />
+          </TooltipProvider>
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
