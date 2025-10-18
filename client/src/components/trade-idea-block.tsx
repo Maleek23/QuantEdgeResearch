@@ -74,6 +74,19 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
     return 'Just now';
   };
 
+  const getFormattedDate = (): string => {
+    const posted = new Date(idea.timestamp);
+    const month = posted.toLocaleString('en-US', { month: 'short' });
+    const day = posted.getDate();
+    const year = posted.getFullYear();
+    const currentYear = new Date().getFullYear();
+    
+    if (year === currentYear) {
+      return `${month} ${day}`;
+    }
+    return `${month} ${day}, ${year}`;
+  };
+
   const handleToggle = (newOpenState: boolean) => {
     if (onToggleExpand) {
       if (newOpenState || isOpen) {
@@ -109,6 +122,8 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
                 </span>
                 <span className="mx-1.5">·</span>
                 <span>{idea.assetType === 'option' ? 'Option' : idea.assetType === 'stock' ? 'Stock' : 'Crypto'}</span>
+                <span className="mx-1.5">·</span>
+                <span className="text-xs font-medium" data-testid={`text-date-${idea.symbol}`}>{getFormattedDate()}</span>
                 <span className="mx-1.5">·</span>
                 <span className="text-xs">{getTimeSincePosted()}</span>
               </div>
