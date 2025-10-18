@@ -18,7 +18,8 @@ import {
   ArrowRight,
   Key,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  MessageCircle
 } from "lucide-react";
 
 export default function LearnMore() {

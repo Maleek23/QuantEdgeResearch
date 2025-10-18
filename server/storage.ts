@@ -108,6 +108,7 @@ export interface IStorage {
   getAllWatchlist(): Promise<WatchlistItem[]>;
   getWatchlistItem(id: string): Promise<WatchlistItem | undefined>;
   addToWatchlist(item: InsertWatchlist): Promise<WatchlistItem>;
+  updateWatchlistItem(id: string, data: Partial<WatchlistItem>): Promise<WatchlistItem | undefined>;
   removeFromWatchlist(id: string): Promise<boolean>;
 
   // Options Data
@@ -853,6 +854,16 @@ export class MemStorage implements IStorage {
     return watchlistItem;
   }
 
+  async updateWatchlistItem(id: string, data: Partial<WatchlistItem>): Promise<WatchlistItem | undefined> {
+    const existing = this.watchlist.get(id);
+    if (!existing) {
+      return undefined;
+    }
+    const updated = { ...existing, ...data, id };
+    this.watchlist.set(id, updated);
+    return updated;
+  }
+
   async removeFromWatchlist(id: string): Promise<boolean> {
     return this.watchlist.delete(id);
   }
@@ -1182,6 +1193,15 @@ export class DatabaseStorage implements IStorage {
   async addToWatchlist(item: InsertWatchlist): Promise<WatchlistItem> {
     const [created] = await db.insert(watchlistTable).values(item).returning();
     return created;
+  }
+
+  async updateWatchlistItem(id: string, data: Partial<WatchlistItem>): Promise<WatchlistItem | undefined> {
+    const [updated] = await db
+      .update(watchlistTable)
+      .set(data)
+      .where(eq(watchlistTable.id, id))
+      .returning();
+    return updated || undefined;
   }
 
   async removeFromWatchlist(id: string): Promise<boolean> {

@@ -4,16 +4,191 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatCTTime } from "@/lib/utils";
 import { CryptoQuantAnalysis } from "./crypto-quant-analysis";
 import type { WatchlistItem } from "@shared/schema";
-import { Star, Trash2, Eye, BarChart2, ChevronDown } from "lucide-react";
+import { Star, Trash2, Eye, BarChart2, ChevronDown, Bell } from "lucide-react";
 
 interface WatchlistTableProps {
   items: WatchlistItem[];
   onRemove?: (id: string) => void;
   onView?: (symbol: string) => void;
   isRemoving?: boolean;
+}
+
+// Alert edit dialog component
+function EditAlertsDialog({ item }: { item: WatchlistItem }) {
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+  const [entryAlert, setEntryAlert] = useState(item.entryAlertPrice?.toString() || '');
+  const [stopAlert, setStopAlert] = useState(item.stopAlertPrice?.toString() || '');
+  const [targetAlert, setTargetAlert] = useState(item.targetAlertPrice?.toString() || '');
+  const [alertsEnabled, setAlertsEnabled] = useState(item.alertsEnabled ?? false);
+  const [discordEnabled, setDiscordEnabled] = useState(item.discordAlertsEnabled ?? true);
+
+  const updateAlertsMutation = useMutation({
+    mutationFn: async (data: Partial<WatchlistItem>) => {
+      const response = await fetch(`/api/watchlist/${item.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/watchlist'] });
+      toast({
+        title: "Alerts Updated",
+        description: `Price alerts updated for ${item.symbol}`,
+      });
+      setOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSave = () => {
+    updateAlertsMutation.mutate({
+      entryAlertPrice: entryAlert ? parseFloat(entryAlert) : null,
+      stopAlertPrice: stopAlert ? parseFloat(stopAlert) : null,
+      targetAlertPrice: targetAlert ? parseFloat(targetAlert) : null,
+      alertsEnabled,
+      discordAlertsEnabled: discordEnabled,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant={item.alertsEnabled ? "default" : "outline"}
+          size="sm"
+          className="gap-1"
+          data-testid={`button-edit-alerts-${item.symbol}`}
+        >
+          <Bell className="h-3 w-3" />
+          <span className="hidden sm:inline">Alerts</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Price Alerts: {item.symbol}</DialogTitle>
+          <DialogDescription>
+            Set price targets to receive Discord notifications when price levels are reached
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-4">
+          {/* Master toggle */}
+          <div className="flex items-center justify-between">
+            <Label htmlFor="alerts-enabled" className="text-sm font-medium">
+              Enable Alerts
+            </Label>
+            <Switch
+              id="alerts-enabled"
+              checked={alertsEnabled}
+              onCheckedChange={setAlertsEnabled}
+              data-testid="switch-alerts-enabled"
+            />
+          </div>
+
+          {/* Discord toggle */}
+          <div className="flex items-center justify-between">
+            <Label htmlFor="discord-enabled" className="text-sm font-medium">
+              Discord Notifications
+            </Label>
+            <Switch
+              id="discord-enabled"
+              checked={discordEnabled}
+              onCheckedChange={setDiscordEnabled}
+              data-testid="switch-discord-enabled"
+            />
+          </div>
+
+          {/* Entry Alert */}
+          <div className="space-y-2">
+            <Label htmlFor="entry-alert">Entry Alert Price (Buy Zone)</Label>
+            <Input
+              id="entry-alert"
+              type="number"
+              step="0.01"
+              placeholder="e.g., 0.50"
+              value={entryAlert}
+              onChange={(e) => setEntryAlert(e.target.value)}
+              data-testid="input-entry-alert"
+            />
+            <p className="text-xs text-muted-foreground">
+              Get notified when price drops to this buying opportunity
+            </p>
+          </div>
+
+          {/* Target Alert */}
+          <div className="space-y-2">
+            <Label htmlFor="target-alert">Target Alert Price (Profit Target)</Label>
+            <Input
+              id="target-alert"
+              type="number"
+              step="0.01"
+              placeholder="e.g., 1.00"
+              value={targetAlert}
+              onChange={(e) => setTargetAlert(e.target.value)}
+              data-testid="input-target-alert"
+            />
+            <p className="text-xs text-muted-foreground">
+              Get notified when price reaches your profit target
+            </p>
+          </div>
+
+          {/* Stop Alert */}
+          <div className="space-y-2">
+            <Label htmlFor="stop-alert">Stop Loss Alert Price</Label>
+            <Input
+              id="stop-alert"
+              type="number"
+              step="0.01"
+              placeholder="e.g., 0.40"
+              value={stopAlert}
+              onChange={(e) => setStopAlert(e.target.value)}
+              data-testid="input-stop-alert"
+            />
+            <p className="text-xs text-muted-foreground">
+              Get notified when price hits your stop loss level
+            </p>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSave}
+              disabled={updateAlertsMutation.isPending}
+              data-testid="button-save-alerts"
+            >
+              {updateAlertsMutation.isPending ? "Saving..." : "Save Alerts"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export function WatchlistTable({ items, onRemove, onView, isRemoving }: WatchlistTableProps) {
@@ -78,6 +253,9 @@ export function WatchlistTable({ items, onRemove, onView, isRemoving }: Watchlis
                       </div>
 
                       <div className="flex items-center gap-1">
+                        {/* Edit Alerts Button - Always visible */}
+                        <EditAlertsDialog item={item} />
+                        
                         {item.assetType === 'crypto' && (
                           <CollapsibleTrigger asChild>
                             <Button

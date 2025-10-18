@@ -736,6 +736,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/watchlist/:id", async (req, res) => {
+    try {
+      console.log("PATCH /api/watchlist/:id - Request body:", JSON.stringify(req.body));
+      const updated = await storage.updateWatchlistItem(req.params.id, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: "Watchlist item not found" });
+      }
+      console.log("PATCH /api/watchlist/:id - Updated:", JSON.stringify(updated));
+      res.json(updated);
+    } catch (error: any) {
+      console.error("PATCH /api/watchlist/:id - Error:", error);
+      res.status(500).json({ error: "Failed to update watchlist item", details: error?.message || error });
+    }
+  });
+
   app.delete("/api/watchlist/:id", async (req, res) => {
     try {
       const deleted = await storage.removeFromWatchlist(req.params.id);
