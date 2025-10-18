@@ -281,32 +281,38 @@ export default function PerformancePage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Performance Tracker</h1>
-          <p className="text-muted-foreground">
-            Validate trade ideas and analyze performance metrics
-          </p>
+      {/* Header with Aurora Hero */}
+      <div className="relative overflow-hidden border-b aurora-hero rounded-xl -mx-6 px-6 pb-6 mb-8">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
+        <div className="relative flex items-center justify-between pt-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gradient-premium">Performance Tracker</h1>
+            <p className="text-muted-foreground">
+              Validate trade ideas and analyze performance metrics
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleValidate}
+              data-testid="button-validate-ideas"
+              className="btn-magnetic glass-card"
+            >
+              <Activity className="w-4 h-4 mr-2" />
+              Validate Ideas
+            </Button>
+            <Button 
+              variant="default" 
+              onClick={handleExport}
+              data-testid="button-export-csv"
+              className="btn-magnetic neon-accent"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={handleValidate}
-            data-testid="button-validate-ideas"
-          >
-            <Activity className="w-4 h-4 mr-2" />
-            Validate Ideas
-          </Button>
-          <Button 
-            variant="default" 
-            onClick={handleExport}
-            data-testid="button-export-csv"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
+        <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </div>
 
       {/* Overall Stats */}
@@ -397,15 +403,16 @@ export default function PerformancePage() {
 
       {/* Smart Insights (if enough data) */}
       {stats.overall.closedIdeas >= 5 && (
-        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg overflow-hidden" data-testid="card-insights">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10" />
-          <CardHeader>
-            <CardTitle className="text-xl font-bold flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/20">
-                <TrendingUp className="w-5 h-5 text-primary" />
-              </div>
-              Smart Insights
-            </CardTitle>
+        <div className="gradient-border-card spotlight">
+          <Card className="glass-card border-0 bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg overflow-hidden" data-testid="card-insights">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10" />
+            <CardHeader>
+              <CardTitle className="text-xl font-bold flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-primary/20 neon-accent">
+                  <TrendingUp className="w-5 h-5 text-primary" />
+                </div>
+                Smart Insights
+              </CardTitle>
             <CardDescription>
               Data-driven recommendations based on your performance
             </CardDescription>
@@ -500,7 +507,8 @@ export default function PerformancePage() {
               View the <strong>Signal Intelligence</strong> page for deeper pattern analysis and ML insights
             </p>
           </CardContent>
-        </Card>
+          </Card>
+        </div>
       )}
 
       {/* Advanced Performance Metrics */}

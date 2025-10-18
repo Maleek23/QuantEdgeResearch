@@ -111,145 +111,162 @@ export default function Dashboard() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text" data-testid="text-page-title">
-            Dashboard
-          </h1>
-          <div className="flex items-center gap-3 mt-2">
-            <p className="text-sm text-muted-foreground font-mono">
-              {currentTime}
-            </p>
-            <span className="text-muted-foreground">•</span>
-            <Badge variant="outline" className="text-xs font-medium">
-              {currentSession}
-            </Badge>
+      {/* Header with Aurora Hero */}
+      <div className="relative overflow-hidden border-b aurora-hero rounded-xl -mx-6 px-6 pb-6 mb-8">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
+        <div className="relative flex items-center justify-between flex-wrap gap-4 pt-6">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight text-gradient-premium" data-testid="text-page-title">
+              Dashboard
+            </h1>
+            <div className="flex items-center gap-3 mt-2">
+              <p className="text-sm text-muted-foreground font-mono">
+                {currentTime}
+              </p>
+              <span className="text-muted-foreground">•</span>
+              <Badge variant="outline" className="text-xs font-medium neon-accent">
+                {currentSession}
+              </Badge>
+            </div>
           </div>
+          <Button onClick={() => setChatBotOpen(true)} className="gap-2 btn-magnetic neon-accent" data-testid="button-open-chat">
+            <Bot className="h-4 w-4" />
+            Ask QuantAI
+          </Button>
         </div>
-        <Button onClick={() => setChatBotOpen(true)} className="gap-2 shadow-lg" data-testid="button-open-chat">
-          <Bot className="h-4 w-4" />
-          Ask QuantAI
-        </Button>
+        <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </div>
 
       {/* Quick Actions */}
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="shadow-lg border-primary/20">
-          <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
-            <CardTitle className="text-lg font-bold">Search & Add Symbols</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <SymbolSearch />
-          </CardContent>
-        </Card>
+        <div className="gradient-border-card spotlight">
+          <Card className="glass-card shadow-lg border-0">
+            <CardHeader className="bg-gradient-to-r from-card/80 to-muted/20 border-b border-border/50">
+              <CardTitle className="text-lg font-bold">Search & Add Symbols</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <SymbolSearch />
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card className="shadow-lg border-primary/20 overflow-hidden relative">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-chart-2 to-chart-3" />
-          <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
-            <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Zap className="h-5 w-5 text-primary" />
-              </div>
-              Generate New Ideas
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-3">
-            <Button 
-              onClick={() => generateQuantIdeas.mutate()}
-              disabled={generateQuantIdeas.isPending}
-              className="w-full gap-2 shadow-md"
-              data-testid="button-generate-quant"
-            >
-              <BarChart3 className="h-4 w-4" />
-              {generateQuantIdeas.isPending ? "Generating..." : "Generate Quant Ideas"}
-            </Button>
-            <Button 
-              onClick={() => generateAIIdeas.mutate()}
-              disabled={generateAIIdeas.isPending}
-              variant="outline"
-              className="w-full gap-2"
-              data-testid="button-generate-ai"
-            >
-              <Sparkles className="h-4 w-4" />
-              {generateAIIdeas.isPending ? "Generating..." : "Generate AI Ideas"}
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="gradient-border-card spotlight">
+          <Card className="glass-card shadow-lg border-0 overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-chart-2 to-chart-3" />
+            <CardHeader className="bg-gradient-to-r from-card/80 to-muted/20 border-b border-border/50">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <Zap className="h-5 w-5 text-primary" />
+                </div>
+                Generate New Ideas
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-3">
+              <Button 
+                onClick={() => generateQuantIdeas.mutate()}
+                disabled={generateQuantIdeas.isPending}
+                className="w-full gap-2 btn-magnetic"
+                data-testid="button-generate-quant"
+              >
+                <BarChart3 className="h-4 w-4" />
+                {generateQuantIdeas.isPending ? "Generating..." : "Generate Quant Ideas"}
+              </Button>
+              <Button 
+                onClick={() => generateAIIdeas.mutate()}
+                disabled={generateAIIdeas.isPending}
+                variant="outline"
+                className="w-full gap-2 btn-magnetic glass-card"
+                data-testid="button-generate-ai"
+              >
+                <Sparkles className="h-4 w-4" />
+                {generateAIIdeas.isPending ? "Generating..." : "Generate AI Ideas"}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Metrics Summary */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="stat-card shadow-lg border-primary/20">
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-3">
-            <CardTitle className="text-sm font-semibold tracking-wide">Active Ideas</CardTitle>
-            <div className="p-2 rounded-lg bg-primary/10">
-              <TrendingUp className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="text-3xl font-bold font-mono tracking-tight" data-testid="metric-active-ideas">{activeIdeas.length}</div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="gap-1 text-xs">
-                <Sparkles className="h-3 w-3" />
-                {aiIdeas.length} AI
-              </Badge>
-              <Badge variant="outline" className="gap-1 text-xs">
-                <BarChart3 className="h-3 w-3" />
-                {quantIdeas.length} Quant
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="gradient-border-card">
+          <Card className="glass-card stat-card shadow-lg border-0">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-3">
+              <CardTitle className="text-sm font-semibold tracking-wide">Active Ideas</CardTitle>
+              <div className="p-2 rounded-lg bg-primary/10">
+                <TrendingUp className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="text-3xl font-bold font-mono tracking-tight" data-testid="metric-active-ideas">{activeIdeas.length}</div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="gap-1 text-xs badge-shimmer">
+                  <Sparkles className="h-3 w-3" />
+                  {aiIdeas.length} AI
+                </Badge>
+                <Badge variant="outline" className="gap-1 text-xs">
+                  <BarChart3 className="h-3 w-3" />
+                  {quantIdeas.length} Quant
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card className="stat-card stat-card-bullish shadow-lg border-green-500/20">
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-3">
-            <CardTitle className="text-sm font-semibold tracking-wide">High Grade Ideas</CardTitle>
-            <div className="p-2 rounded-lg bg-green-500/10">
-              <Target className="h-4 w-4 text-green-500" />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <div className="text-3xl font-bold font-mono text-green-500 tracking-tight" data-testid="metric-high-grade">{highGradeIdeas.length}</div>
-            <p className="text-xs text-muted-foreground">Confidence ≥80%</p>
-          </CardContent>
-        </Card>
+        <div className="gradient-border-card">
+          <Card className="glass-card stat-card stat-card-bullish shadow-lg border-0">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-3">
+              <CardTitle className="text-sm font-semibold tracking-wide">High Grade Ideas</CardTitle>
+              <div className="p-2 rounded-lg bg-green-500/10 neon-accent">
+                <Target className="h-4 w-4 text-green-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              <div className="text-3xl font-bold font-mono text-green-500 tracking-tight" data-testid="metric-high-grade">{highGradeIdeas.length}</div>
+              <p className="text-xs text-muted-foreground">Confidence ≥80%</p>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card className="stat-card shadow-lg border-primary/20">
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-3">
-            <CardTitle className="text-sm font-semibold tracking-wide">Tracked Assets</CardTitle>
-            <div className="p-2 rounded-lg bg-amber-500/10">
-              <Star className="h-4 w-4 text-amber-500" />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <div className="text-3xl font-bold font-mono tracking-tight" data-testid="metric-watchlist">{watchlist.length}</div>
-            <p className="text-xs text-muted-foreground">In watchlist</p>
-          </CardContent>
-        </Card>
+        <div className="gradient-border-card">
+          <Card className="glass-card stat-card shadow-lg border-0">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-3">
+              <CardTitle className="text-sm font-semibold tracking-wide">Tracked Assets</CardTitle>
+              <div className="p-2 rounded-lg bg-amber-500/10">
+                <Star className="h-4 w-4 text-amber-500" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              <div className="text-3xl font-bold font-mono tracking-tight" data-testid="metric-watchlist">{watchlist.length}</div>
+              <p className="text-xs text-muted-foreground">In watchlist</p>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card className="stat-card shadow-lg border-primary/20">
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-3">
-            <CardTitle className="text-sm font-semibold tracking-wide">Market Catalysts</CardTitle>
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Activity className="h-4 w-4 text-primary" />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            <div className="text-3xl font-bold font-mono tracking-tight" data-testid="metric-catalysts">{catalysts.length}</div>
-            <p className="text-xs text-muted-foreground">Active drivers</p>
-          </CardContent>
-        </Card>
+        <div className="gradient-border-card">
+          <Card className="glass-card stat-card shadow-lg border-0">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-3">
+              <CardTitle className="text-sm font-semibold tracking-wide">Market Catalysts</CardTitle>
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Activity className="h-4 w-4 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              <div className="text-3xl font-bold font-mono tracking-tight" data-testid="metric-catalysts">{catalysts.length}</div>
+              <p className="text-xs text-muted-foreground">Active drivers</p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Market Movers */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Top Gainers</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
+        <div className="gradient-border-card">
+          <Card className="glass-card shadow-lg border-0">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2 bg-gradient-to-r from-green-500/5 to-green-500/10 border-b border-border/50">
+              <CardTitle className="text-sm font-medium">Top Gainers</CardTitle>
+              <TrendingUp className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
             {marketLoading ? (
               <div className="space-y-2">
                 {[...Array(3)].map((_, i) => (
@@ -274,14 +291,16 @@ export default function Dashboard() {
               </div>
             )}
           </CardContent>
-        </Card>
+          </Card>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Top Losers</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
+        <div className="gradient-border-card">
+          <Card className="glass-card shadow-lg border-0">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2 bg-gradient-to-r from-red-500/5 to-red-500/10 border-b border-border/50">
+              <CardTitle className="text-sm font-medium">Top Losers</CardTitle>
+              <TrendingDown className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
             {marketLoading ? (
               <div className="space-y-2">
                 {[...Array(3)].map((_, i) => (
@@ -306,20 +325,22 @@ export default function Dashboard() {
               </div>
             )}
           </CardContent>
-        </Card>
+          </Card>
+        </div>
       </div>
 
       {/* Recent Trade Ideas Preview */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-1">
-          <CardTitle>Recent Trade Ideas</CardTitle>
-          <Link href="/trade-ideas">
-            <Button variant="outline" size="sm" className="gap-2" data-testid="button-view-all-ideas">
-              View All
-              <ArrowRight className="h-3 w-3" />
-            </Button>
-          </Link>
-        </CardHeader>
+      <div className="gradient-border-card spotlight">
+        <Card className="glass-card shadow-lg border-0">
+          <CardHeader className="flex flex-row items-center justify-between gap-1 bg-gradient-to-r from-card/80 to-primary/5 border-b border-border/50">
+            <CardTitle>Recent Trade Ideas</CardTitle>
+            <Link href="/trade-ideas">
+              <Button variant="outline" size="sm" className="gap-2 btn-magnetic glass-card" data-testid="button-view-all-ideas">
+                View All
+                <ArrowRight className="h-3 w-3" />
+              </Button>
+            </Link>
+          </CardHeader>
         <CardContent>
           {ideasLoading ? (
             <div className="space-y-3">
@@ -348,44 +369,51 @@ export default function Dashboard() {
             </div>
           )}
         </CardContent>
-      </Card>
+        </Card>
+      </div>
 
       {/* Quick Links */}
       <div className="grid gap-4 md:grid-cols-3">
         <Link href="/market">
-          <Card className="hover-elevate active-elevate-2 cursor-pointer transition-all">
-            <CardContent className="flex items-center gap-3 p-6">
-              <Activity className="h-8 w-8 text-primary" />
-              <div>
-                <h3 className="font-semibold">Market Overview</h3>
-                <p className="text-sm text-muted-foreground">Live prices & stats</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="gradient-border-card spotlight">
+            <Card className="glass-card hover-elevate active-elevate-2 cursor-pointer transition-all border-0">
+              <CardContent className="flex items-center gap-3 p-6">
+                <Activity className="h-8 w-8 text-primary" />
+                <div>
+                  <h3 className="font-semibold">Market Overview</h3>
+                  <p className="text-sm text-muted-foreground">Live prices & stats</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </Link>
 
         <Link href="/watchlist">
-          <Card className="hover-elevate active-elevate-2 cursor-pointer transition-all">
-            <CardContent className="flex items-center gap-3 p-6">
-              <Star className="h-8 w-8 text-primary" />
-              <div>
-                <h3 className="font-semibold">Watchlist</h3>
-                <p className="text-sm text-muted-foreground">{watchlist.length} tracked assets</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="gradient-border-card spotlight">
+            <Card className="glass-card hover-elevate active-elevate-2 cursor-pointer transition-all border-0">
+              <CardContent className="flex items-center gap-3 p-6">
+                <Star className="h-8 w-8 text-primary" />
+                <div>
+                  <h3 className="font-semibold">Watchlist</h3>
+                  <p className="text-sm text-muted-foreground">{watchlist.length} tracked assets</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </Link>
 
         <Link href="/risk">
-          <Card className="hover-elevate active-elevate-2 cursor-pointer transition-all">
-            <CardContent className="flex items-center gap-3 p-6">
-              <Shield className="h-8 w-8 text-primary" />
-              <div>
-                <h3 className="font-semibold">Risk Calculator</h3>
-                <p className="text-sm text-muted-foreground">Position sizing tool</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="gradient-border-card spotlight">
+            <Card className="glass-card hover-elevate active-elevate-2 cursor-pointer transition-all border-0">
+              <CardContent className="flex items-center gap-3 p-6">
+                <Shield className="h-8 w-8 text-primary" />
+                <div>
+                  <h3 className="font-semibold">Risk Calculator</h3>
+                  <p className="text-sm text-muted-foreground">Position sizing tool</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </Link>
       </div>
 

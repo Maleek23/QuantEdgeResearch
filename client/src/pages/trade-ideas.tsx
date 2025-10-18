@@ -153,26 +153,28 @@ export default function TradeIdeasPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">Trade Ideas</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Research-grade opportunities across stocks, options, and crypto
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {newIdeasCount > 0 && (
-            <Badge variant="default" className="animate-pulse" data-testid="badge-new-ideas">
-              {newIdeasCount} NEW
-            </Badge>
-          )}
-          <Button 
-            onClick={() => generateQuantIdeas.mutate()}
-            disabled={generateQuantIdeas.isPending}
-            size="sm"
-            className="gap-2"
-            data-testid="button-generate-quant-ideas"
+      {/* Header with Aurora Hero */}
+      <div className="relative overflow-hidden border-b aurora-hero rounded-xl -mx-6 px-6 pb-6 mb-8">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
+        <div className="relative flex items-center justify-between gap-4 pt-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-gradient-premium" data-testid="text-page-title">Trade Ideas</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Research-grade opportunities across stocks, options, and crypto
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {newIdeasCount > 0 && (
+              <Badge variant="default" className="animate-pulse neon-accent badge-shimmer" data-testid="badge-new-ideas">
+                {newIdeasCount} NEW
+              </Badge>
+            )}
+            <Button 
+              onClick={() => generateQuantIdeas.mutate()}
+              disabled={generateQuantIdeas.isPending}
+              size="sm"
+              className="gap-2 btn-magnetic"
+              data-testid="button-generate-quant-ideas"
           >
             <BarChart3 className="h-4 w-4" />
             {generateQuantIdeas.isPending ? "Generating..." : "Generate Quant"}
@@ -188,7 +190,9 @@ export default function TradeIdeasPage() {
             <Sparkles className="h-4 w-4" />
             {generateAIIdeas.isPending ? "Generating..." : "Generate AI"}
           </Button>
+          </div>
         </div>
+        <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </div>
 
       {/* Simplified Filter Bar */}
