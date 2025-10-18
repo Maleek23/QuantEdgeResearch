@@ -891,21 +891,26 @@ export default function PerformancePage() {
       {/* By Source */}
       <Card className="shadow-lg" data-testid="card-performance-by-source">
         <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
-          <CardTitle className="text-xl font-bold">Performance by Source</CardTitle>
+          <CardTitle className="text-xl font-bold flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Activity className="w-5 h-5 text-primary" />
+            </div>
+            Performance by Source
+          </CardTitle>
           <CardDescription>
             Compare AI vs Quant vs Manual trade ideas
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="pt-6">
+          <div className="space-y-6">
             {stats.bySource.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No closed ideas yet. Performance data will appear here once ideas are resolved.
               </p>
             ) : (
               stats.bySource.map((source) => (
-                <div key={source.source} className="flex items-center justify-between border-b pb-3 last:border-0">
-                  <div className="space-y-1">
+                <div key={source.source} className="space-y-2">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Badge variant={
                         source.source === 'ai' ? 'default' : 
@@ -914,24 +919,39 @@ export default function PerformancePage() {
                       } data-testid={`badge-source-${source.source}`}>
                         {source.source.toUpperCase()}
                       </Badge>
-                      <span className="text-sm font-medium">
+                      <span className="text-sm text-muted-foreground">
                         {source.totalIdeas} ideas
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {source.wonIdeas} wins • {source.lostIdeas} losses
-                    </p>
+                    <div className="flex items-center gap-4">
+                      <div className={`text-sm font-mono ${
+                        source.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
+                      }`}>
+                        {source.avgPercentGain >= 0 ? '+' : ''}
+                        {source.avgPercentGain.toFixed(2)}%
+                      </div>
+                      <div className={`text-xl font-bold font-mono ${
+                        source.winRate >= 50 ? 'text-green-500' : 'text-red-500'
+                      }`} data-testid={`text-winrate-${source.source}`}>
+                        {source.winRate.toFixed(1)}%
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right space-y-1">
-                    <div className="text-xl font-bold font-mono" data-testid={`text-winrate-${source.source}`}>
-                      {source.winRate.toFixed(1)}%
-                    </div>
-                    <div className={`text-sm font-mono ${
-                      source.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
-                    }`}>
-                      {source.avgPercentGain >= 0 ? '+' : ''}
-                      {source.avgPercentGain.toFixed(2)}%
-                    </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{source.wonIdeas} wins</span>
+                    <span>•</span>
+                    <span>{source.lostIdeas} losses</span>
+                  </div>
+                  {/* Win Rate Progress Bar */}
+                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all ${
+                        source.winRate >= 60 ? 'bg-green-500' :
+                        source.winRate >= 50 ? 'bg-amber-500' :
+                        'bg-red-500'
+                      }`}
+                      style={{ width: `${Math.min(source.winRate, 100)}%` }}
+                    />
                   </div>
                 </div>
               ))
@@ -943,43 +963,63 @@ export default function PerformancePage() {
       {/* By Asset Type */}
       <Card className="shadow-lg" data-testid="card-performance-by-asset">
         <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
-          <CardTitle className="text-xl font-bold">Performance by Asset Type</CardTitle>
+          <CardTitle className="text-xl font-bold flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Target className="w-5 h-5 text-primary" />
+            </div>
+            Performance by Asset Type
+          </CardTitle>
           <CardDescription>
             Compare stocks vs options vs crypto
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="pt-6">
+          <div className="space-y-6">
             {stats.byAssetType.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No closed ideas yet. Performance data will appear here once ideas are resolved.
               </p>
             ) : (
               stats.byAssetType.map((asset) => (
-                <div key={asset.assetType} className="flex items-center justify-between border-b pb-3 last:border-0">
-                  <div className="space-y-1">
+                <div key={asset.assetType} className="space-y-2">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" data-testid={`badge-asset-${asset.assetType}`}>
                         {asset.assetType.toUpperCase()}
                       </Badge>
-                      <span className="text-sm font-medium">
+                      <span className="text-sm text-muted-foreground">
                         {asset.totalIdeas} ideas
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {asset.wonIdeas} wins • {asset.lostIdeas} losses
-                    </p>
+                    <div className="flex items-center gap-4">
+                      <div className={`text-sm font-mono ${
+                        asset.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
+                      }`}>
+                        {asset.avgPercentGain >= 0 ? '+' : ''}
+                        {asset.avgPercentGain.toFixed(2)}%
+                      </div>
+                      <div className={`text-xl font-bold font-mono ${
+                        asset.winRate >= 50 ? 'text-green-500' : 'text-red-500'
+                      }`} data-testid={`text-winrate-${asset.assetType}`}>
+                        {asset.winRate.toFixed(1)}%
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right space-y-1">
-                    <div className="text-xl font-bold font-mono" data-testid={`text-winrate-${asset.assetType}`}>
-                      {asset.winRate.toFixed(1)}%
-                    </div>
-                    <div className={`text-sm font-mono ${
-                      asset.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
-                    }`}>
-                      {asset.avgPercentGain >= 0 ? '+' : ''}
-                      {asset.avgPercentGain.toFixed(2)}%
-                    </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{asset.wonIdeas} wins</span>
+                    <span>•</span>
+                    <span>{asset.lostIdeas} losses</span>
+                  </div>
+                  {/* Win Rate Progress Bar */}
+                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all ${
+                        asset.winRate >= 60 ? 'bg-green-500' :
+                        asset.winRate >= 50 ? 'bg-amber-500' :
+                        'bg-red-500'
+                      }`}
+                      style={{ width: `${Math.min(asset.winRate, 100)}%` }}
+                    />
                   </div>
                 </div>
               ))
@@ -992,19 +1032,24 @@ export default function PerformancePage() {
       {stats.bySignalType.length > 0 && (
         <Card className="shadow-lg" data-testid="card-performance-by-signal">
           <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
-            <CardTitle className="text-xl font-bold">Performance by Signal Type</CardTitle>
+            <CardTitle className="text-xl font-bold flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <TrendingUp className="w-5 h-5 text-primary" />
+              </div>
+              Performance by Signal Type
+            </CardTitle>
             <CardDescription>
-              Which technical signals perform best
+              Which technical signals perform best (top 10)
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+          <CardContent className="pt-6">
+            <div className="space-y-6">
               {stats.bySignalType
                 .sort((a, b) => b.winRate - a.winRate)
                 .slice(0, 10)
                 .map((signal) => (
-                  <div key={signal.signal} className="flex items-center justify-between border-b pb-3 last:border-0">
-                    <div className="space-y-1">
+                  <div key={signal.signal} className="space-y-2">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium capitalize">
                           {signal.signal.replace(/_/g, ' ')}
@@ -1013,20 +1058,35 @@ export default function PerformancePage() {
                           {signal.totalIdeas}
                         </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {signal.wonIdeas} wins • {signal.lostIdeas} losses
-                      </p>
+                      <div className="flex items-center gap-4">
+                        <div className={`text-sm font-mono ${
+                          signal.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
+                        }`}>
+                          {signal.avgPercentGain >= 0 ? '+' : ''}
+                          {signal.avgPercentGain.toFixed(2)}%
+                        </div>
+                        <div className={`text-xl font-bold font-mono ${
+                          signal.winRate >= 50 ? 'text-green-500' : 'text-red-500'
+                        }`}>
+                          {signal.winRate.toFixed(1)}%
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-right space-y-1">
-                      <div className="text-xl font-bold font-mono">
-                        {signal.winRate.toFixed(1)}%
-                      </div>
-                      <div className={`text-sm font-mono ${
-                        signal.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
-                      }`}>
-                        {signal.avgPercentGain >= 0 ? '+' : ''}
-                        {signal.avgPercentGain.toFixed(2)}%
-                      </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{signal.wonIdeas} wins</span>
+                      <span>•</span>
+                      <span>{signal.lostIdeas} losses</span>
+                    </div>
+                    {/* Win Rate Progress Bar */}
+                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all ${
+                          signal.winRate >= 60 ? 'bg-green-500' :
+                          signal.winRate >= 50 ? 'bg-amber-500' :
+                          'bg-red-500'
+                        }`}
+                        style={{ width: `${Math.min(signal.winRate, 100)}%` }}
+                      />
                     </div>
                   </div>
                 ))}
