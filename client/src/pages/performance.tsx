@@ -812,11 +812,11 @@ export default function PerformancePage() {
           <CardContent className="space-y-3">
             {/* Win Rate Analysis */}
             {stats.overall.winRate >= 60 ? (
-              <p className="text-sm">✅ <strong>Strong performance!</strong> Your win rate is above 60%.</p>
+              <p className="text-sm"><strong>Strong performance!</strong> Your win rate is above 60%.</p>
             ) : stats.overall.winRate < 50 ? (
-              <p className="text-sm">⚠️ <strong>Win rate below 50%.</strong> Review losing trades to identify patterns.</p>
+              <p className="text-sm"><strong>Win rate below 50%.</strong> Review losing trades to identify patterns.</p>
             ) : (
-              <p className="text-sm">📊 <strong>Win rate around 50%.</strong> Focus on improving risk/reward ratio.</p>
+              <p className="text-sm"><strong>Win rate around 50%.</strong> Focus on improving risk/reward ratio.</p>
             )}
             
             {/* Best Source Strategy */}
@@ -827,7 +827,7 @@ export default function PerformancePage() {
                 );
                 return bestSource.totalIdeas >= 3 ? (
                   <p className="text-sm">
-                    🎯 <strong>Your best strategy: {bestSource.source.toUpperCase()}</strong> ideas 
+                    <strong>Your best strategy: {bestSource.source.toUpperCase()}</strong> ideas 
                     ({bestSource.winRate.toFixed(1)}% win rate)
                   </p>
                 ) : null;
@@ -837,7 +837,7 @@ export default function PerformancePage() {
             {/* Positive Expectancy */}
             {stats.overall.avgPercentGain > 0 && stats.overall.closedIdeas >= 5 && (
               <p className="text-sm">
-                💰 <strong>Positive expectancy:</strong> Average gain of +{stats.overall.avgPercentGain.toFixed(2)}% per trade
+                <strong>Positive expectancy:</strong> Average gain of +{stats.overall.avgPercentGain.toFixed(2)}% per trade
               </p>
             )}
 
@@ -846,33 +846,33 @@ export default function PerformancePage() {
               <>
                 {advancedMetrics.profitFactor >= 2.0 ? (
                   <p className="text-sm">
-                    🔥 <strong>Excellent profit factor ({advancedMetrics.profitFactor.toFixed(2)}x)!</strong> Your wins significantly outweigh your losses.
+                    <strong>Excellent profit factor ({advancedMetrics.profitFactor.toFixed(2)}x)!</strong> Your wins significantly outweigh your losses.
                   </p>
                 ) : advancedMetrics.profitFactor >= 1.5 ? (
                   <p className="text-sm">
-                    👍 <strong>Good profit factor ({advancedMetrics.profitFactor.toFixed(2)}x).</strong> You're making more on winners than losing on losers.
+                    <strong>Good profit factor ({advancedMetrics.profitFactor.toFixed(2)}x).</strong> You're making more on winners than losing on losers.
                   </p>
                 ) : advancedMetrics.profitFactor >= 1.0 ? (
                   <p className="text-sm">
-                    ⚠️ <strong>Profit factor ({advancedMetrics.profitFactor.toFixed(2)}x) needs improvement.</strong> Your wins barely outweigh your losses.
+                    <strong>Profit factor ({advancedMetrics.profitFactor.toFixed(2)}x) needs improvement.</strong> Your wins barely outweigh your losses.
                   </p>
                 ) : (
                   <p className="text-sm">
-                    🚨 <strong>Profit factor below 1.0 ({advancedMetrics.profitFactor.toFixed(2)}x).</strong> You're losing more on losing trades than winning on winners. Tighten stops or widen targets.
+                    <strong>Profit factor below 1.0 ({advancedMetrics.profitFactor.toFixed(2)}x).</strong> You're losing more on losing trades than winning on winners. Tighten stops or widen targets.
                   </p>
                 )}
 
                 {/* Drawdown Insights */}
                 {advancedMetrics.maxDrawdown > 20 && (
                   <p className="text-sm">
-                    📉 <strong>High drawdown alert:</strong> Max drawdown of {advancedMetrics.maxDrawdown.toFixed(2)}%. Consider reducing position sizes.
+                    <strong>High drawdown alert:</strong> Max drawdown of {advancedMetrics.maxDrawdown.toFixed(2)}%. Consider reducing position sizes.
                   </p>
                 )}
 
                 {/* Streak Insights */}
                 {advancedMetrics.worstLossStreak >= 3 && (
                   <p className="text-sm">
-                    🎲 <strong>Loss streak of {advancedMetrics.worstLossStreak}.</strong> Consider taking a break after 2-3 consecutive losses.
+                    <strong>Loss streak of {advancedMetrics.worstLossStreak}.</strong> Consider taking a break after 2-3 consecutive losses.
                   </p>
                 )}
 
@@ -887,7 +887,7 @@ export default function PerformancePage() {
                     );
                     return bestAsset.totalIdeas >= 3 && worstAsset.totalIdeas >= 3 && bestAsset.assetType !== worstAsset.assetType ? (
                       <p className="text-sm">
-                        📊 <strong>Asset focus:</strong> You perform best with {bestAsset.assetType}s ({bestAsset.winRate.toFixed(1)}% win rate) vs {worstAsset.assetType}s ({worstAsset.winRate.toFixed(1)}%)
+                        <strong>Asset focus:</strong> You perform best with {bestAsset.assetType}s ({bestAsset.winRate.toFixed(1)}% win rate) vs {worstAsset.assetType}s ({worstAsset.winRate.toFixed(1)}%)
                       </p>
                     ) : null;
                   })()
@@ -896,7 +896,7 @@ export default function PerformancePage() {
             )}
 
             <p className="text-sm text-muted-foreground mt-4 pt-3 border-t border-border/30">
-              💡 View the <strong>Signal Intelligence</strong> page for deeper pattern analysis and ML insights
+              View the <strong>Signal Intelligence</strong> page for deeper pattern analysis and ML insights
             </p>
           </CardContent>
         </Card>
