@@ -106,6 +106,58 @@ export default function AdminPanel() {
     }
   });
 
+  const { data: alerts } = useQuery({
+    queryKey: ['/api/admin/alerts'],
+    enabled: authStep === 'authenticated' && !!adminPassword,
+    refetchInterval: 15000, // Refresh every 15s
+    queryFn: async () => {
+      const res = await fetch('/api/admin/alerts', {
+        headers: { 'x-admin-password': adminPassword }
+      });
+      if (!res.ok) throw new Error('Failed to fetch alerts');
+      return res.json();
+    }
+  });
+
+  const { data: alertSummary } = useQuery({
+    queryKey: ['/api/admin/alerts/summary'],
+    enabled: authStep === 'authenticated' && !!adminPassword,
+    refetchInterval: 15000,
+    queryFn: async () => {
+      const res = await fetch('/api/admin/alerts/summary', {
+        headers: { 'x-admin-password': adminPassword }
+      });
+      if (!res.ok) throw new Error('Failed to fetch summary');
+      return res.json();
+    }
+  });
+
+  const { data: apiMetrics } = useQuery({
+    queryKey: ['/api/admin/api-metrics'],
+    enabled: authStep === 'authenticated' && !!adminPassword,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const res = await fetch('/api/admin/api-metrics', {
+        headers: { 'x-admin-password': adminPassword }
+      });
+      if (!res.ok) throw new Error('Failed to fetch metrics');
+      return res.json();
+    }
+  });
+
+  const { data: dbHealth } = useQuery({
+    queryKey: ['/api/admin/database-health'],
+    enabled: authStep === 'authenticated' && !!adminPassword,
+    refetchInterval: 60000, // Refresh every minute
+    queryFn: async () => {
+      const res = await fetch('/api/admin/database-health', {
+        headers: { 'x-admin-password': adminPassword }
+      });
+      if (!res.ok) throw new Error('Failed to fetch db health');
+      return res.json();
+    }
+  });
+
   const [testAIProvider, setTestAIProvider] = useState<'openai' | 'anthropic' | 'gemini'>('openai');
   const [testPrompt, setTestPrompt] = useState("Generate a bullish trade idea for NVDA.");
 
@@ -559,10 +611,18 @@ export default function AdminPanel() {
         <Card className="glass-card">
           <Tabs defaultValue="system" className="w-full">
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="system" data-testid="tab-system-health">
                   <Activity className="h-4 w-4 mr-2" />
                   System Health
+                </TabsTrigger>
+                <TabsTrigger value="alerts" data-testid="tab-alerts">
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Alerts
+                </TabsTrigger>
+                <TabsTrigger value="database" data-testid="tab-database">
+                  <Database className="h-4 w-4 mr-2" />
+                  Database
                 </TabsTrigger>
                 <TabsTrigger value="ai-test" data-testid="tab-ai-test">
                   <Sparkles className="h-4 w-4 mr-2" />
@@ -809,6 +869,204 @@ export default function AdminPanel() {
                     )}
                   </div>
                 </div>
+              </CardContent>
+            </TabsContent>
+
+            {/* Alerts & Monitoring Tab */}
+            <TabsContent value="alerts">
+              <CardContent className="space-y-6">
+                {/* Alert Summary Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-lg border border-red-500/20 bg-red-500/5">
+                    <div className="text-2xl font-bold text-red-500">{(alertSummary as any)?.criticalAlerts || 0}</div>
+                    <div className="text-xs text-muted-foreground">Critical Alerts</div>
+                  </div>
+                  <div className="p-4 rounded-lg border border-amber-500/20 bg-amber-500/5">
+                    <div className="text-2xl font-bold text-amber-500">{(alertSummary as any)?.errorAlerts || 0}</div>
+                    <div className="text-xs text-muted-foreground">Error Alerts</div>
+                  </div>
+                  <div className="p-4 rounded-lg border border-yellow-500/20 bg-yellow-500/5">
+                    <div className="text-2xl font-bold text-yellow-500">{(alertSummary as any)?.warningAlerts || 0}</div>
+                    <div className="text-xs text-muted-foreground">Warnings</div>
+                  </div>
+                  <div className="p-4 rounded-lg border border-blue-500/20 bg-blue-500/5">
+                    <div className="text-2xl font-bold text-blue-500">{(alertSummary as any)?.failingAPIs || 0}</div>
+                    <div className="text-xs text-muted-foreground">Failing APIs</div>
+                  </div>
+                </div>
+
+                {/* Recent Alerts */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-primary" />
+                    Recent Alerts & Issues
+                  </h3>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {(alerts as any[])?.length > 0 ? (
+                      (alerts as any[]).map((alert: any) => (
+                        <div 
+                          key={alert.id}
+                          className={`p-3 rounded-lg border ${
+                            alert.type === 'critical' ? 'border-red-500/30 bg-red-500/5' :
+                            alert.type === 'error' ? 'border-amber-500/30 bg-amber-500/5' :
+                            alert.type === 'warning' ? 'border-yellow-500/30 bg-yellow-500/5' :
+                            'border-blue-500/30 bg-blue-500/5'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge 
+                                  variant={alert.resolved ? 'outline' : 'default'}
+                                  className={`text-xs ${
+                                    alert.type === 'critical' ? 'bg-red-500/20 text-red-500' :
+                                    alert.type === 'error' ? 'bg-amber-500/20 text-amber-500' :
+                                    alert.type === 'warning' ? 'bg-yellow-500/20 text-yellow-500' :
+                                    'bg-blue-500/20 text-blue-500'
+                                  }`}
+                                >
+                                  {alert.type.toUpperCase()}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {alert.category}
+                                </Badge>
+                                {alert.resolved && (
+                                  <Badge variant="outline" className="text-xs text-green-500">
+                                    Resolved
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm font-medium">{alert.message}</p>
+                              {alert.details && (
+                                <p className="text-xs text-muted-foreground mt-1">{alert.details}</p>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {new Date(alert.timestamp).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <CheckCircle2 className="h-12 w-12 mx-auto mb-2 text-green-500 opacity-50" />
+                        <p>No alerts - All systems operational</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* API Metrics */}
+                {(apiMetrics as any[])?.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-primary" />
+                      API Performance Metrics
+                    </h3>
+                    <div className="space-y-2">
+                      {(apiMetrics as any[]).map((metric: any, idx: number) => (
+                        <div 
+                          key={idx}
+                          className="p-3 rounded-lg border border-border/50 hover-elevate"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm">{metric.provider}</span>
+                                <Badge variant="outline" className="text-xs">{metric.endpoint}</Badge>
+                              </div>
+                              <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                                <span>✓ {metric.successCount} success</span>
+                                <span>✗ {metric.failureCount} failed</span>
+                                {metric.avgResponseTime && (
+                                  <span>⚡ {metric.avgResponseTime.toFixed(0)}ms avg</span>
+                                )}
+                              </div>
+                            </div>
+                            {metric.rateLimitWarning && (
+                              <Badge variant="destructive" className="text-xs">
+                                Rate Limit Warning
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </TabsContent>
+
+            {/* Database Health Tab */}
+            <TabsContent value="database">
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Database className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">Status</span>
+                    </div>
+                    <div className="text-2xl font-bold text-green-500">
+                      {(dbHealth as any)?.status === 'operational' ? 'Healthy' : 'Error'}
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <BarChart3 className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">Database Size</span>
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {(dbHealth as any)?.databaseSize || 'Unknown'}
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">Last Checked</span>
+                    </div>
+                    <div className="text-sm">
+                      {(dbHealth as any)?.lastChecked ? new Date((dbHealth as any).lastChecked).toLocaleTimeString() : 'N/A'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table Statistics */}
+                {(dbHealth as any)?.tables && (
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <Database className="h-4 w-4 text-primary" />
+                      Table Statistics
+                    </h3>
+                    <div className="space-y-2">
+                      {(dbHealth as any).tables.map((table: any, idx: number) => (
+                        <div 
+                          key={idx}
+                          className="p-3 rounded-lg border border-border/50 hover-elevate"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <span className="font-mono text-sm font-medium">{table.name}</span>
+                              <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
+                                <span>📊 {table.rowCount.toLocaleString()} rows</span>
+                                <span>💾 {table.size}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(dbHealth as any)?.error && (
+                  <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/5">
+                    <div className="flex items-center gap-2 mb-2 text-red-500">
+                      <AlertCircle className="h-4 w-4" />
+                      <span className="font-medium">Database Error</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{(dbHealth as any).message}</p>
+                  </div>
+                )}
               </CardContent>
             </TabsContent>
           </Tabs>

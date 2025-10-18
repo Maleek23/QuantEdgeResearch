@@ -251,6 +251,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Monitoring & Alerts endpoints
+  app.get("/api/admin/alerts", requireAdmin, async (req, res) => {
+    try {
+      const { monitoringService } = await import('./monitoring-service');
+      const category = req.query.category as any;
+      const type = req.query.type as any;
+      
+      const alerts = monitoringService.getAlerts(category, type);
+      res.json(alerts);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch alerts" });
+    }
+  });
+
+  app.get("/api/admin/alerts/summary", requireAdmin, async (_req, res) => {
+    try {
+      const { monitoringService } = await import('./monitoring-service');
+      const summary = monitoringService.getSummary();
+      res.json(summary);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch alert summary" });
+    }
+  });
+
+  app.post("/api/admin/alerts/:alertId/resolve", requireAdmin, async (req, res) => {
+    try {
+      const { monitoringService } = await import('./monitoring-service');
+      monitoringService.resolveAlert(req.params.alertId);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to resolve alert" });
+    }
+  });
+
+  app.get("/api/admin/api-metrics", requireAdmin, async (_req, res) => {
+    try {
+      const { monitoringService } = await import('./monitoring-service');
+      const metrics = monitoringService.getAPIMetrics();
+      res.json(metrics);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch API metrics" });
+    }
+  });
+
+  // Database Health endpoint
+  app.get("/api/admin/database-health", requireAdmin, async (_req, res) => {
+    try {
+      const { db } = await import('./db');
+      const { sql } = await import('drizzle-orm');
+      
+      // Get database size and table info
+      const dbSize = await db.execute(sql`
+        SELECT pg_size_pretty(pg_database_size(current_database())) as size
+      `);
+      
+      const tableStats = await db.execute(sql`
+        SELECT 
+          schemaname,
+          tablename,
+          pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size,
+          n_live_tup as row_count
+        FROM pg_stat_user_tables
+        ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC
+        LIMIT 10
+      `);
+
+      const health = {
+        status: 'operational',
+        connectionActive: true,
+        databaseSize: dbSize.rows[0]?.size || 'Unknown',
+        tables: tableStats.rows.map((row: any) => ({
+          schema: row.schemaname,
+          name: row.tablename,
+          size: row.size,
+          rowCount: parseInt(row.row_count) || 0,
+        })),
+        lastChecked: new Date().toISOString(),
+      };
+
+      res.json(health);
+    } catch (error) {
+      res.status(500).json({ 
+        status: 'error',
+        error: "Database health check failed",
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Market Data Routes
   app.get("/api/market-data", async (_req, res) => {
     try {
