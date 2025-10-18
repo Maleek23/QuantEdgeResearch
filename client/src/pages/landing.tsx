@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   TrendingUp, 
   Brain, 
@@ -12,11 +13,16 @@ import {
   Sparkles,
   Target,
   Activity,
-  Zap
+  Zap,
+  Check,
+  Mail,
+  MessageCircle,
+  ExternalLink
 } from "lucide-react";
 
 export default function Landing() {
   const [, setLocation] = useLocation();
+  const { isAuthenticated } = useAuth();
 
   const features = [
     {
@@ -99,14 +105,25 @@ export default function Landing() {
           </p>
 
           <div className="flex gap-4 justify-center">
-            <Button 
-              size="lg" 
-              onClick={() => setLocation('/dashboard')}
-              data-testid="button-get-started"
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              Get Started
-            </Button>
+            {isAuthenticated ? (
+              <Button 
+                size="lg" 
+                onClick={() => setLocation('/dashboard')}
+                data-testid="button-get-started"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Go to Dashboard
+              </Button>
+            ) : (
+              <Button 
+                size="lg" 
+                onClick={() => window.location.href = '/api/login'}
+                data-testid="button-login"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Login / Sign Up
+              </Button>
+            )}
             <Button 
               size="lg" 
               variant="outline"
@@ -193,6 +210,160 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section className="border-t bg-muted/30 py-20">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold mb-4">Pricing</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Choose the plan that fits your trading needs
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Free Tier */}
+            <Card className="hover-elevate" data-testid="card-pricing-free">
+              <CardContent className="p-8">
+                <div className="mb-6">
+                  <h3 className="text-2xl font-bold mb-2">Free</h3>
+                  <div className="flex items-baseline gap-2 mb-4">
+                    <span className="text-4xl font-bold">$0</span>
+                    <span className="text-muted-foreground">/month</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Access to public performance ledger and basic features</p>
+                </div>
+                
+                <ul className="space-y-3 mb-8">
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">View public performance track record</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Historical trade ideas archive</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Basic market data</span>
+                  </li>
+                </ul>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => window.location.href = '/api/login'}
+                  data-testid="button-pricing-free"
+                >
+                  Sign Up Free
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Premium Tier */}
+            <Card className="hover-elevate border-primary" data-testid="card-pricing-premium">
+              <CardContent className="p-8">
+                <Badge className="mb-4">Most Popular</Badge>
+                <div className="mb-6">
+                  <h3 className="text-2xl font-bold mb-2">Premium</h3>
+                  <div className="flex items-baseline gap-2 mb-4">
+                    <span className="text-4xl font-bold">$39.99</span>
+                    <span className="text-muted-foreground">/month</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Full access to live signals, analytics, and Discord community</p>
+                </div>
+                
+                <ul className="space-y-3 mb-8">
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Everything in Free</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Real-time trade signals</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">AI + Quantitative dual-engine</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Discord community access</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Instant Discord notifications</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Advanced analytics & ML insights</span>
+                  </li>
+                </ul>
+                
+                <Button 
+                  className="w-full"
+                  onClick={() => window.location.href = '/api/login'}
+                  data-testid="button-pricing-premium"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Start Premium
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section className="container mx-auto px-6 py-20">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold mb-4">Get In Touch</h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
+            Questions about pricing, features, or partnership opportunities? We're here to help.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          <Card className="hover-elevate" data-testid="card-contact-email">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Mail className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold mb-1">Email Support</h3>
+                <a 
+                  href="mailto:support@quantedge.io" 
+                  className="text-sm text-primary hover:underline"
+                  data-testid="link-contact-email"
+                >
+                  support@quantedge.io
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="hover-elevate" data-testid="card-contact-discord">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <MessageCircle className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold mb-1">Join Our Discord</h3>
+                <a 
+                  href="https://discord.gg/quantedge" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline flex items-center gap-1"
+                  data-testid="link-contact-discord"
+                >
+                  discord.gg/quantedge
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="container mx-auto px-6 py-20">
         <Card className="bg-gradient-to-br from-primary/10 via-background to-background border-primary/20">
@@ -202,14 +373,25 @@ export default function Landing() {
               Access dual-engine trade idea generation, real-time market analysis, and professional risk management tools. 
               Educational research platform for active traders.
             </p>
-            <Button 
-              size="lg" 
-              onClick={() => setLocation('/dashboard')}
-              data-testid="button-cta-get-started"
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              Launch Dashboard
-            </Button>
+            {isAuthenticated ? (
+              <Button 
+                size="lg" 
+                onClick={() => setLocation('/dashboard')}
+                data-testid="button-cta-get-started"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Launch Dashboard
+              </Button>
+            ) : (
+              <Button 
+                size="lg" 
+                onClick={() => window.location.href = '/api/login'}
+                data-testid="button-cta-login"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Login / Sign Up
+              </Button>
+            )}
             <p className="text-xs text-muted-foreground mt-4">
               ⚠️ For educational and research purposes only. Not financial advice.
             </p>

@@ -3,6 +3,8 @@
 ## Overview
 QuantEdge Research is a professional quantitative trading research platform designed to identify day-trading opportunities across US equities, options, and crypto markets. Its primary purpose is to provide educational, research-grade trade ideas, comprehensive risk management tools, and real-time market analysis. The platform aims to offer robust risk controls and clear educational disclaimers, all presented through a professional dark-themed UI optimized for rapid data scanning. The platform integrates real historical data, improving model accuracy significantly.
 
+**NEW: Multi-User Authentication & Subscription System** - The platform now supports multi-user accounts with Replit Auth integration and subscription-based access tiers. This enables the GTM strategy of launching a paid Discord community ($39.99/month Premium tier) where the web platform serves as the premium subscriber dashboard with live signals and analytics, while free users can view the public performance track record.
+
 **NEW: Machine Learning Enhancement** - The platform now features adaptive learning capabilities that improve trade idea quality over time by analyzing historical performance data, identifying winning patterns, and adjusting confidence scores based on signal effectiveness.
 
 ## User Preferences
@@ -18,8 +20,16 @@ QuantEdge Research is a professional quantitative trading research platform desi
 
 ## System Architecture
 
-### Multi-Page Architecture
-The platform utilizes a multi-page architecture including a Landing Page, Dashboard, Trade Ideas, Market Overview, Watchlist, Risk Calculator, and About page. The Landing page provides professional onboarding and showcases features before routing users to the application. Navigation is managed via a sidebar (on app pages) organized into Research, Tools, and System groups.
+### Multi-Page Architecture & Authentication
+The platform utilizes a multi-page architecture with Replit Auth integration for user management. **Landing Page** serves as the public-facing entry point with pricing tiers (Free: $0, Premium: $39.99/month), contact information (support@quantedge.io, discord.gg/quantedge), and login/signup CTAs. Unauthenticated users see the landing page; authenticated users are routed to the dashboard with full sidebar navigation. Navigation is managed via a sidebar (on app pages) organized into Research, Tools, and System groups.
+
+**Authentication Architecture:**
+- **Replit Auth Integration:** OpenID Connect-based authentication via Replit's oauth system (server/replitAuth.ts)
+- **Multi-User Database Schema:** Users table with subscription fields (stripeCustomerId, stripeSubscriptionId, subscriptionTier, subscriptionStatus), sessions table for session management
+- **User-Scoped Data:** Trade ideas, watchlists, and preferences are linked to userId for multi-tenant isolation
+- **Auth Endpoints:** /api/login (initiate login), /api/callback (OAuth callback), /api/auth/logout (end session), /api/auth/me (current user)
+- **Frontend Auth Hook:** useAuth() React hook provides isAuthenticated, isLoading, user, login(), logout() methods
+- **Protected Routes:** App.tsx conditionally renders landing page vs. authenticated dashboard based on auth state
 
 ### UI/UX Decisions
 The platform features a **professional Bloomberg-style dark theme** with deep charcoal backgrounds (rgb(13,14,18)) and enhanced visual depth through strategic use of gradients, shadows, and glassmorphism effects. The color palette uses green for bullish, red for bearish, amber for neutral/warning, and blue for primary actions. Typography uses Inter for UI (with improved hierarchy: 3xl for metrics, bold tracking for headers) and JetBrains Mono for financial data. **Custom CSS utility classes** include stat-card (gradient top borders, professional shadows), stat-card-bullish/bearish (color-coded accent cards), and pro-table (enhanced table styling). UI elements feature enhanced cards with shadow-lg depth, gradient headers (from-card to-muted/20), icon backgrounds with colored accents (bg-primary/10), hover effects, badges, sticky-header tables, responsive grids, loading skeletons, pulsing "FRESH" badges, smart notifications, and optimistic UI updates. Additional enhancements include glowing verification badges for real data, real-time price displays with subtle animations, simplified card layouts for faster scanning, accessible view toggles, detailed analysis modals with multiple tabs, and full mobile responsiveness with hamburger menu. An intelligent advisory system provides real-time trading advice with colored indicators, action badges, dynamic R:R analysis, and profit/loss tracking. The overall aesthetic elevates the platform from basic HTML to a polished, professional quantitative trading interface comparable to institutional-grade fintech platforms.
@@ -47,7 +57,16 @@ The platform is built with a React/TypeScript frontend using Tailwind CSS, Shadc
 ### System Design Choices
 The system employs a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences, emphasizing modularity, responsiveness, and clear separation of concerns. Comprehensive data quality and error handling are implemented to guard against invalid numeric values in calculations, displaying "N/A" for professional presentation.
 
-**Data Persistence:** The platform uses a PostgreSQL database (Neon-backed) managed by Drizzle ORM. All trade ideas, performance tracking data, market data, watchlists, catalysts, options data, and user preferences are stored permanently in the database. Data survives server restarts, redeployments, and publishing. Chat history is kept in-memory for simplicity. Database schema is defined in `shared/schema.ts` and managed via `npm run db:push`.
+**Data Persistence:** The platform uses a PostgreSQL database (Neon-backed) managed by Drizzle ORM. All trade ideas, performance tracking data, market data, watchlists, catalysts, options data, user accounts, sessions, and user preferences are stored permanently in the database. Data survives server restarts, redeployments, and publishing. Chat history is kept in-memory for simplicity. Database schema is defined in `shared/schema.ts` and managed via `npm run db:push`.
+
+**Multi-User Schema:**
+- **users table:** id (primary key), email, firstName, lastName, stripeCustomerId, stripeSubscriptionId, subscriptionTier (free/premium), subscriptionStatus (active/canceled/past_due), subscriptionEndsAt, createdAt, updatedAt
+- **sessions table:** PostgreSQL session storage using connect-pg-simple for Passport.js session persistence
+- **Foreign Keys:** tradeIdeas.userId, watchlist.userId, userPreferences.userId link data to specific users
+
+**Subscription Tiers:**
+- **Free ($0/month):** View public performance ledger, historical trade ideas archive, basic market data
+- **Premium ($39.99/month):** Everything in Free + real-time trade signals, AI + Quant dual-engine, Discord community access, instant Discord notifications, advanced analytics & ML insights
 
 ## External Dependencies
 

@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { searchSymbol } from "./market-api";
@@ -13,8 +13,33 @@ import {
   insertUserPreferencesSchema,
 } from "@shared/schema";
 import { z } from "zod";
+import { setupAuth } from "./replitAuth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Authentication setup (Replit Auth)
+  setupAuth(app);
+
+  // Authentication Routes
+  app.get("/api/auth/login", (_req: Request, res: Response) => {
+    res.redirect("/api/login");
+  });
+
+  app.get("/api/auth/logout", (req: Request, res: Response) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ error: "Logout failed" });
+      }
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/auth/me", (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
+    res.json(req.user);
+  });
+
   // Market Data Routes
   app.get("/api/market-data", async (_req, res) => {
     try {

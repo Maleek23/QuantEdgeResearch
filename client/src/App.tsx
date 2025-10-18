@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import TradeIdeasPage from "@/pages/trade-ideas";
@@ -35,6 +36,7 @@ function Router() {
 }
 
 function App() {
+  const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
   const isLandingPage = location === '/';
   
@@ -47,7 +49,14 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
         <TooltipProvider>
-          {isLandingPage ? (
+          {isLoading ? (
+            <div className="flex h-screen items-center justify-center bg-background">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading...</p>
+              </div>
+            </div>
+          ) : !isAuthenticated || isLandingPage ? (
             <Router />
           ) : (
             <SidebarProvider style={style as React.CSSProperties}>
