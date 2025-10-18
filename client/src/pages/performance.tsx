@@ -2,11 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, TrendingUp, TrendingDown, Activity, Target, XCircle, Clock, Filter } from "lucide-react";
+import { Download, TrendingUp, TrendingDown, Activity, Target, XCircle, Clock, Filter, Calendar } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { format, parseISO } from 'date-fns';
-import { useState } from 'react';
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { format, parseISO, startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subMonths, subYears, isAfter, isBefore } from 'date-fns';
+import { useState, useMemo } from 'react';
 import {
   Select,
   SelectContent,
@@ -14,6 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface PerformanceStats {
   overall: {
@@ -78,6 +83,8 @@ interface TradeIdea {
 export default function PerformancePage() {
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<string>('all'); // '7d', '30d', '3m', '1y', 'all'
+  const [periodView, setPeriodView] = useState<string>('daily'); // 'daily', 'weekly', 'monthly', 'yearly'
 
   const { data: stats, isLoading } = useQuery<PerformanceStats>({
     queryKey: ['/api/performance/stats'],
@@ -146,10 +153,90 @@ export default function PerformancePage() {
     return `${Math.round(minutes / 1440)}d`;
   };
 
-  // Filter closed ideas - must be defined before calculateAdvancedMetrics
-  const closedIdeas = allIdeas?.filter(idea => 
-    idea.outcomeStatus !== 'open'
-  ) || [];
+  // Calculate date range filter
+  const getDateRangeStart = () => {
+    const now = new Date();
+    switch (dateRange) {
+      case '7d': return subDays(now, 7);
+      case '30d': return subDays(now, 30);
+      case '3m': return subMonths(now, 3);
+      case '1y': return subYears(now, 1);
+      case 'all': return new Date(0); // Beginning of time
+      default: return new Date(0);
+    }
+  };
+
+  // Filter closed ideas by date range (inclusive of boundary)
+  const closedIdeas = useMemo(() => {
+    const ideas = allIdeas?.filter(idea => idea.outcomeStatus !== 'open') || [];
+    const rangeStart = getDateRangeStart();
+    
+    return ideas.filter(idea => {
+      const ideaDate = new Date(idea.exitDate || idea.timestamp);
+      return !isBefore(ideaDate, rangeStart) || ideaDate.getTime() === rangeStart.getTime();
+    });
+  }, [allIdeas, dateRange]);
+
+  // Group trades by period
+  const tradesByPeriod = useMemo(() => {
+    if (!closedIdeas || closedIdeas.length === 0) return [];
+
+    const grouped = new Map<string, typeof closedIdeas>();
+
+    closedIdeas.forEach(idea => {
+      const ideaDate = parseISO(idea.exitDate || idea.timestamp);
+      let periodKey: string;
+
+      switch (periodView) {
+        case 'daily':
+          periodKey = format(startOfDay(ideaDate), 'yyyy-MM-dd');
+          break;
+        case 'weekly':
+          periodKey = format(startOfWeek(ideaDate), 'yyyy-MM-dd');
+          break;
+        case 'monthly':
+          periodKey = format(startOfMonth(ideaDate), 'yyyy-MM');
+          break;
+        case 'yearly':
+          periodKey = format(startOfYear(ideaDate), 'yyyy');
+          break;
+        default:
+          periodKey = format(startOfDay(ideaDate), 'yyyy-MM-dd');
+      }
+
+      if (!grouped.has(periodKey)) {
+        grouped.set(periodKey, []);
+      }
+      grouped.get(periodKey)!.push(idea);
+    });
+
+    // Convert to array and calculate stats
+    return Array.from(grouped.entries())
+      .map(([period, trades]) => {
+        const wins = trades.filter(t => t.outcomeStatus === 'hit_target').length;
+        const losses = trades.filter(t => t.outcomeStatus === 'hit_stop').length;
+        const totalClosed = wins + losses;
+        const winRate = totalClosed > 0 ? (wins / totalClosed) * 100 : 0;
+        const avgGain = trades.reduce((sum, t) => sum + (t.percentGain || 0), 0) / trades.length;
+
+        return {
+          period,
+          totalTrades: trades.length,
+          wins,
+          losses,
+          winRate,
+          avgGain,
+          displayLabel: periodView === 'daily' 
+            ? format(parseISO(period), 'MMM dd')
+            : periodView === 'weekly'
+            ? format(parseISO(period), 'MMM dd, yyyy')
+            : periodView === 'monthly'
+            ? format(parseISO(period + '-01'), 'MMM yyyy')
+            : period
+        };
+      })
+      .sort((a, b) => a.period.localeCompare(b.period));
+  }, [closedIdeas, periodView]);
 
   // Calculate advanced performance metrics
   const calculateAdvancedMetrics = () => {
@@ -313,6 +400,48 @@ export default function PerformancePage() {
           </div>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
+      </div>
+
+      {/* Date Range & Period Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Time Range:</span>
+          <Select value={dateRange} onValueChange={setDateRange}>
+            <SelectTrigger className="w-40" data-testid="select-date-range">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d">Last 7 Days</SelectItem>
+              <SelectItem value="30d">Last 30 Days</SelectItem>
+              <SelectItem value="3m">Last 3 Months</SelectItem>
+              <SelectItem value="1y">Last Year</SelectItem>
+              <SelectItem value="all">All Time</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Group By:</span>
+          <Select value={periodView} onValueChange={setPeriodView}>
+            <SelectTrigger className="w-32" data-testid="select-period-view">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="weekly">Weekly</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="yearly">Yearly</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {closedIdeas.length > 0 && (
+          <Badge variant="outline" className="badge-shimmer ml-auto">
+            {closedIdeas.length} closed trade{closedIdeas.length !== 1 ? 's' : ''} in range
+          </Badge>
+        )}
       </div>
 
       {/* Overall Stats */}
@@ -507,6 +636,95 @@ export default function PerformancePage() {
               View the <strong>Signal Intelligence</strong> page for deeper pattern analysis and ML insights
             </p>
           </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Period-Based Performance Chart */}
+      {tradesByPeriod.length > 0 && (
+        <div className="gradient-border-card">
+          <Card className="glass-card shadow-lg border-0">
+            <CardHeader className="bg-gradient-to-r from-card/80 to-primary/5 border-b border-border/50">
+              <CardTitle className="flex items-center gap-2">
+                Performance by {periodView.charAt(0).toUpperCase() + periodView.slice(1)} Period
+                <Badge variant="outline" className="badge-shimmer">
+                  {tradesByPeriod.length} {periodView} period{tradesByPeriod.length !== 1 ? 's' : ''}
+                </Badge>
+              </CardTitle>
+              <CardDescription>
+                Win rate and trade volume across {dateRange === 'all' ? 'all time' : dateRange}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={tradesByPeriod}>
+                  <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                  <XAxis 
+                    dataKey="displayLabel" 
+                    tick={{ fontSize: 12 }}
+                    angle={tradesByPeriod.length > 10 ? -45 : 0}
+                    textAnchor={tradesByPeriod.length > 10 ? 'end' : 'middle'}
+                    height={tradesByPeriod.length > 10 ? 80 : 60}
+                  />
+                  <YAxis yAxisId="left" tick={{ fontSize: 12 }} label={{ value: 'Win Rate %', angle: -90, position: 'insideLeft' }} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} label={{ value: 'Trades', angle: 90, position: 'insideRight' }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                    formatter={(value: any, name: string) => {
+                      if (name === 'winRate') return [`${Number(value).toFixed(1)}%`, 'Win Rate'];
+                      if (name === 'totalTrades') return [value, 'Total Trades'];
+                      if (name === 'wins') return [value, 'Wins'];
+                      if (name === 'losses') return [value, 'Losses'];
+                      return [value, name];
+                    }}
+                  />
+                  <Legend />
+                  <Bar yAxisId="left" dataKey="winRate" name="Win Rate %" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="right" dataKey="totalTrades" name="Total Trades" fill="hsl(var(--muted-foreground))" opacity={0.5} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+
+              {/* Period Summary Table */}
+              <div className="mt-6 border-t border-border/50 pt-4">
+                <h4 className="text-sm font-semibold mb-3">Period Breakdown</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-border/50">
+                      <tr className="text-muted-foreground">
+                        <th className="text-left py-2 px-3">Period</th>
+                        <th className="text-right py-2 px-3">Trades</th>
+                        <th className="text-right py-2 px-3">Wins</th>
+                        <th className="text-right py-2 px-3">Losses</th>
+                        <th className="text-right py-2 px-3">Win Rate</th>
+                        <th className="text-right py-2 px-3">Avg Gain</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tradesByPeriod.slice().reverse().map((period, idx) => (
+                        <tr key={period.period} className={idx % 2 === 0 ? 'bg-muted/30' : ''}>
+                          <td className="py-2 px-3 font-medium">{period.displayLabel}</td>
+                          <td className="text-right py-2 px-3">{period.totalTrades}</td>
+                          <td className="text-right py-2 px-3 text-green-500">{period.wins}</td>
+                          <td className="text-right py-2 px-3 text-red-500">{period.losses}</td>
+                          <td className="text-right py-2 px-3">
+                            <Badge variant={period.winRate >= 50 ? 'default' : 'destructive'} className="neon-accent">
+                              {period.winRate.toFixed(1)}%
+                            </Badge>
+                          </td>
+                          <td className={`text-right py-2 px-3 font-mono ${period.avgGain >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {period.avgGain >= 0 ? '+' : ''}{period.avgGain.toFixed(2)}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </CardContent>
           </Card>
         </div>
       )}
