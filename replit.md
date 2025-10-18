@@ -46,7 +46,7 @@ Located at `/admin`, password-protected using the `ADMIN_PASSWORD` environment v
 - **Trade Ideas**: Browse all trade ideas across the platform with outcomes and performance data
 - **System Tools**: 
   - Export platform data to CSV
-  - Clear test data
+  - Clear test data (ONLY deletes OPEN trades >7 days old - PRESERVES all trades with outcomes)
   - Refresh cache/invalidate queries
   - Database monitoring
 

@@ -1401,25 +1401,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin: Clear test data (ideas before Oct 16, 2025)
+  // Admin: Clear test data (ONLY deletes OPEN trades with no outcomes - preserves all closed trades)
   app.post("/api/admin/clear-test-data", requireAdmin, async (_req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
-      const cutoffDate = new Date('2025-10-16T00:00:00Z');
       let deletedCount = 0;
+      let preservedCount = 0;
       
       for (const idea of allIdeas) {
+        // PRESERVE any trade with an outcome (hit_target, hit_stop, expired, closed)
+        if (idea.outcomeStatus && idea.outcomeStatus !== 'open') {
+          preservedCount++;
+          continue; // Keep this trade - it has valuable outcome data
+        }
+        
+        // Only delete OPEN trades that are older than 7 days (likely test data)
         const ideaDate = new Date(idea.timestamp);
-        if (ideaDate < cutoffDate) {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        
+        if (ideaDate < sevenDaysAgo && idea.outcomeStatus === 'open') {
           await storage.deleteTradeIdea(idea.id);
           deletedCount++;
         }
       }
       
       res.json({ 
-        message: 'Test data cleared successfully',
+        message: 'Test data cleared successfully - all trades with outcomes were preserved',
         deletedCount,
-        cutoffDate: cutoffDate.toISOString()
+        preservedWithOutcomes: preservedCount,
+        note: 'Only deleted OPEN trades older than 7 days. All closed trades with outcomes were kept.'
       });
     } catch (error: any) {
       console.error("Clear test data error:", error);
