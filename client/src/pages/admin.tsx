@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +29,8 @@ import {
   Cpu,
   Clock,
   BarChart3,
-  Zap
+  Zap,
+  ArrowRight
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -36,6 +38,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 type AuthStep = "pin" | "password" | "authenticated";
 
 export default function AdminPanel() {
+  const [, setLocation] = useLocation();
   const [authStep, setAuthStep] = useState<AuthStep>("pin");
   const [pinCode, setPinCode] = useState("");
   const [password, setPassword] = useState("");
@@ -317,6 +320,15 @@ export default function AdminPanel() {
                 <CheckCircle2 className="h-3 w-3 mr-1" />
                 Administrator
               </Badge>
+              <Button
+                onClick={() => setLocation('/dashboard')}
+                variant="outline"
+                className="glass-card"
+                data-testid="button-back-dashboard"
+              >
+                <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
+                Back to Dashboard
+              </Button>
               <Button
                 onClick={handleExportData}
                 variant="outline"

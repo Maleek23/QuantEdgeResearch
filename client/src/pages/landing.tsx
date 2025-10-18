@@ -95,58 +95,56 @@ export default function Landing() {
       <section className="relative overflow-hidden border-b aurora-hero">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
         
-        <div className="container relative mx-auto px-6 py-32 text-center">
-          <Badge variant="secondary" className="mb-8 badge-shimmer neon-accent transition-spring">
+        <div className="container relative mx-auto px-6 py-16 md:py-20 text-center">
+          <Badge variant="secondary" className="mb-6 badge-shimmer neon-accent transition-spring">
             <Zap className="h-3 w-3 mr-1" />
             Dual-Engine Architecture: AI + Quantitative
           </Badge>
           
-          <h1 className="text-6xl md:text-7xl font-bold tracking-tight mb-8 text-display animate-fade-up">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6 text-display animate-fade-up">
             <span className="text-gradient-premium">QuantEdge</span>
             <br />
             <span className="text-foreground">Research Platform</span>
           </h1>
           
-          <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-12 leading-relaxed animate-fade-up animate-delay-100">
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 leading-relaxed animate-fade-up animate-delay-100">
             Discover day-trading opportunities across US equities, options, and crypto markets. 
             Real market data, transparent explainability, professional-grade risk management.
           </p>
 
-          <div className="flex flex-wrap gap-4 justify-center mb-16 animate-fade-up animate-delay-200">
+          <div className="flex flex-wrap gap-3 justify-center mb-8 animate-fade-up animate-delay-200">
             <Button 
-              size="lg" 
               onClick={() => setLocation('/dashboard')}
               data-testid="button-enter-platform"
-              className="btn-magnetic px-8 py-6 text-lg neon-accent"
+              className="btn-magnetic neon-accent"
             >
-              <ArrowRight className="h-5 w-5 mr-2" />
+              <ArrowRight className="h-4 w-4 mr-2" />
               Enter Platform
             </Button>
             <Button 
-              size="lg" 
               variant="outline"
               onClick={() => window.location.href = 'https://discord.gg/quantedge'}
               data-testid="button-join-discord"
-              className="btn-magnetic px-8 py-6 text-lg glass-card"
+              className="btn-magnetic glass-card"
             >
-              <MessageCircle className="h-5 w-5 mr-2" />
+              <MessageCircle className="h-4 w-4 mr-2" />
               Join Discord
-              <ExternalLink className="h-4 w-4 ml-2" />
+              <ExternalLink className="h-3 w-3 ml-2" />
             </Button>
           </div>
 
-          <div className="grid grid-cols-3 gap-8 max-w-3xl mx-auto animate-scale-in animate-delay-300">
-            <div className="glass-card rounded-2xl p-6 spotlight">
-              <div className="text-4xl font-bold text-gradient mb-2">8</div>
-              <div className="text-sm text-muted-foreground">Signal Types</div>
+          <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto animate-scale-in animate-delay-300">
+            <div className="glass-card rounded-xl p-4 spotlight">
+              <div className="text-2xl font-bold text-gradient mb-1">8</div>
+              <div className="text-xs text-muted-foreground">Signal Types</div>
             </div>
-            <div className="glass-card rounded-2xl p-6 spotlight">
-              <div className="text-4xl font-bold text-gradient mb-2">3</div>
-              <div className="text-sm text-muted-foreground">AI Providers</div>
+            <div className="glass-card rounded-xl p-4 spotlight">
+              <div className="text-2xl font-bold text-gradient mb-1">3</div>
+              <div className="text-xs text-muted-foreground">AI Providers</div>
             </div>
-            <div className="glass-card rounded-2xl p-6 spotlight">
-              <div className="text-4xl font-bold text-gradient mb-2">Live</div>
-              <div className="text-sm text-muted-foreground">Market Data</div>
+            <div className="glass-card rounded-xl p-4 spotlight">
+              <div className="text-2xl font-bold text-gradient mb-1">Live</div>
+              <div className="text-xs text-muted-foreground">Market Data</div>
             </div>
           </div>
         </div>
@@ -155,12 +153,12 @@ export default function Landing() {
       </section>
 
       {/* Features Grid with Premium Cards */}
-      <section className="container mx-auto px-6 py-24">
-        <div className="text-center mb-20">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
+      <section className="container mx-auto px-6 py-12 md:py-16">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-display">
             Platform Features
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-base text-muted-foreground max-w-2xl mx-auto">
             Professional-grade tools for discovering and analyzing trading opportunities with complete transparency
           </p>
         </div>
@@ -191,13 +189,13 @@ export default function Landing() {
       </section>
 
       {/* How It Works - Premium Timeline */}
-      <section className="border-t aurora-bg py-24">
+      <section className="border-t aurora-bg py-12 md:py-16">
         <div className="container mx-auto px-6">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-display">
               How It Works
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base text-muted-foreground max-w-2xl mx-auto">
               From market data to trade execution in four simple steps
             </p>
           </div>
@@ -225,13 +223,13 @@ export default function Landing() {
       </section>
 
       {/* Pricing Section - Premium Glass Cards */}
-      <section className="border-t py-24">
+      <section className="border-t py-12 md:py-16">
         <div className="container mx-auto px-6">
-          <div className="text-center mb-20">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-display">
               Pricing
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base text-muted-foreground max-w-2xl mx-auto">
               Choose the plan that fits your trading needs
             </p>
           </div>
@@ -267,7 +265,7 @@ export default function Landing() {
                   
                   <Button 
                     variant="outline" 
-                    className="w-full py-6 text-lg btn-magnetic glass-card"
+                    className="w-full btn-magnetic glass-card"
                     onClick={() => window.location.href = '/api/login'}
                     data-testid="button-pricing-free"
                   >
@@ -321,11 +319,11 @@ export default function Landing() {
                   </ul>
                   
                   <Button 
-                    className="w-full py-6 text-lg btn-magnetic neon-accent"
+                    className="w-full btn-magnetic neon-accent"
                     onClick={() => window.location.href = '/api/login'}
                     data-testid="button-pricing-premium"
                   >
-                    <Sparkles className="h-5 w-5 mr-2" />
+                    <Sparkles className="h-4 w-4 mr-2" />
                     Start Premium
                     <ArrowRight className="h-5 w-5 ml-2" />
                   </Button>
@@ -337,12 +335,12 @@ export default function Landing() {
       </section>
 
       {/* Contact Section - Glass Cards */}
-      <section className="container mx-auto px-6 py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
+      <section className="container mx-auto px-6 py-12 md:py-16">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-display">
             Get In Touch
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-base text-muted-foreground max-w-2xl mx-auto">
             Questions about pricing, features, or partnership opportunities? We're here to help.
           </p>
         </div>
