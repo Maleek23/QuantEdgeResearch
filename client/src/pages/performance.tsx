@@ -146,6 +146,11 @@ export default function PerformancePage() {
     return `${Math.round(minutes / 1440)}d`;
   };
 
+  // Filter closed ideas - must be defined before calculateAdvancedMetrics
+  const closedIdeas = allIdeas?.filter(idea => 
+    idea.outcomeStatus !== 'open'
+  ) || [];
+
   // Calculate advanced performance metrics
   const calculateAdvancedMetrics = () => {
     if (!closedIdeas || closedIdeas.length === 0) return null;
@@ -240,11 +245,6 @@ export default function PerformancePage() {
   };
 
   const advancedMetrics = calculateAdvancedMetrics();
-
-  // Filter closed ideas
-  const closedIdeas = allIdeas?.filter(idea => 
-    idea.outcomeStatus !== 'open'
-  ) || [];
 
   const filteredIdeas = closedIdeas.filter(idea => {
     const sourceMatch = sourceFilter === 'all' || idea.source === sourceFilter;
