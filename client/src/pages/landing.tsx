@@ -127,7 +127,7 @@ export default function Landing() {
             <Button 
               size="lg" 
               variant="outline"
-              onClick={() => setLocation('/about')}
+              onClick={() => setLocation('/learn-more')}
               data-testid="button-learn-more"
             >
               Learn More

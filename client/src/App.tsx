@@ -8,6 +8,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Landing from "@/pages/landing";
+import LearnMore from "@/pages/learn-more";
 import Dashboard from "@/pages/dashboard";
 import TradeIdeasPage from "@/pages/trade-ideas";
 import MarketPage from "@/pages/market";
@@ -22,6 +23,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/learn-more" component={LearnMore} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/trade-ideas" component={TradeIdeasPage} />
       <Route path="/market" component={MarketPage} />
@@ -60,11 +62,12 @@ function AuthenticatedApp() {
     return <Redirect to="/dashboard" />;
   }
 
-  // Show landing page for unauthenticated users
+  // Show public pages for unauthenticated users
   if (!isAuthenticated) {
     return (
       <Switch>
         <Route path="/" component={Landing} />
+        <Route path="/learn-more" component={LearnMore} />
         <Route path="*">
           <Redirect to="/" />
         </Route>

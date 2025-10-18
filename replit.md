@@ -21,7 +21,7 @@ QuantEdge Research is a professional quantitative trading research platform desi
 ## System Architecture
 
 ### Multi-Page Architecture & Authentication
-The platform utilizes a multi-page architecture with Replit Auth integration for user management. **Landing Page** serves as the public-facing entry point with pricing tiers (Free: $0, Premium: $39.99/month), contact information (support@quantedge.io, discord.gg/quantedge), and login/signup CTAs. Unauthenticated users see the landing page; authenticated users are routed to the dashboard with full sidebar navigation. Navigation is managed via a sidebar (on app pages) organized into Research, Tools, and System groups.
+The platform utilizes a multi-page architecture with Replit Auth integration for user management. **Landing Page** serves as the public-facing entry point with pricing tiers (Free: $0, Premium: $39.99/month), contact information (support@quantedge.io, discord.gg/quantedge), and login/signup CTAs. **Learn More Page** (/learn-more) is a comprehensive documentation page accessible to all users (authenticated and unauthenticated) explaining: dual-engine architecture, authentication flow with Replit OAuth, supported login methods (Google, GitHub, X, Apple, Email), security features, trade idea generation process, and educational disclaimers. Unauthenticated users can access landing page and learn-more page; authenticated users are automatically redirected to the dashboard with full sidebar navigation. Navigation is managed via a sidebar (on app pages) organized into Research, Tools, and System groups.
 
 **Authentication Architecture:**
 - **Replit Auth Integration:** OpenID Connect-based authentication via Replit's oauth system (server/replitAuth.ts)
