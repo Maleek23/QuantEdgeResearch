@@ -13,18 +13,15 @@ import {
   insertUserPreferencesSchema,
 } from "@shared/schema";
 import { z } from "zod";
-
-// Simple admin authentication middleware
-function requireAdmin(req: Request, res: Response, next: Function) {
-  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
-  const providedPassword = req.headers['x-admin-password'] || req.body?.password;
-  
-  if (providedPassword === adminPassword) {
-    next();
-  } else {
-    res.status(403).json({ error: "Admin access denied" });
-  }
-}
+import { logger, logError } from "./logger";
+import { 
+  generalApiLimiter, 
+  aiGenerationLimiter, 
+  quantGenerationLimiter,
+  marketDataLimiter,
+  adminLimiter
+} from "./rate-limiter";
+import { requireAdmin, generateAdminToken } from "./auth";
 
 // Premium subscription middleware
 function requirePremium(req: Request, res: Response, next: Function) {
@@ -34,6 +31,9 @@ function requirePremium(req: Request, res: Response, next: Function) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Apply general rate limiting to all API routes
+  app.use('/api/', generalApiLimiter);
+  
   // Discord redirect for login/signup (managed via Discord community)
   app.get("/api/login", (_req: Request, res: Response) => {
     // Redirect to Discord invite link (will be updated with actual Discord link)
@@ -41,22 +41,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.redirect(discordInviteUrl);
   });
 
-  // Admin Routes
-  app.post("/api/admin/verify-code", (req, res) => {
-    const adminCode = process.env.ADMIN_ACCESS_CODE || "0000";
-    if (req.body.code === adminCode) {
-      res.json({ success: true });
-    } else {
-      res.status(403).json({ error: "Invalid access code" });
+  // Admin Authentication Routes with JWT
+  app.post("/api/admin/verify-code", adminLimiter, (req, res) => {
+    try {
+      const adminCode = process.env.ADMIN_ACCESS_CODE || "0000";
+      if (req.body.code === adminCode) {
+        logger.info('Admin access code verified', { ip: req.ip });
+        res.json({ success: true });
+      } else {
+        logger.warn('Invalid admin access code attempt', { ip: req.ip });
+        res.status(403).json({ error: "Invalid access code" });
+      }
+    } catch (error) {
+      logError(error as Error, { context: 'admin verify-code' });
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 
-  app.post("/api/admin/verify", (req, res) => {
-    const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
-    if (req.body.password === adminPassword) {
+  app.post("/api/admin/login", adminLimiter, (req, res) => {
+    try {
+      const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+      if (req.body.password === adminPassword) {
+        // Generate JWT token
+        const token = generateAdminToken();
+        
+        // Set secure HTTP-only cookie
+        res.cookie('admin_token', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        });
+        
+        logger.info('Admin logged in successfully', { ip: req.ip });
+        res.json({ 
+          success: true,
+          token, // Also return token for API clients
+          expiresIn: '24h'
+        });
+      } else {
+        logger.warn('Invalid admin password attempt', { ip: req.ip });
+        res.status(403).json({ error: "Invalid password" });
+      }
+    } catch (error) {
+      logError(error as Error, { context: 'admin login' });
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/admin/logout", (req, res) => {
+    try {
+      res.clearCookie('admin_token');
+      logger.info('Admin logged out', { ip: req.ip });
       res.json({ success: true });
-    } else {
-      res.status(403).json({ error: "Invalid password" });
+    } catch (error) {
+      logError(error as Error, { context: 'admin logout' });
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Legacy endpoint for backward compatibility
+  app.post("/api/admin/verify", adminLimiter, (req, res) => {
+    try {
+      const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+      if (req.body.password === adminPassword) {
+        logger.info('Admin verified (legacy endpoint)', { ip: req.ip });
+        res.json({ success: true });
+      } else {
+        logger.warn('Invalid admin password (legacy endpoint)', { ip: req.ip });
+        res.status(403).json({ error: "Invalid password" });
+      }
+    } catch (error) {
+      logError(error as Error, { context: 'admin verify' });
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 
@@ -333,7 +390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Market Data Routes
-  app.get("/api/market-data", async (_req, res) => {
+  app.get("/api/market-data", marketDataLimiter, async (_req, res) => {
     try {
       const data = await storage.getAllMarketData();
       res.json(data);
@@ -939,7 +996,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Quantitative Idea Generator (Premium only)
-  app.post("/api/quant/generate-ideas", async (req, res) => {
+  app.post("/api/quant/generate-ideas", quantGenerationLimiter, async (req, res) => {
     try {
       const schema = z.object({
         count: z.number().optional().default(8),
@@ -986,7 +1043,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI QuantBot Routes (Premium only)
-  app.post("/api/ai/generate-ideas", async (req, res) => {
+  app.post("/api/ai/generate-ideas", aiGenerationLimiter, async (req, res) => {
     try {
       const schema = z.object({
         marketContext: z.string().optional().default("Current market conditions with focus on stocks, options, and crypto"),
