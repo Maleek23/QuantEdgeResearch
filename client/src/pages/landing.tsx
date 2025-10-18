@@ -115,32 +115,33 @@ export default function Landing() {
           <div className="flex flex-wrap gap-4 justify-center mb-16 animate-fade-up animate-delay-200">
             <Button 
               size="lg" 
-              onClick={() => window.location.href = 'https://discord.gg/quantedge'}
-              data-testid="button-join-discord"
+              onClick={() => setLocation('/dashboard')}
+              data-testid="button-enter-platform"
               className="btn-magnetic px-8 py-6 text-lg neon-accent"
             >
+              <ArrowRight className="h-5 w-5 mr-2" />
+              Enter Platform
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline"
+              onClick={() => window.location.href = 'https://discord.gg/quantedge'}
+              data-testid="button-join-discord"
+              className="btn-magnetic px-8 py-6 text-lg glass-card"
+            >
               <MessageCircle className="h-5 w-5 mr-2" />
-              Join Discord Community
+              Join Discord
               <ExternalLink className="h-4 w-4 ml-2" />
             </Button>
             <Button 
               size="lg" 
               variant="outline"
-              onClick={() => setLocation('/dashboard')}
-              data-testid="button-view-dashboard"
+              onClick={() => setLocation('/admin')}
+              data-testid="button-admin"
               className="btn-magnetic px-8 py-6 text-lg glass-card"
             >
-              <Sparkles className="h-5 w-5 mr-2" />
-              View Dashboard
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline"
-              onClick={() => setLocation('/learn-more')}
-              data-testid="button-learn-more"
-              className="btn-magnetic px-8 py-6 text-lg glass-card"
-            >
-              Learn More
+              <Shield className="h-5 w-5 mr-2" />
+              Admin
             </Button>
           </div>
 
