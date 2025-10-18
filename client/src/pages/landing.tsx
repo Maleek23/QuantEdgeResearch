@@ -17,7 +17,8 @@ import {
   Mail,
   MessageCircle,
   ExternalLink,
-  ArrowRight
+  ArrowRight,
+  Book
 } from "lucide-react";
 
 export default function Landing() {
@@ -120,6 +121,15 @@ export default function Landing() {
             >
               <ArrowRight className="h-4 w-4 mr-2" />
               Enter Platform
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => setLocation('/learn-more')}
+              data-testid="button-learn-more"
+              className="btn-magnetic glass-card"
+            >
+              <Book className="h-4 w-4 mr-2" />
+              Learn More
             </Button>
             <Button 
               variant="outline"

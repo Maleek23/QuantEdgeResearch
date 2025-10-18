@@ -19,7 +19,8 @@ import {
   Key,
   ChevronRight,
   Sparkles,
-  MessageCircle
+  MessageCircle,
+  Check
 } from "lucide-react";
 
 export default function LearnMore() {
