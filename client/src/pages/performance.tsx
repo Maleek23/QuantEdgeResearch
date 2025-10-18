@@ -146,6 +146,101 @@ export default function PerformancePage() {
     return `${Math.round(minutes / 1440)}d`;
   };
 
+  // Calculate advanced performance metrics
+  const calculateAdvancedMetrics = () => {
+    if (!closedIdeas || closedIdeas.length === 0) return null;
+
+    const sortedByDate = [...closedIdeas].sort((a, b) => 
+      new Date(a.exitDate || a.timestamp).getTime() - new Date(b.exitDate || b.timestamp).getTime()
+    );
+
+    // Calculate Max Drawdown (largest peak-to-trough decline)
+    let peak = 0;
+    let maxDrawdown = 0;
+    let cumulativeGain = 0;
+    
+    sortedByDate.forEach(idea => {
+      const gain = idea.percentGain || 0;
+      cumulativeGain += gain;
+      
+      if (cumulativeGain > peak) {
+        peak = cumulativeGain;
+      }
+      
+      const drawdown = peak - cumulativeGain;
+      if (drawdown > maxDrawdown) {
+        maxDrawdown = drawdown;
+      }
+    });
+
+    // Calculate Profit Factor (gross profit / gross loss)
+    const grossProfit = closedIdeas
+      .filter(i => (i.percentGain || 0) > 0)
+      .reduce((sum, i) => sum + (i.percentGain || 0), 0);
+    
+    const grossLoss = Math.abs(closedIdeas
+      .filter(i => (i.percentGain || 0) < 0)
+      .reduce((sum, i) => sum + (i.percentGain || 0), 0));
+    
+    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? Infinity : 0);
+
+    // Calculate consecutive wins/losses streaks
+    let currentStreak = 0;
+    let bestWinStreak = 0;
+    let worstLossStreak = 0;
+    let isWinStreak = false;
+
+    sortedByDate.forEach((idea, idx) => {
+      const isWin = idea.outcomeStatus === 'hit_target';
+      const isLoss = idea.outcomeStatus === 'hit_stop';
+
+      if (!isWin && !isLoss) return; // Skip expired
+
+      if (idx === 0) {
+        currentStreak = 1;
+        isWinStreak = isWin;
+      } else if ((isWin && isWinStreak) || (isLoss && !isWinStreak)) {
+        currentStreak++;
+      } else {
+        if (isWinStreak) {
+          bestWinStreak = Math.max(bestWinStreak, currentStreak);
+        } else {
+          worstLossStreak = Math.max(worstLossStreak, currentStreak);
+        }
+        currentStreak = 1;
+        isWinStreak = isWin;
+      }
+    });
+
+    // Final streak check
+    if (isWinStreak) {
+      bestWinStreak = Math.max(bestWinStreak, currentStreak);
+    } else {
+      worstLossStreak = Math.max(worstLossStreak, currentStreak);
+    }
+
+    // Find best and worst trades
+    const sortedByGain = [...closedIdeas]
+      .filter(i => i.percentGain !== null && i.percentGain !== undefined)
+      .sort((a, b) => (b.percentGain || 0) - (a.percentGain || 0));
+    
+    const bestTrades = sortedByGain.slice(0, 5);
+    const worstTrades = sortedByGain.slice(-5).reverse();
+
+    return {
+      maxDrawdown,
+      profitFactor,
+      bestWinStreak,
+      worstLossStreak,
+      bestTrades,
+      worstTrades,
+      grossProfit,
+      grossLoss,
+    };
+  };
+
+  const advancedMetrics = calculateAdvancedMetrics();
+
   // Filter closed ideas
   const closedIdeas = allIdeas?.filter(idea => 
     idea.outcomeStatus !== 'open'
@@ -285,6 +380,182 @@ export default function PerformancePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Advanced Performance Metrics */}
+      {advancedMetrics && closedIdeas.length >= 5 && (
+        <Card className="shadow-lg overflow-hidden border-primary/20" data-testid="card-advanced-metrics">
+          <CardHeader className="bg-gradient-to-r from-card to-muted/30 border-b border-border/50">
+            <CardTitle className="text-xl font-bold flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Target className="w-5 h-5 text-primary" />
+              </div>
+              Advanced Metrics
+            </CardTitle>
+            <CardDescription>
+              Risk management and streak analysis
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Max Drawdown */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <TrendingDown className="w-4 h-4" />
+                  Max Drawdown
+                </div>
+                <div className={`text-2xl font-bold font-mono ${
+                  advancedMetrics.maxDrawdown > 0 ? 'text-red-500' : 'text-muted-foreground'
+                }`}>
+                  {advancedMetrics.maxDrawdown > 0 ? '-' : ''}{advancedMetrics.maxDrawdown.toFixed(2)}%
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Largest peak-to-trough decline
+                </p>
+              </div>
+
+              {/* Profit Factor */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <TrendingUp className="w-4 h-4" />
+                  Profit Factor
+                </div>
+                <div className={`text-2xl font-bold font-mono ${
+                  advancedMetrics.profitFactor >= 1.5 ? 'text-green-500' : 
+                  advancedMetrics.profitFactor >= 1.0 ? 'text-amber-500' : 'text-red-500'
+                }`}>
+                  {advancedMetrics.profitFactor === Infinity ? '∞' : advancedMetrics.profitFactor.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Gross profit ÷ gross loss
+                </p>
+              </div>
+
+              {/* Best Win Streak */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Target className="w-4 h-4" />
+                  Best Win Streak
+                </div>
+                <div className="text-2xl font-bold font-mono text-green-500">
+                  {advancedMetrics.bestWinStreak}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Consecutive wins
+                </p>
+              </div>
+
+              {/* Worst Loss Streak */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <XCircle className="w-4 h-4" />
+                  Worst Loss Streak
+                </div>
+                <div className="text-2xl font-bold font-mono text-red-500">
+                  {advancedMetrics.worstLossStreak}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Consecutive losses
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Best & Worst Trades */}
+      {advancedMetrics && advancedMetrics.bestTrades.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Best Trades */}
+          <Card className="shadow-lg border-green-500/20" data-testid="card-best-trades">
+            <CardHeader className="bg-gradient-to-r from-green-500/5 to-green-500/10 border-b border-border/50">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-green-500/10">
+                  <TrendingUp className="w-4 h-4 text-green-500" />
+                </div>
+                Top Winners
+              </CardTitle>
+              <CardDescription>
+                Best performing trades
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                {advancedMetrics.bestTrades.map((trade) => (
+                  <div 
+                    key={trade.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover-elevate"
+                    data-testid={`best-trade-${trade.symbol}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="font-mono font-bold">{trade.symbol}</div>
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {trade.assetType}
+                      </Badge>
+                      <Badge 
+                        className={`text-xs ${
+                          trade.direction === 'long' 
+                            ? 'bg-green-500/10 text-green-500 border-green-500/20' 
+                            : 'bg-red-500/10 text-red-500 border-red-500/20'
+                        }`}
+                      >
+                        {trade.direction.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <div className="text-lg font-bold font-mono text-green-500">
+                      +{(trade.percentGain || 0).toFixed(2)}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Worst Trades */}
+          <Card className="shadow-lg border-red-500/20" data-testid="card-worst-trades">
+            <CardHeader className="bg-gradient-to-r from-red-500/5 to-red-500/10 border-b border-border/50">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-red-500/10">
+                  <TrendingDown className="w-4 h-4 text-red-500" />
+                </div>
+                Top Losers
+              </CardTitle>
+              <CardDescription>
+                Worst performing trades
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                {advancedMetrics.worstTrades.map((trade) => (
+                  <div 
+                    key={trade.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover-elevate"
+                    data-testid={`worst-trade-${trade.symbol}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="font-mono font-bold">{trade.symbol}</div>
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {trade.assetType}
+                      </Badge>
+                      <Badge 
+                        className={`text-xs ${
+                          trade.direction === 'long' 
+                            ? 'bg-green-500/10 text-green-500 border-green-500/20' 
+                            : 'bg-red-500/10 text-red-500 border-red-500/20'
+                        }`}
+                      >
+                        {trade.direction.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <div className="text-lg font-bold font-mono text-red-500">
+                      {(trade.percentGain || 0).toFixed(2)}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Detailed Trades List */}
       {closedIdeas.length > 0 && (
@@ -524,15 +795,17 @@ export default function PerformancePage() {
               Data-driven recommendations based on your performance
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
+            {/* Win Rate Analysis */}
             {stats.overall.winRate >= 60 ? (
-              <p className="text-sm">✅ Strong performance! Your win rate is above 60%.</p>
+              <p className="text-sm">✅ <strong>Strong performance!</strong> Your win rate is above 60%.</p>
             ) : stats.overall.winRate < 50 ? (
-              <p className="text-sm">⚠️ Win rate below 50%. Review losing trades to identify patterns.</p>
+              <p className="text-sm">⚠️ <strong>Win rate below 50%.</strong> Review losing trades to identify patterns.</p>
             ) : (
-              <p className="text-sm">📊 Win rate around 50%. Focus on improving risk/reward ratio.</p>
+              <p className="text-sm">📊 <strong>Win rate around 50%.</strong> Focus on improving risk/reward ratio.</p>
             )}
             
+            {/* Best Source Strategy */}
             {stats.bySource.length > 0 && (
               (() => {
                 const bestSource = stats.bySource.reduce((best, source) => 
@@ -540,21 +813,76 @@ export default function PerformancePage() {
                 );
                 return bestSource.totalIdeas >= 3 ? (
                   <p className="text-sm">
-                    🎯 Your best strategy: <strong>{bestSource.source.toUpperCase()}</strong> ideas 
+                    🎯 <strong>Your best strategy: {bestSource.source.toUpperCase()}</strong> ideas 
                     ({bestSource.winRate.toFixed(1)}% win rate)
                   </p>
                 ) : null;
               })()
             )}
             
+            {/* Positive Expectancy */}
             {stats.overall.avgPercentGain > 0 && stats.overall.closedIdeas >= 5 && (
               <p className="text-sm">
-                💰 Positive expectancy: Average gain of +{stats.overall.avgPercentGain.toFixed(2)}% per trade
+                💰 <strong>Positive expectancy:</strong> Average gain of +{stats.overall.avgPercentGain.toFixed(2)}% per trade
               </p>
             )}
 
-            <p className="text-sm text-muted-foreground mt-4">
-              💡 View the <strong>Signal Intelligence</strong> page for deeper pattern analysis
+            {/* Profit Factor Insights */}
+            {advancedMetrics && (
+              <>
+                {advancedMetrics.profitFactor >= 2.0 ? (
+                  <p className="text-sm">
+                    🔥 <strong>Excellent profit factor ({advancedMetrics.profitFactor.toFixed(2)}x)!</strong> Your wins significantly outweigh your losses.
+                  </p>
+                ) : advancedMetrics.profitFactor >= 1.5 ? (
+                  <p className="text-sm">
+                    👍 <strong>Good profit factor ({advancedMetrics.profitFactor.toFixed(2)}x).</strong> You're making more on winners than losing on losers.
+                  </p>
+                ) : advancedMetrics.profitFactor >= 1.0 ? (
+                  <p className="text-sm">
+                    ⚠️ <strong>Profit factor ({advancedMetrics.profitFactor.toFixed(2)}x) needs improvement.</strong> Your wins barely outweigh your losses.
+                  </p>
+                ) : (
+                  <p className="text-sm">
+                    🚨 <strong>Profit factor below 1.0 ({advancedMetrics.profitFactor.toFixed(2)}x).</strong> You're losing more on losing trades than winning on winners. Tighten stops or widen targets.
+                  </p>
+                )}
+
+                {/* Drawdown Insights */}
+                {advancedMetrics.maxDrawdown > 20 && (
+                  <p className="text-sm">
+                    📉 <strong>High drawdown alert:</strong> Max drawdown of {advancedMetrics.maxDrawdown.toFixed(2)}%. Consider reducing position sizes.
+                  </p>
+                )}
+
+                {/* Streak Insights */}
+                {advancedMetrics.worstLossStreak >= 3 && (
+                  <p className="text-sm">
+                    🎲 <strong>Loss streak of {advancedMetrics.worstLossStreak}.</strong> Consider taking a break after 2-3 consecutive losses.
+                  </p>
+                )}
+
+                {/* Asset Type Recommendations */}
+                {stats.byAssetType.length > 0 && (
+                  (() => {
+                    const bestAsset = stats.byAssetType.reduce((best, asset) => 
+                      asset.winRate > best.winRate && asset.totalIdeas >= 3 ? asset : best
+                    );
+                    const worstAsset = stats.byAssetType.reduce((worst, asset) => 
+                      asset.winRate < worst.winRate && asset.totalIdeas >= 3 ? asset : worst
+                    );
+                    return bestAsset.totalIdeas >= 3 && worstAsset.totalIdeas >= 3 && bestAsset.assetType !== worstAsset.assetType ? (
+                      <p className="text-sm">
+                        📊 <strong>Asset focus:</strong> You perform best with {bestAsset.assetType}s ({bestAsset.winRate.toFixed(1)}% win rate) vs {worstAsset.assetType}s ({worstAsset.winRate.toFixed(1)}%)
+                      </p>
+                    ) : null;
+                  })()
+                )}
+              </>
+            )}
+
+            <p className="text-sm text-muted-foreground mt-4 pt-3 border-t border-border/30">
+              💡 View the <strong>Signal Intelligence</strong> page for deeper pattern analysis and ML insights
             </p>
           </CardContent>
         </Card>
