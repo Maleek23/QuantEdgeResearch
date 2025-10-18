@@ -581,7 +581,7 @@ export default function PerformancePage() {
                   <div className="p-2 rounded-lg bg-primary/10">
                     <Activity className="w-5 h-5 text-primary" />
                   </div>
-                  Trade History
+                  Trade Ideas History
                 </CardTitle>
                 <CardDescription className="mt-1">
                   Detailed view of all closed trade ideas • {filteredIdeas.length} of {closedIdeas.length} shown

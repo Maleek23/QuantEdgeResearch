@@ -99,14 +99,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/clear-test-data", requireAdmin, async (_req, res) => {
-    try {
-      // This would delete test ideas - implement based on your needs
-      res.json({ success: true, message: "Test data cleared" });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to clear data" });
-    }
-  });
 
   app.get("/api/admin/export-csv", requireAdmin, async (_req, res) => {
     try {
@@ -1406,6 +1398,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Pattern learning error:", error);
       res.status(500).json({ error: error?.message || "Failed to learn patterns" });
+    }
+  });
+
+  // Admin: Clear test data (ideas before Oct 16, 2025)
+  app.post("/api/admin/clear-test-data", requireAdmin, async (_req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const cutoffDate = new Date('2025-10-16T00:00:00Z');
+      let deletedCount = 0;
+      
+      for (const idea of allIdeas) {
+        const ideaDate = new Date(idea.timestamp);
+        if (ideaDate < cutoffDate) {
+          await storage.deleteTradeIdea(idea.id);
+          deletedCount++;
+        }
+      }
+      
+      res.json({ 
+        message: 'Test data cleared successfully',
+        deletedCount,
+        cutoffDate: cutoffDate.toISOString()
+      });
+    } catch (error: any) {
+      console.error("Clear test data error:", error);
+      res.status(500).json({ error: error?.message || "Failed to clear test data" });
     }
   });
 
