@@ -17,7 +17,8 @@ import {
   Check,
   Mail,
   MessageCircle,
-  ExternalLink
+  ExternalLink,
+  ArrowRight
 } from "lucide-react";
 
 export default function Landing() {
@@ -28,32 +29,38 @@ export default function Landing() {
     {
       icon: Brain,
       title: "AI-Powered Analysis",
-      description: "Multi-provider AI (Claude, GPT, Gemini) generates trade ideas with comprehensive market analysis and risk assessment."
+      description: "Multi-provider AI (Claude, GPT, Gemini) generates trade ideas with comprehensive market analysis and risk assessment.",
+      color: "text-blue-500"
     },
     {
       icon: Calculator,
       title: "Quantitative Signals",
-      description: "Rules-based 7-signal engine using RSI, MACD, momentum, volume, and multi-timeframe analysis for pure quant opportunities."
+      description: "Rules-based 7-signal engine using RSI, MACD, momentum, volume, and multi-timeframe analysis for pure quant opportunities.",
+      color: "text-green-500"
     },
     {
       icon: Bell,
       title: "Discord Alerts",
-      description: "Instant notifications for new trade ideas with complete details, grades, and entry/exit levels delivered to your Discord."
+      description: "Instant notifications for new trade ideas with complete details, grades, and entry/exit levels delivered to your Discord.",
+      color: "text-amber-500"
     },
     {
       icon: BarChart3,
       title: "Real-Time Market Data",
-      description: "Live pricing from Yahoo Finance, Alpha Vantage, and CoinGecko across stocks, options, and crypto markets."
+      description: "Live pricing from Yahoo Finance, Alpha Vantage, and CoinGecko across stocks, options, and crypto markets.",
+      color: "text-purple-500"
     },
     {
       icon: Shield,
       title: "Risk Management",
-      description: "Built-in position sizing calculator with educational disclaimers. Every idea includes entry, target, stop-loss, and R:R ratio."
+      description: "Built-in position sizing calculator with educational disclaimers. Every idea includes entry, target, stop-loss, and R:R ratio.",
+      color: "text-cyan-500"
     },
     {
       icon: Target,
       title: "Performance Tracking",
-      description: "Monitor trade outcomes, track win rates, and analyze which signal types perform best for your strategy."
+      description: "Monitor trade outcomes, track win rates, and analyze which signal types perform best for your strategy.",
+      color: "text-rose-500"
     }
   ];
 
@@ -86,42 +93,49 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden border-b">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
-        <div className="container relative mx-auto px-6 py-24 text-center">
-          <Badge variant="secondary" className="mb-6">
+      {/* Cinematic Hero Section with Aurora Background */}
+      <section className="relative overflow-hidden border-b aurora-hero">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
+        
+        <div className="container relative mx-auto px-6 py-32 text-center">
+          <Badge variant="secondary" className="mb-8 badge-shimmer neon-accent transition-spring">
             <Zap className="h-3 w-3 mr-1" />
             Dual-Engine Architecture: AI + Quantitative
           </Badge>
           
-          <h1 className="text-5xl font-bold tracking-tight mb-6">
-            QuantEdge Research Platform
+          <h1 className="text-6xl md:text-7xl font-bold tracking-tight mb-8 text-display animate-fade-up">
+            <span className="text-gradient-premium">QuantEdge</span>
+            <br />
+            <span className="text-foreground">Research Platform</span>
           </h1>
           
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
+          <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-12 leading-relaxed animate-fade-up animate-delay-100">
             Discover day-trading opportunities across US equities, options, and crypto markets. 
             Real market data, transparent explainability, professional-grade risk management.
           </p>
 
-          <div className="flex gap-4 justify-center">
+          <div className="flex flex-wrap gap-4 justify-center mb-16 animate-fade-up animate-delay-200">
             {isAuthenticated ? (
               <Button 
                 size="lg" 
                 onClick={() => setLocation('/dashboard')}
                 data-testid="button-get-started"
+                className="btn-magnetic px-8 py-6 text-lg"
               >
-                <Sparkles className="h-4 w-4 mr-2" />
+                <Sparkles className="h-5 w-5 mr-2" />
                 Go to Dashboard
+                <ArrowRight className="h-5 w-5 ml-2" />
               </Button>
             ) : (
               <Button 
                 size="lg" 
                 onClick={() => window.location.href = '/api/login'}
                 data-testid="button-login"
+                className="btn-magnetic px-8 py-6 text-lg neon-accent"
               >
-                <Sparkles className="h-4 w-4 mr-2" />
+                <Sparkles className="h-5 w-5 mr-2" />
                 Login / Sign Up
+                <ArrowRight className="h-5 w-5 ml-2" />
               </Button>
             )}
             <Button 
@@ -129,80 +143,94 @@ export default function Landing() {
               variant="outline"
               onClick={() => setLocation('/learn-more')}
               data-testid="button-learn-more"
+              className="btn-magnetic px-8 py-6 text-lg glass-card"
             >
               Learn More
             </Button>
           </div>
 
-          <div className="mt-12 grid grid-cols-3 gap-8 max-w-2xl mx-auto">
-            <div>
-              <div className="text-3xl font-bold text-primary">8</div>
+          <div className="grid grid-cols-3 gap-8 max-w-3xl mx-auto animate-scale-in animate-delay-300">
+            <div className="glass-card rounded-2xl p-6 spotlight">
+              <div className="text-4xl font-bold text-gradient mb-2">8</div>
               <div className="text-sm text-muted-foreground">Signal Types</div>
             </div>
-            <div>
-              <div className="text-3xl font-bold text-primary">3</div>
+            <div className="glass-card rounded-2xl p-6 spotlight">
+              <div className="text-4xl font-bold text-gradient mb-2">3</div>
               <div className="text-sm text-muted-foreground">AI Providers</div>
             </div>
-            <div>
-              <div className="text-3xl font-bold text-primary">Real-Time</div>
+            <div className="glass-card rounded-2xl p-6 spotlight">
+              <div className="text-4xl font-bold text-gradient mb-2">Live</div>
               <div className="text-sm text-muted-foreground">Market Data</div>
             </div>
           </div>
         </div>
+        
+        <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </section>
 
-      {/* Features Grid */}
-      <section className="container mx-auto px-6 py-20">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold mb-4">Platform Features</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
+      {/* Features Grid with Premium Cards */}
+      <section className="container mx-auto px-6 py-24">
+        <div className="text-center mb-20">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
+            Platform Features
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Professional-grade tools for discovering and analyzing trading opportunities with complete transparency
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature, idx) => {
             const Icon = feature.icon;
             return (
-              <Card key={idx} className="hover-elevate" data-testid={`card-feature-${idx}`}>
-                <CardContent className="p-6">
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                    <Icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground">{feature.description}</p>
-                </CardContent>
-              </Card>
+              <div 
+                key={idx} 
+                className="gradient-border-card card-tilt transition-spring animate-fade-up"
+                style={{ animationDelay: `${idx * 100}ms` }}
+                data-testid={`card-feature-${idx}`}
+              >
+                <Card className="h-full border-0 bg-transparent">
+                  <CardContent className="p-8">
+                    <div className={`h-14 w-14 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-6 spotlight ${feature.color}`}>
+                      <Icon className="h-7 w-7" />
+                    </div>
+                    <h3 className="text-xl font-bold mb-3 text-display">{feature.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{feature.description}</p>
+                  </CardContent>
+                </Card>
+              </div>
             );
           })}
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="border-t bg-muted/30 py-20">
+      {/* How It Works - Premium Timeline */}
+      <section className="border-t aurora-bg py-24">
         <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold mb-4">How It Works</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
+              How It Works
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               From market data to trade execution in four simple steps
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12">
             {steps.map((step) => {
               const Icon = step.icon;
               return (
-                <div key={step.number} className="text-center" data-testid={`step-${step.number}`}>
-                  <div className="relative mb-6">
-                    <div className="h-16 w-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold mx-auto">
+                <div key={step.number} className="text-center relative" data-testid={`step-${step.number}`}>
+                  <div className="relative mb-8 inline-block">
+                    <div className="h-24 w-24 rounded-3xl glass-intense flex items-center justify-center text-3xl font-bold mx-auto neon-cyan-glow">
                       {step.number}
                     </div>
-                    <div className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
-                      <Icon className="h-4 w-4 text-primary" />
+                    <div className="absolute -top-3 -right-3 h-12 w-12 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center spotlight">
+                      <Icon className="h-6 w-6 text-white" />
                     </div>
                   </div>
-                  <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
-                  <p className="text-sm text-muted-foreground">{step.description}</p>
+                  <h3 className="text-xl font-bold mb-3 text-display">{step.title}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{step.description}</p>
                 </div>
               );
             })}
@@ -210,200 +238,226 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section className="border-t bg-muted/30 py-20">
+      {/* Pricing Section - Premium Glass Cards */}
+      <section className="border-t py-24">
         <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold mb-4">Pricing</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
+              Pricing
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Choose the plan that fits your trading needs
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-10 max-w-5xl mx-auto">
             {/* Free Tier */}
-            <Card className="hover-elevate" data-testid="card-pricing-free">
-              <CardContent className="p-8">
-                <div className="mb-6">
-                  <h3 className="text-2xl font-bold mb-2">Free</h3>
-                  <div className="flex items-baseline gap-2 mb-4">
-                    <span className="text-4xl font-bold">$0</span>
-                    <span className="text-muted-foreground">/month</span>
+            <div className="gradient-border-card card-tilt" data-testid="card-pricing-free">
+              <Card className="border-0 bg-transparent">
+                <CardContent className="p-10">
+                  <div className="mb-8">
+                    <h3 className="text-3xl font-bold mb-3 text-display">Free</h3>
+                    <div className="flex items-baseline gap-2 mb-4">
+                      <span className="text-6xl font-bold text-gradient">$0</span>
+                      <span className="text-lg text-muted-foreground">/month</span>
+                    </div>
+                    <p className="text-muted-foreground">Access to public performance ledger and basic features</p>
                   </div>
-                  <p className="text-sm text-muted-foreground">Access to public performance ledger and basic features</p>
-                </div>
-                
-                <ul className="space-y-3 mb-8">
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">View public performance track record</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Historical trade ideas archive</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Basic market data</span>
-                  </li>
-                </ul>
-                
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={() => window.location.href = '/api/login'}
-                  data-testid="button-pricing-free"
-                >
-                  Sign Up Free
-                </Button>
-              </CardContent>
-            </Card>
+                  
+                  <ul className="space-y-4 mb-10">
+                    <li className="flex items-start gap-3">
+                      <Check className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span>View public performance track record</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span>Historical trade ideas archive</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span>Basic market data</span>
+                    </li>
+                  </ul>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="w-full py-6 text-lg btn-magnetic glass-card"
+                    onClick={() => window.location.href = '/api/login'}
+                    data-testid="button-pricing-free"
+                  >
+                    Sign Up Free
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Premium Tier */}
-            <Card className="hover-elevate border-primary" data-testid="card-pricing-premium">
-              <CardContent className="p-8">
-                <Badge className="mb-4">Most Popular</Badge>
-                <div className="mb-6">
-                  <h3 className="text-2xl font-bold mb-2">Premium</h3>
-                  <div className="flex items-baseline gap-2 mb-4">
-                    <span className="text-4xl font-bold">$39.99</span>
-                    <span className="text-muted-foreground">/month</span>
+            <div className="relative gradient-border-card card-tilt" data-testid="card-pricing-premium">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+                <Badge className="badge-shimmer neon-accent px-4 py-2 text-sm">Most Popular</Badge>
+              </div>
+              <Card className="border-0 bg-transparent">
+                <CardContent className="p-10">
+                  <div className="mb-8">
+                    <h3 className="text-3xl font-bold mb-3 text-display">Premium</h3>
+                    <div className="flex items-baseline gap-2 mb-4">
+                      <span className="text-6xl font-bold text-gradient-premium">$39.99</span>
+                      <span className="text-lg text-muted-foreground">/month</span>
+                    </div>
+                    <p className="text-muted-foreground">Full access to live signals, analytics, and Discord community</p>
                   </div>
-                  <p className="text-sm text-muted-foreground">Full access to live signals, analytics, and Discord community</p>
+                  
+                  <ul className="space-y-4 mb-10">
+                    <li className="flex items-start gap-3">
+                      <Check className="h-6 w-6 text-cyan-500 mt-0.5 flex-shrink-0" />
+                      <span className="font-medium">Everything in Free</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="h-6 w-6 text-cyan-500 mt-0.5 flex-shrink-0" />
+                      <span>Real-time trade signals</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="h-6 w-6 text-cyan-500 mt-0.5 flex-shrink-0" />
+                      <span>AI + Quantitative dual-engine</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="h-6 w-6 text-cyan-500 mt-0.5 flex-shrink-0" />
+                      <span>Discord community access</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="h-6 w-6 text-cyan-500 mt-0.5 flex-shrink-0" />
+                      <span>Instant Discord notifications</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="h-6 w-6 text-cyan-500 mt-0.5 flex-shrink-0" />
+                      <span>Advanced analytics & ML insights</span>
+                    </li>
+                  </ul>
+                  
+                  <Button 
+                    className="w-full py-6 text-lg btn-magnetic neon-accent"
+                    onClick={() => window.location.href = '/api/login'}
+                    data-testid="button-pricing-premium"
+                  >
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    Start Premium
+                    <ArrowRight className="h-5 w-5 ml-2" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section - Glass Cards */}
+      <section className="container mx-auto px-6 py-24">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
+            Get In Touch
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Questions about pricing, features, or partnership opportunities? We're here to help.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+          <div className="gradient-border-card card-tilt" data-testid="card-contact-email">
+            <Card className="border-0 bg-transparent">
+              <CardContent className="p-8 flex items-center gap-6">
+                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0 spotlight">
+                  <Mail className="h-8 w-8 text-primary" />
                 </div>
-                
-                <ul className="space-y-3 mb-8">
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Everything in Free</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Real-time trade signals</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">AI + Quantitative dual-engine</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Discord community access</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Instant Discord notifications</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Advanced analytics & ML insights</span>
-                  </li>
-                </ul>
-                
-                <Button 
-                  className="w-full"
-                  onClick={() => window.location.href = '/api/login'}
-                  data-testid="button-pricing-premium"
-                >
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Start Premium
-                </Button>
+                <div className="flex-1">
+                  <h3 className="font-bold mb-2 text-lg text-display">Email Support</h3>
+                  <a 
+                    href="mailto:support@quantedge.io" 
+                    className="text-sm text-primary hover:underline transition-smooth"
+                    data-testid="link-contact-email"
+                  >
+                    support@quantedge.io
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="gradient-border-card card-tilt" data-testid="card-contact-discord">
+            <Card className="border-0 bg-transparent">
+              <CardContent className="p-8 flex items-center gap-6">
+                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center flex-shrink-0 spotlight">
+                  <MessageCircle className="h-8 w-8 text-purple-500" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold mb-2 text-lg text-display">Join Our Discord</h3>
+                  <a 
+                    href="https://discord.gg/quantedge" 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline flex items-center gap-1 transition-smooth"
+                    data-testid="link-contact-discord"
+                  >
+                    discord.gg/quantedge
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
               </CardContent>
             </Card>
           </div>
         </div>
       </section>
 
-      {/* Contact Section */}
-      <section className="container mx-auto px-6 py-20">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">Get In Touch</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Questions about pricing, features, or partnership opportunities? We're here to help.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-          <Card className="hover-elevate" data-testid="card-contact-email">
-            <CardContent className="p-6 flex items-center gap-4">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <Mail className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-1">Email Support</h3>
-                <a 
-                  href="mailto:support@quantedge.io" 
-                  className="text-sm text-primary hover:underline"
-                  data-testid="link-contact-email"
+      {/* CTA Section - Premium Spotlight */}
+      <section className="container mx-auto px-6 py-24">
+        <div className="gradient-border-card">
+          <Card className="border-0 bg-transparent aurora-bg vignette">
+            <CardContent className="p-16 text-center relative z-10">
+              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
+                Ready to Start Trading <span className="text-gradient-premium">Smarter?</span>
+              </h2>
+              <p className="text-lg text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed">
+                Access dual-engine trade idea generation, real-time market analysis, and professional risk management tools. 
+                Educational research platform for active traders.
+              </p>
+              {isAuthenticated ? (
+                <Button 
+                  size="lg" 
+                  onClick={() => setLocation('/dashboard')}
+                  data-testid="button-cta-get-started"
+                  className="btn-magnetic px-10 py-7 text-lg neon-accent"
                 >
-                  support@quantedge.io
-                </a>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover-elevate" data-testid="card-contact-discord">
-            <CardContent className="p-6 flex items-center gap-4">
-              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <MessageCircle className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold mb-1">Join Our Discord</h3>
-                <a 
-                  href="https://discord.gg/quantedge" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline flex items-center gap-1"
-                  data-testid="link-contact-discord"
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  Launch Dashboard
+                  <ArrowRight className="h-5 w-5 ml-2" />
+                </Button>
+              ) : (
+                <Button 
+                  size="lg" 
+                  onClick={() => window.location.href = '/api/login'}
+                  data-testid="button-cta-login"
+                  className="btn-magnetic px-10 py-7 text-lg neon-accent"
                 >
-                  discord.gg/quantedge
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  Login / Sign Up
+                  <ArrowRight className="h-5 w-5 ml-2" />
+                </Button>
+              )}
+              <p className="text-xs text-muted-foreground mt-6 opacity-70">
+                ⚠️ For educational and research purposes only. Not financial advice.
+              </p>
             </CardContent>
           </Card>
         </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="container mx-auto px-6 py-20">
-        <Card className="bg-gradient-to-br from-primary/10 via-background to-background border-primary/20">
-          <CardContent className="p-12 text-center">
-            <h2 className="text-3xl font-bold mb-4">Ready to Start Trading Smarter?</h2>
-            <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Access dual-engine trade idea generation, real-time market analysis, and professional risk management tools. 
-              Educational research platform for active traders.
-            </p>
-            {isAuthenticated ? (
-              <Button 
-                size="lg" 
-                onClick={() => setLocation('/dashboard')}
-                data-testid="button-cta-get-started"
-              >
-                <Sparkles className="h-4 w-4 mr-2" />
-                Launch Dashboard
-              </Button>
-            ) : (
-              <Button 
-                size="lg" 
-                onClick={() => window.location.href = '/api/login'}
-                data-testid="button-cta-login"
-              >
-                <Sparkles className="h-4 w-4 mr-2" />
-                Login / Sign Up
-              </Button>
-            )}
-            <p className="text-xs text-muted-foreground mt-4">
-              ⚠️ For educational and research purposes only. Not financial advice.
-            </p>
-          </CardContent>
-        </Card>
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-8">
-        <div className="container mx-auto px-6 text-center text-sm text-muted-foreground">
-          <p>© 2025 QuantEdge Research. All rights reserved.</p>
-          <p className="mt-2">Educational platform for trading research and analysis.</p>
+      <footer className="border-t py-12">
+        <div className="container mx-auto px-6 text-center">
+          <div className="mb-4">
+            <span className="text-2xl font-bold text-gradient-premium">QuantEdge</span>
+          </div>
+          <p className="text-sm text-muted-foreground mb-2">© 2025 QuantEdge Research. All rights reserved.</p>
+          <p className="text-xs text-muted-foreground/70">Educational platform for trading research and analysis.</p>
         </div>
       </footer>
     </div>
