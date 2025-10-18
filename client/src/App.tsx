@@ -35,7 +35,7 @@ function Router() {
   );
 }
 
-function App() {
+function AuthenticatedApp() {
   const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
   const isLandingPage = location === '/';
@@ -45,36 +45,46 @@ function App() {
     "--sidebar-width-icon": "3rem",
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || isLandingPage) {
+    return <Router />;
+  }
+
+  return (
+    <SidebarProvider style={style as React.CSSProperties}>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <div className="flex flex-col flex-1 overflow-hidden">
+          {/* Mobile header with hamburger menu */}
+          <header className="flex lg:hidden items-center gap-2 p-4 border-b bg-background">
+            <SidebarTrigger data-testid="button-mobile-menu" />
+            <h1 className="text-lg font-semibold">QuantEdge</h1>
+          </header>
+          <main className="flex-1 overflow-auto">
+            <Router />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
         <TooltipProvider>
-          {isLoading ? (
-            <div className="flex h-screen items-center justify-center bg-background">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Loading...</p>
-              </div>
-            </div>
-          ) : !isAuthenticated || isLandingPage ? (
-            <Router />
-          ) : (
-            <SidebarProvider style={style as React.CSSProperties}>
-              <div className="flex h-screen w-full">
-                <AppSidebar />
-                <div className="flex flex-col flex-1 overflow-hidden">
-                  {/* Mobile header with hamburger menu */}
-                  <header className="flex lg:hidden items-center gap-2 p-4 border-b bg-background">
-                    <SidebarTrigger data-testid="button-mobile-menu" />
-                    <h1 className="text-lg font-semibold">QuantEdge</h1>
-                  </header>
-                  <main className="flex-1 overflow-auto">
-                    <Router />
-                  </main>
-                </div>
-              </div>
-            </SidebarProvider>
-          )}
+          <AuthenticatedApp />
           <Toaster />
         </TooltipProvider>
       </ThemeProvider>

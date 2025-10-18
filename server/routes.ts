@@ -33,11 +33,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  app.get("/api/auth/me", (req: Request, res: Response) => {
+  app.get("/api/auth/me", async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Not authenticated" });
     }
-    res.json(req.user);
+    
+    // Sanitize user object - only return safe profile fields, never OAuth tokens
+    const userSession = req.user as any;
+    const userId = userSession?.claims?.sub;
+    
+    if (!userId) {
+      return res.status(401).json({ error: "Invalid session" });
+    }
+    
+    // Fetch user profile from database (which doesn't contain tokens)
+    const user = await storage.getUser(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    
+    // Return only safe user profile fields
+    res.json({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profileImageUrl: user.profileImageUrl,
+      subscriptionTier: user.subscriptionTier,
+      subscriptionStatus: user.subscriptionStatus,
+      subscriptionEndsAt: user.subscriptionEndsAt,
+      createdAt: user.createdAt,
+    });
   });
 
   // Market Data Routes
