@@ -78,34 +78,25 @@ export default function AdminPanel() {
     }
 
     try {
-      const response = await apiRequest('POST', '/api/admin/verify-code', { code: pinCode });
-      
-      if (response.ok) {
-        setAuthStep('password');
-        toast({ title: "Access code verified", description: "Enter admin password" });
-      } else {
-        toast({ title: "Invalid access code", variant: "destructive" });
-        setPinCode("");
-      }
+      await apiRequest('POST', '/api/admin/verify-code', { code: pinCode });
+      // If we reach here, auth succeeded (apiRequest throws on error)
+      setAuthStep('password');
+      toast({ title: "Access code verified", description: "Enter admin password" });
     } catch (error) {
-      toast({ title: "Authentication failed", variant: "destructive" });
+      toast({ title: "Invalid access code", variant: "destructive" });
       setPinCode("");
     }
   };
 
   const handlePasswordSubmit = async () => {
     try {
-      const response = await apiRequest('POST', '/api/admin/verify', { password });
-      
-      if (response.ok) {
-        setAdminPassword(password);
-        setAuthStep('authenticated');
-        toast({ title: "Admin access granted", description: "Welcome back" });
-      } else {
-        toast({ title: "Invalid password", variant: "destructive" });
-      }
+      await apiRequest('POST', '/api/admin/verify', { password });
+      // If we reach here, auth succeeded (apiRequest throws on error)
+      setAdminPassword(password);
+      setAuthStep('authenticated');
+      toast({ title: "Admin access granted", description: "Welcome back" });
     } catch (error) {
-      toast({ title: "Authentication failed", variant: "destructive" });
+      toast({ title: "Invalid password", variant: "destructive" });
     }
   };
 
