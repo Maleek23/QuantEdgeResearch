@@ -199,14 +199,28 @@ export default function PerformancePage() {
       const isWin = idea.outcomeStatus === 'hit_target';
       const isLoss = idea.outcomeStatus === 'hit_stop';
 
-      if (!isWin && !isLoss) return; // Skip expired
+      if (!isWin && !isLoss) {
+        // Finalize current streak before skipping neutral trades
+        if (currentStreak > 0) {
+          if (isWinStreak) {
+            bestWinStreak = Math.max(bestWinStreak, currentStreak);
+          } else {
+            worstLossStreak = Math.max(worstLossStreak, currentStreak);
+          }
+          currentStreak = 0; // Reset the streak
+        }
+        return; // Skip expired/manual exit trades
+      }
 
-      if (idx === 0) {
+      if (currentStreak === 0 || idx === 0) {
+        // Start a new streak
         currentStreak = 1;
         isWinStreak = isWin;
       } else if ((isWin && isWinStreak) || (isLoss && !isWinStreak)) {
+        // Continue current streak
         currentStreak++;
       } else {
+        // Streak type changed, finalize old streak and start new one
         if (isWinStreak) {
           bestWinStreak = Math.max(bestWinStreak, currentStreak);
         } else {
