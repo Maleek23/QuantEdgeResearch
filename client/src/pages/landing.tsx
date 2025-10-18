@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
-import { useAuth } from "@/contexts/AuthContext";
 import { 
   TrendingUp, 
   Brain, 
@@ -23,7 +22,6 @@ import {
 
 export default function Landing() {
   const [, setLocation] = useLocation();
-  const { isAuthenticated } = useAuth();
 
   const features = [
     {
@@ -115,29 +113,26 @@ export default function Landing() {
           </p>
 
           <div className="flex flex-wrap gap-4 justify-center mb-16 animate-fade-up animate-delay-200">
-            {isAuthenticated ? (
-              <Button 
-                size="lg" 
-                onClick={() => setLocation('/dashboard')}
-                data-testid="button-get-started"
-                className="btn-magnetic px-8 py-6 text-lg"
-              >
-                <Sparkles className="h-5 w-5 mr-2" />
-                Go to Dashboard
-                <ArrowRight className="h-5 w-5 ml-2" />
-              </Button>
-            ) : (
-              <Button 
-                size="lg" 
-                onClick={() => window.location.href = '/api/login'}
-                data-testid="button-login"
-                className="btn-magnetic px-8 py-6 text-lg neon-accent"
-              >
-                <Sparkles className="h-5 w-5 mr-2" />
-                Login / Sign Up
-                <ArrowRight className="h-5 w-5 ml-2" />
-              </Button>
-            )}
+            <Button 
+              size="lg" 
+              onClick={() => window.location.href = 'https://discord.gg/quantedge'}
+              data-testid="button-join-discord"
+              className="btn-magnetic px-8 py-6 text-lg neon-accent"
+            >
+              <MessageCircle className="h-5 w-5 mr-2" />
+              Join Discord Community
+              <ExternalLink className="h-4 w-4 ml-2" />
+            </Button>
+            <Button 
+              size="lg" 
+              variant="outline"
+              onClick={() => setLocation('/dashboard')}
+              data-testid="button-view-dashboard"
+              className="btn-magnetic px-8 py-6 text-lg glass-card"
+            >
+              <Sparkles className="h-5 w-5 mr-2" />
+              View Dashboard
+            </Button>
             <Button 
               size="lg" 
               variant="outline"

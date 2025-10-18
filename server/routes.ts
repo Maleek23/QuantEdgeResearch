@@ -13,90 +13,13 @@ import {
   insertUserPreferencesSchema,
 } from "@shared/schema";
 import { z } from "zod";
-import { setupAuth, isAuthenticated, isPremium } from "./replitAuth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Authentication setup (Replit Auth)
-  setupAuth(app);
-
-  // Authentication Routes
-  app.get("/api/auth/login", (_req: Request, res: Response) => {
-    res.redirect("/api/login");
-  });
-
-  app.get("/api/auth/logout", (req: Request, res: Response) => {
-    req.logout((err) => {
-      if (err) {
-        return res.status(500).json({ error: "Logout failed" });
-      }
-      res.json({ success: true });
-    });
-  });
-
-  app.get("/api/auth/user", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-    
-    // Sanitize user object - only return safe profile fields, never OAuth tokens
-    const userSession = req.user as any;
-    const userId = userSession?.claims?.sub;
-    
-    if (!userId) {
-      return res.status(401).json({ error: "Invalid session" });
-    }
-    
-    // Fetch user profile from database (which doesn't contain tokens)
-    const user = await storage.getUser(userId);
-    
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    
-    // Return only safe user profile fields
-    res.json({
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      profileImageUrl: user.profileImageUrl,
-      subscriptionTier: user.subscriptionTier,
-      subscriptionStatus: user.subscriptionStatus,
-      subscriptionEndsAt: user.subscriptionEndsAt,
-      createdAt: user.createdAt,
-    });
-  });
-
-  // Legacy endpoint for backwards compatibility
-  app.get("/api/auth/me", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Not authenticated" });
-    }
-    
-    const userSession = req.user as any;
-    const userId = userSession?.claims?.sub;
-    
-    if (!userId) {
-      return res.status(401).json({ error: "Invalid session" });
-    }
-    
-    const user = await storage.getUser(userId);
-    
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    
-    res.json({
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      profileImageUrl: user.profileImageUrl,
-      subscriptionTier: user.subscriptionTier,
-      subscriptionStatus: user.subscriptionStatus,
-      subscriptionEndsAt: user.subscriptionEndsAt,
-      createdAt: user.createdAt,
-    });
+  // Discord redirect for login/signup (managed via Discord community)
+  app.get("/api/login", (_req: Request, res: Response) => {
+    // Redirect to Discord invite link (will be updated with actual Discord link)
+    const discordInviteUrl = process.env.DISCORD_INVITE_URL || "https://discord.gg/quantedge";
+    res.redirect(discordInviteUrl);
   });
 
   // Market Data Routes
@@ -691,7 +614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Quantitative Idea Generator (Premium only)
-  app.post("/api/quant/generate-ideas", isPremium, async (req, res) => {
+  app.post("/api/quant/generate-ideas", async (req, res) => {
     try {
       const schema = z.object({
         count: z.number().optional().default(8),
@@ -738,7 +661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI QuantBot Routes (Premium only)
-  app.post("/api/ai/generate-ideas", isPremium, async (req, res) => {
+  app.post("/api/ai/generate-ideas", async (req, res) => {
     try {
       const schema = z.object({
         marketContext: z.string().optional().default("Current market conditions with focus on stocks, options, and crypto"),
@@ -788,7 +711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/ai/chat", isPremium, async (req, res) => {
+  app.post("/api/ai/chat", async (req, res) => {
     try {
       const schema = z.object({
         message: z.string().min(1),
@@ -891,7 +814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Parse chat message and extract trade ideas (Premium only)
-  app.post("/api/ai/parse-chat-idea", isPremium, async (req, res) => {
+  app.post("/api/ai/parse-chat-idea", async (req, res) => {
     try {
       const schema = z.object({
         messageId: z.string(),

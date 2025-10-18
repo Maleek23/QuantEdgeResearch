@@ -1,42 +1,22 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, real, integer, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, real, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Session storage table for Replit Auth
-// Reference: blueprint:javascript_log_in_with_replit
-export const sessions = pgTable(
-  "sessions",
-  {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull(),
-  },
-  (table) => [index("IDX_session_expire").on(table.expire)],
-);
-
 // Subscription Tier Type
-export type SubscriptionTier = 'free' | 'premium' | 'pro' | 'admin';
+export type SubscriptionTier = 'free' | 'premium' | 'admin';
 
-// User storage table for Replit Auth + subscriptions
-// Reference: blueprint:javascript_log_in_with_replit + blueprint:javascript_stripe
+// Simplified user tracking for Discord community members
+// Discord OAuth will be implemented later - for now this is manual tier tracking
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
+  discordUserId: varchar("discord_user_id").unique(), // From Discord
+  discordUsername: varchar("discord_username"), // From Discord
+  email: varchar("email"), // Optional - may not have
   
-  // Subscription fields (Stripe integration)
+  // Subscription tier tracking (managed manually via Discord roles for now)
   subscriptionTier: text("subscription_tier").$type<SubscriptionTier>().notNull().default('free'),
-  stripeCustomerId: varchar("stripe_customer_id"),
-  stripeSubscriptionId: varchar("stripe_subscription_id"),
-  subscriptionStatus: varchar("subscription_status"), // 'active', 'canceled', 'past_due', etc.
-  subscriptionEndsAt: timestamp("subscription_ends_at"),
-  
-  // Discord integration
-  discordUserId: varchar("discord_user_id"),
-  discordUsername: varchar("discord_username"),
+  subscriptionStatus: varchar("subscription_status").default('active'), // 'active', 'canceled', 'past_due'
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
