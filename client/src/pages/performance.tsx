@@ -2,10 +2,18 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, TrendingUp, TrendingDown, Activity, Target, XCircle, Clock } from "lucide-react";
+import { Download, TrendingUp, TrendingDown, Activity, Target, XCircle, Clock, Filter } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { format, parseISO } from 'date-fns';
+import { useState } from 'react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface PerformanceStats {
   overall: {
@@ -50,7 +58,27 @@ interface TrendData {
   cumulativePnL: Array<{ date: string; totalPnL: number; cumulativeGain: number }>;
 }
 
+interface TradeIdea {
+  id: string;
+  symbol: string;
+  assetType: string;
+  direction: string;
+  entryPrice: number;
+  targetPrice: number;
+  stopLoss: number;
+  source: string;
+  confidenceScore: number;
+  outcomeStatus: string;
+  exitPrice: number | null;
+  percentGain: number | null;
+  timestamp: string;
+  exitDate: string | null;
+}
+
 export default function PerformancePage() {
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
+
   const { data: stats, isLoading } = useQuery<PerformanceStats>({
     queryKey: ['/api/performance/stats'],
   });
@@ -58,6 +86,10 @@ export default function PerformancePage() {
   const { data: trends } = useQuery<TrendData>({
     queryKey: ['/api/ml/win-rate-trend'],
     enabled: !!stats && stats.overall.closedIdeas > 0,
+  });
+
+  const { data: allIdeas } = useQuery<TradeIdea[]>({
+    queryKey: ['/api/trade-ideas'],
   });
 
   const handleExport = () => {
@@ -112,6 +144,30 @@ export default function PerformancePage() {
     if (minutes < 60) return `${Math.round(minutes)}m`;
     if (minutes < 1440) return `${Math.round(minutes / 60)}h`;
     return `${Math.round(minutes / 1440)}d`;
+  };
+
+  // Filter closed ideas
+  const closedIdeas = allIdeas?.filter(idea => 
+    idea.outcomeStatus !== 'open'
+  ) || [];
+
+  const filteredIdeas = closedIdeas.filter(idea => {
+    const sourceMatch = sourceFilter === 'all' || idea.source === sourceFilter;
+    const outcomeMatch = outcomeFilter === 'all' || 
+      (outcomeFilter === 'won' && idea.outcomeStatus === 'hit_target') ||
+      (outcomeFilter === 'lost' && idea.outcomeStatus === 'hit_stop') ||
+      (outcomeFilter === 'expired' && (idea.outcomeStatus === 'expired' || idea.outcomeStatus === 'closed'));
+    return sourceMatch && outcomeMatch;
+  });
+
+  const getOutcomeBadge = (status: string) => {
+    if (status === 'hit_target') {
+      return <Badge className="bg-green-500/10 text-green-500 border-green-500/20">WON</Badge>;
+    }
+    if (status === 'hit_stop') {
+      return <Badge className="bg-red-500/10 text-red-500 border-red-500/20">LOST</Badge>;
+    }
+    return <Badge variant="outline">EXPIRED</Badge>;
   };
 
   return (
@@ -213,6 +269,143 @@ export default function PerformancePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Detailed Trades List */}
+      {closedIdeas.length > 0 && (
+        <Card data-testid="card-trade-history">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Trade History</CardTitle>
+                <CardDescription>
+                  Detailed view of all closed trade ideas ({filteredIdeas.length} of {closedIdeas.length} shown)
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                  <SelectTrigger className="w-32" data-testid="select-source-filter">
+                    <SelectValue placeholder="Source" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sources</SelectItem>
+                    <SelectItem value="ai">AI</SelectItem>
+                    <SelectItem value="quant">Quant</SelectItem>
+                    <SelectItem value="manual">Manual</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={outcomeFilter} onValueChange={setOutcomeFilter}>
+                  <SelectTrigger className="w-32" data-testid="select-outcome-filter">
+                    <SelectValue placeholder="Outcome" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Outcomes</SelectItem>
+                    <SelectItem value="won">Won</SelectItem>
+                    <SelectItem value="lost">Lost</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b">
+                  <tr className="text-muted-foreground">
+                    <th className="text-left py-3 px-2">Symbol</th>
+                    <th className="text-left py-3 px-2">Source</th>
+                    <th className="text-left py-3 px-2">Type</th>
+                    <th className="text-left py-3 px-2">Direction</th>
+                    <th className="text-right py-3 px-2">Entry</th>
+                    <th className="text-right py-3 px-2">Exit</th>
+                    <th className="text-right py-3 px-2">P&L</th>
+                    <th className="text-center py-3 px-2">Outcome</th>
+                    <th className="text-right py-3 px-2">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredIdeas.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="text-center py-8 text-muted-foreground">
+                        No trades match the selected filters
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredIdeas
+                      .sort((a, b) => new Date(b.exitDate || b.timestamp).getTime() - new Date(a.exitDate || a.timestamp).getTime())
+                      .map((idea) => (
+                        <tr 
+                          key={idea.id} 
+                          className="border-b hover-elevate"
+                          data-testid={`row-trade-${idea.symbol}`}
+                        >
+                          <td className="py-3 px-2">
+                            <div className="font-mono font-semibold">{idea.symbol}</div>
+                          </td>
+                          <td className="py-3 px-2">
+                            <Badge 
+                              variant={
+                                idea.source === 'ai' ? 'default' : 
+                                idea.source === 'quant' ? 'secondary' : 
+                                'outline'
+                              }
+                              className="text-xs"
+                            >
+                              {idea.source.toUpperCase()}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-2">
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {idea.assetType}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-2">
+                            <Badge 
+                              className={`text-xs ${
+                                idea.direction === 'long' 
+                                  ? 'bg-green-500/10 text-green-500 border-green-500/20' 
+                                  : 'bg-red-500/10 text-red-500 border-red-500/20'
+                              }`}
+                            >
+                              {idea.direction.toUpperCase()}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-2 text-right font-mono">
+                            ${idea.entryPrice.toFixed(2)}
+                          </td>
+                          <td className="py-3 px-2 text-right font-mono">
+                            {idea.exitPrice ? `$${idea.exitPrice.toFixed(2)}` : 'N/A'}
+                          </td>
+                          <td className="py-3 px-2 text-right">
+                            {idea.percentGain !== null && idea.percentGain !== undefined ? (
+                              <span 
+                                className={`font-mono font-semibold ${
+                                  idea.percentGain >= 0 ? 'text-green-500' : 'text-red-500'
+                                }`}
+                                data-testid={`text-pnl-${idea.symbol}`}
+                              >
+                                {idea.percentGain >= 0 ? '+' : ''}{idea.percentGain.toFixed(2)}%
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">N/A</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            {getOutcomeBadge(idea.outcomeStatus)}
+                          </td>
+                          <td className="py-3 px-2 text-right text-muted-foreground text-xs">
+                            {format(parseISO(idea.exitDate || idea.timestamp), 'MMM d, HH:mm')}
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Performance Trends Charts */}
       {stats.overall.closedIdeas >= 10 && trends && trends.dataPoints.length > 0 && (
