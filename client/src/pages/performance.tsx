@@ -99,62 +99,8 @@ export default function PerformancePage() {
     queryKey: ['/api/trade-ideas'],
   });
 
-  const handleExport = () => {
-    window.location.href = '/api/performance/export';
-  };
-
-  const handleValidate = async () => {
-    try {
-      const response = await fetch('/api/performance/validate', {
-        method: 'POST',
-      });
-      const result = await response.json();
-      console.log('Validation result:', result);
-      window.location.reload(); // Refresh to show updated stats
-    } catch (error) {
-      console.error('Validation error:', error);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (!stats) {
-    return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>No Performance Data</CardTitle>
-            <CardDescription>
-              Start generating trade ideas to see performance metrics
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
-
-  const formatTime = (minutes: number) => {
-    if (minutes < 60) return `${Math.round(minutes)}m`;
-    if (minutes < 1440) return `${Math.round(minutes / 60)}h`;
-    return `${Math.round(minutes / 1440)}d`;
-  };
-
-  // Calculate date range filter
-  const getDateRangeStart = () => {
+  // Calculate date range start based on selected range
+  const rangeStart = useMemo(() => {
     const now = new Date();
     switch (dateRange) {
       case '7d': return subDays(now, 7);
@@ -164,18 +110,17 @@ export default function PerformancePage() {
       case 'all': return new Date(0); // Beginning of time
       default: return new Date(0);
     }
-  };
+  }, [dateRange]);
 
   // Filter closed ideas by date range (inclusive of boundary)
   const closedIdeas = useMemo(() => {
     const ideas = allIdeas?.filter(idea => idea.outcomeStatus !== 'open') || [];
-    const rangeStart = getDateRangeStart();
     
     return ideas.filter(idea => {
       const ideaDate = new Date(idea.exitDate || idea.timestamp);
       return !isBefore(ideaDate, rangeStart) || ideaDate.getTime() === rangeStart.getTime();
     });
-  }, [allIdeas, dateRange]);
+  }, [allIdeas, rangeStart]);
 
   // Group trades by period
   const tradesByPeriod = useMemo(() => {
@@ -237,6 +182,60 @@ export default function PerformancePage() {
       })
       .sort((a, b) => a.period.localeCompare(b.period));
   }, [closedIdeas, periodView]);
+
+  const handleExport = () => {
+    window.location.href = '/api/performance/export';
+  };
+
+  const handleValidate = async () => {
+    try {
+      const response = await fetch('/api/performance/validate', {
+        method: 'POST',
+      });
+      const result = await response.json();
+      console.log('Validation result:', result);
+      window.location.reload(); // Refresh to show updated stats
+    } catch (error) {
+      console.error('Validation error:', error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>No Performance Data</CardTitle>
+            <CardDescription>
+              Start generating trade ideas to see performance metrics
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  const formatTime = (minutes: number) => {
+    if (minutes < 60) return `${Math.round(minutes)}m`;
+    if (minutes < 1440) return `${Math.round(minutes / 60)}h`;
+    return `${Math.round(minutes / 1440)}d`;
+  };
 
   // Calculate advanced performance metrics
   const calculateAdvancedMetrics = () => {
