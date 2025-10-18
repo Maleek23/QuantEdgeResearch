@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -19,8 +21,17 @@ import {
   Sparkles,
   Plus,
   Eye,
-  AlertTriangle
+  AlertTriangle,
+  Edit3,
+  ArrowLeft
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -135,9 +146,39 @@ function getTradeRecommendation(data: MarketData): TradeRecommendation {
 export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolActionDialogProps) {
   const { toast } = useToast();
   const [selectedType, setSelectedType] = useState<'stock_shares' | 'stock_options' | 'crypto_shares' | null>(null);
+  const [isManualMode, setIsManualMode] = useState(false);
+  
+  // Manual entry form state
+  const [manualDirection, setManualDirection] = useState<'long' | 'short'>('long');
+  const [manualEntry, setManualEntry] = useState('');
+  const [manualTarget, setManualTarget] = useState('');
+  const [manualStop, setManualStop] = useState('');
+  const [manualAssetType, setManualAssetType] = useState<'stock' | 'option' | 'crypto'>('stock');
 
   const recommendation = marketData ? getTradeRecommendation(marketData) : null;
   const isCrypto = marketData?.assetType === 'crypto';
+  
+  // Pre-fill manual entry with current price when dialog opens
+  useEffect(() => {
+    if (open && marketData && !manualEntry) {
+      setManualEntry(marketData.currentPrice.toString());
+      setManualAssetType(marketData.assetType as 'stock' | 'crypto');
+    }
+  }, [open, marketData, manualEntry]);
+  
+  // Reset form when dialog closes
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      setIsManualMode(false);
+      setManualDirection('long');
+      setManualEntry('');
+      setManualTarget('');
+      setManualStop('');
+      setManualAssetType('stock');
+      setSelectedType(null);
+    }
+    onOpenChange(newOpen);
+  };
 
   const createIdeaMutation = useMutation({
     mutationFn: async (type: 'stock_shares' | 'stock_options' | 'crypto_shares') => {
@@ -221,13 +262,124 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
     setSelectedType(type);
     createIdeaMutation.mutate(type);
   };
+  
+  // Manual trade idea creation mutation
+  const createManualIdeaMutation = useMutation({
+    mutationFn: async () => {
+      if (!marketData) return;
+      
+      const entryPrice = parseFloat(manualEntry);
+      const targetPrice = parseFloat(manualTarget);
+      const stopLoss = parseFloat(manualStop);
+      
+      // Validate numeric inputs
+      if (isNaN(entryPrice) || isNaN(targetPrice) || isNaN(stopLoss)) {
+        throw new Error("Please enter valid numbers for all price fields");
+      }
+      
+      // Validate prices are positive
+      if (entryPrice <= 0 || targetPrice <= 0 || stopLoss <= 0) {
+        throw new Error("Prices must be greater than zero");
+      }
+      
+      // Validate stop is different from entry (prevent division by zero)
+      if (stopLoss === entryPrice) {
+        throw new Error("Stop loss cannot equal entry price");
+      }
+      
+      // Validate directional correctness
+      if (manualDirection === 'long') {
+        if (targetPrice <= entryPrice) {
+          throw new Error("For LONG trades, target must be above entry price");
+        }
+        if (stopLoss >= entryPrice) {
+          throw new Error("For LONG trades, stop loss must be below entry price");
+        }
+      } else {
+        if (targetPrice >= entryPrice) {
+          throw new Error("For SHORT trades, target must be below entry price");
+        }
+        if (stopLoss <= entryPrice) {
+          throw new Error("For SHORT trades, stop loss must be above entry price");
+        }
+      }
+      
+      const riskRewardRatio = Math.abs((targetPrice - entryPrice) / (entryPrice - stopLoss));
+      
+      const idea: InsertTradeIdea = {
+        symbol: marketData.symbol,
+        assetType: manualAssetType,
+        direction: manualDirection,
+        entryPrice,
+        targetPrice,
+        stopLoss,
+        riskRewardRatio: parseFloat(riskRewardRatio.toFixed(2)),
+        catalyst: `Manual trade idea - User-defined parameters`,
+        analysis: `Manual ${manualDirection.toUpperCase()} trade on ${marketData.symbol} with ${riskRewardRatio.toFixed(2)}:1 R:R`,
+        liquidityWarning: marketData.currentPrice < 5 && manualAssetType !== 'crypto',
+        sessionContext: marketData.session === 'rth' ? 'Regular Trading Hours' : 
+                       marketData.session === 'pre-market' ? 'Pre-Market' : 'After Hours',
+        timestamp: new Date().toISOString(),
+        source: 'manual',
+        confidenceScore: 60, // Default for manual entries
+        probabilityBand: 'C', // Default for manual entries
+      };
+      
+      const response = await apiRequest('POST', '/api/trade-ideas', idea);
+      return response;
+    },
+    onSuccess: () => {
+      if (!marketData) return;
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      
+      toast({
+        title: "Manual Trade Idea Created",
+        description: `${marketData.symbol} manual idea added to NEW IDEAS tab`,
+      });
+      
+      handleOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Create Manual Idea",
+        description: error?.message || "Please check your inputs and try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const handleCreateManualIdea = () => {
+    createManualIdeaMutation.mutate();
+  };
+  
+  // Calculate R:R for manual entry
+  const calculateRR = () => {
+    const entry = parseFloat(manualEntry);
+    const target = parseFloat(manualTarget);
+    const stop = parseFloat(manualStop);
+    
+    if (isNaN(entry) || isNaN(target) || isNaN(stop)) return null;
+    if (stop === entry) return null; // Prevent division by zero
+    if (entry <= 0 || target <= 0 || stop <= 0) return null;
+    
+    // Validate directional correctness
+    if (manualDirection === 'long') {
+      if (target <= entry || stop >= entry) return null;
+    } else {
+      if (target >= entry || stop <= entry) return null;
+    }
+    
+    const rr = Math.abs((target - entry) / (entry - stop));
+    return rr.toFixed(2);
+  };
 
   if (!marketData) return null;
 
   const isPositive = marketData.changePercent >= 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg" data-testid="dialog-symbol-action">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -276,14 +428,127 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
           </Card>
 
           <Separator />
+          
+          {/* Mode Toggle */}
+          <div className="flex justify-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsManualMode(!isManualMode)}
+              data-testid="button-toggle-manual-mode"
+              className="text-xs"
+            >
+              {isManualMode ? (
+                <>
+                  <ArrowLeft className="h-3 w-3 mr-2" />
+                  Back to Quick Create
+                </>
+              ) : (
+                <>
+                  <Edit3 className="h-3 w-3 mr-2" />
+                  Manual Entry
+                </>
+              )}
+            </Button>
+          </div>
 
-          {/* Recommendation Section */}
-          {recommendation && (
-            <div className="space-y-3">
+          {/* Manual Entry Form */}
+          {isManualMode ? (
+            <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold">Recommended Trade Type</h3>
+                <Edit3 className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold">Manual Trade Parameters</h3>
               </div>
+              
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="p-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="manual-direction">Direction</Label>
+                      <Select value={manualDirection} onValueChange={(val) => setManualDirection(val as 'long' | 'short')}>
+                        <SelectTrigger id="manual-direction" data-testid="select-manual-direction">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="long">LONG</SelectItem>
+                          <SelectItem value="short">SHORT</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="manual-asset-type">Asset Type</Label>
+                      <Select value={manualAssetType} onValueChange={(val) => setManualAssetType(val as 'stock' | 'option' | 'crypto')}>
+                        <SelectTrigger id="manual-asset-type" data-testid="select-manual-asset-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="stock">Stock</SelectItem>
+                          <SelectItem value="option">Option</SelectItem>
+                          <SelectItem value="crypto">Crypto</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="manual-entry">Entry Price</Label>
+                    <Input
+                      id="manual-entry"
+                      type="number"
+                      step="0.01"
+                      value={manualEntry}
+                      onChange={(e) => setManualEntry(e.target.value)}
+                      placeholder="0.00"
+                      data-testid="input-manual-entry"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="manual-target">Target Price</Label>
+                    <Input
+                      id="manual-target"
+                      type="number"
+                      step="0.01"
+                      value={manualTarget}
+                      onChange={(e) => setManualTarget(e.target.value)}
+                      placeholder="0.00"
+                      data-testid="input-manual-target"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="manual-stop">Stop Loss</Label>
+                    <Input
+                      id="manual-stop"
+                      type="number"
+                      step="0.01"
+                      value={manualStop}
+                      onChange={(e) => setManualStop(e.target.value)}
+                      placeholder="0.00"
+                      data-testid="input-manual-stop"
+                    />
+                  </div>
+                  
+                  {calculateRR() && (
+                    <div className="pt-2 border-t border-border/50">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Risk/Reward Ratio:</span>
+                        <span className="font-mono font-bold text-primary">{calculateRR()}:1</span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            /* Recommendation Section */
+            recommendation && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">Recommended Trade Type</h3>
+                </div>
               
               <Card className="border-primary/20 bg-primary/5">
                 <CardContent className="p-4">
@@ -339,52 +604,75 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
                 </CardContent>
               </Card>
             </div>
+            )
           )}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button
-            variant="outline"
-            onClick={() => {
-              onOpenChange(false);
-              setSelectedType(null);
-            }}
-            data-testid="button-cancel-action"
-          >
-            <Eye className="h-4 w-4 mr-2" />
-            View Only
-          </Button>
-          
-          {isCrypto ? (
-            <Button
-              onClick={() => handleCreateIdea('crypto_shares')}
-              disabled={createIdeaMutation.isPending}
-              data-testid="button-add-crypto-shares"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {selectedType === 'crypto_shares' && createIdeaMutation.isPending ? 'Adding...' : 'Crypto Shares'}
-            </Button>
-          ) : (
-            <div className="flex gap-2">
+          {isManualMode ? (
+            <>
               <Button
-                variant="secondary"
-                onClick={() => handleCreateIdea('stock_shares')}
-                disabled={createIdeaMutation.isPending}
-                data-testid="button-add-stock-shares"
+                variant="outline"
+                onClick={() => handleOpenChange(false)}
+                data-testid="button-cancel-manual"
               >
-                <DollarSign className="h-4 w-4 mr-2" />
-                {selectedType === 'stock_shares' && createIdeaMutation.isPending ? 'Adding...' : 'Stock Shares'}
+                Cancel
               </Button>
-              
               <Button
-                onClick={() => handleCreateIdea('stock_options')}
-                disabled={createIdeaMutation.isPending}
-                data-testid="button-add-stock-options"
+                onClick={handleCreateManualIdea}
+                disabled={createManualIdeaMutation.isPending || !manualEntry || !manualTarget || !manualStop}
+                data-testid="button-create-manual-idea"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                {selectedType === 'stock_options' && createIdeaMutation.isPending ? 'Adding...' : 'Stock Options'}
+                {createManualIdeaMutation.isPending ? 'Creating...' : 'Create Manual Idea'}
               </Button>
-            </div>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  handleOpenChange(false);
+                  setSelectedType(null);
+                }}
+                data-testid="button-cancel-action"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                View Only
+              </Button>
+              
+              {isCrypto ? (
+                <Button
+                  onClick={() => handleCreateIdea('crypto_shares')}
+                  disabled={createIdeaMutation.isPending}
+                  data-testid="button-add-crypto-shares"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  {selectedType === 'crypto_shares' && createIdeaMutation.isPending ? 'Adding...' : 'Crypto Shares'}
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleCreateIdea('stock_shares')}
+                    disabled={createIdeaMutation.isPending}
+                    data-testid="button-add-stock-shares"
+                  >
+                    <DollarSign className="h-4 w-4 mr-2" />
+                    {selectedType === 'stock_shares' && createIdeaMutation.isPending ? 'Adding...' : 'Stock Shares'}
+                  </Button>
+                  
+                  <Button
+                    onClick={() => handleCreateIdea('stock_options')}
+                    disabled={createIdeaMutation.isPending}
+                    data-testid="button-add-stock-options"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {selectedType === 'stock_options' && createIdeaMutation.isPending ? 'Adding...' : 'Stock Options'}
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </DialogFooter>
       </DialogContent>
