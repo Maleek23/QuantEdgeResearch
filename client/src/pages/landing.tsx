@@ -414,29 +414,16 @@ export default function Landing() {
                 Access dual-engine trade idea generation, real-time market analysis, and professional risk management tools. 
                 Educational research platform for active traders.
               </p>
-              {isAuthenticated ? (
-                <Button 
-                  size="lg" 
-                  onClick={() => setLocation('/dashboard')}
-                  data-testid="button-cta-get-started"
-                  className="btn-magnetic px-10 py-7 text-lg neon-accent"
-                >
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  Launch Dashboard
-                  <ArrowRight className="h-5 w-5 ml-2" />
-                </Button>
-              ) : (
-                <Button 
-                  size="lg" 
-                  onClick={() => window.location.href = '/api/login'}
-                  data-testid="button-cta-login"
-                  className="btn-magnetic px-10 py-7 text-lg neon-accent"
-                >
-                  <Sparkles className="h-5 w-5 mr-2" />
-                  Login / Sign Up
-                  <ArrowRight className="h-5 w-5 ml-2" />
-                </Button>
-              )}
+              <Button 
+                size="lg" 
+                onClick={() => setLocation('/dashboard')}
+                data-testid="button-cta-launch-dashboard"
+                className="btn-magnetic px-10 py-7 text-lg neon-accent"
+              >
+                <Sparkles className="h-5 w-5 mr-2" />
+                Launch Dashboard
+                <ArrowRight className="h-5 w-5 ml-2" />
+              </Button>
               <p className="text-xs text-muted-foreground mt-6 opacity-70">
                 ⚠️ For educational and research purposes only. Not financial advice.
               </p>
