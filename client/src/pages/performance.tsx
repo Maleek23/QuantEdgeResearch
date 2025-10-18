@@ -395,6 +395,114 @@ export default function PerformancePage() {
         </Card>
       </div>
 
+      {/* Smart Insights (if enough data) */}
+      {stats.overall.closedIdeas >= 5 && (
+        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg overflow-hidden" data-testid="card-insights">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10" />
+          <CardHeader>
+            <CardTitle className="text-xl font-bold flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/20">
+                <TrendingUp className="w-5 h-5 text-primary" />
+              </div>
+              Smart Insights
+            </CardTitle>
+            <CardDescription>
+              Data-driven recommendations based on your performance
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* Win Rate Analysis */}
+            {stats.overall.winRate >= 60 ? (
+              <p className="text-sm"><strong>Strong performance!</strong> Your win rate is above 60%.</p>
+            ) : stats.overall.winRate < 50 ? (
+              <p className="text-sm"><strong>Win rate below 50%.</strong> Review losing trades to identify patterns.</p>
+            ) : (
+              <p className="text-sm"><strong>Win rate around 50%.</strong> Focus on improving risk/reward ratio.</p>
+            )}
+            
+            {/* Best Source Strategy */}
+            {stats.bySource.length > 0 && (
+              (() => {
+                const bestSource = stats.bySource.reduce((best, source) => 
+                  source.winRate > best.winRate && source.totalIdeas >= 3 ? source : best
+                );
+                return bestSource.totalIdeas >= 3 ? (
+                  <p className="text-sm">
+                    <strong>Your best strategy: {bestSource.source.toUpperCase()}</strong> ideas 
+                    ({bestSource.winRate.toFixed(1)}% win rate)
+                  </p>
+                ) : null;
+              })()
+            )}
+            
+            {/* Positive Expectancy */}
+            {stats.overall.avgPercentGain > 0 && stats.overall.closedIdeas >= 5 && (
+              <p className="text-sm">
+                <strong>Positive expectancy:</strong> Average gain of +{stats.overall.avgPercentGain.toFixed(2)}% per trade
+              </p>
+            )}
+
+            {/* Profit Factor Insights */}
+            {advancedMetrics && (
+              <>
+                {advancedMetrics.profitFactor >= 2.0 ? (
+                  <p className="text-sm">
+                    <strong>Excellent profit factor ({advancedMetrics.profitFactor.toFixed(2)}x)!</strong> Your wins significantly outweigh your losses.
+                  </p>
+                ) : advancedMetrics.profitFactor >= 1.5 ? (
+                  <p className="text-sm">
+                    <strong>Good profit factor ({advancedMetrics.profitFactor.toFixed(2)}x).</strong> You're making more on winners than losing on losers.
+                  </p>
+                ) : advancedMetrics.profitFactor >= 1.0 ? (
+                  <p className="text-sm">
+                    <strong>Profit factor ({advancedMetrics.profitFactor.toFixed(2)}x) needs improvement.</strong> Your wins barely outweigh your losses.
+                  </p>
+                ) : (
+                  <p className="text-sm">
+                    <strong>Profit factor below 1.0 ({advancedMetrics.profitFactor.toFixed(2)}x).</strong> You're losing more on losing trades than winning on winners. Tighten stops or widen targets.
+                  </p>
+                )}
+
+                {/* Drawdown Insights */}
+                {advancedMetrics.maxDrawdown > 20 && (
+                  <p className="text-sm">
+                    <strong>High drawdown alert:</strong> Max drawdown of {advancedMetrics.maxDrawdown.toFixed(2)}%. Consider reducing position sizes.
+                  </p>
+                )}
+
+                {/* Streak Insights */}
+                {advancedMetrics.worstLossStreak >= 3 && (
+                  <p className="text-sm">
+                    <strong>Loss streak of {advancedMetrics.worstLossStreak}.</strong> Consider taking a break after 2-3 consecutive losses.
+                  </p>
+                )}
+
+                {/* Asset Type Recommendations */}
+                {stats.byAssetType.length > 0 && (
+                  (() => {
+                    const bestAsset = stats.byAssetType.reduce((best, asset) => 
+                      asset.winRate > best.winRate && asset.totalIdeas >= 3 ? asset : best
+                    );
+                    const worstAsset = stats.byAssetType.reduce((worst, asset) => 
+                      asset.winRate < worst.winRate && asset.totalIdeas >= 3 ? asset : worst
+                    );
+                    return bestAsset.totalIdeas >= 3 && worstAsset.totalIdeas >= 3 && bestAsset.assetType !== worstAsset.assetType ? (
+                      <p className="text-sm">
+                        <strong>Asset focus:</strong> You perform best with {bestAsset.assetType}s ({bestAsset.winRate.toFixed(1)}% win rate) vs {worstAsset.assetType}s ({worstAsset.winRate.toFixed(1)}%)
+                      </p>
+                    ) : null;
+                  })()
+                )}
+              </>
+            )}
+
+            <p className="text-sm text-muted-foreground mt-4 pt-3 border-t border-border/30">
+              View the <strong>Signal Intelligence</strong> page for deeper pattern analysis and ML insights
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Advanced Performance Metrics */}
       {advancedMetrics && closedIdeas.length >= 5 && (
         <Card className="shadow-lg overflow-hidden border-primary/20" data-testid="card-advanced-metrics">
@@ -792,114 +900,6 @@ export default function PerformancePage() {
             </CardContent>
           </Card>
         </div>
-      )}
-
-      {/* Smart Insights (if enough data) */}
-      {stats.overall.closedIdeas >= 5 && (
-        <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg overflow-hidden" data-testid="card-insights">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -z-10" />
-          <CardHeader>
-            <CardTitle className="text-xl font-bold flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/20">
-                <TrendingUp className="w-5 h-5 text-primary" />
-              </div>
-              Smart Insights
-            </CardTitle>
-            <CardDescription>
-              Data-driven recommendations based on your performance
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* Win Rate Analysis */}
-            {stats.overall.winRate >= 60 ? (
-              <p className="text-sm"><strong>Strong performance!</strong> Your win rate is above 60%.</p>
-            ) : stats.overall.winRate < 50 ? (
-              <p className="text-sm"><strong>Win rate below 50%.</strong> Review losing trades to identify patterns.</p>
-            ) : (
-              <p className="text-sm"><strong>Win rate around 50%.</strong> Focus on improving risk/reward ratio.</p>
-            )}
-            
-            {/* Best Source Strategy */}
-            {stats.bySource.length > 0 && (
-              (() => {
-                const bestSource = stats.bySource.reduce((best, source) => 
-                  source.winRate > best.winRate && source.totalIdeas >= 3 ? source : best
-                );
-                return bestSource.totalIdeas >= 3 ? (
-                  <p className="text-sm">
-                    <strong>Your best strategy: {bestSource.source.toUpperCase()}</strong> ideas 
-                    ({bestSource.winRate.toFixed(1)}% win rate)
-                  </p>
-                ) : null;
-              })()
-            )}
-            
-            {/* Positive Expectancy */}
-            {stats.overall.avgPercentGain > 0 && stats.overall.closedIdeas >= 5 && (
-              <p className="text-sm">
-                <strong>Positive expectancy:</strong> Average gain of +{stats.overall.avgPercentGain.toFixed(2)}% per trade
-              </p>
-            )}
-
-            {/* Profit Factor Insights */}
-            {advancedMetrics && (
-              <>
-                {advancedMetrics.profitFactor >= 2.0 ? (
-                  <p className="text-sm">
-                    <strong>Excellent profit factor ({advancedMetrics.profitFactor.toFixed(2)}x)!</strong> Your wins significantly outweigh your losses.
-                  </p>
-                ) : advancedMetrics.profitFactor >= 1.5 ? (
-                  <p className="text-sm">
-                    <strong>Good profit factor ({advancedMetrics.profitFactor.toFixed(2)}x).</strong> You're making more on winners than losing on losers.
-                  </p>
-                ) : advancedMetrics.profitFactor >= 1.0 ? (
-                  <p className="text-sm">
-                    <strong>Profit factor ({advancedMetrics.profitFactor.toFixed(2)}x) needs improvement.</strong> Your wins barely outweigh your losses.
-                  </p>
-                ) : (
-                  <p className="text-sm">
-                    <strong>Profit factor below 1.0 ({advancedMetrics.profitFactor.toFixed(2)}x).</strong> You're losing more on losing trades than winning on winners. Tighten stops or widen targets.
-                  </p>
-                )}
-
-                {/* Drawdown Insights */}
-                {advancedMetrics.maxDrawdown > 20 && (
-                  <p className="text-sm">
-                    <strong>High drawdown alert:</strong> Max drawdown of {advancedMetrics.maxDrawdown.toFixed(2)}%. Consider reducing position sizes.
-                  </p>
-                )}
-
-                {/* Streak Insights */}
-                {advancedMetrics.worstLossStreak >= 3 && (
-                  <p className="text-sm">
-                    <strong>Loss streak of {advancedMetrics.worstLossStreak}.</strong> Consider taking a break after 2-3 consecutive losses.
-                  </p>
-                )}
-
-                {/* Asset Type Recommendations */}
-                {stats.byAssetType.length > 0 && (
-                  (() => {
-                    const bestAsset = stats.byAssetType.reduce((best, asset) => 
-                      asset.winRate > best.winRate && asset.totalIdeas >= 3 ? asset : best
-                    );
-                    const worstAsset = stats.byAssetType.reduce((worst, asset) => 
-                      asset.winRate < worst.winRate && asset.totalIdeas >= 3 ? asset : worst
-                    );
-                    return bestAsset.totalIdeas >= 3 && worstAsset.totalIdeas >= 3 && bestAsset.assetType !== worstAsset.assetType ? (
-                      <p className="text-sm">
-                        <strong>Asset focus:</strong> You perform best with {bestAsset.assetType}s ({bestAsset.winRate.toFixed(1)}% win rate) vs {worstAsset.assetType}s ({worstAsset.winRate.toFixed(1)}%)
-                      </p>
-                    ) : null;
-                  })()
-                )}
-              </>
-            )}
-
-            <p className="text-sm text-muted-foreground mt-4 pt-3 border-t border-border/30">
-              View the <strong>Signal Intelligence</strong> page for deeper pattern analysis and ML insights
-            </p>
-          </CardContent>
-        </Card>
       )}
 
       {/* By Source */}
