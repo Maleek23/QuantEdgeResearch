@@ -91,7 +91,7 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
       className="group"
     >
       <CollapsibleTrigger className="w-full" data-testid={`block-trade-idea-${idea.symbol}`}>
-        <div className="p-6 border rounded-lg bg-card hover-elevate transition-all">
+        <div className="p-6 border rounded-lg bg-card hover-elevate transition-all block">
           {/* Header: Symbol + Direction + Grade */}
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
