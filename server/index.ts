@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { startWatchlistMonitor } from "./watchlist-monitor";
 
 const app = express();
 app.use(express.json());
@@ -67,5 +68,9 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Start watchlist price alert monitoring (checks every 5 minutes)
+    startWatchlistMonitor(5);
+    log('🔔 Watchlist Monitor started - checking every 5 minutes');
   });
 })();

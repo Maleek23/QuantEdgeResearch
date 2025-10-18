@@ -209,6 +209,19 @@ export const watchlist = pgTable("watchlist", {
   targetPrice: real("target_price"),
   notes: text("notes"),
   addedAt: text("added_at").notNull(),
+  
+  // Price Alert Targets
+  entryAlertPrice: real("entry_alert_price"), // Alert when price drops to this level (buying opportunity)
+  stopAlertPrice: real("stop_alert_price"), // Alert when price hits stop loss
+  targetAlertPrice: real("target_alert_price"), // Alert when price hits profit target
+  
+  // Alert Settings
+  alertsEnabled: boolean("alerts_enabled").default(true), // Master toggle for all alerts
+  discordAlertsEnabled: boolean("discord_alerts_enabled").default(true), // Send to Discord
+  
+  // Alert Tracking
+  lastAlertSent: text("last_alert_sent"), // Timestamp of last alert to prevent spam
+  alertCount: integer("alert_count").default(0), // Track how many alerts sent
 });
 
 export const insertWatchlistSchema = createInsertSchema(watchlist).omit({ id: true });

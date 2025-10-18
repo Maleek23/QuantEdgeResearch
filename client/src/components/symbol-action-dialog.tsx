@@ -23,7 +23,9 @@ import {
   Eye,
   AlertTriangle,
   Edit3,
-  ArrowLeft
+  ArrowLeft,
+  Star,
+  Bell
 } from "lucide-react";
 import {
   Select,
@@ -264,6 +266,43 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
   };
   
   // Manual trade idea creation mutation
+  // Add to Watchlist mutation
+  const addToWatchlistMutation = useMutation({
+    mutationFn: async () => {
+      if (!marketData) return;
+      
+      const watchlistItem = {
+        symbol: marketData.symbol,
+        assetType: marketData.assetType,
+        targetPrice: marketData.currentPrice * 1.10, // Default 10% above current
+        notes: `Added from symbol search - Current: $${marketData.currentPrice.toFixed(2)}`,
+        addedAt: new Date().toISOString(),
+      };
+      
+      const response = await apiRequest('POST', '/api/watchlist', watchlistItem);
+      return response;
+    },
+    onSuccess: () => {
+      if (!marketData) return;
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/watchlist'] });
+      
+      toast({
+        title: "Added to Watchlist",
+        description: `${marketData.symbol} is now being monitored. You'll be alerted of price movements.`,
+      });
+      
+      handleOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Add to Watchlist",
+        description: error?.message || "This symbol may already be in your watchlist.",
+        variant: "destructive",
+      });
+    },
+  });
+  
   const createManualIdeaMutation = useMutation({
     mutationFn: async () => {
       if (!marketData) return;
@@ -631,17 +670,29 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
             </>
           ) : (
             <>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  handleOpenChange(false);
-                  setSelectedType(null);
-                }}
-                data-testid="button-cancel-action"
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                View Only
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    handleOpenChange(false);
+                    setSelectedType(null);
+                  }}
+                  data-testid="button-cancel-action"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Only
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => addToWatchlistMutation.mutate()}
+                  disabled={addToWatchlistMutation.isPending}
+                  data-testid="button-add-to-watchlist"
+                  className="gap-2"
+                >
+                  <Star className="h-4 w-4" />
+                  {addToWatchlistMutation.isPending ? 'Adding...' : 'Add to Watchlist'}
+                </Button>
+              </div>
               
               {isCrypto ? (
                 <Button

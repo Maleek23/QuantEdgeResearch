@@ -103,10 +103,10 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
   }
   
   // Add data quality indicator
-  if (idea.dataSource) {
-    const qualityEmoji = idea.dataSource === 'real' ? '✅' : '⚠️';
+  if (idea.dataSourceUsed) {
+    const qualityEmoji = idea.dataSourceUsed !== 'estimated' ? '✅' : '⚠️';
     embed.footer = {
-      text: `${qualityEmoji} ${idea.dataSource === 'real' ? 'Real Market Data' : 'Simulated Data'} | QuantEdge Research`
+      text: `${qualityEmoji} ${idea.dataSourceUsed !== 'estimated' ? 'Real Market Data' : 'Simulated Data'} | QuantEdge Research`
     };
   }
   
@@ -144,6 +144,88 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
     console.log(`✅ Discord alert sent: ${idea.symbol} ${idea.direction.toUpperCase()}`);
   } catch (error) {
     console.error('❌ Failed to send Discord alert:', error);
+  }
+}
+
+/**
+ * Send Watchlist Price Alert to Discord
+ */
+export async function sendDiscordAlert(alert: {
+  symbol: string;
+  assetType: string;
+  alertType: 'entry' | 'stop' | 'target';
+  currentPrice: number;
+  alertPrice: number;
+  percentFromTarget: number;
+  notes?: string;
+}): Promise<void> {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    console.log('⚠️ Discord webhook URL not configured - skipping watchlist alert');
+    return;
+  }
+  
+  try {
+    const alertEmoji = alert.alertType === 'entry' ? '🚨' : alert.alertType === 'stop' ? '🛑' : '🎯';
+    const alertTitle = alert.alertType === 'entry' ? 'ENTRY OPPORTUNITY' : 
+                      alert.alertType === 'stop' ? 'STOP LOSS ALERT' : 'PROFIT TARGET HIT';
+    const color = alert.alertType === 'entry' ? 0x00ff00 : // Green for entry
+                  alert.alertType === 'stop' ? 0xff0000 : // Red for stop
+                  0x0099ff; // Blue for target
+    
+    const embed: DiscordEmbed = {
+      title: `${alertEmoji} WATCHLIST ALERT: ${alert.symbol}`,
+      description: `**${alertTitle}**\n${alert.notes || 'Price alert triggered'}`,
+      color,
+      fields: [
+        {
+          name: '💰 Current Price',
+          value: `$${alert.currentPrice.toFixed(4)}`,
+          inline: true
+        },
+        {
+          name: '🎯 Alert Price',
+          value: `$${alert.alertPrice.toFixed(4)}`,
+          inline: true
+        },
+        {
+          name: '📊 Asset Type',
+          value: alert.assetType.toUpperCase(),
+          inline: true
+        },
+        {
+          name: '📈 Distance from Target',
+          value: `${alert.percentFromTarget > 0 ? '+' : ''}${alert.percentFromTarget.toFixed(2)}%`,
+          inline: true
+        }
+      ],
+      timestamp: new Date().toISOString(),
+      footer: {
+        text: `QuantEdge Watchlist Monitor • ${alert.assetType === 'crypto' ? '24/7 Crypto' : 'Market Hours'}`
+      }
+    };
+    
+    const message: DiscordMessage = {
+      content: `${alertEmoji} **WATCHLIST PRICE ALERT: ${alert.symbol}** ${alertEmoji}`,
+      embeds: [embed]
+    };
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Discord watchlist alert failed: ${response.status} ${response.statusText}`);
+    }
+    
+    console.log(`✅ Discord watchlist alert sent: ${alert.symbol} ${alert.alertType.toUpperCase()}`);
+  } catch (error) {
+    console.error('❌ Failed to send Discord watchlist alert:', error);
   }
 }
 
