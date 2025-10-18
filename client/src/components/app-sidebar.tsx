@@ -1,4 +1,4 @@
-import { Home, TrendingUp, BarChart2, Star, Calculator, Target, User, Sparkles } from "lucide-react";
+import { Home, TrendingUp, BarChart2, Star, Calculator, Target, User, Sparkles, Shield } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -27,6 +27,7 @@ const toolItems = [
 
 const systemItems = [
   { title: "About", url: "/about", icon: User },
+  { title: "Admin", url: "/admin", icon: Shield },
 ];
 
 export function AppSidebar() {
