@@ -133,16 +133,6 @@ export default function Landing() {
               Join Discord
               <ExternalLink className="h-4 w-4 ml-2" />
             </Button>
-            <Button 
-              size="lg" 
-              variant="outline"
-              onClick={() => setLocation('/admin')}
-              data-testid="button-admin"
-              className="btn-magnetic px-8 py-6 text-lg glass-card"
-            >
-              <Shield className="h-5 w-5 mr-2" />
-              Admin
-            </Button>
           </div>
 
           <div className="grid grid-cols-3 gap-8 max-w-3xl mx-auto animate-scale-in animate-delay-300">
