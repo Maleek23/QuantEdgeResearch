@@ -42,6 +42,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin Routes
+  app.post("/api/admin/verify-code", (req, res) => {
+    const adminCode = process.env.ADMIN_ACCESS_CODE || "0000";
+    if (req.body.code === adminCode) {
+      res.json({ success: true });
+    } else {
+      res.status(403).json({ error: "Invalid access code" });
+    }
+  });
+
   app.post("/api/admin/verify", (req, res) => {
     const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
     if (req.body.password === adminPassword) {
