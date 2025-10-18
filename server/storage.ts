@@ -701,7 +701,9 @@ export class MemStorage implements IStorage {
     const expiredIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'expired');
 
     // Overall stats
-    const winRate = closedIdeas.length > 0 ? (wonIdeas.length / closedIdeas.length) * 100 : 0;
+    // WIN RATE FIX: Exclude expired ideas from denominator - only count actual wins vs losses
+    const decidedIdeas = wonIdeas.length + lostIdeas.length;
+    const winRate = decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0;
     const avgPercentGain = closedIdeas.length > 0
       ? closedIdeas.reduce((sum, idea) => sum + (idea.percentGain || 0), 0) / closedIdeas.length
       : 0;
@@ -722,7 +724,9 @@ export class MemStorage implements IStorage {
     const bySource = Array.from(sourceMap.entries()).map(([source, ideas]) => {
       const won = ideas.filter((i) => i.outcomeStatus === 'hit_target').length;
       const lost = ideas.filter((i) => i.outcomeStatus === 'hit_stop').length;
-      const rate = ideas.length > 0 ? (won / ideas.length) * 100 : 0;
+      // WIN RATE FIX: Only count decided trades (exclude expired)
+      const decided = won + lost;
+      const rate = decided > 0 ? (won / decided) * 100 : 0;
       const avgGain = ideas.length > 0
         ? ideas.reduce((sum, i) => sum + (i.percentGain || 0), 0) / ideas.length
         : 0;
@@ -750,7 +754,9 @@ export class MemStorage implements IStorage {
     const byAssetType = Array.from(assetTypeMap.entries()).map(([assetType, ideas]) => {
       const won = ideas.filter((i) => i.outcomeStatus === 'hit_target').length;
       const lost = ideas.filter((i) => i.outcomeStatus === 'hit_stop').length;
-      const rate = ideas.length > 0 ? (won / ideas.length) * 100 : 0;
+      // WIN RATE FIX: Only count decided trades (exclude expired)
+      const decided = won + lost;
+      const rate = decided > 0 ? (won / decided) * 100 : 0;
       const avgGain = ideas.length > 0
         ? ideas.reduce((sum, i) => sum + (i.percentGain || 0), 0) / ideas.length
         : 0;
@@ -780,7 +786,9 @@ export class MemStorage implements IStorage {
     const bySignalType = Array.from(signalMap.entries()).map(([signal, ideas]) => {
       const won = ideas.filter((i) => i.outcomeStatus === 'hit_target').length;
       const lost = ideas.filter((i) => i.outcomeStatus === 'hit_stop').length;
-      const rate = ideas.length > 0 ? (won / ideas.length) * 100 : 0;
+      // WIN RATE FIX: Only count decided trades (exclude expired)
+      const decided = won + lost;
+      const rate = decided > 0 ? (won / decided) * 100 : 0;
       const avgGain = ideas.length > 0
         ? ideas.reduce((sum, i) => sum + (i.percentGain || 0), 0) / ideas.length
         : 0;
@@ -1064,13 +1072,15 @@ export class DatabaseStorage implements IStorage {
       const sourceWon = sourceIdeas.filter(i => i.outcomeStatus === 'hit_target');
       const sourceLost = sourceIdeas.filter(i => i.outcomeStatus === 'hit_stop');
       const sourceGains = sourceIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
+      // WIN RATE FIX: Only count decided trades (exclude expired)
+      const sourceDecided = sourceWon.length + sourceLost.length;
       
       return {
         source,
         totalIdeas: sourceIdeas.length,
         wonIdeas: sourceWon.length,
         lostIdeas: sourceLost.length,
-        winRate: sourceIdeas.length > 0 ? (sourceWon.length / sourceIdeas.length) * 100 : 0,
+        winRate: sourceDecided > 0 ? (sourceWon.length / sourceDecided) * 100 : 0,
         avgPercentGain: calculateAvg(sourceGains),
       };
     });
@@ -1081,13 +1091,15 @@ export class DatabaseStorage implements IStorage {
       const assetWon = assetIdeas.filter(i => i.outcomeStatus === 'hit_target');
       const assetLost = assetIdeas.filter(i => i.outcomeStatus === 'hit_stop');
       const assetGains = assetIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
+      // WIN RATE FIX: Only count decided trades (exclude expired)
+      const assetDecided = assetWon.length + assetLost.length;
       
       return {
         assetType,
         totalIdeas: assetIdeas.length,
         wonIdeas: assetWon.length,
         lostIdeas: assetLost.length,
-        winRate: assetIdeas.length > 0 ? (assetWon.length / assetIdeas.length) * 100 : 0,
+        winRate: assetDecided > 0 ? (assetWon.length / assetDecided) * 100 : 0,
         avgPercentGain: calculateAvg(assetGains),
       };
     });
@@ -1107,16 +1119,21 @@ export class DatabaseStorage implements IStorage {
       const signalWon = ideas.filter(i => i.outcomeStatus === 'hit_target');
       const signalLost = ideas.filter(i => i.outcomeStatus === 'hit_stop');
       const signalGains = ideas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
+      // WIN RATE FIX: Only count decided trades (exclude expired)
+      const signalDecided = signalWon.length + signalLost.length;
       
       return {
         signal,
         totalIdeas: ideas.length,
         wonIdeas: signalWon.length,
         lostIdeas: signalLost.length,
-        winRate: ideas.length > 0 ? (signalWon.length / ideas.length) * 100 : 0,
+        winRate: signalDecided > 0 ? (signalWon.length / signalDecided) * 100 : 0,
         avgPercentGain: calculateAvg(signalGains),
       };
     });
+
+    // WIN RATE FIX: Exclude expired ideas from denominator - only count actual wins vs losses
+    const decidedIdeas = wonIdeas.length + lostIdeas.length;
 
     return {
       overall: {
@@ -1126,7 +1143,7 @@ export class DatabaseStorage implements IStorage {
         wonIdeas: wonIdeas.length,
         lostIdeas: lostIdeas.length,
         expiredIdeas: expiredIdeas.length,
-        winRate: closedIdeas.length > 0 ? (wonIdeas.length / closedIdeas.length) * 100 : 0,
+        winRate: decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0,
         avgPercentGain: calculateAvg(closedGains),
         avgHoldingTimeMinutes: calculateAvg(closedHoldingTimes),
       },
