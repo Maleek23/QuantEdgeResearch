@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
   InputOTP,
   InputOTPGroup,
@@ -21,7 +23,12 @@ import {
   AlertCircle,
   CheckCircle2,
   Lock,
-  LockOpen
+  LockOpen,
+  Sparkles,
+  Cpu,
+  Clock,
+  BarChart3,
+  Zap
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -68,6 +75,56 @@ export default function AdminPanel() {
       });
       if (!res.ok) throw new Error('Failed to fetch ideas');
       return res.json();
+    }
+  });
+
+  const { data: systemHealth } = useQuery({
+    queryKey: ['/api/admin/system-health'],
+    enabled: authStep === 'authenticated' && !!adminPassword,
+    refetchInterval: 30000, // Refresh every 30s
+    queryFn: async () => {
+      const res = await fetch('/api/admin/system-health', {
+        headers: { 'x-admin-password': adminPassword }
+      });
+      if (!res.ok) throw new Error('Failed to fetch health');
+      return res.json();
+    }
+  });
+
+  const { data: activities } = useQuery({
+    queryKey: ['/api/admin/activity'],
+    enabled: authStep === 'authenticated' && !!adminPassword,
+    queryFn: async () => {
+      const res = await fetch('/api/admin/activity', {
+        headers: { 'x-admin-password': adminPassword }
+      });
+      if (!res.ok) throw new Error('Failed to fetch activity');
+      return res.json();
+    }
+  });
+
+  const [testAIProvider, setTestAIProvider] = useState<'openai' | 'anthropic' | 'gemini'>('openai');
+  const [testPrompt, setTestPrompt] = useState("Generate a bullish trade idea for NVDA.");
+
+  const testAIMutation = useMutation({
+    mutationFn: async (provider: string) => {
+      const res = await fetch('/api/admin/test-ai', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-password': adminPassword 
+        },
+        body: JSON.stringify({ provider, prompt: testPrompt })
+      });
+      if (!res.ok) throw new Error('AI test failed');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: `${data.provider} test successful!`, description: "AI model is responding" });
+      } else {
+        toast({ title: `${data.provider} test failed`, description: data.error, variant: "destructive" });
+      }
     }
   });
 
@@ -486,39 +543,263 @@ export default function AdminPanel() {
           </Card>
         </div>
 
-        {/* System Status */}
-        <Card className="glass-card border-green-500/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-green-500" />
-              System Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
-                <CheckCircle2 className="h-8 w-8 text-green-500" />
+        {/* Tabbed Admin Tools */}
+        <Card className="glass-card">
+          <Tabs defaultValue="system" className="w-full">
+            <CardHeader>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="system" data-testid="tab-system-health">
+                  <Activity className="h-4 w-4 mr-2" />
+                  System Health
+                </TabsTrigger>
+                <TabsTrigger value="ai-test" data-testid="tab-ai-test">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  AI Testing
+                </TabsTrigger>
+                <TabsTrigger value="activity" data-testid="tab-activity">
+                  <Clock className="h-4 w-4 mr-2" />
+                  Activity Log
+                </TabsTrigger>
+              </TabsList>
+            </CardHeader>
+
+            {/* System Health Tab */}
+            <TabsContent value="system">
+              <CardContent className="space-y-6">
+                {/* Database Status */}
                 <div>
-                  <p className="text-sm font-medium">API Services</p>
-                  <p className="text-xs text-muted-foreground">Operational</p>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Database className="h-4 w-4 text-primary" />
+                    Database
+                  </h3>
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
+                    <CheckCircle2 className="h-6 w-6 text-green-500" />
+                    <div>
+                      <p className="text-sm font-medium">PostgreSQL</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(systemHealth as any)?.database?.message || 'Connected'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
-                <CheckCircle2 className="h-8 w-8 text-green-500" />
+
+                {/* AI Providers */}
                 <div>
-                  <p className="text-sm font-medium">Database</p>
-                  <p className="text-xs text-muted-foreground">Connected</p>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Cpu className="h-4 w-4 text-primary" />
+                    AI Providers
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {['openai', 'anthropic', 'gemini'].map((provider) => {
+                      const providerData = (systemHealth as any)?.aiProviders?.[provider];
+                      const isConfigured = providerData?.status === 'configured';
+                      return (
+                        <div 
+                          key={provider}
+                          className={`flex items-center gap-3 p-3 rounded-lg border ${
+                            isConfigured 
+                              ? 'bg-green-500/5 border-green-500/20' 
+                              : 'bg-amber-500/5 border-amber-500/20'
+                          }`}
+                          data-testid={`status-ai-${provider}`}
+                        >
+                          {isConfigured ? (
+                            <CheckCircle2 className="h-6 w-6 text-green-500" />
+                          ) : (
+                            <AlertCircle className="h-6 w-6 text-amber-500" />
+                          )}
+                          <div>
+                            <p className="text-sm font-medium capitalize">{provider}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {providerData?.model?.split('-').slice(0, 2).join('-') || 'N/A'}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
-                <CheckCircle2 className="h-8 w-8 text-green-500" />
+
+                {/* Market Data APIs */}
                 <div>
-                  <p className="text-sm font-medium">Market Data</p>
-                  <p className="text-xs text-muted-foreground">Live</p>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-primary" />
+                    Market Data Sources
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
+                      <CheckCircle2 className="h-6 w-6 text-green-500" />
+                      <div>
+                        <p className="text-sm font-medium">Yahoo Finance</p>
+                        <p className="text-xs text-muted-foreground">Operational</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
+                      <CheckCircle2 className="h-6 w-6 text-green-500" />
+                      <div>
+                        <p className="text-sm font-medium">CoinGecko</p>
+                        <p className="text-xs text-muted-foreground">Operational</p>
+                      </div>
+                    </div>
+                    <div 
+                      className={`flex items-center gap-3 p-3 rounded-lg border ${
+                        (systemHealth as any)?.marketData?.alphaVantage?.status === 'configured'
+                          ? 'bg-green-500/5 border-green-500/20'
+                          : 'bg-amber-500/5 border-amber-500/20'
+                      }`}
+                    >
+                      {(systemHealth as any)?.marketData?.alphaVantage?.status === 'configured' ? (
+                        <CheckCircle2 className="h-6 w-6 text-green-500" />
+                      ) : (
+                        <AlertCircle className="h-6 w-6 text-amber-500" />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium">Alpha Vantage</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(systemHealth as any)?.marketData?.alphaVantage?.status || 'Unknown'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </CardContent>
+              </CardContent>
+            </TabsContent>
+
+            {/* AI Testing Tab */}
+            <TabsContent value="ai-test">
+              <CardContent className="space-y-6">
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-primary" />
+                    Test AI Providers
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Send a test prompt to verify AI models are responding correctly.
+                  </p>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Test Prompt</label>
+                      <Textarea
+                        value={testPrompt}
+                        onChange={(e) => setTestPrompt(e.target.value)}
+                        placeholder="Enter test prompt..."
+                        className="min-h-24"
+                        data-testid="input-test-prompt"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <Button
+                        onClick={() => testAIMutation.mutate('openai')}
+                        disabled={testAIMutation.isPending}
+                        className="glass-card"
+                        data-testid="button-test-openai"
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Test OpenAI
+                      </Button>
+                      <Button
+                        onClick={() => testAIMutation.mutate('anthropic')}
+                        disabled={testAIMutation.isPending}
+                        className="glass-card"
+                        data-testid="button-test-anthropic"
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Test Anthropic
+                      </Button>
+                      <Button
+                        onClick={() => testAIMutation.mutate('gemini')}
+                        disabled={testAIMutation.isPending}
+                        className="glass-card"
+                        data-testid="button-test-gemini"
+                      >
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Test Gemini
+                      </Button>
+                    </div>
+
+                    {testAIMutation.data && (
+                      <div className={`p-4 rounded-lg border ${
+                        testAIMutation.data.success 
+                          ? 'bg-green-500/10 border-green-500/20' 
+                          : 'bg-red-500/10 border-red-500/20'
+                      }`}
+                        data-testid="test-result-panel"
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          {testAIMutation.data.success ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          ) : (
+                            <AlertCircle className="h-5 w-5 text-red-500" />
+                          )}
+                          <span className="font-medium capitalize">
+                            {testAIMutation.data.provider} Test {testAIMutation.data.success ? 'Successful' : 'Failed'}
+                          </span>
+                        </div>
+                        {testAIMutation.data.error && (
+                          <p className="text-sm text-muted-foreground">{testAIMutation.data.error}</p>
+                        )}
+                        {testAIMutation.data.success && (
+                          <div className="space-y-1">
+                            <p className="text-sm text-green-600 font-medium">
+                              ✓ Generated {testAIMutation.data.ideaCount || 0} trade idea(s)
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Provider is responding correctly
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </TabsContent>
+
+            {/* Activity Log Tab */}
+            <TabsContent value="activity">
+              <CardContent>
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-primary" />
+                    Recent Platform Activity
+                  </h3>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {(activities as any[])?.map((activity: any) => (
+                      <div 
+                        key={activity.id}
+                        className="flex items-start gap-3 p-3 rounded-lg border border-border/50 hover-elevate"
+                      >
+                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
+                          activity.type === 'trade_idea' 
+                            ? 'bg-green-500/10' 
+                            : 'bg-blue-500/10'
+                        }`}>
+                          {activity.type === 'trade_idea' ? (
+                            <TrendingUp className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <Users className="h-4 w-4 text-blue-500" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{activity.description}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(activity.timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    )) || (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>No recent activity</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </TabsContent>
+          </Tabs>
         </Card>
       </div>
     </div>

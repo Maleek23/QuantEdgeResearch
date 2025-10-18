@@ -368,3 +368,86 @@ Keep it concise and actionable.`;
     return "Market analysis currently unavailable";
   }
 }
+
+// Test a specific AI provider (admin tool)
+export async function testAIProvider(provider: string, prompt: string): Promise<AITradeIdea[]> {
+  const systemPrompt = `You are a quantitative trading analyst. Generate 1-2 high-quality trade ideas based on the user's request.
+
+For each trade idea, provide:
+- symbol: Stock ticker or crypto symbol
+- assetType: "stock", "option", or "crypto"
+- direction: "long" or "short"
+- entryPrice: Suggested entry price
+- targetPrice: Price target
+- stopLoss: Stop loss price
+- catalyst: Why this trade
+- analysis: Brief reasoning
+- sessionContext: Current market conditions
+- expiryDate: (only for options, format: "YYYY-MM-DD")
+
+Return valid JSON object with structure: {"ideas": [array of trade ideas]}`;
+
+  if (provider === 'openai') {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    const response = await getOpenAI().chat.completions.create({
+      model: "gpt-5",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" },
+      max_completion_tokens: 1024,
+    });
+
+    const content = response.choices[0].message.content || '{"ideas":[]}';
+    const parsed = JSON.parse(content);
+    return parsed.ideas || [];
+
+  } else if (provider === 'anthropic') {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      throw new Error('Anthropic API key not configured');
+    }
+
+    const response = await getAnthropic().messages.create({
+      model: DEFAULT_ANTHROPIC_MODEL,
+      max_tokens: 1024,
+      messages: [
+        {
+          role: "user",
+          content: `${systemPrompt}\n\n${prompt}`
+        }
+      ],
+    });
+
+    const content = response.content[0].type === 'text' 
+      ? response.content[0].text 
+      : '{"ideas":[]}';
+    
+    const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+    const parsed = JSON.parse(jsonStr);
+    return parsed.ideas || [];
+
+  } else if (provider === 'gemini') {
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error('Gemini API key not configured');
+    }
+
+    const response = await getGemini().models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: `${systemPrompt}\n\n${prompt}\n\nPlease respond with valid JSON only.`,
+    });
+
+    const content = response.text || '{"ideas":[]}';
+    const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+    const parsed = JSON.parse(jsonStr);
+    return parsed.ideas || [];
+
+  } else {
+    throw new Error(`Invalid provider: ${provider}`);
+  }
+}

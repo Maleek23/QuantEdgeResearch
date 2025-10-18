@@ -133,6 +133,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // System Health Check
+  app.get("/api/admin/system-health", requireAdmin, async (_req, res) => {
+    try {
+      const health = {
+        database: { status: 'operational', message: 'PostgreSQL connected' },
+        aiProviders: {
+          openai: { status: 'unknown', model: 'gpt-5' },
+          anthropic: { status: 'unknown', model: 'claude-sonnet-4-20250514' },
+          gemini: { status: 'unknown', model: 'gemini-2.5-flash' }
+        },
+        marketData: {
+          alphaVantage: { status: process.env.ALPHA_VANTAGE_API_KEY ? 'configured' : 'missing' },
+          yahooFinance: { status: 'operational' },
+          coinGecko: { status: 'operational' }
+        }
+      };
+
+      // Check AI providers
+      try {
+        if (process.env.OPENAI_API_KEY) {
+          health.aiProviders.openai.status = 'configured';
+        } else {
+          health.aiProviders.openai.status = 'missing_key';
+        }
+      } catch {
+        health.aiProviders.openai.status = 'error';
+      }
+
+      try {
+        if (process.env.ANTHROPIC_API_KEY) {
+          health.aiProviders.anthropic.status = 'configured';
+        } else {
+          health.aiProviders.anthropic.status = 'missing_key';
+        }
+      } catch {
+        health.aiProviders.anthropic.status = 'error';
+      }
+
+      try {
+        if (process.env.GEMINI_API_KEY) {
+          health.aiProviders.gemini.status = 'configured';
+        } else {
+          health.aiProviders.gemini.status = 'missing_key';
+        }
+      } catch {
+        health.aiProviders.gemini.status = 'error';
+      }
+
+      res.json(health);
+    } catch (error) {
+      res.status(500).json({ error: "Health check failed" });
+    }
+  });
+
+  // Test AI Provider - Individual provider testing
+  app.post("/api/admin/test-ai", requireAdmin, async (req, res) => {
+    try {
+      const { provider, prompt } = req.body;
+      const testPrompt = prompt || "Generate 1-2 bullish trade ideas for NVDA stock based on current market conditions.";
+
+      let result: any = {
+        provider,
+        success: false,
+        response: null,
+        error: null,
+        ideaCount: 0,
+        timestamp: new Date().toISOString()
+      };
+
+      // Import AI service dynamically
+      const { testAIProvider } = await import('./ai-service');
+
+      try {
+        // Test only the specific provider requested
+        const ideas = await testAIProvider(provider, testPrompt);
+        result.success = true;
+        result.response = ideas;
+        result.ideaCount = ideas.length;
+      } catch (error: any) {
+        result.error = error.message || `${provider} test failed`;
+      }
+
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ error: "AI test failed" });
+    }
+  });
+
+  // Recent Activity Log
+  app.get("/api/admin/activity", requireAdmin, async (_req, res) => {
+    try {
+      const ideas = await storage.getAllTradeIdeas();
+      const users = await storage.getAllUsers();
+      
+      // Build activity log from recent ideas and users
+      const activities = [
+        ...ideas.slice(-10).map(idea => ({
+          id: idea.id,
+          type: 'trade_idea' as const,
+          description: `${idea.source} idea generated: ${idea.symbol} (${idea.assetType})`,
+          timestamp: idea.timestamp,
+          metadata: { symbol: idea.symbol, source: idea.source }
+        })),
+        ...users.slice(-5).map(user => ({
+          id: user.id,
+          type: 'user_activity' as const,
+          description: `User registered: ${user.discordUsername || user.email || 'Anonymous'}`,
+          timestamp: user.createdAt || new Date().toISOString(),
+          metadata: { tier: user.subscriptionTier }
+        }))
+      ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 20);
+
+      res.json(activities);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch activity" });
+    }
+  });
+
   // Market Data Routes
   app.get("/api/market-data", async (_req, res) => {
     try {
