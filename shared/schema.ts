@@ -1,7 +1,49 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, real, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, real, integer, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// Session storage table for Replit Auth
+// Reference: blueprint:javascript_log_in_with_replit
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// Subscription Tier Type
+export type SubscriptionTier = 'free' | 'premium' | 'pro' | 'admin';
+
+// User storage table for Replit Auth + subscriptions
+// Reference: blueprint:javascript_log_in_with_replit + blueprint:javascript_stripe
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  
+  // Subscription fields (Stripe integration)
+  subscriptionTier: text("subscription_tier").$type<SubscriptionTier>().notNull().default('free'),
+  stripeCustomerId: varchar("stripe_customer_id"),
+  stripeSubscriptionId: varchar("stripe_subscription_id"),
+  subscriptionStatus: varchar("subscription_status"), // 'active', 'canceled', 'past_due', etc.
+  subscriptionEndsAt: timestamp("subscription_ends_at"),
+  
+  // Discord integration
+  discordUserId: varchar("discord_user_id"),
+  discordUsername: varchar("discord_username"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type UpsertUser = typeof users.$inferInsert;
+export type User = typeof users.$inferSelect;
 
 // Market Session Type
 export type MarketSession = 'pre-market' | 'rth' | 'after-hours' | 'closed';
@@ -18,6 +60,7 @@ export type ResolutionReason = 'auto_target_hit' | 'auto_stop_hit' | 'auto_expir
 // Trade Idea
 export const tradeIdeas = pgTable("trade_ideas", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"), // nullable for backward compatibility, will be required for new ideas
   symbol: text("symbol").notNull(),
   assetType: text("asset_type").notNull().$type<AssetType>(),
   direction: text("direction").notNull(), // 'long' | 'short'
@@ -30,6 +73,8 @@ export const tradeIdeas = pgTable("trade_ideas", {
   liquidityWarning: boolean("liquidity_warning").default(false),
   sessionContext: text("session_context").notNull(),
   timestamp: text("timestamp").notNull(),
+  isPublic: boolean("is_public").default(false), // For public performance ledger
+  visibility: text("visibility").notNull().default('private'), // 'private' | 'public' | 'subscribers_only'
   
   // Time Windows for Day Trading
   entryValidUntil: text("entry_valid_until"), // When entry window closes (e.g., +2 hours)
@@ -178,6 +223,7 @@ export type OptionsData = typeof optionsData.$inferSelect;
 // Watchlist
 export const watchlist = pgTable("watchlist", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id"), // nullable for backward compatibility
   symbol: text("symbol").notNull(),
   assetType: text("asset_type").notNull().$type<AssetType>(),
   targetPrice: real("target_price"),
@@ -208,6 +254,7 @@ export type Catalyst = typeof catalysts.$inferSelect;
 // User Preferences
 export const userPreferences = pgTable("user_preferences", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(), // One preferences record per user
   accountSize: real("account_size").notNull().default(10000),
   maxRiskPerTrade: real("max_risk_per_trade").notNull().default(1), // percentage
   defaultCapitalPerIdea: real("default_capital_per_idea").notNull().default(1000),

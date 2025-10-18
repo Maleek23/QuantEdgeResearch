@@ -14,6 +14,8 @@ import type {
   UserPreferences,
   InsertUserPreferences,
   OutcomeStatus,
+  User,
+  UpsertUser,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, desc, sql as drizzleSql } from "drizzle-orm";
@@ -24,6 +26,7 @@ import {
   watchlist as watchlistTable,
   optionsData as optionsDataTable,
   userPreferences as userPreferencesTable,
+  users,
 } from "@shared/schema";
 
 export interface ChatMessage {
@@ -72,6 +75,12 @@ export interface PerformanceStats {
 }
 
 export interface IStorage {
+  // User operations (Required for Replit Auth)
+  // Reference: blueprint:javascript_log_in_with_replit
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  updateUserSubscription(userId: string, subscriptionData: { stripeCustomerId?: string; stripeSubscriptionId?: string; subscriptionTier?: string; subscriptionStatus?: string; subscriptionEndsAt?: Date | null }): Promise<User | undefined>;
+  
   // Market Data
   getAllMarketData(): Promise<MarketData[]>;
   getMarketDataBySymbol(symbol: string): Promise<MarketData | undefined>;
@@ -901,6 +910,40 @@ export class DatabaseStorage implements IStorage {
 
   constructor() {
     this.chatHistory = new Map();
+  }
+
+  // User Operations (Required for Replit Auth)
+  // Reference: blueprint:javascript_log_in_with_replit
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  async updateUserSubscription(userId: string, subscriptionData: { stripeCustomerId?: string; stripeSubscriptionId?: string; subscriptionTier?: string; subscriptionStatus?: string; subscriptionEndsAt?: Date | null }): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({
+        ...subscriptionData,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated || undefined;
   }
 
   // Market Data Methods
