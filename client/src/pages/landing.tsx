@@ -392,26 +392,25 @@ export default function Landing() {
       </section>
 
       {/* CTA Section - Premium Spotlight */}
-      <section className="container mx-auto px-6 py-24">
+      <section className="container mx-auto px-6 py-12 md:py-16">
         <div className="gradient-border-card">
           <Card className="border-0 bg-transparent aurora-bg vignette">
-            <CardContent className="p-16 text-center relative z-10">
-              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
+            <CardContent className="p-12 text-center relative z-10">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-display">
                 Ready to Start Trading <span className="text-gradient-premium">Smarter?</span>
               </h2>
-              <p className="text-lg text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed">
+              <p className="text-base text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed">
                 Access dual-engine trade idea generation, real-time market analysis, and professional risk management tools. 
                 Educational research platform for active traders.
               </p>
               <Button 
-                size="lg" 
                 onClick={() => setLocation('/dashboard')}
                 data-testid="button-cta-launch-dashboard"
-                className="btn-magnetic px-10 py-7 text-lg neon-accent"
+                className="btn-magnetic neon-accent"
               >
-                <Sparkles className="h-5 w-5 mr-2" />
+                <Sparkles className="h-4 w-4 mr-2" />
                 Launch Dashboard
-                <ArrowRight className="h-5 w-5 ml-2" />
+                <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
               <p className="text-xs text-muted-foreground mt-6 opacity-70">
                 ⚠️ For educational and research purposes only. Not financial advice.
