@@ -401,8 +401,187 @@ export default function LearnMore() {
         </div>
       </section>
 
-      {/* Security Features */}
+      {/* Data Source Reliability */}
       <section className="container mx-auto px-6 py-24">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
+              Data Source Reliability
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Real-time market data from industry-leading APIs with detailed update frequencies and reliability metrics.
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <div className="gradient-border-card">
+              <Card className="border-0 bg-transparent">
+                <CardHeader>
+                  <CardTitle className="text-2xl text-display">Stock Market Data</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    <div className="glass-card rounded-xl p-6">
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                          <Database className="h-6 w-6 text-blue-500" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-bold text-lg mb-1">Yahoo Finance API (Primary)</h4>
+                          <p className="text-sm text-muted-foreground">Industry-standard financial data provider</p>
+                        </div>
+                      </div>
+                      <div className="grid md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <div className="text-muted-foreground mb-1">Update Frequency</div>
+                          <div className="font-semibold">Real-time (15-30 sec delay)</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground mb-1">Rate Limit</div>
+                          <div className="font-semibold">Unlimited requests</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground mb-1">Coverage</div>
+                          <div className="font-semibold">All US stocks & ETFs</div>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="text-xs text-muted-foreground"><strong className="text-foreground">Use Cases:</strong> Current prices, market-wide discovery (top gainers/losers/most active), historical OHLCV data, volume analysis</div>
+                      </div>
+                    </div>
+
+                    <div className="glass-card rounded-xl p-6">
+                      <div className="flex items-start gap-4 mb-4">
+                        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center flex-shrink-0">
+                          <Database className="h-6 w-6 text-purple-500" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-bold text-lg mb-1">Alpha Vantage (Fallback)</h4>
+                          <p className="text-sm text-muted-foreground">Professional-grade market data</p>
+                        </div>
+                      </div>
+                      <div className="grid md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <div className="text-muted-foreground mb-1">Update Frequency</div>
+                          <div className="font-semibold">Real-time to 1-min delay</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground mb-1">Rate Limit</div>
+                          <div className="font-semibold">500 requests/day</div>
+                        </div>
+                        <div>
+                          <div className="text-muted-foreground mb-1">Coverage</div>
+                          <div className="font-semibold">Global stocks</div>
+                        </div>
+                      </div>
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="text-xs text-muted-foreground"><strong className="text-foreground">Use Cases:</strong> Historical price verification, intraday data cross-validation, technical indicator calculations</div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="gradient-border-card">
+              <Card className="border-0 bg-transparent">
+                <CardHeader>
+                  <CardTitle className="text-2xl text-display">Cryptocurrency Data</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="glass-card rounded-xl p-6">
+                    <div className="flex items-start gap-4 mb-4">
+                      <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center flex-shrink-0">
+                        <Database className="h-6 w-6 text-amber-500" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-lg mb-1">CoinGecko Pro API</h4>
+                        <p className="text-sm text-muted-foreground">Leading cryptocurrency market data aggregator</p>
+                      </div>
+                    </div>
+                    <div className="grid md:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <div className="text-muted-foreground mb-1">Update Frequency</div>
+                        <div className="font-semibold">Real-time (5-15 sec)</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground mb-1">Rate Limit</div>
+                        <div className="font-semibold">500 calls/min</div>
+                      </div>
+                      <div>
+                        <div className="text-muted-foreground mb-1">Coverage</div>
+                        <div className="font-semibold">10,000+ cryptocurrencies</div>
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="text-xs text-muted-foreground"><strong className="text-foreground">Use Cases:</strong> Live crypto prices, market cap rankings, 24h volume, trending tokens, historical price data</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="gradient-border-card">
+              <Card className="border-0 bg-transparent aurora-bg">
+                <CardContent className="p-8">
+                  <h3 className="text-xl font-bold mb-4 text-display">Data Quality & Validation</h3>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <div className="font-semibold mb-1">Cross-Source Validation</div>
+                          <p className="text-sm text-muted-foreground">Critical prices verified against multiple sources when available</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <div className="font-semibold mb-1">Automatic Failover</div>
+                          <p className="text-sm text-muted-foreground">Switches to backup data source if primary fails</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <div className="font-semibold mb-1">Staleness Detection</div>
+                          <p className="text-sm text-muted-foreground">Alerts when data is &gt;5 minutes old during market hours</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <div className="font-semibold mb-1">Cache Management</div>
+                          <p className="text-sm text-muted-foreground">30-60 second cache to optimize API usage without sacrificing freshness</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <div className="font-semibold mb-1">Error Logging</div>
+                          <p className="text-sm text-muted-foreground">All API errors tracked for reliability monitoring</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <div className="font-semibold mb-1">Data Verification Badge</div>
+                          <p className="text-sm text-muted-foreground">Glowing badge on UI indicates real-time verified data</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Security Features */}
+      <section className="border-t container mx-auto px-6 py-24">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
