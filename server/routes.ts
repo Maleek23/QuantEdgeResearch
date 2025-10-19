@@ -1525,6 +1525,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Data Integrity Verification
+  app.get("/api/admin/verify-data-integrity", requireAdmin, async (_req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const stats = await storage.getPerformanceStats();
+      
+      // Check 1: Count consistency
+      const totalCount = allIdeas.length;
+      const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open');
+      const closedCount = closedIdeas.length;
+      const statsClosedCount = stats.bySource.reduce((sum, s) => sum + s.totalIdeas, 0);
+      
+      const countMatch = closedCount === statsClosedCount;
+      
+      // Check 2: Win rate consistency
+      const rawWins = closedIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
+      const rawWinRate = closedIdeas.length > 0 ? (rawWins / closedIdeas.length) * 100 : 0;
+      const perfWinRate = stats.overallWinRate;
+      const winRateMatch = Math.abs(rawWinRate - perfWinRate) < 0.1; // Within 0.1%
+      
+      // Check 3: Missing outcome data
+      const missingData = closedIdeas.filter(i => 
+        i.percentGain === null || 
+        i.exitPrice === null || 
+        i.exitDate === null ||
+        i.actualHoldingTimeMinutes === null
+      );
+      
+      // Check 4: Invalid timestamps
+      const invalidTimestamps = closedIdeas.filter(i => {
+        if (!i.exitDate || !i.timestamp) return false;
+        return new Date(i.exitDate) < new Date(i.timestamp);
+      });
+      
+      // Check 5: Data source verification
+      const undefinedSources = allIdeas.filter(i => !i.dataSourceUsed);
+      
+      // Overall status
+      const warnings: string[] = [];
+      const errors: string[] = [];
+      
+      if (!countMatch) {
+        errors.push(`Count mismatch: Found ${closedCount} closed ideas but performance stats show ${statsClosedCount}`);
+      }
+      
+      if (!winRateMatch) {
+        warnings.push(`Win rate discrepancy: Raw calculation ${rawWinRate.toFixed(2)}% vs Performance stats ${perfWinRate.toFixed(2)}%`);
+      }
+      
+      if (missingData.length > 0) {
+        warnings.push(`${missingData.length} closed trades missing outcome data (percentGain, exitPrice, etc.)`);
+      }
+      
+      if (invalidTimestamps.length > 0) {
+        errors.push(`${invalidTimestamps.length} trades have exit dates before entry dates`);
+      }
+      
+      if (undefinedSources.length > 0) {
+        warnings.push(`${undefinedSources.length} trades missing data source attribution`);
+      }
+      
+      const status = errors.length > 0 ? 'error' : warnings.length > 0 ? 'warning' : 'ok';
+      
+      res.json({
+        status,
+        timestamp: new Date().toISOString(),
+        summary: {
+          totalTrades: totalCount,
+          closedTrades: closedCount,
+          openTrades: totalCount - closedCount,
+          overallWinRate: perfWinRate.toFixed(2) + '%',
+        },
+        checks: {
+          totalTradeCount: { 
+            match: true, 
+            expected: totalCount, 
+            actual: totalCount 
+          },
+          closedTradeCount: { 
+            match: countMatch, 
+            expected: statsClosedCount, 
+            actual: closedCount 
+          },
+          winRateConsistency: { 
+            match: winRateMatch, 
+            perfWinRate: perfWinRate.toFixed(2), 
+            rawWinRate: rawWinRate.toFixed(2),
+            difference: Math.abs(rawWinRate - perfWinRate).toFixed(2)
+          },
+          missingOutcomeData: { 
+            count: missingData.length, 
+            ids: missingData.slice(0, 5).map(i => i.id) // Only first 5
+          },
+          invalidTimestamps: {
+            count: invalidTimestamps.length,
+            ids: invalidTimestamps.slice(0, 5).map(i => i.id)
+          },
+          missingDataSource: {
+            count: undefinedSources.length,
+            ids: undefinedSources.slice(0, 5).map(i => i.id)
+          }
+        },
+        warnings,
+        errors
+      });
+    } catch (error: any) {
+      console.error("Data integrity verification error:", error);
+      res.status(500).json({ error: error?.message || "Failed to verify data integrity" });
+    }
+  });
+
   // Admin: Clear test data (ONLY deletes OPEN trades with no outcomes - preserves all closed trades)
   app.post("/api/admin/clear-test-data", requireAdmin, async (_req, res) => {
     try {
