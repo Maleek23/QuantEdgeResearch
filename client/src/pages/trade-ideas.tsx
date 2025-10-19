@@ -32,6 +32,7 @@ export default function TradeIdeasPage() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [weekendAssetFilter, setWeekendAssetFilter] = useState<"all" | "stock" | "option" | "crypto">("all");
   const { toast } = useToast();
 
   const { data: tradeIdeas = [], isLoading: ideasLoading } = useQuery<TradeIdea[]>({
@@ -207,88 +208,50 @@ export default function TradeIdeasPage() {
         <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </div>
 
-      {/* Weekend Preview Section - Only shows on Saturday/Sunday */}
+      {/* Weekend Notice Banner - Smart helper instead of duplicate feed */}
       {isWeekend() && (
         <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5" data-testid="weekend-preview-section">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
                 <CalendarClock className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg">Week Ahead Preview</CardTitle>
-                <Badge variant="outline" className="badge-shimmer bg-primary/10" data-testid="badge-weekend-preview">
-                  Weekend Analysis
-                </Badge>
+                <div>
+                  <p className="text-sm font-semibold">Markets open {format(getNextTradingWeekStart(), 'EEEE, MMM d')} at 9:30 AM CT</p>
+                  <p className="text-xs text-muted-foreground">
+                    {tradeIdeas.filter(i => i.outcomeStatus === 'open').length > 0 
+                      ? `${tradeIdeas.filter(i => i.outcomeStatus === 'open').length} ideas ready for next week`
+                      : "Generate crypto ideas (24/7 trading) for immediate opportunities"}
+                  </p>
+                </div>
               </div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Markets open {format(getNextTradingWeekStart(), 'EEEE, MMM d')} at 9:30 AM CT. 
-              Plan your week with these research-grade opportunities.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Show top graded ideas for next week */}
-            {tradeIdeas.filter(i => i.outcomeStatus === 'open').length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <Sparkles className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-sm text-muted-foreground">Generate trade ideas to preview opportunities for the upcoming week</p>
-                <div className="flex items-center gap-2 mt-4">
+              <div className="flex items-center gap-2">
+                <Select value={weekendAssetFilter} onValueChange={(value: any) => {
+                  setWeekendAssetFilter(value);
+                  setActiveAssetType(value);
+                }}>
+                  <SelectTrigger className="w-[160px] h-9" data-testid="select-weekend-asset-filter">
+                    <SelectValue placeholder="Filter by asset" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Assets</SelectItem>
+                    <SelectItem value="stock">Stock Shares</SelectItem>
+                    <SelectItem value="option">Stock Options</SelectItem>
+                    <SelectItem value="crypto">Crypto (24/7)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {tradeIdeas.filter(i => i.outcomeStatus === 'open').length === 0 && (
                   <Button 
                     onClick={() => generateQuantIdeas.mutate()}
                     disabled={generateQuantIdeas.isPending}
                     size="sm"
-                    data-testid="button-weekend-generate-quant"
+                    data-testid="button-weekend-generate"
                   >
                     <BarChart3 className="h-4 w-4 mr-2" />
-                    {generateQuantIdeas.isPending ? "Generating..." : "Generate Quant Ideas"}
+                    {generateQuantIdeas.isPending ? "Generating..." : "Generate Ideas"}
                   </Button>
-                  <Button 
-                    onClick={() => generateAIIdeas.mutate()}
-                    disabled={generateAIIdeas.isPending}
-                    size="sm"
-                    variant="outline"
-                    data-testid="button-weekend-generate-ai"
-                  >
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    {generateAIIdeas.isPending ? "Generating..." : "Generate AI Ideas"}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Top Ideas for Next Week</p>
-                  <Badge variant="secondary" data-testid="badge-weekend-count">
-                    {tradeIdeas.filter(i => i.outcomeStatus === 'open' && (i.probabilityBand?.startsWith('A') || false)).length} A-grade
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {tradeIdeas
-                    .filter(i => i.outcomeStatus === 'open')
-                    .sort((a, b) => {
-                      // Sort by grade (A > B > C)
-                      const gradeOrder = { 'A+': 0, 'A': 1, 'B+': 2, 'B': 3, 'C+': 4, 'C': 5, 'D': 6 };
-                      const aGrade = a.probabilityBand || 'D';
-                      const bGrade = b.probabilityBand || 'D';
-                      return (gradeOrder[aGrade as keyof typeof gradeOrder] || 99) - (gradeOrder[bGrade as keyof typeof gradeOrder] || 99);
-                    })
-                    .slice(0, 6) // Show top 6 ideas
-                    .map(idea => (
-                      <TradeIdeaBlock
-                        key={idea.id}
-                        idea={idea}
-                        currentPrice={priceMap[idea.symbol]}
-                        isExpanded={expandedIdeaId === idea.id}
-                        onToggleExpand={handleToggleExpand}
-                      />
-                    ))}
-                </div>
-                {tradeIdeas.filter(i => i.outcomeStatus === 'open').length > 6 && (
-                  <p className="text-xs text-center text-muted-foreground pt-2">
-                    Scroll down to view all {tradeIdeas.filter(i => i.outcomeStatus === 'open').length} active ideas
-                  </p>
                 )}
-              </>
-            )}
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
