@@ -59,7 +59,9 @@ export default function SettingsPage() {
   });
 
   const handleSave = () => {
-    saveMutation.mutate(formData);
+    // Exclude read-only fields managed by the server
+    const { id, userId, updatedAt, ...updateData } = formData;
+    saveMutation.mutate(updateData);
   };
 
   const updateField = (field: keyof UserPreferences, value: any) => {
