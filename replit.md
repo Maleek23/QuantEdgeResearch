@@ -75,6 +75,7 @@ Located at `/admin`, password-protected using the `ADMIN_PASSWORD` environment v
 -   **CoinGecko API:** Crypto (real-time prices, historical data, market cap rankings, market-wide discovery).
 -   **Yahoo Finance:** Stocks (real-time quotes, market-wide stock discovery via screener API, historical data - unlimited requests).
 -   **Alpha Vantage API:** Fallback for Stocks (historical data).
+-   **Tradier API:** Options data (CURRENTLY DISABLED - API key 401 Unauthorized). Options generation is set to 0% until a valid Tradier API key is provided. Without real options chains, delta targeting, and live contract pricing, the platform was generating placeholder/estimated data which is unacceptable for a professional trading platform. Only stock shares and crypto are generated (both use real data).
 -   **Dynamic Market-Wide Stock Discovery:** Utilizes Yahoo Finance screener endpoints to find high-volume movers and breakout candidates across the entire stock market.
 
 ### AI Providers
