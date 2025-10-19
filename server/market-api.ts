@@ -1,6 +1,7 @@
 import type { AssetType } from "@shared/schema";
 import { getTradierQuote, getTradierHistory } from './tradier-api';
 import { logger } from './logger';
+import { logAPIError, logAPISuccess } from './monitoring-service';
 
 export interface ExternalMarketData {
   symbol: string;
@@ -42,6 +43,7 @@ const CRYPTO_SYMBOL_MAP: Record<string, string> = {
 };
 
 export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketData | null> {
+  const startTime = Date.now();
   try {
     const coinId = CRYPTO_SYMBOL_MAP[symbol.toUpperCase()];
     if (!coinId) {
@@ -53,11 +55,14 @@ export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketDa
     );
 
     if (!response.ok) {
+      logAPIError('CoinGecko', `/coins/${coinId}`, new Error(`HTTP ${response.status}`));
       return null;
     }
 
     const data = await response.json();
     const marketData = data.market_data;
+
+    logAPISuccess('CoinGecko', `/coins/${coinId}`, Date.now() - startTime);
 
     return {
       symbol: symbol.toUpperCase(),
@@ -71,6 +76,7 @@ export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketDa
     };
   } catch (error) {
     logger.error(`Error fetching crypto price for ${symbol}`, { error: error instanceof Error ? error.message : String(error) });
+    logAPIError('CoinGecko', `/coins/${symbol}`, error);
     return null;
   }
 }
@@ -78,12 +84,14 @@ export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketDa
 export async function fetchYahooFinancePrice(
   symbol: string
 ): Promise<ExternalMarketData | null> {
+  const startTime = Date.now();
   try {
     const response = await fetch(
       `${YAHOO_FINANCE_API}/${symbol}?interval=1d&range=1d`
     );
 
     if (!response.ok) {
+      logAPIError('Yahoo Finance', `/chart/${symbol}`, new Error(`HTTP ${response.status}`));
       return null;
     }
 
@@ -91,6 +99,7 @@ export async function fetchYahooFinancePrice(
     const result = data?.chart?.result?.[0];
     
     if (!result || !result.meta) {
+      logAPIError('Yahoo Finance', `/chart/${symbol}`, new Error('No data returned'));
       return null;
     }
 
@@ -101,6 +110,8 @@ export async function fetchYahooFinancePrice(
     const changePercent = previousClose 
       ? ((regularMarketPrice - previousClose) / previousClose) * 100 
       : 0;
+
+    logAPISuccess('Yahoo Finance', `/chart/${symbol}`, Date.now() - startTime);
 
     return {
       symbol: symbol.toUpperCase(),
@@ -114,6 +125,7 @@ export async function fetchYahooFinancePrice(
     };
   } catch (error) {
     logger.error(`Error fetching Yahoo Finance price for ${symbol}:`, error);
+    logAPIError('Yahoo Finance', `/chart/${symbol}`, error);
     return null;
   }
 }

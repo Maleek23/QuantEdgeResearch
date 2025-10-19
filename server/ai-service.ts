@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI } from "@google/genai";
 import type { TradeIdea, InsertTradeIdea } from "@shared/schema";
 import { logger } from './logger';
+import { logAPIError, logAPISuccess } from './monitoring-service';
 
 // The newest Anthropic model is "claude-sonnet-4-20250514"
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
