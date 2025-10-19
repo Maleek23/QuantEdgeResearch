@@ -380,36 +380,46 @@ export async function discoverHiddenCryptoGems(limit: number = 10): Promise<Hidd
       allCoins.slice(0, 20).map((coin: any) => coin.id)
     );
 
-    const hiddenGems: HiddenCryptoGem[] = allCoins
-      .map((coin: any, marketCapRank: number) => {
-        const marketCap = coin.market_cap || 0;
-        const volume24h = coin.total_volume || 0;
-        const priceChange = Math.abs(coin.price_change_percentage_24h || 0);
-        
-        const volumeToMarketCapRatio = marketCap > 0 ? volume24h / marketCap : 0;
-        const highTurnover = volumeToMarketCapRatio > 0.10;
-        const priceGap = priceChange >= 3.0;
-        
-        let anomalyScore = 0;
-        if (priceGap) anomalyScore += 40;
-        if (highTurnover) anomalyScore += 30;
-        if (marketCapRank > 50 && marketCapRank <= 150) anomalyScore += 20;
-        if (marketCapRank > 150) anomalyScore += 10;
+    // Map all coins and deduplicate by symbol (keep highest market cap for duplicate symbols)
+    const gemsBySymbol = new Map<string, any>();
+    
+    allCoins.forEach((coin: any, marketCapRank: number) => {
+      const marketCap = coin.market_cap || 0;
+      const volume24h = coin.total_volume || 0;
+      const priceChange = Math.abs(coin.price_change_percentage_24h || 0);
+      
+      const volumeToMarketCapRatio = marketCap > 0 ? volume24h / marketCap : 0;
+      const highTurnover = volumeToMarketCapRatio > 0.10;
+      const priceGap = priceChange >= 3.0;
+      
+      let anomalyScore = 0;
+      if (priceGap) anomalyScore += 40;
+      if (highTurnover) anomalyScore += 30;
+      if (marketCapRank > 50 && marketCapRank <= 150) anomalyScore += 20;
+      if (marketCapRank > 150) anomalyScore += 10;
 
-        return {
-          symbol: coin.symbol.toUpperCase(),
-          name: coin.name,
-          currentPrice: coin.current_price,
-          marketCap: marketCap,
-          volume24h: volume24h,
-          priceChange24h: coin.price_change_percentage_24h || 0,
-          volumeSpike: highTurnover,
-          priceGap,
-          anomalyScore,
-          coinId: coin.id,
-          marketCapRank: marketCapRank + 1,
-        };
-      })
+      const gem = {
+        symbol: coin.symbol.toUpperCase(),
+        name: coin.name,
+        currentPrice: coin.current_price,
+        marketCap: marketCap,
+        volume24h: volume24h,
+        priceChange24h: coin.price_change_percentage_24h || 0,
+        volumeSpike: highTurnover,
+        priceGap,
+        anomalyScore,
+        coinId: coin.id,
+        marketCapRank: marketCapRank + 1,
+      };
+      
+      // Deduplicate by symbol - keep highest market cap
+      const existing = gemsBySymbol.get(gem.symbol);
+      if (!existing || gem.marketCap > existing.marketCap) {
+        gemsBySymbol.set(gem.symbol, gem);
+      }
+    });
+    
+    const hiddenGems: HiddenCryptoGem[] = Array.from(gemsBySymbol.values())
       .filter((gem: any) => 
         !top20ByMarketCap.has(gem.coinId) &&
         gem.marketCap >= 50_000_000 &&
