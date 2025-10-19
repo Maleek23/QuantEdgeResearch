@@ -10,6 +10,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
 
 const researchItems = [
@@ -124,6 +125,16 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter className="border-t border-sidebar-border/50">
+        <div className="px-4 py-3 group-data-[collapsible=icon]:hidden">
+          <div className="flex items-center justify-center opacity-30 hover:opacity-50 transition-opacity">
+            <span className="text-[10px] font-mono tracking-[0.2em] text-muted-foreground/50">
+              UN/TITLD
+            </span>
+          </div>
+        </div>
+      </SidebarFooter>
     </Sidebar>
   );
 }

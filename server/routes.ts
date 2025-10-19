@@ -631,9 +631,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validationResults = PerformanceValidator.validateBatch(openIdeas, priceMap);
       const now = new Date().toISOString();
       
+      // Build detailed results for frontend display
+      const detailedResults: any[] = [];
+      
       // Update ideas that need changes
       const updated: any[] = [];
       for (const [ideaId, result] of Array.from(validationResults.entries())) {
+        const idea = openIdeas.find(i => i.id === ideaId);
+        if (!idea) continue;
+        
+        const currentPrice = priceMap.get(idea.symbol) || idea.entryPrice;
         const updatedIdea = await storage.updateTradeIdeaPerformance(ideaId, {
           outcomeStatus: result.outcomeStatus,
           exitPrice: result.exitPrice,
@@ -647,6 +654,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (updatedIdea) {
           updated.push(updatedIdea);
         }
+        
+        // Add to detailed results
+        detailedResults.push({
+          id: idea.id,
+          symbol: idea.symbol,
+          assetType: idea.assetType,
+          direction: idea.direction,
+          entryPrice: idea.entryPrice,
+          currentPrice,
+          targetPrice: idea.targetPrice,
+          stopLoss: idea.stopLoss,
+          wasUpdated: true,
+          newStatus: result.outcomeStatus,
+          reasoning: result.resolutionReason || 'Price hit target or stop loss',
+          percentToTarget: idea.direction === 'long' 
+            ? ((idea.targetPrice - currentPrice) / currentPrice) * 100
+            : ((currentPrice - idea.targetPrice) / currentPrice) * 100,
+          percentToStop: idea.direction === 'long'
+            ? ((currentPrice - idea.stopLoss) / currentPrice) * 100
+            : ((idea.stopLoss - currentPrice) / currentPrice) * 100,
+          timestamp: now,
+        });
       }
 
       // Stamp validatedAt on ALL open ideas that were checked, even if no state change
@@ -656,6 +685,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.updateTradeIdeaPerformance(idea.id, {
             validatedAt: now,
           });
+          
+          const currentPrice = priceMap.get(idea.symbol) || idea.entryPrice;
+          
+          // Calculate distance percentages
+          const percentToTarget = idea.direction === 'long' 
+            ? ((idea.targetPrice - currentPrice) / currentPrice) * 100
+            : ((currentPrice - idea.targetPrice) / currentPrice) * 100;
+          const percentToStop = idea.direction === 'long'
+            ? ((currentPrice - idea.stopLoss) / currentPrice) * 100
+            : ((idea.stopLoss - currentPrice) / currentPrice) * 100;
+          
+          // Generate reasoning for why it stayed open
+          let reasoning = '';
+          if (idea.direction === 'long') {
+            if (currentPrice < idea.targetPrice && currentPrice > idea.stopLoss) {
+              reasoning = `Price $${currentPrice.toFixed(2)} between entry $${idea.entryPrice.toFixed(2)} and target $${idea.targetPrice.toFixed(2)}. Still active - needs ${Math.abs(percentToTarget).toFixed(1)}% move to hit target.`;
+            }
+          } else {
+            if (currentPrice > idea.targetPrice && currentPrice < idea.stopLoss) {
+              reasoning = `Price $${currentPrice.toFixed(2)} between entry $${idea.entryPrice.toFixed(2)} and target $${idea.targetPrice.toFixed(2)}. Still active - needs ${Math.abs(percentToTarget).toFixed(1)}% move to hit target.`;
+            }
+          }
+          
+          detailedResults.push({
+            id: idea.id,
+            symbol: idea.symbol,
+            assetType: idea.assetType,
+            direction: idea.direction,
+            entryPrice: idea.entryPrice,
+            currentPrice,
+            targetPrice: idea.targetPrice,
+            stopLoss: idea.stopLoss,
+            wasUpdated: false,
+            reasoning: reasoning || 'Position still within range - no action taken',
+            percentToTarget,
+            percentToStop,
+            timestamp: now,
+          });
         }
       }
 
@@ -664,7 +731,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         validated: openIdeas.length,
         updated: updated.length,
         timestamp: new Date().toISOString(),
-        results: updated,
+        results: detailedResults,
       });
     } catch (error) {
       console.error("Validation error:", error);

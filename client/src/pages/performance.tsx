@@ -21,6 +21,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { ValidationResultsDialog } from "@/components/validation-results-dialog";
 
 interface PerformanceStats {
   overall: {
@@ -88,6 +95,9 @@ export default function PerformancePage() {
   const [dateRange, setDateRange] = useState<string>('all'); // '7d', '30d', '3m', '1y', 'all'
   const [periodView, setPeriodView] = useState<string>('daily'); // 'daily', 'weekly', 'monthly', 'yearly'
   const [isValidating, setIsValidating] = useState(false);
+  const [validationResults, setValidationResults] = useState<any[]>([]);
+  const [showValidationDialog, setShowValidationDialog] = useState(false);
+  const [validationSummary, setValidationSummary] = useState({ validated: 0, updated: 0 });
   const { toast } = useToast();
 
   const { data: stats, isLoading } = useQuery<PerformanceStats>({
@@ -199,12 +209,15 @@ export default function PerformancePage() {
       });
       const result = await response.json();
       
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/ml/win-rate-trend'] });
+      // Store results and show dialog
+      setValidationResults(result.results || []);
+      setValidationSummary({
+        validated: result.validated,
+        updated: result.updated,
+      });
+      setShowValidationDialog(true);
       
-      // Show success toast with results
+      // Show immediate toast feedback
       if (result.updated > 0) {
         toast({
           title: "Validation Complete",
@@ -216,6 +229,11 @@ export default function PerformancePage() {
           description: `Checked ${result.validated} open ideas - all still active`,
         });
       }
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/ml/win-rate-trend'] });
     } catch (error) {
       console.error('Validation error:', error);
       toast({
@@ -1156,212 +1174,232 @@ export default function PerformancePage() {
         </div>
       )}
 
-      {/* By Source */}
-      <Card className="shadow-lg" data-testid="card-performance-by-source">
-        <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
-          <CardTitle className="text-xl font-bold flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Activity className="w-5 h-5 text-primary" />
+      {/* Detailed Performance Breakdowns - Collapsible */}
+      <Accordion type="multiple" className="space-y-4" defaultValue={["breakdowns"]}>
+        <AccordionItem value="breakdowns" className="border rounded-lg shadow-lg">
+          <AccordionTrigger className="px-6 py-4 hover:no-underline glass-card rounded-t-lg">
+            <div className="flex items-center gap-3 text-xl font-bold">
+              <Activity className="w-6 h-6 text-primary" />
+              <span>Detailed Performance Breakdowns</span>
+              <Badge variant="outline" className="ml-2">Source • Asset • Signals</Badge>
             </div>
-            Performance by Source
-          </CardTitle>
-          <CardDescription>
-            Compare AI vs Quant vs Manual trade ideas
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="space-y-6">
-            {stats.bySource.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No closed ideas yet. Performance data will appear here once ideas are resolved.
-              </p>
-            ) : (
-              stats.bySource.map((source) => (
-                <div key={source.source} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={
-                        source.source === 'ai' ? 'default' : 
-                        source.source === 'quant' ? 'secondary' : 
-                        'outline'
-                      } data-testid={`badge-source-${source.source}`}>
-                        {source.source.toUpperCase()}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {source.totalIdeas} ideas
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className={`text-sm font-mono ${
-                        source.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
-                      }`}>
-                        {source.avgPercentGain >= 0 ? '+' : ''}
-                        {source.avgPercentGain.toFixed(2)}%
-                      </div>
-                      <div className={`text-xl font-bold font-mono ${
-                        source.winRate >= 50 ? 'text-green-500' : 'text-red-500'
-                      }`} data-testid={`text-winrate-${source.source}`}>
-                        {source.winRate.toFixed(1)}%
-                      </div>
-                    </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-6 pt-2 space-y-6">
+            {/* By Source */}
+            <Card className="shadow-lg" data-testid="card-performance-by-source">
+              <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Activity className="w-5 h-5 text-primary" />
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{source.wonIdeas} wins</span>
-                    <span>•</span>
-                    <span>{source.lostIdeas} losses</span>
-                  </div>
-                  {/* Win Rate Progress Bar */}
-                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full transition-all ${
-                        source.winRate >= 60 ? 'bg-green-500' :
-                        source.winRate >= 50 ? 'bg-amber-500' :
-                        'bg-red-500'
-                      }`}
-                      style={{ width: `${Math.min(source.winRate, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* By Asset Type */}
-      <Card className="shadow-lg" data-testid="card-performance-by-asset">
-        <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
-          <CardTitle className="text-xl font-bold flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Target className="w-5 h-5 text-primary" />
-            </div>
-            Performance by Asset Type
-          </CardTitle>
-          <CardDescription>
-            Compare stocks vs options vs crypto
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="space-y-6">
-            {stats.byAssetType.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No closed ideas yet. Performance data will appear here once ideas are resolved.
-              </p>
-            ) : (
-              stats.byAssetType.map((asset) => (
-                <div key={asset.assetType} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" data-testid={`badge-asset-${asset.assetType}`}>
-                        {asset.assetType.toUpperCase()}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {asset.totalIdeas} ideas
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className={`text-sm font-mono ${
-                        asset.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
-                      }`}>
-                        {asset.avgPercentGain >= 0 ? '+' : ''}
-                        {asset.avgPercentGain.toFixed(2)}%
-                      </div>
-                      <div className={`text-xl font-bold font-mono ${
-                        asset.winRate >= 50 ? 'text-green-500' : 'text-red-500'
-                      }`} data-testid={`text-winrate-${asset.assetType}`}>
-                        {asset.winRate.toFixed(1)}%
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{asset.wonIdeas} wins</span>
-                    <span>•</span>
-                    <span>{asset.lostIdeas} losses</span>
-                  </div>
-                  {/* Win Rate Progress Bar */}
-                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full transition-all ${
-                        asset.winRate >= 60 ? 'bg-green-500' :
-                        asset.winRate >= 50 ? 'bg-amber-500' :
-                        'bg-red-500'
-                      }`}
-                      style={{ width: `${Math.min(asset.winRate, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* By Signal Type */}
-      {stats.bySignalType.length > 0 && (
-        <Card className="shadow-lg" data-testid="card-performance-by-signal">
-          <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
-            <CardTitle className="text-xl font-bold flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <TrendingUp className="w-5 h-5 text-primary" />
-              </div>
-              Performance by Signal Type
-            </CardTitle>
-            <CardDescription>
-              Which technical signals perform best (top 10)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="space-y-6">
-              {stats.bySignalType
-                .sort((a, b) => b.winRate - a.winRate)
-                .slice(0, 10)
-                .map((signal) => (
-                  <div key={signal.signal} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium capitalize">
-                          {signal.signal.replace(/_/g, ' ')}
-                        </span>
-                        <Badge variant="outline" className="text-xs">
-                          {signal.totalIdeas}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className={`text-sm font-mono ${
-                          signal.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
-                        }`}>
-                          {signal.avgPercentGain >= 0 ? '+' : ''}
-                          {signal.avgPercentGain.toFixed(2)}%
+                  Performance by Source
+                </CardTitle>
+                <CardDescription>
+                  Compare AI vs Quant vs Manual trade ideas
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="space-y-6">
+                  {stats.bySource.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No closed ideas yet. Performance data will appear here once ideas are resolved.
+                    </p>
+                  ) : (
+                    stats.bySource.map((source) => (
+                      <div key={source.source} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={
+                              source.source === 'ai' ? 'default' : 
+                              source.source === 'quant' ? 'secondary' : 
+                              'outline'
+                            } data-testid={`badge-source-${source.source}`}>
+                              {source.source.toUpperCase()}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              {source.totalIdeas} ideas
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className={`text-sm font-mono ${
+                              source.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
+                            }`}>
+                              {source.avgPercentGain >= 0 ? '+' : ''}
+                              {source.avgPercentGain.toFixed(2)}%
+                            </div>
+                            <div className={`text-xl font-bold font-mono ${
+                              source.winRate >= 50 ? 'text-green-500' : 'text-red-500'
+                            }`} data-testid={`text-winrate-${source.source}`}>
+                              {source.winRate.toFixed(1)}%
+                            </div>
+                          </div>
                         </div>
-                        <div className={`text-xl font-bold font-mono ${
-                          signal.winRate >= 50 ? 'text-green-500' : 'text-red-500'
-                        }`}>
-                          {signal.winRate.toFixed(1)}%
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{source.wonIdeas} wins</span>
+                          <span>•</span>
+                          <span>{source.lostIdeas} losses</span>
+                        </div>
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full transition-all ${
+                              source.winRate >= 60 ? 'bg-green-500' :
+                              source.winRate >= 50 ? 'bg-amber-500' :
+                              'bg-red-500'
+                            }`}
+                            style={{ width: `${Math.min(source.winRate, 100)}%` }}
+                          />
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{signal.wonIdeas} wins</span>
-                      <span>•</span>
-                      <span>{signal.lostIdeas} losses</span>
-                    </div>
-                    {/* Win Rate Progress Bar */}
-                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full transition-all ${
-                          signal.winRate >= 60 ? 'bg-green-500' :
-                          signal.winRate >= 50 ? 'bg-amber-500' :
-                          'bg-red-500'
-                        }`}
-                        style={{ width: `${Math.min(signal.winRate, 100)}%` }}
-                      />
-                    </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* By Asset Type */}
+            <Card className="shadow-lg" data-testid="card-performance-by-asset">
+              <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Target className="w-5 h-5 text-primary" />
                   </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                  Performance by Asset Type
+                </CardTitle>
+                <CardDescription>
+                  Compare stocks vs options vs crypto
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="space-y-6">
+                  {stats.byAssetType.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No closed ideas yet. Performance data will appear here once ideas are resolved.
+                    </p>
+                  ) : (
+                    stats.byAssetType.map((asset) => (
+                      <div key={asset.assetType} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" data-testid={`badge-asset-${asset.assetType}`}>
+                              {asset.assetType.toUpperCase()}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              {asset.totalIdeas} ideas
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className={`text-sm font-mono ${
+                              asset.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
+                            }`}>
+                              {asset.avgPercentGain >= 0 ? '+' : ''}
+                              {asset.avgPercentGain.toFixed(2)}%
+                            </div>
+                            <div className={`text-xl font-bold font-mono ${
+                              asset.winRate >= 50 ? 'text-green-500' : 'text-red-500'
+                            }`} data-testid={`text-winrate-${asset.assetType}`}>
+                              {asset.winRate.toFixed(1)}%
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{asset.wonIdeas} wins</span>
+                          <span>•</span>
+                          <span>{asset.lostIdeas} losses</span>
+                        </div>
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full transition-all ${
+                              asset.winRate >= 60 ? 'bg-green-500' :
+                              asset.winRate >= 50 ? 'bg-amber-500' :
+                              'bg-red-500'
+                            }`}
+                            style={{ width: `${Math.min(asset.winRate, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* By Signal Type */}
+            {stats.bySignalType.length > 0 && (
+              <Card className="shadow-lg" data-testid="card-performance-by-signal">
+                <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
+                  <CardTitle className="text-xl font-bold flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <TrendingUp className="w-5 h-5 text-primary" />
+                    </div>
+                    Performance by Signal Type
+                  </CardTitle>
+                  <CardDescription>
+                    Which technical signals perform best (top 10)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="space-y-6">
+                    {stats.bySignalType
+                      .sort((a, b) => b.winRate - a.winRate)
+                      .slice(0, 10)
+                      .map((signal) => (
+                        <div key={signal.signal} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium capitalize">
+                                {signal.signal.replace(/_/g, ' ')}
+                              </span>
+                              <Badge variant="outline" className="text-xs">
+                                {signal.totalIdeas}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className={`text-sm font-mono ${
+                                signal.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
+                              }`}>
+                                {signal.avgPercentGain >= 0 ? '+' : ''}
+                                {signal.avgPercentGain.toFixed(2)}%
+                              </div>
+                              <div className={`text-xl font-bold font-mono ${
+                                signal.winRate >= 50 ? 'text-green-500' : 'text-red-500'
+                              }`}>
+                                {signal.winRate.toFixed(1)}%
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{signal.wonIdeas} wins</span>
+                            <span>•</span>
+                            <span>{signal.lostIdeas} losses</span>
+                          </div>
+                          <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className={`h-full transition-all ${
+                                signal.winRate >= 60 ? 'bg-green-500' :
+                                signal.winRate >= 50 ? 'bg-amber-500' :
+                                'bg-red-500'
+                              }`}
+                              style={{ width: `${Math.min(signal.winRate, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+
+      {/* Validation Results Dialog */}
+      <ValidationResultsDialog
+        open={showValidationDialog}
+        onOpenChange={setShowValidationDialog}
+        results={validationResults}
+        totalValidated={validationSummary.validated}
+        totalUpdated={validationSummary.updated}
+      />
     </div>
   );
 }
