@@ -237,6 +237,24 @@ export async function calculateTimingWindows(
     exitWindowMinutes = Math.round(exitWindowMinutes * 1.3);
   }
 
+  // CRITICAL: Stock markets are CLOSED on weekends (Sat/Sun)
+  // For stocks: Exit windows MUST NOT extend into weekends
+  // Max exit: Friday 4:00 PM ET OR same-day market close (whichever comes first)
+  if (assetType === 'stock') {
+    const now = new Date();
+    const nowDay = now.getDay(); // 0=Sunday, 6=Saturday
+    
+    // Stocks don't trade on weekends - cap exit to same trading day
+    if (nowDay >= 1 && nowDay <= 5) {
+      // Weekday: cap exit at 4:00 PM ET same day (end of trading session)
+      // Stock ideas are intraday only - no overnight holds
+      exitWindowMinutes = Math.min(exitWindowMinutes, 390); // Max ~6.5 hours (typical trading day)
+    } else {
+      // Weekend: This shouldn't happen (stock generation blocked), but cap conservatively
+      exitWindowMinutes = 60; // 1 hour minimum
+    }
+  }
+
   // Clamp values to reasonable ranges
   entryWindowMinutes = Math.max(30, Math.min(480, entryWindowMinutes)); // 30min - 8hr
   exitWindowMinutes = Math.max(60, Math.min(1440, exitWindowMinutes)); // 1hr - 24hr
