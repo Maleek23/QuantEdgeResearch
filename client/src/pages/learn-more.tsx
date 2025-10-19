@@ -111,8 +111,144 @@ export default function LearnMore() {
         <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </section>
 
-      {/* Dual-Engine Architecture */}
+      {/* Why Trust QuantEdge */}
       <section className="container mx-auto px-6 py-24">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
+              Why Trust <span className="text-gradient-premium">QuantEdge?</span>
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Transparency, real data, and open methodology set us apart from typical trading signal services.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="gradient-border-card card-tilt">
+              <Card className="border-0 bg-transparent h-full">
+                <CardHeader>
+                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center mb-4 spotlight">
+                    <Activity className="h-8 w-8 text-green-500" />
+                  </div>
+                  <CardTitle className="text-2xl text-display">Live Performance Tracking</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground leading-relaxed mb-4">
+                    Every trade idea is automatically tracked with real-time outcome validation. We show both wins AND losses - no cherry-picking.
+                  </p>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span>Public performance ledger visible to all users</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span>Automatic outcome validation (hit target/stop/expired)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span>Win rate, profit factor, and drawdown metrics</span>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="gradient-border-card card-tilt">
+              <Card className="border-0 bg-transparent h-full">
+                <CardHeader>
+                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center mb-4 spotlight">
+                    <Database className="h-8 w-8 text-blue-500" />
+                  </div>
+                  <CardTitle className="text-2xl text-display">Real Market Data</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground leading-relaxed mb-4">
+                    All prices and market data come from reputable financial APIs - not simulated or manipulated data.
+                  </p>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <span>Yahoo Finance API (unlimited stock data)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <span>CoinGecko Pro API (crypto market rankings)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <span>Alpha Vantage (historical price verification)</span>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="gradient-border-card card-tilt">
+              <Card className="border-0 bg-transparent h-full">
+                <CardHeader>
+                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center mb-4 spotlight">
+                    <Shield className="h-8 w-8 text-purple-500" />
+                  </div>
+                  <CardTitle className="text-2xl text-display">Open Methodology</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground leading-relaxed mb-4">
+                    Full transparency on how signals are calculated, weighted, and scored. No black box algorithms.
+                  </p>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                      <span>7-signal quantitative breakdown documented</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                      <span>ML learning weights visible on Signal Intelligence page</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                      <span>Confidence scoring formula explained</span>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="gradient-border-card card-tilt">
+              <Card className="border-0 bg-transparent h-full">
+                <CardHeader>
+                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center mb-4 spotlight">
+                    <Users className="h-8 w-8 text-amber-500" />
+                  </div>
+                  <CardTitle className="text-2xl text-display">Community Verification</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground leading-relaxed mb-4">
+                    Active Discord community tracks signals in real-time, shares feedback, and validates results.
+                  </p>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <span>Real traders discussing live signals daily</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <span>Performance feedback loop improves ML accuracy</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <span>Educational focus - learn, don't just follow</span>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Dual-Engine Architecture */}
+      <section className="border-t container mx-auto px-6 py-24">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
@@ -294,8 +430,322 @@ export default function LearnMore() {
         </div>
       </section>
 
-      {/* How Trade Ideas Are Generated */}
+      {/* Quantitative Signals Deep Dive */}
+      <section className="border-t container mx-auto px-6 py-24">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
+              7-Signal Quantitative Breakdown
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Detailed technical specifications for each signal our quantitative engine analyzes.
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            <div className="gradient-border-card">
+              <Card className="border-0 bg-transparent">
+                <CardContent className="p-8">
+                  <div className="grid md:grid-cols-2 gap-8">
+                    <div>
+                      <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-green-500" />
+                        RSI (Relative Strength Index)
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Identifies overbought/oversold conditions on 14-period RSI
+                      </p>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li><strong className="text-foreground">Long Signal:</strong> RSI &lt; 35 (oversold bounce potential)</li>
+                        <li><strong className="text-foreground">Short Signal:</strong> RSI &gt; 65 (overbought pullback potential)</li>
+                        <li><strong className="text-foreground">Timeframes:</strong> 1H, 4H, 1D for confluence</li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-blue-500" />
+                        MACD Crossover
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Detects momentum shifts via MACD line crossing signal line
+                      </p>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li><strong className="text-foreground">Long Signal:</strong> MACD crosses above signal line (bullish momentum)</li>
+                        <li><strong className="text-foreground">Short Signal:</strong> MACD crosses below signal line (bearish momentum)</li>
+                        <li><strong className="text-foreground">Settings:</strong> 12/26/9 EMA configuration</li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-purple-500" />
+                        Price Momentum
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Measures rate of price change over recent periods
+                      </p>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li><strong className="text-foreground">Calculation:</strong> (Current - 10 periods ago) / 10 periods ago</li>
+                        <li><strong className="text-foreground">Threshold:</strong> ±5% momentum for signal activation</li>
+                        <li><strong className="text-foreground">Use Case:</strong> Confirms trend strength and continuation</li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-amber-500" />
+                        Volume Spike Analysis
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Detects unusual trading activity indicating institutional interest
+                      </p>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li><strong className="text-foreground">Threshold:</strong> Volume &gt; 1.5x 20-day average</li>
+                        <li><strong className="text-foreground">Confirmation:</strong> Requires price movement in same direction</li>
+                        <li><strong className="text-foreground">Importance:</strong> High volume = stronger signal conviction</li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-red-500" />
+                        Volatility Analysis
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Measures price stability using ATR (Average True Range)
+                      </p>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li><strong className="text-foreground">ATR Period:</strong> 14-period rolling calculation</li>
+                        <li><strong className="text-foreground">High Volatility:</strong> ATR &gt; 1.2x average (wider stops needed)</li>
+                        <li><strong className="text-foreground">Position Sizing:</strong> Adjust size based on volatility</li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-cyan-500" />
+                        Support & Resistance
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Identifies key price levels using pivot points and historical data
+                      </p>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li><strong className="text-foreground">Long Signal:</strong> Price bounces off support with volume</li>
+                        <li><strong className="text-foreground">Short Signal:</strong> Price rejects resistance with volume</li>
+                        <li><strong className="text-foreground">Breakout Mode:</strong> Triggers when price breaks key levels</li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                        <div className="h-3 w-3 rounded-full bg-pink-500" />
+                        Multi-Timeframe Confluence
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Validates signals across 1H, 4H, and daily timeframes
+                      </p>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li><strong className="text-foreground">Minimum Requirement:</strong> 3+ signals aligned across timeframes</li>
+                        <li><strong className="text-foreground">Confidence Boost:</strong> +15 points per aligned timeframe</li>
+                        <li><strong className="text-foreground">Filters:</strong> Eliminates low-probability noise trades</li>
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="gradient-border-card">
+              <Card className="border-0 bg-transparent aurora-bg">
+                <CardContent className="p-8">
+                  <h3 className="text-2xl font-bold mb-4 text-display">Signal Weighting & Confidence Scoring</h3>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <p className="text-muted-foreground mb-4">
+                        Each signal contributes to a base confidence score (0-100). The ML adaptive learning system then adjusts these weights based on historical performance.
+                      </p>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        <li className="flex items-start gap-2">
+                          <ChevronRight className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <span><strong className="text-foreground">Base Score:</strong> Sum of activated signals × base weight</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <ChevronRight className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <span><strong className="text-foreground">ML Adjustment:</strong> ±20% based on learned signal effectiveness</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <ChevronRight className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                          <span><strong className="text-foreground">Min Signals:</strong> Requires 3+ signals to generate idea</span>
+                        </li>
+                      </ul>
+                    </div>
+                    <div className="glass-intense rounded-xl p-6">
+                      <h4 className="font-bold mb-3">Grade Thresholds</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span className="text-muted-foreground">A+ Grade:</span> <span className="font-mono">95-100</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">A Grade:</span> <span className="font-mono">90-94</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">B+ Grade:</span> <span className="font-mono">85-89</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">B Grade:</span> <span className="font-mono">80-84</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">C+ Grade:</span> <span className="font-mono">75-79</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">C Grade:</span> <span className="font-mono">70-74</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">D Grade:</span> <span className="font-mono">&lt;70</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ML Adaptive Learning Deep Dive */}
       <section className="border-t aurora-bg py-24">
+        <div className="container mx-auto px-6">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl md:text-5xl font-bold mb-6 text-display">
+                Machine Learning Adaptive System
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                How our ML engine learns from historical performance to improve signal accuracy over time.
+              </p>
+            </div>
+
+            <div className="space-y-8">
+              <div className="gradient-border-card">
+                <Card className="border-0 bg-transparent">
+                  <CardHeader>
+                    <CardTitle className="text-2xl text-display">Pattern Recognition Algorithm</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 text-muted-foreground">
+                    <p>
+                      The ML system analyzes every closed trade idea (minimum 10 required for statistical significance) and identifies which signals were most predictive of successful outcomes.
+                    </p>
+                    <div className="grid md:grid-cols-3 gap-6 mt-6">
+                      <div className="glass-card rounded-xl p-6">
+                        <div className="text-3xl font-bold text-gradient mb-2">Step 1</div>
+                        <h4 className="font-bold mb-2">Data Collection</h4>
+                        <p className="text-sm">Gathers all closed trades with outcomes (hit_target, hit_stop, expired) and their signal compositions</p>
+                      </div>
+                      <div className="glass-card rounded-xl p-6">
+                        <div className="text-3xl font-bold text-gradient mb-2">Step 2</div>
+                        <h4 className="font-bold mb-2">Win Rate Calculation</h4>
+                        <p className="text-sm">Calculates win rate for each signal type: RSI wins / RSI total = RSI effectiveness %</p>
+                      </div>
+                      <div className="glass-card rounded-xl p-6">
+                        <div className="text-3xl font-bold text-gradient mb-2">Step 3</div>
+                        <h4 className="font-bold mb-2">Weight Adjustment</h4>
+                        <p className="text-sm">Boosts weights for high-performing signals, reduces weights for underperforming ones</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="gradient-border-card">
+                <Card className="border-0 bg-transparent">
+                  <CardHeader>
+                    <CardTitle className="text-2xl text-display">Adaptive Confidence Scoring Formula</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="glass-intense rounded-xl p-8 font-mono text-sm">
+                      <div className="mb-4 text-foreground">
+                        <strong>Base Confidence Score:</strong>
+                      </div>
+                      <div className="ml-4 mb-6 text-muted-foreground">
+                        baseScore = Σ(signal_weight × signal_strength) for all active signals
+                      </div>
+
+                      <div className="mb-4 text-foreground">
+                        <strong>ML-Adjusted Confidence:</strong>
+                      </div>
+                      <div className="ml-4 mb-6 text-muted-foreground">
+                        adjustedScore = baseScore × (1 + ml_adjustment_factor)
+                        <br />
+                        where ml_adjustment_factor = (signal_win_rate - 50%) / 2.5
+                      </div>
+
+                      <div className="mb-4 text-foreground">
+                        <strong>Example Calculation:</strong>
+                      </div>
+                      <div className="ml-4 text-muted-foreground">
+                        RSI signal (70% historical win rate): +8% confidence boost
+                        <br />
+                        MACD signal (45% historical win rate): -2% confidence penalty
+                        <br />
+                        Volume signal (60% win rate): +4% confidence boost
+                      </div>
+                    </div>
+                    <div className="mt-6 p-6 glass-card rounded-xl">
+                      <p className="text-sm text-muted-foreground">
+                        <strong className="text-foreground">Minimum Data Requirement:</strong> The ML system requires at least 10 closed trades before applying learned weights. Until then, it uses baseline equal weights for all signals.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="gradient-border-card">
+                <Card className="border-0 bg-transparent aurora-bg">
+                  <CardHeader>
+                    <CardTitle className="text-2xl text-display">Continuous Improvement Loop</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <p className="text-muted-foreground">
+                        Every time a trade idea closes (target hit, stop hit, or expiration), the ML system re-analyzes all historical data and updates signal weights. This creates a continuous feedback loop that improves accuracy over time.
+                      </p>
+                      <div className="grid md:grid-cols-2 gap-4 mt-6">
+                        <div className="flex items-start gap-3">
+                          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold mb-1">Real-Time Learning</h4>
+                            <p className="text-sm text-muted-foreground">Weights update immediately after each trade closes</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                            <TrendingUp className="h-5 w-5 text-blue-500" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold mb-1">Market Adaptation</h4>
+                            <p className="text-sm text-muted-foreground">Adjusts to changing market conditions automatically</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center flex-shrink-0">
+                            <Database className="h-5 w-5 text-purple-500" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold mb-1">Historical Analysis</h4>
+                            <p className="text-sm text-muted-foreground">Learns from every past trade, not just recent ones</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center flex-shrink-0">
+                            <Activity className="h-5 w-5 text-amber-500" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold mb-1">Transparency</h4>
+                            <p className="text-sm text-muted-foreground">View learned weights on Signal Intelligence page</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How Trade Ideas Are Generated */}
+      <section className="border-t py-24">
         <div className="container mx-auto px-6">
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-16">
