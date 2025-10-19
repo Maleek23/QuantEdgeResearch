@@ -1,4 +1,5 @@
 import { RiskCalculator } from "@/components/risk-calculator";
+import { PortfolioRiskCard } from "@/components/portfolio-risk-card";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { AlertTriangle, DollarSign, TrendingUp, Shield } from "lucide-react";
 
@@ -15,6 +16,9 @@ export default function RiskCalculatorPage() {
           Calculate position sizing and risk/reward for your trades
         </p>
       </div>
+
+      {/* Portfolio Risk Overview */}
+      <PortfolioRiskCard />
 
       {/* Educational Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
