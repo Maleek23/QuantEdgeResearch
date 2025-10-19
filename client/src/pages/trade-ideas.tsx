@@ -158,7 +158,12 @@ export default function TradeIdeasPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
         <div className="relative flex items-center justify-between gap-4 pt-6">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-gradient-premium" data-testid="text-page-title">Trade Ideas</h1>
+            <div className="flex items-baseline gap-3">
+              <h1 className="text-3xl font-bold tracking-tight text-gradient-premium" data-testid="text-page-title">Trade Ideas</h1>
+              <span className="text-lg font-medium text-muted-foreground" data-testid="text-current-date">
+                {format(new Date(), 'EEEE, MMMM d, yyyy')}
+              </span>
+            </div>
             <p className="text-sm text-muted-foreground mt-1">
               Research-grade opportunities across stocks, options, and crypto
             </p>
