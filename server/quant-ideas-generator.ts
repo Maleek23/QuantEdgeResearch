@@ -706,8 +706,8 @@ export async function generateQuantIdeas(
   // Track asset type distribution to ensure balanced mix
   const assetTypeCount = { stock: 0, option: 0, crypto: 0 };
   const targetDistribution = {
-    stock: Math.round(count * 0.4),  // 40% stock shares (3 for count=8)
-    option: Math.round(count * 0.35), // 35% options (3 for count=8)
+    stock: Math.round(count * 0.5),  // 50% stock shares (4 for count=8)
+    option: 0, // ❌ DISABLED: No options until Tradier API is valid (prevents fake data)
     crypto: 0   // Will be calculated to fill remaining
   };
   // Ensure targets add up to count by allocating remainder to crypto
