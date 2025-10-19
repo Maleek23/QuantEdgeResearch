@@ -30,7 +30,8 @@ import {
   Clock,
   BarChart3,
   Zap,
-  ArrowRight
+  ArrowRight,
+  Settings
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -615,7 +616,7 @@ export default function AdminPanel() {
         <Card className="glass-card">
           <Tabs defaultValue="system" className="w-full">
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="system" data-testid="tab-system-health">
                   <Activity className="h-4 w-4 mr-2" />
                   System Health
@@ -635,6 +636,10 @@ export default function AdminPanel() {
                 <TabsTrigger value="activity" data-testid="tab-activity">
                   <Clock className="h-4 w-4 mr-2" />
                   Activity Log
+                </TabsTrigger>
+                <TabsTrigger value="settings" data-testid="tab-settings">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
                 </TabsTrigger>
               </TabsList>
             </CardHeader>
@@ -1071,6 +1076,103 @@ export default function AdminPanel() {
                     <p className="text-sm text-muted-foreground">{(dbHealth as any).message}</p>
                   </div>
                 )}
+              </CardContent>
+            </TabsContent>
+
+            {/* Settings Tab */}
+            <TabsContent value="settings">
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Settings className="h-4 w-4 text-primary" />
+                    System Configuration
+                  </h3>
+                  
+                  <div className="grid gap-6">
+                    {/* API Keys Status */}
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-muted-foreground">API Keys Status</h4>
+                      <div className="grid gap-2">
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                          <span className="text-sm">Alpha Vantage API</span>
+                          <Badge variant={apiMetrics?.alphaVantage?.configured ? "default" : "destructive"} data-testid="badge-alpha-vantage-status">
+                            {apiMetrics?.alphaVantage?.configured ? "Configured" : "Not Configured"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                          <span className="text-sm">Tradier API</span>
+                          <Badge variant={apiMetrics?.tradier?.configured ? "default" : "destructive"} data-testid="badge-tradier-status">
+                            {apiMetrics?.tradier?.configured ? "Configured" : "Not Configured"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                          <span className="text-sm">OpenAI API</span>
+                          <Badge variant={apiMetrics?.openai?.configured ? "default" : "destructive"} data-testid="badge-openai-status">
+                            {apiMetrics?.openai?.configured ? "Configured" : "Not Configured"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                          <span className="text-sm">Anthropic API</span>
+                          <Badge variant={apiMetrics?.anthropic?.configured ? "default" : "destructive"} data-testid="badge-anthropic-status">
+                            {apiMetrics?.anthropic?.configured ? "Configured" : "Not Configured"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                          <span className="text-sm">Google Gemini API</span>
+                          <Badge variant={apiMetrics?.gemini?.configured ? "default" : "destructive"} data-testid="badge-gemini-status">
+                            {apiMetrics?.gemini?.configured ? "Configured" : "Not Configured"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                          <span className="text-sm">Discord Webhook</span>
+                          <Badge variant={apiMetrics?.discord?.configured ? "default" : "destructive"} data-testid="badge-discord-status">
+                            {apiMetrics?.discord?.configured ? "Configured" : "Not Configured"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* System Preferences */}
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-muted-foreground">System Preferences</h4>
+                      <div className="p-4 rounded-lg border border-border/50 bg-muted/20">
+                        <p className="text-sm text-muted-foreground">
+                          System-wide settings and preferences are managed through environment variables and database configuration. 
+                          User-specific preferences can be configured through the Settings page.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Session Management */}
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-muted-foreground">Session Management</h4>
+                      <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                        <div>
+                          <span className="text-sm font-medium block">Admin Session</span>
+                          <span className="text-xs text-muted-foreground">Currently logged in</span>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => {
+                            setAuthStep("pin");
+                            setPinCode("");
+                            setPassword("");
+                            setAdminPassword("");
+                            toast({ 
+                              title: "Logged out", 
+                              description: "Admin session ended" 
+                            });
+                          }}
+                          data-testid="button-admin-logout"
+                        >
+                          <LockOpen className="h-4 w-4 mr-2" />
+                          Logout
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </TabsContent>
           </Tabs>
