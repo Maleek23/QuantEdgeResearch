@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,14 +22,14 @@ export default function SettingsPage() {
   });
 
   // Local state for form
-  const [formData, setFormData] = useState<Partial<UserPreferences>>(preferences || {});
+  const [formData, setFormData] = useState<Partial<UserPreferences>>({});
 
   // Update form data when preferences load
-  useState(() => {
+  useEffect(() => {
     if (preferences) {
       setFormData(preferences);
     }
-  });
+  }, [preferences]);
 
   // Save preferences mutation
   const saveMutation = useMutation({

@@ -900,12 +900,26 @@ export class MemStorage implements IStorage {
       const id = randomUUID();
       this.userPreferences = {
         id,
+        userId: "default_user",
         accountSize: 10000,
         maxRiskPerTrade: 1,
         defaultCapitalPerIdea: 1000,
         defaultOptionsBudget: 250,
         preferredAssets: ["stock", "option", "crypto"],
         holdingHorizon: "intraday",
+        theme: "dark",
+        timezone: "America/Chicago",
+        defaultViewMode: "card",
+        compactMode: false,
+        discordWebhookUrl: null,
+        enableTradeAlerts: true,
+        enablePriceAlerts: true,
+        enablePerformanceAlerts: false,
+        enableWeeklyReport: false,
+        defaultAssetFilter: "all",
+        defaultConfidenceFilter: "all",
+        autoRefreshEnabled: true,
+        updatedAt: new Date(),
         ...prefs,
       };
     } else {
@@ -1239,14 +1253,29 @@ export class DatabaseStorage implements IStorage {
     const existing = await this.getUserPreferences();
     
     if (!existing) {
+      // Create default values, then override with provided prefs (excluding undefined userId)
+      const { userId: _userId, ...prefsWithoutUserId } = prefs;
       const [created] = await db.insert(userPreferencesTable).values({
+        userId: "default_user", // Always set userId for new records
         accountSize: 10000,
         maxRiskPerTrade: 1,
         defaultCapitalPerIdea: 1000,
         defaultOptionsBudget: 250,
         preferredAssets: ["stock", "option", "crypto"],
         holdingHorizon: "intraday",
-        ...prefs,
+        theme: "dark",
+        timezone: "America/Chicago",
+        defaultViewMode: "card",
+        compactMode: false,
+        discordWebhookUrl: null,
+        enableTradeAlerts: true,
+        enablePriceAlerts: true,
+        enablePerformanceAlerts: false,
+        enableWeeklyReport: false,
+        defaultAssetFilter: "all",
+        defaultConfidenceFilter: "all",
+        autoRefreshEnabled: true,
+        ...prefsWithoutUserId, // Spread after defaults, but without userId
       }).returning();
       return created;
     } else {

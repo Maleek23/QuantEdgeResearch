@@ -917,8 +917,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validated = insertUserPreferencesSchema.partial().parse(req.body);
       const prefs = await storage.updateUserPreferences(validated);
       res.json(prefs);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid preferences data" });
+    } catch (error: any) {
+      console.error("Preferences validation error:", error);
+      res.status(400).json({ 
+        error: "Invalid preferences data",
+        details: error.message || error.toString()
+      });
     }
   });
 
@@ -927,8 +931,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validated = insertUserPreferencesSchema.partial().parse(req.body);
       const prefs = await storage.updateUserPreferences(validated);
       res.json(prefs);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid preferences data" });
+    } catch (error: any) {
+      console.error("Preferences validation error:", error);
+      res.status(400).json({ 
+        error: "Invalid preferences data",
+        details: error.message || error.toString()
+      });
     }
   });
 

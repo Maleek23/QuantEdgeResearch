@@ -203,7 +203,8 @@ export default function AdminPanel() {
 
   const handlePasswordSubmit = async () => {
     try {
-      const response = await apiRequest('POST', '/api/admin/login', { password }) as { success: boolean; expiresIn: string };
+      const res = await apiRequest('POST', '/api/admin/login', { password });
+      const response = await res.json() as { success: boolean; expiresIn: string };
       // JWT token is now stored in HTTP-only cookie automatically (not accessible via JS)
       // Keep password in state for backward compatibility with legacy endpoints
       setAdminPassword(password);
