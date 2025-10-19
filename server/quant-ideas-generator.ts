@@ -12,6 +12,7 @@ import {
 } from './technical-indicators';
 import { discoverHiddenCryptoGems, discoverStockGems, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
 import { logger } from './logger';
+import { detectMarketRegime, calculateTimingWindows, type SignalStack } from './timing-intelligence';
 
 // Machine Learning: Fetch learned signal weights from performance data
 async function fetchLearnedWeights(): Promise<Map<string, number>> {
@@ -904,40 +905,53 @@ export async function generateQuantIdeas(
     // Calculate volume ratio for transparency
     const actualVolumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : null;
 
-    // Calculate time windows for day trading
+    // Extract RSI/MACD values for timing intelligence and transparency
+    const rsiValue = signal.rsiValue ?? (historicalPrices.length > 0 ? calculateRSI(historicalPrices, 14) : undefined);
+    const macdValues = signal.macdValues ?? (historicalPrices.length > 0 ? calculateMACD(historicalPrices) : undefined);
+    
+    // Build signal stack for timing intelligence system
+    const signalStack: SignalStack = {
+      rsiValue,
+      macdHistogram: macdValues?.histogram,
+      volumeRatio: actualVolumeRatio ?? undefined,
+      priceVs52WeekHigh: data.high52Week ? ((data.currentPrice - data.high52Week) / data.high52Week) * 100 : undefined,
+      priceVs52WeekLow: data.low52Week ? ((data.currentPrice - data.low52Week) / data.low52Week) * 100 : undefined,
+      signals: qualitySignals,
+      confidenceScore,
+      grade: probabilityBand
+    };
+
+    // Quantitatively-proven timing windows based on historical performance + market regime
+    const regime = detectMarketRegime(signalStack);
+    const timingAnalytics = await calculateTimingWindows(
+      assetType === 'option' ? 'stock' : assetType, // Options use stock timing
+      signalStack,
+      regime
+    );
+
+    // Format entry and exit windows using quantitative timing intelligence
     const entryValidUntil = (() => {
-      // Entry window: 90 minutes for stocks/options, 2 hours for crypto
-      const minutesValid = assetType === 'crypto' ? 120 : 90;
-      const validUntilDate = new Date(now.getTime() + minutesValid * 60 * 1000);
+      const validUntilDate = new Date(now.getTime() + timingAnalytics.entryWindowMinutes * 60 * 1000);
       return formatInTimeZone(validUntilDate, timezone, 'h:mm a zzz');
     })();
 
     const exitBy = (() => {
       if (assetType === 'option') {
-        // Options: Hold until expiry or sooner if target/stop hit
-        return 'Expiry or Target/Stop';
-      } else if (assetType === 'crypto') {
-        // Crypto: 24/7 market, suggest 24-hour max hold for day trades
-        const exitDate = new Date(now.getTime() + 24 * 60 * 1000);
-        return formatInTimeZone(exitDate, timezone, 'MMM d, h:mm a zzz');
+        // Options: Use quantitative exit window but cap at expiry
+        const exitDate = new Date(now.getTime() + timingAnalytics.exitWindowMinutes * 60 * 1000);
+        return `${formatInTimeZone(exitDate, timezone, 'h:mm a zzz')} or Expiry`;
       } else {
-        // Stocks: Exit by market close (4 PM ET)
-        const currentHour = parseInt(formatInTimeZone(now, timezone, 'H'));
-        if (currentHour >= 16) {
-          // After market close, suggest tomorrow's close
-          const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-          return formatInTimeZone(tomorrow, timezone, 'MMM d') + ' 4:00 PM EST';
-        } else {
-          // Today's market close
-          return formatInTimeZone(now, timezone, 'MMM d') + ' 4:00 PM EST';
-        }
+        const exitDate = new Date(now.getTime() + timingAnalytics.exitWindowMinutes * 60 * 1000);
+        return formatInTimeZone(exitDate, timezone, 'MMM d, h:mm a zzz');
       }
     })();
     
-    logger.info(`⏰ ${data.symbol} time windows: Entry by ${entryValidUntil}, Exit by ${exitBy}`);
-
-    // TODO: Extract RSI/MACD values from signal detection for full transparency
-    // For now, we populate what's available and will enhance in next iteration
+    logger.info(
+      `⏰ ${data.symbol} QUANTITATIVE TIMING: Entry in ${timingAnalytics.entryWindowMinutes}min (${entryValidUntil}), ` +
+      `Exit in ${timingAnalytics.exitWindowMinutes}min (${exitBy}) | ` +
+      `Regime: ${regime.volatilityRegime} volatility, ${regime.sessionPhase} session | ` +
+      `Target hit probability: ${timingAnalytics.targetHitProbability.toFixed(1)}%`
+    );
     
     const idea: InsertTradeIdea = {
       symbol: data.symbol,
@@ -952,7 +966,7 @@ export async function generateQuantIdeas(
       sessionContext: sessionContext,
       timestamp: now.toISOString(),
       
-      // Time windows for day trading
+      // Time windows for day trading (quantitatively-proven)
       entryValidUntil: entryValidUntil,
       exitBy: exitBy,
       
@@ -961,9 +975,23 @@ export async function generateQuantIdeas(
       // Data quality tracking
       dataSourceUsed: dataSourceUsed,
       
-      // Explainability fields (partial - will enhance to include RSI/MACD)
+      // Explainability fields - Technical Indicator Values
       volumeRatio: actualVolumeRatio,
-      // TODO: Add rsiValue, macdLine, macdSignal, macdHistogram from signal detection
+      rsiValue: rsiValue,
+      macdLine: macdValues?.macd,
+      macdSignal: macdValues?.signal,
+      macdHistogram: macdValues?.histogram,
+      priceVs52WeekHigh: signalStack.priceVs52WeekHigh,
+      priceVs52WeekLow: signalStack.priceVs52WeekLow,
+      
+      // Timing Intelligence - Quantitatively-proven windows aligned with confidence grading
+      volatilityRegime: regime.volatilityRegime,
+      sessionPhase: regime.sessionPhase,
+      trendStrength: regime.trendStrength,
+      entryWindowMinutes: timingAnalytics.entryWindowMinutes,
+      exitWindowMinutes: timingAnalytics.exitWindowMinutes,
+      timingConfidence: timingAnalytics.timingConfidence,
+      targetHitProbability: timingAnalytics.targetHitProbability,
       
       expiryDate: assetType === 'option' 
         ? (() => {

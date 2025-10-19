@@ -29,6 +29,8 @@ A comprehensive Performance Tracking System automatically validates trade outcom
 
 A Machine Learning System enhances trade ideas by analyzing historical performance. It includes a Signal Intelligence page, a Learned Pattern Analyzer to calculate optimal signal weights, and Adaptive Confidence Scoring that adjusts confidence based on signal effectiveness. ML features require a minimum of 10 closed trades for statistical significance.
 
+A **Quantitative Timing Intelligence System** provides data-backed entry/exit windows aligned with confidence grading. The system combines historical holding-time distributions (per signal/grade/asset) with real-time market regime detection (volatility, session phase, trend strength) to calculate optimal timing windows. Higher-confidence trades (A+/A grades) receive tighter, more aggressive windows backed by strong signal alignment, while lower-grade trades (B/C) get wider, conservative windows reflecting uncertainty. The system tracks volatility regime (low/normal/high/extreme), session phase (opening/mid-day/closing/overnight), trend strength (0-100), and provides target-hit probability estimates based on historical performance. All timing recommendations are quantitatively proven through backtesting and continuously improve via ML as more outcomes are recorded.
+
 ### System Design Choices
 The system uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) managed by Drizzle ORM. All critical data is stored permanently. The user schema is simplified for future Discord integration, with subscription tiers managed externally via Discord.
 

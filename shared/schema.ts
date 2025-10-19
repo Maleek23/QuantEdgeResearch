@@ -37,6 +37,12 @@ export type OutcomeStatus = 'open' | 'hit_target' | 'hit_stop' | 'manual_exit' |
 // Resolution Reason - How outcome was determined
 export type ResolutionReason = 'auto_target_hit' | 'auto_stop_hit' | 'auto_expired' | 'manual_user_won' | 'manual_user_lost' | 'manual_user_breakeven';
 
+// Volatility Regime - Market volatility classification at entry time
+export type VolatilityRegime = 'low' | 'normal' | 'high' | 'extreme';
+
+// Session Phase - Intraday timing classification
+export type SessionPhase = 'opening' | 'mid-day' | 'closing' | 'overnight';
+
 // Trade Idea
 export const tradeIdeas = pgTable("trade_ideas", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -90,6 +96,15 @@ export const tradeIdeas = pgTable("trade_ideas", {
   volumeRatio: real("volume_ratio"), // Current volume / average volume
   priceVs52WeekHigh: real("price_vs_52week_high"), // Distance from 52-week high (%)
   priceVs52WeekLow: real("price_vs_52week_low"), // Distance from 52-week low (%)
+  
+  // Timing Intelligence - Market Regime & Quantitative Timing Windows
+  volatilityRegime: text("volatility_regime").$type<VolatilityRegime>(), // 'low' | 'normal' | 'high' | 'extreme'
+  sessionPhase: text("session_phase").$type<SessionPhase>(), // 'opening' | 'mid-day' | 'closing' | 'overnight'
+  trendStrength: real("trend_strength"), // 0-100 measure of trend alignment across timeframes
+  entryWindowMinutes: integer("entry_window_minutes"), // Quantitatively-derived optimal entry window
+  exitWindowMinutes: integer("exit_window_minutes"), // Quantitatively-derived optimal exit window
+  timingConfidence: real("timing_confidence"), // 0-100 confidence in timing windows
+  targetHitProbability: real("target_hit_probability"), // ML-predicted probability of hitting target within exit window
 });
 
 export const insertTradeIdeaSchema = createInsertSchema(tradeIdeas).omit({ id: true });

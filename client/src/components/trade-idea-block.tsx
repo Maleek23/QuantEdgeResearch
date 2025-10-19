@@ -208,29 +208,37 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
             </div>
           )}
 
-          {/* Time Windows */}
+          {/* Quantitative Timing */}
           {(idea.entryValidUntil || idea.exitBy) && (
-            <div className="grid grid-cols-2 gap-3 pt-3 border-t">
-              {idea.entryValidUntil && (
-                <div className="flex items-center gap-2">
-                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Enter by</div>
-                    <div className="text-xs font-medium" data-testid={`text-entry-valid-${idea.symbol}`}>
-                      {idea.entryValidUntil}
+            <div className="pt-3 border-t">
+              <div className="grid grid-cols-2 gap-3 mb-2">
+                {idea.entryValidUntil && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    <div>
+                      <div className="text-xs text-muted-foreground">Enter by</div>
+                      <div className="text-xs font-medium" data-testid={`text-entry-valid-${idea.symbol}`}>
+                        {idea.entryValidUntil}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-              {idea.exitBy && (
-                <div className="flex items-center gap-2">
-                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                  <div>
-                    <div className="text-xs text-muted-foreground">Exit by</div>
-                    <div className="text-xs font-medium" data-testid={`text-exit-by-${idea.symbol}`}>
-                      {idea.exitBy}
+                )}
+                {idea.exitBy && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    <div>
+                      <div className="text-xs text-muted-foreground">Exit by</div>
+                      <div className="text-xs font-medium" data-testid={`text-exit-by-${idea.symbol}`}>
+                        {idea.exitBy}
+                      </div>
                     </div>
                   </div>
+                )}
+              </div>
+              {/* Target Hit Probability - Quantitative Backing */}
+              {idea.targetHitProbability && (
+                <div className="text-xs text-blue-400 font-medium">
+                  {idea.targetHitProbability.toFixed(1)}% probability in {idea.exitWindowMinutes}min window
                 </div>
               )}
             </div>

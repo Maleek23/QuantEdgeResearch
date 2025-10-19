@@ -139,27 +139,80 @@ export function TradeIdeaDetailModal({
               </div>
             </div>
 
-            {/* Time Windows */}
+            {/* Quantitative Timing Intelligence */}
             {(idea.entryValidUntil || idea.exitBy) && (
               <div>
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  Time Windows
+                  Quantitative Timing Intelligence
                 </h3>
-                <div className="grid grid-cols-2 gap-3">
+                
+                {/* Entry and Exit Windows */}
+                <div className="grid grid-cols-2 gap-3 mb-3">
                   {idea.entryValidUntil && (
-                    <div className="p-3 rounded-lg border">
+                    <div className="p-3 rounded-lg border bg-card">
                       <div className="text-xs text-muted-foreground mb-1">Enter By</div>
                       <div className="text-sm font-semibold">{idea.entryValidUntil}</div>
+                      {idea.entryWindowMinutes && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {idea.entryWindowMinutes} min window
+                        </div>
+                      )}
                     </div>
                   )}
                   {idea.exitBy && (
-                    <div className="p-3 rounded-lg border">
+                    <div className="p-3 rounded-lg border bg-card">
                       <div className="text-xs text-muted-foreground mb-1">Exit By</div>
                       <div className="text-sm font-semibold">{idea.exitBy}</div>
+                      {idea.exitWindowMinutes && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {idea.exitWindowMinutes} min window
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
+                
+                {/* Timing Analytics - Data-Backed Probabilities */}
+                {(idea.targetHitProbability || idea.timingConfidence || idea.volatilityRegime || idea.sessionPhase) && (
+                  <div className="p-3 rounded-lg border bg-gradient-to-br from-blue-500/5 to-purple-500/5">
+                    <div className="text-xs font-semibold text-blue-400 mb-2">📊 Quantitative Backing</div>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      {idea.targetHitProbability && (
+                        <div>
+                          <span className="text-muted-foreground">Target Hit Probability:</span>
+                          <div className="font-semibold text-green-400 mt-0.5">
+                            {idea.targetHitProbability.toFixed(1)}%
+                          </div>
+                        </div>
+                      )}
+                      {idea.timingConfidence && (
+                        <div>
+                          <span className="text-muted-foreground">Timing Confidence:</span>
+                          <div className="font-semibold text-blue-400 mt-0.5">
+                            {idea.timingConfidence.toFixed(0)}%
+                          </div>
+                        </div>
+                      )}
+                      {idea.volatilityRegime && (
+                        <div>
+                          <span className="text-muted-foreground">Volatility Regime:</span>
+                          <div className="font-semibold capitalize mt-0.5">
+                            {idea.volatilityRegime}
+                          </div>
+                        </div>
+                      )}
+                      {idea.sessionPhase && (
+                        <div>
+                          <span className="text-muted-foreground">Session Phase:</span>
+                          <div className="font-semibold capitalize mt-0.5">
+                            {idea.sessionPhase}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
