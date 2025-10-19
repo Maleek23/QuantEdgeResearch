@@ -5,6 +5,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { startWatchlistMonitor } from "./watchlist-monitor";
 import { logger } from "./logger";
 import { validateTradierAPI } from "./tradier-api";
+import { mlRetrainingService } from "./ml-retraining-service";
 
 const app = express();
 app.use(express.json());
@@ -79,5 +80,9 @@ app.use((req, res, next) => {
     // Start watchlist price alert monitoring (checks every 5 minutes)
     startWatchlistMonitor(5);
     log('🔔 Watchlist Monitor started - checking every 5 minutes');
+    
+    // Initialize ML Auto-Retraining Service (must have storage initialized)
+    const { storage } = await import('./storage');
+    mlRetrainingService.initialize(storage);
   });
 })();

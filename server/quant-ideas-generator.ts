@@ -48,21 +48,21 @@ function isStockMarketOpen(): boolean {
   return true;
 }
 
-// Machine Learning: Fetch learned signal weights from performance data
+// Machine Learning: Fetch learned signal weights from retraining service (cached)
 async function fetchLearnedWeights(): Promise<Map<string, number>> {
   try {
-    const response = await fetch('http://localhost:5000/api/ml/learned-patterns');
-    const data = await response.json();
+    const { mlRetrainingService } = await import('./ml-retraining-service');
+    const weights = mlRetrainingService.getSignalWeights();
     
-    if (!data.ready || !data.signalWeights) {
+    if (weights.size === 0) {
       logger.info('📊 ML patterns not ready yet - using default weights');
       return new Map();
     }
     
-    logger.info(`🧠 ML-Enhanced: Loaded ${Object.keys(data.signalWeights).length} signal weights from ${data.trainedOn} trades`);
-    return new Map(Object.entries(data.signalWeights));
+    logger.info(`🧠 ML-Enhanced: Using ${weights.size} cached signal weights`);
+    return weights;
   } catch (error) {
-    logger.info('📊 Using default weights (ML patterns unavailable)');
+    logger.info('📊 Using default weights (ML service unavailable)');
     return new Map();
   }
 }

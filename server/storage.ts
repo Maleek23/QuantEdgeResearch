@@ -685,6 +685,16 @@ export class MemStorage implements IStorage {
       actualHoldingTimeMinutes: holdingTimeMinutes
     };
     this.tradeIdeas.set(id, updated);
+    
+    // Trigger ML retraining when outcome is recorded (async, non-blocking)
+    if (performance.outcomeStatus && performance.outcomeStatus !== 'open') {
+      import('./ml-retraining-service').then(({ mlRetrainingService }) => {
+        mlRetrainingService.onNewOutcome().catch(err => 
+          console.error('ML retraining trigger failed:', err)
+        );
+      });
+    }
+    
     return updated;
   }
 
