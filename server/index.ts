@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startWatchlistMonitor } from "./watchlist-monitor";
 import { logger } from "./logger";
+import { validateTradierAPI } from "./tradier-api";
 
 const app = express();
 app.use(express.json());
@@ -69,8 +70,11 @@ app.use((req, res, next) => {
     port,
     host: "0.0.0.0",
     reusePort: true,
-  }, () => {
+  }, async () => {
     log(`serving on port ${port}`);
+    
+    // Validate Tradier API on startup
+    await validateTradierAPI();
     
     // Start watchlist price alert monitoring (checks every 5 minutes)
     startWatchlistMonitor(5);

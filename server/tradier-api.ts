@@ -349,3 +349,40 @@ export async function findOptimalStrike(
     delta: bestOption.greeks?.delta
   };
 }
+
+// Validate Tradier API key on startup
+export async function validateTradierAPI(): Promise<boolean> {
+  const key = process.env.TRADIER_API_KEY;
+  if (!key) {
+    logger.warn('⚠️  Tradier API key not configured');
+    logger.warn('   → Options trading DISABLED until valid key is provided');
+    logger.warn('   → Only stock shares and crypto will be generated');
+    return false;
+  }
+
+  try {
+    // Test with a simple quote request
+    const baseUrl = getBaseUrl(key);
+    const response = await fetch(`${baseUrl}/markets/quotes?symbols=AAPL`, {
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      logger.error(`❌ Tradier API validation failed: ${response.status} ${response.statusText}`);
+      logger.error('   → Options trading DISABLED - invalid or expired API key');
+      logger.error('   → Get a valid key at: https://tradier.com/individuals/api-access');
+      return false;
+    }
+
+    logger.info('✅ Tradier API connected successfully');
+    logger.info('   → Options trading available with real-time data');
+    return true;
+  } catch (error) {
+    logger.error('❌ Tradier API connection error:', error);
+    logger.error('   → Options trading DISABLED');
+    return false;
+  }
+}
