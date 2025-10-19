@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, ScreenerFilters as Filters, IdeaSource, MarketData } from "@shared/schema";
 import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal } from "lucide-react";
-import { format, startOfDay, isSameDay, parseISO } from "date-fns";
+import { format, startOfDay, isSameDay, parseISO, subHours } from "date-fns";
 
 export default function TradeIdeasPage() {
   const [activeFilters, setActiveFilters] = useState<Filters>({});
@@ -145,11 +145,15 @@ export default function TradeIdeasPage() {
   // Get dates with ideas for calendar highlighting
   const datesWithIdeas = tradeIdeas.map(idea => startOfDay(parseISO(idea.timestamp)));
 
-  const newIdeasCount = filteredIdeas.filter(idea => {
+  // Helper function to check if an idea is fresh (created within last 24 hours)
+  const isFreshIdea = (idea: TradeIdea) => {
     const ideaDate = parseISO(idea.timestamp);
-    const now = new Date();
-    return (now.getTime() - ideaDate.getTime()) < 3600000;
-  }).length;
+    const cutoffTime = subHours(new Date(), 24); // 24 hours ago
+    return ideaDate >= cutoffTime && idea.outcomeStatus === 'open';
+  };
+
+  // Count fresh ideas (last 24h)
+  const newIdeasCount = filteredIdeas.filter(isFreshIdea).length;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -403,17 +407,86 @@ export default function TradeIdeasPage() {
       </div>
 
       {/* Trade Ideas Feed */}
-      <Tabs defaultValue="new" className="space-y-4">
+      <Tabs defaultValue="fresh" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="new" data-testid="tab-new-ideas">
-            NEW IDEAS {filteredIdeas.filter(i => i.outcomeStatus === 'open').length > 0 && `(${filteredIdeas.filter(i => i.outcomeStatus === 'open').length})`}
+          <TabsTrigger value="fresh" data-testid="tab-fresh-ideas">
+            FRESH IDEAS {filteredIdeas.filter(isFreshIdea).length > 0 && `(${filteredIdeas.filter(isFreshIdea).length})`}
+          </TabsTrigger>
+          <TabsTrigger value="active" data-testid="tab-active-ideas">
+            ALL ACTIVE {filteredIdeas.filter(i => i.outcomeStatus === 'open').length > 0 && `(${filteredIdeas.filter(i => i.outcomeStatus === 'open').length})`}
           </TabsTrigger>
           <TabsTrigger value="archived" data-testid="tab-archived-ideas">
             ARCHIVED {filteredIdeas.filter(i => i.outcomeStatus !== 'open').length > 0 && `(${filteredIdeas.filter(i => i.outcomeStatus !== 'open').length})`}
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="new" className="space-y-4">
+        <TabsContent value="fresh" className="space-y-4">
+          {ideasLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-32 w-full" data-testid={`skeleton-idea-${i}`} />
+              ))}
+            </div>
+          ) : filteredIdeas.filter(isFreshIdea).length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium text-muted-foreground">No fresh trade ideas</p>
+                <p className="text-sm text-muted-foreground/70 mt-1">
+                  {tradeIdeas.length === 0 
+                    ? "Generate new ideas to get started" 
+                    : "Fresh ideas appear here within 24 hours of generation"}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Accordion type="single" collapsible className="space-y-4">
+              {Object.entries(groupedIdeas)
+                .filter(([, ideas]) => ideas.some(isFreshIdea))
+                .sort(([a], [b]) => {
+                  const order = { 'stock': 0, 'option': 1, 'crypto': 2 };
+                  return (order[a as keyof typeof order] || 0) - (order[b as keyof typeof order] || 0);
+                })
+                .map(([assetType, ideas]) => {
+                  const assetTypeLabels = {
+                    'stock': 'Stock Shares',
+                    'option': 'Stock Options', 
+                    'crypto': 'Crypto'
+                  };
+                  const label = assetTypeLabels[assetType as keyof typeof assetTypeLabels] || assetType;
+                  
+                  return (
+                    <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
+                      <AccordionTrigger className="px-4 hover:no-underline" data-testid={`accordion-asset-${assetType}`}>
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold">{label}</span>
+                          <Badge variant="outline" className="animate-pulse badge-shimmer" data-testid={`badge-count-${assetType}`}>
+                            {ideas.filter(isFreshIdea).length} fresh
+                          </Badge>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-3'}`}>
+                        {ideas
+                          .filter(isFreshIdea)
+                          .map(idea => (
+                            <TradeIdeaBlock
+                              key={idea.id}
+                              idea={idea}
+                              currentPrice={priceMap[idea.symbol]}
+                              isExpanded={expandedIdeaId === idea.id}
+                              onToggleExpand={() => handleToggleExpand(idea.id)}
+                              data-testid={`idea-card-${idea.id}`}
+                            />
+                          ))}
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+            </Accordion>
+          )}
+        </TabsContent>
+
+        <TabsContent value="active" className="space-y-4">
           {ideasLoading ? (
             <div className="space-y-4">
               {[...Array(3)].map((_, i) => (
