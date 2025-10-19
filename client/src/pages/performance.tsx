@@ -7,6 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { format, parseISO, startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subMonths, subYears, isAfter, isBefore } from 'date-fns';
 import { useState, useMemo } from 'react';
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 import {
   Select,
   SelectContent,
@@ -85,6 +87,8 @@ export default function PerformancePage() {
   const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<string>('all'); // '7d', '30d', '3m', '1y', 'all'
   const [periodView, setPeriodView] = useState<string>('daily'); // 'daily', 'weekly', 'monthly', 'yearly'
+  const [isValidating, setIsValidating] = useState(false);
+  const { toast } = useToast();
 
   const { data: stats, isLoading } = useQuery<PerformanceStats>({
     queryKey: ['/api/performance/stats'],
@@ -188,15 +192,39 @@ export default function PerformancePage() {
   };
 
   const handleValidate = async () => {
+    setIsValidating(true);
     try {
       const response = await fetch('/api/performance/validate', {
         method: 'POST',
       });
       const result = await response.json();
-      console.log('Validation result:', result);
-      window.location.reload(); // Refresh to show updated stats
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/ml/win-rate-trend'] });
+      
+      // Show success toast with results
+      if (result.updated > 0) {
+        toast({
+          title: "Validation Complete",
+          description: `Validated ${result.validated} ideas, closed ${result.updated} that hit targets/stops`,
+        });
+      } else {
+        toast({
+          title: "Validation Complete",
+          description: `Checked ${result.validated} open ideas - all still active`,
+        });
+      }
     } catch (error) {
       console.error('Validation error:', error);
+      toast({
+        title: "Validation Failed",
+        description: "Failed to validate trade ideas",
+        variant: "destructive",
+      });
+    } finally {
+      setIsValidating(false);
     }
   };
 
@@ -381,11 +409,12 @@ export default function PerformancePage() {
             <Button 
               variant="outline" 
               onClick={handleValidate}
+              disabled={isValidating}
               data-testid="button-validate-ideas"
               className="btn-magnetic glass-card"
             >
-              <Activity className="w-4 h-4 mr-2" />
-              Validate Ideas
+              <Activity className={`w-4 h-4 mr-2 ${isValidating ? 'animate-spin' : ''}`} />
+              {isValidating ? 'Validating...' : 'Validate Ideas'}
             </Button>
             <Button 
               variant="default" 
