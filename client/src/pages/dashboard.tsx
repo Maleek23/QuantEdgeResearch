@@ -9,6 +9,7 @@ import { TradeIdeaBlock } from "@/components/trade-idea-block";
 import { SymbolSearch } from "@/components/symbol-search";
 import { SymbolDetailModal } from "@/components/symbol-detail-modal";
 import { QuantAIBot } from "@/components/quantai-bot";
+import { PortfolioRiskCard } from "@/components/portfolio-risk-card";
 import { getMarketSession, formatCTTime } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -145,6 +146,9 @@ export default function Dashboard() {
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </div>
+
+      {/* Portfolio Risk Overview - TOP PRIORITY */}
+      <PortfolioRiskCard />
 
       {/* Quick Actions */}
       <div className="grid gap-6 md:grid-cols-2">
