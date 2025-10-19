@@ -35,7 +35,8 @@ export default function TradeIdeasPage() {
 
   const { data: tradeIdeas = [], isLoading: ideasLoading } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
-    refetchInterval: 60000,
+    refetchInterval: 30000, // Faster refresh: 30s instead of 60s
+    staleTime: 0, // Always fetch fresh data
   });
 
   // Fetch market data for real-time prices
