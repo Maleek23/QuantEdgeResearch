@@ -145,14 +145,15 @@ export default function TradeIdeasPage() {
   // Get dates with ideas for calendar highlighting
   const datesWithIdeas = tradeIdeas.map(idea => startOfDay(parseISO(idea.timestamp)));
 
-  // Helper function to check if an idea is fresh (created within last 24 hours)
+  // Helper function to check if an idea is fresh (created within last 2 hours)
+  // Day trading requires very fresh data - timing windows expire quickly
   const isFreshIdea = (idea: TradeIdea) => {
     const ideaDate = parseISO(idea.timestamp);
-    const cutoffTime = subHours(new Date(), 24); // 24 hours ago
+    const cutoffTime = subHours(new Date(), 2); // 2 hours ago - prevents stale timing data
     return ideaDate >= cutoffTime && idea.outcomeStatus === 'open';
   };
 
-  // Count fresh ideas (last 24h)
+  // Count fresh ideas (last 2h) - day trading window
   const newIdeasCount = filteredIdeas.filter(isFreshIdea).length;
 
   return (
@@ -435,7 +436,7 @@ export default function TradeIdeasPage() {
                 <p className="text-sm text-muted-foreground/70 mt-1">
                   {tradeIdeas.length === 0 
                     ? "Generate new ideas to get started" 
-                    : "Fresh ideas appear here within 24 hours of generation"}
+                    : "Fresh ideas appear here within 2 hours of generation"}
                 </p>
               </CardContent>
             </Card>
