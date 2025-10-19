@@ -2,6 +2,7 @@
 // Replaces rate-limited Alpha Vantage with unlimited Tradier access
 
 import { logger } from './logger';
+import { logAPIError, logAPISuccess } from './monitoring-service';
 
 interface TradierQuote {
   symbol: string;
@@ -111,9 +112,11 @@ export async function getTradierQuote(symbol: string, apiKey?: string): Promise<
   const key = apiKey || process.env.TRADIER_API_KEY;
   if (!key) {
     logger.error('Tradier API key not found');
+    logAPIError('Tradier', '/markets/quotes', new Error('API key not configured'));
     return null;
   }
 
+  const startTime = Date.now();
   try {
     const baseUrl = getBaseUrl(key);
     const response = await fetch(`${baseUrl}/markets/quotes?symbols=${symbol}`, {
@@ -125,6 +128,7 @@ export async function getTradierQuote(symbol: string, apiKey?: string): Promise<
 
     if (!response.ok) {
       logger.error(`Tradier quote error for ${symbol}: ${response.status} ${response.statusText}`);
+      logAPIError('Tradier', '/markets/quotes', new Error(`HTTP ${response.status}: ${response.statusText}`));
       return null;
     }
 
@@ -135,9 +139,11 @@ export async function getTradierQuote(symbol: string, apiKey?: string): Promise<
       return null;
     }
 
+    logAPISuccess('Tradier', '/markets/quotes', Date.now() - startTime);
     return quote;
   } catch (error) {
     logger.error(`Tradier quote fetch error for ${symbol}:`, error);
+    logAPIError('Tradier', '/markets/quotes', error);
     return null;
   }
 }
@@ -357,9 +363,11 @@ export async function validateTradierAPI(): Promise<boolean> {
     logger.warn('⚠️  Tradier API key not configured');
     logger.warn('   → Options trading DISABLED until valid key is provided');
     logger.warn('   → Only stock shares and crypto will be generated');
+    logAPIError('Tradier', 'validate', new Error('API key not configured'));
     return false;
   }
 
+  const startTime = Date.now();
   try {
     // Test with a simple quote request
     const baseUrl = getBaseUrl(key);
@@ -374,15 +382,18 @@ export async function validateTradierAPI(): Promise<boolean> {
       logger.error(`❌ Tradier API validation failed: ${response.status} ${response.statusText}`);
       logger.error('   → Options trading DISABLED - invalid or expired API key');
       logger.error('   → Get a valid key at: https://tradier.com/individuals/api-access');
+      logAPIError('Tradier', 'validate', new Error(`HTTP ${response.status}: ${response.statusText} - Invalid or expired API key`));
       return false;
     }
 
     logger.info('✅ Tradier API connected successfully');
     logger.info('   → Options trading available with real-time data');
+    logAPISuccess('Tradier', 'validate', Date.now() - startTime);
     return true;
   } catch (error) {
     logger.error('❌ Tradier API connection error:', error);
     logger.error('   → Options trading DISABLED');
+    logAPIError('Tradier', 'validate', error);
     return false;
   }
 }

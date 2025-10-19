@@ -178,6 +178,7 @@ Focus on actionable, research-grade opportunities.`;
 
   try {
     // Use all 3 models in parallel for diverse perspectives
+    const startTime = Date.now();
     const [openaiResponse, anthropicResponse, geminiResponse] = await Promise.all([
       // OpenAI GPT-5
       getOpenAI().chat.completions.create({
@@ -188,6 +189,12 @@ Focus on actionable, research-grade opportunities.`;
         ],
         response_format: { type: "json_object" },
         max_completion_tokens: 2048,
+      }).then(res => {
+        logAPISuccess('OpenAI', 'chat.completions', Date.now() - startTime);
+        return res;
+      }).catch(err => {
+        logAPIError('OpenAI', 'chat.completions', err);
+        throw err;
       }),
       
       // Anthropic Claude
@@ -196,6 +203,12 @@ Focus on actionable, research-grade opportunities.`;
         max_tokens: 2048,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
+      }).then(res => {
+        logAPISuccess('Anthropic', 'messages.create', Date.now() - startTime);
+        return res;
+      }).catch(err => {
+        logAPIError('Anthropic', 'messages.create', err);
+        throw err;
       }),
       
       // Google Gemini
@@ -206,6 +219,12 @@ Focus on actionable, research-grade opportunities.`;
           responseMimeType: "application/json",
         },
         contents: userPrompt,
+      }).then(res => {
+        logAPISuccess('Gemini', 'generateContent', Date.now() - startTime);
+        return res;
+      }).catch(err => {
+        logAPIError('Gemini', 'generateContent', err);
+        throw err;
       })
     ]);
 
