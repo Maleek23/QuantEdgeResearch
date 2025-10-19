@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2 } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -250,7 +250,22 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
         <div className="border-x border-b rounded-b-lg p-6 bg-card/50 space-y-6" onClick={(e) => e.stopPropagation()}>
           {/* Catalyst */}
           <div>
-            <h4 className="text-sm font-semibold mb-2">Catalyst</h4>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <h4 className="text-sm font-semibold">Catalyst</h4>
+              {idea.catalystSourceUrl && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-xs"
+                  asChild
+                  data-testid={`link-catalyst-source-${idea.symbol}`}
+                >
+                  <a href={idea.catalystSourceUrl} target="_blank" rel="noopener noreferrer">
+                    View Source <ExternalLink className="h-3 w-3" />
+                  </a>
+                </Button>
+              )}
+            </div>
             <p className="text-sm text-muted-foreground">{idea.catalyst}</p>
           </div>
 

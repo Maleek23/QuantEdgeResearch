@@ -55,6 +55,7 @@ export const tradeIdeas = pgTable("trade_ideas", {
   stopLoss: real("stop_loss").notNull(),
   riskRewardRatio: real("risk_reward_ratio").notNull(),
   catalyst: text("catalyst").notNull(),
+  catalystSourceUrl: text("catalyst_source_url"), // Clickable link to catalyst source
   analysis: text("analysis").notNull(),
   liquidityWarning: boolean("liquidity_warning").default(false),
   sessionContext: text("session_context").notNull(),
@@ -250,6 +251,7 @@ export const catalysts = pgTable("catalysts", {
   title: text("title").notNull(),
   description: text("description").notNull(),
   source: text("source").notNull(),
+  sourceUrl: text("source_url"), // Clickable link to external source
   timestamp: text("timestamp").notNull(),
   eventType: text("event_type").notNull(), // 'earnings', 'fda', 'guidance', 'news', etc.
   impact: text("impact").notNull(), // 'high' | 'medium' | 'low'
