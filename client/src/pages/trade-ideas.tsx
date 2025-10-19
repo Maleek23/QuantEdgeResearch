@@ -32,7 +32,6 @@ export default function TradeIdeasPage() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [weekendAssetFilter, setWeekendAssetFilter] = useState<"all" | "stock" | "option" | "crypto">("all");
   const { toast } = useToast();
 
   const { data: tradeIdeas = [], isLoading: ideasLoading } = useQuery<TradeIdea[]>({
@@ -166,17 +165,17 @@ export default function TradeIdeasPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
         <div className="relative flex items-center justify-between gap-4 pt-6">
           <div>
-            <div className="flex items-baseline gap-3">
+            <div className="flex items-baseline gap-3 flex-wrap">
               <h1 className="text-3xl font-bold tracking-tight text-gradient-premium" data-testid="text-page-title">Trade Ideas</h1>
-              <span className="text-lg font-medium text-muted-foreground" data-testid="text-current-date">
-                {format(new Date(), 'EEEE, MMMM d, yyyy')}
+              <span className="text-sm font-medium text-muted-foreground hidden md:inline" data-testid="text-current-date">
+                {format(new Date(), 'EEEE, MMM d')}
               </span>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Research-grade opportunities across stocks, options, and crypto
+              Stocks, options, crypto opportunities
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {newIdeasCount > 0 && (
               <Badge variant="default" className="animate-pulse neon-accent badge-shimmer" data-testid="badge-new-ideas">
                 {newIdeasCount} NEW
@@ -186,22 +185,24 @@ export default function TradeIdeasPage() {
               onClick={() => generateQuantIdeas.mutate()}
               disabled={generateQuantIdeas.isPending}
               size="sm"
-              className="gap-2 btn-magnetic"
+              className="gap-1.5 btn-magnetic"
               data-testid="button-generate-quant-ideas"
           >
             <BarChart3 className="h-4 w-4" />
-            {generateQuantIdeas.isPending ? "Generating..." : "Generate Quant"}
+            <span className="hidden sm:inline">{generateQuantIdeas.isPending ? "Generating..." : "Quant"}</span>
+            <span className="sm:hidden">{generateQuantIdeas.isPending ? "..." : "Q"}</span>
           </Button>
           <Button 
             onClick={() => generateAIIdeas.mutate()}
             disabled={generateAIIdeas.isPending}
             size="sm"
             variant="outline"
-            className="gap-2"
+            className="gap-1.5"
             data-testid="button-generate-ai-ideas"
           >
             <Sparkles className="h-4 w-4" />
-            {generateAIIdeas.isPending ? "Generating..." : "Generate AI"}
+            <span className="hidden sm:inline">{generateAIIdeas.isPending ? "Generating..." : "AI"}</span>
+            <span className="sm:hidden">{generateAIIdeas.isPending ? "..." : "A"}</span>
           </Button>
           </div>
         </div>
@@ -225,10 +226,7 @@ export default function TradeIdeasPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Select value={weekendAssetFilter} onValueChange={(value: any) => {
-                  setWeekendAssetFilter(value);
-                  setActiveAssetType(value);
-                }}>
+                <Select value={activeAssetType} onValueChange={(value: any) => setActiveAssetType(value)}>
                   <SelectTrigger className="w-[160px] h-9" data-testid="select-weekend-asset-filter">
                     <SelectValue placeholder="Filter by asset" />
                   </SelectTrigger>
@@ -461,14 +459,32 @@ export default function TradeIdeasPage() {
       {/* Trade Ideas Feed */}
       <Tabs defaultValue="fresh" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="fresh" data-testid="tab-fresh-ideas">
-            FRESH IDEAS {filteredIdeas.filter(isFreshIdea).length > 0 && `(${filteredIdeas.filter(isFreshIdea).length})`}
+          <TabsTrigger value="fresh" data-testid="tab-fresh-ideas" className="gap-1.5">
+            <span className="hidden sm:inline">FRESH</span>
+            <span className="sm:hidden">NEW</span>
+            {filteredIdeas.filter(isFreshIdea).length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5">
+                {filteredIdeas.filter(isFreshIdea).length}
+              </Badge>
+            )}
           </TabsTrigger>
-          <TabsTrigger value="active" data-testid="tab-active-ideas">
-            ALL ACTIVE {filteredIdeas.filter(i => i.outcomeStatus === 'open').length > 0 && `(${filteredIdeas.filter(i => i.outcomeStatus === 'open').length})`}
+          <TabsTrigger value="active" data-testid="tab-active-ideas" className="gap-1.5">
+            <span className="hidden sm:inline">ACTIVE</span>
+            <span className="sm:hidden">ALL</span>
+            {filteredIdeas.filter(i => i.outcomeStatus === 'open').length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5">
+                {filteredIdeas.filter(i => i.outcomeStatus === 'open').length}
+              </Badge>
+            )}
           </TabsTrigger>
-          <TabsTrigger value="archived" data-testid="tab-archived-ideas">
-            ARCHIVED {filteredIdeas.filter(i => i.outcomeStatus !== 'open').length > 0 && `(${filteredIdeas.filter(i => i.outcomeStatus !== 'open').length})`}
+          <TabsTrigger value="archived" data-testid="tab-archived-ideas" className="gap-1.5">
+            <span className="hidden sm:inline">ARCHIVED</span>
+            <span className="sm:hidden">OLD</span>
+            {filteredIdeas.filter(i => i.outcomeStatus !== 'open').length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5">
+                {filteredIdeas.filter(i => i.outcomeStatus !== 'open').length}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
