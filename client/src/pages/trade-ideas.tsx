@@ -181,29 +181,6 @@ export default function TradeIdeasPage() {
                 {newIdeasCount} NEW
               </Badge>
             )}
-            <Button 
-              onClick={() => generateQuantIdeas.mutate()}
-              disabled={generateQuantIdeas.isPending}
-              size="sm"
-              className="gap-1.5 btn-magnetic"
-              data-testid="button-generate-quant-ideas"
-          >
-            <BarChart3 className="h-4 w-4" />
-            <span className="hidden sm:inline">{generateQuantIdeas.isPending ? "Generating..." : "Quant"}</span>
-            <span className="sm:hidden">{generateQuantIdeas.isPending ? "..." : "Q"}</span>
-          </Button>
-          <Button 
-            onClick={() => generateAIIdeas.mutate()}
-            disabled={generateAIIdeas.isPending}
-            size="sm"
-            variant="outline"
-            className="gap-1.5"
-            data-testid="button-generate-ai-ideas"
-          >
-            <Sparkles className="h-4 w-4" />
-            <span className="hidden sm:inline">{generateAIIdeas.isPending ? "Generating..." : "AI"}</span>
-            <span className="sm:hidden">{generateAIIdeas.isPending ? "..." : "A"}</span>
-          </Button>
           </div>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
@@ -237,17 +214,29 @@ export default function TradeIdeasPage() {
                     <SelectItem value="crypto">Crypto (24/7)</SelectItem>
                   </SelectContent>
                 </Select>
-                {tradeIdeas.filter(i => i.outcomeStatus === 'open').length === 0 && (
-                  <Button 
-                    onClick={() => generateQuantIdeas.mutate()}
-                    disabled={generateQuantIdeas.isPending}
-                    size="sm"
-                    data-testid="button-weekend-generate"
-                  >
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    {generateQuantIdeas.isPending ? "Generating..." : "Generate Ideas"}
-                  </Button>
-                )}
+                <Button 
+                  onClick={() => generateQuantIdeas.mutate()}
+                  disabled={generateQuantIdeas.isPending}
+                  size="sm"
+                  className="gap-1.5"
+                  data-testid="button-generate-quant-ideas"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">{generateQuantIdeas.isPending ? "Generating..." : "Quant"}</span>
+                  <span className="sm:hidden">{generateQuantIdeas.isPending ? "..." : "Q"}</span>
+                </Button>
+                <Button 
+                  onClick={() => generateAIIdeas.mutate()}
+                  disabled={generateAIIdeas.isPending}
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  data-testid="button-generate-ai-ideas"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span className="hidden sm:inline">{generateAIIdeas.isPending ? "Generating..." : "AI"}</span>
+                  <span className="sm:hidden">{generateAIIdeas.isPending ? "..." : "A"}</span>
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -500,11 +489,38 @@ export default function TradeIdeasPage() {
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-lg font-medium text-muted-foreground">No fresh trade ideas</p>
-                <p className="text-sm text-muted-foreground/70 mt-1">
+                <p className="text-sm text-muted-foreground/70 mt-1 mb-4">
                   {tradeIdeas.length === 0 
                     ? "Generate new ideas to get started" 
                     : "Fresh ideas appear here within 2 hours of generation"}
                 </p>
+                {!isWeekend() && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <Button 
+                      onClick={() => generateQuantIdeas.mutate()}
+                      disabled={generateQuantIdeas.isPending}
+                      size="sm"
+                      className="gap-1.5"
+                      data-testid="button-generate-quant-ideas"
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                      <span className="hidden sm:inline">{generateQuantIdeas.isPending ? "Generating..." : "Quant"}</span>
+                      <span className="sm:hidden">{generateQuantIdeas.isPending ? "..." : "Q"}</span>
+                    </Button>
+                    <Button 
+                      onClick={() => generateAIIdeas.mutate()}
+                      disabled={generateAIIdeas.isPending}
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      data-testid="button-generate-ai-ideas"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      <span className="hidden sm:inline">{generateAIIdeas.isPending ? "Generating..." : "AI"}</span>
+                      <span className="sm:hidden">{generateAIIdeas.isPending ? "..." : "A"}</span>
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : (
