@@ -38,6 +38,39 @@ export function getMarketSession(): 'pre-market' | 'rth' | 'after-hours' | 'clos
   return 'closed';
 }
 
+export function isWeekend(): boolean {
+  const now = new Date();
+  const timezone = "America/Chicago";
+  const zonedNow = toZonedTime(now, timezone);
+  const day = zonedNow.getDay();
+  
+  // Weekend: 0 = Sunday, 6 = Saturday
+  return day === 0 || day === 6;
+}
+
+export function getNextTradingWeekStart(): Date {
+  const now = new Date();
+  const timezone = "America/Chicago";
+  const zonedNow = toZonedTime(now, timezone);
+  const day = zonedNow.getDay();
+  
+  // Calculate days until next Monday
+  let daysUntilMonday = 0;
+  if (day === 0) { // Sunday
+    daysUntilMonday = 1;
+  } else if (day === 6) { // Saturday
+    daysUntilMonday = 2;
+  } else { // Weekday - return next Monday
+    daysUntilMonday = (8 - day) % 7 || 7;
+  }
+  
+  const nextMonday = new Date(zonedNow);
+  nextMonday.setDate(nextMonday.getDate() + daysUntilMonday);
+  nextMonday.setHours(9, 30, 0, 0); // 9:30 AM market open
+  
+  return nextMonday;
+}
+
 export function formatCurrency(value: number): string {
   // Handle very small crypto prices (< $0.01)
   if (value < 0.01 && value > 0) {
