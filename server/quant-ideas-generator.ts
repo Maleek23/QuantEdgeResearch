@@ -17,26 +17,34 @@ import { detectMarketRegime, calculateTimingWindows, type SignalStack } from './
 // Check if US stock market is open (Mon-Fri, 9:30 AM - 4:00 PM ET)
 function isStockMarketOpen(): boolean {
   const now = new Date();
-  const etTime = formatInTimeZone(now, 'America/New_York', 'yyyy-MM-dd HH:mm:ss');
-  const day = now.getUTCDay();
   
-  // Check if weekend (0 = Sunday, 6 = Saturday)
-  if (day === 0 || day === 6) {
+  // Get current time in ET timezone and parse the day of week from ET time (not UTC!)
+  const etTime = formatInTimeZone(now, 'America/New_York', 'yyyy-MM-dd HH:mm:ss EEEE');
+  const parts = etTime.split(' ');
+  const dayName = parts[2]; // "Monday", "Tuesday", etc.
+  
+  // Check if weekend in ET timezone (Saturday or Sunday)
+  if (dayName === 'Saturday' || dayName === 'Sunday') {
+    logger.info(`🌙 US stock market CLOSED - ${dayName} (weekend)`);
     return false;
   }
   
-  // Extract hour from ET time string
-  const etHour = parseInt(etTime.split(' ')[1].split(':')[0]);
-  const etMinute = parseInt(etTime.split(' ')[1].split(':')[1]);
+  // Extract hour and minute from ET time string
+  const timePart = parts[1]; // "HH:mm:ss"
+  const etHour = parseInt(timePart.split(':')[0]);
+  const etMinute = parseInt(timePart.split(':')[1]);
   
-  // Market hours: 9:30 AM - 4:00 PM ET
+  // Market hours: 9:30 AM - 4:00 PM ET (Mon-Fri only)
   if (etHour < 9 || (etHour === 9 && etMinute < 30)) {
+    logger.info(`🌙 US stock market CLOSED - ${dayName} ${timePart.substring(0, 5)} ET (before 9:30 AM)`);
     return false; // Before market open
   }
   if (etHour >= 16) {
+    logger.info(`🌙 US stock market CLOSED - ${dayName} ${timePart.substring(0, 5)} ET (after 4:00 PM)`);
     return false; // After market close
   }
   
+  logger.info(`✅ US stock market OPEN - ${dayName} ${timePart.substring(0, 5)} ET`);
   return true;
 }
 
@@ -647,11 +655,16 @@ export async function generateQuantIdeas(
   // 🔍 DISCOVERY PHASE: Dynamically scan the entire market for opportunities
   logger.info('🔍 Starting market-wide discovery...');
   
-  // Discover stock movers and breakouts (gainers, losers, most active)
-  const stockGems = await discoverStockGems(30);
-  logger.info(`  ✓ Stock discovery: ${stockGems.length} movers found`);
+  // Check if stock market is open (Mon-Fri, 9:30 AM - 4:00 PM ET)
+  const marketOpen = isStockMarketOpen();
   
-  // Discover hidden crypto gems (small-caps with anomalies)
+  // Discover stock movers and breakouts ONLY if market is open
+  const stockGems = marketOpen ? await discoverStockGems(30) : [];
+  if (marketOpen) {
+    logger.info(`  ✓ Stock discovery: ${stockGems.length} movers found`);
+  }
+  
+  // Discover hidden crypto gems (small-caps with anomalies) - 24/7 markets
   const cryptoGems = await discoverHiddenCryptoGems(15);
   logger.info(`  ✓ Crypto discovery: ${cryptoGems.length} gems found`);
 
@@ -742,9 +755,6 @@ export async function generateQuantIdeas(
   // Track asset type distribution to ensure balanced mix
   const assetTypeCount = { stock: 0, option: 0, crypto: 0 };
   
-  // Check if stock market is open (Mon-Fri, 9:30 AM - 4:00 PM ET)
-  const marketOpen = isStockMarketOpen();
-  
   const targetDistribution = {
     stock: marketOpen ? Math.round(count * 0.5) : 0,  // 50% stock shares when market open, 0% on weekends/after-hours
     option: 0, // ❌ DISABLED: No options until Tradier API is valid (prevents fake data)
@@ -752,10 +762,6 @@ export async function generateQuantIdeas(
   };
   // Ensure targets add up to count by allocating remainder to crypto
   targetDistribution.crypto = count - targetDistribution.stock - targetDistribution.option;
-  
-  if (!marketOpen) {
-    logger.info('🌙 US stock market closed - generating crypto-only ideas (24/7 markets)');
-  }
 
   // Helper to check if we should accept this asset type based on distribution targets
   const shouldAcceptAssetType = (assetType: string): boolean => {
