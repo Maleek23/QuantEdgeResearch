@@ -17,6 +17,7 @@ import {
   TrendingUp, TrendingDown, Activity, Star, Bot, Sparkles, BarChart3, 
   AlertCircle, ArrowRight, Target, Shield, Zap 
 } from "lucide-react";
+import { parseISO, subHours } from "date-fns";
 
 export default function Dashboard() {
   const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null);
@@ -90,12 +91,20 @@ export default function Dashboard() {
   // Calculate metrics
   const activeIdeas = tradeIdeas.filter(i => i.outcomeStatus === 'open');
   const archivedIdeas = tradeIdeas.filter(i => i.outcomeStatus !== 'open');
-  const aiIdeas = activeIdeas.filter(i => i.source === 'ai');
-  const quantIdeas = activeIdeas.filter(i => i.source === 'quant');
+  
+  // Fresh ideas = created within last 2 hours (day trading window)
+  const freshIdeas = activeIdeas.filter(i => {
+    const ideaDate = parseISO(i.timestamp);
+    const cutoffTime = subHours(new Date(), 2);
+    return ideaDate >= cutoffTime;
+  });
+  
+  const aiIdeas = freshIdeas.filter(i => i.source === 'ai');
+  const quantIdeas = freshIdeas.filter(i => i.source === 'quant');
   const topGainers = marketData.filter(d => d.changePercent > 0).sort((a, b) => b.changePercent - a.changePercent).slice(0, 3);
   const topLosers = marketData.filter(d => d.changePercent < 0).sort((a, b) => a.changePercent - b.changePercent).slice(0, 3);
-  const recentIdeas = activeIdeas.slice(0, 3);
-  const highGradeIdeas = activeIdeas.filter(i => i.confidenceScore >= 80);
+  const recentIdeas = freshIdeas.slice(0, 3);
+  const highGradeIdeas = freshIdeas.filter(i => i.confidenceScore >= 80);
 
   const handleViewDetails = (symbol: string) => {
     const symbolData = marketData.find(d => d.symbol === symbol);
@@ -191,13 +200,14 @@ export default function Dashboard() {
         <div className="gradient-border-card">
           <Card className="glass-card stat-card shadow-lg border-0">
             <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-3">
-              <CardTitle className="text-sm font-semibold tracking-wide">Active Ideas</CardTitle>
+              <CardTitle className="text-sm font-semibold tracking-wide">Fresh Ideas</CardTitle>
               <div className="p-2 rounded-lg bg-primary/10">
-                <TrendingUp className="h-4 w-4 text-primary" />
+                <Sparkles className="h-4 w-4 text-primary" />
               </div>
             </CardHeader>
             <CardContent className="space-y-2">
-              <div className="text-3xl font-bold font-mono tracking-tight" data-testid="metric-active-ideas">{activeIdeas.length}</div>
+              <div className="text-3xl font-bold font-mono tracking-tight" data-testid="metric-fresh-ideas">{freshIdeas.length}</div>
+              <p className="text-xs text-muted-foreground">Last 2 hours</p>
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="gap-1 text-xs badge-shimmer">
                   <Sparkles className="h-3 w-3" />
