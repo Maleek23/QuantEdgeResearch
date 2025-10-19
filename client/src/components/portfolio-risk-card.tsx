@@ -34,9 +34,9 @@ export function PortfolioRiskCard() {
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-blue-500" />
-            <CardTitle className="text-lg">Portfolio Risk Overview</CardTitle>
+            <CardTitle className="text-lg">Paper Portfolio Tracker</CardTitle>
           </div>
-          <CardDescription>Real-time risk management & exposure tracking</CardDescription>
+          <CardDescription>Simulated metrics for generated trade ideas</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Skeleton className="h-20 w-full" />
@@ -62,13 +62,18 @@ export function PortfolioRiskCard() {
       data-testid="card-portfolio-risk"
     >
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Shield className={cn(
-              "h-5 w-5",
-              metrics.circuitBreakerTriggered ? "text-red-500" : "text-blue-500"
-            )} />
-            <CardTitle className="text-lg">Portfolio Risk Overview</CardTitle>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <Shield className={cn(
+                "h-5 w-5",
+                metrics.circuitBreakerTriggered ? "text-red-500" : "text-blue-500"
+              )} />
+              <CardTitle className="text-lg">Paper Portfolio Tracker</CardTitle>
+            </div>
+            <CardDescription className="text-xs mt-1">
+              Simulated metrics for generated trade ideas (not real positions)
+            </CardDescription>
           </div>
           {metrics.circuitBreakerTriggered && (
             <Badge variant="destructive" className="gap-1" data-testid="badge-trading-paused">
@@ -77,7 +82,14 @@ export function PortfolioRiskCard() {
             </Badge>
           )}
         </div>
-        <CardDescription>Real-time risk management & exposure tracking</CardDescription>
+
+        {/* Paper Trading Disclaimer */}
+        <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+          <p className="text-xs text-muted-foreground">
+            <strong className="text-foreground">Paper Trading:</strong> These metrics simulate a $10,000 paper account 
+            with $1,000 allocated per generated trade idea. This does NOT track your real positions or capital.
+          </p>
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-6">
