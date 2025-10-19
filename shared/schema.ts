@@ -265,12 +265,34 @@ export type Catalyst = typeof catalysts.$inferSelect;
 export const userPreferences = pgTable("user_preferences", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().unique(), // One preferences record per user
+  
+  // Trading Preferences
   accountSize: real("account_size").notNull().default(10000),
   maxRiskPerTrade: real("max_risk_per_trade").notNull().default(1), // percentage
   defaultCapitalPerIdea: real("default_capital_per_idea").notNull().default(1000),
   defaultOptionsBudget: real("default_options_budget").notNull().default(250),
   preferredAssets: text("preferred_assets").array().notNull().default(['stock', 'option', 'crypto']),
   holdingHorizon: text("holding_horizon").notNull().default('intraday'),
+  
+  // Display Preferences
+  theme: text("theme").notNull().default('dark'), // 'light' | 'dark' | 'auto'
+  timezone: text("timezone").notNull().default('America/Chicago'),
+  defaultViewMode: text("default_view_mode").notNull().default('card'), // 'card' | 'table'
+  compactMode: boolean("compact_mode").notNull().default(false),
+  
+  // Notification Preferences
+  discordWebhookUrl: text("discord_webhook_url"),
+  enableTradeAlerts: boolean("enable_trade_alerts").notNull().default(true),
+  enablePriceAlerts: boolean("enable_price_alerts").notNull().default(true),
+  enablePerformanceAlerts: boolean("enable_performance_alerts").notNull().default(false),
+  enableWeeklyReport: boolean("enable_weekly_report").notNull().default(false),
+  
+  // Default Filters
+  defaultAssetFilter: text("default_asset_filter").notNull().default('all'), // 'all' | 'stock' | 'option' | 'crypto'
+  defaultConfidenceFilter: text("default_confidence_filter").notNull().default('all'), // 'all' | 'A' | 'B' | 'C'
+  autoRefreshEnabled: boolean("auto_refresh_enabled").notNull().default(true),
+  
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({ id: true });

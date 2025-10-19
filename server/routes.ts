@@ -922,6 +922,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/preferences", async (req, res) => {
+    try {
+      const validated = insertUserPreferencesSchema.partial().parse(req.body);
+      const prefs = await storage.updateUserPreferences(validated);
+      res.json(prefs);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid preferences data" });
+    }
+  });
+
   // Quantitative Analysis for Single Symbol
   app.get("/api/quant/analyze/:symbol", async (req, res) => {
     try {
@@ -1542,7 +1552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check 2: Win rate consistency
       const rawWins = closedIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
       const rawWinRate = closedIdeas.length > 0 ? (rawWins / closedIdeas.length) * 100 : 0;
-      const perfWinRate = stats.overallWinRate;
+      const perfWinRate = stats.overall.winRate;
       const winRateMatch = Math.abs(rawWinRate - perfWinRate) < 0.1; // Within 0.1%
       
       // Check 3: Missing outcome data
