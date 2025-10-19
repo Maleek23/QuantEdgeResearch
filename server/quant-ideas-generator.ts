@@ -14,6 +14,32 @@ import { discoverHiddenCryptoGems, discoverStockGems, fetchCryptoPrice, fetchHis
 import { logger } from './logger';
 import { detectMarketRegime, calculateTimingWindows, type SignalStack } from './timing-intelligence';
 
+// Check if US stock market is open (Mon-Fri, 9:30 AM - 4:00 PM ET)
+function isStockMarketOpen(): boolean {
+  const now = new Date();
+  const etTime = formatInTimeZone(now, 'America/New_York', 'yyyy-MM-dd HH:mm:ss');
+  const day = now.getUTCDay();
+  
+  // Check if weekend (0 = Sunday, 6 = Saturday)
+  if (day === 0 || day === 6) {
+    return false;
+  }
+  
+  // Extract hour from ET time string
+  const etHour = parseInt(etTime.split(' ')[1].split(':')[0]);
+  const etMinute = parseInt(etTime.split(' ')[1].split(':')[1]);
+  
+  // Market hours: 9:30 AM - 4:00 PM ET
+  if (etHour < 9 || (etHour === 9 && etMinute < 30)) {
+    return false; // Before market open
+  }
+  if (etHour >= 16) {
+    return false; // After market close
+  }
+  
+  return true;
+}
+
 // Machine Learning: Fetch learned signal weights from performance data
 async function fetchLearnedWeights(): Promise<Map<string, number>> {
   try {
@@ -649,6 +675,15 @@ export async function generateQuantIdeas(
     lastUpdated: now.toISOString(),
   }));
   
+  // Build dynamic symbol-to-coinId map for discovered crypto gems
+  // This allows historical price fetching to work with newly discovered symbols
+  const cryptoCoinIdMap: Record<string, string> = {};
+  cryptoGems.forEach(gem => {
+    if (gem.coinId) {
+      cryptoCoinIdMap[gem.symbol.toUpperCase()] = gem.coinId;
+    }
+  });
+  
   // Convert discovered crypto gems to MarketData
   const discoveredCryptoData: MarketData[] = cryptoGems.map(gem => ({
     id: `crypto-gem-${gem.symbol}`,
@@ -706,13 +741,21 @@ export async function generateQuantIdeas(
 
   // Track asset type distribution to ensure balanced mix
   const assetTypeCount = { stock: 0, option: 0, crypto: 0 };
+  
+  // Check if stock market is open (Mon-Fri, 9:30 AM - 4:00 PM ET)
+  const marketOpen = isStockMarketOpen();
+  
   const targetDistribution = {
-    stock: Math.round(count * 0.5),  // 50% stock shares (4 for count=8)
+    stock: marketOpen ? Math.round(count * 0.5) : 0,  // 50% stock shares when market open, 0% on weekends/after-hours
     option: 0, // ❌ DISABLED: No options until Tradier API is valid (prevents fake data)
     crypto: 0   // Will be calculated to fill remaining
   };
   // Ensure targets add up to count by allocating remainder to crypto
   targetDistribution.crypto = count - targetDistribution.stock - targetDistribution.option;
+  
+  if (!marketOpen) {
+    logger.info('🌙 US stock market closed - generating crypto-only ideas (24/7 markets)');
+  }
 
   // Helper to check if we should accept this asset type based on distribution targets
   const shouldAcceptAssetType = (assetType: string): boolean => {
@@ -742,7 +785,9 @@ export async function generateQuantIdeas(
 
     // Fetch real historical prices - REQUIRED for accurate analysis (no synthetic fallback)
     const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
-    const historicalPrices = await fetchHistoricalPrices(data.symbol, data.assetType, 60, apiKey);
+    // For crypto, pass the coinId from discovery if available (enables newly discovered gems)
+    const cryptoCoinId = data.assetType === 'crypto' ? cryptoCoinIdMap[data.symbol.toUpperCase()] : undefined;
+    const historicalPrices = await fetchHistoricalPrices(data.symbol, data.assetType, 60, apiKey, cryptoCoinId);
     
     if (historicalPrices.length === 0) {
       dataQuality.noHistoricalData++;

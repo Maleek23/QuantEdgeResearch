@@ -266,19 +266,21 @@ export async function fetchHistoricalPrices(
   symbol: string,
   assetType: AssetType,
   periods: number = 60,
-  apiKey?: string
+  apiKey?: string,
+  coinId?: string  // Optional: Direct coinId for crypto (bypasses CRYPTO_SYMBOL_MAP lookup)
 ): Promise<number[]> {
   try {
     if (assetType === 'crypto') {
       // Fetch CoinGecko historical data
-      const coinId = CRYPTO_SYMBOL_MAP[symbol.toUpperCase()];
-      if (!coinId) {
+      // Use provided coinId if available (from discovery), otherwise lookup in map
+      const resolvedCoinId = coinId || CRYPTO_SYMBOL_MAP[symbol.toUpperCase()];
+      if (!resolvedCoinId) {
         logger.info(`No CoinGecko mapping for ${symbol}, using fallback`);
         return [];
       }
 
       const response = await fetch(
-        `${COINGECKO_API}/coins/${coinId}/market_chart?vs_currency=usd&days=${periods}&interval=daily`
+        `${COINGECKO_API}/coins/${resolvedCoinId}/market_chart?vs_currency=usd&days=${periods}&interval=daily`
       );
 
       if (!response.ok) {
