@@ -243,18 +243,33 @@ export async function calculateTimingWindows(
     // Week-ending: exit by Friday 4pm ET (3pm CT)
     const now = new Date();
     const timezone = 'America/Chicago';
-    const nowCT = toZonedTime(now, timezone);
-    const currentDay = nowCT.getDay(); // 0=Sunday, 6=Saturday
+    
+    // Get current time in Chicago timezone using locale string parsing
+    const chicagoTimeStr = now.toLocaleString('en-US', { 
+      timeZone: timezone, 
+      hour12: false,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    
+    // Parse: "MM/DD/YYYY, HH:mm:ss"
+    const [datePart, timePart] = chicagoTimeStr.split(', ');
+    const [month, day, year] = datePart.split('/').map(Number);
+    const [hour, minute, second] = timePart.split(':').map(Number);
+    
+    // Create a date object to get day of week
+    const chicagoDate = new Date(year, month - 1, day, hour, minute, second);
+    const currentDay = chicagoDate.getDay(); // 0=Sunday, 6=Saturday
     
     if (currentDay >= 1 && currentDay <= 5) {
-      // Calculate time difference directly (avoids timezone conversion bugs)
+      // Calculate days, hours, and minutes until Friday 3pm CT
       const daysUntilFriday = 5 - currentDay;
-      const currentHour = nowCT.getHours();
-      const currentMinute = nowCT.getMinutes();
-      
-      // Target: Friday 3pm (15:00)
-      const hoursUntil3pm = 15 - currentHour;
-      const minutesAdjustment = 0 - currentMinute;
+      const hoursUntil3pm = 15 - hour;
+      const minutesAdjustment = 0 - minute;
       
       // Total minutes = days * 1440 + hours * 60 + minute adjustment
       const minutesUntilFridayClose = (daysUntilFriday * 24 * 60) + (hoursUntil3pm * 60) + minutesAdjustment;
