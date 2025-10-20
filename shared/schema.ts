@@ -87,6 +87,12 @@ export const tradeIdeas = pgTable("trade_ideas", {
   percentGain: real("percent_gain"), // Actual % gain or loss
   validatedAt: text("validated_at"), // When auto-validation last checked this idea
   
+  // Quant Prediction Accuracy Tracking
+  predictionAccurate: boolean("prediction_accurate"), // Did price move in predicted direction by meaningful amount?
+  predictionValidatedAt: text("prediction_validated_at"), // When prediction accuracy was checked
+  highestPriceReached: real("highest_price_reached"), // Peak price during trade (for long positions)
+  lowestPriceReached: real("lowest_price_reached"), // Lowest price during trade (for short positions)
+  
   // Data Quality Tracking
   dataSourceUsed: text("data_source_used"), // 'tradier', 'yahoo', 'coingecko', 'alphavantage', 'estimated'
   
