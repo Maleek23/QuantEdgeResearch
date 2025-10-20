@@ -33,7 +33,30 @@ A Comprehensive User Settings System enables full platform personalization acros
 The system uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) managed by Drizzle ORM. All critical data is stored permanently. The user schema is simplified for future Discord integration, with subscription tiers managed externally via Discord.
 
 ### Access Control & Administration
-Access tiers include Free, Premium, and Admin. The Admin Panel, located at `/admin` and password-protected, provides features for dashboard statistics, user management, trade idea review, and system tools (data export, cache refresh, database monitoring). Security for admin routes includes JWT authentication with HTTP-only cookies, session tokens, fail-fast JWT secret validation, rate limiting, and `requireAdmin` middleware. `requirePremium` middleware is in place for future use with Discord OAuth integration.
+Access tiers include Free, Premium, and Admin. The Admin Panel, located at `/admin` and password-protected, provides comprehensive platform management capabilities:
+
+**Dashboard Features:**
+- Real-time statistics (total users, trade ideas, win rate, database health)
+- User management with tier modification (Free ↔ Premium) and account deletion
+- Trade idea review and monitoring
+- System health monitoring (AI providers, market data APIs, database)
+- Activity logging and alert tracking
+
+**Database Maintenance Tools:**
+- Cleanup old ideas (configurable retention period, default 30 days)
+- Archive closed trades (configurable, default 7 days)
+- Database optimization (VACUUM ANALYZE)
+- Table statistics and health monitoring
+
+**Security:**
+- Dual authentication: 4-digit PIN (ADMIN_ACCESS_CODE) + password (ADMIN_PASSWORD)
+- JWT authentication with HTTP-only cookies
+- Session tokens with expiration
+- Fail-fast JWT secret validation
+- Rate limiting on admin endpoints
+- `requireAdmin` middleware for protected routes
+
+`requirePremium` middleware is in place for future use with Discord OAuth integration.
 
 ## External Dependencies
 
