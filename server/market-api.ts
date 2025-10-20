@@ -456,10 +456,12 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
     logger.info('🔍 Scanning stock market for movers and breakouts...');
     
     // Fetch multiple categories to get a diverse set of opportunities
+    // Include undervalued stocks to capture more low-priced/penny stock candidates
     const categories = [
-      { name: 'gainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_gainers&count=25' },
-      { name: 'losers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_losers&count=25' },
-      { name: 'mostActive', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_actives&count=25' }
+      { name: 'gainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_gainers&count=20' },
+      { name: 'losers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_losers&count=20' },
+      { name: 'mostActive', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_actives&count=20' },
+      { name: 'undervalued', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=undervalued_growth_stocks&count=25' }
     ];
     
     for (const category of categories) {
@@ -528,6 +530,71 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
     return sortedGems;
   } catch (error) {
     logger.error('❌ Stock discovery error:', error);
+    return [];
+  }
+}
+
+// 💎 PENNY STOCK DISCOVERY: Find high-volume penny stocks ($1-$5 range)
+// Yahoo screeners don't return penny stocks, so we maintain a curated watchlist
+export async function discoverPennyStocks(): Promise<StockGem[]> {
+  try {
+    logger.info('🔍 Discovering penny stocks ($1-$7 range - expanded to find candidates)...');
+    
+    // Curated penny stock watchlist - actively traded major stocks under $5
+    // Focus on well-known tickers to avoid delisted/404 errors
+    const pennyStockSymbols = [
+      // Major stocks currently under $5 (high liquidity)
+      'AAL', 'NOK', 'F', 'SNAP', 'CCL', 'NCLH',
+      // Tech & EV sector ($1-$5)
+      'FUBO', 'GSAT', 'BB',
+      // Healthcare ($1-$5)
+      'SNDL', 'MNKD', 'OCGN', 'BNGO',
+      // Energy & Resources ($1-$5)
+      'BTU', 'KGC', 'VALE',
+      // Financial ($1-$5)
+      'UWMC', 'PBF'
+    ];
+    
+    const pennyStocks: StockGem[] = [];
+    
+    // Fetch current prices for penny stock candidates
+    for (const symbol of pennyStockSymbols) {
+      try {
+        const priceData = await fetchStockPrice(symbol);
+        if (!priceData) continue;
+        
+        const price = priceData.currentPrice;
+        const change = priceData.changePercent || 0;
+        const volume = priceData.volume || 0;
+        const marketCap = priceData.marketCap || 0;
+        
+        // Filter: Must be $1-$7 (expanded range to find actual penny stocks)
+        // Market conditions: Many former penny stocks have recovered above $5
+        if (price >= 1 && price < 7 && volume >= 100000 && marketCap >= 10_000_000) {
+          pennyStocks.push({
+            symbol,
+            currentPrice: price,
+            changePercent: change,
+            volume,
+            marketCap
+          });
+        }
+      } catch (error) {
+        // Skip this symbol if fetch fails
+        continue;
+      }
+    }
+    
+    // Sort by volume (higher volume = more liquid)
+    const sortedPennyStocks = pennyStocks
+      .sort((a, b) => b.volume - a.volume)
+      .slice(0, 10);
+    
+    logger.info(`💎 Discovered ${sortedPennyStocks.length} penny stocks: ${sortedPennyStocks.slice(0, 5).map(g => `${g.symbol} ($${g.currentPrice.toFixed(2)})`).join(', ')}${sortedPennyStocks.length > 5 ? '...' : ''}`);
+    
+    return sortedPennyStocks;
+  } catch (error) {
+    logger.error('❌ Penny stock discovery error:', error);
     return [];
   }
 }
