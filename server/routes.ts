@@ -374,7 +374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get additional user data
-      const preferences = await storage.getUserPreferences(req.params.userId);
+      const preferences = await storage.getUserPreferences();
       const watchlistItems = await storage.getWatchlistByUser(req.params.userId);
       
       res.json({
@@ -399,7 +399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updated = await storage.updateUser(req.params.userId, {
         subscriptionTier,
         subscriptionStatus,
-        updatedAt: new Date().toISOString(),
+        updatedAt: new Date(),
       });
       
       if (!updated) {
@@ -460,7 +460,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM pg_stat_user_tables
       `);
       
-      const totalBytes = parseInt(bloatQuery.rows[0]?.total_bytes || '0');
+      const totalBytes = parseInt(String(bloatQuery.rows[0]?.total_bytes || '0'));
       
       res.json({
         totalIdeas: allIdeas.length,
