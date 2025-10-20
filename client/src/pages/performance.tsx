@@ -376,7 +376,8 @@ export default function PerformancePage() {
       .filter(i => i.percentGain !== null && i.percentGain !== undefined)
       .sort((a, b) => (b.percentGain || 0) - (a.percentGain || 0));
     
-    const bestTrades = sortedByGain.slice(0, 5);
+    // Only show positive gains in "Top Winners"
+    const bestTrades = sortedByGain.filter(i => (i.percentGain || 0) > 0).slice(0, 5);
     const worstTrades = sortedByGain.slice(-5).reverse();
 
     return {
