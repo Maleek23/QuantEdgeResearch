@@ -144,6 +144,14 @@ export default function TradeIdeasPage() {
     return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDate;
   });
 
+  // Helper function to check if an idea is fresh (created within last 2 hours)
+  // Day trading requires very fresh data - timing windows expire quickly
+  const isFreshIdea = (idea: TradeIdea) => {
+    const ideaDate = parseISO(idea.timestamp);
+    const cutoffTime = subHours(new Date(), 2); // 2 hours ago - prevents stale timing data
+    return ideaDate >= cutoffTime && idea.outcomeStatus === 'open';
+  };
+
   // Sort filtered ideas by priority score (best first)
   const sortedIdeas = [...filteredIdeas].sort((a, b) => {
     return calculatePriorityScore(b) - calculatePriorityScore(a);
@@ -164,14 +172,6 @@ export default function TradeIdeasPage() {
 
   // Get dates with ideas for calendar highlighting
   const datesWithIdeas = tradeIdeas.map(idea => startOfDay(parseISO(idea.timestamp)));
-
-  // Helper function to check if an idea is fresh (created within last 2 hours)
-  // Day trading requires very fresh data - timing windows expire quickly
-  const isFreshIdea = (idea: TradeIdea) => {
-    const ideaDate = parseISO(idea.timestamp);
-    const cutoffTime = subHours(new Date(), 2); // 2 hours ago - prevents stale timing data
-    return ideaDate >= cutoffTime && idea.outcomeStatus === 'open';
-  };
 
   // Count fresh ideas (last 2h) - day trading window
   const newIdeasCount = filteredIdeas.filter(isFreshIdea).length;
