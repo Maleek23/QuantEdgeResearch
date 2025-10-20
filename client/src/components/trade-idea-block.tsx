@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -123,6 +123,22 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
                   ) : (
                     <><ArrowDownRight className="h-3 w-3 mr-1" />SHORT</>
                   )}
+                </Badge>
+
+                {/* Holding Period Badge */}
+                <Badge 
+                  variant="outline"
+                  className={cn(
+                    "font-medium",
+                    idea.holdingPeriod === 'day' && "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
+                    idea.holdingPeriod === 'swing' && "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30",
+                    idea.holdingPeriod === 'position' && "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30"
+                  )}
+                  data-testid={`badge-holding-${idea.symbol}`}
+                >
+                  {idea.holdingPeriod === 'day' && <><CalendarClock className="h-3 w-3 mr-1" />DAY TRADE</>}
+                  {idea.holdingPeriod === 'swing' && <><CalendarDays className="h-3 w-3 mr-1" />SWING</>}
+                  {idea.holdingPeriod === 'position' && <><Calendar className="h-3 w-3 mr-1" />POSITION</>}
                 </Badge>
                 
                 {/* Holding Period Badge */}

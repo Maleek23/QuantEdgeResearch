@@ -233,7 +233,7 @@ export async function calculateTimingWindows(
       // Calculate hours until Friday 4pm ET
       const daysUntilFriday = 5 - currentDay; // How many days until Friday
       const hoursUntilFridayClose = (daysUntilFriday * 24) + 4; // Approximate
-      exitWindowMinutes = Math.max(60, Math.min(exitWindowMinutes, hoursUntilFriday * 60));
+      exitWindowMinutes = Math.max(60, Math.min(exitWindowMinutes, hoursUntilFridayClose * 60));
     } else {
       // Weekend - use swing trade timing
       exitWindowMinutes = 2880; // 2 days

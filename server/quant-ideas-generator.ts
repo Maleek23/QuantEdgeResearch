@@ -670,24 +670,27 @@ export async function generateQuantIdeas(
 
   // Convert discovered stock gems to MarketData
   // CLASSIFY: Stocks under $5 = penny_stock, $5+ = regular stock
-  const discoveredStockData: MarketData[] = stockGems.map(gem => ({
-    id: `stock-gem-${gem.symbol}`,
-    symbol: gem.symbol,
-    assetType: (gem.currentPrice < 5 ? 'penny_stock' : 'stock') as const,
-    currentPrice: gem.currentPrice,
-    changePercent: gem.changePercent,
-    volume: gem.volume,
-    marketCap: gem.marketCap,
-    session: 'rth' as const,
-    timestamp: now.toISOString(),
-    high24h: null,
-    low24h: null,
-    high52Week: null,
-    low52Week: null,
-    avgVolume: gem.volume / 1.3, // Estimate baseline volume
-    dataSource: 'live' as const,
-    lastUpdated: now.toISOString(),
-  }));
+  const discoveredStockData: MarketData[] = stockGems.map(gem => {
+    const assetType: 'stock' | 'penny_stock' = gem.currentPrice < 5 ? 'penny_stock' : 'stock';
+    return {
+      id: `stock-gem-${gem.symbol}`,
+      symbol: gem.symbol,
+      assetType,
+      currentPrice: gem.currentPrice,
+      changePercent: gem.changePercent,
+      volume: gem.volume,
+      marketCap: gem.marketCap,
+      session: 'rth' as const,
+      timestamp: now.toISOString(),
+      high24h: null,
+      low24h: null,
+      high52Week: null,
+      low52Week: null,
+      avgVolume: gem.volume / 1.3, // Estimate baseline volume
+      dataSource: 'live' as const,
+      lastUpdated: now.toISOString(),
+    };
+  });
   
   // Build dynamic symbol-to-coinId map for discovered crypto gems
   // This allows historical price fetching to work with newly discovered symbols

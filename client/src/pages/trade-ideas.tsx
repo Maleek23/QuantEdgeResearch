@@ -26,7 +26,7 @@ export default function TradeIdeasPage() {
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
-  const [activeAssetType, setActiveAssetType] = useState<"stock" | "option" | "crypto" | "all">("all");
+  const [activeAssetType, setActiveAssetType] = useState<"stock" | "penny_stock" | "option" | "crypto" | "all">("all");
   const [activeGrade, setActiveGrade] = useState<"all" | "A" | "B" | "C">("all");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -210,6 +210,7 @@ export default function TradeIdeasPage() {
                   <SelectContent>
                     <SelectItem value="all">All Assets</SelectItem>
                     <SelectItem value="stock">Stock Shares</SelectItem>
+                    <SelectItem value="penny_stock">Penny Stocks</SelectItem>
                     <SelectItem value="option">Stock Options</SelectItem>
                     <SelectItem value="crypto">Crypto (24/7)</SelectItem>
                   </SelectContent>
@@ -343,6 +344,7 @@ export default function TradeIdeasPage() {
                   <SelectContent>
                     <SelectItem value="all">All Asset Types</SelectItem>
                     <SelectItem value="stock">Stock Shares</SelectItem>
+                    <SelectItem value="penny_stock">Penny Stocks</SelectItem>
                     <SelectItem value="option">Stock Options</SelectItem>
                     <SelectItem value="crypto">Crypto</SelectItem>
                   </SelectContent>
@@ -553,12 +555,13 @@ export default function TradeIdeasPage() {
               {Object.entries(groupedIdeas)
                 .filter(([, ideas]) => ideas.some(isFreshIdea))
                 .sort(([a], [b]) => {
-                  const order = { 'stock': 0, 'option': 1, 'crypto': 2 };
+                  const order = { 'stock': 0, 'penny_stock': 1, 'option': 2, 'crypto': 3 };
                   return (order[a as keyof typeof order] || 0) - (order[b as keyof typeof order] || 0);
                 })
                 .map(([assetType, ideas]) => {
                   const assetTypeLabels = {
                     'stock': 'Stock Shares',
+                    'penny_stock': 'Penny Stocks',
                     'option': 'Stock Options', 
                     'crypto': 'Crypto'
                   };
@@ -619,12 +622,13 @@ export default function TradeIdeasPage() {
               {Object.entries(groupedIdeas)
                 .filter(([, ideas]) => ideas.some(i => i.outcomeStatus === 'open'))
                 .sort(([a], [b]) => {
-                  const order = { 'stock': 0, 'option': 1, 'crypto': 2 };
+                  const order = { 'stock': 0, 'penny_stock': 1, 'option': 2, 'crypto': 3 };
                   return (order[a as keyof typeof order] || 0) - (order[b as keyof typeof order] || 0);
                 })
                 .map(([assetType, ideas]) => {
                   const assetTypeLabels = {
                     'stock': 'Stock Shares',
+                    'penny_stock': 'Penny Stocks',
                     'option': 'Stock Options', 
                     'crypto': 'Crypto'
                   };
