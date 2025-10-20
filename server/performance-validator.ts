@@ -11,6 +11,10 @@ interface ValidationResult {
   resolutionReason?: TradeIdea['resolutionReason'];
   exitDate?: string;
   actualHoldingTimeMinutes?: number;
+  predictionAccurate?: boolean;
+  predictionValidatedAt?: string;
+  highestPriceReached?: number;
+  lowestPriceReached?: number;
 }
 
 export class PerformanceValidator {
@@ -32,6 +36,10 @@ export class PerformanceValidator {
     const holdingTimeMs = now.getTime() - createdAt.getTime();
     const holdingTimeMinutes = Math.floor(holdingTimeMs / (1000 * 60));
 
+    // Track price extremes (update if current price is more extreme)
+    const highestPrice = Math.max(idea.highestPriceReached || idea.entryPrice, currentPrice);
+    const lowestPrice = Math.min(idea.lowestPriceReached || idea.entryPrice, currentPrice);
+
     // Check if expired (7+ days old)
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     if (createdAt < sevenDaysAgo) {
@@ -39,6 +47,13 @@ export class PerformanceValidator {
         idea.direction,
         idea.entryPrice,
         currentPrice
+      );
+      
+      const predictionAccurate = this.checkPredictionAccuracy(
+        idea,
+        currentPrice,
+        highestPrice,
+        lowestPrice
       );
 
       return {
@@ -50,6 +65,10 @@ export class PerformanceValidator {
         resolutionReason: 'auto_expired',
         exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
         actualHoldingTimeMinutes: holdingTimeMinutes,
+        predictionAccurate,
+        predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+        highestPriceReached: highestPrice,
+        lowestPriceReached: lowestPrice,
       };
     }
 
@@ -74,6 +93,10 @@ export class PerformanceValidator {
         resolutionReason: 'auto_target_hit',
         exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
         actualHoldingTimeMinutes: holdingTimeMinutes,
+        predictionAccurate: true, // Hit target = prediction was accurate
+        predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+        highestPriceReached: highestPrice,
+        lowestPriceReached: lowestPrice,
       };
     }
 
@@ -88,6 +111,14 @@ export class PerformanceValidator {
         idea.entryPrice,
         idea.stopLoss
       );
+      
+      // Even if stop hit, check if prediction moved in right direction before reversing
+      const predictionAccurate = this.checkPredictionAccuracy(
+        idea,
+        currentPrice,
+        highestPrice,
+        lowestPrice
+      );
 
       return {
         shouldUpdate: true,
@@ -98,6 +129,23 @@ export class PerformanceValidator {
         resolutionReason: 'auto_stop_hit',
         exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
         actualHoldingTimeMinutes: holdingTimeMinutes,
+        predictionAccurate,
+        predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+        highestPriceReached: highestPrice,
+        lowestPriceReached: lowestPrice,
+      };
+    }
+
+    // Still open - update price extremes if they changed
+    const priceExtremesChanged = 
+      highestPrice !== (idea.highestPriceReached || idea.entryPrice) ||
+      lowestPrice !== (idea.lowestPriceReached || idea.entryPrice);
+
+    if (priceExtremesChanged) {
+      return {
+        shouldUpdate: true,
+        highestPriceReached: highestPrice,
+        lowestPriceReached: lowestPrice,
       };
     }
 
@@ -120,6 +168,32 @@ export class PerformanceValidator {
 
     // For shorts, invert the percentage
     return direction === 'short' ? -percentChange : percentChange;
+  }
+
+  /**
+   * Check if the quant prediction was accurate
+   * Prediction is considered accurate if price moved at least 50% toward target
+   */
+  private static checkPredictionAccuracy(
+    idea: TradeIdea,
+    currentPrice: number,
+    highestPrice?: number,
+    lowestPrice?: number
+  ): boolean {
+    const expectedMove = idea.targetPrice - idea.entryPrice;
+    const threshold = 0.5; // 50% of expected move
+    
+    if (idea.direction === 'long') {
+      // For LONG: Did price reach at least 50% of the way to target?
+      const midPoint = idea.entryPrice + (expectedMove * threshold);
+      const peakPrice = highestPrice || currentPrice;
+      return peakPrice >= midPoint;
+    } else {
+      // For SHORT: Did price reach at least 50% of the way to target?
+      const midPoint = idea.entryPrice + (expectedMove * threshold); // expectedMove is negative for shorts
+      const bottomPrice = lowestPrice || currentPrice;
+      return bottomPrice <= midPoint;
+    }
   }
 
   /**
