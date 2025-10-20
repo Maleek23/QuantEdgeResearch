@@ -16,13 +16,12 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { TradeIdea, ScreenerFilters as Filters, IdeaSource, MarketData } from "@shared/schema";
+import type { TradeIdea, IdeaSource, MarketData } from "@shared/schema";
 import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO, subHours } from "date-fns";
 import { isWeekend, getNextTradingWeekStart } from "@/lib/utils";
 
 export default function TradeIdeasPage() {
-  const [activeFilters, setActiveFilters] = useState<Filters>({});
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
@@ -117,8 +116,8 @@ export default function TradeIdeasPage() {
       idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase()) ||
       idea.catalyst.toLowerCase().includes(tradeIdeaSearch.toLowerCase());
     
-    // Check if it's a day trade based on sessionContext containing "day"
-    const isDayTrade = idea.sessionContext?.toLowerCase().includes('day') || false;
+    // Check if it's a day trade based on holdingPeriod field
+    const isDayTrade = idea.holdingPeriod === 'day';
     const matchesDirection = activeDirection === "all" || 
       (activeDirection === "day_trade" && isDayTrade) ||
       (activeDirection !== "day_trade" && idea.direction === activeDirection);
@@ -131,9 +130,7 @@ export default function TradeIdeasPage() {
     
     const matchesDate = !selectedDate || isSameDay(parseISO(idea.timestamp), selectedDate);
     
-    const matchesFilters = (!activeFilters.assetType || activeFilters.assetType.includes(idea.assetType));
-    
-    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDate && matchesFilters;
+    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDate;
   });
 
   // Group by asset type
