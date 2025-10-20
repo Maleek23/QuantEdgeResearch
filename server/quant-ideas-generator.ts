@@ -589,13 +589,12 @@ function calculateConfidenceScore(
 // ALIGNED with frontend display logic in trade-idea-block.tsx
 function getProbabilityBand(score: number): string {
   if (score >= 95) return 'A+';
-  if (score >= 90) return 'A-';
+  if (score >= 90) return 'A';
   if (score >= 85) return 'B+';
   if (score >= 80) return 'B';
-  if (score >= 75) return 'B-';
-  if (score >= 70) return 'C+';
-  if (score >= 65) return 'C';
-  return 'C-';
+  if (score >= 75) return 'C+';
+  if (score >= 70) return 'C';
+  return 'D';
 }
 
 // Calculate gem score for prioritizing opportunities

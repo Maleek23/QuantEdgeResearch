@@ -74,7 +74,7 @@ export const tradeIdeas = pgTable("trade_ideas", {
   source: text("source").notNull().$type<IdeaSource>().default('quant'), // 'ai' | 'quant'
   confidenceScore: real("confidence_score").notNull().default(0), // 0-100 quality score
   qualitySignals: text("quality_signals").array(), // Array of signal names that fired
-  probabilityBand: text("probability_band").notNull().default('C'), // 'A' (80+), 'B' (70-79), 'C' (<70)
+  probabilityBand: text("probability_band").notNull().default('C'), // 'A+' (95+), 'A' (90+), 'B+' (85+), 'B' (80+), 'C+' (75+), 'C' (70+), 'D' (<70)
   
   // Performance Tracking Fields
   outcomeStatus: text("outcome_status").$type<OutcomeStatus>().default('open'), // Tracks if trade worked
