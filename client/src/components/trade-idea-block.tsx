@@ -203,8 +203,8 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
             </div>
           )}
 
-          {/* Price Levels Grid */}
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          {/* Price Levels Grid - Essential Info Only */}
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <div className="text-xs text-muted-foreground mb-1">Entry</div>
               <div className="text-base font-mono font-semibold">
@@ -225,16 +225,53 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
             </div>
           </div>
 
+          {/* One-line catalyst preview */}
+          <div className="pt-3 border-t">
+            <p className="text-sm text-muted-foreground line-clamp-1">{idea.catalyst}</p>
+          </div>
+        </div>
+      </CollapsibleTrigger>
+
+      <CollapsibleContent>
+        <div className="border-x border-b rounded-b-lg p-6 bg-card/50 space-y-6" onClick={(e) => e.stopPropagation()}>
+          {/* Catalyst */}
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <h4 className="text-sm font-semibold">Catalyst</h4>
+              {idea.catalystSourceUrl && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-xs"
+                  asChild
+                  data-testid={`link-catalyst-source-${idea.symbol}`}
+                >
+                  <a href={idea.catalystSourceUrl} target="_blank" rel="noopener noreferrer">
+                    View Source <ExternalLink className="h-3 w-3" />
+                  </a>
+                </Button>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">{idea.catalyst}</p>
+          </div>
+
+          {/* Analysis */}
+          <div>
+            <h4 className="text-sm font-semibold mb-2">Analysis</h4>
+            <p className="text-sm text-muted-foreground">{idea.analysis}</p>
+          </div>
+
           {/* Real-Time Trading Advice */}
           {currentPrice && (
-            <div className="pt-3 border-t">
+            <div>
               <TradingAdvice idea={idea} currentPrice={currentPrice} />
             </div>
           )}
 
           {/* Quantitative Timing */}
           {(idea.entryValidUntil || idea.exitBy) && (
-            <div className="pt-3 border-t">
+            <div>
+              <h4 className="text-sm font-semibold mb-3">Quantitative Timing</h4>
               <div className="grid grid-cols-2 gap-3 mb-2">
                 {idea.entryValidUntil && (
                   <div className="flex items-center gap-2">
@@ -267,37 +304,6 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
               )}
             </div>
           )}
-        </div>
-      </CollapsibleTrigger>
-
-      <CollapsibleContent>
-        <div className="border-x border-b rounded-b-lg p-6 bg-card/50 space-y-6" onClick={(e) => e.stopPropagation()}>
-          {/* Catalyst */}
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <h4 className="text-sm font-semibold">Catalyst</h4>
-              {idea.catalystSourceUrl && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 gap-1 text-xs"
-                  asChild
-                  data-testid={`link-catalyst-source-${idea.symbol}`}
-                >
-                  <a href={idea.catalystSourceUrl} target="_blank" rel="noopener noreferrer">
-                    View Source <ExternalLink className="h-3 w-3" />
-                  </a>
-                </Button>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">{idea.catalyst}</p>
-          </div>
-
-          {/* Analysis */}
-          <div>
-            <h4 className="text-sm font-semibold mb-2">Analysis</h4>
-            <p className="text-sm text-muted-foreground">{idea.analysis}</p>
-          </div>
 
           {/* Explainability Panel */}
           <ExplainabilityPanel idea={idea} />
