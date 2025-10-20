@@ -3,6 +3,17 @@
 ## Overview
 QuantEdge Research is a professional quantitative trading research platform designed to identify day-trading opportunities across US equities, options, and crypto markets. Its primary purpose is to provide educational, research-grade trade ideas, comprehensive risk management tools, and real-time market analysis. The platform aims to offer robust risk controls and clear educational disclaimers, all presented through a professional dark-themed UI optimized for rapid data scanning. It integrates real historical data to improve model accuracy and features adaptive learning capabilities that improve trade idea quality over time. The platform operates with a public-access model, managing membership tiers (Free vs. Premium) through Discord roles, with the web platform serving as a public dashboard.
 
+## Recent Changes
+
+### October 20, 2025 - Holding Period Diversity & Penny Stock Support
+- **Holding Period Classification**: Extended schema to support 4 holding period types (day/swing/position/week-ending) with distinct visual badges
+- **Week-Ending Strategy**: Added 10% allocation for trades that exit by Friday close, calculated dynamically based on current day
+- **Holding Period Distribution**: 25% day trades (<6hrs), 40% swing (1-5 days), 25% position (5-14 days), 10% week-ending
+- **Penny Stock Support**: Stocks under $5 now classified as separate 'penny_stock' asset type with relaxed market cap requirements ($10M vs $50M)
+- **UI Enhancements**: Single holding period badge per trade idea with color coding (amber=day, blue=swing, purple=position, green=week-ending)
+- **Filter Improvements**: Added penny stock filter option to Trade Ideas page with proper sorting and grouping
+- **Stock Discovery**: Updated market-api.ts to allow $1-$5 stocks through with lower market cap threshold for penny stock discovery
+
 ## User Preferences
 - All timestamps should be displayed in America/Chicago timezone with market session context.
 - The UI should be a professional dark-themed interface optimized for rapid data scanning.
