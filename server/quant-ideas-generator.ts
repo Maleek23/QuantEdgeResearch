@@ -997,9 +997,18 @@ export async function generateQuantIdeas(
       }
     })();
     
+    // Calculate holding period based on exit window
+    const holdingPeriod: 'day' | 'swing' | 'position' = (() => {
+      const exitMinutes = timingAnalytics.exitWindowMinutes;
+      if (exitMinutes < 360) return 'day';        // < 6 hours = day trade
+      if (exitMinutes < 7200) return 'swing';     // 6hrs - 5 days = swing trade
+      return 'position';                           // > 5 days = position trade
+    })();
+    
     logger.info(
       `⏰ ${data.symbol} QUANTITATIVE TIMING: Entry in ${timingAnalytics.entryWindowMinutes}min (${entryValidUntil}), ` +
       `Exit in ${timingAnalytics.exitWindowMinutes}min (${exitBy}) | ` +
+      `${holdingPeriod.toUpperCase()} TRADE | ` +
       `Regime: ${regime.volatilityRegime} volatility, ${regime.sessionPhase} session | ` +
       `Target hit probability: ${timingAnalytics.targetHitProbability.toFixed(1)}%`
     );
@@ -1008,6 +1017,7 @@ export async function generateQuantIdeas(
       symbol: data.symbol,
       assetType: assetType,
       direction: signal.direction,
+      holdingPeriod: holdingPeriod,
       entryPrice: levels.entryPrice,
       targetPrice: levels.targetPrice,
       stopLoss: levels.stopLoss,
