@@ -29,7 +29,7 @@ export type User = typeof users.$inferSelect;
 export type MarketSession = 'pre-market' | 'rth' | 'after-hours' | 'closed';
 
 // Asset Types
-export type AssetType = 'stock' | 'option' | 'crypto';
+export type AssetType = 'stock' | 'penny_stock' | 'option' | 'crypto';
 
 // Performance Tracking Outcome Types
 export type OutcomeStatus = 'open' | 'hit_target' | 'hit_stop' | 'manual_exit' | 'expired';

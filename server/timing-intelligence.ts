@@ -197,67 +197,93 @@ export async function calculateTimingWindows(
     }
   }
 
+  // CREATE VARIETY: Randomize holding period type for diversity
+  // 25% day trades, 40% swing trades, 25% position trades, 10% week-ending
+  const holdingTypeRoll = Math.random();
+  let holdingPeriodType: 'day' | 'swing' | 'position' | 'week-ending';
+  
+  if (holdingTypeRoll < 0.25) {
+    holdingPeriodType = 'day'; // Day trade: exit same day
+  } else if (holdingTypeRoll < 0.65) {
+    holdingPeriodType = 'swing'; // Swing: hold 1-5 days
+  } else if (holdingTypeRoll < 0.90) {
+    holdingPeriodType = 'position'; // Position: hold 5+ days
+  } else {
+    holdingPeriodType = 'week-ending'; // Week-ending: exit by Friday
+  }
+
+  // Adjust base windows based on holding period type
+  if (holdingPeriodType === 'day') {
+    // Day trade: tight windows (exit within same session)
+    exitWindowMinutes = Math.min(exitWindowMinutes, 300); // Max 5 hours
+  } else if (holdingPeriodType === 'swing') {
+    // Swing trade: 1-5 days
+    exitWindowMinutes = Math.min(exitWindowMinutes, 7200); // Max 5 days
+    exitWindowMinutes = Math.max(exitWindowMinutes, 1440); // Min 1 day
+  } else if (holdingPeriodType === 'position') {
+    // Position trade: 5+ days to weeks
+    exitWindowMinutes = Math.min(exitWindowMinutes, 20160); // Max ~2 weeks
+    exitWindowMinutes = Math.max(exitWindowMinutes, 7200); // Min 5 days
+  } else {
+    // Week-ending: exit by Friday close
+    const now = new Date();
+    const currentDay = now.getDay(); // 0=Sunday, 6=Saturday
+    
+    if (currentDay >= 1 && currentDay <= 5) {
+      // Calculate hours until Friday 4pm ET
+      const daysUntilFriday = 5 - currentDay; // How many days until Friday
+      const hoursUntilFridayClose = (daysUntilFriday * 24) + 4; // Approximate
+      exitWindowMinutes = Math.max(60, Math.min(exitWindowMinutes, hoursUntilFriday * 60));
+    } else {
+      // Weekend - use swing trade timing
+      exitWindowMinutes = 2880; // 2 days
+    }
+  }
+
   // Adjust windows based on market regime
   // High volatility = tighter windows (faster moves)
   if (regime.volatilityRegime === 'extreme') {
     entryWindowMinutes = Math.round(entryWindowMinutes * 0.6);
-    exitWindowMinutes = Math.round(exitWindowMinutes * 0.7);
+    exitWindowMinutes = Math.round(exitWindowMinutes * 0.8);
     targetHitProbability += 5; // Higher probability in extreme volatility
   } else if (regime.volatilityRegime === 'high') {
     entryWindowMinutes = Math.round(entryWindowMinutes * 0.8);
-    exitWindowMinutes = Math.round(exitWindowMinutes * 0.85);
+    exitWindowMinutes = Math.round(exitWindowMinutes * 0.9);
     targetHitProbability += 3;
   } else if (regime.volatilityRegime === 'low') {
-    entryWindowMinutes = Math.round(entryWindowMinutes * 1.3);
-    exitWindowMinutes = Math.round(exitWindowMinutes * 1.2);
+    entryWindowMinutes = Math.round(entryWindowMinutes * 1.2);
+    exitWindowMinutes = Math.round(exitWindowMinutes * 1.1);
     targetHitProbability -= 5; // Lower probability in low volatility
   }
 
-  // Strong trends = faster target hits
+  // Strong trends = can hold longer confidently
   if (regime.trendStrength > 70) {
-    exitWindowMinutes = Math.round(exitWindowMinutes * 0.85);
     targetHitProbability += 5;
   } else if (regime.trendStrength < 40) {
-    exitWindowMinutes = Math.round(exitWindowMinutes * 1.15);
+    exitWindowMinutes = Math.round(exitWindowMinutes * 0.9); // Exit faster in weak trends
     targetHitProbability -= 5;
   }
 
-  // Session phase adjustments
-  if (regime.sessionPhase === 'opening') {
-    entryWindowMinutes = Math.min(entryWindowMinutes, 90); // Tight entry in opening hour
-    exitWindowMinutes = Math.round(exitWindowMinutes * 0.9); // Faster moves
-  } else if (regime.sessionPhase === 'closing') {
-    entryWindowMinutes = Math.min(entryWindowMinutes, 60); // Very tight near close
-    exitWindowMinutes = Math.min(exitWindowMinutes, 180); // Must exit before close
-  }
-
-  // Crypto trades 24/7, so extend windows
-  if (assetType === 'crypto') {
-    entryWindowMinutes = Math.round(entryWindowMinutes * 1.5);
-    exitWindowMinutes = Math.round(exitWindowMinutes * 1.3);
-  }
-
-  // CRITICAL: Stock markets are CLOSED on weekends (Sat/Sun)
-  // For stocks: Exit windows MUST NOT extend into weekends
-  // Max exit: Friday 4:00 PM ET OR same-day market close (whichever comes first)
-  if (assetType === 'stock') {
-    const now = new Date();
-    const nowDay = now.getDay(); // 0=Sunday, 6=Saturday
-    
-    // Stocks don't trade on weekends - cap exit to same trading day
-    if (nowDay >= 1 && nowDay <= 5) {
-      // Weekday: cap exit at 4:00 PM ET same day (end of trading session)
-      // Stock ideas are intraday only - no overnight holds
-      exitWindowMinutes = Math.min(exitWindowMinutes, 390); // Max ~6.5 hours (typical trading day)
-    } else {
-      // Weekend: This shouldn't happen (stock generation blocked), but cap conservatively
-      exitWindowMinutes = 60; // 1 hour minimum
+  // Session phase adjustments (only for day trades)
+  if (holdingPeriodType === 'day') {
+    if (regime.sessionPhase === 'opening') {
+      entryWindowMinutes = Math.min(entryWindowMinutes, 90); // Tight entry in opening hour
+      exitWindowMinutes = Math.round(exitWindowMinutes * 0.9); // Faster moves
+    } else if (regime.sessionPhase === 'closing') {
+      entryWindowMinutes = Math.min(entryWindowMinutes, 60); // Very tight near close
+      exitWindowMinutes = Math.min(exitWindowMinutes, 120); // Must exit before close
     }
+  }
+
+  // Crypto trades 24/7, so can extend all holding periods
+  if (assetType === 'crypto') {
+    entryWindowMinutes = Math.round(entryWindowMinutes * 1.3);
+    exitWindowMinutes = Math.round(exitWindowMinutes * 1.2);
   }
 
   // Clamp values to reasonable ranges
   entryWindowMinutes = Math.max(30, Math.min(480, entryWindowMinutes)); // 30min - 8hr
-  exitWindowMinutes = Math.max(60, Math.min(1440, exitWindowMinutes)); // 1hr - 24hr
+  exitWindowMinutes = Math.max(60, Math.min(20160, exitWindowMinutes)); // 1hr - 2 weeks
   targetHitProbability = Math.max(50, Math.min(95, targetHitProbability));
 
   // Timing confidence based on data availability

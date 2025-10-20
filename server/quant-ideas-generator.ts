@@ -669,10 +669,11 @@ export async function generateQuantIdeas(
   logger.info(`  ✓ Crypto discovery: ${cryptoGems.length} gems found`);
 
   // Convert discovered stock gems to MarketData
+  // CLASSIFY: Stocks under $5 = penny_stock, $5+ = regular stock
   const discoveredStockData: MarketData[] = stockGems.map(gem => ({
     id: `stock-gem-${gem.symbol}`,
     symbol: gem.symbol,
-    assetType: 'stock' as const,
+    assetType: (gem.currentPrice < 5 ? 'penny_stock' : 'stock') as const,
     currentPrice: gem.currentPrice,
     changePercent: gem.changePercent,
     volume: gem.volume,
@@ -736,32 +737,35 @@ export async function generateQuantIdeas(
 
   // Separate by asset type for balanced iteration
   const stockData = combinedData.filter(d => d.assetType === 'stock').sort((a, b) => calculateGemScore(b) - calculateGemScore(a));
+  const pennyStockData = combinedData.filter(d => d.assetType === 'penny_stock').sort((a, b) => calculateGemScore(b) - calculateGemScore(a));
   const cryptoData = combinedData.filter(d => d.assetType === 'crypto').sort((a, b) => calculateGemScore(b) - calculateGemScore(a));
   
-  // Interleave asset types to ensure balanced distribution (2 stocks, then 1 crypto pattern)
+  // Interleave asset types to ensure balanced distribution (1 stock, 1 penny, 1 crypto pattern)
   const sortedData: typeof combinedData = [];
-  let si = 0, ci = 0;
-  while (si < stockData.length || ci < cryptoData.length) {
-    // Add 2 stocks
+  let si = 0, pi = 0, ci = 0;
+  while (si < stockData.length || pi < pennyStockData.length || ci < cryptoData.length) {
+    // Add 1 regular stock
     if (si < stockData.length) sortedData.push(stockData[si++]);
-    if (si < stockData.length) sortedData.push(stockData[si++]);
+    // Add 1 penny stock
+    if (pi < pennyStockData.length) sortedData.push(pennyStockData[pi++]);
     // Add 1 crypto
     if (ci < cryptoData.length) sortedData.push(cryptoData[ci++]);
   }
 
-  logger.info(`📊 Processing ${sortedData.length} candidates (${stockData.length} stocks, ${cryptoData.length} crypto)`);
+  logger.info(`📊 Processing ${sortedData.length} candidates (${stockData.length} stocks, ${pennyStockData.length} penny stocks, ${cryptoData.length} crypto)`);
   logger.info(`   Top movers: ${sortedData.slice(0, 10).map(d => `${d.symbol} ${d.changePercent > 0 ? '+' : ''}${d.changePercent.toFixed(1)}%`).join(', ')}${sortedData.length > 10 ? '...' : ''}`);
 
   // Track asset type distribution to ensure balanced mix
-  const assetTypeCount = { stock: 0, option: 0, crypto: 0 };
+  const assetTypeCount = { stock: 0, penny_stock: 0, option: 0, crypto: 0 };
   
   const targetDistribution = {
-    stock: marketOpen ? Math.round(count * 0.4) : 0,  // 40% stock shares when market open, 0% on weekends/after-hours
-    option: marketOpen ? Math.round(count * 0.2) : 0, // 20% options when market open (Tradier API now working)
+    stock: marketOpen ? Math.round(count * 0.25) : 0,  // 25% regular stocks when market open
+    penny_stock: marketOpen ? Math.round(count * 0.15) : 0,  // 15% penny stocks when market open
+    option: marketOpen ? Math.round(count * 0.20) : 0, // 20% options when market open (Tradier API working)
     crypto: 0   // Will be calculated to fill remaining
   };
   // Ensure targets add up to count by allocating remainder to crypto
-  targetDistribution.crypto = count - targetDistribution.stock - targetDistribution.option;
+  targetDistribution.crypto = count - targetDistribution.stock - targetDistribution.penny_stock - targetDistribution.option;
 
   // Helper to check if we should accept this asset type based on distribution targets
   const shouldAcceptAssetType = (assetType: string): boolean => {
@@ -769,6 +773,7 @@ export async function generateQuantIdeas(
     
     // Strict rule: Only accept if this asset type is below its target
     if (assetType === 'stock') return assetTypeCount.stock < targetDistribution.stock;
+    if (assetType === 'penny_stock') return assetTypeCount.penny_stock < targetDistribution.penny_stock;
     if (assetType === 'option') return assetTypeCount.option < targetDistribution.option;
     if (assetType === 'crypto') return assetTypeCount.crypto < targetDistribution.crypto;
     
@@ -975,7 +980,7 @@ export async function generateQuantIdeas(
     // Quantitatively-proven timing windows based on historical performance + market regime
     const regime = detectMarketRegime(signalStack);
     const timingAnalytics = await calculateTimingWindows(
-      assetType === 'option' ? 'stock' : assetType, // Options use stock timing
+      assetType === 'option' || assetType === 'penny_stock' ? 'stock' : assetType, // Options and penny stocks use stock timing
       signalStack,
       regime
     );
