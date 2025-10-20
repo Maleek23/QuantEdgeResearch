@@ -895,8 +895,10 @@ export default function PerformancePage() {
                         {trade.direction.toUpperCase()}
                       </Badge>
                     </div>
-                    <div className="text-lg font-bold font-mono text-green-500">
-                      +{(trade.percentGain || 0).toFixed(2)}%
+                    <div className={`text-lg font-bold font-mono ${
+                      (trade.percentGain || 0) >= 0 ? 'text-green-500' : 'text-red-500'
+                    }`}>
+                      {(trade.percentGain || 0) >= 0 ? '+' : ''}{(trade.percentGain || 0).toFixed(2)}%
                     </div>
                   </div>
                 ))}
