@@ -231,6 +231,8 @@ export async function calculateTimingWindows(
   if (holdingPeriodType === 'day') {
     // Day trade: tight windows (exit within same session)
     exitWindowMinutes = Math.min(exitWindowMinutes, 300); // Max 5 hours
+    // CRITICAL: Ensure exit is AFTER entry (exit must be entry + minimum hold time)
+    exitWindowMinutes = Math.max(exitWindowMinutes, entryWindowMinutes + 60); // Exit at least 1hr after entry
   } else if (holdingPeriodType === 'swing') {
     // Swing trade: 1-5 days
     exitWindowMinutes = Math.min(exitWindowMinutes, 7200); // Max 5 days

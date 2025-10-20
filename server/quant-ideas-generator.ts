@@ -994,17 +994,17 @@ export async function generateQuantIdeas(
     // Format entry and exit windows using quantitative timing intelligence
     const entryValidUntil = (() => {
       const validUntilDate = new Date(now.getTime() + timingAnalytics.entryWindowMinutes * 60 * 1000);
-      return formatInTimeZone(validUntilDate, timezone, 'h:mm a zzz');
+      return formatInTimeZone(validUntilDate, timezone, 'h:mm a') + ' CST';
     })();
 
     const exitBy = (() => {
       if (assetType === 'option') {
         // Options: Use quantitative exit window but cap at expiry - INCLUDE DATE
         const exitDate = new Date(now.getTime() + timingAnalytics.exitWindowMinutes * 60 * 1000);
-        return `${formatInTimeZone(exitDate, timezone, 'MMM d, h:mm a zzz')} or Expiry`;
+        return `${formatInTimeZone(exitDate, timezone, 'MMM d, h:mm a')} CST or Expiry`;
       } else {
         const exitDate = new Date(now.getTime() + timingAnalytics.exitWindowMinutes * 60 * 1000);
-        return formatInTimeZone(exitDate, timezone, 'MMM d, h:mm a zzz');
+        return formatInTimeZone(exitDate, timezone, 'MMM d, h:mm a') + ' CST';
       }
     })();
     
