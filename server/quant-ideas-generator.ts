@@ -756,8 +756,8 @@ export async function generateQuantIdeas(
   const assetTypeCount = { stock: 0, option: 0, crypto: 0 };
   
   const targetDistribution = {
-    stock: marketOpen ? Math.round(count * 0.5) : 0,  // 50% stock shares when market open, 0% on weekends/after-hours
-    option: 0, // ❌ DISABLED: No options until Tradier API is valid (prevents fake data)
+    stock: marketOpen ? Math.round(count * 0.4) : 0,  // 40% stock shares when market open, 0% on weekends/after-hours
+    option: marketOpen ? Math.round(count * 0.2) : 0, // 20% options when market open (Tradier API now working)
     crypto: 0   // Will be calculated to fill remaining
   };
   // Ensure targets add up to count by allocating remainder to crypto
