@@ -32,7 +32,12 @@ import {
   BarChart3,
   Zap,
   ArrowRight,
-  Settings
+  Settings,
+  Trash2,
+  Edit,
+  RefreshCw,
+  Archive,
+  Gauge
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -162,6 +167,110 @@ export default function AdminPanel() {
 
   const [testAIProvider, setTestAIProvider] = useState<'openai' | 'anthropic' | 'gemini'>('openai');
   const [testPrompt, setTestPrompt] = useState("Generate a bullish trade idea for NVDA.");
+
+  // User management mutations
+  const updateUserTierMutation = useMutation({
+    mutationFn: async ({ userId, tier }: { userId: string; tier: string }) => {
+      const res = await fetch(`/api/admin/users/${userId}/tier`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-password': adminPassword 
+        },
+        body: JSON.stringify({ tier })
+      });
+      if (!res.ok) throw new Error('Failed to update tier');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({ title: "User tier updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update user tier", variant: "destructive" });
+    }
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-password': adminPassword }
+      });
+      if (!res.ok) throw new Error('Failed to delete user');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({ title: "User deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete user", variant: "destructive" });
+    }
+  });
+
+  // Database maintenance mutations
+  const cleanupDatabaseMutation = useMutation({
+    mutationFn: async (daysOld: number) => {
+      const res = await fetch('/api/admin/database/cleanup', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-password': adminPassword 
+        },
+        body: JSON.stringify({ daysOld })
+      });
+      if (!res.ok) throw new Error('Cleanup failed');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/database-health'] });
+      toast({ title: "Database cleaned up", description: `Removed ${data.deletedIdeas} old ideas` });
+    },
+    onError: () => {
+      toast({ title: "Database cleanup failed", variant: "destructive" });
+    }
+  });
+
+  const archiveDatabaseMutation = useMutation({
+    mutationFn: async (daysOld: number) => {
+      const res = await fetch('/api/admin/database/archive', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-password': adminPassword 
+        },
+        body: JSON.stringify({ daysOld })
+      });
+      if (!res.ok) throw new Error('Archive failed');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/database-health'] });
+      toast({ title: "Database archived", description: `Archived ${data.archivedIdeas} closed ideas` });
+    },
+    onError: () => {
+      toast({ title: "Database archive failed", variant: "destructive" });
+    }
+  });
+
+  const optimizeDatabaseMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/admin/database/optimize', {
+        method: 'POST',
+        headers: { 'x-admin-password': adminPassword }
+      });
+      if (!res.ok) throw new Error('Optimization failed');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/database-health'] });
+      toast({ title: "Database optimized successfully" });
+    },
+    onError: () => {
+      toast({ title: "Database optimization failed", variant: "destructive" });
+    }
+  });
 
   const testAIMutation = useMutation({
     mutationFn: async (provider: string) => {
@@ -521,9 +630,9 @@ export default function AdminPanel() {
                 {(users as any[])?.slice(0, 10).map((user: any) => (
                   <div 
                     key={user.id} 
-                    className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover-elevate"
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border/50 hover-elevate"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-1">
                       <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
                         <Users className="h-5 w-5 text-primary" />
                       </div>
@@ -536,12 +645,39 @@ export default function AdminPanel() {
                         </p>
                       </div>
                     </div>
-                    <Badge 
-                      variant={user.subscriptionTier === 'premium' ? 'default' : 'secondary'}
-                      className="text-xs"
-                    >
-                      {user.subscriptionTier || 'free'}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant={user.subscriptionTier === 'premium' ? 'default' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {user.subscriptionTier || 'free'}
+                      </Badge>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          const newTier = user.subscriptionTier === 'premium' ? 'free' : 'premium';
+                          updateUserTierMutation.mutate({ userId: user.id, tier: newTier });
+                        }}
+                        disabled={updateUserTierMutation.isPending}
+                        data-testid={`button-toggle-tier-${user.id}`}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          if (confirm(`Delete user ${user.discordUsername || user.email || user.id}?`)) {
+                            deleteUserMutation.mutate(user.id);
+                          }
+                        }}
+                        disabled={deleteUserMutation.isPending}
+                        data-testid={`button-delete-user-${user.id}`}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
                 )) || (
                   <div className="text-center py-8 text-muted-foreground">
@@ -1068,6 +1204,111 @@ export default function AdminPanel() {
                     </div>
                   </div>
                 )}
+
+                {/* Database Maintenance Tools */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Settings className="h-4 w-4 text-primary" />
+                    Database Maintenance
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="border-border/50">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Trash2 className="h-4 w-4 text-amber-500" />
+                          Cleanup Old Ideas
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          Remove trade ideas older than 30 days
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Button
+                          onClick={() => {
+                            if (confirm('Delete ideas older than 30 days? This cannot be undone.')) {
+                              cleanupDatabaseMutation.mutate(30);
+                            }
+                          }}
+                          disabled={cleanupDatabaseMutation.isPending}
+                          variant="outline"
+                          className="w-full"
+                          data-testid="button-cleanup-database"
+                        >
+                          {cleanupDatabaseMutation.isPending ? (
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 mr-2" />
+                          )}
+                          Clean Up
+                        </Button>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-border/50">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Archive className="h-4 w-4 text-blue-500" />
+                          Archive Closed Trades
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          Archive completed ideas older than 7 days
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Button
+                          onClick={() => {
+                            if (confirm('Archive closed trades older than 7 days?')) {
+                              archiveDatabaseMutation.mutate(7);
+                            }
+                          }}
+                          disabled={archiveDatabaseMutation.isPending}
+                          variant="outline"
+                          className="w-full"
+                          data-testid="button-archive-database"
+                        >
+                          {archiveDatabaseMutation.isPending ? (
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Archive className="h-4 w-4 mr-2" />
+                          )}
+                          Archive
+                        </Button>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-border/50">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Gauge className="h-4 w-4 text-green-500" />
+                          Optimize Database
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          Vacuum and analyze database tables
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Button
+                          onClick={() => {
+                            if (confirm('Optimize database tables? This may take a moment.')) {
+                              optimizeDatabaseMutation.mutate();
+                            }
+                          }}
+                          disabled={optimizeDatabaseMutation.isPending}
+                          variant="outline"
+                          className="w-full"
+                          data-testid="button-optimize-database"
+                        >
+                          {optimizeDatabaseMutation.isPending ? (
+                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Gauge className="h-4 w-4 mr-2" />
+                          )}
+                          Optimize
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
 
                 {(dbHealth as any)?.error && (
                   <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/5">
