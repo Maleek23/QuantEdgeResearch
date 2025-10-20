@@ -85,5 +85,9 @@ app.use((req, res, next) => {
     // Initialize ML Auto-Retraining Service (must have storage initialized)
     const { storage } = await import('./storage');
     mlRetrainingService.initialize(storage);
+    
+    // Start automated performance validation (checks every 5 minutes)
+    const { performanceValidationService } = await import('./performance-validation-service');
+    performanceValidationService.start();
   });
 })();
