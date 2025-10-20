@@ -820,6 +820,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           resolutionReason: result.resolutionReason,
           exitDate: result.exitDate,
           actualHoldingTimeMinutes: result.actualHoldingTimeMinutes,
+          predictionAccurate: result.predictionAccurate,
+          predictionValidatedAt: result.predictionValidatedAt,
+          highestPriceReached: result.highestPriceReached,
+          lowestPriceReached: result.lowestPriceReached,
           validatedAt: now,
         });
         if (updatedIdea) {
@@ -852,12 +856,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Stamp validatedAt on ALL open ideas that were checked, even if no state change
       for (const idea of openIdeas) {
         if (!validationResults.has(idea.id)) {
-          // Idea was checked but didn't need update - still stamp validatedAt
+          const currentPrice = priceMap.get(idea.symbol) || idea.entryPrice;
+          
+          // Track price extremes even for open trades
+          const highestPrice = Math.max(idea.highestPriceReached || idea.entryPrice, currentPrice);
+          const lowestPrice = Math.min(idea.lowestPriceReached || idea.entryPrice, currentPrice);
+          
+          // Idea was checked but didn't need update - still stamp validatedAt and update price extremes
           await storage.updateTradeIdeaPerformance(idea.id, {
             validatedAt: now,
+            highestPriceReached: highestPrice,
+            lowestPriceReached: lowestPrice,
           });
-          
-          const currentPrice = priceMap.get(idea.symbol) || idea.entryPrice;
           
           // Calculate distance percentages
           const percentToTarget = idea.direction === 'long' 
