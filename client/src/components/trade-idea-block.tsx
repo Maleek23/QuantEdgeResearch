@@ -144,7 +144,10 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
                 </Badge>
                 
                 <span className="text-sm text-muted-foreground">
-                  {idea.assetType === 'option' ? 'Option' : idea.assetType === 'stock' ? 'Stock' : 'Crypto'}
+                  {idea.assetType === 'stock' ? 'Stock Shares' : 
+                   idea.assetType === 'penny_stock' ? 'Penny Stock' : 
+                   idea.assetType === 'option' ? 'Stock Options' : 
+                   'Crypto'}
                 </span>
                 <span className="mx-1.5 text-muted-foreground">·</span>
                 <span className="text-xs font-medium text-muted-foreground" data-testid={`text-date-${idea.symbol}`}>{getFormattedDate()}</span>
