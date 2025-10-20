@@ -536,16 +536,16 @@ export default function PerformancePage() {
           </CardContent>
         </Card>
 
-        <Card className={`stat-card shadow-lg ${stats.overall.quantAccuracy >= 50 ? 'stat-card-bullish border-blue-500/20' : 'border-orange-500/20'}`} data-testid="card-quant-accuracy">
+        <Card className={`stat-card shadow-lg ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'stat-card-bullish border-blue-500/20' : 'border-orange-500/20'}`} data-testid="card-quant-accuracy">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
             <CardTitle className="text-sm font-semibold tracking-wide">Quant Accuracy</CardTitle>
-            <div className={`p-2 rounded-lg ${stats.overall.quantAccuracy >= 50 ? 'bg-blue-500/10' : 'bg-orange-500/10'}`}>
-              <Activity className={`w-4 h-4 ${stats.overall.quantAccuracy >= 50 ? 'text-blue-500' : 'text-orange-500'}`} />
+            <div className={`p-2 rounded-lg ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'bg-blue-500/10' : 'bg-orange-500/10'}`}>
+              <Activity className={`w-4 h-4 ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'text-blue-500' : 'text-orange-500'}`} />
             </div>
           </CardHeader>
           <CardContent className="space-y-1">
-            <div className={`text-3xl font-bold font-mono tracking-tight ${stats.overall.quantAccuracy >= 50 ? 'text-blue-500' : 'text-orange-500'}`}>
-              {stats.overall.quantAccuracy.toFixed(1)}%
+            <div className={`text-3xl font-bold font-mono tracking-tight ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'text-blue-500' : 'text-orange-500'}`}>
+              {stats.overall.quantAccuracy !== null && stats.overall.quantAccuracy !== undefined ? stats.overall.quantAccuracy.toFixed(1) : '0.0'}%
             </div>
             <p className="text-xs text-muted-foreground">
               Prediction correctness
