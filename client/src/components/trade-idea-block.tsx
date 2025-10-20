@@ -132,25 +132,15 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
                     "font-medium",
                     idea.holdingPeriod === 'day' && "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
                     idea.holdingPeriod === 'swing' && "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30",
-                    idea.holdingPeriod === 'position' && "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30"
+                    idea.holdingPeriod === 'position' && "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30",
+                    idea.holdingPeriod === 'week-ending' && "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30"
                   )}
                   data-testid={`badge-holding-${idea.symbol}`}
                 >
                   {idea.holdingPeriod === 'day' && <><CalendarClock className="h-3 w-3 mr-1" />DAY TRADE</>}
                   {idea.holdingPeriod === 'swing' && <><CalendarDays className="h-3 w-3 mr-1" />SWING</>}
                   {idea.holdingPeriod === 'position' && <><Calendar className="h-3 w-3 mr-1" />POSITION</>}
-                </Badge>
-                
-                {/* Holding Period Badge */}
-                <Badge 
-                  variant="secondary"
-                  className="font-semibold"
-                  data-testid={`badge-holding-${idea.symbol}`}
-                >
-                  <Clock className="h-3 w-3 mr-1" />
-                  {idea.holdingPeriod === 'day' ? 'DAY TRADE' : 
-                   idea.holdingPeriod === 'swing' ? 'SWING' : 
-                   'POSITION'}
+                  {idea.holdingPeriod === 'week-ending' && <><Clock className="h-3 w-3 mr-1" />WEEK-ENDING</>}
                 </Badge>
                 
                 <span className="text-sm text-muted-foreground">

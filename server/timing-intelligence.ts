@@ -16,6 +16,7 @@ import { logger } from "./logger";
 export interface TimingAnalytics {
   entryWindowMinutes: number;
   exitWindowMinutes: number;
+  holdingPeriodType: 'day' | 'swing' | 'position' | 'week-ending';
   timingConfidence: number;
   targetHitProbability: number;
   volatilityRegime: VolatilityRegime;
@@ -292,6 +293,7 @@ export async function calculateTimingWindows(
   return {
     entryWindowMinutes,
     exitWindowMinutes,
+    holdingPeriodType,
     timingConfidence,
     targetHitProbability,
     volatilityRegime: regime.volatilityRegime,

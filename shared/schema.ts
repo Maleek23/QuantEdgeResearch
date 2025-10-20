@@ -50,7 +50,7 @@ export const tradeIdeas = pgTable("trade_ideas", {
   symbol: text("symbol").notNull(),
   assetType: text("asset_type").notNull().$type<AssetType>(),
   direction: text("direction").notNull(), // 'long' | 'short'
-  holdingPeriod: text("holding_period").$type<'day' | 'swing' | 'position'>().notNull().default('day'), // day (<6hrs), swing (1-5 days), position (5+ days)
+  holdingPeriod: text("holding_period").$type<'day' | 'swing' | 'position' | 'week-ending'>().notNull().default('day'), // day (<6hrs), swing (1-5 days), position (5+ days), week-ending (exit by Friday close)
   entryPrice: real("entry_price").notNull(),
   targetPrice: real("target_price").notNull(),
   stopLoss: real("stop_loss").notNull(),
