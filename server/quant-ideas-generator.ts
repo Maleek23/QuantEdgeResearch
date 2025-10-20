@@ -995,9 +995,9 @@ export async function generateQuantIdeas(
 
     const exitBy = (() => {
       if (assetType === 'option') {
-        // Options: Use quantitative exit window but cap at expiry
+        // Options: Use quantitative exit window but cap at expiry - INCLUDE DATE
         const exitDate = new Date(now.getTime() + timingAnalytics.exitWindowMinutes * 60 * 1000);
-        return `${formatInTimeZone(exitDate, timezone, 'h:mm a zzz')} or Expiry`;
+        return `${formatInTimeZone(exitDate, timezone, 'MMM d, h:mm a zzz')} or Expiry`;
       } else {
         const exitDate = new Date(now.getTime() + timingAnalytics.exitWindowMinutes * 60 * 1000);
         return formatInTimeZone(exitDate, timezone, 'MMM d, h:mm a zzz');

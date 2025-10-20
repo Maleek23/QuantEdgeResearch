@@ -2,6 +2,7 @@ import { db } from "./db";
 import { tradeIdeas, type TradeIdea, type VolatilityRegime, type SessionPhase } from "@shared/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { logger } from "./logger";
+import { toZonedTime, fromZonedTime } from "date-fns-tz";
 
 /**
  * Timing Intelligence System
@@ -239,16 +240,26 @@ export async function calculateTimingWindows(
     exitWindowMinutes = Math.min(exitWindowMinutes, 20160); // Max ~2 weeks
     exitWindowMinutes = Math.max(exitWindowMinutes, 7200); // Min 5 days
   } else {
-    // Week-ending: exit by Friday close
+    // Week-ending: exit by Friday 4pm ET (3pm CT)
     const now = new Date();
-    const currentDay = now.getDay(); // 0=Sunday, 6=Saturday
+    const timezone = 'America/Chicago';
+    const nowCT = toZonedTime(now, timezone);
+    const currentDay = nowCT.getDay(); // 0=Sunday, 6=Saturday
     
     if (currentDay >= 1 && currentDay <= 5) {
-      // Calculate hours until Friday 4pm ET
-      const daysUntilFriday = 5 - currentDay; // How many days until Friday
-      const hoursUntilFridayClose = (daysUntilFriday * 24) + 4; // Approximate
-      // ALWAYS set to Friday deadline (don't cap at base calculation)
-      exitWindowMinutes = Math.max(60, hoursUntilFridayClose * 60);
+      // Calculate Friday 3pm CT target time (properly handles DST)
+      const daysUntilFriday = 5 - currentDay;
+      
+      // Create target: Friday at 3pm CT
+      const targetCT = new Date(nowCT);
+      targetCT.setDate(nowCT.getDate() + daysUntilFriday);
+      targetCT.setHours(15, 0, 0, 0); // 3pm CT sharp
+      
+      // Convert both to UTC and calculate difference in minutes
+      const targetUTC = fromZonedTime(targetCT, timezone);
+      const minutesUntilFridayClose = Math.round((targetUTC.getTime() - now.getTime()) / (1000 * 60));
+      
+      exitWindowMinutes = Math.max(60, minutesUntilFridayClose);
     } else {
       // Weekend - use swing trade timing
       exitWindowMinutes = 2880; // 2 days
