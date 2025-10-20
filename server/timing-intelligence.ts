@@ -247,17 +247,17 @@ export async function calculateTimingWindows(
     const currentDay = nowCT.getDay(); // 0=Sunday, 6=Saturday
     
     if (currentDay >= 1 && currentDay <= 5) {
-      // Calculate Friday 3pm CT target time (properly handles DST)
+      // Calculate time difference directly (avoids timezone conversion bugs)
       const daysUntilFriday = 5 - currentDay;
+      const currentHour = nowCT.getHours();
+      const currentMinute = nowCT.getMinutes();
       
-      // Create target: Friday at 3pm CT
-      const targetCT = new Date(nowCT);
-      targetCT.setDate(nowCT.getDate() + daysUntilFriday);
-      targetCT.setHours(15, 0, 0, 0); // 3pm CT sharp
+      // Target: Friday 3pm (15:00)
+      const hoursUntil3pm = 15 - currentHour;
+      const minutesAdjustment = 0 - currentMinute;
       
-      // Convert both to UTC and calculate difference in minutes
-      const targetUTC = fromZonedTime(targetCT, timezone);
-      const minutesUntilFridayClose = Math.round((targetUTC.getTime() - now.getTime()) / (1000 * 60));
+      // Total minutes = days * 1440 + hours * 60 + minute adjustment
+      const minutesUntilFridayClose = (daysUntilFriday * 24 * 60) + (hoursUntil3pm * 60) + minutesAdjustment;
       
       exitWindowMinutes = Math.max(60, minutesUntilFridayClose);
     } else {
