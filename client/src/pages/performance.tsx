@@ -37,7 +37,8 @@ interface PerformanceStats {
     wonIdeas: number;
     lostIdeas: number;
     expiredIdeas: number;
-    winRate: number;
+    winRate: number; // Market win rate: hit_target / (hit_target + hit_stop)
+    quantAccuracy: number; // Prediction accuracy: correct predictions / total validated
     avgPercentGain: number;
     avgHoldingTimeMinutes: number;
   };
@@ -491,7 +492,7 @@ export default function PerformancePage() {
       </div>
 
       {/* Overall Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card className="stat-card shadow-lg border-primary/20" data-testid="card-total-ideas">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
             <CardTitle className="text-sm font-semibold tracking-wide">Total Ideas</CardTitle>
@@ -517,9 +518,9 @@ export default function PerformancePage() {
           </CardContent>
         </Card>
 
-        <Card className={`stat-card shadow-lg ${stats.overall.winRate >= 50 ? 'stat-card-bullish border-green-500/20' : 'border-red-500/20'}`} data-testid="card-win-rate">
+        <Card className={`stat-card shadow-lg ${stats.overall.winRate >= 50 ? 'stat-card-bullish border-green-500/20' : 'border-red-500/20'}`} data-testid="card-market-win-rate">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
-            <CardTitle className="text-sm font-semibold tracking-wide">Win Rate</CardTitle>
+            <CardTitle className="text-sm font-semibold tracking-wide">Market Win Rate</CardTitle>
             <div className={`p-2 rounded-lg ${stats.overall.winRate >= 50 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
               <Target className={`w-4 h-4 ${stats.overall.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`} />
             </div>
@@ -530,6 +531,23 @@ export default function PerformancePage() {
             </div>
             <p className="text-xs text-muted-foreground">
               {stats.overall.wonIdeas} wins • {stats.overall.lostIdeas} losses
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className={`stat-card shadow-lg ${stats.overall.quantAccuracy >= 50 ? 'stat-card-bullish border-blue-500/20' : 'border-orange-500/20'}`} data-testid="card-quant-accuracy">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
+            <CardTitle className="text-sm font-semibold tracking-wide">Quant Accuracy</CardTitle>
+            <div className={`p-2 rounded-lg ${stats.overall.quantAccuracy >= 50 ? 'bg-blue-500/10' : 'bg-orange-500/10'}`}>
+              <Activity className={`w-4 h-4 ${stats.overall.quantAccuracy >= 50 ? 'text-blue-500' : 'text-orange-500'}`} />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <div className={`text-3xl font-bold font-mono tracking-tight ${stats.overall.quantAccuracy >= 50 ? 'text-blue-500' : 'text-orange-500'}`}>
+              {stats.overall.quantAccuracy.toFixed(1)}%
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Prediction correctness
             </p>
           </CardContent>
         </Card>
