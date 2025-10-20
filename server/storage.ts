@@ -1101,18 +1101,19 @@ export class DatabaseStorage implements IStorage {
     const closedGains = closedIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
     const closedHoldingTimes = closedIdeas.filter(i => i.actualHoldingTimeMinutes !== null).map(i => i.actualHoldingTimeMinutes!);
 
-    // Group by source
+    // Group by source (ALL ideas, not just closed)
     const bySource = ['ai', 'quant', 'manual'].map(source => {
-      const sourceIdeas = closedIdeas.filter(i => i.source === source);
-      const sourceWon = sourceIdeas.filter(i => i.outcomeStatus === 'hit_target');
-      const sourceLost = sourceIdeas.filter(i => i.outcomeStatus === 'hit_stop');
-      const sourceGains = sourceIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
+      const sourceAllIdeas = allIdeas.filter(i => i.source === source);
+      const sourceClosedIdeas = closedIdeas.filter(i => i.source === source);
+      const sourceWon = sourceClosedIdeas.filter(i => i.outcomeStatus === 'hit_target');
+      const sourceLost = sourceClosedIdeas.filter(i => i.outcomeStatus === 'hit_stop');
+      const sourceGains = sourceClosedIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
       // WIN RATE FIX: Only count decided trades (exclude expired)
       const sourceDecided = sourceWon.length + sourceLost.length;
       
       return {
         source,
-        totalIdeas: sourceIdeas.length,
+        totalIdeas: sourceAllIdeas.length, // Show ALL ideas (open + closed)
         wonIdeas: sourceWon.length,
         lostIdeas: sourceLost.length,
         winRate: sourceDecided > 0 ? (sourceWon.length / sourceDecided) * 100 : 0,
@@ -1120,18 +1121,19 @@ export class DatabaseStorage implements IStorage {
       };
     });
 
-    // Group by asset type
+    // Group by asset type (ALL ideas, not just closed)
     const byAssetType = ['stock', 'option', 'crypto'].map(assetType => {
-      const assetIdeas = closedIdeas.filter(i => i.assetType === assetType);
-      const assetWon = assetIdeas.filter(i => i.outcomeStatus === 'hit_target');
-      const assetLost = assetIdeas.filter(i => i.outcomeStatus === 'hit_stop');
-      const assetGains = assetIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
+      const assetAllIdeas = allIdeas.filter(i => i.assetType === assetType);
+      const assetClosedIdeas = closedIdeas.filter(i => i.assetType === assetType);
+      const assetWon = assetClosedIdeas.filter(i => i.outcomeStatus === 'hit_target');
+      const assetLost = assetClosedIdeas.filter(i => i.outcomeStatus === 'hit_stop');
+      const assetGains = assetClosedIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
       // WIN RATE FIX: Only count decided trades (exclude expired)
       const assetDecided = assetWon.length + assetLost.length;
       
       return {
         assetType,
-        totalIdeas: assetIdeas.length,
+        totalIdeas: assetAllIdeas.length, // Show ALL ideas (open + closed)
         wonIdeas: assetWon.length,
         lostIdeas: assetLost.length,
         winRate: assetDecided > 0 ? (assetWon.length / assetDecided) * 100 : 0,
