@@ -365,6 +365,201 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User Management Routes
+  app.get("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+    try {
+      const user = await storage.getUserById(req.params.userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Get additional user data
+      const preferences = await storage.getUserPreferences(req.params.userId);
+      const watchlistItems = await storage.getWatchlistByUser(req.params.userId);
+      
+      res.json({
+        user,
+        preferences,
+        watchlistCount: watchlistItems.length,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user details" });
+    }
+  });
+
+  app.patch("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+    try {
+      const { subscriptionTier, subscriptionStatus } = req.body;
+      
+      // Validate subscription tier
+      if (subscriptionTier && !['free', 'premium', 'admin'].includes(subscriptionTier)) {
+        return res.status(400).json({ error: "Invalid subscription tier" });
+      }
+      
+      const updated = await storage.updateUser(req.params.userId, {
+        subscriptionTier,
+        subscriptionStatus,
+        updatedAt: new Date().toISOString(),
+      });
+      
+      if (!updated) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      logger.info('User updated by admin', { 
+        userId: req.params.userId, 
+        tier: subscriptionTier,
+        ip: req.ip 
+      });
+      
+      res.json({ success: true, user: updated });
+    } catch (error) {
+      logError(error as Error, { context: 'admin user update' });
+      res.status(500).json({ error: "Failed to update user" });
+    }
+  });
+
+  app.delete("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.deleteUser(req.params.userId);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      logger.info('User deleted by admin', { 
+        userId: req.params.userId,
+        ip: req.ip 
+      });
+      
+      res.json({ success: true, message: "User and associated data deleted" });
+    } catch (error) {
+      logError(error as Error, { context: 'admin user delete' });
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
+  // Database Maintenance Routes
+  app.get("/api/admin/maintenance/stats", requireAdmin, async (_req, res) => {
+    try {
+      const { db } = await import('./db');
+      const { sql } = await import('drizzle-orm');
+      
+      const allIdeas = await storage.getAllTradeIdeas();
+      const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open');
+      const oldIdeas = allIdeas.filter(i => {
+        const ideaDate = new Date(i.timestamp);
+        const daysOld = (Date.now() - ideaDate.getTime()) / (1000 * 60 * 60 * 24);
+        return daysOld > 30;
+      });
+      
+      // Get database bloat estimate
+      const bloatQuery = await db.execute(sql`
+        SELECT 
+          SUM(pg_total_relation_size(schemaname||'.'||tablename))::bigint as total_bytes
+        FROM pg_stat_user_tables
+      `);
+      
+      const totalBytes = parseInt(bloatQuery.rows[0]?.total_bytes || '0');
+      
+      res.json({
+        totalIdeas: allIdeas.length,
+        openIdeas: allIdeas.filter(i => i.outcomeStatus === 'open').length,
+        closedIdeas: closedIdeas.length,
+        oldIdeas: oldIdeas.length,
+        databaseSizeBytes: totalBytes,
+        databaseSizeMB: (totalBytes / (1024 * 1024)).toFixed(2),
+        lastChecked: new Date().toISOString(),
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'maintenance stats' });
+      res.status(500).json({ error: "Failed to fetch maintenance stats" });
+    }
+  });
+
+  app.post("/api/admin/maintenance/cleanup", requireAdmin, async (req, res) => {
+    try {
+      const { daysOld = 30 } = req.body;
+      
+      const allIdeas = await storage.getAllTradeIdeas();
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+      
+      const ideasToDelete = allIdeas.filter(i => {
+        const ideaDate = new Date(i.timestamp);
+        const isClosed = i.outcomeStatus !== 'open';
+        return isClosed && ideaDate < cutoffDate;
+      });
+      
+      let deletedCount = 0;
+      for (const idea of ideasToDelete) {
+        const deleted = await storage.deleteTradeIdea(idea.id);
+        if (deleted) deletedCount++;
+      }
+      
+      logger.info('Database cleanup completed', { 
+        deletedCount,
+        daysOld,
+        ip: req.ip 
+      });
+      
+      res.json({ 
+        success: true, 
+        deletedCount,
+        message: `Cleaned up ${deletedCount} closed ideas older than ${daysOld} days`
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'maintenance cleanup' });
+      res.status(500).json({ error: "Cleanup failed" });
+    }
+  });
+
+  app.post("/api/admin/maintenance/optimize", requireAdmin, async (req, res) => {
+    try {
+      const { db } = await import('./db');
+      const { sql } = await import('drizzle-orm');
+      
+      // Run VACUUM ANALYZE on all tables
+      await db.execute(sql`VACUUM ANALYZE`);
+      
+      logger.info('Database optimization completed', { ip: req.ip });
+      
+      res.json({ 
+        success: true, 
+        message: "Database optimized successfully (VACUUM ANALYZE completed)"
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'maintenance optimize' });
+      res.status(500).json({ error: "Optimization failed" });
+    }
+  });
+
+  app.post("/api/admin/maintenance/archive-closed", requireAdmin, async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open');
+      
+      // Export to JSON for archiving
+      const archive = {
+        archivedAt: new Date().toISOString(),
+        count: closedIdeas.length,
+        ideas: closedIdeas,
+      };
+      
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', 'attachment; filename=closed-ideas-archive.json');
+      res.json(archive);
+      
+      logger.info('Closed ideas archived', { 
+        count: closedIdeas.length,
+        ip: req.ip 
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'maintenance archive' });
+      res.status(500).json({ error: "Archive failed" });
+    }
+  });
+
   // Market Data Routes
   app.get("/api/market-data", marketDataLimiter, async (_req, res) => {
     try {

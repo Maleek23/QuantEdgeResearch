@@ -78,8 +78,11 @@ export interface IStorage {
   // User operations (Required for Replit Auth)
   // Reference: blueprint:javascript_log_in_with_replit
   getUser(id: string): Promise<User | undefined>;
+  getUserById(id: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUser(id: string, data: Partial<User>): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
   updateUserSubscription(userId: string, subscriptionData: { stripeCustomerId?: string; stripeSubscriptionId?: string; subscriptionTier?: string; subscriptionStatus?: string; subscriptionEndsAt?: Date | null }): Promise<User | undefined>;
   
   // Market Data
@@ -107,6 +110,7 @@ export interface IStorage {
   // Watchlist
   getAllWatchlist(): Promise<WatchlistItem[]>;
   getWatchlistItem(id: string): Promise<WatchlistItem | undefined>;
+  getWatchlistByUser(userId: string): Promise<WatchlistItem[]>;
   addToWatchlist(item: InsertWatchlist): Promise<WatchlistItem>;
   updateWatchlistItem(id: string, data: Partial<WatchlistItem>): Promise<WatchlistItem | undefined>;
   removeFromWatchlist(id: string): Promise<boolean>;
@@ -133,6 +137,7 @@ export class MemStorage implements IStorage {
   private optionsData: Map<string, OptionsData>;
   private userPreferences: UserPreferences | null;
   private chatHistory: Map<string, ChatMessage>;
+  private users: Map<string, User>;
 
   constructor() {
     this.marketData = new Map();
@@ -142,6 +147,7 @@ export class MemStorage implements IStorage {
     this.optionsData = new Map();
     this.userPreferences = null;
     this.chatHistory = new Map();
+    this.users = new Map();
     this.seedData();
   }
 
@@ -591,6 +597,51 @@ export class MemStorage implements IStorage {
     };
   }
 
+  // User Management Methods
+  async getUser(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const id = userData.id || randomUUID();
+    const user: User = {
+      id,
+      discordUserId: userData.discordUserId || null,
+      discordUsername: userData.discordUsername || null,
+      email: userData.email || null,
+      subscriptionTier: userData.subscriptionTier || 'free',
+      subscriptionStatus: userData.subscriptionStatus || 'active',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.users.set(id, user);
+    return user;
+  }
+
+  async updateUser(id: string, data: Partial<User>): Promise<User | undefined> {
+    const existing = this.users.get(id);
+    if (!existing) return undefined;
+    const updated = { ...existing, ...data, updatedAt: new Date() };
+    this.users.set(id, updated);
+    return updated;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    return this.users.delete(id);
+  }
+
+  async updateUserSubscription(userId: string, subscriptionData: any): Promise<User | undefined> {
+    return this.updateUser(userId, subscriptionData);
+  }
+
   // Market Data Methods
   async getAllMarketData(): Promise<MarketData[]> {
     return Array.from(this.marketData.values());
@@ -857,6 +908,10 @@ export class MemStorage implements IStorage {
     return this.watchlist.get(id);
   }
 
+  async getWatchlistByUser(userId: string): Promise<WatchlistItem[]> {
+    return Array.from(this.watchlist.values()).filter(item => item.userId === userId);
+  }
+
   async addToWatchlist(item: InsertWatchlist): Promise<WatchlistItem> {
     const id = randomUUID();
     const watchlistItem: WatchlistItem = { ...item, id } as WatchlistItem;
@@ -992,6 +1047,34 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, userId))
       .returning();
     return updated || undefined;
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async updateUser(id: string, data: Partial<User>): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    // Delete associated data first
+    await db.delete(userPreferencesTable).where(eq(userPreferencesTable.userId, id));
+    await db.delete(watchlistTable).where(eq(watchlistTable.userId, id));
+    await db.delete(tradeIdeas).where(eq(tradeIdeas.userId, id));
+    
+    // Delete user
+    const result = await db.delete(users).where(eq(users.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
   }
 
   // Market Data Methods
@@ -1214,6 +1297,12 @@ export class DatabaseStorage implements IStorage {
   async getWatchlistItem(id: string): Promise<WatchlistItem | undefined> {
     const [item] = await db.select().from(watchlistTable).where(eq(watchlistTable.id, id));
     return item || undefined;
+  }
+
+  async getWatchlistByUser(userId: string): Promise<WatchlistItem[]> {
+    return await db.select().from(watchlistTable)
+      .where(eq(watchlistTable.userId, userId))
+      .orderBy(desc(watchlistTable.addedAt));
   }
 
   async addToWatchlist(item: InsertWatchlist): Promise<WatchlistItem> {
