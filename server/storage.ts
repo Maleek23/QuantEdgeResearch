@@ -44,7 +44,8 @@ export interface PerformanceStats {
     wonIdeas: number;
     lostIdeas: number;
     expiredIdeas: number;
-    winRate: number;
+    winRate: number; // Market win rate: hit_target / (hit_target + hit_stop)
+    quantAccuracy: number; // Prediction accuracy: correct predictions / total validated
     avgPercentGain: number;
     avgHoldingTimeMinutes: number;
   };
@@ -766,6 +767,12 @@ export class MemStorage implements IStorage {
     // WIN RATE FIX: Exclude expired ideas from denominator - only count actual wins vs losses
     const decidedIdeas = wonIdeas.length + lostIdeas.length;
     const winRate = decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0;
+    
+    // QUANT ACCURACY: Did the prediction come true (price moved in predicted direction)?
+    const validatedIdeas = closedIdeas.filter(i => i.predictionAccurate !== null && i.predictionAccurate !== undefined);
+    const accuratePredictions = validatedIdeas.filter(i => i.predictionAccurate === true).length;
+    const quantAccuracy = validatedIdeas.length > 0 ? (accuratePredictions / validatedIdeas.length) * 100 : 0;
+    
     const avgPercentGain = closedIdeas.length > 0
       ? closedIdeas.reduce((sum, idea) => sum + (idea.percentGain || 0), 0) / closedIdeas.length
       : 0;
@@ -874,6 +881,7 @@ export class MemStorage implements IStorage {
         lostIdeas: lostIdeas.length,
         expiredIdeas: expiredIdeas.length,
         winRate,
+        quantAccuracy,
         avgPercentGain,
         avgHoldingTimeMinutes: avgHoldingTime,
       },
