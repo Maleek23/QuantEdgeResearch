@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { Footer } from "@/components/footer";
 import Landing from "@/pages/landing";
 import LearnMore from "@/pages/learn-more";
 import Dashboard from "@/pages/dashboard";
@@ -77,9 +78,12 @@ function App() {
                   <SidebarTrigger data-testid="button-mobile-menu" />
                   <h1 className="text-lg font-semibold">QuantEdge</h1>
                 </header>
-                <main className="flex-1 overflow-auto">
-                  <Router />
-                </main>
+                <div className="flex-1 overflow-auto flex flex-col">
+                  <main className="flex-1">
+                    <Router />
+                  </main>
+                  <Footer />
+                </div>
               </div>
             </div>
           </SidebarProvider>

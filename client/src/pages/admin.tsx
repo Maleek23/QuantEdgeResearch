@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Footer } from "@/components/footer";
 import {
   InputOTP,
   InputOTPGroup,
@@ -1179,6 +1180,9 @@ export default function AdminPanel() {
           </Tabs>
         </Card>
       </div>
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

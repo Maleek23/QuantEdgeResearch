@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Footer } from "@/components/footer";
 import { useLocation } from "wouter";
 import { 
   TrendingUp, 
@@ -431,15 +432,7 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-12">
-        <div className="container mx-auto px-6 text-center">
-          <div className="mb-4">
-            <span className="text-2xl font-bold text-gradient-premium">QuantEdge</span>
-          </div>
-          <p className="text-sm text-muted-foreground mb-2">© 2025 QuantEdge Research. All rights reserved.</p>
-          <p className="text-xs text-muted-foreground/70">Educational platform for trading research and analysis.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
