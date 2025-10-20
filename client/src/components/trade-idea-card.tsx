@@ -87,11 +87,20 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
             </div>
             <CardDescription className="mt-2 text-xs flex items-center gap-2 flex-wrap" data-testid={`text-trade-time-${idea.symbol}`}>
               <span>Posted: {formatCTTime(idea.timestamp)} • {idea.sessionContext}</span>
-              {(idea.sessionContext.includes('Regular Trading') || idea.sessionContext.includes('Pre-Market') || idea.sessionContext.includes('After Hours')) && (
-                <Badge variant="outline" className="text-xs font-semibold bg-amber-500/10 text-amber-300 border-amber-500/30">
-                  DAY TRADE
-                </Badge>
-              )}
+              <Badge 
+                variant="outline" 
+                className={cn(
+                  "text-xs font-semibold",
+                  idea.holdingPeriod === 'day' && "bg-amber-500/10 text-amber-300 border-amber-500/30",
+                  idea.holdingPeriod === 'swing' && "bg-blue-500/10 text-blue-300 border-blue-500/30",
+                  idea.holdingPeriod === 'position' && "bg-purple-500/10 text-purple-300 border-purple-500/30"
+                )}
+                data-testid={`badge-holding-period-${idea.symbol}`}
+              >
+                {idea.holdingPeriod === 'day' ? 'DAY TRADE' : 
+                 idea.holdingPeriod === 'swing' ? 'SWING' : 
+                 'POSITION'}
+              </Badge>
             </CardDescription>
             {idea.liquidityWarning && (
               <Badge variant="destructive" className="gap-1 mt-2">

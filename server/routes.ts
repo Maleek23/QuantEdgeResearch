@@ -1142,10 +1142,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const aiIdea of aiIdeas) {
         const riskRewardRatio = (aiIdea.targetPrice - aiIdea.entryPrice) / (aiIdea.entryPrice - aiIdea.stopLoss);
         
+        // AI ideas default to day trades unless they're crypto (which can be position trades)
+        const holdingPeriod: 'day' | 'swing' | 'position' = aiIdea.assetType === 'crypto' ? 'position' : 'day';
+        
         const tradeIdea = await storage.createTradeIdea({
           symbol: aiIdea.symbol,
           assetType: aiIdea.assetType,
           direction: aiIdea.direction,
+          holdingPeriod: holdingPeriod,
           entryPrice: aiIdea.entryPrice,
           targetPrice: aiIdea.targetPrice,
           stopLoss: aiIdea.stopLoss,

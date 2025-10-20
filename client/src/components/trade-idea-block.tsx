@@ -105,27 +105,45 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
     >
       <CollapsibleTrigger className="w-full" data-testid={`block-trade-idea-${idea.symbol}`}>
         <div className="p-6 border rounded-lg bg-card hover-elevate transition-all block">
-          {/* Header: Symbol + Direction + Grade */}
+          {/* Header: Symbol + Direction + Holding Period + Grade */}
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-3">
               <h3 className="text-xl font-semibold" data-testid={`text-symbol-${idea.symbol}`}>
                 {idea.symbol}
               </h3>
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                {isLong ? (
-                  <ArrowUpRight className="h-4 w-4 text-green-500" />
-                ) : (
-                  <ArrowDownRight className="h-4 w-4 text-red-500" />
-                )}
-                <span className={isLong ? "text-green-500" : "text-red-500"}>
-                  {idea.direction.toUpperCase()}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Direction Badge */}
+                <Badge 
+                  variant={isLong ? "default" : "destructive"}
+                  className="font-semibold"
+                  data-testid={`badge-direction-${idea.symbol}`}
+                >
+                  {isLong ? (
+                    <><ArrowUpRight className="h-3 w-3 mr-1" />LONG</>
+                  ) : (
+                    <><ArrowDownRight className="h-3 w-3 mr-1" />SHORT</>
+                  )}
+                </Badge>
+                
+                {/* Holding Period Badge */}
+                <Badge 
+                  variant="secondary"
+                  className="font-semibold"
+                  data-testid={`badge-holding-${idea.symbol}`}
+                >
+                  <Clock className="h-3 w-3 mr-1" />
+                  {idea.holdingPeriod === 'day' ? 'DAY TRADE' : 
+                   idea.holdingPeriod === 'swing' ? 'SWING' : 
+                   'POSITION'}
+                </Badge>
+                
+                <span className="text-sm text-muted-foreground">
+                  {idea.assetType === 'option' ? 'Option' : idea.assetType === 'stock' ? 'Stock' : 'Crypto'}
                 </span>
-                <span className="mx-1.5">·</span>
-                <span>{idea.assetType === 'option' ? 'Option' : idea.assetType === 'stock' ? 'Stock' : 'Crypto'}</span>
-                <span className="mx-1.5">·</span>
-                <span className="text-xs font-medium" data-testid={`text-date-${idea.symbol}`}>{getFormattedDate()}</span>
-                <span className="mx-1.5">·</span>
-                <span className="text-xs">{getTimeSincePosted()}</span>
+                <span className="mx-1.5 text-muted-foreground">·</span>
+                <span className="text-xs font-medium text-muted-foreground" data-testid={`text-date-${idea.symbol}`}>{getFormattedDate()}</span>
+                <span className="mx-1.5 text-muted-foreground">·</span>
+                <span className="text-xs text-muted-foreground">{getTimeSincePosted()}</span>
               </div>
             </div>
             <div className="flex items-center gap-3">
