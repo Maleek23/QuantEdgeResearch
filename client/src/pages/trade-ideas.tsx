@@ -110,6 +110,17 @@ export default function TradeIdeasPage() {
     setExpandedIdeaId(null);
   };
 
+  // Calculate priority score for ranking opportunities
+  // Higher score = better opportunity (combines grade, R:R, probability)
+  const calculatePriorityScore = (idea: TradeIdea): number => {
+    const confidenceScore = idea.confidenceScore || 0;
+    const rrRatio = idea.riskRewardRatio || 0;
+    const hitProbability = idea.targetHitProbability || 0;
+    
+    // Weighted scoring: Confidence 40%, R:R 30%, Probability 30%
+    return (confidenceScore * 0.4) + (rrRatio * 15) + (hitProbability * 0.3);
+  };
+
   // Filter ideas by search, direction, source, asset type, grade, date, and screener filters
   const filteredIdeas = tradeIdeas.filter(idea => {
     const matchesSearch = !tradeIdeaSearch || 
@@ -133,8 +144,18 @@ export default function TradeIdeasPage() {
     return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDate;
   });
 
-  // Group by asset type
-  const groupedIdeas = filteredIdeas.reduce((acc, idea) => {
+  // Sort filtered ideas by priority score (best first)
+  const sortedIdeas = [...filteredIdeas].sort((a, b) => {
+    return calculatePriorityScore(b) - calculatePriorityScore(a);
+  });
+
+  // Get Top Picks: Best 5 opportunities (fresh, high grade, open)
+  const topPicks = sortedIdeas
+    .filter(idea => isFreshIdea(idea) && idea.outcomeStatus === 'open')
+    .slice(0, 5);
+
+  // Group by asset type (using sorted ideas for consistent ordering)
+  const groupedIdeas = sortedIdeas.reduce((acc, idea) => {
     const assetType = idea.assetType;
     if (!acc[assetType]) acc[assetType] = [];
     acc[assetType].push(idea);
@@ -468,6 +489,67 @@ export default function TradeIdeasPage() {
           </PopoverContent>
         </Popover>
       </div>
+
+      {/* Top Picks Today - Best Opportunities */}
+      {topPicks.length > 0 && (
+        <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-accent/5" data-testid="top-picks-section">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <TrendingUpIcon className="h-5 w-5 text-primary" />
+                <CardTitle className="text-lg">Top Picks Today</CardTitle>
+                <Badge variant="default" className="ml-1">
+                  {topPicks.length}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Best quality + R:R + probability
+              </p>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3 pt-0">
+            {topPicks.map((idea, index) => (
+              <div
+                key={idea.id}
+                className="flex items-center justify-between gap-4 p-3 rounded-lg border bg-card hover-elevate active-elevate-2 cursor-pointer"
+                onClick={() => handleToggleExpand(idea.id)}
+                data-testid={`top-pick-${index + 1}`}
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary font-bold text-sm">
+                    {index + 1}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-base">{idea.symbol}</span>
+                      <Badge variant={idea.direction === "long" ? "default" : "destructive"} className="text-xs">
+                        {idea.direction === "long" ? "LONG" : "SHORT"}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {idea.holdingPeriod.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{idea.catalyst}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right hidden sm:block">
+                    <Badge 
+                      variant={idea.probabilityBand?.startsWith('A') ? 'default' : idea.probabilityBand?.startsWith('B') ? 'secondary' : 'outline'}
+                      className="font-bold"
+                    >
+                      {idea.probabilityBand}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      R:R {idea.riskRewardRatio?.toFixed(1)} • {idea.targetHitProbability}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Trade Ideas Feed */}
       <Tabs defaultValue="fresh" className="space-y-4">
