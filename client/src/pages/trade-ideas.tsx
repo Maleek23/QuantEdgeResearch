@@ -267,6 +267,31 @@ export default function TradeIdeasPage() {
           )}
         </div>
 
+        {/* Generate Ideas Buttons - Always Available */}
+        <Button 
+          onClick={() => generateQuantIdeas.mutate()}
+          disabled={generateQuantIdeas.isPending}
+          size="sm"
+          className="gap-1.5"
+          data-testid="button-generate-quant-permanent"
+        >
+          <BarChart3 className="h-4 w-4" />
+          <span className="hidden sm:inline">{generateQuantIdeas.isPending ? "Generating..." : "Quant"}</span>
+          <span className="sm:hidden">{generateQuantIdeas.isPending ? "..." : "Q"}</span>
+        </Button>
+        <Button 
+          onClick={() => generateAIIdeas.mutate()}
+          disabled={generateAIIdeas.isPending}
+          size="sm"
+          variant="outline"
+          className="gap-1.5"
+          data-testid="button-generate-ai-permanent"
+        >
+          <Sparkles className="h-4 w-4" />
+          <span className="hidden sm:inline">{generateAIIdeas.isPending ? "Generating..." : "AI"}</span>
+          <span className="sm:hidden">{generateAIIdeas.isPending ? "..." : "A"}</span>
+        </Button>
+
         {/* View Mode Toggle */}
         <div className="flex items-center gap-1 border rounded-md p-1">
           <Button
