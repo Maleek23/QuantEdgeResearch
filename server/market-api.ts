@@ -482,10 +482,10 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
         
         for (const quote of quotes) {
           // Filter criteria: 
-          // - Price > $1 (avoid penny stocks)
+          // - Price > $1 (avoid sub-dollar micro-caps, but include $1-$5 penny stocks)
           // - Price < $500 (avoid expensive stocks that are hard to trade)
           // - Volume exists
-          // - Market cap > $50M (avoid micro caps)
+          // - Market cap varies: $10M+ for penny stocks, $50M+ for regular stocks
           const price = quote.regularMarketPrice?.raw || quote.regularMarketPrice;
           const change = quote.regularMarketChangePercent?.raw || quote.regularMarketChangePercent || 0;
           const volume = quote.regularMarketVolume?.raw || quote.regularMarketVolume || 0;
@@ -493,7 +493,9 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
           
           if (!price || price < 1 || price > 500) continue;
           if (volume < 100000) continue; // Minimum 100K volume
-          if (marketCap < 50_000_000) continue; // Min $50M market cap
+          // Relax market cap filter for penny stocks ($1-$5) - allow smaller caps
+          if (price >= 5 && marketCap < 50_000_000) continue; // Regular stocks need $50M+ cap
+          if (price < 5 && marketCap < 10_000_000) continue; // Penny stocks need $10M+ cap
           
           gems.push({
             symbol: quote.symbol,
