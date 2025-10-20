@@ -3,27 +3,16 @@
 ## Overview
 QuantEdge Research is a professional quantitative trading research platform designed to identify day-trading opportunities across US equities, options, and crypto markets. Its primary purpose is to provide educational, research-grade trade ideas, comprehensive risk management tools, and real-time market analysis. The platform aims to offer robust risk controls and clear educational disclaimers, all presented through a professional dark-themed UI optimized for rapid data scanning. It integrates real historical data to improve model accuracy and features adaptive learning capabilities that improve trade idea quality over time. The platform operates with a public-access model, managing membership tiers (Free vs. Premium) through Discord roles, with the web platform serving as a public dashboard.
 
-## Recent Changes
-
-### October 20, 2025 - Holding Period Diversity & Penny Stock Support
-- **Holding Period Classification**: Extended schema to support 4 holding period types (day/swing/position/week-ending) with distinct visual badges
-- **Week-Ending Strategy**: Added 10% allocation for trades that exit by Friday close, calculated dynamically based on current day
-- **Holding Period Distribution**: 25% day trades (<6hrs), 40% swing (1-5 days), 25% position (5-14 days), 10% week-ending
-- **Penny Stock Support**: Stocks under $5 now classified as separate 'penny_stock' asset type with relaxed market cap requirements ($10M vs $50M)
-- **UI Enhancements**: Single holding period badge per trade idea with color coding (amber=day, blue=swing, purple=position, green=week-ending)
-- **Filter Improvements**: Added penny stock filter option to Trade Ideas page with proper sorting and grouping
-- **Stock Discovery**: Updated market-api.ts to allow $1-$5 stocks through with lower market cap threshold for penny stock discovery
-
 ## User Preferences
-- All timestamps should be displayed in America/Chicago timezone with market session context.
-- The UI should be a professional dark-themed interface optimized for rapid data scanning.
-- Educational disclaimers must be emphasized (not financial advice).
-- Clear and precise risk/reward calculations and position sizing tools are required.
-- The platform should highlight fresh, actionable trade ideas immediately upon opening.
-- The platform should function fully even without external AI dependencies, offering a quantitative idea generator alternative.
-- Provide helpful error messages for API billing, rate limits, and authentication issues.
-- Liquidity warnings should be displayed for penny stocks and low-float securities.
-- No personalized financial advice should be offered; it is for research purposes only.
+All timestamps should be displayed in America/Chicago timezone with market session context.
+The UI should be a professional dark-themed interface optimized for rapid data scanning.
+Educational disclaimers must be emphasized (not financial advice).
+Clear and precise risk/reward calculations and position sizing tools are required.
+The platform should highlight fresh, actionable trade ideas immediately upon opening.
+The platform should function fully even without external AI dependencies, offering a quantitative idea generator alternative.
+Provide helpful error messages for API billing, rate limits, and authentication issues.
+Liquidity warnings should be displayed for penny stocks and low-float securities.
+No personalized financial advice should be offered; it is for research purposes only.
 
 ## System Architecture
 
@@ -31,69 +20,28 @@ QuantEdge Research is a professional quantitative trading research platform desi
 The platform uses a multi-page architecture with all pages publicly accessible without authentication. Membership tiers are managed via Discord roles, and the web platform serves as a public dashboard for viewing signals and performance. Future integration with Discord OAuth is planned for gating premium features. Navigation is managed via a sidebar.
 
 ### UI/UX Decisions
-The platform features a professional Bloomberg-style dark theme using deep charcoal backgrounds, gradients, shadows, and glassmorphism effects. The color palette uses green for bullish, red for bearish, amber for neutral/warning, and blue for primary actions. Typography uses Inter for UI and JetBrains Mono for financial data. Custom CSS utility classes provide enhanced styling for cards, tables, and accent elements. UI elements include enhanced cards with shadow depth, gradient headers, icon backgrounds, hover effects, badges, sticky-header tables, responsive grids, loading skeletons, pulsing "FRESH" badges, smart notifications, and optimistic UI updates. It includes glowing verification badges for real data, real-time price displays, simplified card layouts, accessible view toggles, detailed analysis modals, and full mobile responsiveness. An intelligent advisory system provides real-time trading advice with dynamic R:R analysis and profit/loss tracking. **Responsive Design**: Generate buttons show compact text on mobile ("Q"/"A"), tab labels adapt to screen size (FRESH/ACTIVE/ARCHIVED on desktop, shorter variants on mobile), and weekend banner remains functional across all viewports. **Toast Notifications**: All toasts include data-testid attributes (toast-notification, toast-title, toast-description) for accessibility and automation testing. **Contextual Button Placement**: Generate Ideas buttons appear contextually based on day of week - weekend preview banner (Sat/Sun for week-ahead prep) or Fresh Ideas empty state (Mon-Fri for immediate opportunities) - eliminating duplicate controls and reducing UI clutter.
+The platform features a professional Bloomberg-style dark theme using deep charcoal backgrounds, gradients, shadows, and glassmorphism effects. The color palette uses green for bullish, red for bearish, amber for neutral/warning, and blue for primary actions. Typography uses Inter for UI and JetBrains Mono for financial data. Custom CSS utility classes provide enhanced styling for cards, tables, and accent elements. UI elements include enhanced cards with shadow depth, gradient headers, icon backgrounds, hover effects, badges, sticky-header tables, responsive grids, loading skeletons, pulsing "FRESH" badges, smart notifications, and optimistic UI updates. It includes glowing verification badges for real data, real-time price displays, simplified card layouts, accessible view toggles, detailed analysis modals, and full mobile responsiveness. An intelligent advisory system provides real-time trading advice with dynamic R:R analysis and profit/loss tracking. Responsive Design ensures adaptability across various screen sizes. Toast Notifications are used for user feedback, and Contextual Button Placement optimizes UI clutter.
 
 ### Technical Implementations & Feature Specifications
-The frontend is built with React/TypeScript, Tailwind CSS, Shadcn UI, TanStack Query, Wouter, and date-fns-tz. The backend uses Express.js with TypeScript, a PostgreSQL database (Neon) with Drizzle ORM for persistence, and Zod validation. Key features include a collapsible sidebar, symbol search with real-time pricing, a metrics-focused dashboard, a unified trade ideas feed with Quant and AI generation, and a conversational QuantAI Bot with multi-provider fallback and chat history. A quality scoring system incorporates confidence scores and probability bands. 
+The frontend is built with React/TypeScript, Tailwind CSS, Shadcn UI, TanStack Query, Wouter, and date-fns-tz. The backend uses Express.js with TypeScript, a PostgreSQL database (Neon) with Drizzle ORM for persistence, and Zod validation. Key features include a collapsible sidebar, symbol search with real-time pricing, a metrics-focused dashboard, a unified trade ideas feed with Quant and AI generation, and a conversational QuantAI Bot with multi-provider fallback and chat history. A quality scoring system incorporates confidence scores and probability bands.
 
-**Holding Period Classification System**: Trade ideas now clearly separate directional bias (LONG/SHORT for bullish/bearish) from holding period (DAY TRADE/SWING/POSITION for time horizon). The `holdingPeriod` field is automatically calculated based on exitWindowMinutes: <360 minutes (6 hours) = DAY TRADE, 360-7200 minutes (6 hours to 5 days) = SWING, >7200 minutes = POSITION. UI displays two separate badges with distinct icons - direction badges show arrows (green for LONG, red for SHORT) while holding period badges show clock icons with color coding (amber for day trades, blue for swing, purple for position). This eliminates confusion between "LONG" (bullish outlook) and "DAY TRADE" (same-day exit). A quick actions dialog facilitates smart trade idea creation with three modes: AI-powered, Quantitative rules-based, and Manual Entry. Manual Entry mode enables users to create trade ideas with custom direction (LONG/SHORT), entry/target/stop prices, and live R:R calculation, with comprehensive validation to prevent invalid pricing relationships. **Market catalysts are tracked with clickable source URLs** - both the `catalysts` table and trade ideas include optional `sourceUrl`/`catalystSourceUrl` fields enabling users to click through to external news sources, SEC filings, or earnings reports. **Weekend Preview Banner** displays on Sat/Sun showing next Monday market open time with asset filter dropdown (Stock Shares/Options/Crypto) that bidirectionally syncs with main page filters - lightweight helper design prevents redundancy with Fresh Ideas tab. Watchlist management includes expandable quantitative analysis for crypto, plus a real-time price alert system. Users can add symbols to watchlist with custom entry/target/stop alert prices and receive Discord notifications when prices hit their targets. The watchlist monitor runs every 5 minutes checking all enabled alerts. The QuantAI Bot can auto-save structured trade ideas. An AI-free Quantitative Idea Generator provides ideas balancing asset distribution with real-time entry prices.
+The Holding Period Classification System clearly separates directional bias from holding period with distinct UI badges and icons. A quick actions dialog facilitates smart trade idea creation with AI-powered, Quantitative rules-based, and Manual Entry modes. Market catalysts are tracked with clickable source URLs. A Weekend Preview Banner displays next Monday market open time with asset filter dropdown. Watchlist management includes expandable quantitative analysis for crypto, plus a real-time price alert system with Discord notifications. The QuantAI Bot can auto-save structured trade ideas. An AI-free Quantitative Idea Generator provides ideas balancing asset distribution with real-time entry prices. Penny stocks are supported with a separate 'penny_stock' asset type and relaxed market cap requirements.
 
-**Comprehensive User Settings System** enables full platform personalization across four categories: Trading (account size, risk parameters, capital allocation, holding horizons), Display (theme, timezone, view modes, compact mode), Alerts (Discord webhooks, trade/price/performance notifications, weekly reports), and Advanced (default filters, auto-refresh). Settings persist in PostgreSQL with single-user "default_user" model. Backend API provides GET/PUT/PATCH endpoints with Zod validation and automatic default initialization. Admin panel includes Settings tab for API configuration management and session control. Frontend uses TanStack Query for state management with useEffect-based form sync to properly load and display saved preferences.
-
-A comprehensive Performance Tracking System automatically validates trade outcomes, tracks win rates, and enables strategy improvement. It includes an auto-validation service, manual outcome recording, a performance dashboard with overall metrics and breakdowns, outcome badges, and CSV export.
-
-A Machine Learning System enhances trade ideas by analyzing historical performance. It includes a Signal Intelligence page, a Learned Pattern Analyzer to calculate optimal signal weights, and Adaptive Confidence Scoring that adjusts confidence based on signal effectiveness. ML features require a minimum of 10 closed trades for statistical significance.
-
-A **Quantitative Timing Intelligence System** provides data-backed entry/exit windows aligned with confidence grading. The system combines historical holding-time distributions (per signal/grade/asset) with real-time market regime detection (volatility, session phase, trend strength) to calculate optimal timing windows. Higher-confidence trades (A+/A grades) receive tighter, more aggressive windows backed by strong signal alignment, while lower-grade trades (B/C) get wider, conservative windows reflecting uncertainty. The system tracks volatility regime (low/normal/high/extreme), session phase (opening/mid-day/closing/overnight), trend strength (0-100), and provides target-hit probability estimates based on historical performance. All timing recommendations are quantitatively proven through backtesting and continuously improve via ML as more outcomes are recorded.
+A Comprehensive User Settings System enables full platform personalization across Trading, Display, Alerts, and Advanced categories, persisting settings in PostgreSQL. A comprehensive Performance Tracking System automatically validates trade outcomes, tracks win rates, and enables strategy improvement. A Machine Learning System enhances trade ideas by analyzing historical performance, including a Signal Intelligence page, Learned Pattern Analyzer, and Adaptive Confidence Scoring. A Quantitative Timing Intelligence System provides data-backed entry/exit windows aligned with confidence grading, combining historical holding-time distributions with real-time market regime detection.
 
 ### System Design Choices
 The system uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) managed by Drizzle ORM. All critical data is stored permanently. The user schema is simplified for future Discord integration, with subscription tiers managed externally via Discord.
 
 ### Access Control & Administration
-
-**Current Access Tiers:**
-- **Free Tier**: Public access to browse and view all content (no restrictions currently enforced)
-- **Premium Tier** ($39.99/month): Full feature access including AI generation, quantitative ideas, and performance tracking (currently all features public, enforcement planned with Discord OAuth)
-- **Admin Tier**: Platform management access via password-protected `/admin` panel
-
-**Admin Panel Features:**
-Located at `/admin`, password-protected using the `ADMIN_PASSWORD` environment variable:
-- **Dashboard**: Real-time system statistics (total users, premium users, active trade ideas, win rate)
-- **User Management**: View all registered users, subscription tiers, and Discord associations
-- **Trade Ideas**: Browse all trade ideas across the platform with outcomes and performance data
-- **System Tools**: 
-  - Export platform data to CSV
-  - Clear test data (ONLY deletes OPEN trades >7 days old - PRESERVES all trades with outcomes)
-  - Refresh cache/invalidate queries
-  - Database monitoring
-
-**Technical Implementation:**
-- **Phase 1 Security (✅ COMPLETED):**
-  - JWT authentication with HTTP-only cookies (24-hour expiration)
-  - Session tokens stored securely, not accessible via JavaScript
-  - Fail-fast JWT secret validation (requires JWT_SECRET or SESSION_SECRET)
-  - No hard-coded secret fallbacks - prevents token forgery
-  - Legacy password auth maintained for backward compatibility
-  - Winston structured logging for all admin actions
-  - Comprehensive rate limiting on all admin endpoints (30 req/15min)
-- `requireAdmin` middleware protects all admin routes (supports both JWT cookies and legacy password headers)
-- `requirePremium` middleware created but not enforced (awaiting Discord OAuth integration)
-
-**Next Steps - Discord OAuth Integration:**
-1. Implement Discord OAuth login flow
-2. Sync Discord roles with platform subscription tiers
-3. Enable `requirePremium` middleware on AI/Quant generation endpoints
-4. Add upgrade prompts for free users attempting premium features
-5. Auto-refresh user tier when Discord roles change
+Access tiers include Free, Premium, and Admin. The Admin Panel, located at `/admin` and password-protected, provides features for dashboard statistics, user management, trade idea review, and system tools (data export, cache refresh, database monitoring). Security for admin routes includes JWT authentication with HTTP-only cookies, session tokens, fail-fast JWT secret validation, rate limiting, and `requireAdmin` middleware. `requirePremium` middleware is in place for future use with Discord OAuth integration.
 
 ## External Dependencies
 
 ### Data Sources
 -   **CoinGecko API:** Crypto (real-time prices, historical data, market cap rankings, market-wide discovery).
--   **Yahoo Finance:** Stocks (real-time quotes, market-wide stock discovery via screener API, historical data - unlimited requests).
+-   **Yahoo Finance:** Stocks (real-time quotes, market-wide stock discovery via screener API, historical data).
 -   **Alpha Vantage API:** Fallback for Stocks (historical data).
--   **Tradier API:** Options data (ENABLED - working with real options chains, delta targeting, and live contract pricing). Options generation is set to 20% of total ideas when markets are open.
--   **Dynamic Market-Wide Stock Discovery:** Utilizes Yahoo Finance screener endpoints to find high-volume movers and breakout candidates across the entire stock market.
+-   **Tradier API:** Options data (real options chains, delta targeting, live contract pricing).
 
 ### AI Providers
 -   **OpenAI API:** For GPT-5 integration.
@@ -102,7 +50,7 @@ Located at `/admin`, password-protected using the `ADMIN_PASSWORD` environment v
 
 ### Data Flow Hierarchy
 1.  **Stock Current Prices:** Alpha Vantage → Yahoo Finance
-2.  **Stock Historical Data:** Alpha Vantage → Yahoo Finance (UNLIMITED fallback)
+2.  **Stock Historical Data:** Alpha Vantage → Yahoo Finance
 3.  **Stock Discovery:** Yahoo Finance screener
 4.  **Crypto Current Prices:** CoinGecko
 5.  **Crypto Historical Data:** CoinGecko

@@ -200,17 +200,30 @@ export async function calculateTimingWindows(
 
   // CREATE VARIETY: Randomize holding period type for diversity
   // 25% day trades, 40% swing trades, 25% position trades, 10% week-ending
+  // NOTE: Week-ending ONLY for stock/options (crypto trades 24/7)
   const holdingTypeRoll = Math.random();
   let holdingPeriodType: 'day' | 'swing' | 'position' | 'week-ending';
   
-  if (holdingTypeRoll < 0.25) {
-    holdingPeriodType = 'day'; // Day trade: exit same day
-  } else if (holdingTypeRoll < 0.65) {
-    holdingPeriodType = 'swing'; // Swing: hold 1-5 days
-  } else if (holdingTypeRoll < 0.90) {
-    holdingPeriodType = 'position'; // Position: hold 5+ days
+  if (assetType === 'crypto') {
+    // Crypto: No week-ending (24/7 markets), redistribute to other types
+    if (holdingTypeRoll < 0.25) {
+      holdingPeriodType = 'day';
+    } else if (holdingTypeRoll < 0.65) {
+      holdingPeriodType = 'swing';
+    } else {
+      holdingPeriodType = 'position';
+    }
   } else {
-    holdingPeriodType = 'week-ending'; // Week-ending: exit by Friday
+    // Stocks/Options: Include week-ending strategy
+    if (holdingTypeRoll < 0.25) {
+      holdingPeriodType = 'day'; // Day trade: exit same day
+    } else if (holdingTypeRoll < 0.65) {
+      holdingPeriodType = 'swing'; // Swing: hold 1-5 days
+    } else if (holdingTypeRoll < 0.90) {
+      holdingPeriodType = 'position'; // Position: hold 5+ days
+    } else {
+      holdingPeriodType = 'week-ending'; // Week-ending: exit by Friday
+    }
   }
 
   // Adjust base windows based on holding period type
@@ -234,35 +247,41 @@ export async function calculateTimingWindows(
       // Calculate hours until Friday 4pm ET
       const daysUntilFriday = 5 - currentDay; // How many days until Friday
       const hoursUntilFridayClose = (daysUntilFriday * 24) + 4; // Approximate
-      exitWindowMinutes = Math.max(60, Math.min(exitWindowMinutes, hoursUntilFridayClose * 60));
+      // ALWAYS set to Friday deadline (don't cap at base calculation)
+      exitWindowMinutes = Math.max(60, hoursUntilFridayClose * 60);
     } else {
       // Weekend - use swing trade timing
       exitWindowMinutes = 2880; // 2 days
     }
   }
 
-  // Adjust windows based on market regime
-  // High volatility = tighter windows (faster moves)
-  if (regime.volatilityRegime === 'extreme') {
-    entryWindowMinutes = Math.round(entryWindowMinutes * 0.6);
-    exitWindowMinutes = Math.round(exitWindowMinutes * 0.8);
-    targetHitProbability += 5; // Higher probability in extreme volatility
-  } else if (regime.volatilityRegime === 'high') {
-    entryWindowMinutes = Math.round(entryWindowMinutes * 0.8);
-    exitWindowMinutes = Math.round(exitWindowMinutes * 0.9);
-    targetHitProbability += 3;
-  } else if (regime.volatilityRegime === 'low') {
-    entryWindowMinutes = Math.round(entryWindowMinutes * 1.2);
-    exitWindowMinutes = Math.round(exitWindowMinutes * 1.1);
-    targetHitProbability -= 5; // Lower probability in low volatility
-  }
+  // Store week-ending exit window to preserve it from adjustments
+  const weekEndingExitWindow = holdingPeriodType === 'week-ending' ? exitWindowMinutes : null;
 
-  // Strong trends = can hold longer confidently
-  if (regime.trendStrength > 70) {
-    targetHitProbability += 5;
-  } else if (regime.trendStrength < 40) {
-    exitWindowMinutes = Math.round(exitWindowMinutes * 0.9); // Exit faster in weak trends
-    targetHitProbability -= 5;
+  // Adjust windows based on market regime (but NOT for week-ending trades)
+  // High volatility = tighter windows (faster moves)
+  if (holdingPeriodType !== 'week-ending') {
+    if (regime.volatilityRegime === 'extreme') {
+      entryWindowMinutes = Math.round(entryWindowMinutes * 0.6);
+      exitWindowMinutes = Math.round(exitWindowMinutes * 0.8);
+      targetHitProbability += 5; // Higher probability in extreme volatility
+    } else if (regime.volatilityRegime === 'high') {
+      entryWindowMinutes = Math.round(entryWindowMinutes * 0.8);
+      exitWindowMinutes = Math.round(exitWindowMinutes * 0.9);
+      targetHitProbability += 3;
+    } else if (regime.volatilityRegime === 'low') {
+      entryWindowMinutes = Math.round(entryWindowMinutes * 1.2);
+      exitWindowMinutes = Math.round(exitWindowMinutes * 1.1);
+      targetHitProbability -= 5; // Lower probability in low volatility
+    }
+
+    // Strong trends = can hold longer confidently
+    if (regime.trendStrength > 70) {
+      targetHitProbability += 5;
+    } else if (regime.trendStrength < 40) {
+      exitWindowMinutes = Math.round(exitWindowMinutes * 0.9); // Exit faster in weak trends
+      targetHitProbability -= 5;
+    }
   }
 
   // Session phase adjustments (only for day trades)
@@ -274,6 +293,11 @@ export async function calculateTimingWindows(
       entryWindowMinutes = Math.min(entryWindowMinutes, 60); // Very tight near close
       exitWindowMinutes = Math.min(exitWindowMinutes, 120); // Must exit before close
     }
+  }
+
+  // Restore week-ending exit window (MUST exit by Friday regardless of adjustments)
+  if (weekEndingExitWindow !== null) {
+    exitWindowMinutes = weekEndingExitWindow;
   }
 
   // Crypto trades 24/7, so can extend all holding periods
