@@ -444,15 +444,15 @@ function calculateConfidenceScore(
   const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
   const priceChangeAbs = Math.abs(data.changePercent);
 
-  // 1. Risk/Reward Ratio Quality (0-25 points)
+  // 1. Risk/Reward Ratio Quality (0-30 points) - RECALIBRATED
   if (riskRewardRatio >= 3) {
-    score += 25;
+    score += 30;
     qualitySignals.push('Excellent R:R (3:1+)');
   } else if (riskRewardRatio >= 2) {
-    score += 20;
+    score += 28;  // Increased from 20
     qualitySignals.push('Strong R:R (2:1+)');
   } else if (riskRewardRatio >= 1.5) {
-    score += 10;
+    score += 20;  // Increased from 10
     qualitySignals.push('Moderate R:R');
   }
 
@@ -461,25 +461,25 @@ function calculateConfidenceScore(
     score += 25;
     qualitySignals.push('Exceptional Volume (3x+)');
   } else if (volumeRatio >= 2) {
-    score += 20;
+    score += 22;  // Increased from 20
     qualitySignals.push('Strong Volume (2x+)');
   } else if (volumeRatio >= 1.5) {
-    score += 15;
+    score += 18;  // Increased from 15
     qualitySignals.push('Above Avg Volume');
   } else if (volumeRatio >= 1.2) {
-    score += 5;
+    score += 12;  // Increased from 5
     qualitySignals.push('Confirmed Volume');
   }
 
-  // 3. Signal Strength (0-20 points)
+  // 3. Signal Strength (0-25 points) - RECALIBRATED
   if (signal.strength === 'strong') {
-    score += 20;
+    score += 25;  // Increased from 20
     qualitySignals.push('Strong Signal');
   } else if (signal.strength === 'moderate') {
-    score += 15;
+    score += 20;  // Increased from 15
     qualitySignals.push('Moderate Signal');
   } else {
-    score += 10;
+    score += 15;  // Increased from 10
     qualitySignals.push('Weak Signal');
   }
 
@@ -907,51 +907,27 @@ export async function generateQuantIdeas(
     );
     const probabilityBand = getProbabilityBand(confidenceScore);
 
-    // 🎯 ADJUST TARGETS BASED ON QUALITY: Higher grades get better R:R ratios
-    const adjustedLevels = adjustTargetsForQuality(
-      levels.entryPrice,
-      levels.targetPrice,
-      levels.stopLoss,
-      confidenceScore,
-      signal.direction
-    );
-    levels.targetPrice = adjustedLevels.targetPrice;
-    levels.stopLoss = adjustedLevels.stopLoss;
-
-    // Recalculate R:R with adjusted targets
-    const adjustedRiskDistance = Math.abs(levels.entryPrice - levels.stopLoss);
-    const adjustedRewardDistance = Math.abs(levels.targetPrice - levels.entryPrice);
-    riskRewardRatio = adjustedRiskDistance > 0 ? adjustedRewardDistance / adjustedRiskDistance : 0;
-    riskRewardRatio = Math.min(riskRewardRatio, 99.9);
-
-    // QUALITY FILTER: Trust quantitative signals - adjust thresholds by asset type
-    let minConfidence: number;
-    let minRiskReward: number;
-    let minVolume: number;
-    
-    if (data.assetType === 'crypto') {
-      // More lenient for crypto (different market dynamics)
-      minConfidence = signal.direction === 'short' ? 45 : 50;
-      minRiskReward = 1.2; // Crypto can have tighter stops
-      minVolume = 0.6; // Crypto volume can be more erratic
-    } else {
-      // Standard thresholds for stocks
-      minConfidence = signal.direction === 'short' ? 50 : 55;
-      minRiskReward = 1.3;
-      minVolume = signal.direction === 'short' ? 0.8 : 1.0;
-    }
-    
-    if (confidenceScore < minConfidence) {
+    // 🚫 QUALITY FILTER: Multi-tier filtering for B+ grade and above
+    // 1. Confidence score must be >= 85 (B+ grade minimum)
+    if (confidenceScore < 85) {
+      logger.info(`Filtered out ${getProbabilityBand(confidenceScore)}-grade idea for ${data.symbol} (score: ${confidenceScore})`);
       dataQuality.lowQuality++;
       continue;
     }
+
+    // 2. Risk/Reward ratio must meet minimum thresholds
+    const minRiskReward = data.assetType === 'crypto' ? 1.2 : 1.3;
     if (riskRewardRatio < minRiskReward) {
+      logger.info(`Filtered out ${data.symbol} - insufficient R:R (${riskRewardRatio.toFixed(2)} < ${minRiskReward})`);
       dataQuality.lowQuality++;
       continue;
     }
-    
+
+    // 3. Volume must meet asset-specific thresholds
     const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
+    const minVolume = data.assetType === 'crypto' ? 0.6 : (signal.direction === 'short' ? 0.8 : 1.0);
     if (volumeRatio < minVolume) {
+      logger.info(`Filtered out ${data.symbol} - insufficient volume (${volumeRatio.toFixed(2)}x < ${minVolume}x)`);
       dataQuality.lowQuality++;
       continue;
     }
