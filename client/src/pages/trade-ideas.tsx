@@ -144,11 +144,18 @@ export default function TradeIdeasPage() {
     return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDate;
   });
 
-  // Helper function to check if an idea is fresh (created within last 2 hours)
-  // Day trading requires very fresh data - timing windows expire quickly
-  const isFreshIdea = (idea: TradeIdea) => {
+  // Helper function to check if an idea is from today (created same trading day)
+  // Top Picks remain stable throughout the trading day
+  const isTodayIdea = (idea: TradeIdea) => {
     const ideaDate = parseISO(idea.timestamp);
-    const cutoffTime = subHours(new Date(), 2); // 2 hours ago - prevents stale timing data
+    const today = new Date();
+    return isSameDay(ideaDate, today) && idea.outcomeStatus === 'open';
+  };
+  
+  // Helper function for NEW badge (created within last 2 hours)
+  const isVeryFreshIdea = (idea: TradeIdea) => {
+    const ideaDate = parseISO(idea.timestamp);
+    const cutoffTime = subHours(new Date(), 2);
     return ideaDate >= cutoffTime && idea.outcomeStatus === 'open';
   };
 
@@ -157,9 +164,9 @@ export default function TradeIdeasPage() {
     return calculatePriorityScore(b) - calculatePriorityScore(a);
   });
 
-  // Get Top Picks: Best 5 opportunities (fresh, high grade, open)
+  // Get Top Picks: Best 5 opportunities from today (stable throughout trading day)
   const topPicks = sortedIdeas
-    .filter(idea => isFreshIdea(idea) && idea.outcomeStatus === 'open')
+    .filter(idea => isTodayIdea(idea))
     .slice(0, 5);
 
   // Group by asset type (using sorted ideas for consistent ordering)
@@ -173,8 +180,8 @@ export default function TradeIdeasPage() {
   // Get dates with ideas for calendar highlighting
   const datesWithIdeas = tradeIdeas.map(idea => startOfDay(parseISO(idea.timestamp)));
 
-  // Count fresh ideas (last 2h) - day trading window
-  const newIdeasCount = filteredIdeas.filter(isFreshIdea).length;
+  // Count very fresh ideas (last 2h) - for NEW badge
+  const newIdeasCount = filteredIdeas.filter(isVeryFreshIdea).length;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -557,9 +564,9 @@ export default function TradeIdeasPage() {
           <TabsTrigger value="fresh" data-testid="tab-fresh-ideas" className="gap-1.5">
             <span className="hidden sm:inline">FRESH</span>
             <span className="sm:hidden">NEW</span>
-            {filteredIdeas.filter(isFreshIdea).length > 0 && (
+            {filteredIdeas.filter(isVeryFreshIdea).length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5">
-                {filteredIdeas.filter(isFreshIdea).length}
+                {filteredIdeas.filter(isVeryFreshIdea).length}
               </Badge>
             )}
           </TabsTrigger>
@@ -590,7 +597,7 @@ export default function TradeIdeasPage() {
                 <Skeleton key={i} className="h-32 w-full" data-testid={`skeleton-idea-${i}`} />
               ))}
             </div>
-          ) : filteredIdeas.filter(isFreshIdea).length === 0 ? (
+          ) : filteredIdeas.filter(isVeryFreshIdea).length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
@@ -632,7 +639,7 @@ export default function TradeIdeasPage() {
           ) : (
             <Accordion type="single" collapsible className="space-y-4">
               {Object.entries(groupedIdeas)
-                .filter(([, ideas]) => ideas.some(isFreshIdea))
+                .filter(([, ideas]) => ideas.some(isVeryFreshIdea))
                 .sort(([a], [b]) => {
                   const order = { 'stock': 0, 'penny_stock': 1, 'option': 2, 'crypto': 3 };
                   return (order[a as keyof typeof order] || 0) - (order[b as keyof typeof order] || 0);
@@ -652,13 +659,13 @@ export default function TradeIdeasPage() {
                         <div className="flex items-center gap-3">
                           <span className="font-semibold">{label}</span>
                           <Badge variant="outline" className="animate-pulse badge-shimmer" data-testid={`badge-count-${assetType}`}>
-                            {ideas.filter(isFreshIdea).length} fresh
+                            {ideas.filter(isVeryFreshIdea).length} fresh
                           </Badge>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-3'}`}>
                         {ideas
-                          .filter(isFreshIdea)
+                          .filter(isVeryFreshIdea)
                           .map(idea => (
                             <TradeIdeaBlock
                               key={idea.id}
