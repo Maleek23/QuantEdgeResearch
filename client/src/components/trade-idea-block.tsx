@@ -236,32 +236,11 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
       </CollapsibleTrigger>
 
       <CollapsibleContent>
-        <div className="border-x border-b rounded-b-lg p-6 bg-card/50 space-y-6" onClick={(e) => e.stopPropagation()}>
-          {/* Catalyst */}
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <h4 className="text-sm font-semibold">Catalyst</h4>
-              {idea.catalystSourceUrl && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 gap-1 text-xs"
-                  asChild
-                  data-testid={`link-catalyst-source-${idea.symbol}`}
-                >
-                  <a href={idea.catalystSourceUrl} target="_blank" rel="noopener noreferrer">
-                    View Source <ExternalLink className="h-3 w-3" />
-                  </a>
-                </Button>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">{idea.catalyst}</p>
-          </div>
-
-          {/* Analysis */}
+        <div className="border-x border-b rounded-b-lg p-6 bg-card/50 space-y-5" onClick={(e) => e.stopPropagation()}>
+          {/* Analysis Summary */}
           <div>
             <h4 className="text-sm font-semibold mb-2">Analysis</h4>
-            <p className="text-sm text-muted-foreground">{idea.analysis}</p>
+            <p className="text-sm text-muted-foreground line-clamp-2">{idea.analysis}</p>
           </div>
 
           {/* Real-Time Trading Advice */}
@@ -271,76 +250,28 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
             </div>
           )}
 
-          {/* Quantitative Timing */}
-          {(idea.entryValidUntil || idea.exitBy) && (
-            <div>
-              <h4 className="text-sm font-semibold mb-3">Quantitative Timing</h4>
-              <div className="grid grid-cols-2 gap-3 mb-2">
-                {idea.entryValidUntil && (
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                    <div>
-                      <div className="text-xs text-muted-foreground">Enter by</div>
-                      <div className="text-xs font-medium" data-testid={`text-entry-valid-${idea.symbol}`}>
-                        {idea.entryValidUntil}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {idea.exitBy && (
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                    <div>
-                      <div className="text-xs text-muted-foreground">Exit by</div>
-                      <div className="text-xs font-medium" data-testid={`text-exit-by-${idea.symbol}`}>
-                        {idea.exitBy}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {/* Target Hit Probability - Quantitative Backing */}
-              {idea.targetHitProbability && (
-                <div className="text-xs text-blue-400 font-medium">
-                  {idea.targetHitProbability.toFixed(1)}% probability in {idea.exitWindowMinutes}min window
-                </div>
-              )}
+          {/* Quick Stats Grid */}
+          <div className="grid grid-cols-3 gap-4 p-4 rounded-lg bg-background/50 border">
+            <div className="text-center">
+              <div className="text-xs text-muted-foreground mb-1">Grade</div>
+              <div className="text-lg font-bold">{getLetterGrade(idea.confidenceScore)}</div>
             </div>
-          )}
-
-          {/* Explainability Panel */}
-          <ExplainabilityPanel idea={idea} />
-
-          {/* Trade Details */}
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-            <div>
+            <div className="text-center border-x">
               <div className="text-xs text-muted-foreground mb-1">R:R Ratio</div>
-              <div className="text-sm font-semibold">
+              <div className="text-lg font-bold">
                 {isFinite(idea.riskRewardRatio) && !isNaN(idea.riskRewardRatio) 
                   ? `${idea.riskRewardRatio.toFixed(1)}:1` 
                   : 'N/A'}
               </div>
             </div>
-            <div>
+            <div className="text-center">
               <div className="text-xs text-muted-foreground mb-1">Source</div>
-              <div className="text-sm font-semibold">{idea.source === 'ai' ? 'AI' : idea.source === 'quant' ? 'Quantitative' : 'Manual'}</div>
+              <div className="text-sm font-semibold">{idea.source === 'ai' ? 'AI' : idea.source === 'quant' ? 'Quant' : 'Manual'}</div>
             </div>
-            {idea.assetType === 'option' && idea.strikePrice && (
-              <>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">Strike</div>
-                  <div className="text-sm font-semibold">${idea.strikePrice}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1">Type</div>
-                  <div className="text-sm font-semibold">{idea.optionType?.toUpperCase()}</div>
-                </div>
-              </>
-            )}
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-2 pt-4 border-t">
+          <div className="flex items-center gap-2 pt-2">
             <Button
               variant="default"
               size="sm"
