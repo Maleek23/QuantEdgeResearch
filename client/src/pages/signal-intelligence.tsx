@@ -107,33 +107,101 @@ export default function SignalIntelligencePage() {
     );
   }
 
+  // Calculate quick stats for summary cards
+  const topSignal = intelligence.signalAnalysis.length > 0
+    ? intelligence.signalAnalysis.reduce((best, sig) => sig.reliabilityScore > best.reliabilityScore ? sig : best)
+    : null;
+  
+  const avgWinRate = intelligence.signalAnalysis.length > 0
+    ? intelligence.signalAnalysis.reduce((sum, sig) => sum + sig.winRate, 0) / intelligence.signalAnalysis.length
+    : 0;
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Sparkles className="w-8 h-8 text-primary" />
-          Signal Intelligence
-        </h1>
-        <p className="text-muted-foreground">
-          Machine learning insights from {intelligence.totalAnalyzedTrades} analyzed trades
-        </p>
+      <div className="relative overflow-hidden border-b aurora-hero rounded-xl -mx-6 px-6 pb-6 mb-8">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
+        <div className="relative pt-6">
+          <h1 className="text-3xl font-bold flex items-center gap-2 text-gradient-premium">
+            <Sparkles className="w-8 h-8 text-primary" />
+            Signal Intelligence
+          </h1>
+          <p className="text-muted-foreground">
+            Machine learning insights from {intelligence.totalAnalyzedTrades} analyzed trades
+          </p>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
+      </div>
+
+      {/* Summary Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="stat-card shadow-lg border-primary/20" data-testid="card-signals-analyzed">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
+            <CardTitle className="text-sm font-semibold tracking-wide">Signals Analyzed</CardTitle>
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Target className="w-4 h-4 text-primary" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <div className="text-3xl font-bold font-mono tracking-tight">
+              {intelligence.signalAnalysis.length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Across {intelligence.totalAnalyzedTrades} trades
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="stat-card shadow-lg border-green-500/20" data-testid="card-top-signal">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
+            <CardTitle className="text-sm font-semibold tracking-wide">Top Signal</CardTitle>
+            <div className="p-2 rounded-lg bg-green-500/10">
+              <TrendingUp className="w-4 h-4 text-green-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <div className="text-2xl font-bold font-mono tracking-tight text-green-500">
+              {topSignal ? topSignal.signal : 'N/A'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {topSignal ? `${topSignal.reliabilityScore.toFixed(1)} reliability` : 'No data'}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="stat-card shadow-lg border-blue-500/20" data-testid="card-avg-win-rate">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
+            <CardTitle className="text-sm font-semibold tracking-wide">Avg Win Rate</CardTitle>
+            <div className="p-2 rounded-lg bg-blue-500/10">
+              <BarChart3 className="w-4 h-4 text-blue-500" />
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            <div className="text-3xl font-bold font-mono tracking-tight text-blue-500">
+              {avgWinRate.toFixed(1)}%
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Across all signals
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Smart Insights Panel */}
       {intelligence.insights.length > 0 && (
-        <Card className="border-primary/20 bg-primary/5">
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 shadow-lg">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <BarChart3 className="w-5 h-5" />
+              <BarChart3 className="w-5 h-5 text-primary" />
               Smart Insights
             </CardTitle>
+            <CardDescription>ML-driven recommendations based on pattern analysis</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-3">
             {intelligence.insights.map((insight, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <div className="text-lg">{insight.split(' ')[0]}</div>
-                <p className="text-sm">{insight.substring(insight.indexOf(' ') + 1)}</p>
+              <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-background/50">
+                <Badge variant="outline" className="mt-0.5 shrink-0">{i + 1}</Badge>
+                <p className="text-sm leading-relaxed">{insight}</p>
               </div>
             ))}
           </CardContent>
@@ -163,38 +231,42 @@ export default function SignalIntelligencePage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead className="cursor-pointer hover-elevate" onClick={() => handleSort('signal')}>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="cursor-pointer hover-elevate font-semibold" onClick={() => handleSort('signal')}>
                         Signal
                       </TableHead>
-                      <TableHead className="cursor-pointer hover-elevate text-right" onClick={() => handleSort('reliabilityScore')}>
+                      <TableHead className="cursor-pointer hover-elevate text-right font-semibold" onClick={() => handleSort('reliabilityScore')}>
                         Reliability
                       </TableHead>
-                      <TableHead className="cursor-pointer hover-elevate text-right" onClick={() => handleSort('winRate')}>
+                      <TableHead className="cursor-pointer hover-elevate text-right font-semibold" onClick={() => handleSort('winRate')}>
                         Win Rate
                       </TableHead>
-                      <TableHead className="cursor-pointer hover-elevate text-right" onClick={() => handleSort('totalTrades')}>
+                      <TableHead className="cursor-pointer hover-elevate text-right font-semibold" onClick={() => handleSort('totalTrades')}>
                         Trades
                       </TableHead>
-                      <TableHead className="cursor-pointer hover-elevate text-right" onClick={() => handleSort('expectancy')}>
+                      <TableHead className="cursor-pointer hover-elevate text-right font-semibold" onClick={() => handleSort('expectancy')}>
                         Expectancy
                       </TableHead>
-                      <TableHead className="cursor-pointer hover-elevate text-right" onClick={() => handleSort('avgRiskReward')}>
+                      <TableHead className="cursor-pointer hover-elevate text-right font-semibold" onClick={() => handleSort('avgRiskReward')}>
                         Avg R:R
                       </TableHead>
-                      <TableHead className="cursor-pointer hover-elevate text-right" onClick={() => handleSort('avgHoldingTimeMinutes')}>
+                      <TableHead className="cursor-pointer hover-elevate text-right font-semibold" onClick={() => handleSort('avgHoldingTimeMinutes')}>
                         Avg Time
                       </TableHead>
-                      <TableHead className="text-right">Grade</TableHead>
+                      <TableHead className="text-right font-semibold">Grade</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedSignals?.map((signal) => (
-                      <TableRow key={signal.signal} data-testid={`row-signal-${signal.signal}`}>
-                        <TableCell className="font-medium">{signal.signal}</TableCell>
+                    {sortedSignals?.map((signal, index) => (
+                      <TableRow 
+                        key={signal.signal} 
+                        data-testid={`row-signal-${signal.signal}`}
+                        className={index % 2 === 0 ? 'bg-background' : 'bg-muted/30'}
+                      >
+                        <TableCell className="font-medium py-4">{signal.signal}</TableCell>
                         <TableCell className="text-right">
                           <span className={
                             signal.reliabilityScore >= 60 ? "text-green-500 font-semibold" :
@@ -259,19 +331,23 @@ export default function SignalIntelligencePage() {
                   <p className="text-sm">Need more trades with multiple signals to detect patterns.</p>
                 </div>
               ) : (
-                <div className="rounded-md border">
+                <div className="rounded-md border overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Combination</TableHead>
-                        <TableHead className="text-right">Occurrences</TableHead>
-                        <TableHead className="text-right">Win Rate</TableHead>
-                        <TableHead className="text-right">Avg Gain</TableHead>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="font-semibold">Combination</TableHead>
+                        <TableHead className="text-right font-semibold">Occurrences</TableHead>
+                        <TableHead className="text-right font-semibold">Win Rate</TableHead>
+                        <TableHead className="text-right font-semibold">Avg Gain</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {intelligence.topCombinations.map((combo, i) => (
-                        <TableRow key={i} data-testid={`row-combo-${i}`}>
+                        <TableRow 
+                          key={i} 
+                          data-testid={`row-combo-${i}`}
+                          className={i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}
+                        >
                           <TableCell className="font-medium">{combo.combination}</TableCell>
                           <TableCell className="text-right">{combo.occurrences}</TableCell>
                           <TableCell className="text-right">
@@ -309,20 +385,24 @@ export default function SignalIntelligencePage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="rounded-md border">
+              <div className="rounded-md border overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead>Asset Type</TableHead>
-                      <TableHead className="text-right">Total Trades</TableHead>
-                      <TableHead className="text-right">Win Rate</TableHead>
-                      <TableHead className="text-right">Avg Gain</TableHead>
-                      <TableHead className="text-right">Avg Hold Time</TableHead>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="font-semibold">Asset Type</TableHead>
+                      <TableHead className="text-right font-semibold">Total Trades</TableHead>
+                      <TableHead className="text-right font-semibold">Win Rate</TableHead>
+                      <TableHead className="text-right font-semibold">Avg Gain</TableHead>
+                      <TableHead className="text-right font-semibold">Avg Hold Time</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {intelligence.assetComparison.map((asset) => (
-                      <TableRow key={asset.assetType} data-testid={`row-asset-${asset.assetType}`}>
+                    {intelligence.assetComparison.map((asset, index) => (
+                      <TableRow 
+                        key={asset.assetType} 
+                        data-testid={`row-asset-${asset.assetType}`}
+                        className={index % 2 === 0 ? 'bg-background' : 'bg-muted/30'}
+                      >
                         <TableCell className="font-medium uppercase">{asset.assetType}</TableCell>
                         <TableCell className="text-right">{asset.totalTrades}</TableCell>
                         <TableCell className="text-right">
