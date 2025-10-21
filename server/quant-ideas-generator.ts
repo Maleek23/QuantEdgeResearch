@@ -259,75 +259,82 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
 // Calculate entry, target, and stop based on REAL-TIME market prices for ACTIVE trading
 // Entry = CURRENT market price (immediate execution)
 // Target/Stop = Calculated from entry for actionable levels
-// UPDATED: Realistic 3-5% targets for day trading (was 8-15%, too aggressive)
-function calculateLevels(data: MarketData, signal: QuantSignal) {
+// UPDATED: Asset-type-specific minimums - Stocks: 8%, Crypto: 12%, Options: 25%
+function calculateLevels(data: MarketData, signal: QuantSignal, assetType?: string) {
   // ✅ ACTIVE TRADING: Entry is ALWAYS current market price for immediate execution
   const entryPrice = data.currentPrice;
   let targetPrice: number;
   let stopLoss: number;
 
+  // Asset-type-specific multipliers for minimum thresholds
+  // Base targets are 8% for stocks, then scaled up for crypto/options
+  const assetMultiplier = assetType === 'crypto' ? 1.5 :  // 12% min for crypto (1.5x stocks)
+                          assetType === 'option' ? 3.125 : // 25% min for options (3.125x stocks)
+                          1.0;  // 8% min for stocks/penny stocks (baseline)
+
   // NOTE: "momentum" signal type removed from strategy, but keeping logic for backward compatibility
   if (signal.type === 'momentum') {
     if (signal.direction === 'long') {
-      targetPrice = entryPrice * 1.04; // 4% target (was 8%)
-      stopLoss = entryPrice * 0.98; // 2% stop (was 4%)
+      targetPrice = entryPrice * (1 + 0.08 * assetMultiplier); // 8% stocks, 12% crypto, 25% options
+      stopLoss = entryPrice * (1 - 0.03 * assetMultiplier); // Scaled stops maintain R:R
     } else {
-      targetPrice = entryPrice * 0.96; // 4% target
-      stopLoss = entryPrice * 1.02; // 2% stop
+      targetPrice = entryPrice * (1 - 0.08 * assetMultiplier);
+      stopLoss = entryPrice * (1 + 0.03 * assetMultiplier);
     }
   } else if (signal.type === 'volume_spike') {
-    // Early volume accumulation - conservative targets
+    // Early volume accumulation - minimum 8% stocks, 12% crypto, 25% options
     if (signal.direction === 'long') {
-      targetPrice = entryPrice * 1.05; // 5% target (was 12%)
-      stopLoss = entryPrice * 0.98; // 2% stop (was 6%)
+      targetPrice = entryPrice * (1 + 0.08 * assetMultiplier);
+      stopLoss = entryPrice * (1 - 0.03 * assetMultiplier);
     } else {
-      targetPrice = entryPrice * 0.95; // 5% target
-      stopLoss = entryPrice * 1.02; // 2% stop
+      targetPrice = entryPrice * (1 - 0.08 * assetMultiplier);
+      stopLoss = entryPrice * (1 + 0.03 * assetMultiplier);
     }
   } else if (signal.type === 'breakout') {
-    // Early breakout setup - realistic continuation
+    // Breakout setup - higher target, maintain 2.5:1 R:R minimum
+    // Stocks: 10%/4% = 2.5:1, Crypto: 15%/6% = 2.5:1, Options: 31.25%/12.5% = 2.5:1
     if (signal.direction === 'long') {
-      targetPrice = entryPrice * 1.05; // 5% target (was 15%)
-      stopLoss = entryPrice * 0.98; // 2% stop (was 4%)
+      targetPrice = entryPrice * (1 + 0.10 * assetMultiplier);
+      stopLoss = entryPrice * (1 - 0.04 * assetMultiplier);
     } else {
-      targetPrice = entryPrice * 0.95; // 5% target
-      stopLoss = entryPrice * 1.02; // 2% stop
+      targetPrice = entryPrice * (1 - 0.10 * assetMultiplier);
+      stopLoss = entryPrice * (1 + 0.04 * assetMultiplier);
     }
   } else if (signal.type === 'mean_reversion') {
-    // Mean reversion - bounce/pullback target
+    // Mean reversion - minimum 8% stocks, 12% crypto, 25% options
     if (signal.direction === 'long') {
-      targetPrice = entryPrice * 1.06; // 6% bounce target (was 15%)
-      stopLoss = entryPrice * 0.97; // 3% stop (was 8%)
+      targetPrice = entryPrice * (1 + 0.08 * assetMultiplier);
+      stopLoss = entryPrice * (1 - 0.03 * assetMultiplier);
     } else {
-      targetPrice = entryPrice * 0.94; // 6% pullback target
-      stopLoss = entryPrice * 1.03; // 3% stop
+      targetPrice = entryPrice * (1 - 0.08 * assetMultiplier);
+      stopLoss = entryPrice * (1 + 0.03 * assetMultiplier);
     }
   } else if (signal.type === 'rsi_divergence') {
-    // RSI-based mean reversion - realistic bounce/pullback targets
+    // RSI-based mean reversion - minimum 8% stocks, 12% crypto, 25% options
     if (signal.direction === 'long') {
-      targetPrice = entryPrice * 1.05; // 5% reversal target (was 12%)
-      stopLoss = entryPrice * 0.97; // 3% stop (was 6%)
+      targetPrice = entryPrice * (1 + 0.08 * assetMultiplier);
+      stopLoss = entryPrice * (1 - 0.03 * assetMultiplier);
     } else {
-      targetPrice = entryPrice * 0.95; // 5% pullback target
-      stopLoss = entryPrice * 1.03; // 3% stop
+      targetPrice = entryPrice * (1 - 0.08 * assetMultiplier);
+      stopLoss = entryPrice * (1 + 0.03 * assetMultiplier);
     }
   } else if (signal.type === 'macd_crossover') {
-    // MACD trend following - realistic short-term targets
+    // MACD trend following - minimum 8% stocks, 12% crypto, 25% options
     if (signal.direction === 'long') {
-      targetPrice = entryPrice * 1.04; // 4% trend target (was 10%)
-      stopLoss = entryPrice * 0.98; // 2% stop (was 5%)
+      targetPrice = entryPrice * (1 + 0.08 * assetMultiplier);
+      stopLoss = entryPrice * (1 - 0.03 * assetMultiplier);
     } else {
-      targetPrice = entryPrice * 0.96; // 4% target
-      stopLoss = entryPrice * 1.02; // 2% stop
+      targetPrice = entryPrice * (1 - 0.08 * assetMultiplier);
+      stopLoss = entryPrice * (1 + 0.03 * assetMultiplier);
     }
   } else {
-    // Default case - conservative targets
+    // Default case - minimum 8% stocks, 12% crypto, 25% options
     if (signal.direction === 'long') {
-      targetPrice = entryPrice * 1.04; // 4% target (was 10%)
-      stopLoss = entryPrice * 0.98; // 2% stop (was 5%)
+      targetPrice = entryPrice * (1 + 0.08 * assetMultiplier);
+      stopLoss = entryPrice * (1 - 0.03 * assetMultiplier);
     } else {
-      targetPrice = entryPrice * 0.96; // 4% target
-      stopLoss = entryPrice * 1.02; // 2% stop
+      targetPrice = entryPrice * (1 - 0.08 * assetMultiplier);
+      stopLoss = entryPrice * (1 + 0.03 * assetMultiplier);
     }
   }
 
@@ -879,7 +886,7 @@ export async function generateQuantIdeas(
       continue;
     }
 
-    const levels = calculateLevels(data, signal);
+    let levels = calculateLevels(data, signal, data.assetType);
     const catalyst = generateCatalyst(data, signal, catalysts);
     const analysis = generateAnalysis(data, signal);
     
@@ -955,6 +962,20 @@ export async function generateQuantIdeas(
       } else {
         // Equal shortfall - use market characteristics to decide
         assetType = (Math.abs(data.changePercent) > 3 || signal.strength === 'strong') ? 'option' : 'stock';
+      }
+      
+      // IMPORTANT: If assetType changed to 'option', recalculate levels with option thresholds (25% target)
+      if (assetType === 'option' && data.assetType === 'stock') {
+        levels = calculateLevels(data, signal, assetType);
+        
+        // Recalculate R:R with new option levels
+        const riskDistance = Math.abs(levels.entryPrice - levels.stopLoss);
+        const rewardDistance = Math.abs(levels.targetPrice - levels.entryPrice);
+        riskRewardRatio = riskDistance > 0 ? rewardDistance / riskDistance : 0;
+        if (!isFinite(riskRewardRatio) || isNaN(riskRewardRatio)) {
+          riskRewardRatio = 0;
+        }
+        riskRewardRatio = Math.min(riskRewardRatio, 99.9);
       }
     }
     // Crypto stays as crypto (already filtered to hidden gems only)
@@ -1213,10 +1234,15 @@ export async function generateQuantIdeas(
       const isPositiveCatalyst = catalyst.impact === 'high' || catalyst.eventType === 'earnings';
       const direction: 'long' | 'short' = isPositiveCatalyst ? 'long' : 'short';
       
+      // Apply asset-type-specific targets (stocks: 8%, crypto: 12%, options: 25%)
+      const assetMultiplier = symbolData.assetType === 'crypto' ? 1.5 :
+                              symbolData.assetType === 'option' ? 3.125 :
+                              1.0;
+      
       const currentPrice = symbolData.currentPrice;
       const entryPrice = Number((currentPrice * 0.998).toFixed(2));
-      const targetPrice = Number((currentPrice * (direction === 'long' ? 1.1 : 0.9)).toFixed(2));
-      const stopLoss = Number((currentPrice * (direction === 'long' ? 0.95 : 1.05)).toFixed(2));
+      const targetPrice = Number((currentPrice * (direction === 'long' ? (1 + 0.08 * assetMultiplier) : (1 - 0.08 * assetMultiplier))).toFixed(2));
+      const stopLoss = Number((currentPrice * (direction === 'long' ? (1 - 0.03 * assetMultiplier) : (1 + 0.03 * assetMultiplier))).toFixed(2));
       // Calculate risk/reward ratio with guards
       const riskDistance = Math.abs(entryPrice - stopLoss);
       const rewardDistance = Math.abs(targetPrice - entryPrice);
