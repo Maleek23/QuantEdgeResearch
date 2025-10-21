@@ -48,7 +48,8 @@ export interface PerformanceStats {
     lostIdeas: number;
     expiredIdeas: number;
     winRate: number; // Market win rate: hit_target / (hit_target + hit_stop)
-    quantAccuracy: number; // Prediction accuracy: correct predictions / total validated
+    quantAccuracy: number; // Weighted prediction accuracy (confidence-weighted avg progress toward target)
+    directionalAccuracy: number; // % of trades that moved at least 25% toward target
     avgPercentGain: number;
     avgHoldingTimeMinutes: number;
     // PROFESSIONAL RISK METRICS (Phase 1)
@@ -810,18 +811,39 @@ export class MemStorage implements IStorage {
       }
     };
     
-    // Calculate average prediction accuracy across ALL trades
-    const accuracyPercentages: number[] = [];
+    // Calculate WEIGHTED prediction accuracy across ALL trades
+    // Weighting: 2x for high confidence (>85), 1x baseline, 0.5x for expired/low confidence
+    const weightedAccuracyData: Array<{ accuracy: number; weight: number }> = [];
     
     allIdeas.forEach(idea => {
       const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
       if (accuracyPercent !== null) {
-        accuracyPercentages.push(accuracyPercent);
+        // Determine weight based on confidence and outcome
+        let weight = 1.0; // baseline
+        
+        if (idea.confidenceScore && idea.confidenceScore > 85) {
+          weight = 2.0; // High confidence gets 2x weight
+        } else if (idea.outcomeStatus === 'expired' || (idea.confidenceScore && idea.confidenceScore < 70)) {
+          weight = 0.5; // Expired or low confidence gets 0.5x weight
+        }
+        
+        weightedAccuracyData.push({ accuracy: accuracyPercent, weight });
       }
     });
     
-    const quantAccuracy = accuracyPercentages.length > 0 
-      ? accuracyPercentages.reduce((sum, val) => sum + val, 0) / accuracyPercentages.length 
+    const quantAccuracy = weightedAccuracyData.length > 0 
+      ? weightedAccuracyData.reduce((sum, item) => sum + (item.accuracy * item.weight), 0) / 
+        weightedAccuracyData.reduce((sum, item) => sum + item.weight, 0)
+      : 0;
+    
+    // Calculate Directional Accuracy: % of trades that moved at least 25% toward target
+    const directionalSuccessCount = allIdeas.filter(idea => {
+      const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
+      return accuracyPercent !== null && accuracyPercent >= 25; // At least 25% of target achieved
+    }).length;
+    
+    const directionalAccuracy = allIdeas.length > 0
+      ? (directionalSuccessCount / allIdeas.length) * 100
       : 0;
     
     const avgPercentGain = closedIdeas.length > 0
@@ -933,6 +955,7 @@ export class MemStorage implements IStorage {
         expiredIdeas: expiredIdeas.length,
         winRate,
         quantAccuracy,
+        directionalAccuracy,
         avgPercentGain,
         avgHoldingTimeMinutes: avgHoldingTime,
         // Professional metrics (simplified for MemStorage)
@@ -1371,18 +1394,39 @@ export class DatabaseStorage implements IStorage {
       }
     };
     
-    // Calculate average prediction accuracy across ALL trades
-    const accuracyPercentages: number[] = [];
+    // Calculate WEIGHTED prediction accuracy across ALL trades
+    // Weighting: 2x for high confidence (>85), 1x baseline, 0.5x for expired/low confidence
+    const weightedAccuracyData: Array<{ accuracy: number; weight: number }> = [];
     
     allIdeas.forEach(idea => {
       const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
       if (accuracyPercent !== null) {
-        accuracyPercentages.push(accuracyPercent);
+        // Determine weight based on confidence and outcome
+        let weight = 1.0; // baseline
+        
+        if (idea.confidenceScore && idea.confidenceScore > 85) {
+          weight = 2.0; // High confidence gets 2x weight
+        } else if (idea.outcomeStatus === 'expired' || (idea.confidenceScore && idea.confidenceScore < 70)) {
+          weight = 0.5; // Expired or low confidence gets 0.5x weight
+        }
+        
+        weightedAccuracyData.push({ accuracy: accuracyPercent, weight });
       }
     });
     
-    const quantAccuracy = accuracyPercentages.length > 0 
-      ? accuracyPercentages.reduce((sum, val) => sum + val, 0) / accuracyPercentages.length 
+    const quantAccuracy = weightedAccuracyData.length > 0 
+      ? weightedAccuracyData.reduce((sum, item) => sum + (item.accuracy * item.weight), 0) / 
+        weightedAccuracyData.reduce((sum, item) => sum + item.weight, 0)
+      : 0;
+    
+    // Calculate Directional Accuracy: % of trades that moved at least 25% toward target
+    const directionalSuccessCount = allIdeas.filter(idea => {
+      const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
+      return accuracyPercent !== null && accuracyPercent >= 25; // At least 25% of target achieved
+    }).length;
+    
+    const directionalAccuracy = allIdeas.length > 0
+      ? (directionalSuccessCount / allIdeas.length) * 100
       : 0;
 
     // ========================================
@@ -1461,6 +1505,7 @@ export class DatabaseStorage implements IStorage {
         expiredIdeas: expiredIdeas.length,
         winRate: decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0,
         quantAccuracy,
+        directionalAccuracy,
         avgPercentGain: calculateAvg(closedGains),
         avgHoldingTimeMinutes: calculateAvg(closedHoldingTimes),
         // Professional risk metrics
