@@ -112,9 +112,18 @@ export class PerformanceValidator {
         const exitByDate = this.parseExitByDate(idea.exitBy, createdAt);
         
         if (!exitByDate) {
-          console.warn(`Invalid exitBy date for ${idea.symbol}: ${idea.exitBy}`);
+          console.warn(`⚠️ [VALIDATION] Invalid exitBy date for ${idea.symbol}: ${idea.exitBy}`);
           // Skip expiry check for invalid dates, fall through to other checks
-        } else if (now > exitByDate) {
+        } else {
+          // CRITICAL SAFEGUARD: Double-check date is actually in the past
+          const timeDiff = exitByDate.getTime() - now.getTime();
+          const hoursUntilExpiry = timeDiff / (1000 * 60 * 60);
+          
+          // Log validation details for debugging
+          console.log(`📊 [VALIDATION] ${idea.symbol}: exitBy="${idea.exitBy}" → parsed as ${exitByDate.toISOString()} (${hoursUntilExpiry.toFixed(1)}h remaining)`);
+          
+          // SAFEGUARD: Only mark as expired if truly past deadline
+          if (now > exitByDate) {
           // Use last known price (entry, highest, or lowest) if current price unavailable
           const lastKnownPrice = currentPrice ?? 
             (idea.highestPriceReached || idea.lowestPriceReached || idea.entryPrice);
@@ -148,25 +157,31 @@ export class PerformanceValidator {
             lowestPrice
           );
 
-          return {
-            shouldUpdate: true,
-            outcomeStatus: 'expired',
-            exitPrice: lastKnownPrice,
-            percentGain,
-            realizedPnL: 0,
-            resolutionReason: 'auto_expired',
-            exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
-            actualHoldingTimeMinutes: holdingTimeMinutes,
-            predictionAccurate,
-            predictionAccuracyPercent,
-            predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
-            highestPriceReached: highestPrice,
-            lowestPriceReached: lowestPrice,
-          };
+            console.log(`✅ [VALIDATION] ${idea.symbol} EXPIRED (deadline passed ${(-hoursUntilExpiry).toFixed(1)}h ago)`);
+            
+            return {
+              shouldUpdate: true,
+              outcomeStatus: 'expired',
+              exitPrice: lastKnownPrice,
+              percentGain,
+              realizedPnL: 0,
+              resolutionReason: 'auto_expired',
+              exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+              actualHoldingTimeMinutes: holdingTimeMinutes,
+              predictionAccurate,
+              predictionAccuracyPercent,
+              predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+              highestPriceReached: highestPrice,
+              lowestPriceReached: lowestPrice,
+            };
+          } else {
+            // Date is in the future - DO NOT mark as expired
+            console.log(`⏰ [VALIDATION] ${idea.symbol} still active (${hoursUntilExpiry.toFixed(1)}h until expiry)`);
+          }
         }
       } catch (e) {
         // If exitBy parsing fails, continue to other checks
-        console.warn(`Failed to parse exitBy date for ${idea.symbol}: ${idea.exitBy}`);
+        console.warn(`❌ [VALIDATION] Failed to parse exitBy date for ${idea.symbol}: ${idea.exitBy}`, e);
       }
     }
 
