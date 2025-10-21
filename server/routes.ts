@@ -1805,6 +1805,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Analytics: Backtesting Metrics
+  app.get("/api/analytics/backtest", async (_req, res) => {
+    try {
+      const { BacktestingEngine } = await import('./backtesting');
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Calculate comprehensive metrics
+      const metrics = BacktestingEngine.calculateMetrics(allIdeas);
+      const signalPerformance = BacktestingEngine.analyzeSignalPerformance(allIdeas);
+      const calibration = BacktestingEngine.calculateCalibration(allIdeas);
+      
+      res.json({
+        metrics,
+        signalPerformance,
+        calibration,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error("Backtesting error:", error);
+      res.status(500).json({ error: error?.message || "Failed to calculate backtest metrics" });
+    }
+  });
+
+  // Analytics: Rolling Win Rate (time series)
+  app.get("/api/analytics/rolling-winrate", async (_req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const closedIdeas = allIdeas
+        .filter(i => i.outcomeStatus !== 'open' && i.exitDate)
+        .sort((a, b) => new Date(a.exitDate!).getTime() - new Date(b.exitDate!).getTime());
+      
+      if (closedIdeas.length < 10) {
+        return res.json({ data: [], message: "Need at least 10 closed trades for rolling win rate" });
+      }
+      
+      // Calculate rolling 10-trade win rate
+      const windowSize = 10;
+      const rollingData: Array<{ date: string; winRate: number; trades: number }> = [];
+      
+      for (let i = windowSize - 1; i < closedIdeas.length; i++) {
+        const window = closedIdeas.slice(i - windowSize + 1, i + 1);
+        const winners = window.filter(t => t.outcomeStatus === 'hit_target').length;
+        const winRate = (winners / windowSize) * 100;
+        
+        rollingData.push({
+          date: window[window.length - 1].exitDate!,
+          winRate,
+          trades: i + 1
+        });
+      }
+      
+      res.json({ data: rollingData, windowSize });
+    } catch (error: any) {
+      console.error("Rolling win rate error:", error);
+      res.status(500).json({ error: error?.message || "Failed to calculate rolling win rate" });
+    }
+  });
+
   // Admin: Data Integrity Verification
   app.get("/api/admin/verify-data-integrity", requireAdmin, async (_req, res) => {
     try {

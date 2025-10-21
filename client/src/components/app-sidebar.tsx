@@ -23,6 +23,7 @@ const researchItems = [
 const toolItems = [
   { title: "Performance", url: "/performance", icon: Target },
   { title: "Signal Intelligence", url: "/signals", icon: Sparkles },
+  { title: "Quant Analytics", url: "/analytics", icon: BarChart2 },
   { title: "Risk Calculator", url: "/risk", icon: Calculator },
   { title: "Quant Learning", url: "/learning", icon: BookOpen },
 ];
