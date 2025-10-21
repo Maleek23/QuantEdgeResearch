@@ -139,29 +139,29 @@ export default function Dashboard() {
               <Button 
                 onClick={() => generateQuantIdeas.mutate()}
                 disabled={generateQuantIdeas.isPending}
-                className="btn-magnetic px-8 py-6 text-lg neon-accent"
+                className="btn-magnetic neon-accent"
                 data-testid="button-generate-quant"
               >
-                <BarChart3 className="h-5 w-5 mr-2" />
+                <BarChart3 className="h-4 w-4 mr-2" />
                 {generateQuantIdeas.isPending ? "Generating..." : "Generate Quant Ideas"}
               </Button>
               <Button 
                 onClick={() => generateAIIdeas.mutate()}
                 disabled={generateAIIdeas.isPending}
                 variant="outline"
-                className="btn-magnetic px-8 py-6 text-lg glass-card"
+                className="btn-magnetic glass-card"
                 data-testid="button-generate-ai"
               >
-                <Sparkles className="h-5 w-5 mr-2" />
+                <Sparkles className="h-4 w-4 mr-2" />
                 {generateAIIdeas.isPending ? "Generating..." : "Generate AI Ideas"}
               </Button>
               <Button 
                 onClick={() => setChatBotOpen(true)}
                 variant="outline"
-                className="btn-magnetic px-8 py-6 text-lg glass-card"
+                className="btn-magnetic glass-card"
                 data-testid="button-open-chat"
               >
-                <Bot className="h-5 w-5 mr-2" />
+                <Bot className="h-4 w-4 mr-2" />
                 Ask QuantAI
               </Button>
             </div>
