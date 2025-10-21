@@ -927,6 +927,11 @@ export class MemStorage implements IStorage {
         quantAccuracy,
         avgPercentGain,
         avgHoldingTimeMinutes: avgHoldingTime,
+        // Professional metrics (simplified for MemStorage)
+        sharpeRatio: 0,
+        maxDrawdown: 0,
+        profitFactor: 0,
+        expectancy: 0,
       },
       bySource,
       byAssetType,
