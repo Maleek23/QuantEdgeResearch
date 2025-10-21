@@ -4,6 +4,38 @@
 QuantEdge Research is a professional quantitative trading research platform focused on identifying day-trading opportunities in US equities, options, and crypto markets. Its core purpose is to provide educational, research-grade trade ideas, robust risk management tools, and real-time market analysis. The platform emphasizes strong risk controls and clear educational disclaimers, presented via a professional dark-themed UI for rapid data scanning. It integrates real historical data to enhance model accuracy and features adaptive learning capabilities to improve trade idea quality over time. The platform operates on a public-access model, managing membership tiers (Free vs. Premium) through Discord roles, with the web platform serving as a public dashboard.
 
 ## Recent Changes (Oct 21, 2025)
+
+### 🎯 Quant Engine v2.3.0 - Accuracy Improvement Update
+**Goal: Achieve 60%+ Quant Win Rate + Limit Losses to -30% Max**
+
+**Changes Implemented:**
+- **Tightened Stop Losses**: Reduced from 4-5% to 2-3% (breakouts: 5% → 3%)
+  - Previous average loss: -66% (stop losses not enforced properly on old trades)
+  - New target: Limit losses to -30% maximum
+  - Better Risk:Reward ratios (2:1 → 4:1 for most signals, 2:1 → 3.33:1 for breakouts)
+- **Stricter Signal Filtering**: Raised confidence threshold from 85 (B+ grade) to 90 (A grade minimum)
+  - Only generates "A grade or better" trade ideas
+  - Reduces low-quality signals that contribute to losing trades
+- **Data Consistency Verified**: All pages (Performance, Signal Intelligence, Analytics) pull from same `trade_ideas` table
+  - `/api/trade-ideas` → `storage.getAllTradeIdeas()`
+  - `/api/performance/stats` → `storage.getPerformanceStats()` (uses `getAllTradeIdeas()`)
+  - `/api/analytics/backtest` → `storage.getAllTradeIdeas()`
+  - `/api/analytics/rolling-winrate` → `storage.getAllTradeIdeas()`
+
+**Expected Impact:**
+- Higher win rate (fewer losing trades due to stricter filtering)
+- Lower average loss per trade (tighter stops prevent -66% drawdowns)
+- Combined effect should drive Quant Win Rate toward 60%+ target
+- Quant Accuracy should improve as average loss reduces from -66% to ~-30% max
+
+**Metrics to Track:**
+- **Market Win Rate**: Currently 42.4% (target: 60%+)
+- **Quant Win Rate**: Currently 42.4% (target: 60%+) - same as Market Win Rate because all 78 trades are Quant-generated
+- **Quant Accuracy**: Currently 3.2% (average % progress toward target) - needs improvement
+  - Winners: 100% each (25 trades hit target perfectly)
+  - Losers: -66% average (34 trades moved opposite direction)
+  - Neutral: 0% each (19 expired with no movement)
+
 ### Research Integrity & Governance Implementation
 - **Model Governance Metadata**: All trade ideas now capture engineVersion, mlWeightsVersion, and generationTimestamp for full audit trail (SR 11-7 compliance)
 - **Model Cards System**: Created comprehensive governance documentation system tracking assumptions, data limitations, backtest metrics, and live performance per model version
