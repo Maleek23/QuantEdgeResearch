@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import type { MarketData, Catalyst } from "@shared/schema";
 import { TrendingUp, DollarSign, Activity, RefreshCw, Clock, ArrowUp, ArrowDown } from "lucide-react";
-import { getMarketSession, formatCTTime, formatCurrency } from "@/lib/utils";
+import { getMarketSession, formatCTTime, formatCurrency, formatPercent } from "@/lib/utils";
 
 export default function MarketPage() {
   const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null);
@@ -194,7 +194,7 @@ export default function MarketPage() {
                       <span className="text-sm font-medium">{formatCurrency(data.currentPrice)}</span>
                     </div>
                     <span className="text-sm font-bold text-green-500">
-                      +{data.changePercent.toFixed(2)}%
+                      {formatPercent(data.changePercent)}
                     </span>
                   </div>
                 ))}
@@ -229,7 +229,7 @@ export default function MarketPage() {
                       <span className="text-sm font-medium">{formatCurrency(data.currentPrice)}</span>
                     </div>
                     <span className="text-sm font-bold text-red-500">
-                      {data.changePercent.toFixed(2)}%
+                      {formatPercent(data.changePercent)}
                     </span>
                   </div>
                 ))}

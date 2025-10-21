@@ -15,6 +15,7 @@ import { format, parseISO, startOfDay, startOfWeek, startOfMonth, startOfYear, s
 import { useState, useMemo } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import { formatPercent } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -1054,7 +1055,7 @@ export default function PerformancePage() {
                         </div>
                       </div>
                       <div className="text-3xl font-bold font-mono text-green-500">
-                        +{advancedMetrics.grossProfit.toFixed(2)}%
+                        {formatPercent(advancedMetrics.grossProfit)}
                       </div>
                     </div>
                     <div className="flex items-center justify-between p-4 rounded-lg bg-red-500/5 border border-red-500/20">
@@ -1066,7 +1067,7 @@ export default function PerformancePage() {
                         </div>
                       </div>
                       <div className="text-3xl font-bold font-mono text-red-500">
-                        -{advancedMetrics.grossLoss.toFixed(2)}%
+                        {formatPercent(-advancedMetrics.grossLoss)}
                       </div>
                     </div>
                   </div>

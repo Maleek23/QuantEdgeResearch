@@ -9,7 +9,7 @@ import { TradeIdeaBlock } from "@/components/trade-idea-block";
 import { SymbolSearch } from "@/components/symbol-search";
 import { SymbolDetailModal } from "@/components/symbol-detail-modal";
 import { QuantAIBot } from "@/components/quantai-bot";
-import { getMarketSession, formatCTTime } from "@/lib/utils";
+import { getMarketSession, formatCTTime, formatPercent } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem } from "@shared/schema";
@@ -286,7 +286,7 @@ export default function Dashboard() {
                         {stock.assetType}
                       </Badge>
                     </div>
-                    <span className="font-semibold text-green-500">+{stock.changePercent.toFixed(2)}%</span>
+                    <span className="font-semibold text-green-500">{formatPercent(stock.changePercent)}</span>
                   </div>
                 ))}
               </div>
@@ -320,7 +320,7 @@ export default function Dashboard() {
                         {stock.assetType}
                       </Badge>
                     </div>
-                    <span className="font-semibold text-red-500">{stock.changePercent.toFixed(2)}%</span>
+                    <span className="font-semibold text-red-500">{formatPercent(stock.changePercent)}</span>
                   </div>
                 ))}
               </div>

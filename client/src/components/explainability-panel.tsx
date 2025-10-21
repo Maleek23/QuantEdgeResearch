@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { TrendingUp, TrendingDown, BarChart2, Activity, Volume2, Target } from "lucide-react";
 import type { TradeIdea } from "@shared/schema";
+import { formatPercent } from "@/lib/utils";
 
 interface ExplainabilityPanelProps {
   idea: TradeIdea;
@@ -174,7 +175,7 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
               {idea.priceVs52WeekLow != null && (
                 <div className="flex items-center justify-between p-2 bg-background/50 rounded">
                   <span className="text-muted-foreground">From Low:</span>
-                  <span className="font-mono text-green-400">+{idea.priceVs52WeekLow.toFixed(1)}%</span>
+                  <span className="font-mono text-green-400">{formatPercent(idea.priceVs52WeekLow, 1)}</span>
                 </div>
               )}
             </div>
