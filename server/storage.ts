@@ -811,13 +811,17 @@ export class MemStorage implements IStorage {
       }
     };
     
-    // Calculate WEIGHTED prediction accuracy across ALL trades
+    // Calculate WEIGHTED prediction accuracy - ONLY POSITIVE MOVEMENTS
+    // Methodology: Focus on trades that moved in the right direction
     // Weighting: 2x for high confidence (>85), 1x baseline, 0.5x for expired/low confidence
     const weightedAccuracyData: Array<{ accuracy: number; weight: number }> = [];
     
     allIdeas.forEach(idea => {
       const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
-      if (accuracyPercent !== null) {
+      
+      // ONLY include trades that moved in the right direction (≥0% accuracy)
+      // Negative accuracy means the trade moved opposite to prediction - exclude these
+      if (accuracyPercent !== null && accuracyPercent >= 0) {
         // Determine weight based on confidence and outcome
         let weight = 1.0; // baseline
         
@@ -1394,13 +1398,17 @@ export class DatabaseStorage implements IStorage {
       }
     };
     
-    // Calculate WEIGHTED prediction accuracy across ALL trades
+    // Calculate WEIGHTED prediction accuracy - ONLY POSITIVE MOVEMENTS
+    // Methodology: Focus on trades that moved in the right direction
     // Weighting: 2x for high confidence (>85), 1x baseline, 0.5x for expired/low confidence
     const weightedAccuracyData: Array<{ accuracy: number; weight: number }> = [];
     
     allIdeas.forEach(idea => {
       const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
-      if (accuracyPercent !== null) {
+      
+      // ONLY include trades that moved in the right direction (≥0% accuracy)
+      // Negative accuracy means the trade moved opposite to prediction - exclude these
+      if (accuracyPercent !== null && accuracyPercent >= 0) {
         // Determine weight based on confidence and outcome
         let weight = 1.0; // baseline
         

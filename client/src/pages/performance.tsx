@@ -540,13 +540,14 @@ export default function PerformancePage() {
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p className="font-semibold mb-1">Weighted Quant Accuracy</p>
-                          <p className="text-xs mb-2">Average % progress toward target price, weighted by confidence:</p>
+                          <p className="text-xs mb-2">Average progress toward target for trades that moved in the correct direction:</p>
                           <ul className="text-xs list-disc pl-4 space-y-1">
+                            <li>Only counts trades that moved toward target (≥0%)</li>
                             <li>High confidence (&gt;85): 2x weight</li>
                             <li>Normal confidence: 1x weight</li>
                             <li>Low confidence/expired: 0.5x weight</li>
                           </ul>
-                          <p className="text-xs mt-2 italic">Example: Entry $100 → Target $110. If price reaches $105, that's 50% accuracy.</p>
+                          <p className="text-xs mt-2 italic">Excludes trades that moved opposite to prediction to focus on directional accuracy.</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
