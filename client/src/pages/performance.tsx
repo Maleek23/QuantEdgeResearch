@@ -540,21 +540,24 @@ export default function PerformancePage() {
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p className="font-semibold mb-1">Weighted Quant Accuracy</p>
-                          <p className="text-xs mb-2">Average progress toward target for trades that moved in the correct direction:</p>
+                          <p className="text-xs mb-2">Average progress toward target with bounded penalties:</p>
                           <ul className="text-xs list-disc pl-4 space-y-1">
-                            <li>Only counts trades that moved toward target (≥0%)</li>
+                            <li>Includes ALL trades (wins, losses, expired)</li>
+                            <li>Extreme losses capped at -30% to prevent outlier skew</li>
                             <li>High confidence (&gt;85): 2x weight</li>
                             <li>Normal confidence: 1x weight</li>
                             <li>Low confidence/expired: 0.5x weight</li>
                           </ul>
-                          <p className="text-xs mt-2 italic">Excludes trades that moved opposite to prediction to focus on directional accuracy.</p>
+                          <p className="text-xs mt-2 italic">Example: A -66% loss is counted as -30% to maintain honesty without letting single bad trades dominate.</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
                     <div className={`text-2xl font-bold font-mono ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'text-blue-500' : 'text-orange-500'}`}>
                       {stats.overall.quantAccuracy !== null && stats.overall.quantAccuracy !== undefined ? stats.overall.quantAccuracy.toFixed(1) : '0.0'}%
                     </div>
-                    <div className="text-xs text-muted-foreground">Weighted avg</div>
+                    <div className="text-xs text-muted-foreground">
+                      {stats.overall.totalIdeas - stats.overall.openIdeas} trades
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
@@ -573,7 +576,9 @@ export default function PerformancePage() {
                     <div className={`text-2xl font-bold font-mono ${(stats.overall.directionalAccuracy ?? 0) >= 40 ? 'text-cyan-500' : 'text-amber-500'}`}>
                       {stats.overall.directionalAccuracy !== null && stats.overall.directionalAccuracy !== undefined ? stats.overall.directionalAccuracy.toFixed(1) : '0.0'}%
                     </div>
-                    <div className="text-xs text-muted-foreground">25%+ progress</div>
+                    <div className="text-xs text-muted-foreground">
+                      {stats.overall.totalIdeas - stats.overall.openIdeas} trades
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-sm text-muted-foreground mb-1">Avg Gain</div>

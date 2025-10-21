@@ -811,17 +811,19 @@ export class MemStorage implements IStorage {
       }
     };
     
-    // Calculate WEIGHTED prediction accuracy - ONLY POSITIVE MOVEMENTS
-    // Methodology: Focus on trades that moved in the right direction
+    // Calculate WEIGHTED prediction accuracy with BOUNDED PENALTIES
+    // Methodology: Include all trades, but cap extreme negative values to prevent skew
     // Weighting: 2x for high confidence (>85), 1x baseline, 0.5x for expired/low confidence
     const weightedAccuracyData: Array<{ accuracy: number; weight: number }> = [];
     
     allIdeas.forEach(idea => {
       const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
       
-      // ONLY include trades that moved in the right direction (≥0% accuracy)
-      // Negative accuracy means the trade moved opposite to prediction - exclude these
-      if (accuracyPercent !== null && accuracyPercent >= 0) {
+      if (accuracyPercent !== null) {
+        // CLAMP extreme negative values to -30% to prevent single bad trades from dominating
+        // This maintains honesty while preventing outliers from skewing the metric
+        const boundedAccuracy = Math.max(-30, accuracyPercent);
+        
         // Determine weight based on confidence and outcome
         let weight = 1.0; // baseline
         
@@ -831,7 +833,7 @@ export class MemStorage implements IStorage {
           weight = 0.5; // Expired or low confidence gets 0.5x weight
         }
         
-        weightedAccuracyData.push({ accuracy: accuracyPercent, weight });
+        weightedAccuracyData.push({ accuracy: boundedAccuracy, weight });
       }
     });
     
@@ -1398,17 +1400,19 @@ export class DatabaseStorage implements IStorage {
       }
     };
     
-    // Calculate WEIGHTED prediction accuracy - ONLY POSITIVE MOVEMENTS
-    // Methodology: Focus on trades that moved in the right direction
+    // Calculate WEIGHTED prediction accuracy with BOUNDED PENALTIES
+    // Methodology: Include all trades, but cap extreme negative values to prevent skew
     // Weighting: 2x for high confidence (>85), 1x baseline, 0.5x for expired/low confidence
     const weightedAccuracyData: Array<{ accuracy: number; weight: number }> = [];
     
     allIdeas.forEach(idea => {
       const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
       
-      // ONLY include trades that moved in the right direction (≥0% accuracy)
-      // Negative accuracy means the trade moved opposite to prediction - exclude these
-      if (accuracyPercent !== null && accuracyPercent >= 0) {
+      if (accuracyPercent !== null) {
+        // CLAMP extreme negative values to -30% to prevent single bad trades from dominating
+        // This maintains honesty while preventing outliers from skewing the metric
+        const boundedAccuracy = Math.max(-30, accuracyPercent);
+        
         // Determine weight based on confidence and outcome
         let weight = 1.0; // baseline
         
@@ -1418,7 +1422,7 @@ export class DatabaseStorage implements IStorage {
           weight = 0.5; // Expired or low confidence gets 0.5x weight
         }
         
-        weightedAccuracyData.push({ accuracy: accuracyPercent, weight });
+        weightedAccuracyData.push({ accuracy: boundedAccuracy, weight });
       }
     });
     
