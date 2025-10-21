@@ -186,6 +186,8 @@ class PerformanceValidationService {
         if (result.type === 'stock') stockSuccess++;
         else cryptoSuccess++;
       } else {
+        // Log which specific symbols failed
+        console.warn(`  ⚠️  Failed to fetch ${result.type} price for ${result.symbol} - skipping validation`);
         if (result.type === 'stock') stockFailed++;
         else cryptoFailed++;
       }
@@ -196,7 +198,7 @@ class PerformanceValidationService {
     
     console.log(`  ✓ Fetched ${totalSuccess}/${totalUnique} prices successfully (${stockSuccess} stocks, ${cryptoSuccess} crypto)`);
     if (totalFailed > 0) {
-      console.warn(`  ⚠️  Failed to fetch ${totalFailed} prices - trades will be validated next cycle`);
+      console.warn(`  ⚠️  Failed to fetch ${totalFailed} prices total - those trades will be validated next cycle`);
     }
     
     return priceMap;

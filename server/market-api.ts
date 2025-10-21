@@ -19,6 +19,7 @@ const COINGECKO_API = "https://api.coingecko.com/api/v3";
 const ALPHA_VANTAGE_API = "https://www.alphavantage.co/query";
 const YAHOO_FINANCE_API = "https://query1.finance.yahoo.com/v8/finance/chart";
 
+// Dynamic crypto symbol map with common coins pre-cached
 const CRYPTO_SYMBOL_MAP: Record<string, string> = {
   BTC: "bitcoin",
   ETH: "ethereum",
@@ -42,12 +43,89 @@ const CRYPTO_SYMBOL_MAP: Record<string, string> = {
   IMX: "immutable-x",
 };
 
+/**
+ * Dynamically search CoinGecko for a crypto symbol and return the coin ID
+ * Uses the highest market cap ranked result to avoid ambiguity
+ */
+async function searchCryptoSymbol(symbol: string): Promise<string | null> {
+  try {
+    const response = await fetch(
+      `${COINGECKO_API}/search?query=${symbol.toLowerCase()}`
+    );
+
+    if (!response.ok) {
+      logger.warn(`CoinGecko search failed for ${symbol}: HTTP ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const coins = data.coins as Array<{
+      id: string;
+      symbol: string;
+      name: string;
+      market_cap_rank: number | null;
+    }>;
+
+    if (!coins || coins.length === 0) {
+      logger.warn(`No CoinGecko results found for symbol: ${symbol}`);
+      return null;
+    }
+
+    // Filter for exact symbol match (case-insensitive)
+    const exactMatches = coins.filter(
+      (coin) => coin.symbol.toLowerCase() === symbol.toLowerCase()
+    );
+
+    if (exactMatches.length === 0) {
+      logger.warn(`No exact symbol match found for: ${symbol}`);
+      return null;
+    }
+
+    // Sort by market cap rank (lower number = higher rank = more likely the right coin)
+    // Filter out coins without rank and use the highest ranked one
+    const rankedCoins = exactMatches
+      .filter((coin) => coin.market_cap_rank !== null)
+      .sort((a, b) => a.market_cap_rank! - b.market_cap_rank!);
+
+    if (rankedCoins.length > 0) {
+      const topCoin = rankedCoins[0];
+      logger.info(`✅ Discovered crypto: ${symbol} → ${topCoin.id} (${topCoin.name}, rank #${topCoin.market_cap_rank})`);
+      
+      // Cache the result for future use
+      CRYPTO_SYMBOL_MAP[symbol.toUpperCase()] = topCoin.id;
+      
+      return topCoin.id;
+    }
+
+    // If no ranked coins, use the first exact match as fallback
+    const fallbackCoin = exactMatches[0];
+    logger.info(`⚠️ Using unranked crypto: ${symbol} → ${fallbackCoin.id} (${fallbackCoin.name})`);
+    CRYPTO_SYMBOL_MAP[symbol.toUpperCase()] = fallbackCoin.id;
+    
+    return fallbackCoin.id;
+  } catch (error) {
+    logger.error(`Error searching CoinGecko for ${symbol}:`, error);
+    return null;
+  }
+}
+
 export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketData | null> {
   const startTime = Date.now();
   try {
-    const coinId = CRYPTO_SYMBOL_MAP[symbol.toUpperCase()];
+    // Try hardcoded map first (fast path for common coins)
+    let coinId: string | undefined = CRYPTO_SYMBOL_MAP[symbol.toUpperCase()];
+    
+    // If not in map, search dynamically
     if (!coinId) {
-      return null;
+      logger.info(`Crypto ${symbol} not in cache, searching CoinGecko...`);
+      const searchResult = await searchCryptoSymbol(symbol);
+      
+      if (!searchResult) {
+        logger.warn(`❌ Could not find CoinGecko ID for symbol: ${symbol}`);
+        return null;
+      }
+      
+      coinId = searchResult;
     }
 
     const response = await fetch(
