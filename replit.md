@@ -29,6 +29,53 @@ The Holding Period Classification System clearly separates directional bias from
 
 A Comprehensive User Settings System enables full platform personalization across Trading, Display, Alerts, and Advanced categories, persisting settings in PostgreSQL. A comprehensive Performance Tracking System automatically validates trade outcomes, tracks win rates, and enables strategy improvement. A Machine Learning System enhances trade ideas by analyzing historical performance, including a Signal Intelligence page, Learned Pattern Analyzer, and Adaptive Confidence Scoring. A Quantitative Timing Intelligence System provides data-backed entry/exit windows aligned with confidence grading, combining historical holding-time distributions with real-time market regime detection.
 
+### Quantitative Strategy Design (October 2025 Redesign)
+
+The quantitative idea generator was completely redesigned to eliminate "momentum chasing" behavior that led to 2.3% prediction accuracy. The previous implementation detected moves that already happened (e.g., "10.6% rally"), entered at current price (after the rally), then expected unrealistic 8-15% continuation. This resulted in 34 out of 35 closed trades moving closer to stop loss than target.
+
+**Current Strategy (Predictive Approach):**
+
+Signal Priority (checked in order):
+1. **RSI Divergence** (HIGHEST PRIORITY): Oversold (<30) or overbought (>70) conditions signaling mean reversion before bounce/pullback occurs
+2. **MACD Crossover** (SECOND PRIORITY): Bullish/bearish crossover signals indicating early trend formation
+3. **Mean Reversion** (THIRD PRIORITY): Extreme moves (±7%) creating reversal setups before the bounce/crash begins
+4. **Early Breakout Setups** (FOURTH PRIORITY): Price approaching 52-week highs/lows (95-98% range) with volume building, but move still <2% (not after big breakout)
+5. **Volume Spikes** (FIFTH PRIORITY): Exceptional volume (3x+ average) with minimal price movement (<1%), catching institutional accumulation before the move
+
+**Removed Signals:**
+- All "momentum" signals (5%, 2%, 1.5% rallies) that chased finished moves
+- Volume spikes after big price moves
+- Breakouts detected after price already broke out
+
+**Realistic Targets (Day Trading Focus):**
+- RSI/MACD: 4-5% targets with 2-3% stops (was 10-12% targets, 5-6% stops)
+- Breakouts: 5% targets with 2% stops (was 15% targets, 4% stops)  
+- Mean Reversion: 6% targets with 3% stops (was 15% targets, 8% stops)
+- Volume Spikes: 5% targets with 2% stops (was 12% targets, 6% stops)
+
+**Catalyst Language:**
+- Predictive: "RSI oversold at 28 - reversal opportunity"
+- NOT reactive: "10.6% rally on 1.5x volume" (chasing)
+
+**Performance Grading System:**
+
+Two separate metrics track different aspects of performance:
+
+1. **Market Win Rate** (Traditional Trading Metric):
+   - Measures actual trading outcomes: hit_target ÷ (hit_target + hit_stop)
+   - Excludes expired trades from calculation
+   - Represents "if you traded these ideas, did you make money?"
+
+2. **Quant Accuracy** (Prediction Correctness):
+   - Measures prediction quality: correct predictions ÷ total evaluated
+   - Includes all trades (open + closed) with price tracking data
+   - Uses 50% threshold: price must move at least halfway to target to count as "accurate"
+   - For open trades: dynamically evaluated using highest/lowestPriceReached
+   - For closed trades: uses saved predictionAccurate field from database
+   - Represents "did the quant model correctly predict direction and magnitude?"
+
+Critical fix (October 2025): Performance validator now properly saves predictionAccurate, predictionValidatedAt, highestPriceReached, and lowestPriceReached fields when updating trades, ensuring accurate historical tracking.
+
 ### System Design Choices
 The system uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) managed by Drizzle ORM. All critical data is stored permanently. The user schema is simplified for future Discord integration, with subscription tiers managed externally via Discord.
 
