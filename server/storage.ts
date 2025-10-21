@@ -779,11 +779,15 @@ export class MemStorage implements IStorage {
       // Open trades: check if price has moved in predicted direction
       if (idea.direction === 'long') {
         // For LONG: has price gone UP from entry?
-        const highestPrice = idea.highestPriceReached ?? idea.entryPrice;
+        const highestPrice = idea.highestPriceReached;
+        // If no price movement tracked yet, cannot evaluate
+        if (!highestPrice || highestPrice === idea.entryPrice) return null;
         return highestPrice > idea.entryPrice;
       } else {
         // For SHORT: has price gone DOWN from entry?
-        const lowestPrice = idea.lowestPriceReached ?? idea.entryPrice;
+        const lowestPrice = idea.lowestPriceReached;
+        // If no price movement tracked yet, cannot evaluate
+        if (!lowestPrice || lowestPrice === idea.entryPrice) return null;
         return lowestPrice < idea.entryPrice;
       }
     };
@@ -1305,11 +1309,15 @@ export class DatabaseStorage implements IStorage {
       // Open trades: check if price has moved in predicted direction
       if (idea.direction === 'long') {
         // For LONG: has price gone UP from entry?
-        const highestPrice = idea.highestPriceReached ?? idea.entryPrice;
+        const highestPrice = idea.highestPriceReached;
+        // If no price movement tracked yet, cannot evaluate
+        if (!highestPrice || highestPrice === idea.entryPrice) return null;
         return highestPrice > idea.entryPrice;
       } else {
         // For SHORT: has price gone DOWN from entry?
-        const lowestPrice = idea.lowestPriceReached ?? idea.entryPrice;
+        const lowestPrice = idea.lowestPriceReached;
+        // If no price movement tracked yet, cannot evaluate
+        if (!lowestPrice || lowestPrice === idea.entryPrice) return null;
         return lowestPrice < idea.entryPrice;
       }
     };
