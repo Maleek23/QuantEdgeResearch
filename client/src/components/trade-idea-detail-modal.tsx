@@ -39,6 +39,77 @@ export function TradeIdeaDetailModal({
     return 'D';
   };
 
+  const getSignalInfo = (signal: string): { points: number; description: string; color: string } => {
+    const signalMap: Record<string, { points: number; description: string; color: string }> = {
+      'Strong R:R (2:1+)': {
+        points: 28,
+        description: 'Risk/reward ratio of 2:1 or better. You risk $1 to potentially make $2+, providing excellent upside potential.',
+        color: 'bg-green-500'
+      },
+      'Good R:R (1.5:1+)': {
+        points: 15,
+        description: 'Risk/reward ratio of 1.5:1 or better. Solid upside potential with manageable downside risk.',
+        color: 'bg-green-400'
+      },
+      'Acceptable R:R (1.2:1+)': {
+        points: 8,
+        description: 'Risk/reward ratio of 1.2:1 or better. Meets minimum threshold for day trading setups.',
+        color: 'bg-blue-400'
+      },
+      'Confirmed Volume': {
+        points: 18,
+        description: 'Volume is 1.5x+ average, confirming institutional interest and reducing liquidity risk.',
+        color: 'bg-blue-500'
+      },
+      'Strong Volume': {
+        points: 12,
+        description: 'Volume is above average, providing adequate liquidity for entry and exit.',
+        color: 'bg-blue-400'
+      },
+      'Strong Signal': {
+        points: 25,
+        description: 'Multiple technical indicators aligned (RSI extremes, MACD crossover, breakout setup). High probability setup.',
+        color: 'bg-purple-500'
+      },
+      'Clear Signal': {
+        points: 18,
+        description: 'At least one strong technical indicator present, providing clear directional bias.',
+        color: 'bg-purple-400'
+      },
+      'Reversal Setup': {
+        points: 20,
+        description: 'Price at extreme levels (RSI <30 or >70), suggesting mean reversion is likely.',
+        color: 'bg-amber-500'
+      },
+      'Trend Setup': {
+        points: 15,
+        description: 'Price aligned with prevailing trend, increasing probability of continuation.',
+        color: 'bg-amber-400'
+      },
+      'Breakout Setup': {
+        points: 18,
+        description: 'Price breaking through key resistance/support with momentum, early entry opportunity.',
+        color: 'bg-indigo-500'
+      },
+      'High Liquidity': {
+        points: 5,
+        description: 'Asset has high trading volume, ensuring you can enter and exit positions easily.',
+        color: 'bg-cyan-500'
+      },
+      'Catalyst Present': {
+        points: 10,
+        description: 'Market-moving event or news catalyst identified, providing fundamental support for the trade.',
+        color: 'bg-pink-500'
+      }
+    };
+
+    return signalMap[signal] || { 
+      points: 5, 
+      description: 'Quality signal detected by our quantitative system.', 
+      color: 'bg-gray-500' 
+    };
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -253,6 +324,44 @@ export function TradeIdeaDetailModal({
 
           <TabsContent value="analysis" className="space-y-4 mt-4">
             <div className="space-y-4">
+              {/* Grade Explanation */}
+              <div className="p-4 rounded-lg bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/20">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Star className="h-4 w-4 text-primary" />
+                    Grade Explanation
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-bold font-mono text-primary">
+                      {getLetterGrade(idea.confidenceScore)}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      ({idea.confidenceScore.toFixed(0)}/100)
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  This trade received a <strong>{getLetterGrade(idea.confidenceScore)}</strong> grade based on our quantitative scoring system. Only B+ and higher grades (85+) pass our quality filter.
+                </p>
+                
+                {/* Grading Scale */}
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className={cn("p-2 rounded text-center", idea.confidenceScore >= 90 ? "bg-green-500/20 text-green-600 font-semibold" : "bg-muted/30 text-muted-foreground")}>
+                    <div className="font-bold">A+ / A</div>
+                    <div>90-100</div>
+                  </div>
+                  <div className={cn("p-2 rounded text-center", idea.confidenceScore >= 80 && idea.confidenceScore < 90 ? "bg-blue-500/20 text-blue-600 font-semibold" : "bg-muted/30 text-muted-foreground")}>
+                    <div className="font-bold">B+ / B</div>
+                    <div>80-89</div>
+                  </div>
+                  <div className={cn("p-2 rounded text-center", idea.confidenceScore < 80 ? "bg-amber-500/20 text-amber-600 font-semibold" : "bg-muted/30 text-muted-foreground")}>
+                    <div className="font-bold">C+ / C</div>
+                    <div>70-79</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Detailed Analysis */}
               <div>
                 <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
                   <TrendingUp className="h-4 w-4" />
@@ -263,15 +372,80 @@ export function TradeIdeaDetailModal({
                 </p>
               </div>
 
+              {/* Quality Signals with Explanations */}
               {idea.qualitySignals && idea.qualitySignals.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold mb-2">Quality Signals</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {idea.qualitySignals.map((signal, idx) => (
-                      <Badge key={idx} variant="outline" className="text-xs">
-                        {signal}
-                      </Badge>
-                    ))}
+                  <h3 className="text-sm font-semibold mb-3">Quality Signals Detected</h3>
+                  <div className="space-y-2">
+                    {idea.qualitySignals.map((signal, idx) => {
+                      const signalInfo = getSignalInfo(signal);
+                      return (
+                        <div key={idx} className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                          <div className="mt-0.5">
+                            <div className={cn("h-2 w-2 rounded-full", signalInfo.color)} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-medium">{signal}</span>
+                              <Badge variant="outline" className="text-xs">
+                                +{signalInfo.points} pts
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {signalInfo.description}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 p-3 rounded-lg bg-muted/20 text-xs text-muted-foreground">
+                    <strong>How scoring works:</strong> Each quality signal adds points to the confidence score. Strong R:R ratios, confirmed volume, and early predictive setups contribute the most points. The final score determines the letter grade.
+                  </div>
+                </div>
+              )}
+
+              {/* Technical Indicators Summary */}
+              {(idea.rsiValue != null || idea.volumeRatio != null || idea.riskRewardRatio > 0) && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-3">Key Metrics</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {idea.rsiValue != null && (
+                      <div className="p-3 rounded-lg bg-muted/30">
+                        <div className="text-xs text-muted-foreground mb-1">RSI (14)</div>
+                        <div className="text-lg font-bold font-mono">{idea.rsiValue.toFixed(1)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {idea.rsiValue <= 30 ? 'Oversold - Reversal likely' : idea.rsiValue >= 70 ? 'Overbought - Reversal likely' : 'Neutral zone'}
+                        </div>
+                      </div>
+                    )}
+                    {idea.volumeRatio != null && (
+                      <div className="p-3 rounded-lg bg-muted/30">
+                        <div className="text-xs text-muted-foreground mb-1">Volume Ratio</div>
+                        <div className="text-lg font-bold font-mono">{idea.volumeRatio.toFixed(1)}x</div>
+                        <div className="text-xs text-muted-foreground">
+                          {idea.volumeRatio >= 2 ? 'Strong confirmation' : idea.volumeRatio >= 1.2 ? 'Confirmed' : 'Below average'}
+                        </div>
+                      </div>
+                    )}
+                    {idea.riskRewardRatio > 0 && (
+                      <div className="p-3 rounded-lg bg-muted/30">
+                        <div className="text-xs text-muted-foreground mb-1">Risk/Reward</div>
+                        <div className="text-lg font-bold font-mono">{idea.riskRewardRatio.toFixed(1)}:1</div>
+                        <div className="text-xs text-muted-foreground">
+                          {idea.riskRewardRatio >= 2 ? 'Excellent setup' : idea.riskRewardRatio >= 1.5 ? 'Good setup' : 'Acceptable'}
+                        </div>
+                      </div>
+                    )}
+                    {idea.confidenceScore > 0 && (
+                      <div className="p-3 rounded-lg bg-muted/30">
+                        <div className="text-xs text-muted-foreground mb-1">Confidence Score</div>
+                        <div className="text-lg font-bold font-mono">{idea.confidenceScore.toFixed(0)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {idea.confidenceScore >= 90 ? 'Very high confidence' : idea.confidenceScore >= 85 ? 'High confidence' : 'Moderate confidence'}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
