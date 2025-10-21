@@ -1,8 +1,11 @@
 import { Link } from "wouter";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Activity, Database } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { getTimezoneAbbreviation } from "@/lib/timezone";
 
 export function Footer() {
-  const currentYear = new Date().getFullYear();
+  const currentYear = new Date();
+  const timezone = getTimezoneAbbreviation();
 
   return (
     <footer className="border-t bg-card/30 backdrop-blur-sm mt-auto">
@@ -57,10 +60,33 @@ export function Footer() {
           </nav>
         </div>
 
+        {/* Data Sources & System Status */}
+        <div className="flex flex-wrap items-center gap-3 py-3 border-t border-border/40">
+          <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+            <Database className="h-3 w-3" />
+            Live Data Sources:
+          </span>
+          <Badge variant="outline" className="text-xs gap-1" data-testid="badge-api-yahoo">
+            <Activity className="h-2.5 w-2.5 text-green-500 animate-pulse" />
+            Yahoo Finance
+          </Badge>
+          <Badge variant="outline" className="text-xs gap-1" data-testid="badge-api-coingecko">
+            <Activity className="h-2.5 w-2.5 text-green-500 animate-pulse" />
+            CoinGecko
+          </Badge>
+          <Badge variant="outline" className="text-xs gap-1" data-testid="badge-api-alphavantage">
+            <Activity className="h-2.5 w-2.5 text-green-500 animate-pulse" />
+            Alpha Vantage
+          </Badge>
+          <Badge variant="secondary" className="text-xs" data-testid="badge-timezone">
+            {timezone}
+          </Badge>
+        </div>
+
         {/* Bottom Bar - Copyright & Risk Warning */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pt-4 border-t border-border/40">
           <p className="text-xs text-muted-foreground">
-            © {currentYear} QuantEdge Research. All rights reserved.
+            © {currentYear.getFullYear()} QuantEdge Research. All rights reserved.
           </p>
           
           <div className="flex flex-col md:flex-row items-start md:items-center gap-2 text-xs text-muted-foreground">

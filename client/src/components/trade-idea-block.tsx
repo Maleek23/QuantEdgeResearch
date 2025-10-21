@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar } from "lucide-react";
+import { formatInUserTZ, formatTimeUntilExpiry } from "@/lib/timezone";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +17,7 @@ import { ExplainabilityPanel } from "@/components/explainability-panel";
 import { TradeIdeaDetailModal } from "@/components/trade-idea-detail-modal";
 import { TradingAdvice } from "@/components/trading-advice";
 import { ManualOutcomeRecorder } from "@/components/manual-outcome-recorder";
+import { ConfidenceCircle } from "@/components/confidence-circle";
 import type { TradeIdea, Catalyst } from "@shared/schema";
 
 interface TradeIdeaBlockProps {
@@ -130,6 +132,24 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 {idea.symbol}
               </h3>
               <div className="flex items-center gap-2 flex-wrap">
+                {/* Source Badge (AI vs Quant) */}
+                <Badge 
+                  variant="outline"
+                  className={cn(
+                    "font-semibold border-2",
+                    idea.source === 'ai' 
+                      ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/50" 
+                      : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/50"
+                  )}
+                  data-testid={`badge-source-${idea.symbol}`}
+                >
+                  {idea.source === 'ai' ? (
+                    <><Bot className="h-3 w-3 mr-1" />AI ENGINE</>
+                  ) : (
+                    <><BarChart3 className="h-3 w-3 mr-1" />QUANT ENGINE</>
+                  )}
+                </Badge>
+                
                 {/* Direction Badge */}
                 <Badge 
                   variant={isLong ? "default" : "destructive"}
@@ -185,7 +205,30 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 <span className="text-xs text-muted-foreground">{getTimeSincePosted()}</span>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
+              {/* Time Remaining (for open ideas) */}
+              {idea.outcomeStatus === 'open' && idea.exitBy && (() => {
+                const timeInfo = formatTimeUntilExpiry(idea.exitBy);
+                return (
+                  <div className="flex flex-col items-center">
+                    <Badge 
+                      variant={timeInfo.hoursRemaining < 2 ? "destructive" : "secondary"}
+                      className={cn(
+                        "text-xs gap-1",
+                        timeInfo.hoursRemaining < 2 && "animate-pulse"
+                      )}
+                      data-testid={`badge-time-remaining-${idea.symbol}`}
+                    >
+                      <Timer className="h-3 w-3" />
+                      {timeInfo.formatted}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground mt-1">
+                      {formatInUserTZ(idea.exitBy, "MMM d, h:mm a")}
+                    </span>
+                  </div>
+                );
+              })()}
+              
               {/* Outcome Badge for closed ideas */}
               {idea.outcomeStatus && idea.outcomeStatus !== 'open' && (
                 <Badge 
@@ -203,10 +246,14 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                    'CLOSED'}
                 </Badge>
               )}
-              <div className="text-right">
-                <div className="text-xs text-muted-foreground">Grade</div>
-                <div className="text-lg font-semibold">{getLetterGrade(idea.confidenceScore)}</div>
-              </div>
+              
+              {/* Circular Confidence Indicator */}
+              <ConfidenceCircle 
+                score={idea.confidenceScore} 
+                size="md" 
+                showLabel={false}
+              />
+              
               <ChevronDown 
                 className={cn(
                   "h-5 w-5 text-muted-foreground transition-transform",
