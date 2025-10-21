@@ -38,8 +38,8 @@ The quantitative idea generator was completely redesigned to eliminate "momentum
 Signal Priority (checked in order):
 1. **RSI Divergence** (HIGHEST PRIORITY): Oversold (<30) or overbought (>70) conditions signaling mean reversion before bounce/pullback occurs
 2. **MACD Crossover** (SECOND PRIORITY): Bullish/bearish crossover signals indicating early trend formation
-3. **Mean Reversion** (THIRD PRIORITY): Extreme moves (±7%) creating reversal setups before the bounce/crash begins
-4. **Early Breakout Setups** (FOURTH PRIORITY): Price approaching 52-week highs/lows (95-98% range) with volume building, but move still <2% (not after big breakout)
+3. **Early Breakout Setups** (THIRD PRIORITY): Price approaching 52-week highs/lows (95-98% range) with volume building, but move still <2% (not after big breakout). Moved up from 4th priority as more predictive than mean reversion.
+4. **Mean Reversion** (FOURTH PRIORITY): Extreme moves (±7%) creating reversal setups before the bounce/crash begins. Moved down as still reactive to large moves.
 5. **Volume Spikes** (FIFTH PRIORITY): Exceptional volume (3x+ average) with minimal price movement (<1%), catching institutional accumulation before the move
 
 **Removed Signals:**
@@ -74,7 +74,11 @@ Two separate metrics track different aspects of performance:
    - For closed trades: uses saved predictionAccurate field from database
    - Represents "did the quant model correctly predict direction and magnitude?"
 
-Critical fix (October 2025): Performance validator now properly saves predictionAccurate, predictionValidatedAt, highestPriceReached, and lowestPriceReached fields when updating trades, ensuring accurate historical tracking.
+Critical fixes (October 2025):
+- Performance validator now properly saves predictionAccurate, predictionValidatedAt, highestPriceReached, and lowestPriceReached fields when updating trades, ensuring accurate historical tracking.
+- Added `excludeFromTraining` flag to prevent legacy/bad trades from poisoning ML model. All 35 trades from the flawed momentum-chasing strategy were marked as excluded (October 21, 2025).
+- Confidence scoring fixed to reward EARLY predictive setups (RSI extremes, MACD histogram strength, early breakouts with small moves) instead of finished price moves, aligning scoring with predictive strategy.
+- ML retraining now filters out trades where `excludeFromTraining = true`, preventing model poisoning from legacy bad data.
 
 ### System Design Choices
 The system uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) managed by Drizzle ORM. All critical data is stored permanently. The user schema is simplified for future Discord integration, with subscription tiers managed externally via Discord.
