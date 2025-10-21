@@ -47,6 +47,7 @@ interface PerformanceStats {
     expiredIdeas: number;
     winRate: number;
     quantAccuracy: number;
+    directionalAccuracy: number;
     avgPercentGain: number;
     avgHoldingTimeMinutes: number;
     sharpeRatio: number;
@@ -516,39 +517,77 @@ export default function PerformancePage() {
               <CardDescription>Overall platform performance at a glance</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-                <div className="text-center">
-                  <div className="text-sm text-muted-foreground mb-1">Total Ideas</div>
-                  <div className="text-2xl font-bold font-mono">{stats.overall.totalIdeas}</div>
-                  <div className="text-xs text-muted-foreground">{stats.overall.openIdeas} open</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm text-muted-foreground mb-1">Market Win Rate</div>
-                  <div className={`text-2xl font-bold font-mono ${stats.overall.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
-                    {stats.overall.winRate.toFixed(1)}%
+              <TooltipProvider>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-1">Total Ideas</div>
+                    <div className="text-2xl font-bold font-mono">{stats.overall.totalIdeas}</div>
+                    <div className="text-xs text-muted-foreground">{stats.overall.openIdeas} open</div>
                   </div>
-                  <div className="text-xs text-muted-foreground">{stats.overall.wonIdeas}W • {stats.overall.lostIdeas}L</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm text-muted-foreground mb-1">Quant Accuracy</div>
-                  <div className={`text-2xl font-bold font-mono ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'text-blue-500' : 'text-orange-500'}`}>
-                    {stats.overall.quantAccuracy !== null && stats.overall.quantAccuracy !== undefined ? stats.overall.quantAccuracy.toFixed(1) : '0.0'}%
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-1">Market Win Rate</div>
+                    <div className={`text-2xl font-bold font-mono ${stats.overall.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
+                      {stats.overall.winRate.toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">{stats.overall.wonIdeas}W • {stats.overall.lostIdeas}L</div>
                   </div>
-                  <div className="text-xs text-muted-foreground">Predictions</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm text-muted-foreground mb-1">Avg Gain</div>
-                  <div className={`text-2xl font-bold font-mono ${stats.overall.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {stats.overall.avgPercentGain >= 0 ? '+' : ''}{stats.overall.avgPercentGain.toFixed(2)}%
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                      <span>Quant Accuracy</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-3 h-3 cursor-help" data-testid="tooltip-quant-accuracy" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-semibold mb-1">Weighted Quant Accuracy</p>
+                          <p className="text-xs mb-2">Average % progress toward target price, weighted by confidence:</p>
+                          <ul className="text-xs list-disc pl-4 space-y-1">
+                            <li>High confidence (&gt;85): 2x weight</li>
+                            <li>Normal confidence: 1x weight</li>
+                            <li>Low confidence/expired: 0.5x weight</li>
+                          </ul>
+                          <p className="text-xs mt-2 italic">Example: Entry $100 → Target $110. If price reaches $105, that's 50% accuracy.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <div className={`text-2xl font-bold font-mono ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'text-blue-500' : 'text-orange-500'}`}>
+                      {stats.overall.quantAccuracy !== null && stats.overall.quantAccuracy !== undefined ? stats.overall.quantAccuracy.toFixed(1) : '0.0'}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">Weighted avg</div>
                   </div>
-                  <div className="text-xs text-muted-foreground">{stats.overall.closedIdeas} closed</div>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                      <span>Directional Accuracy</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-3 h-3 cursor-help" data-testid="tooltip-directional-accuracy" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-semibold mb-1">Directional Accuracy</p>
+                          <p className="text-xs mb-2">Percentage of trade ideas that moved at least 25% toward their target price before expiring or hitting stop.</p>
+                          <p className="text-xs italic">Shows how often our predictions move in the right direction, even if they don't reach the full target.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <div className={`text-2xl font-bold font-mono ${(stats.overall.directionalAccuracy ?? 0) >= 40 ? 'text-cyan-500' : 'text-amber-500'}`}>
+                      {stats.overall.directionalAccuracy !== null && stats.overall.directionalAccuracy !== undefined ? stats.overall.directionalAccuracy.toFixed(1) : '0.0'}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">25%+ progress</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-1">Avg Gain</div>
+                    <div className={`text-2xl font-bold font-mono ${stats.overall.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {stats.overall.avgPercentGain >= 0 ? '+' : ''}{stats.overall.avgPercentGain.toFixed(2)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">{stats.overall.closedIdeas} closed</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-1">Avg Hold Time</div>
+                    <div className="text-2xl font-bold font-mono">{formatTime(stats.overall.avgHoldingTimeMinutes)}</div>
+                    <div className="text-xs text-muted-foreground">Duration</div>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <div className="text-sm text-muted-foreground mb-1">Avg Hold Time</div>
-                  <div className="text-2xl font-bold font-mono">{formatTime(stats.overall.avgHoldingTimeMinutes)}</div>
-                  <div className="text-xs text-muted-foreground">Duration</div>
-                </div>
-              </div>
+              </TooltipProvider>
             </CardContent>
           </Card>
 
