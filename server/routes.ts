@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { searchSymbol } from "./market-api";
+import { searchSymbol, fetchHistoricalPrices } from "./market-api";
 import { generateTradeIdeas, chatWithQuantAI } from "./ai-service";
 import { generateQuantIdeas } from "./quant-ideas-generator";
 import {
@@ -661,6 +661,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Price refresh error:", error);
       res.status(500).json({ error: "Failed to refresh prices" });
+    }
+  });
+
+  // Sparkline data for mini charts
+  app.get("/api/sparkline/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const marketData = await storage.getMarketDataBySymbol(symbol);
+      
+      if (!marketData) {
+        return res.status(404).json({ error: "Symbol not found" });
+      }
+
+      // Fetch last 20 days of price history for sparkline
+      const alphaVantageKey = process.env.ALPHA_VANTAGE_API_KEY;
+      const prices = await fetchHistoricalPrices(
+        symbol,
+        marketData.assetType,
+        20, // Last 20 data points
+        alphaVantageKey,
+        undefined // coinId - will be looked up from CRYPTO_SYMBOL_MAP if needed
+      );
+
+      res.json({ 
+        symbol,
+        prices,
+        currentPrice: marketData.currentPrice
+      });
+    } catch (error) {
+      console.error("Sparkline data error:", error);
+      res.status(500).json({ error: "Failed to fetch sparkline data" });
     }
   });
 

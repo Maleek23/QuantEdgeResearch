@@ -8,6 +8,10 @@ import { validateTradierAPI } from "./tradier-api";
 import { mlRetrainingService } from "./ml-retraining-service";
 
 const app = express();
+
+// Trust proxy for accurate rate limiting (Replit sets X-Forwarded-For header)
+app.set('trust proxy', true);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());

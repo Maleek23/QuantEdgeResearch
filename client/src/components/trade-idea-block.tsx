@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
 import { formatInUserTZ, formatTimeUntilExpiry } from "@/lib/timezone";
 import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ExplainabilityPanel } from "@/components/explainability-panel";
@@ -18,6 +18,9 @@ import { TradeIdeaDetailModal } from "@/components/trade-idea-detail-modal";
 import { TradingAdvice } from "@/components/trading-advice";
 import { ManualOutcomeRecorder } from "@/components/manual-outcome-recorder";
 import { ConfidenceCircle } from "@/components/confidence-circle";
+import { MiniSparkline } from "@/components/mini-sparkline";
+import { SignalStrengthBars } from "@/components/signal-strength-bars";
+import { EnhancedCountdown } from "@/components/enhanced-countdown";
 import type { TradeIdea, Catalyst } from "@shared/schema";
 
 interface TradeIdeaBlockProps {
@@ -37,6 +40,19 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
   const [priceUpdated, setPriceUpdated] = useState(false);
   const prevPriceRef = useRef<number | undefined>(currentPrice);
   const { toast } = useToast();
+
+  // Fetch sparkline data for mini chart (only for open ideas)
+  const { data: sparklineData } = useQuery<{ symbol: string; prices: number[]; currentPrice: number }>({
+    queryKey: ['/api/sparkline', idea.symbol],
+    queryFn: async () => {
+      const response = await fetch(`/api/sparkline/${idea.symbol}`);
+      if (!response.ok) throw new Error('Failed to fetch sparkline data');
+      return response.json();
+    },
+    enabled: idea.outcomeStatus === 'open' && idea.assetType !== 'option', // Skip options
+    staleTime: 60000, // Cache for 1 minute
+    refetchInterval: 300000, // Refresh every 5 minutes
+  });
 
   useEffect(() => {
     if (currentPrice !== undefined && prevPriceRef.current !== undefined && currentPrice !== prevPriceRef.current) {
@@ -206,28 +222,10 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
               </div>
             </div>
             <div className="flex items-center gap-4">
-              {/* Time Remaining (for open ideas) */}
-              {idea.outcomeStatus === 'open' && idea.exitBy && (() => {
-                const timeInfo = formatTimeUntilExpiry(idea.exitBy);
-                return (
-                  <div className="flex flex-col items-center">
-                    <Badge 
-                      variant={timeInfo.hoursRemaining < 2 ? "destructive" : "secondary"}
-                      className={cn(
-                        "text-xs gap-1",
-                        timeInfo.hoursRemaining < 2 && "animate-pulse"
-                      )}
-                      data-testid={`badge-time-remaining-${idea.symbol}`}
-                    >
-                      <Timer className="h-3 w-3" />
-                      {timeInfo.formatted}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground mt-1">
-                      {formatInUserTZ(idea.exitBy, "MMM d, h:mm a")}
-                    </span>
-                  </div>
-                );
-              })()}
+              {/* Enhanced Countdown Timer (for open ideas) */}
+              {idea.outcomeStatus === 'open' && idea.exitBy && (
+                <EnhancedCountdown exitBy={idea.exitBy} />
+              )}
               
               {/* Outcome Badge for closed ideas */}
               {idea.outcomeStatus && idea.outcomeStatus !== 'open' && (
@@ -263,9 +261,24 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
             </div>
           </div>
 
-          {/* Current Price */}
-          {currentPrice && (
-            <div className="mb-4">
+          {/* Current Price + Mini Sparkline Chart */}
+          <div className="mb-4 space-y-3">
+            {/* Mini Sparkline Chart */}
+            {sparklineData && sparklineData.prices.length > 0 && (
+              <div className="rounded-lg border bg-card/50 p-2">
+                <MiniSparkline
+                  data={sparklineData.prices}
+                  targetPrice={idea.targetPrice}
+                  stopLoss={idea.stopLoss}
+                  entryPrice={idea.entryPrice}
+                  direction={idea.direction as 'long' | 'short'}
+                  className="w-full"
+                />
+              </div>
+            )}
+            
+            {/* Current Price Display */}
+            {currentPrice && (
               <div className="flex items-baseline gap-2">
                 <span className={cn(
                   "text-xl font-bold font-mono",
@@ -280,6 +293,13 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
                 </span>
               </div>
+            )}
+          </div>
+
+          {/* Signal Strength Indicators */}
+          {idea.qualitySignals && idea.qualitySignals.length > 0 && (
+            <div className="mb-4">
+              <SignalStrengthBars signals={idea.qualitySignals} />
             </div>
           )}
 

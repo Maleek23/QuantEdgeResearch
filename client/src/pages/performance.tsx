@@ -15,7 +15,7 @@ import { format, parseISO, startOfDay, startOfWeek, startOfMonth, startOfYear, s
 import { useState, useMemo } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
-import { formatPercent } from "@/lib/utils";
+import { formatPercent, cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -1265,34 +1265,51 @@ export default function PerformancePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredIdeas.map((idea, idx) => (
-                        <tr key={idea.id} className={idx % 2 === 0 ? 'bg-muted/30' : ''}>
-                          <td className="py-2 px-3 font-mono font-bold">{idea.symbol}</td>
-                          <td className="py-2 px-3 capitalize text-xs">{idea.assetType}</td>
-                          <td className="py-2 px-3">
-                            <Badge 
-                              className={`text-xs ${
-                                idea.direction === 'long' 
-                                  ? 'bg-green-500/10 text-green-500 border-green-500/20' 
-                                  : 'bg-red-500/10 text-red-500 border-red-500/20'
-                              }`}
-                            >
-                              {idea.direction.toUpperCase()}
-                            </Badge>
-                          </td>
-                          <td className="py-2 px-3 capitalize text-xs">{idea.source}</td>
-                          <td className="text-right py-2 px-3 font-mono">${idea.entryPrice.toFixed(2)}</td>
-                          <td className="text-right py-2 px-3 font-mono">${idea.exitPrice?.toFixed(2) || '—'}</td>
-                          <td className="text-center py-2 px-3">{getOutcomeBadge(idea.outcomeStatus)}</td>
-                          <td className={`text-right py-2 px-3 font-mono font-bold ${
-                            (idea.percentGain || 0) >= 0 ? 'text-green-500' : 'text-red-500'
-                          }`}>
-                            {idea.percentGain !== null 
-                              ? `${idea.percentGain >= 0 ? '+' : ''}${idea.percentGain.toFixed(2)}%` 
-                              : '—'}
-                          </td>
-                        </tr>
-                      ))}
+                      {filteredIdeas.map((idea, idx) => {
+                        const isWinner = idea.outcomeStatus === 'hit_target';
+                        const isLoser = idea.outcomeStatus === 'hit_stop';
+                        
+                        return (
+                          <tr 
+                            key={idea.id} 
+                            className={cn(
+                              "transition-all hover:scale-[1.01] hover-elevate",
+                              idx % 2 === 0 ? 'bg-muted/30' : '',
+                              isWinner && "bg-green-500/5 border-l-4 border-l-green-500 shadow-sm shadow-green-500/20",
+                              isLoser && "bg-red-500/5 border-l-4 border-l-red-500 shadow-sm shadow-red-500/20"
+                            )}
+                          >
+                            <td className="py-2 px-3 font-mono font-bold">
+                              {idea.symbol}
+                              {isWinner && <span className="ml-2 text-green-500">✓</span>}
+                              {isLoser && <span className="ml-2 text-red-500">✗</span>}
+                            </td>
+                            <td className="py-2 px-3 capitalize text-xs">{idea.assetType}</td>
+                            <td className="py-2 px-3">
+                              <Badge 
+                                className={`text-xs ${
+                                  idea.direction === 'long' 
+                                    ? 'bg-green-500/10 text-green-500 border-green-500/20' 
+                                    : 'bg-red-500/10 text-red-500 border-red-500/20'
+                                }`}
+                              >
+                                {idea.direction.toUpperCase()}
+                              </Badge>
+                            </td>
+                            <td className="py-2 px-3 capitalize text-xs">{idea.source}</td>
+                            <td className="text-right py-2 px-3 font-mono">${idea.entryPrice.toFixed(2)}</td>
+                            <td className="text-right py-2 px-3 font-mono">${idea.exitPrice?.toFixed(2) || '—'}</td>
+                            <td className="text-center py-2 px-3">{getOutcomeBadge(idea.outcomeStatus)}</td>
+                            <td className={`text-right py-2 px-3 font-mono font-bold ${
+                              (idea.percentGain || 0) >= 0 ? 'text-green-500' : 'text-red-500'
+                            }`}>
+                              {idea.percentGain !== null 
+                                ? `${idea.percentGain >= 0 ? '+' : ''}${idea.percentGain.toFixed(2)}%` 
+                                : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

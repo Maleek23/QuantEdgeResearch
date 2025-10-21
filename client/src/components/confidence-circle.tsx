@@ -46,12 +46,13 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
   return (
     <div className={cn("flex flex-col items-center gap-1", className)}>
       <div className="relative" style={{ width: config.circle, height: config.circle }}>
-        {/* Background circle */}
+        {/* Multi-ring background showing confidence zones */}
         <svg
           className="transform -rotate-90"
           width={config.circle}
           height={config.circle}
         >
+          {/* Background base */}
           <circle
             cx={config.circle / 2}
             cy={config.circle / 2}
@@ -59,15 +60,55 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
             stroke="currentColor"
             strokeWidth={config.stroke}
             fill="none"
-            className="text-muted/20"
+            className="text-muted/10"
           />
-          {/* Progress circle */}
+          
+          {/* Colored zone markers showing confidence thresholds */}
+          {/* Red zone (0-70) - first 70% of circle */}
+          <circle
+            cx={config.circle / 2}
+            cy={config.circle / 2}
+            r={radius}
+            stroke="#ef4444"
+            strokeWidth={config.stroke}
+            fill="none"
+            strokeDasharray={`${circumference * 0.7} ${circumference}`}
+            className={score <= 70 ? 'opacity-30' : 'opacity-10'}
+          />
+          
+          {/* Amber zone (70-85) - 15% band from 70-85 */}
+          <circle
+            cx={config.circle / 2}
+            cy={config.circle / 2}
+            r={radius}
+            stroke="#f59e0b"
+            strokeWidth={config.stroke}
+            fill="none"
+            strokeDasharray={`${circumference * 0.15} ${circumference}`}
+            strokeDashoffset={-circumference * 0.7}
+            className={score > 70 && score <= 85 ? 'opacity-30' : 'opacity-10'}
+          />
+          
+          {/* Green zone (85-100) - 15% band from 85-100 */}
+          <circle
+            cx={config.circle / 2}
+            cy={config.circle / 2}
+            r={radius}
+            stroke="#22c55e"
+            strokeWidth={config.stroke}
+            fill="none"
+            strokeDasharray={`${circumference * 0.15} ${circumference}`}
+            strokeDashoffset={-circumference * 0.85}
+            className={score > 85 ? 'opacity-30' : 'opacity-10'}
+          />
+          
+          {/* Actual progress indicator */}
           <circle
             cx={config.circle / 2}
             cy={config.circle / 2}
             r={radius}
             stroke={getStrokeColor(score)}
-            strokeWidth={config.stroke}
+            strokeWidth={config.stroke + 1}
             fill="none"
             strokeDasharray={circumference}
             strokeDashoffset={offset}

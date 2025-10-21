@@ -7,7 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Footer } from "@/components/footer";
-import Landing from "@/pages/landing";
+import HomePage from "@/pages/home";
 import LearnMore from "@/pages/learn-more";
 import Dashboard from "@/pages/dashboard";
 import TradeIdeasPage from "@/pages/trade-ideas";
@@ -28,7 +28,7 @@ import NotFound from "@/pages/not-found";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Landing} />
+      <Route path="/" component={HomePage} />
       <Route path="/learn-more" component={LearnMore} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/trade-ideas" component={TradeIdeasPage} />
