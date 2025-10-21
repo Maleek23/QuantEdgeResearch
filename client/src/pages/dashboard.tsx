@@ -19,6 +19,56 @@ import {
 } from "lucide-react";
 import { parseISO, subHours } from "date-fns";
 
+interface PerformanceStats {
+  overall: {
+    totalIdeas: number;
+    openIdeas: number;
+    closedIdeas: number;
+    wonIdeas: number;
+    lostIdeas: number;
+    expiredIdeas: number;
+    winRate: number;
+    quantAccuracy: number;
+    directionalAccuracy: number;
+    avgPercentGain: number;
+    avgHoldingTimeMinutes: number;
+    sharpeRatio: number;
+    maxDrawdown: number;
+    profitFactor: number;
+    expectancy: number;
+    evScore: number;
+    adjustedWeightedAccuracy: number;
+    oppositeDirectionRate: number;
+    oppositeDirectionCount: number;
+    avgWinSize: number;
+    avgLossSize: number;
+  };
+  bySource: Array<{
+    source: string;
+    totalIdeas: number;
+    wonIdeas: number;
+    lostIdeas: number;
+    winRate: number;
+    avgPercentGain: number;
+  }>;
+  byAssetType: Array<{
+    assetType: string;
+    totalIdeas: number;
+    wonIdeas: number;
+    lostIdeas: number;
+    winRate: number;
+    avgPercentGain: number;
+  }>;
+  bySignalType: Array<{
+    signal: string;
+    totalIdeas: number;
+    wonIdeas: number;
+    lostIdeas: number;
+    winRate: number;
+    avgPercentGain: number;
+  }>;
+}
+
 export default function Dashboard() {
   const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -44,7 +94,7 @@ export default function Dashboard() {
     queryKey: ['/api/watchlist'],
   });
 
-  const { data: performanceStats } = useQuery<any>({
+  const { data: performanceStats } = useQuery<PerformanceStats>({
     queryKey: ['/api/performance/stats'],
   });
 

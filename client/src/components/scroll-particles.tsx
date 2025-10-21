@@ -52,11 +52,16 @@ export function ScrollParticles() {
       const currentScrollY = window.scrollY;
       const scrollDelta = Math.abs(currentScrollY - lastScrollY.current);
       
-      if (scrollDelta > 1) {
+      // Enforce maximum particle count (ambient + scroll particles)
+      const MAX_TOTAL_PARTICLES = 100;
+      const currentCount = particlesRef.current.length;
+      
+      if (scrollDelta > 1 && currentCount < MAX_TOTAL_PARTICLES) {
         // Create particles based on scroll velocity
         const particleCount = Math.min(Math.floor(scrollDelta / 5), 8);
+        const allowedCount = Math.min(particleCount, MAX_TOTAL_PARTICLES - currentCount);
         
-        for (let i = 0; i < particleCount; i++) {
+        for (let i = 0; i < allowedCount; i++) {
           particlesRef.current.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,

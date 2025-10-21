@@ -35,7 +35,8 @@ A Comprehensive User Settings System allows platform personalization, persisting
 - **EV Score:** Expected Value metric = Avg(Win Size) / |Avg(Loss Size)| - measures profitability quality independent of win rate
 - **Adjusted Weighted Accuracy:** quantAccuracy × √(min(EV Score, 4)) / 2 - merges directional accuracy with profitability quality while maintaining 0-100% interpretive range
 - **Opposite Direction Rate:** Tracks trades moving AGAINST prediction by ≥10% of expected move - critical blind spot detector for model failures
-- **Neural Network Scroll Particles:** Canvas-based scroll particle effect upgraded to neural network style with dynamic connections between nearby particles, matching landing page aesthetic
+- **Neural Network Scroll Particles:** Canvas-based scroll particle effect with 40 always-visible ambient particles creating neural network connections, plus additional scroll-triggered particles - visible on EVERY page via App.tsx
+- **Metrics Consistency (2025-10-21):** All research pages (Dashboard, Performance, Signal Intelligence) now display identical core metrics: Win Rate, Quant Accuracy, Directional Accuracy, EV Score, and Opposite Direction Rate with consistent color-coding and thresholds
 
 **Visual Enhancements:** A canvas-based scroll particle effect system creates dynamic visual feedback throughout the app, generating particles on scroll with physics-based animation. Real-time price displays are prominently featured in all trade idea cards with large 3xl font size, gradient backgrounds, and visual indicators showing entry and target prices for quick scanning.
 
