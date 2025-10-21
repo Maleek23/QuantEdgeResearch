@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Footer } from "@/components/footer";
+import { ParticleBackground } from "@/components/particle-background";
 import { useLocation } from "wouter";
 import { 
   TrendingUp, 
@@ -19,7 +20,10 @@ import {
   MessageCircle,
   ExternalLink,
   ArrowRight,
-  Book
+  Book,
+  Network,
+  Cpu,
+  GitBranch
 } from "lucide-react";
 
 export default function Landing() {
@@ -95,6 +99,7 @@ export default function Landing() {
     <div className="min-h-screen bg-background">
       {/* Cinematic Hero Section with Aurora Background */}
       <section className="relative overflow-hidden border-b aurora-hero">
+        <ParticleBackground />
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
         
         <div className="container relative mx-auto px-6 py-16 md:py-20 text-center">
@@ -161,6 +166,128 @@ export default function Landing() {
         </div>
         
         <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
+      </section>
+
+      {/* Dual-Engine Intelligence Showcase */}
+      <section className="border-b py-16 md:py-20 bg-gradient-to-b from-background via-primary/5 to-background">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-12">
+            <Badge variant="secondary" className="mb-4 neon-accent">
+              <Network className="h-3 w-3 mr-1" />
+              Dual-Engine Architecture
+            </Badge>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-display">
+              Two Engines, <span className="text-gradient-premium">One Purpose</span>
+            </h2>
+            <p className="text-base text-muted-foreground max-w-2xl mx-auto">
+              AI-powered insights meet quantitative precision. Both engines analyze markets independently, 
+              then converge for high-conviction signals.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {/* AI Engine Card */}
+            <div className="gradient-border-card card-tilt" data-testid="card-ai-engine">
+              <Card className="border-0 bg-transparent h-full">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center spotlight">
+                      <Brain className="h-6 w-6 text-blue-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-display">AI Engine</h3>
+                      <p className="text-xs text-muted-foreground">Multi-Provider Fallback</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 mb-6">
+                    <div className="flex items-start gap-3">
+                      <GitBranch className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium mb-1">Contextual Analysis</p>
+                        <p className="text-xs text-muted-foreground">Processes market news, earnings, sentiment, and macro trends</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Cpu className="h-5 w-5 text-purple-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium mb-1">Provider Chain</p>
+                        <p className="text-xs text-muted-foreground">Claude Sonnet 4 → GPT-5 → Gemini 2.5 Pro fallback</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="glass-card rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground mb-2">Strengths</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary" className="text-xs">Pattern Recognition</Badge>
+                      <Badge variant="secondary" className="text-xs">Market Context</Badge>
+                      <Badge variant="secondary" className="text-xs">Adaptive Learning</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Quant Engine Card */}
+            <div className="gradient-border-card card-tilt" data-testid="card-quant-engine">
+              <Card className="border-0 bg-transparent h-full">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500/20 to-cyan-500/20 flex items-center justify-center spotlight">
+                      <Calculator className="h-6 w-6 text-green-500" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-display">Quantitative Engine</h3>
+                      <p className="text-xs text-muted-foreground">7-Signal Technical Analysis</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 mb-6">
+                    <div className="flex items-start gap-3">
+                      <BarChart3 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium mb-1">Technical Precision</p>
+                        <p className="text-xs text-muted-foreground">RSI, MACD, Momentum, Volume, MTF, Volatility, S/R levels</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Target className="h-5 w-5 text-cyan-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium mb-1">ML-Enhanced Scoring</p>
+                        <p className="text-xs text-muted-foreground">Historical performance analysis adjusts signal weights</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="glass-card rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground mb-2">Strengths</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary" className="text-xs">Speed</Badge>
+                      <Badge variant="secondary" className="text-xs">Consistency</Badge>
+                      <Badge variant="secondary" className="text-xs">Backtestable</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Convergence Note */}
+          <div className="mt-12 max-w-3xl mx-auto">
+            <div className="glass-intense rounded-xl p-6 text-center border border-primary/20">
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <Sparkles className="h-5 w-5 text-cyan-500" />
+                <h4 className="text-lg font-bold text-display">When Both Engines Agree</h4>
+                <Sparkles className="h-5 w-5 text-cyan-500" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                High-conviction signals occur when AI context aligns with quantitative technicals. 
+                These convergent opportunities historically show <span className="text-cyan-500 font-semibold">+18% higher win rates</span>.
+              </p>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Features Grid with Premium Cards */}

@@ -6,6 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Target, TrendingUp, Clock, BarChart3, Sparkles, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SignalPerformanceGrid } from "@/components/signal-performance-grid";
+import { SignalCorrelationHeatmap } from "@/components/signal-correlation-heatmap";
+import { MLLearningNetwork } from "@/components/ml-learning-network";
 
 interface SignalAnalysis {
   signal: string;
@@ -208,18 +211,68 @@ export default function SignalIntelligencePage() {
         </Card>
       )}
 
-      <Tabs defaultValue="signals" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="signals" data-testid="tab-signals">
-            Signal Effectiveness
-          </TabsTrigger>
-          <TabsTrigger value="combinations" data-testid="tab-combinations">
-            Winning Patterns
-          </TabsTrigger>
-          <TabsTrigger value="assets" data-testid="tab-assets">
-            Asset Performance
-          </TabsTrigger>
+      {/* Visual Intelligence Tabs */}
+      <Tabs defaultValue="grid" className="w-full space-y-6">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4 mx-auto">
+          <TabsTrigger value="grid" data-testid="tab-grid">Performance</TabsTrigger>
+          <TabsTrigger value="network" data-testid="tab-network">ML Network</TabsTrigger>
+          <TabsTrigger value="heatmap" data-testid="tab-heatmap">Correlations</TabsTrigger>
+          <TabsTrigger value="table" data-testid="tab-table-view">Data Tables</TabsTrigger>
         </TabsList>
+
+        {/* Performance Grid View */}
+        <TabsContent value="grid" className="mt-8">
+          <div className="mb-6">
+            <h3 className="text-xl font-bold mb-2">Signal Performance Overview</h3>
+            <p className="text-sm text-muted-foreground">
+              Visual performance cards for each of the 7 technical signals. Win rates, reliability scores, and trade counts at a glance.
+            </p>
+          </div>
+          <SignalPerformanceGrid signals={intelligence.signalAnalysis} />
+        </TabsContent>
+
+        {/* ML Learning Network View */}
+        <TabsContent value="network" className="mt-8">
+          <MLLearningNetwork 
+            signals={intelligence.signalAnalysis} 
+            totalTrades={intelligence.totalAnalyzedTrades} 
+          />
+        </TabsContent>
+
+        {/* Correlation Heatmap View */}
+        <TabsContent value="heatmap" className="mt-8">
+          {intelligence.topCombinations.length > 0 ? (
+            <SignalCorrelationHeatmap combinations={intelligence.topCombinations} />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5" />
+                  Insufficient Combination Data
+                </CardTitle>
+                <CardDescription>
+                  Need more closed trades with multiple signals to generate correlation heatmap. 
+                  Keep closing trades to see which signal combinations work best together!
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Data Tables View */}
+        <TabsContent value="table" className="mt-8">
+          <Tabs defaultValue="signals" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="signals" data-testid="tab-signals">
+                Signal Effectiveness
+              </TabsTrigger>
+              <TabsTrigger value="combinations" data-testid="tab-combinations">
+                Winning Patterns
+              </TabsTrigger>
+              <TabsTrigger value="assets" data-testid="tab-assets">
+                Asset Performance
+              </TabsTrigger>
+            </TabsList>
 
         {/* Signal Effectiveness Table */}
         <TabsContent value="signals" className="space-y-4">
@@ -428,6 +481,8 @@ export default function SignalIntelligencePage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+      </Tabs>
         </TabsContent>
       </Tabs>
     </div>
