@@ -15,8 +15,9 @@ import { logger } from './logger';
 import { detectMarketRegime, calculateTimingWindows, type SignalStack } from './timing-intelligence';
 
 // 🔐 MODEL GOVERNANCE: Engine version for audit trail
-export const QUANT_ENGINE_VERSION = "v2.2.0"; // Updated Oct 21, 2025: Widened stops, RSI divergence priority, removed momentum-chasing
+export const QUANT_ENGINE_VERSION = "v2.3.0"; // Updated Oct 21, 2025: TIGHTENED stops (2-3%), stricter confidence (90+), improved accuracy
 export const ENGINE_CHANGELOG = {
+  "v2.3.0": "ACCURACY BOOST: Tighter stops (2-3%), stricter filtering (90+ confidence), -30% max loss target",
   "v2.2.0": "Predictive signals (RSI divergence, early MACD), widened stops (4-5%), removed momentum-chasing",
   "v2.1.0": "Added timing intelligence, market regime detection",
   "v2.0.0": "Initial production release with ML adaptive learning",
@@ -284,56 +285,56 @@ function calculateLevels(data: MarketData, signal: QuantSignal, assetType?: stri
   if (signal.type === 'momentum') {
     if (signal.direction === 'long') {
       targetPrice = entryPrice * (1 + 0.08 * assetMultiplier); // 8% stocks, 12% crypto, 25% options
-      stopLoss = entryPrice * (1 - 0.04 * assetMultiplier); // WIDENED: 4% stops (was 3%) - give trades room to breathe
+      stopLoss = entryPrice * (1 - 0.02 * assetMultiplier); // TIGHTENED: 2% stops - limit losses
     } else {
       targetPrice = entryPrice * (1 - 0.08 * assetMultiplier);
-      stopLoss = entryPrice * (1 + 0.04 * assetMultiplier);
+      stopLoss = entryPrice * (1 + 0.02 * assetMultiplier);
     }
   } else if (signal.type === 'volume_spike') {
     // Early volume accumulation - minimum 8% stocks, 12% crypto, 25% options
     if (signal.direction === 'long') {
       targetPrice = entryPrice * (1 + 0.08 * assetMultiplier);
-      stopLoss = entryPrice * (1 - 0.04 * assetMultiplier); // WIDENED: 4% stops
+      stopLoss = entryPrice * (1 - 0.02 * assetMultiplier); // TIGHTENED: 2% stops - limit losses
     } else {
       targetPrice = entryPrice * (1 - 0.08 * assetMultiplier);
-      stopLoss = entryPrice * (1 + 0.04 * assetMultiplier);
+      stopLoss = entryPrice * (1 + 0.02 * assetMultiplier);
     }
   } else if (signal.type === 'breakout') {
-    // Breakout setup - higher target, wider stops for volatility
-    // Stocks: 10%/5% = 2:1, Crypto: 15%/7.5% = 2:1, Options: 31.25%/15.625% = 2:1
+    // Breakout setup - higher target, slightly wider stops for volatility
+    // Stocks: 10%/3% = 3.33:1, Crypto: 15%/4.5% = 3.33:1, Options: 31.25%/9.375% = 3.33:1
     if (signal.direction === 'long') {
       targetPrice = entryPrice * (1 + 0.10 * assetMultiplier);
-      stopLoss = entryPrice * (1 - 0.05 * assetMultiplier); // WIDENED: 5% stops (was 4%)
+      stopLoss = entryPrice * (1 - 0.03 * assetMultiplier); // TIGHTENED: 3% stops (was 5%) - better R:R
     } else {
       targetPrice = entryPrice * (1 - 0.10 * assetMultiplier);
-      stopLoss = entryPrice * (1 + 0.05 * assetMultiplier);
+      stopLoss = entryPrice * (1 + 0.03 * assetMultiplier);
     }
   } else if (signal.type === 'mean_reversion') {
     // Mean reversion - minimum 8% stocks, 12% crypto, 25% options
     if (signal.direction === 'long') {
       targetPrice = entryPrice * (1 + 0.08 * assetMultiplier);
-      stopLoss = entryPrice * (1 - 0.04 * assetMultiplier); // WIDENED: 4% stops
+      stopLoss = entryPrice * (1 - 0.02 * assetMultiplier); // TIGHTENED: 2% stops - limit losses
     } else {
       targetPrice = entryPrice * (1 - 0.08 * assetMultiplier);
-      stopLoss = entryPrice * (1 + 0.04 * assetMultiplier);
+      stopLoss = entryPrice * (1 + 0.02 * assetMultiplier);
     }
   } else if (signal.type === 'rsi_divergence') {
     // RSI-based mean reversion - minimum 8% stocks, 12% crypto, 25% options
     if (signal.direction === 'long') {
       targetPrice = entryPrice * (1 + 0.08 * assetMultiplier);
-      stopLoss = entryPrice * (1 - 0.04 * assetMultiplier); // WIDENED: 4% stops
+      stopLoss = entryPrice * (1 - 0.02 * assetMultiplier); // TIGHTENED: 2% stops - limit losses
     } else {
       targetPrice = entryPrice * (1 - 0.08 * assetMultiplier);
-      stopLoss = entryPrice * (1 + 0.04 * assetMultiplier);
+      stopLoss = entryPrice * (1 + 0.02 * assetMultiplier);
     }
   } else if (signal.type === 'macd_crossover') {
     // MACD trend following - minimum 8% stocks, 12% crypto, 25% options
     if (signal.direction === 'long') {
       targetPrice = entryPrice * (1 + 0.08 * assetMultiplier);
-      stopLoss = entryPrice * (1 - 0.04 * assetMultiplier); // WIDENED: 4% stops
+      stopLoss = entryPrice * (1 - 0.02 * assetMultiplier); // TIGHTENED: 2% stops - limit losses
     } else {
       targetPrice = entryPrice * (1 - 0.08 * assetMultiplier);
-      stopLoss = entryPrice * (1 + 0.04 * assetMultiplier);
+      stopLoss = entryPrice * (1 + 0.02 * assetMultiplier);
     }
   } else {
     // Default case - minimum 8% stocks, 12% crypto, 25% options
@@ -939,10 +940,10 @@ export async function generateQuantIdeas(
     );
     const probabilityBand = getProbabilityBand(confidenceScore);
 
-    // 🚫 QUALITY FILTER: Multi-tier filtering for B+ grade and above
-    // 1. Confidence score must be >= 85 (B+ grade minimum)
-    if (confidenceScore < 85) {
-      logger.info(`Filtered out ${getProbabilityBand(confidenceScore)}-grade idea for ${data.symbol} (score: ${confidenceScore})`);
+    // 🚫 QUALITY FILTER: Stricter filtering for A grade and above (v2.3.0+)
+    // 1. Confidence score must be >= 90 (A grade minimum) - improved from 85
+    if (confidenceScore < 90) {
+      logger.info(`Filtered out ${getProbabilityBand(confidenceScore)}-grade idea for ${data.symbol} (score: ${confidenceScore}) - below A grade`);
       dataQuality.lowQuality++;
       continue;
     }
@@ -1273,7 +1274,7 @@ export async function generateQuantIdeas(
       const currentPrice = symbolData.currentPrice;
       const entryPrice = Number((currentPrice * 0.998).toFixed(2));
       const targetPrice = Number((currentPrice * (direction === 'long' ? (1 + 0.08 * assetMultiplier) : (1 - 0.08 * assetMultiplier))).toFixed(2));
-      const stopLoss = Number((currentPrice * (direction === 'long' ? (1 - 0.04 * assetMultiplier) : (1 + 0.04 * assetMultiplier))).toFixed(2)); // WIDENED: 4% stops
+      const stopLoss = Number((currentPrice * (direction === 'long' ? (1 - 0.02 * assetMultiplier) : (1 + 0.02 * assetMultiplier))).toFixed(2)); // TIGHTENED: 2% stops - limit losses
       // Calculate risk/reward ratio with guards
       const riskDistance = Math.abs(entryPrice - stopLoss);
       const rewardDistance = Math.abs(targetPrice - entryPrice);
@@ -1312,9 +1313,9 @@ export async function generateQuantIdeas(
       );
       const probabilityBand = getProbabilityBand(confidenceScore);
 
-      // Skip if below quality threshold - STRICT B+ minimum (85+) for ALL ideas
-      if (confidenceScore < 85) {
-        logger.info(`Filtered out catalyst idea for ${catalyst.symbol} - below B+ threshold (score: ${confidenceScore})`);
+      // Skip if below quality threshold - STRICT A minimum (90+) for ALL ideas (v2.3.0+)
+      if (confidenceScore < 90) {
+        logger.info(`Filtered out catalyst idea for ${catalyst.symbol} - below A grade threshold (score: ${confidenceScore})`);
         continue;
       }
 
