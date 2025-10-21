@@ -514,14 +514,61 @@ export default function PerformancePage() {
           <TabsTrigger value="deep-dive" data-testid="tab-deep-dive">Deep Dive</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview" className="space-y-6">
+        <TabsContent value="overview" className="space-y-6 mt-6">
+          {/* MARKET WIN RATE - PROMINENTLY DISPLAYED */}
+          <div className="gradient-border-card spotlight">
+            <Card className="glass-card shadow-lg border-0 bg-gradient-to-br from-card via-card to-muted/30">
+              <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-primary/20">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-2xl font-bold flex items-center gap-2">
+                      <Target className="w-7 h-7 text-primary" />
+                      Market Win Rate
+                    </CardTitle>
+                    <CardDescription className="mt-2 text-base">
+                      {stats.overall.wonIdeas} wins / {stats.overall.lostIdeas} losses 
+                      {stats.overall.expiredIdeas > 0 && ` (${stats.overall.expiredIdeas} expired excluded)`}
+                    </CardDescription>
+                  </div>
+                  <div className="text-center">
+                    <div className={`text-6xl font-bold font-mono ${stats.overall.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
+                      {stats.overall.winRate.toFixed(1)}%
+                    </div>
+                    <Badge variant={stats.overall.winRate >= 60 ? 'default' : stats.overall.winRate >= 50 ? 'secondary' : 'destructive'} className="mt-2">
+                      {stats.overall.winRate >= 60 ? 'Excellent' : stats.overall.winRate >= 50 ? 'Acceptable' : 'Needs Improvement'}
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="grid gap-6 md:grid-cols-3">
+                  <div className="text-center p-4 rounded-lg bg-green-500/5 border border-green-500/20">
+                    <TrendingUp className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                    <div className="text-3xl font-bold font-mono text-green-500">{stats.overall.wonIdeas}</div>
+                    <div className="text-sm text-muted-foreground mt-1">Winners (Hit Target)</div>
+                  </div>
+                  <div className="text-center p-4 rounded-lg bg-red-500/5 border border-red-500/20">
+                    <TrendingDown className="w-8 h-8 text-red-500 mx-auto mb-2" />
+                    <div className="text-3xl font-bold font-mono text-red-500">{stats.overall.lostIdeas}</div>
+                    <div className="text-sm text-muted-foreground mt-1">Losers (Hit Stop)</div>
+                  </div>
+                  <div className="text-center p-4 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                    <Clock className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                    <div className="text-3xl font-bold font-mono text-amber-500">{stats.overall.expiredIdeas}</div>
+                    <div className="text-sm text-muted-foreground mt-1">Expired (Excluded)</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <Card className="stat-card shadow-lg border-primary/20" data-testid="card-key-metrics">
             <CardHeader>
               <CardTitle className="text-lg font-bold flex items-center gap-2">
                 <Activity className="w-5 h-5" />
-                Key Performance Metrics
+                Quant Analytics Lab
               </CardTitle>
-              <CardDescription>Overall platform performance at a glance</CardDescription>
+              <CardDescription>Data-driven accuracy and profitability metrics</CardDescription>
             </CardHeader>
             <CardContent>
               <TooltipProvider>

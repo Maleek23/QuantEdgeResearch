@@ -14,6 +14,7 @@ export function ScrollParticles() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
   const lastScrollY = useRef(0);
+  const scrollMomentum = useRef({ x: 0, y: 0 });
   const animationFrameId = useRef<number>();
 
   useEffect(() => {
@@ -47,26 +48,40 @@ export function ScrollParticles() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Create particles on scroll - neural network style
+    // Create particles on scroll - neural network style with interactive momentum
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      const scrollDelta = Math.abs(currentScrollY - lastScrollY.current);
+      const scrollDelta = currentScrollY - lastScrollY.current;
+      const scrollSpeed = Math.abs(scrollDelta);
+      
+      // Apply scroll momentum to ALL particles for interactive feel
+      if (scrollSpeed > 1) {
+        const momentumY = Math.sign(scrollDelta) * Math.min(scrollSpeed * 0.02, 3);
+        scrollMomentum.current.y = momentumY;
+        
+        // Add slight drift to all particles based on scroll direction
+        particlesRef.current.forEach(particle => {
+          particle.vy += momentumY * 0.15;
+          // Add slight horizontal drift for more dynamic feel
+          particle.vx += (Math.random() - 0.5) * 0.5;
+        });
+      }
       
       // Enforce maximum particle count (ambient + scroll particles)
       const MAX_TOTAL_PARTICLES = 100;
       const currentCount = particlesRef.current.length;
       
-      if (scrollDelta > 1 && currentCount < MAX_TOTAL_PARTICLES) {
+      if (scrollSpeed > 1 && currentCount < MAX_TOTAL_PARTICLES) {
         // Create particles based on scroll velocity
-        const particleCount = Math.min(Math.floor(scrollDelta / 5), 8);
+        const particleCount = Math.min(Math.floor(scrollSpeed / 5), 8);
         const allowedCount = Math.min(particleCount, MAX_TOTAL_PARTICLES - currentCount);
         
         for (let i = 0; i < allowedCount; i++) {
           particlesRef.current.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
-            vx: (Math.random() - 0.5) * 1.5,
-            vy: (Math.random() - 0.5) * 1.5,
+            vx: (Math.random() - 0.5) * 2,
+            vy: Math.sign(scrollDelta) * (Math.random() * 1.5 + 0.5),
             size: Math.random() * 2 + 1,
             opacity: Math.random() * 0.4 + 0.3,
             isAmbient: false,
@@ -81,8 +96,25 @@ export function ScrollParticles() {
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
+      // Decay scroll momentum
+      scrollMomentum.current.y *= 0.95;
+      scrollMomentum.current.x *= 0.95;
+      
       // Update and draw particles
       particlesRef.current.forEach(particle => {
+        // Apply velocity dampening for smooth deceleration
+        particle.vx *= 0.98;
+        particle.vy *= 0.98;
+        
+        // Keep ambient particles at minimum velocity
+        if (particle.isAmbient) {
+          const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+          if (speed < 0.2) {
+            particle.vx = (Math.random() - 0.5) * 0.3;
+            particle.vy = (Math.random() - 0.5) * 0.3;
+          }
+        }
+        
         // Update position
         particle.x += particle.vx;
         particle.y += particle.vy;

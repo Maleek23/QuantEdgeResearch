@@ -951,6 +951,33 @@ export class MemStorage implements IStorage {
       };
     });
 
+    // Calculate Enhanced Quant-Defensible Metrics
+    const wonWithGain = closedIdeas.filter(i => i.outcomeStatus === 'hit_target' && i.percentGain !== null && i.percentGain > 0);
+    const lostWithLoss = closedIdeas.filter(i => i.outcomeStatus === 'hit_stop' && i.percentGain !== null && i.percentGain < 0);
+    
+    const avgWinSize = wonWithGain.length > 0
+      ? wonWithGain.reduce((sum, i) => sum + Math.abs(i.percentGain!), 0) / wonWithGain.length
+      : 0;
+    const avgLossSize = lostWithLoss.length > 0
+      ? Math.abs(lostWithLoss.reduce((sum, i) => sum + i.percentGain!, 0) / lostWithLoss.length)
+      : 0;
+    
+    // EV Score = Avg(Win Size) / |Avg(Loss Size)|
+    const evScore = avgLossSize > 0 ? avgWinSize / avgLossSize : (avgWinSize > 0 ? 99 : 1);
+    
+    // Adjusted Weighted Accuracy
+    const adjustedWeightedAccuracy = quantAccuracy * Math.sqrt(Math.min(evScore, 4)) / 2;
+    
+    // Opposite Direction Rate
+    const oppositeDirectionCount = allIdeas.filter(idea => {
+      const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
+      return accuracyPercent !== null && accuracyPercent < -10;
+    }).length;
+    
+    const oppositeDirectionRate = allIdeas.length > 0
+      ? (oppositeDirectionCount / allIdeas.length) * 100
+      : 0;
+
     return {
       overall: {
         totalIdeas: allIdeas.length,
@@ -969,6 +996,13 @@ export class MemStorage implements IStorage {
         maxDrawdown: 0,
         profitFactor: 0,
         expectancy: 0,
+        // Enhanced quant-defensible metrics
+        evScore,
+        adjustedWeightedAccuracy,
+        oppositeDirectionRate,
+        oppositeDirectionCount,
+        avgWinSize,
+        avgLossSize,
       },
       bySource,
       byAssetType,
