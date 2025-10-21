@@ -1507,6 +1507,31 @@ export class DatabaseStorage implements IStorage {
     
     const expectancy = (avgWin * winPct) - (avgLoss * lossPct);
 
+    // ========================================
+    // EXPECTED VALUE (EV) SCORE - Quant-Defensible Profitability Metric
+    // ========================================
+    // Formula: EV Score = Avg(Expected Gain) / |Avg(Expected Loss)|
+    // This shows the profitability quality - do wins compensate for losses?
+    const evScore = avgLoss > 0 ? avgWin / avgLoss : (avgWin > 0 ? 99 : 1);
+    
+    // Adjusted Weighted Accuracy = Enhanced Weighted Accuracy × EV Score
+    // Merges accuracy and profitability quality into one interpretive metric
+    const adjustedWeightedAccuracy = quantAccuracy * (evScore / 10); // Normalize EV score impact
+    
+    // ========================================
+    // OPPOSITE DIRECTION RATE - Critical Blind Spot Detection
+    // ========================================
+    // Tracks trades that moved AGAINST prediction (negative accuracy)
+    // This catches model failures that pure directional accuracy might hide
+    const oppositeDirectionCount = allIdeas.filter(idea => {
+      const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
+      return accuracyPercent !== null && accuracyPercent < 0; // Moved opposite to prediction
+    }).length;
+    
+    const oppositeDirectionRate = allIdeas.length > 0
+      ? (oppositeDirectionCount / allIdeas.length) * 100
+      : 0;
+
     return {
       overall: {
         totalIdeas: allIdeas.length,
@@ -1525,6 +1550,13 @@ export class DatabaseStorage implements IStorage {
         maxDrawdown,
         profitFactor,
         expectancy,
+        // Enhanced quant-defensible metrics
+        evScore,
+        adjustedWeightedAccuracy,
+        oppositeDirectionRate,
+        oppositeDirectionCount,
+        avgWinSize: avgWin,
+        avgLossSize: avgLoss,
       },
       bySource,
       byAssetType,

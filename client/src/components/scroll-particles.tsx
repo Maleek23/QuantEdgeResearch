@@ -8,7 +8,7 @@ interface Particle {
   life: number;
   maxLife: number;
   size: number;
-  color: string;
+  opacity: number;
 }
 
 export function ScrollParticles() {
@@ -32,25 +32,25 @@ export function ScrollParticles() {
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
 
-    // Create particles on scroll
+    // Create particles on scroll - neural network style
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       const scrollDelta = Math.abs(currentScrollY - lastScrollY.current);
       
       if (scrollDelta > 1) {
         // Create particles based on scroll velocity
-        const particleCount = Math.min(Math.floor(scrollDelta / 5), 10);
+        const particleCount = Math.min(Math.floor(scrollDelta / 5), 8);
         
         for (let i = 0; i < particleCount; i++) {
           const particle: Particle = {
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
-            vx: (Math.random() - 0.5) * 2,
-            vy: (Math.random() - 0.5) * 2,
-            life: 60,
-            maxLife: 60,
-            size: Math.random() * 3 + 1,
-            color: `hsl(${Math.random() * 60 + 200}, 70%, 60%)`, // Blue-cyan range
+            vx: (Math.random() - 0.5) * 1.5,
+            vy: (Math.random() - 0.5) * 1.5,
+            life: 120, // Longer life for neural network effect
+            maxLife: 120,
+            size: Math.random() * 2 + 1,
+            opacity: Math.random() * 0.4 + 0.3,
           };
           particlesRef.current.push(particle);
         }
@@ -59,7 +59,7 @@ export function ScrollParticles() {
       lastScrollY.current = currentScrollY;
     };
 
-    // Animation loop
+    // Animation loop - neural network style with connections
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
@@ -68,19 +68,42 @@ export function ScrollParticles() {
         particle.life--;
         particle.x += particle.vx;
         particle.y += particle.vy;
-        particle.vy += 0.1; // Gravity
         
         if (particle.life <= 0) return false;
         
-        // Draw particle
         const alpha = particle.life / particle.maxLife;
+        
+        // Draw particle (node)
         ctx.save();
-        ctx.globalAlpha = alpha * 0.6;
-        ctx.fillStyle = particle.color;
+        ctx.globalAlpha = alpha * particle.opacity;
+        ctx.fillStyle = 'rgba(6, 182, 212, 1)'; // cyan-500 - neural network color
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
+        
+        // Draw neural connections to nearby particles
+        particlesRef.current.forEach((otherParticle) => {
+          if (particle === otherParticle) return;
+          
+          const dx = particle.x - otherParticle.x;
+          const dy = particle.y - otherParticle.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          // Draw connection if particles are close enough
+          if (distance < 120) {
+            const connectionAlpha = alpha * (1 - distance / 120) * 0.15;
+            ctx.save();
+            ctx.globalAlpha = connectionAlpha;
+            ctx.strokeStyle = 'rgba(6, 182, 212, 1)'; // cyan-500
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(particle.x, particle.y);
+            ctx.lineTo(otherParticle.x, otherParticle.y);
+            ctx.stroke();
+            ctx.restore();
+          }
+        });
         
         return true;
       });
@@ -103,8 +126,7 @@ export function ScrollParticles() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed top-0 left-0 w-full h-full pointer-events-none z-50"
-      style={{ mixBlendMode: 'screen' }}
+      className="fixed top-0 left-0 w-full h-full pointer-events-none z-50 opacity-40"
       data-testid="scroll-particles-canvas"
     />
   );
