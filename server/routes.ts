@@ -1932,6 +1932,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Re-validate ALL trades (including expired) - ONE-TIME FIX for date parser bug
+  app.post("/api/admin/revalidate-all-trades", requireAdmin, async (_req, res) => {
+    try {
+      const { PerformanceValidator } = await import('./performance-validator');
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      logger.info(`🔄 Admin: Re-validating ALL ${allIdeas.length} trades (including expired)...`);
+      
+      let reopened = 0;
+      let stayedExpired = 0;
+      let errors = 0;
+      
+      // Focus on expired trades - check if they should actually be open
+      const expiredIdeas = allIdeas.filter(i => i.outcomeStatus === 'expired');
+      logger.info(`  📊 Found ${expiredIdeas.length} expired trades to re-check`);
+      
+      for (const idea of expiredIdeas) {
+        try {
+          // Re-validate using the FIXED date parser - it will check if truly expired
+          const result = PerformanceValidator.validateTradeIdea(idea, undefined);
+          
+          // If shouldUpdate is false and it's still marked expired, it's truly expired
+          // If shouldUpdate is true and outcomeStatus is NOT 'expired', we should reopen it
+          if (!result.shouldUpdate) {
+            // Validation says no update needed, but let's double-check the expiry logic
+            // by manually checking if exitBy is in the future
+            if (idea.exitBy) {
+              const now = new Date();
+              const createdAt = new Date(idea.timestamp);
+              // Use the FIXED parser
+              const exitByDate = (PerformanceValidator as any).parseExitByDate(idea.exitBy, createdAt);
+              
+              if (exitByDate && exitByDate > now) {
+                // Trade is NOT expired! Reopen it
+                await storage.updateTradeIdea(idea.id, {
+                  outcomeStatus: 'open',
+                  exitDate: null,
+                  exitPrice: null,
+                  realizedPnL: null,
+                  percentGain: null,
+                  predictionAccuracyPercent: null
+                });
+                reopened++;
+                logger.info(`  ✅ Reopened ${idea.symbol} (exitBy: ${idea.exitBy}, expires: ${exitByDate.toISOString()})`);
+              } else {
+                stayedExpired++;
+              }
+            } else {
+              stayedExpired++;
+            }
+          } else {
+            stayedExpired++;
+          }
+        } catch (e: any) {
+          errors++;
+          logger.error(`  ❌ Error re-validating ${idea.symbol}: ${e.message}`);
+        }
+      }
+      
+      logger.info(`✅ Admin: Re-validation complete`);
+      logger.info(`  📈 Reopened: ${reopened} trades`);
+      logger.info(`  ⏱️  Still expired: ${stayedExpired} trades`);
+      logger.info(`  ❌ Errors: ${errors}`);
+      
+      res.json({
+        success: true,
+        total: allIdeas.length,
+        expiredChecked: expiredIdeas.length,
+        reopened,
+        stayedExpired,
+        errors,
+        message: `Re-validated all trades. Reopened ${reopened} incorrectly expired trades.`
+      });
+    } catch (error: any) {
+      logger.error("Admin re-validation error:", error);
+      res.status(500).json({ error: error?.message || "Failed to re-validate trades" });
+    }
+  });
+
   // Admin: Data Integrity Verification
   app.get("/api/admin/verify-data-integrity", requireAdmin, async (_req, res) => {
     try {
