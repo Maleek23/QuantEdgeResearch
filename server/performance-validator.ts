@@ -67,17 +67,36 @@ export class PerformanceValidator {
         hour = 0;
       }
       
-      // CRITICAL FIX: Use trade creation year as baseline, not current year
-      // This prevents dates from rolling into next year after they've passed
-      const tradeYear = tradeCreatedAt.getFullYear();
+      // CRITICAL FIX: Build date string in ISO format and parse
+      // The Date constructor is behaving weirdly with UTC, so let's use a string instead
+      const currentYear = new Date().getFullYear();
       
-      // Start with trade's year
-      exitByDate = new Date(Date.UTC(tradeYear, month, day, hour + 6, minute, 0, 0)); // +6 for CST offset
+      // Build ISO date string: "2025-10-22T16:28:00-06:00" (CST)
+      // Month is 0-indexed in Date constructor but 1-indexed in ISO string
+      const isoMonth = String(month + 1).padStart(2, '0');
+      const isoDay = String(day).padStart(2, '0');
+      const isoHour = String(hour).padStart(2, '0');
+      const isoMinute = String(minute).padStart(2, '0');
       
-      // If exitBy is BEFORE trade creation, it must be next year
-      // (e.g., trade created Dec 31, exitBy Jan 1)
-      if (exitByDate < tradeCreatedAt) {
-        exitByDate = new Date(Date.UTC(tradeYear + 1, month, day, hour + 6, minute, 0, 0));
+      // CST = UTC-6, CDT = UTC-5
+      const tzOffset = '-06:00'; // Using CST for consistency
+      
+      // Create ISO date string
+      const isoString = `${currentYear}-${isoMonth}-${isoDay}T${isoHour}:${isoMinute}:00${tzOffset}`;
+      
+      exitByDate = new Date(isoString);
+      
+      // Validate the result
+      if (isNaN(exitByDate.getTime())) {
+        console.error(`Failed to parse ISO date: ${isoString}`);
+        return null;
+      }
+      
+      // If the parsed date is more than 6 months in the past, it's probably next year
+      const sixMonthsAgo = new Date(Date.now() - (6 * 30 * 24 * 60 * 60 * 1000));
+      if (exitByDate < sixMonthsAgo) {
+        const nextYearIsoString = `${currentYear + 1}-${isoMonth}-${isoDay}T${isoHour}:${isoMinute}:00${tzOffset}`;
+        exitByDate = new Date(nextYearIsoString);
       }
       
       return exitByDate;
