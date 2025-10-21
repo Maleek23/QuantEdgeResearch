@@ -119,81 +119,72 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header with Aurora Hero */}
-      <div className="relative overflow-hidden border-b aurora-hero rounded-xl -mx-6 px-6 pb-6 mb-8">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
-        <div className="relative flex items-center justify-between flex-wrap gap-4 pt-6">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight text-gradient-premium" data-testid="text-page-title">
-              Dashboard
+    <div className="min-h-screen bg-background">
+      {/* Hero Section */}
+      <section className="border-b aurora-hero relative overflow-hidden">
+        <div className="container mx-auto px-6 py-20">
+          <div className="max-w-5xl mx-auto text-center">
+            <Badge variant="secondary" className="mb-6 badge-shimmer neon-accent animate-fade-up">
+              <Activity className="h-3 w-3 mr-1" />
+              {currentSession} • {currentTime}
+            </Badge>
+            <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6 text-display animate-fade-up animate-delay-100" data-testid="text-page-title">
+              Welcome to <span className="text-gradient-premium">QuantEdge</span>
             </h1>
-            <div className="flex items-center gap-3 mt-2">
-              <p className="text-sm text-muted-foreground font-mono">
-                {currentTime}
-              </p>
-              <span className="text-muted-foreground">•</span>
-              <Badge variant="outline" className="text-xs font-medium neon-accent">
-                {currentSession}
-              </Badge>
-            </div>
-          </div>
-          <Button onClick={() => setChatBotOpen(true)} className="gap-2 btn-magnetic neon-accent" data-testid="button-open-chat">
-            <Bot className="h-4 w-4" />
-            Ask QuantAI
-          </Button>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
-      </div>
-
-      {/* Quick Actions */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <div className="gradient-border-card spotlight">
-          <Card className="glass-card shadow-lg border-0">
-            <CardHeader className="bg-gradient-to-r from-card/80 to-muted/20 border-b border-border/50">
-              <CardTitle className="text-lg font-bold">Search & Add Symbols</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <SymbolSearch />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="gradient-border-card spotlight">
-          <Card className="glass-card shadow-lg border-0 overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-chart-2 to-chart-3" />
-            <CardHeader className="bg-gradient-to-r from-card/80 to-muted/20 border-b border-border/50">
-              <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Zap className="h-5 w-5 text-primary" />
-                </div>
-                Generate New Ideas
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-3">
+            <p className="text-xl text-muted-foreground mb-10 leading-relaxed max-w-3xl mx-auto animate-fade-up animate-delay-200">
+              Your quantitative trading research platform. Discover opportunities across stocks, options, 
+              and crypto with AI-powered insights and rigorous technical analysis.
+            </p>
+            <div className="flex flex-wrap gap-4 justify-center animate-fade-up animate-delay-300">
               <Button 
                 onClick={() => generateQuantIdeas.mutate()}
                 disabled={generateQuantIdeas.isPending}
-                className="w-full gap-2 btn-magnetic"
+                className="btn-magnetic px-8 py-6 text-lg neon-accent"
                 data-testid="button-generate-quant"
               >
-                <BarChart3 className="h-4 w-4" />
+                <BarChart3 className="h-5 w-5 mr-2" />
                 {generateQuantIdeas.isPending ? "Generating..." : "Generate Quant Ideas"}
               </Button>
               <Button 
                 onClick={() => generateAIIdeas.mutate()}
                 disabled={generateAIIdeas.isPending}
                 variant="outline"
-                className="w-full gap-2 btn-magnetic glass-card"
+                className="btn-magnetic px-8 py-6 text-lg glass-card"
                 data-testid="button-generate-ai"
               >
-                <Sparkles className="h-4 w-4" />
+                <Sparkles className="h-5 w-5 mr-2" />
                 {generateAIIdeas.isPending ? "Generating..." : "Generate AI Ideas"}
               </Button>
-            </CardContent>
-          </Card>
+              <Button 
+                onClick={() => setChatBotOpen(true)}
+                variant="outline"
+                className="btn-magnetic px-8 py-6 text-lg glass-card"
+                data-testid="button-open-chat"
+              >
+                <Bot className="h-5 w-5 mr-2" />
+                Ask QuantAI
+              </Button>
+            </div>
+          </div>
         </div>
-      </div>
+        <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
+      </section>
+
+      <div className="container mx-auto px-6 py-12 space-y-12">
+
+        {/* Symbol Search */}
+        <div className="max-w-2xl mx-auto">
+          <div className="gradient-border-card spotlight">
+            <Card className="glass-card shadow-lg border-0">
+              <CardHeader className="bg-gradient-to-r from-card/80 to-muted/20 border-b border-border/50">
+                <CardTitle className="text-lg font-bold">Search & Add Symbols</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <SymbolSearch />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
       {/* Metrics Summary */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -427,17 +418,18 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* Modals */}
-      <SymbolDetailModal 
-        symbol={selectedSymbol}
-        open={detailModalOpen}
-        onOpenChange={setDetailModalOpen}
-      />
+        {/* Modals */}
+        <SymbolDetailModal 
+          symbol={selectedSymbol}
+          open={detailModalOpen}
+          onOpenChange={setDetailModalOpen}
+        />
 
-      <QuantAIBot 
-        isOpen={chatBotOpen} 
-        onClose={() => setChatBotOpen(false)} 
-      />
+        <QuantAIBot 
+          isOpen={chatBotOpen} 
+          onClose={() => setChatBotOpen(false)} 
+        />
+      </div>
     </div>
   );
 }
