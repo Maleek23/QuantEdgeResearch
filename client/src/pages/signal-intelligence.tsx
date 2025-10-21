@@ -7,8 +7,8 @@ import { Target, TrendingUp, Clock, BarChart3, Sparkles, AlertCircle } from "luc
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SignalPerformanceGrid } from "@/components/signal-performance-grid";
-import { SignalCorrelationHeatmap } from "@/components/signal-correlation-heatmap";
-import { MLLearningNetwork } from "@/components/ml-learning-network";
+import { SignalCorrelationCube } from "@/components/signal-correlation-cube";
+import { BrainNeuralNetwork } from "@/components/brain-neural-network";
 
 interface SignalAnalysis {
   signal: string;
@@ -233,16 +233,22 @@ export default function SignalIntelligencePage() {
 
         {/* ML Learning Network View */}
         <TabsContent value="network" className="mt-8">
-          <MLLearningNetwork 
-            signals={intelligence.signalAnalysis} 
-            totalTrades={intelligence.totalAnalyzedTrades} 
+          <BrainNeuralNetwork 
+            signals={intelligence.signalAnalysis.map(s => ({
+              signalName: s.signal,
+              grade: s.grade,
+              winRate: s.winRate,
+              avgGain: s.avgPercentGain,
+              tradeCount: s.totalTrades,
+              reliability: s.reliabilityScore / 100
+            }))} 
           />
         </TabsContent>
 
-        {/* Correlation Heatmap View */}
+        {/* Correlation Cube View */}
         <TabsContent value="heatmap" className="mt-8">
           {intelligence.topCombinations.length > 0 ? (
-            <SignalCorrelationHeatmap combinations={intelligence.topCombinations} />
+            <SignalCorrelationCube combinations={intelligence.topCombinations} />
           ) : (
             <Card>
               <CardHeader>
@@ -251,7 +257,7 @@ export default function SignalIntelligencePage() {
                   Insufficient Combination Data
                 </CardTitle>
                 <CardDescription>
-                  Need more closed trades with multiple signals to generate correlation heatmap. 
+                  Need more closed trades with multiple signals to generate 3D correlation cube. 
                   Keep closing trades to see which signal combinations work best together!
                 </CardDescription>
               </CardHeader>
