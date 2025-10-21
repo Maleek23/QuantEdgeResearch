@@ -8,6 +8,7 @@ export const generalApiLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Disable validation warnings in Replit environment
   handler: (req, res) => {
     logger.warn('Rate limit exceeded', {
       ip: req.ip,
@@ -28,6 +29,7 @@ export const aiGenerationLimiter = rateLimit({
   message: 'AI generation limit exceeded. Please wait before generating more ideas.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Disable validation warnings in Replit environment
   handler: (req, res) => {
     logger.warn('AI generation rate limit exceeded', {
       ip: req.ip,
@@ -48,6 +50,7 @@ export const quantGenerationLimiter = rateLimit({
   message: 'Quant generation limit exceeded. Please wait before generating more ideas.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Disable validation warnings in Replit environment
   handler: (req, res) => {
     logger.warn('Quant generation rate limit exceeded', {
       ip: req.ip,
@@ -68,6 +71,7 @@ export const marketDataLimiter = rateLimit({
   message: 'Market data request limit exceeded.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Disable validation warnings in Replit environment
   handler: (req, res) => {
     logger.warn('Market data rate limit exceeded', {
       ip: req.ip,
@@ -88,6 +92,7 @@ export const adminLimiter = rateLimit({
   message: 'Admin request limit exceeded.',
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Disable validation warnings in Replit environment
   skipSuccessfulRequests: false,
   handler: (req, res) => {
     logger.warn('Admin rate limit exceeded', {
