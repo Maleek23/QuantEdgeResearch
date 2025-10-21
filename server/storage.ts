@@ -773,48 +773,46 @@ export class MemStorage implements IStorage {
     const decidedIdeas = wonIdeas.length + lostIdeas.length;
     const winRate = decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0;
     
-    // QUANT ACCURACY: Did the prediction come true (price moved 50% toward target)?
-    // For ALL trades (open + closed), use same 50% threshold for consistency
-    const evaluatePredictionAccuracy = (idea: TradeIdea): boolean | null => {
-      // Closed trades: use explicit predictionAccurate field
+    // QUANT ACCURACY: Calculate percentage progress toward target (0-100+%)
+    // For ALL trades (open + closed), calculate how far price moved toward target
+    const evaluatePredictionAccuracyPercent = (idea: TradeIdea): number | null => {
+      // Closed trades: use explicit predictionAccuracyPercent field if available
       if (idea.outcomeStatus !== 'open') {
-        return idea.predictionAccurate ?? null;
+        return idea.predictionAccuracyPercent ?? null;
       }
       
-      // Open trades: check if price has moved at least 50% toward target (same as closed trades)
+      // Open trades: calculate percentage progress using highest/lowest price reached
       const expectedMove = idea.targetPrice - idea.entryPrice;
-      const midPoint = idea.entryPrice + (expectedMove * 0.5);
       
       if (idea.direction === 'long') {
-        // For LONG: has price reached at least 50% toward target?
         const highestPrice = idea.highestPriceReached;
-        // If no price movement tracked yet, cannot evaluate
         if (!highestPrice || highestPrice === idea.entryPrice) return null;
-        return highestPrice >= midPoint;
+        const actualMove = highestPrice - idea.entryPrice;
+        const progressPercent = (actualMove / expectedMove) * 100;
+        return Math.max(0, progressPercent);
       } else {
-        // For SHORT: has price reached at least 50% toward target?
         const lowestPrice = idea.lowestPriceReached;
-        // If no price movement tracked yet, cannot evaluate
         if (!lowestPrice || lowestPrice === idea.entryPrice) return null;
-        return lowestPrice <= midPoint;
+        const actualMove = idea.entryPrice - lowestPrice;
+        const targetMove = idea.entryPrice - idea.targetPrice;
+        const progressPercent = (actualMove / targetMove) * 100;
+        return Math.max(0, progressPercent);
       }
     };
     
-    // Count accurate predictions across ALL trades
-    let accuratePredictions = 0;
-    let evaluatedPredictions = 0;
+    // Calculate average prediction accuracy across ALL trades
+    const accuracyPercentages: number[] = [];
     
     allIdeas.forEach(idea => {
-      const accuracy = evaluatePredictionAccuracy(idea);
-      if (accuracy !== null) {
-        evaluatedPredictions++;
-        if (accuracy === true) {
-          accuratePredictions++;
-        }
+      const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
+      if (accuracyPercent !== null) {
+        accuracyPercentages.push(accuracyPercent);
       }
     });
     
-    const quantAccuracy = evaluatedPredictions > 0 ? (accuratePredictions / evaluatedPredictions) * 100 : 0;
+    const quantAccuracy = accuracyPercentages.length > 0 
+      ? accuracyPercentages.reduce((sum, val) => sum + val, 0) / accuracyPercentages.length 
+      : 0;
     
     const avgPercentGain = closedIdeas.length > 0
       ? closedIdeas.reduce((sum, idea) => sum + (idea.percentGain || 0), 0) / closedIdeas.length
@@ -1315,48 +1313,46 @@ export class DatabaseStorage implements IStorage {
     // WIN RATE FIX: Exclude expired ideas from denominator - only count actual wins vs losses
     const decidedIdeas = wonIdeas.length + lostIdeas.length;
 
-    // QUANT ACCURACY: Did the prediction come true (price moved 50% toward target)?
-    // For ALL trades (open + closed), use same 50% threshold for consistency
-    const evaluatePredictionAccuracy = (idea: TradeIdea): boolean | null => {
-      // Closed trades: use explicit predictionAccurate field
+    // QUANT ACCURACY: Calculate percentage progress toward target (0-100+%)
+    // For ALL trades (open + closed), calculate how far price moved toward target
+    const evaluatePredictionAccuracyPercent = (idea: TradeIdea): number | null => {
+      // Closed trades: use explicit predictionAccuracyPercent field if available
       if (idea.outcomeStatus !== 'open') {
-        return idea.predictionAccurate ?? null;
+        return idea.predictionAccuracyPercent ?? null;
       }
       
-      // Open trades: check if price has moved at least 50% toward target (same as closed trades)
+      // Open trades: calculate percentage progress using highest/lowest price reached
       const expectedMove = idea.targetPrice - idea.entryPrice;
-      const midPoint = idea.entryPrice + (expectedMove * 0.5);
       
       if (idea.direction === 'long') {
-        // For LONG: has price reached at least 50% toward target?
         const highestPrice = idea.highestPriceReached;
-        // If no price movement tracked yet, cannot evaluate
         if (!highestPrice || highestPrice === idea.entryPrice) return null;
-        return highestPrice >= midPoint;
+        const actualMove = highestPrice - idea.entryPrice;
+        const progressPercent = (actualMove / expectedMove) * 100;
+        return Math.max(0, progressPercent);
       } else {
-        // For SHORT: has price reached at least 50% toward target?
         const lowestPrice = idea.lowestPriceReached;
-        // If no price movement tracked yet, cannot evaluate
         if (!lowestPrice || lowestPrice === idea.entryPrice) return null;
-        return lowestPrice <= midPoint;
+        const actualMove = idea.entryPrice - lowestPrice;
+        const targetMove = idea.entryPrice - idea.targetPrice;
+        const progressPercent = (actualMove / targetMove) * 100;
+        return Math.max(0, progressPercent);
       }
     };
     
-    // Count accurate predictions across ALL trades
-    let accuratePredictions = 0;
-    let evaluatedPredictions = 0;
+    // Calculate average prediction accuracy across ALL trades
+    const accuracyPercentages: number[] = [];
     
     allIdeas.forEach(idea => {
-      const accuracy = evaluatePredictionAccuracy(idea);
-      if (accuracy !== null) {
-        evaluatedPredictions++;
-        if (accuracy === true) {
-          accuratePredictions++;
-        }
+      const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
+      if (accuracyPercent !== null) {
+        accuracyPercentages.push(accuracyPercent);
       }
     });
     
-    const quantAccuracy = evaluatedPredictions > 0 ? (accuratePredictions / evaluatedPredictions) * 100 : 0;
+    const quantAccuracy = accuracyPercentages.length > 0 
+      ? accuracyPercentages.reduce((sum, val) => sum + val, 0) / accuracyPercentages.length 
+      : 0;
 
     // ========================================
     // PROFESSIONAL RISK METRICS (Phase 1)
