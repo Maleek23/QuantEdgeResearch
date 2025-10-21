@@ -202,24 +202,8 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
     }
   }
 
-  // PRIORITY 2: Mean reversion on EXTREME oversold/overbought (before the bounce/crash starts)
-  if (priceChange <= -7) {
-    return {
-      type: 'mean_reversion',
-      strength: 'strong',
-      direction: 'long' // oversold bounce
-    };
-  }
-
-  if (priceChange >= 7 && data.assetType === 'stock') {
-    return {
-      type: 'mean_reversion',
-      strength: 'moderate',
-      direction: 'short' // overbought pullback
-    };
-  }
-
-  // PRIORITY 3: EARLY breakout signals - price APPROACHING highs (not after big move)
+  // PRIORITY 2: EARLY breakout signals - price APPROACHING highs (not after big move)
+  // MOVED UP: More predictive than mean reversion (uses structure + volume, not just size)
   // Only trigger if move is small (<2%) but volume is building
   if (data.high52Week && data.currentPrice >= data.high52Week * 0.95 && data.currentPrice < data.high52Week * 0.98 && volumeRatio >= 1.5 && Math.abs(priceChange) < 2) {
     return {
@@ -235,6 +219,24 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
       type: 'breakout',
       strength: volumeRatio >= 2.5 ? 'strong' : 'moderate',
       direction: 'short' // early breakdown setup
+    };
+  }
+
+  // PRIORITY 3: Mean reversion on EXTREME oversold/overbought (before the bounce/crash starts)
+  // MOVED DOWN: Still reactive to large moves, less predictive than breakouts
+  if (priceChange <= -7) {
+    return {
+      type: 'mean_reversion',
+      strength: 'strong',
+      direction: 'long' // oversold bounce
+    };
+  }
+
+  if (priceChange >= 7 && data.assetType === 'stock') {
+    return {
+      type: 'mean_reversion',
+      strength: 'moderate',
+      direction: 'short' // overbought pullback
     };
   }
 
@@ -481,19 +483,39 @@ function calculateConfidenceScore(
     qualitySignals.push('Weak Signal');
   }
 
-  // 4. Price Action Quality (0-15 points)
-  if (signal.type === 'breakout' && priceChangeAbs >= 3) {
+  // 4. Predictive Setup Quality (0-15 points) - FIXED: Reward EARLY signals, not finished moves
+  if (signal.type === 'rsi_divergence' && signal.rsiValue) {
+    // Strong divergence bonus (extreme oversold/overbought)
+    const rsiExtreme = signal.rsiValue <= 20 || signal.rsiValue >= 80;
+    if (rsiExtreme) {
+      score += 15;
+      qualitySignals.push('Extreme RSI Divergence');
+    } else {
+      score += 10;
+      qualitySignals.push('RSI Setup');
+    }
+  } else if (signal.type === 'macd_crossover' && signal.macdValues) {
+    // MACD histogram strength
+    const histStrength = Math.abs(signal.macdValues.histogram);
+    if (histStrength > 0.3) {
+      score += 15;
+      qualitySignals.push('Strong MACD Signal');
+    } else {
+      score += 10;
+      qualitySignals.push('MACD Crossover');
+    }
+  } else if (signal.type === 'breakout' && priceChangeAbs < 2) {
+    // EARLY breakout (small move, building volume) - predictive
     score += 15;
-    qualitySignals.push('Breakout Momentum');
-  } else if (signal.type === 'momentum' && priceChangeAbs >= 5) {
+    qualitySignals.push('Early Breakout Setup');
+  } else if (signal.type === 'volume_spike' && volumeRatio >= 5 && priceChangeAbs < 1) {
+    // EARLY institutional flow (big volume, small move) - predictive
     score += 15;
-    qualitySignals.push('Strong Trend');
-  } else if (signal.type === 'volume_spike' && volumeRatio >= 5) {
-    score += 15;
-    qualitySignals.push('Institutional Flow');
-  } else if (priceChangeAbs >= 3) {
+    qualitySignals.push('Early Institutional Flow');
+  } else if (signal.type === 'mean_reversion') {
+    // Mean reversion on extreme move
     score += 10;
-    qualitySignals.push('Price Confirmation');
+    qualitySignals.push('Reversal Setup');
   }
 
   // 5. Liquidity Factor (0-15 points)

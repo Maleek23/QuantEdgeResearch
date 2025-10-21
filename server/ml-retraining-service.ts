@@ -67,11 +67,17 @@ class MLRetrainingService {
     try {
       const startTime = Date.now();
       const allIdeas = await this.storage.getAllTradeIdeas();
-      const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open' && i.percentGain !== null);
+      
+      // FILTER OUT LEGACY TRADES: Only train on clean data (excludeFromTraining = false)
+      const closedIdeas = allIdeas.filter(i => 
+        i.outcomeStatus !== 'open' && 
+        i.percentGain !== null &&
+        i.excludeFromTraining !== true // Exclude legacy/bad trades
+      );
 
       // Need minimum data for statistical validity
       if (closedIdeas.length < 10) {
-        logger.info(`📊 ML training paused - need 10+ closed trades (have ${closedIdeas.length})`);
+        logger.info(`📊 ML training paused - need 10+ training-eligible closed trades (have ${closedIdeas.length})`);
         return;
       }
 

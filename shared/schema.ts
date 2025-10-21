@@ -93,6 +93,9 @@ export const tradeIdeas = pgTable("trade_ideas", {
   highestPriceReached: real("highest_price_reached"), // Peak price during trade (for long positions)
   lowestPriceReached: real("lowest_price_reached"), // Lowest price during trade (for short positions)
   
+  // ML Training Eligibility - Flag to exclude legacy/bad trades from model training
+  excludeFromTraining: boolean("exclude_from_training").default(false), // If true, ML retraining ignores this trade
+  
   // Data Quality Tracking
   dataSourceUsed: text("data_source_used"), // 'tradier', 'yahoo', 'coingecko', 'alphavantage', 'estimated'
   
