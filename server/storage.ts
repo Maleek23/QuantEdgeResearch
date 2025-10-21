@@ -769,9 +769,40 @@ export class MemStorage implements IStorage {
     const winRate = decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0;
     
     // QUANT ACCURACY: Did the prediction come true (price moved in predicted direction)?
-    const validatedIdeas = closedIdeas.filter(i => i.predictionAccurate !== null && i.predictionAccurate !== undefined);
-    const accuratePredictions = validatedIdeas.filter(i => i.predictionAccurate === true).length;
-    const quantAccuracy = validatedIdeas.length > 0 ? (accuratePredictions / validatedIdeas.length) * 100 : 0;
+    // For ALL trades (open + closed), check if price moved in predicted direction
+    const evaluatePredictionAccuracy = (idea: TradeIdea): boolean | null => {
+      // Closed trades: use explicit predictionAccurate field
+      if (idea.outcomeStatus !== 'open') {
+        return idea.predictionAccurate ?? null;
+      }
+      
+      // Open trades: check if price has moved in predicted direction
+      if (idea.direction === 'long') {
+        // For LONG: has price gone UP from entry?
+        const highestPrice = idea.highestPriceReached ?? idea.entryPrice;
+        return highestPrice > idea.entryPrice;
+      } else {
+        // For SHORT: has price gone DOWN from entry?
+        const lowestPrice = idea.lowestPriceReached ?? idea.entryPrice;
+        return lowestPrice < idea.entryPrice;
+      }
+    };
+    
+    // Count accurate predictions across ALL trades
+    let accuratePredictions = 0;
+    let evaluatedPredictions = 0;
+    
+    allIdeas.forEach(idea => {
+      const accuracy = evaluatePredictionAccuracy(idea);
+      if (accuracy !== null) {
+        evaluatedPredictions++;
+        if (accuracy === true) {
+          accuratePredictions++;
+        }
+      }
+    });
+    
+    const quantAccuracy = evaluatedPredictions > 0 ? (accuratePredictions / evaluatedPredictions) * 100 : 0;
     
     const avgPercentGain = closedIdeas.length > 0
       ? closedIdeas.reduce((sum, idea) => sum + (idea.percentGain || 0), 0) / closedIdeas.length
@@ -1263,6 +1294,42 @@ export class DatabaseStorage implements IStorage {
     // WIN RATE FIX: Exclude expired ideas from denominator - only count actual wins vs losses
     const decidedIdeas = wonIdeas.length + lostIdeas.length;
 
+    // QUANT ACCURACY: Did the prediction come true (price moved in predicted direction)?
+    // For ALL trades (open + closed), check if price moved in predicted direction
+    const evaluatePredictionAccuracy = (idea: TradeIdea): boolean | null => {
+      // Closed trades: use explicit predictionAccurate field
+      if (idea.outcomeStatus !== 'open') {
+        return idea.predictionAccurate ?? null;
+      }
+      
+      // Open trades: check if price has moved in predicted direction
+      if (idea.direction === 'long') {
+        // For LONG: has price gone UP from entry?
+        const highestPrice = idea.highestPriceReached ?? idea.entryPrice;
+        return highestPrice > idea.entryPrice;
+      } else {
+        // For SHORT: has price gone DOWN from entry?
+        const lowestPrice = idea.lowestPriceReached ?? idea.entryPrice;
+        return lowestPrice < idea.entryPrice;
+      }
+    };
+    
+    // Count accurate predictions across ALL trades
+    let accuratePredictions = 0;
+    let evaluatedPredictions = 0;
+    
+    allIdeas.forEach(idea => {
+      const accuracy = evaluatePredictionAccuracy(idea);
+      if (accuracy !== null) {
+        evaluatedPredictions++;
+        if (accuracy === true) {
+          accuratePredictions++;
+        }
+      }
+    });
+    
+    const quantAccuracy = evaluatedPredictions > 0 ? (accuratePredictions / evaluatedPredictions) * 100 : 0;
+
     return {
       overall: {
         totalIdeas: allIdeas.length,
@@ -1272,6 +1339,7 @@ export class DatabaseStorage implements IStorage {
         lostIdeas: lostIdeas.length,
         expiredIdeas: expiredIdeas.length,
         winRate: decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0,
+        quantAccuracy,
         avgPercentGain: calculateAvg(closedGains),
         avgHoldingTimeMinutes: calculateAvg(closedHoldingTimes),
       },
