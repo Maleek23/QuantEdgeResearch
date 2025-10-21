@@ -4,6 +4,13 @@
 QuantEdge Research is a professional quantitative trading research platform focused on identifying day-trading opportunities in US equities, options, and crypto markets. Its core purpose is to provide educational, research-grade trade ideas, robust risk management tools, and real-time market analysis. The platform emphasizes strong risk controls and clear educational disclaimers, presented via a professional dark-themed UI for rapid data scanning. It integrates real historical data to enhance model accuracy and features adaptive learning capabilities to improve trade idea quality over time. The platform operates on a public-access model, managing membership tiers (Free vs. Premium) through Discord roles, with the web platform serving as a public dashboard.
 
 ## Recent Changes (Oct 21, 2025)
+### Research Integrity & Governance Implementation
+- **Model Governance Metadata**: All trade ideas now capture engineVersion, mlWeightsVersion, and generationTimestamp for full audit trail (SR 11-7 compliance)
+- **Model Cards System**: Created comprehensive governance documentation system tracking assumptions, data limitations, backtest metrics, and live performance per model version
+- **Risk Disclosure Module**: Auto-displays regulatory-compliant disclaimers on Trade Ideas page with engine version labeling and educational warnings
+- **Quant Learning Page**: Interactive educational resource (accordion-style) explaining RSI, MACD, volume analysis, breakouts, and mean reversion signals with priority scores and detection rules
+- **Audit Coverage**: Quant generator v2.2.0 reliably populates governance metadata; model cards API initialized with first governance record
+
 ### Earnings Calendar Integration
 - **Alpha Vantage Earnings API**: Added earnings calendar sync (2,213+ upcoming events Oct 22 - Nov 4) to catalyst feed
 - **Earnings Awareness**: Trade ideas display earnings badges when earnings are within 3 days of the trade
