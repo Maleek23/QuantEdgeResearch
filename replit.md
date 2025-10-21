@@ -5,6 +5,41 @@ QuantEdge Research is a professional quantitative trading research platform focu
 
 ## Recent Changes (Oct 21, 2025)
 
+### 🎨 Advanced 3D Visual Analytics (Latest)
+**Full 3D visualization implementation for Signal Intelligence**
+
+**New Features:**
+- **3D Correlation Matrix Cube**: Interactive 6-faced cube showing signal correlation heatmaps
+  - 7x7 matrix on each face displaying signal combination win rates
+  - Color-coded cells (green → red spectrum based on performance)
+  - Hover tooltips with detailed stats (win rate, avg gain, occurrences)
+  - User-controlled rotation via drag interaction (OrbitControls)
+  - Signal name mapping from API (full names → short codes: RSI, MACD, MOM, VOL, MTF, VIX, S/R)
+  - Legend showing win rate color bands
+
+- **3D Brain Neural Network**: Brain-like structure visualizing ML signal relationships
+  - Neurons positioned in 3D layers (input → processing → output)
+  - Node sizing based on reliability score with pulsing animation
+  - Neural connections showing signal relationships (strength based on combined reliability)
+  - Grade-based color coding (A=green, B=blue, C=amber, D=red)
+  - Auto-rotating brain with transparent outline sphere
+  - Hover tooltips with comprehensive signal details
+  - Learning stats panel (total trades, avg win rate, top/bottom performers)
+
+- **Signal Intelligence Page Integration**:
+  - ML Network tab → 3D Brain Neural Network
+  - Correlations tab → 3D Correlation Cube
+  - Proper data mapping from API to 3D components
+  - Error handling for insufficient data scenarios
+
+**Technical Stack:**
+- React Three Fiber v8.15.0 (React 18 compatible)
+- Three.js v0.160.0
+- @react-three/drei v9.92.0
+- Professional lighting setup (ambient + point lights)
+- Optimized WebGL rendering with OrbitControls
+- Fixed 500px height containers for consistent UX
+
 ### 🎯 Quant Engine v2.3.0 - Accuracy Improvement Update
 **Goal: Achieve 60%+ Quant Win Rate + Limit Losses to -30% Max**
 
