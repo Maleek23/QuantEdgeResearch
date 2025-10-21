@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, IdeaSource, MarketData } from "@shared/schema";
-import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock } from "lucide-react";
+import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO, subHours } from "date-fns";
 import { isWeekend, getNextTradingWeekStart } from "@/lib/utils";
 
@@ -579,12 +579,30 @@ export default function TradeIdeasPage() {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="archived" data-testid="tab-archived-ideas" className="gap-1.5">
-            <span className="hidden sm:inline">ARCHIVED</span>
-            <span className="sm:hidden">OLD</span>
-            {filteredIdeas.filter(i => i.outcomeStatus !== 'open').length > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5">
-                {filteredIdeas.filter(i => i.outcomeStatus !== 'open').length}
+          <TabsTrigger value="winners" data-testid="tab-winners-ideas" className="gap-1.5">
+            <span className="hidden sm:inline">WINNERS</span>
+            <span className="sm:hidden">WIN</span>
+            {filteredIdeas.filter(i => i.outcomeStatus === 'hit_target').length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 bg-green-500/20 text-green-500 border-green-500/30">
+                {filteredIdeas.filter(i => i.outcomeStatus === 'hit_target').length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="losers" data-testid="tab-losers-ideas" className="gap-1.5">
+            <span className="hidden sm:inline">LOSERS</span>
+            <span className="sm:hidden">LOSS</span>
+            {filteredIdeas.filter(i => i.outcomeStatus === 'hit_stop').length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 bg-red-500/20 text-red-500 border-red-500/30">
+                {filteredIdeas.filter(i => i.outcomeStatus === 'hit_stop').length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="expired" data-testid="tab-expired-ideas" className="gap-1.5">
+            <span className="hidden sm:inline">EXPIRED</span>
+            <span className="sm:hidden">EXP</span>
+            {filteredIdeas.filter(i => i.outcomeStatus === 'expired').length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 bg-amber-500/20 text-amber-500 border-amber-500/30">
+                {filteredIdeas.filter(i => i.outcomeStatus === 'expired').length}
               </Badge>
             )}
           </TabsTrigger>
@@ -751,21 +769,21 @@ export default function TradeIdeasPage() {
           )}
         </TabsContent>
 
-        <TabsContent value="archived" className="space-y-4">
-          {filteredIdeas.filter(i => i.outcomeStatus !== 'open').length === 0 ? (
+        <TabsContent value="winners" className="space-y-4">
+          {filteredIdeas.filter(i => i.outcomeStatus === 'hit_target').length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
-                <TrendingUp className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">No archived ideas</p>
+                <CheckCircle className="h-12 w-12 text-green-500/50 mb-4" />
+                <p className="text-lg font-medium text-muted-foreground">No winning trades yet</p>
                 <p className="text-sm text-muted-foreground/70 mt-1">
-                  Completed trades will appear here
+                  Trades that hit target will appear here
                 </p>
               </CardContent>
             </Card>
           ) : (
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-3'}>
               {filteredIdeas
-                .filter(i => i.outcomeStatus !== 'open')
+                .filter(i => i.outcomeStatus === 'hit_target')
                 .map(idea => (
                   <TradeIdeaBlock
                     key={idea.id}
@@ -773,7 +791,65 @@ export default function TradeIdeasPage() {
                     currentPrice={priceMap[idea.symbol]}
                     isExpanded={expandedIdeaId === idea.id}
                     onToggleExpand={() => handleToggleExpand(idea.id)}
-                    data-testid={`archived-idea-card-${idea.id}`}
+                    data-testid={`winner-idea-card-${idea.id}`}
+                  />
+                ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="losers" className="space-y-4">
+          {filteredIdeas.filter(i => i.outcomeStatus === 'hit_stop').length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <XCircle className="h-12 w-12 text-red-500/50 mb-4" />
+                <p className="text-lg font-medium text-muted-foreground">No losing trades yet</p>
+                <p className="text-sm text-muted-foreground/70 mt-1">
+                  Trades that hit stop loss will appear here
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-3'}>
+              {filteredIdeas
+                .filter(i => i.outcomeStatus === 'hit_stop')
+                .map(idea => (
+                  <TradeIdeaBlock
+                    key={idea.id}
+                    idea={idea}
+                    currentPrice={priceMap[idea.symbol]}
+                    isExpanded={expandedIdeaId === idea.id}
+                    onToggleExpand={() => handleToggleExpand(idea.id)}
+                    data-testid={`loser-idea-card-${idea.id}`}
+                  />
+                ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="expired" className="space-y-4">
+          {filteredIdeas.filter(i => i.outcomeStatus === 'expired').length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Clock className="h-12 w-12 text-amber-500/50 mb-4" />
+                <p className="text-lg font-medium text-muted-foreground">No expired trades</p>
+                <p className="text-sm text-muted-foreground/70 mt-1">
+                  Trades that expired without resolution will appear here
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-3'}>
+              {filteredIdeas
+                .filter(i => i.outcomeStatus === 'expired')
+                .map(idea => (
+                  <TradeIdeaBlock
+                    key={idea.id}
+                    idea={idea}
+                    currentPrice={priceMap[idea.symbol]}
+                    isExpanded={expandedIdeaId === idea.id}
+                    onToggleExpand={() => handleToggleExpand(idea.id)}
+                    data-testid={`expired-idea-card-${idea.id}`}
                   />
                 ))}
             </div>
