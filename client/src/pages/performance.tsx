@@ -137,6 +137,31 @@ export default function PerformancePage() {
     });
   }, [allIdeas, rangeStart]);
 
+  // Filter by source and outcome
+  const filteredIdeas = useMemo(() => {
+    return closedIdeas.filter(idea => {
+      const sourceMatch = sourceFilter === 'all' || idea.source === sourceFilter;
+      const outcomeMatch = outcomeFilter === 'all' || 
+        (outcomeFilter === 'won' && idea.outcomeStatus === 'hit_target') ||
+        (outcomeFilter === 'lost' && idea.outcomeStatus === 'hit_stop') ||
+        (outcomeFilter === 'expired' && (idea.outcomeStatus === 'expired' || idea.outcomeStatus === 'closed'));
+      return sourceMatch && outcomeMatch;
+    });
+  }, [closedIdeas, sourceFilter, outcomeFilter]);
+
+  // Group filtered ideas by asset type
+  const ideasByAssetType = useMemo(() => {
+    const grouped: Record<string, TradeIdea[]> = {};
+    filteredIdeas.forEach(idea => {
+      const assetType = idea.assetType;
+      if (!grouped[assetType]) {
+        grouped[assetType] = [];
+      }
+      grouped[assetType].push(idea);
+    });
+    return grouped;
+  }, [filteredIdeas]);
+
   // Group trades by period
   const tradesByPeriod = useMemo(() => {
     if (!closedIdeas || closedIdeas.length === 0) return [];
@@ -393,15 +418,6 @@ export default function PerformancePage() {
   };
 
   const advancedMetrics = calculateAdvancedMetrics();
-
-  const filteredIdeas = closedIdeas.filter(idea => {
-    const sourceMatch = sourceFilter === 'all' || idea.source === sourceFilter;
-    const outcomeMatch = outcomeFilter === 'all' || 
-      (outcomeFilter === 'won' && idea.outcomeStatus === 'hit_target') ||
-      (outcomeFilter === 'lost' && idea.outcomeStatus === 'hit_stop') ||
-      (outcomeFilter === 'expired' && (idea.outcomeStatus === 'expired' || idea.outcomeStatus === 'closed'));
-    return sourceMatch && outcomeMatch;
-  });
 
   const getOutcomeBadge = (status: string) => {
     if (status === 'hit_target') {
@@ -972,7 +988,7 @@ export default function PerformancePage() {
         </div>
       )}
 
-      {/* Detailed Trades List */}
+      {/* Detailed Trades List - Grouped by Asset Type */}
       {closedIdeas.length > 0 && (
         <Card className="shadow-lg overflow-hidden" data-testid="card-trade-history">
           <CardHeader className="bg-gradient-to-r from-card to-muted/30 border-b border-border/50">
@@ -1017,100 +1033,139 @@ export default function PerformancePage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="pro-table">
-                <thead>
-                  <tr>
-                    <th className="text-left">Symbol</th>
-                    <th className="text-left">Source</th>
-                    <th className="text-left">Type</th>
-                    <th className="text-left">Direction</th>
-                    <th className="text-right">Entry</th>
-                    <th className="text-right">Exit</th>
-                    <th className="text-right">P&L</th>
-                    <th className="text-center">Outcome</th>
-                    <th className="text-right">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredIdeas.length === 0 ? (
-                    <tr>
-                      <td colSpan={9} className="text-center py-8 text-muted-foreground">
-                        No trades match the selected filters
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredIdeas
-                      .sort((a, b) => new Date(b.exitDate || b.timestamp).getTime() - new Date(a.exitDate || a.timestamp).getTime())
-                      .map((idea) => (
-                        <tr 
-                          key={idea.id}
-                          data-testid={`row-trade-${idea.symbol}`}
-                        >
-                          <td className="py-3 px-2">
-                            <div className="font-mono font-semibold">{idea.symbol}</div>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Badge 
-                              variant={
-                                idea.source === 'ai' ? 'default' : 
-                                idea.source === 'quant' ? 'secondary' : 
-                                'outline'
-                              }
-                              className="text-xs"
-                            >
-                              {idea.source.toUpperCase()}
+          <CardContent className="p-6">
+            {filteredIdeas.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No trades match the selected filters
+              </div>
+            ) : (
+              <Accordion type="multiple" className="space-y-4" defaultValue={Object.keys(ideasByAssetType)}>
+                {Object.entries(ideasByAssetType)
+                  .sort(([a], [b]) => {
+                    const order: Record<string, number> = { 'stock': 0, 'penny_stock': 1, 'option': 2, 'crypto': 3 };
+                    return (order[a] || 99) - (order[b] || 99);
+                  })
+                  .map(([assetType, ideas]) => {
+                    const assetTypeLabels: Record<string, string> = {
+                      'stock': 'Stock Shares',
+                      'penny_stock': 'Penny Stocks',
+                      'option': 'Stock Options',
+                      'crypto': 'Crypto'
+                    };
+                    const label = assetTypeLabels[assetType] || assetType.toUpperCase();
+                    
+                    // Calculate asset type stats
+                    const wonCount = ideas.filter(i => i.outcomeStatus === 'hit_target').length;
+                    const lostCount = ideas.filter(i => i.outcomeStatus === 'hit_stop').length;
+                    const winRate = wonCount + lostCount > 0 ? (wonCount / (wonCount + lostCount)) * 100 : 0;
+                    
+                    return (
+                      <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
+                        <AccordionTrigger className="px-4 hover:no-underline" data-testid={`accordion-asset-${assetType}`}>
+                          <div className="flex items-center gap-3 w-full">
+                            <span className="font-semibold">{label}</span>
+                            <Badge variant="outline" data-testid={`badge-count-${assetType}`}>
+                              {ideas.length} trade{ideas.length !== 1 ? 's' : ''}
                             </Badge>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Badge variant="outline" className="text-xs capitalize">
-                              {idea.assetType}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-2">
-                            <Badge 
-                              className={`text-xs ${
-                                idea.direction === 'long' 
-                                  ? 'bg-green-500/10 text-green-500 border-green-500/20' 
-                                  : 'bg-red-500/10 text-red-500 border-red-500/20'
-                              }`}
-                            >
-                              {idea.direction.toUpperCase()}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-2 text-right font-mono">
-                            ${idea.entryPrice.toFixed(2)}
-                          </td>
-                          <td className="py-3 px-2 text-right font-mono">
-                            {idea.exitPrice ? `$${idea.exitPrice.toFixed(2)}` : 'N/A'}
-                          </td>
-                          <td className="py-3 px-2 text-right">
-                            {idea.percentGain !== null && idea.percentGain !== undefined ? (
-                              <span 
-                                className={`font-mono font-semibold ${
-                                  idea.percentGain >= 0 ? 'text-green-500' : 'text-red-500'
+                            {wonCount + lostCount > 0 && (
+                              <Badge 
+                                className={`ml-auto mr-4 ${
+                                  winRate >= 60 ? 'bg-green-500/10 text-green-500 border-green-500/20' :
+                                  winRate >= 50 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                                  'bg-red-500/10 text-red-500 border-red-500/20'
                                 }`}
-                                data-testid={`text-pnl-${idea.symbol}`}
                               >
-                                {idea.percentGain >= 0 ? '+' : ''}{idea.percentGain.toFixed(2)}%
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground">N/A</span>
+                                {winRate.toFixed(1)}% WR
+                              </Badge>
                             )}
-                          </td>
-                          <td className="py-3 px-2 text-center">
-                            {getOutcomeBadge(idea.outcomeStatus)}
-                          </td>
-                          <td className="py-3 px-2 text-right text-muted-foreground text-xs">
-                            {format(parseISO(idea.exitDate || idea.timestamp), 'MMM d, HH:mm')}
-                          </td>
-                        </tr>
-                      ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4 pb-4">
+                          <div className="overflow-x-auto">
+                            <table className="pro-table">
+                              <thead>
+                                <tr>
+                                  <th className="text-left">Symbol</th>
+                                  <th className="text-left">Source</th>
+                                  <th className="text-left">Direction</th>
+                                  <th className="text-right">Entry</th>
+                                  <th className="text-right">Exit</th>
+                                  <th className="text-right">P&L</th>
+                                  <th className="text-center">Outcome</th>
+                                  <th className="text-right">Date</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {ideas
+                                  .sort((a, b) => new Date(b.exitDate || b.timestamp).getTime() - new Date(a.exitDate || a.timestamp).getTime())
+                                  .map((idea) => (
+                                    <tr 
+                                      key={idea.id}
+                                      data-testid={`row-trade-${idea.symbol}`}
+                                    >
+                                      <td className="py-3 px-2">
+                                        <div className="font-mono font-semibold">{idea.symbol}</div>
+                                      </td>
+                                      <td className="py-3 px-2">
+                                        <Badge 
+                                          variant={
+                                            idea.source === 'ai' ? 'default' : 
+                                            idea.source === 'quant' ? 'secondary' : 
+                                            'outline'
+                                          }
+                                          className="text-xs"
+                                        >
+                                          {idea.source.toUpperCase()}
+                                        </Badge>
+                                      </td>
+                                      <td className="py-3 px-2">
+                                        <Badge 
+                                          className={`text-xs ${
+                                            idea.direction === 'long' 
+                                              ? 'bg-green-500/10 text-green-500 border-green-500/20' 
+                                              : 'bg-red-500/10 text-red-500 border-red-500/20'
+                                          }`}
+                                        >
+                                          {idea.direction.toUpperCase()}
+                                        </Badge>
+                                      </td>
+                                      <td className="py-3 px-2 text-right font-mono">
+                                        ${idea.entryPrice.toFixed(2)}
+                                      </td>
+                                      <td className="py-3 px-2 text-right font-mono">
+                                        {idea.exitPrice ? `$${idea.exitPrice.toFixed(2)}` : 'N/A'}
+                                      </td>
+                                      <td className="py-3 px-2 text-right">
+                                        {idea.percentGain !== null && idea.percentGain !== undefined ? (
+                                          <span 
+                                            className={`font-mono font-semibold ${
+                                              idea.percentGain >= 0 ? 'text-green-500' : 'text-red-500'
+                                            }`}
+                                            data-testid={`text-pnl-${idea.symbol}`}
+                                          >
+                                            {idea.percentGain >= 0 ? '+' : ''}{idea.percentGain.toFixed(2)}%
+                                          </span>
+                                        ) : (
+                                          <span className="text-muted-foreground">N/A</span>
+                                        )}
+                                      </td>
+                                      <td className="py-3 px-2 text-center">
+                                        {getOutcomeBadge(idea.outcomeStatus)}
+                                      </td>
+                                      <td className="py-3 px-2 text-right text-muted-foreground text-xs">
+                                        {format(parseISO(idea.exitDate || idea.timestamp), 'MMM d, HH:mm')}
+                                      </td>
+                                    </tr>
+                                  ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })}
+              </Accordion>
+            )}
           </CardContent>
         </Card>
       )}
