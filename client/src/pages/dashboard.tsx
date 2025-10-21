@@ -104,7 +104,7 @@ export default function Dashboard() {
   const topGainers = marketData.filter(d => d.changePercent > 0).sort((a, b) => b.changePercent - a.changePercent).slice(0, 3);
   const topLosers = marketData.filter(d => d.changePercent < 0).sort((a, b) => a.changePercent - b.changePercent).slice(0, 3);
   const recentIdeas = freshIdeas.slice(0, 3);
-  const highGradeIdeas = freshIdeas.filter(i => i.confidenceScore >= 80);
+  const highGradeIdeas = freshIdeas.filter(i => i.confidenceScore >= 85); // B+ and above
 
   const handleViewDetails = (symbol: string) => {
     const symbolData = marketData.find(d => d.symbol === symbol);
@@ -223,7 +223,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-1">
               <div className="text-3xl font-bold font-mono text-green-500 tracking-tight" data-testid="metric-high-grade">{highGradeIdeas.length}</div>
-              <p className="text-xs text-muted-foreground">Confidence ≥80%</p>
+              <p className="text-xs text-muted-foreground">B+ grade and above</p>
             </CardContent>
           </Card>
         </div>

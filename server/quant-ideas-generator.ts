@@ -598,6 +598,66 @@ function getProbabilityBand(score: number): string {
   return 'D';
 }
 
+// Adjust target and stop prices based on confidence score
+// Higher quality setups get better R:R ratios
+function adjustTargetsForQuality(
+  entryPrice: number,
+  baseTarget: number,
+  baseStop: number,
+  confidenceScore: number,
+  direction: 'long' | 'short'
+): { targetPrice: number; stopLoss: number } {
+  // Calculate multipliers based on confidence score
+  let targetMultiplier = 1.0;
+  let stopMultiplier = 1.0;
+
+  if (confidenceScore >= 95) {
+    // A+ grade: Aggressive targets, tighter stops (R:R ~3:1)
+    targetMultiplier = 1.4;
+    stopMultiplier = 0.8;
+  } else if (confidenceScore >= 90) {
+    // A grade: Strong targets (R:R ~2.5:1)
+    targetMultiplier = 1.25;
+    stopMultiplier = 0.9;
+  } else if (confidenceScore >= 85) {
+    // B+ grade: Good targets (R:R ~2:1)
+    targetMultiplier = 1.1;
+    stopMultiplier = 0.95;
+  } else if (confidenceScore >= 80) {
+    // B grade: Standard targets (R:R ~1.8:1)
+    targetMultiplier = 1.0;
+    stopMultiplier = 1.0;
+  } else if (confidenceScore >= 75) {
+    // C+ grade: Conservative targets (R:R ~1.5:1)
+    targetMultiplier = 0.9;
+    stopMultiplier = 1.1;
+  } else if (confidenceScore >= 70) {
+    // C grade: Tight targets (R:R ~1.3:1)
+    targetMultiplier = 0.8;
+    stopMultiplier = 1.15;
+  } else {
+    // D grade: Minimal targets (R:R ~1.2:1)
+    targetMultiplier = 0.7;
+    stopMultiplier = 1.2;
+  }
+
+  if (direction === 'long') {
+    const targetDistance = (baseTarget - entryPrice) * targetMultiplier;
+    const stopDistance = (entryPrice - baseStop) * stopMultiplier;
+    return {
+      targetPrice: Number((entryPrice + targetDistance).toFixed(2)),
+      stopLoss: Number((entryPrice - stopDistance).toFixed(2))
+    };
+  } else {
+    const targetDistance = (entryPrice - baseTarget) * targetMultiplier;
+    const stopDistance = (baseStop - entryPrice) * stopMultiplier;
+    return {
+      targetPrice: Number((entryPrice - targetDistance).toFixed(2)),
+      stopLoss: Number((entryPrice + stopDistance).toFixed(2))
+    };
+  }
+}
+
 // Calculate gem score for prioritizing opportunities
 function calculateGemScore(data: MarketData): number {
   let score = 0;
@@ -846,6 +906,23 @@ export async function generateQuantIdeas(
       learnedWeights  // 🧠 ML enhancement
     );
     const probabilityBand = getProbabilityBand(confidenceScore);
+
+    // 🎯 ADJUST TARGETS BASED ON QUALITY: Higher grades get better R:R ratios
+    const adjustedLevels = adjustTargetsForQuality(
+      levels.entryPrice,
+      levels.targetPrice,
+      levels.stopLoss,
+      confidenceScore,
+      signal.direction
+    );
+    levels.targetPrice = adjustedLevels.targetPrice;
+    levels.stopLoss = adjustedLevels.stopLoss;
+
+    // Recalculate R:R with adjusted targets
+    const adjustedRiskDistance = Math.abs(levels.entryPrice - levels.stopLoss);
+    const adjustedRewardDistance = Math.abs(levels.targetPrice - levels.entryPrice);
+    riskRewardRatio = adjustedRiskDistance > 0 ? adjustedRewardDistance / adjustedRiskDistance : 0;
+    riskRewardRatio = Math.min(riskRewardRatio, 99.9);
 
     // QUALITY FILTER: Trust quantitative signals - adjust thresholds by asset type
     let minConfidence: number;
