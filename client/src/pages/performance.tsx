@@ -2,9 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, TrendingUp, TrendingDown, Activity, Target, XCircle, Clock, Filter, Calendar } from "lucide-react";
+import { Download, TrendingUp, TrendingDown, Activity, Target, XCircle, Clock, Filter, Calendar, HelpCircle } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 import { format, parseISO, startOfDay, startOfWeek, startOfMonth, startOfYear, subDays, subMonths, subYears, isAfter, isBefore } from 'date-fns';
 import { useState, useMemo } from 'react';
 import { useToast } from "@/hooks/use-toast";
@@ -38,15 +44,14 @@ interface PerformanceStats {
     wonIdeas: number;
     lostIdeas: number;
     expiredIdeas: number;
-    winRate: number; // Market win rate: hit_target / (hit_target + hit_stop)
-    quantAccuracy: number; // Prediction accuracy: correct predictions / total validated
+    winRate: number;
+    quantAccuracy: number;
     avgPercentGain: number;
     avgHoldingTimeMinutes: number;
-    // PROFESSIONAL RISK METRICS (Phase 1)
-    sharpeRatio: number; // Risk-adjusted return (target >1.5 for day trading)
-    maxDrawdown: number; // Worst peak-to-trough decline (%)
-    profitFactor: number; // Gross wins / Gross losses (target >1.3)
-    expectancy: number; // Expected value per trade ($ per $1 risked)
+    sharpeRatio: number;
+    maxDrawdown: number;
+    profitFactor: number;
+    expectancy: number;
   };
   bySource: Array<{
     source: string;
@@ -99,8 +104,8 @@ interface TradeIdea {
 export default function PerformancePage() {
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<string>('all'); // '7d', '30d', '3m', '1y', 'all'
-  const [periodView, setPeriodView] = useState<string>('daily'); // 'daily', 'weekly', 'monthly', 'yearly'
+  const [dateRange, setDateRange] = useState<string>('all');
+  const [periodView, setPeriodView] = useState<string>('daily');
   const [activeTab, setActiveTab] = useState("overview");
   const [isValidating, setIsValidating] = useState(false);
   const [validationResults, setValidationResults] = useState<any[]>([]);
@@ -121,7 +126,6 @@ export default function PerformancePage() {
     queryKey: ['/api/trade-ideas'],
   });
 
-  // Calculate date range start based on selected range
   const rangeStart = useMemo(() => {
     const now = new Date();
     switch (dateRange) {
@@ -129,12 +133,11 @@ export default function PerformancePage() {
       case '30d': return subDays(now, 30);
       case '3m': return subMonths(now, 3);
       case '1y': return subYears(now, 1);
-      case 'all': return new Date(0); // Beginning of time
+      case 'all': return new Date(0);
       default: return new Date(0);
     }
   }, [dateRange]);
 
-  // Filter closed ideas by date range (inclusive of boundary)
   const closedIdeas = useMemo(() => {
     const ideas = allIdeas?.filter(idea => idea.outcomeStatus !== 'open') || [];
     
@@ -144,7 +147,6 @@ export default function PerformancePage() {
     });
   }, [allIdeas, rangeStart]);
 
-  // Filter by source and outcome
   const filteredIdeas = useMemo(() => {
     return closedIdeas.filter(idea => {
       const sourceMatch = sourceFilter === 'all' || idea.source === sourceFilter;
@@ -156,7 +158,6 @@ export default function PerformancePage() {
     });
   }, [closedIdeas, sourceFilter, outcomeFilter]);
 
-  // Group filtered ideas by asset type
   const ideasByAssetType = useMemo(() => {
     const grouped: Record<string, TradeIdea[]> = {};
     filteredIdeas.forEach(idea => {
@@ -169,7 +170,6 @@ export default function PerformancePage() {
     return grouped;
   }, [filteredIdeas]);
 
-  // Group trades by period
   const tradesByPeriod = useMemo(() => {
     if (!closedIdeas || closedIdeas.length === 0) return [];
 
@@ -202,7 +202,6 @@ export default function PerformancePage() {
       grouped.get(periodKey)!.push(idea);
     });
 
-    // Convert to array and calculate stats
     return Array.from(grouped.entries())
       .map(([period, trades]) => {
         const wins = trades.filter(t => t.outcomeStatus === 'hit_target').length;
@@ -242,7 +241,6 @@ export default function PerformancePage() {
       });
       const result = await response.json();
       
-      // Store results and show dialog
       setValidationResults(result.results || []);
       setValidationSummary({
         validated: result.validated,
@@ -250,7 +248,6 @@ export default function PerformancePage() {
       });
       setShowValidationDialog(true);
       
-      // Show immediate toast feedback
       if (result.updated > 0) {
         toast({
           title: "Validation Complete",
@@ -263,7 +260,6 @@ export default function PerformancePage() {
         });
       }
       
-      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       queryClient.invalidateQueries({ queryKey: ['/api/ml/win-rate-trend'] });
@@ -316,7 +312,6 @@ export default function PerformancePage() {
     return `${Math.round(minutes / 1440)}d`;
   };
 
-  // Calculate advanced performance metrics
   const calculateAdvancedMetrics = () => {
     if (!closedIdeas || closedIdeas.length === 0) return null;
 
@@ -324,7 +319,6 @@ export default function PerformancePage() {
       new Date(a.exitDate || a.timestamp).getTime() - new Date(b.exitDate || b.timestamp).getTime()
     );
 
-    // Calculate Max Drawdown (largest peak-to-trough decline)
     let peak = 0;
     let maxDrawdown = 0;
     let cumulativeGain = 0;
@@ -343,7 +337,6 @@ export default function PerformancePage() {
       }
     });
 
-    // Calculate Profit Factor (gross profit / gross loss)
     const grossProfit = closedIdeas
       .filter(i => (i.percentGain || 0) > 0)
       .reduce((sum, i) => sum + (i.percentGain || 0), 0);
@@ -354,7 +347,6 @@ export default function PerformancePage() {
     
     const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? Infinity : 0);
 
-    // Calculate consecutive wins/losses streaks
     let currentStreak = 0;
     let bestWinStreak = 0;
     let worstLossStreak = 0;
@@ -365,27 +357,23 @@ export default function PerformancePage() {
       const isLoss = idea.outcomeStatus === 'hit_stop';
 
       if (!isWin && !isLoss) {
-        // Finalize current streak before skipping neutral trades
         if (currentStreak > 0) {
           if (isWinStreak) {
             bestWinStreak = Math.max(bestWinStreak, currentStreak);
           } else {
             worstLossStreak = Math.max(worstLossStreak, currentStreak);
           }
-          currentStreak = 0; // Reset the streak
+          currentStreak = 0;
         }
-        return; // Skip expired/manual exit trades
+        return;
       }
 
       if (currentStreak === 0 || idx === 0) {
-        // Start a new streak
         currentStreak = 1;
         isWinStreak = isWin;
       } else if ((isWin && isWinStreak) || (isLoss && !isWinStreak)) {
-        // Continue current streak
         currentStreak++;
       } else {
-        // Streak type changed, finalize old streak and start new one
         if (isWinStreak) {
           bestWinStreak = Math.max(bestWinStreak, currentStreak);
         } else {
@@ -396,19 +384,16 @@ export default function PerformancePage() {
       }
     });
 
-    // Final streak check
     if (isWinStreak) {
       bestWinStreak = Math.max(bestWinStreak, currentStreak);
     } else {
       worstLossStreak = Math.max(worstLossStreak, currentStreak);
     }
 
-    // Find best and worst trades
     const sortedByGain = [...closedIdeas]
       .filter(i => i.percentGain !== null && i.percentGain !== undefined)
       .sort((a, b) => (b.percentGain || 0) - (a.percentGain || 0));
     
-    // Only show positive gains in "Top Winners"
     const bestTrades = sortedByGain.filter(i => (i.percentGain || 0) > 0).slice(0, 5);
     const worstTrades = sortedByGain.slice(-5).reverse();
 
@@ -438,7 +423,6 @@ export default function PerformancePage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Header with Aurora Hero */}
       <div className="relative overflow-hidden border-b aurora-hero rounded-xl -mx-6 px-6 pb-6 mb-8">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
         <div className="relative flex items-center justify-between pt-6">
@@ -473,7 +457,6 @@ export default function PerformancePage() {
         <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </div>
 
-      {/* Date Range & Period Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -515,7 +498,6 @@ export default function PerformancePage() {
         )}
       </div>
 
-      {/* Tabs Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-3" data-testid="tabs-performance">
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
@@ -523,194 +505,157 @@ export default function PerformancePage() {
           <TabsTrigger value="deep-dive" data-testid="tab-deep-dive">Deep Dive</TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: OVERVIEW */}
         <TabsContent value="overview" className="space-y-6">
-          {/* Overall Stats - 5 Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            <Card className="stat-card shadow-lg border-primary/20" data-testid="card-total-ideas">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
-                <CardTitle className="text-sm font-semibold tracking-wide">Total Ideas</CardTitle>
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Activity className="w-4 h-4 text-primary" />
+          <Card className="stat-card shadow-lg border-primary/20" data-testid="card-key-metrics">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <Activity className="w-5 h-5" />
+                Key Performance Metrics
+              </CardTitle>
+              <CardDescription>Overall platform performance at a glance</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground mb-1">Total Ideas</div>
+                  <div className="text-2xl font-bold font-mono">{stats.overall.totalIdeas}</div>
+                  <div className="text-xs text-muted-foreground">{stats.overall.openIdeas} open</div>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                <div className="text-3xl font-bold font-mono tracking-tight">
-                  {stats.overall.totalIdeas}
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground mb-1">Market Win Rate</div>
+                  <div className={`text-2xl font-bold font-mono ${stats.overall.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
+                    {stats.overall.winRate.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-muted-foreground">{stats.overall.wonIdeas}W • {stats.overall.lostIdeas}L</div>
                 </div>
-                <p className="text-xs text-muted-foreground flex items-center gap-2">
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                    {stats.overall.openIdeas} open
-                  </span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-muted-foreground"></span>
-                    {stats.overall.closedIdeas} closed
-                  </span>
-                </p>
-              </CardContent>
-            </Card>
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground mb-1">Quant Accuracy</div>
+                  <div className={`text-2xl font-bold font-mono ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'text-blue-500' : 'text-orange-500'}`}>
+                    {stats.overall.quantAccuracy !== null && stats.overall.quantAccuracy !== undefined ? stats.overall.quantAccuracy.toFixed(1) : '0.0'}%
+                  </div>
+                  <div className="text-xs text-muted-foreground">Predictions</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground mb-1">Avg Gain</div>
+                  <div className={`text-2xl font-bold font-mono ${stats.overall.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {stats.overall.avgPercentGain >= 0 ? '+' : ''}{stats.overall.avgPercentGain.toFixed(2)}%
+                  </div>
+                  <div className="text-xs text-muted-foreground">{stats.overall.closedIdeas} closed</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground mb-1">Avg Hold Time</div>
+                  <div className="text-2xl font-bold font-mono">{formatTime(stats.overall.avgHoldingTimeMinutes)}</div>
+                  <div className="text-xs text-muted-foreground">Duration</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className={`stat-card shadow-lg ${stats.overall.winRate >= 50 ? 'stat-card-bullish border-green-500/20' : 'border-red-500/20'}`} data-testid="card-market-win-rate">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
-                <CardTitle className="text-sm font-semibold tracking-wide">Market Win Rate</CardTitle>
-                <div className={`p-2 rounded-lg ${stats.overall.winRate >= 50 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
-                  <Target className={`w-4 h-4 ${stats.overall.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`} />
+          <Card className="stat-card shadow-lg border-blue-500/20" data-testid="card-professional-metrics">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <Target className="w-5 h-5" />
+                Professional Risk Metrics
+              </CardTitle>
+              <CardDescription>Industry-standard performance indicators</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TooltipProvider>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                      Sharpe Ratio
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-3 h-3 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-semibold mb-1">Sharpe Ratio</p>
+                          <p className="text-xs">Risk-adjusted return measuring how much excess return you receive for the volatility you endure. Target: &gt;1.5 for day trading.</p>
+                          <p className="text-xs mt-1 italic">Higher is better. Professional traders aim for 1.5+</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <div className={`text-2xl font-bold font-mono ${
+                      stats.overall.sharpeRatio >= 1.5 ? 'text-green-500' : 
+                      stats.overall.sharpeRatio >= 1.0 ? 'text-amber-500' : 'text-red-500'
+                    }`}>
+                      {stats.overall.sharpeRatio.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Target: &gt;1.5</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                      Max Drawdown
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-3 h-3 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-semibold mb-1">Max Drawdown</p>
+                          <p className="text-xs">Worst peak-to-trough decline in your equity curve. Shows the largest loss from a high point.</p>
+                          <p className="text-xs mt-1 italic">Lower is better. Professional traders keep this &lt;20%</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <div className={`text-2xl font-bold font-mono ${
+                      stats.overall.maxDrawdown > 0 ? 'text-red-500' : 'text-muted-foreground'
+                    }`}>
+                      {stats.overall.maxDrawdown > 0 ? '-' : ''}{stats.overall.maxDrawdown.toFixed(2)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">Peak-to-trough</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                      Profit Factor
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-3 h-3 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-semibold mb-1">Profit Factor</p>
+                          <p className="text-xs">Gross profits divided by gross losses. Measures how much money you make vs. lose.</p>
+                          <p className="text-xs mt-1 italic">Target: &gt;1.3 means you make $1.30 for every $1.00 lost</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <div className={`text-2xl font-bold font-mono ${
+                      stats.overall.profitFactor >= 1.5 ? 'text-green-500' : 
+                      stats.overall.profitFactor >= 1.0 ? 'text-amber-500' : 'text-red-500'
+                    }`}>
+                      {stats.overall.profitFactor === Infinity ? '∞' : stats.overall.profitFactor.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Target: &gt;1.3</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                      Expectancy
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-3 h-3 cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-semibold mb-1">Expectancy</p>
+                          <p className="text-xs">Expected value per trade, factoring in win rate and win/loss sizes. Shows average profit per $1 risked.</p>
+                          <p className="text-xs mt-1 italic">Positive expectancy = profitable strategy long-term</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <div className={`text-2xl font-bold font-mono ${
+                      stats.overall.expectancy >= 0 ? 'text-green-500' : 'text-red-500'
+                    }`}>
+                      {stats.overall.expectancy >= 0 ? '+' : ''}${stats.overall.expectancy.toFixed(3)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Per $1 risked</div>
+                  </div>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                <div className={`text-3xl font-bold font-mono tracking-tight ${stats.overall.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
-                  {stats.overall.winRate.toFixed(1)}%
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {stats.overall.wonIdeas} wins • {stats.overall.lostIdeas} losses
-                </p>
-              </CardContent>
-            </Card>
+              </TooltipProvider>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-            <Card className={`stat-card shadow-lg ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'stat-card-bullish border-blue-500/20' : 'border-orange-500/20'}`} data-testid="card-quant-accuracy">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
-                <CardTitle className="text-sm font-semibold tracking-wide">Quant Accuracy</CardTitle>
-                <div className={`p-2 rounded-lg ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'bg-blue-500/10' : 'bg-orange-500/10'}`}>
-                  <Activity className={`w-4 h-4 ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'text-blue-500' : 'text-orange-500'}`} />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                <div className={`text-3xl font-bold font-mono tracking-tight ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'text-blue-500' : 'text-orange-500'}`}>
-                  {stats.overall.quantAccuracy !== null && stats.overall.quantAccuracy !== undefined ? stats.overall.quantAccuracy.toFixed(1) : '0.0'}%
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Prediction correctness
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className={`stat-card shadow-lg ${stats.overall.avgPercentGain >= 0 ? 'stat-card-bullish border-green-500/20' : 'stat-card-bearish border-red-500/20'}`} data-testid="card-avg-gain">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
-                <CardTitle className="text-sm font-semibold tracking-wide">Avg Gain</CardTitle>
-                <div className={`p-2 rounded-lg ${stats.overall.avgPercentGain >= 0 ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
-                  {stats.overall.avgPercentGain >= 0 ? (
-                    <TrendingUp className="w-4 h-4 text-green-500" />
-                  ) : (
-                    <TrendingDown className="w-4 h-4 text-red-500" />
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                <div className={`text-3xl font-bold font-mono tracking-tight ${
-                  stats.overall.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
-                }`}>
-                  {stats.overall.avgPercentGain >= 0 ? '+' : ''}
-                  {stats.overall.avgPercentGain.toFixed(2)}%
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Across {stats.overall.closedIdeas} closed ideas
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="stat-card shadow-lg border-primary/20" data-testid="card-avg-holding-time">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
-                <CardTitle className="text-sm font-semibold tracking-wide">Avg Hold Time</CardTitle>
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Clock className="w-4 h-4 text-primary" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                <div className="text-3xl font-bold font-mono tracking-tight">
-                  {formatTime(stats.overall.avgHoldingTimeMinutes)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Average duration
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Professional Risk Metrics - 4 Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="shadow-lg border-primary/20" data-testid="card-sharpe-ratio">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
-                <CardTitle className="text-sm font-semibold tracking-wide">Sharpe Ratio</CardTitle>
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <TrendingUp className="w-4 h-4 text-primary" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                <div className={`text-3xl font-bold font-mono tracking-tight ${
-                  stats.overall.sharpeRatio >= 1.5 ? 'text-green-500' : 
-                  stats.overall.sharpeRatio >= 1.0 ? 'text-amber-500' : 'text-red-500'
-                }`}>
-                  {stats.overall.sharpeRatio.toFixed(2)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Risk-adjusted return (target &gt;1.5)
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg border-primary/20" data-testid="card-max-drawdown">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
-                <CardTitle className="text-sm font-semibold tracking-wide">Max Drawdown</CardTitle>
-                <div className="p-2 rounded-lg bg-red-500/10">
-                  <TrendingDown className="w-4 h-4 text-red-500" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                <div className={`text-3xl font-bold font-mono tracking-tight ${
-                  stats.overall.maxDrawdown > 0 ? 'text-red-500' : 'text-muted-foreground'
-                }`}>
-                  {stats.overall.maxDrawdown > 0 ? '-' : ''}{stats.overall.maxDrawdown.toFixed(2)}%
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Worst peak-to-trough decline
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg border-primary/20" data-testid="card-profit-factor">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
-                <CardTitle className="text-sm font-semibold tracking-wide">Profit Factor</CardTitle>
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Target className="w-4 h-4 text-primary" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                <div className={`text-3xl font-bold font-mono tracking-tight ${
-                  stats.overall.profitFactor >= 1.5 ? 'text-green-500' : 
-                  stats.overall.profitFactor >= 1.0 ? 'text-amber-500' : 'text-red-500'
-                }`}>
-                  {stats.overall.profitFactor === Infinity ? '∞' : stats.overall.profitFactor.toFixed(2)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Gross wins ÷ losses (target &gt;1.3)
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg border-primary/20" data-testid="card-expectancy">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
-                <CardTitle className="text-sm font-semibold tracking-wide">Expectancy</CardTitle>
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Activity className="w-4 h-4 text-primary" />
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                <div className={`text-3xl font-bold font-mono tracking-tight ${
-                  stats.overall.expectancy >= 0 ? 'text-green-500' : 'text-red-500'
-                }`}>
-                  {stats.overall.expectancy >= 0 ? '+' : ''}${stats.overall.expectancy.toFixed(3)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Expected value per $1 risked
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Smart Insights Card */}
-          {closedIdeas.length >= 5 && (
+        <TabsContent value="trends" className="space-y-6">
+          {stats.overall.closedIdeas >= 5 && (
             <Card className="shadow-lg border-primary/20" data-testid="card-smart-insights">
               <CardHeader className="bg-gradient-to-r from-card to-muted/30 border-b border-border/50">
                 <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -758,7 +703,7 @@ export default function PerformancePage() {
                       </div>
                     </div>
                   )}
-                  {closedIdeas.length >= 5 && stats.overall.winRate < 50 && (
+                  {stats.overall.closedIdeas >= 5 && stats.overall.winRate < 50 && (
                     <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
                       <Activity className="w-5 h-5 text-amber-500 mt-0.5" />
                       <div>
@@ -773,14 +718,9 @@ export default function PerformancePage() {
               </CardContent>
             </Card>
           )}
-        </TabsContent>
 
-        {/* TAB 2: TRENDS */}
-        <TabsContent value="trends" className="space-y-6">
-          {/* Period-Based Performance Chart with Table */}
           {tradesByPeriod.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Chart */}
               <Card data-testid="card-period-performance">
                 <CardHeader>
                   <CardTitle>Performance by Period</CardTitle>
@@ -811,7 +751,7 @@ export default function PerformancePage() {
                         tickFormatter={(value) => `${value > 0 ? '+' : ''}${value.toFixed(0)}%`}
                         className="text-xs"
                       />
-                      <Tooltip 
+                      <RechartsTooltip 
                         formatter={(value: number, name: string) => {
                           if (name === 'Win Rate') return `${value.toFixed(1)}%`;
                           if (name === 'Avg Gain') return `${value > 0 ? '+' : ''}${value.toFixed(2)}%`;
@@ -826,7 +766,6 @@ export default function PerformancePage() {
                 </CardContent>
               </Card>
 
-              {/* Table */}
               <Card data-testid="card-period-table">
                 <CardHeader>
                   <CardTitle>Period Details</CardTitle>
@@ -872,10 +811,8 @@ export default function PerformancePage() {
             </div>
           )}
 
-          {/* Win Rate Trend & Equity Curve */}
           {stats.overall.closedIdeas >= 10 && trends && trends.dataPoints.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Win Rate Trend */}
               <Card data-testid="card-win-rate-trend">
                 <CardHeader>
                   <CardTitle>Win Rate Trend</CardTitle>
@@ -897,7 +834,7 @@ export default function PerformancePage() {
                         tickFormatter={(value) => `${value}%`}
                         className="text-xs"
                       />
-                      <Tooltip 
+                      <RechartsTooltip 
                         formatter={(value: number) => [`${value.toFixed(1)}%`, 'Win Rate']}
                         labelFormatter={(date) => format(parseISO(date as string), 'MMM d, yyyy')}
                       />
@@ -913,7 +850,6 @@ export default function PerformancePage() {
                 </CardContent>
               </Card>
 
-              {/* Cumulative P&L */}
               <Card data-testid="card-cumulative-pnl">
                 <CardHeader>
                   <CardTitle>Equity Curve</CardTitle>
@@ -934,7 +870,7 @@ export default function PerformancePage() {
                         tickFormatter={(value) => `${value > 0 ? '+' : ''}${value.toFixed(1)}%`}
                         className="text-xs"
                       />
-                      <Tooltip 
+                      <RechartsTooltip 
                         formatter={(value: number) => [`${value > 0 ? '+' : ''}${value.toFixed(2)}%`, 'Cumulative Gain']}
                         labelFormatter={(date) => format(parseISO(date as string), 'MMM d, yyyy')}
                       />
@@ -964,12 +900,9 @@ export default function PerformancePage() {
           )}
         </TabsContent>
 
-        {/* TAB 3: DEEP DIVE */}
         <TabsContent value="deep-dive" className="space-y-6">
-          {/* Best & Worst Trades */}
           {advancedMetrics && advancedMetrics.bestTrades.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Best Trades */}
               <Card className="shadow-lg border-green-500/20" data-testid="card-best-trades">
                 <CardHeader className="bg-gradient-to-r from-green-500/5 to-green-500/10 border-b border-border/50">
                   <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -1016,7 +949,6 @@ export default function PerformancePage() {
                 </CardContent>
               </Card>
 
-              {/* Worst Trades */}
               <Card className="shadow-lg border-red-500/20" data-testid="card-worst-trades">
                 <CardHeader className="bg-gradient-to-r from-red-500/5 to-red-500/10 border-b border-border/50">
                   <CardTitle className="text-lg font-bold flex items-center gap-2">
@@ -1052,8 +984,10 @@ export default function PerformancePage() {
                             {trade.direction.toUpperCase()}
                           </Badge>
                         </div>
-                        <div className="text-lg font-bold font-mono text-red-500">
-                          {(trade.percentGain || 0).toFixed(2)}%
+                        <div className={`text-lg font-bold font-mono ${
+                          (trade.percentGain || 0) >= 0 ? 'text-green-500' : 'text-red-500'
+                        }`}>
+                          {(trade.percentGain || 0) >= 0 ? '+' : ''}{(trade.percentGain || 0).toFixed(2)}%
                         </div>
                       </div>
                     ))}
@@ -1063,415 +997,315 @@ export default function PerformancePage() {
             </div>
           )}
 
-          {/* Detailed Trades List - Grouped by Asset Type */}
-          {closedIdeas.length > 0 && (
-            <Card className="shadow-lg overflow-hidden" data-testid="card-trade-history">
-              <CardHeader className="bg-gradient-to-r from-card to-muted/30 border-b border-border/50">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div>
-                    <CardTitle className="text-xl font-bold flex items-center gap-2">
-                      <div className="p-2 rounded-lg bg-primary/10">
-                        <Activity className="w-5 h-5 text-primary" />
+          {advancedMetrics && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card data-testid="card-streaks">
+                <CardHeader>
+                  <CardTitle>Winning & Losing Streaks</CardTitle>
+                  <CardDescription>
+                    Consecutive win/loss patterns
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-green-500/5 border border-green-500/20">
+                      <div className="flex items-center gap-3">
+                        <TrendingUp className="w-6 h-6 text-green-500" />
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Best Win Streak</p>
+                          <p className="text-xs text-muted-foreground">Consecutive wins</p>
+                        </div>
                       </div>
-                      Trade Ideas History
-                    </CardTitle>
-                    <CardDescription className="mt-1">
-                      Detailed view of all closed trade ideas • {filteredIdeas.length} of {closedIdeas.length} shown
-                    </CardDescription>
+                      <div className="text-3xl font-bold font-mono text-green-500">
+                        {advancedMetrics.bestWinStreak}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-red-500/5 border border-red-500/20">
+                      <div className="flex items-center gap-3">
+                        <TrendingDown className="w-6 h-6 text-red-500" />
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Worst Loss Streak</p>
+                          <p className="text-xs text-muted-foreground">Consecutive losses</p>
+                        </div>
+                      </div>
+                      <div className="text-3xl font-bold font-mono text-red-500">
+                        {advancedMetrics.worstLossStreak}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
+                </CardContent>
+              </Card>
+
+              <Card data-testid="card-profit-loss-breakdown">
+                <CardHeader>
+                  <CardTitle>Profit/Loss Breakdown</CardTitle>
+                  <CardDescription>
+                    Gross wins vs. gross losses
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-green-500/5 border border-green-500/20">
+                      <div className="flex items-center gap-3">
+                        <TrendingUp className="w-6 h-6 text-green-500" />
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Gross Profit</p>
+                          <p className="text-xs text-muted-foreground">Total winning %</p>
+                        </div>
+                      </div>
+                      <div className="text-3xl font-bold font-mono text-green-500">
+                        +{advancedMetrics.grossProfit.toFixed(2)}%
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-4 rounded-lg bg-red-500/5 border border-red-500/20">
+                      <div className="flex items-center gap-3">
+                        <TrendingDown className="w-6 h-6 text-red-500" />
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Gross Loss</p>
+                          <p className="text-xs text-muted-foreground">Total losing %</p>
+                        </div>
+                      </div>
+                      <div className="text-3xl font-bold font-mono text-red-500">
+                        -{advancedMetrics.grossLoss.toFixed(2)}%
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          <Card data-testid="card-breakdown-by-source">
+            <CardHeader>
+              <CardTitle>Breakdown by Source</CardTitle>
+              <CardDescription>
+                Performance metrics grouped by signal source
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-auto">
+                <table className="pro-table">
+                  <thead>
+                    <tr>
+                      <th className="text-left py-2 px-3">Source</th>
+                      <th className="text-right py-2 px-3">Total Ideas</th>
+                      <th className="text-right py-2 px-3">Wins</th>
+                      <th className="text-right py-2 px-3">Losses</th>
+                      <th className="text-right py-2 px-3">Win Rate</th>
+                      <th className="text-right py-2 px-3">Avg Gain</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.bySource.map((source, idx) => (
+                      <tr key={source.source} className={idx % 2 === 0 ? 'bg-muted/30' : ''}>
+                        <td className="py-2 px-3 font-medium capitalize">{source.source}</td>
+                        <td className="text-right py-2 px-3">{source.totalIdeas}</td>
+                        <td className="text-right py-2 px-3 text-green-500">{source.wonIdeas}</td>
+                        <td className="text-right py-2 px-3 text-red-500">{source.lostIdeas}</td>
+                        <td className="text-right py-2 px-3">
+                          <Badge variant={source.winRate >= 50 ? 'default' : 'destructive'} className="neon-accent">
+                            {source.winRate.toFixed(1)}%
+                          </Badge>
+                        </td>
+                        <td className={`text-right py-2 px-3 font-mono ${source.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {source.avgPercentGain >= 0 ? '+' : ''}{source.avgPercentGain.toFixed(2)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card data-testid="card-breakdown-by-asset">
+              <CardHeader>
+                <CardTitle>Breakdown by Asset Type</CardTitle>
+                <CardDescription>
+                  Performance across different asset classes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-auto">
+                  <table className="pro-table">
+                    <thead>
+                      <tr>
+                        <th className="text-left py-2 px-3">Asset Type</th>
+                        <th className="text-right py-2 px-3">Ideas</th>
+                        <th className="text-right py-2 px-3">Win Rate</th>
+                        <th className="text-right py-2 px-3">Avg Gain</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stats.byAssetType.map((asset, idx) => (
+                        <tr key={asset.assetType} className={idx % 2 === 0 ? 'bg-muted/30' : ''}>
+                          <td className="py-2 px-3 font-medium capitalize">{asset.assetType}</td>
+                          <td className="text-right py-2 px-3">{asset.totalIdeas}</td>
+                          <td className="text-right py-2 px-3">
+                            <Badge variant={asset.winRate >= 50 ? 'default' : 'destructive'} className="neon-accent">
+                              {asset.winRate.toFixed(1)}%
+                            </Badge>
+                          </td>
+                          <td className={`text-right py-2 px-3 font-mono ${asset.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {asset.avgPercentGain >= 0 ? '+' : ''}{asset.avgPercentGain.toFixed(2)}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-breakdown-by-signal">
+              <CardHeader>
+                <CardTitle>Breakdown by Signal Type</CardTitle>
+                <CardDescription>
+                  Performance by technical signal patterns
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-auto">
+                  <table className="pro-table">
+                    <thead>
+                      <tr>
+                        <th className="text-left py-2 px-3">Signal</th>
+                        <th className="text-right py-2 px-3">Ideas</th>
+                        <th className="text-right py-2 px-3">Win Rate</th>
+                        <th className="text-right py-2 px-3">Avg Gain</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stats.bySignalType.map((signal, idx) => (
+                        <tr key={signal.signal} className={idx % 2 === 0 ? 'bg-muted/30' : ''}>
+                          <td className="py-2 px-3 font-medium">{signal.signal}</td>
+                          <td className="text-right py-2 px-3">{signal.totalIdeas}</td>
+                          <td className="text-right py-2 px-3">
+                            <Badge variant={signal.winRate >= 50 ? 'default' : 'destructive'} className="neon-accent">
+                              {signal.winRate.toFixed(1)}%
+                            </Badge>
+                          </td>
+                          <td className={`text-right py-2 px-3 font-mono ${signal.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {signal.avgPercentGain >= 0 ? '+' : ''}{signal.avgPercentGain.toFixed(2)}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="filters" data-testid="accordion-filters">
+              <AccordionTrigger className="text-lg font-semibold">
+                Advanced Filters
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Filter by Source</label>
                     <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                      <SelectTrigger className="w-36 shadow-sm" data-testid="select-source-filter">
-                        <Filter className="w-3 h-3 mr-2" />
-                        <SelectValue placeholder="Source" />
+                      <SelectTrigger data-testid="select-source-filter">
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Sources</SelectItem>
-                        <SelectItem value="ai">AI</SelectItem>
-                        <SelectItem value="quant">Quant</SelectItem>
-                        <SelectItem value="manual">Manual</SelectItem>
+                        {stats.bySource.map(s => (
+                          <SelectItem key={s.source} value={s.source} className="capitalize">
+                            {s.source} ({s.totalIdeas})
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Filter by Outcome</label>
                     <Select value={outcomeFilter} onValueChange={setOutcomeFilter}>
-                      <SelectTrigger className="w-36 shadow-sm" data-testid="select-outcome-filter">
-                        <Filter className="w-3 h-3 mr-2" />
-                        <SelectValue placeholder="Outcome" />
+                      <SelectTrigger data-testid="select-outcome-filter">
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Outcomes</SelectItem>
-                        <SelectItem value="won">Won</SelectItem>
-                        <SelectItem value="lost">Lost</SelectItem>
-                        <SelectItem value="expired">Expired</SelectItem>
+                        <SelectItem value="won">Wins Only</SelectItem>
+                        <SelectItem value="lost">Losses Only</SelectItem>
+                        <SelectItem value="expired">Expired Only</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                {filteredIdeas.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No trades match the selected filters
-                  </div>
-                ) : (
-                  <Accordion type="multiple" className="space-y-4" defaultValue={Object.keys(ideasByAssetType)}>
-                    {Object.entries(ideasByAssetType)
-                      .sort(([a], [b]) => {
-                        const order: Record<string, number> = { 'stock': 0, 'penny_stock': 1, 'option': 2, 'crypto': 3 };
-                        return (order[a] || 99) - (order[b] || 99);
-                      })
-                      .map(([assetType, ideas]) => {
-                        const assetTypeLabels: Record<string, string> = {
-                          'stock': 'Stock Shares',
-                          'penny_stock': 'Penny Stocks',
-                          'option': 'Stock Options',
-                          'crypto': 'Crypto'
-                        };
-                        const label = assetTypeLabels[assetType] || assetType.toUpperCase();
-                        
-                        // Calculate asset type stats
-                        const wonCount = ideas.filter(i => i.outcomeStatus === 'hit_target').length;
-                        const lostCount = ideas.filter(i => i.outcomeStatus === 'hit_stop').length;
-                        const winRate = wonCount + lostCount > 0 ? (wonCount / (wonCount + lostCount)) * 100 : 0;
-                        
-                        return (
-                          <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
-                            <AccordionTrigger className="px-4 hover:no-underline" data-testid={`accordion-asset-${assetType}`}>
-                              <div className="flex items-center gap-3 w-full">
-                                <span className="font-semibold">{label}</span>
-                                <Badge variant="outline" data-testid={`badge-count-${assetType}`}>
-                                  {ideas.length} trade{ideas.length !== 1 ? 's' : ''}
-                                </Badge>
-                                {wonCount + lostCount > 0 && (
-                                  <Badge 
-                                    className={`ml-auto mr-4 ${
-                                      winRate >= 60 ? 'bg-green-500/10 text-green-500 border-green-500/20' :
-                                      winRate >= 50 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
-                                      'bg-red-500/10 text-red-500 border-red-500/20'
-                                    }`}
-                                  >
-                                    {winRate.toFixed(1)}% WR
-                                  </Badge>
-                                )}
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-4 pb-4">
-                              <div className="overflow-x-auto">
-                                <table className="pro-table">
-                                  <thead>
-                                    <tr>
-                                      <th className="text-left">Symbol</th>
-                                      <th className="text-left">Source</th>
-                                      <th className="text-left">Direction</th>
-                                      <th className="text-right">Entry</th>
-                                      <th className="text-right">Exit</th>
-                                      <th className="text-right">P&L</th>
-                                      <th className="text-center">Outcome</th>
-                                      <th className="text-right">Date</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {ideas
-                                      .sort((a, b) => new Date(b.exitDate || b.timestamp).getTime() - new Date(a.exitDate || a.timestamp).getTime())
-                                      .map((idea) => (
-                                        <tr 
-                                          key={idea.id}
-                                          data-testid={`row-trade-${idea.symbol}`}
-                                        >
-                                          <td className="py-3 px-2">
-                                            <div className="font-mono font-semibold">{idea.symbol}</div>
-                                          </td>
-                                          <td className="py-3 px-2">
-                                            <Badge 
-                                              variant={
-                                                idea.source === 'ai' ? 'default' : 
-                                                idea.source === 'quant' ? 'secondary' : 
-                                                'outline'
-                                              }
-                                              className="text-xs"
-                                            >
-                                              {idea.source.toUpperCase()}
-                                            </Badge>
-                                          </td>
-                                          <td className="py-3 px-2">
-                                            <Badge 
-                                              className={`text-xs ${
-                                                idea.direction === 'long' 
-                                                  ? 'bg-green-500/10 text-green-500 border-green-500/20' 
-                                                  : 'bg-red-500/10 text-red-500 border-red-500/20'
-                                              }`}
-                                            >
-                                              {idea.direction.toUpperCase()}
-                                            </Badge>
-                                          </td>
-                                          <td className="py-3 px-2 text-right font-mono">
-                                            ${idea.entryPrice.toFixed(2)}
-                                          </td>
-                                          <td className="py-3 px-2 text-right font-mono">
-                                            {idea.exitPrice ? `$${idea.exitPrice.toFixed(2)}` : 'N/A'}
-                                          </td>
-                                          <td className="py-3 px-2 text-right">
-                                            {idea.percentGain !== null && idea.percentGain !== undefined ? (
-                                              <span 
-                                                className={`font-mono font-semibold ${
-                                                  idea.percentGain >= 0 ? 'text-green-500' : 'text-red-500'
-                                                }`}
-                                                data-testid={`text-pnl-${idea.symbol}`}
-                                              >
-                                                {idea.percentGain >= 0 ? '+' : ''}{idea.percentGain.toFixed(2)}%
-                                              </span>
-                                            ) : (
-                                              <span className="text-muted-foreground">N/A</span>
-                                            )}
-                                          </td>
-                                          <td className="py-3 px-2 text-center">
-                                            {getOutcomeBadge(idea.outcomeStatus)}
-                                          </td>
-                                          <td className="py-3 px-2 text-right text-muted-foreground text-xs">
-                                            {format(parseISO(idea.exitDate || idea.timestamp), 'MMM d, HH:mm')}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        );
-                      })}
-                  </Accordion>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Detailed Performance Breakdowns - Collapsible */}
-          <Accordion type="multiple" className="space-y-4" defaultValue={["breakdowns"]}>
-            <AccordionItem value="breakdowns" className="border rounded-lg shadow-lg">
-              <AccordionTrigger className="px-6 py-4 hover:no-underline glass-card rounded-t-lg">
-                <div className="flex items-center gap-3 text-xl font-bold">
-                  <Activity className="w-6 h-6 text-primary" />
-                  <span>Detailed Performance Breakdowns</span>
-                  <Badge variant="outline" className="ml-2">Source • Asset • Signals</Badge>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6 pt-2 space-y-6">
-                {/* By Source */}
-                <Card className="shadow-lg" data-testid="card-performance-by-source">
-                  <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
-                    <CardTitle className="text-xl font-bold flex items-center gap-2">
-                      <div className="p-2 rounded-lg bg-primary/10">
-                        <Activity className="w-5 h-5 text-primary" />
-                      </div>
-                      Performance by Source
-                    </CardTitle>
-                    <CardDescription>
-                      Compare AI vs Quant vs Manual trade ideas
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="space-y-6">
-                      {stats.bySource.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          No closed ideas yet. Performance data will appear here once ideas are resolved.
-                        </p>
-                      ) : (
-                        stats.bySource.map((source) => (
-                          <div key={source.source} className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Badge variant={
-                                  source.source === 'ai' ? 'default' : 
-                                  source.source === 'quant' ? 'secondary' : 
-                                  'outline'
-                                } data-testid={`badge-source-${source.source}`}>
-                                  {source.source.toUpperCase()}
-                                </Badge>
-                                <span className="text-sm text-muted-foreground">
-                                  {source.totalIdeas} ideas
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <div className={`text-sm font-mono ${
-                                  source.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
-                                }`}>
-                                  {source.avgPercentGain >= 0 ? '+' : ''}
-                                  {source.avgPercentGain.toFixed(2)}%
-                                </div>
-                                <div className={`text-xl font-bold font-mono ${
-                                  source.winRate >= 50 ? 'text-green-500' : 'text-red-500'
-                                }`} data-testid={`text-winrate-${source.source}`}>
-                                  {source.winRate.toFixed(1)}%
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span>{source.wonIdeas} wins</span>
-                              <span>•</span>
-                              <span>{source.lostIdeas} losses</span>
-                            </div>
-                            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full transition-all ${
-                                  source.winRate >= 60 ? 'bg-green-500' :
-                                  source.winRate >= 50 ? 'bg-amber-500' :
-                                  'bg-red-500'
-                                }`}
-                                style={{ width: `${Math.min(source.winRate, 100)}%` }}
-                              />
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* By Asset Type */}
-                <Card className="shadow-lg" data-testid="card-performance-by-asset">
-                  <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
-                    <CardTitle className="text-xl font-bold flex items-center gap-2">
-                      <div className="p-2 rounded-lg bg-primary/10">
-                        <Target className="w-5 h-5 text-primary" />
-                      </div>
-                      Performance by Asset Type
-                    </CardTitle>
-                    <CardDescription>
-                      Compare stocks vs options vs crypto
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="space-y-6">
-                      {stats.byAssetType.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          No closed ideas yet. Performance data will appear here once ideas are resolved.
-                        </p>
-                      ) : (
-                        stats.byAssetType.map((asset) => (
-                          <div key={asset.assetType} className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" data-testid={`badge-asset-${asset.assetType}`}>
-                                  {asset.assetType.toUpperCase()}
-                                </Badge>
-                                <span className="text-sm text-muted-foreground">
-                                  {asset.totalIdeas} ideas
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <div className={`text-sm font-mono ${
-                                  asset.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
-                                }`}>
-                                  {asset.avgPercentGain >= 0 ? '+' : ''}
-                                  {asset.avgPercentGain.toFixed(2)}%
-                                </div>
-                                <div className={`text-xl font-bold font-mono ${
-                                  asset.winRate >= 50 ? 'text-green-500' : 'text-red-500'
-                                }`} data-testid={`text-winrate-${asset.assetType}`}>
-                                  {asset.winRate.toFixed(1)}%
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span>{asset.wonIdeas} wins</span>
-                              <span>•</span>
-                              <span>{asset.lostIdeas} losses</span>
-                            </div>
-                            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full transition-all ${
-                                  asset.winRate >= 60 ? 'bg-green-500' :
-                                  asset.winRate >= 50 ? 'bg-amber-500' :
-                                  'bg-red-500'
-                                }`}
-                                style={{ width: `${Math.min(asset.winRate, 100)}%` }}
-                              />
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* By Signal Type */}
-                {stats.bySignalType.length > 0 && (
-                  <Card className="shadow-lg" data-testid="card-performance-by-signal">
-                    <CardHeader className="bg-gradient-to-r from-card to-muted/20 border-b border-border/50">
-                      <CardTitle className="text-xl font-bold flex items-center gap-2">
-                        <div className="p-2 rounded-lg bg-primary/10">
-                          <TrendingUp className="w-5 h-5 text-primary" />
-                        </div>
-                        Performance by Signal Type
-                      </CardTitle>
-                      <CardDescription>
-                        Which technical signals perform best (top 10)
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <div className="space-y-6">
-                        {stats.bySignalType
-                          .sort((a, b) => b.winRate - a.winRate)
-                          .slice(0, 10)
-                          .map((signal) => (
-                            <div key={signal.signal} className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium capitalize">
-                                    {signal.signal.replace(/_/g, ' ')}
-                                  </span>
-                                  <Badge variant="outline" className="text-xs">
-                                    {signal.totalIdeas}
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                  <div className={`text-sm font-mono ${
-                                    signal.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'
-                                  }`}>
-                                    {signal.avgPercentGain >= 0 ? '+' : ''}
-                                    {signal.avgPercentGain.toFixed(2)}%
-                                  </div>
-                                  <div className={`text-xl font-bold font-mono ${
-                                    signal.winRate >= 50 ? 'text-green-500' : 'text-red-500'
-                                  }`}>
-                                    {signal.winRate.toFixed(1)}%
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span>{signal.wonIdeas} wins</span>
-                                <span>•</span>
-                                <span>{signal.lostIdeas} losses</span>
-                              </div>
-                              <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full transition-all ${
-                                    signal.winRate >= 60 ? 'bg-green-500' :
-                                    signal.winRate >= 50 ? 'bg-amber-500' :
-                                    'bg-red-500'
-                                  }`}
-                                  style={{ width: `${Math.min(signal.winRate, 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+
+          {filteredIdeas.length > 0 && (
+            <Card data-testid="card-filtered-trades">
+              <CardHeader>
+                <CardTitle>Filtered Trade Ideas ({filteredIdeas.length})</CardTitle>
+                <CardDescription>
+                  Trades matching current filter criteria
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-auto max-h-96">
+                  <table className="pro-table">
+                    <thead>
+                      <tr>
+                        <th className="text-left py-2 px-3">Symbol</th>
+                        <th className="text-left py-2 px-3">Type</th>
+                        <th className="text-left py-2 px-3">Direction</th>
+                        <th className="text-left py-2 px-3">Source</th>
+                        <th className="text-right py-2 px-3">Entry</th>
+                        <th className="text-right py-2 px-3">Exit</th>
+                        <th className="text-center py-2 px-3">Outcome</th>
+                        <th className="text-right py-2 px-3">Gain</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredIdeas.map((idea, idx) => (
+                        <tr key={idea.id} className={idx % 2 === 0 ? 'bg-muted/30' : ''}>
+                          <td className="py-2 px-3 font-mono font-bold">{idea.symbol}</td>
+                          <td className="py-2 px-3 capitalize text-xs">{idea.assetType}</td>
+                          <td className="py-2 px-3">
+                            <Badge 
+                              className={`text-xs ${
+                                idea.direction === 'long' 
+                                  ? 'bg-green-500/10 text-green-500 border-green-500/20' 
+                                  : 'bg-red-500/10 text-red-500 border-red-500/20'
+                              }`}
+                            >
+                              {idea.direction.toUpperCase()}
+                            </Badge>
+                          </td>
+                          <td className="py-2 px-3 capitalize text-xs">{idea.source}</td>
+                          <td className="text-right py-2 px-3 font-mono">${idea.entryPrice.toFixed(2)}</td>
+                          <td className="text-right py-2 px-3 font-mono">${idea.exitPrice?.toFixed(2) || '—'}</td>
+                          <td className="text-center py-2 px-3">{getOutcomeBadge(idea.outcomeStatus)}</td>
+                          <td className={`text-right py-2 px-3 font-mono font-bold ${
+                            (idea.percentGain || 0) >= 0 ? 'text-green-500' : 'text-red-500'
+                          }`}>
+                            {idea.percentGain !== null 
+                              ? `${idea.percentGain >= 0 ? '+' : ''}${idea.percentGain.toFixed(2)}%` 
+                              : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 
-      {/* Validation Results Dialog */}
       <ValidationResultsDialog
         open={showValidationDialog}
         onOpenChange={setShowValidationDialog}
         results={validationResults}
-        totalValidated={validationSummary.validated}
-        totalUpdated={validationSummary.updated}
+        summary={validationSummary}
       />
     </div>
   );
