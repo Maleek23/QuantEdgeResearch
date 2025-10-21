@@ -676,3 +676,112 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
     return [];
   }
 }
+
+/**
+ * Earnings event data from Alpha Vantage
+ */
+export interface EarningsEvent {
+  symbol: string;
+  name: string;
+  reportDate: string; // YYYY-MM-DD format
+  fiscalDateEnding: string;
+  estimate: number | null; // Analyst consensus EPS estimate
+  currency: string;
+}
+
+/**
+ * Fetch upcoming earnings calendar from Alpha Vantage
+ * Returns earnings events for the next 3 months
+ */
+export async function fetchEarningsCalendar(horizon: '3month' | '6month' | '12month' = '3month'): Promise<EarningsEvent[]> {
+  const apiKey = process.env.ALPHA_VANTAGE_API_KEY;
+  
+  if (!apiKey) {
+    logger.warn('⚠️ No Alpha Vantage API key - earnings calendar unavailable');
+    return [];
+  }
+
+  try {
+    const url = `${ALPHA_VANTAGE_API}?function=EARNINGS_CALENDAR&horizon=${horizon}&apikey=${apiKey}`;
+    
+    logger.info(`📅 Fetching earnings calendar (${horizon})...`);
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      logger.error(`❌ Alpha Vantage earnings API error: HTTP ${response.status}`);
+      return [];
+    }
+
+    const csvText = await response.text();
+    
+    // Check for rate limit
+    if (csvText.includes('rate limit') || csvText.includes('premium endpoint')) {
+      logger.warn('⚠️ Alpha Vantage rate limit or premium endpoint - earnings unavailable');
+      return [];
+    }
+
+    // Parse CSV manually (Alpha Vantage returns CSV, not JSON)
+    const lines = csvText.trim().split('\n');
+    
+    if (lines.length < 2) {
+      logger.warn('⚠️ No earnings data returned from Alpha Vantage');
+      return [];
+    }
+
+    // First line is header: symbol,name,reportDate,fiscalDateEnding,estimate,currency
+    const header = lines[0].split(',');
+    const symbolIdx = header.indexOf('symbol');
+    const nameIdx = header.indexOf('name');
+    const reportDateIdx = header.indexOf('reportDate');
+    const fiscalDateIdx = header.indexOf('fiscalDateEnding');
+    const estimateIdx = header.indexOf('estimate');
+    const currencyIdx = header.indexOf('currency');
+
+    const earnings: EarningsEvent[] = [];
+    
+    // Parse each row (skip header)
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i].split(',');
+      
+      if (row.length < 6) continue; // Skip malformed rows
+      
+      const symbol = row[symbolIdx]?.trim();
+      const reportDate = row[reportDateIdx]?.trim();
+      
+      if (!symbol || !reportDate) continue;
+      
+      earnings.push({
+        symbol,
+        name: row[nameIdx]?.trim() || symbol,
+        reportDate,
+        fiscalDateEnding: row[fiscalDateIdx]?.trim() || reportDate,
+        estimate: row[estimateIdx] ? parseFloat(row[estimateIdx]) : null,
+        currency: row[currencyIdx]?.trim() || 'USD',
+      });
+    }
+
+    logger.info(`✅ Found ${earnings.length} upcoming earnings events`);
+    logAPISuccess('AlphaVantage', 'earnings_calendar', { count: earnings.length });
+    
+    return earnings;
+  } catch (error) {
+    logger.error('❌ Error fetching earnings calendar:', error);
+    logAPIError('AlphaVantage', 'earnings_calendar', error instanceof Error ? error.message : String(error));
+    return [];
+  }
+}
+
+/**
+ * Get earnings for specific symbols only
+ */
+export async function fetchSymbolEarnings(symbols: string[]): Promise<Map<string, EarningsEvent>> {
+  const allEarnings = await fetchEarningsCalendar('3month');
+  const symbolSet = new Set(symbols.map(s => s.toUpperCase()));
+  
+  const filtered = allEarnings.filter(e => symbolSet.has(e.symbol));
+  
+  const earningsMap = new Map<string, EarningsEvent>();
+  filtered.forEach(e => earningsMap.set(e.symbol, e));
+  
+  return earningsMap;
+}
