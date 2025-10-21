@@ -11,7 +11,8 @@ interface ValidationResult {
   resolutionReason?: TradeIdea['resolutionReason'];
   exitDate?: string;
   actualHoldingTimeMinutes?: number;
-  predictionAccurate?: boolean;
+  predictionAccurate?: boolean; // LEGACY: kept for backward compatibility
+  predictionAccuracyPercent?: number; // NEW: percentage-based accuracy (0-100+)
   predictionValidatedAt?: string;
   highestPriceReached?: number;
   lowestPriceReached?: number;
@@ -68,6 +69,13 @@ export class PerformanceValidator {
             highestPrice,
             lowestPrice
           );
+          
+          const predictionAccuracyPercent = this.calculatePredictionAccuracyPercent(
+            idea,
+            lastKnownPrice,
+            highestPrice,
+            lowestPrice
+          );
 
           return {
             shouldUpdate: true,
@@ -79,6 +87,7 @@ export class PerformanceValidator {
             exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
             actualHoldingTimeMinutes: holdingTimeMinutes,
             predictionAccurate,
+            predictionAccuracyPercent,
             predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
             highestPriceReached: highestPrice,
             lowestPriceReached: lowestPrice,
@@ -117,6 +126,13 @@ export class PerformanceValidator {
         highestPrice,
         lowestPrice
       );
+      
+      const predictionAccuracyPercent = this.calculatePredictionAccuracyPercent(
+        idea,
+        lastKnownPrice,
+        highestPrice,
+        lowestPrice
+      );
 
       return {
         shouldUpdate: true,
@@ -128,6 +144,7 @@ export class PerformanceValidator {
         exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
         actualHoldingTimeMinutes: holdingTimeMinutes,
         predictionAccurate,
+        predictionAccuracyPercent,
         predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
         highestPriceReached: highestPrice,
         lowestPriceReached: lowestPrice,
@@ -165,6 +182,7 @@ export class PerformanceValidator {
         exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
         actualHoldingTimeMinutes: holdingTimeMinutes,
         predictionAccurate: true, // Hit target = prediction was accurate
+        predictionAccuracyPercent: 100, // Hit target = 100% accuracy
         predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
         highestPriceReached: highestPrice,
         lowestPriceReached: lowestPrice,
@@ -190,6 +208,13 @@ export class PerformanceValidator {
         highestPrice,
         lowestPrice
       );
+      
+      const predictionAccuracyPercent = this.calculatePredictionAccuracyPercent(
+        idea,
+        currentPrice,
+        highestPrice,
+        lowestPrice
+      );
 
       return {
         shouldUpdate: true,
@@ -201,6 +226,7 @@ export class PerformanceValidator {
         exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
         actualHoldingTimeMinutes: holdingTimeMinutes,
         predictionAccurate,
+        predictionAccuracyPercent,
         predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
         highestPriceReached: highestPrice,
         lowestPriceReached: lowestPrice,
@@ -242,8 +268,43 @@ export class PerformanceValidator {
   }
 
   /**
-   * Check if the quant prediction was accurate
-   * Prediction is considered accurate if price moved at least 50% toward target
+   * Calculate prediction accuracy as percentage progress toward target
+   * Returns 0-100+ (can exceed 100% if price moves beyond target)
+   * 
+   * Example: Entry $100, Target $110 ($10 move expected)
+   *   - If at $105: 50% progress (moved $5 of $10)
+   *   - If at $108: 80% progress (moved $8 of $10)
+   *   - If at $112: 120% progress (moved $12 of $10)
+   */
+  private static calculatePredictionAccuracyPercent(
+    idea: TradeIdea,
+    currentPrice: number,
+    highestPrice?: number,
+    lowestPrice?: number
+  ): number {
+    const expectedMove = idea.targetPrice - idea.entryPrice;
+    
+    if (idea.direction === 'long') {
+      // For LONG: Calculate progress using highest price reached
+      const peakPrice = highestPrice || currentPrice;
+      const actualMove = peakPrice - idea.entryPrice;
+      const progressPercent = (actualMove / expectedMove) * 100;
+      // Clamp at 0 minimum (negative means moved wrong direction)
+      return Math.max(0, progressPercent);
+    } else {
+      // For SHORT: Calculate progress using lowest price reached
+      const bottomPrice = lowestPrice || currentPrice;
+      const actualMove = idea.entryPrice - bottomPrice;
+      const targetMove = idea.entryPrice - idea.targetPrice;
+      const progressPercent = (actualMove / targetMove) * 100;
+      // Clamp at 0 minimum (negative means moved wrong direction)
+      return Math.max(0, progressPercent);
+    }
+  }
+  
+  /**
+   * LEGACY: Check if prediction was accurate (50% threshold)
+   * Kept for backward compatibility
    */
   private static checkPredictionAccuracy(
     idea: TradeIdea,
@@ -251,20 +312,13 @@ export class PerformanceValidator {
     highestPrice?: number,
     lowestPrice?: number
   ): boolean {
-    const expectedMove = idea.targetPrice - idea.entryPrice;
-    const threshold = 0.5; // 50% of expected move
-    
-    if (idea.direction === 'long') {
-      // For LONG: Did price reach at least 50% of the way to target?
-      const midPoint = idea.entryPrice + (expectedMove * threshold);
-      const peakPrice = highestPrice || currentPrice;
-      return peakPrice >= midPoint;
-    } else {
-      // For SHORT: Did price reach at least 50% of the way to target?
-      const midPoint = idea.entryPrice + (expectedMove * threshold); // expectedMove is negative for shorts
-      const bottomPrice = lowestPrice || currentPrice;
-      return bottomPrice <= midPoint;
-    }
+    const accuracyPercent = this.calculatePredictionAccuracyPercent(
+      idea,
+      currentPrice,
+      highestPrice,
+      lowestPrice
+    );
+    return accuracyPercent >= 50;
   }
 
   /**

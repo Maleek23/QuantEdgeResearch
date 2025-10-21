@@ -88,7 +88,8 @@ export const tradeIdeas = pgTable("trade_ideas", {
   validatedAt: text("validated_at"), // When auto-validation last checked this idea
   
   // Quant Prediction Accuracy Tracking
-  predictionAccurate: boolean("prediction_accurate"), // Did price move in predicted direction by meaningful amount?
+  predictionAccurate: boolean("prediction_accurate"), // LEGACY: Did price move in predicted direction by meaningful amount?
+  predictionAccuracyPercent: real("prediction_accuracy_percent"), // % progress toward target (0-100+)
   predictionValidatedAt: text("prediction_validated_at"), // When prediction accuracy was checked
   highestPriceReached: real("highest_price_reached"), // Peak price during trade (for long positions)
   lowestPriceReached: real("lowest_price_reached"), // Lowest price during trade (for short positions)
