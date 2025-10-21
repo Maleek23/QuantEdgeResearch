@@ -490,38 +490,41 @@ function calculateConfidenceScore(
     qualitySignals.push('Weak Signal');
   }
 
-  // 4. Predictive Setup Quality (0-15 points) - FIXED: Reward EARLY signals, not finished moves
+  // 4. Predictive Setup Quality (0-25 points) - BOOSTED: Reward EARLY signals heavily
   if (signal.type === 'rsi_divergence' && signal.rsiValue) {
-    // Strong divergence bonus (extreme oversold/overbought)
+    // RSI divergence - highly predictive when caught early
     const rsiExtreme = signal.rsiValue <= 20 || signal.rsiValue >= 80;
     if (rsiExtreme) {
-      score += 15;
-      qualitySignals.push('Extreme RSI Divergence');
+      score += 25; // BOOSTED from 15
+      qualitySignals.push('🎯 Extreme RSI Divergence');
     } else {
-      score += 10;
-      qualitySignals.push('RSI Setup');
+      score += 18; // BOOSTED from 10
+      qualitySignals.push('RSI Divergence Setup');
     }
   } else if (signal.type === 'macd_crossover' && signal.macdValues) {
-    // MACD histogram strength
+    // MACD crossover - best when histogram is still small (early)
     const histStrength = Math.abs(signal.macdValues.histogram);
-    if (histStrength > 0.3) {
-      score += 15;
-      qualitySignals.push('Strong MACD Signal');
+    if (histStrength < 0.1) {
+      score += 25; // NEW: Reward FRESH crossovers
+      qualitySignals.push('🎯 Fresh MACD Crossover');
+    } else if (histStrength < 0.3) {
+      score += 20; // BOOSTED from 10
+      qualitySignals.push('Early MACD Signal');
     } else {
-      score += 10;
-      qualitySignals.push('MACD Crossover');
+      score += 5; // REDUCED from 15 - large histogram means late
+      qualitySignals.push('Late MACD');
     }
   } else if (signal.type === 'breakout' && priceChangeAbs < 2) {
-    // EARLY breakout (small move, building volume) - predictive
-    score += 15;
-    qualitySignals.push('Early Breakout Setup');
+    // EARLY breakout (small move, building volume) - highly predictive
+    score += 22; // BOOSTED from 15
+    qualitySignals.push('🎯 Early Breakout Setup');
   } else if (signal.type === 'volume_spike' && volumeRatio >= 5 && priceChangeAbs < 1) {
-    // EARLY institutional flow (big volume, small move) - predictive
-    score += 15;
-    qualitySignals.push('Early Institutional Flow');
+    // EARLY institutional flow (big volume, small move) - highly predictive
+    score += 25; // BOOSTED from 15
+    qualitySignals.push('🎯 Early Institutional Flow');
   } else if (signal.type === 'mean_reversion') {
     // Mean reversion on extreme move
-    score += 10;
+    score += 15; // BOOSTED from 10
     qualitySignals.push('Reversal Setup');
   }
 
@@ -543,32 +546,46 @@ function calculateConfidenceScore(
     qualitySignals.push('Technical Indicator Confirmed');
   }
 
-  // 7. Multi-Timeframe Alignment Bonus (0-15 points)
+  // 7. Multi-Timeframe Alignment Bonus (0-8 points max)
+  // REDUCED: Strong trend indicates move is done, not early setup
   if (mtfAnalysis) {
     if (mtfAnalysis.aligned && mtfAnalysis.strength === 'strong') {
-      score += 15;
-      qualitySignals.push('Timeframes Aligned (Strong)');
-    } else if (mtfAnalysis.aligned) {
-      score += 10;
+      // REDUCED from 15 to 5 - strong trend means late entry
+      score += 5;
       qualitySignals.push('Timeframes Aligned');
+    } else if (mtfAnalysis.aligned) {
+      score += 8;
+      qualitySignals.push('Timeframes Building');
     } else if (mtfAnalysis.strength === 'moderate') {
       score += 5;
       qualitySignals.push('Partial Timeframe Support');
     }
   }
 
-  // 8. Bearish Momentum Bonus - Help PUT ideas qualify (0-20 points)
+  // 8. Early Momentum Detection - ONLY reward small moves with volume (0-10 points max)
+  // REMOVED: Large price moves indicate FINISHED momentum, not early setups
   if (signal.direction === 'short' && data.changePercent < 0) {
     const downMoveSize = Math.abs(data.changePercent);
-    if (downMoveSize >= 3) {
-      score += 20;
-      qualitySignals.push('Strong Bearish Momentum');
-    } else if (downMoveSize >= 2) {
-      score += 15;
-      qualitySignals.push('Moderate Bearish Momentum');
-    } else if (downMoveSize >= 1.5) {
+    // ONLY reward SMALL moves with volume - these are early setups
+    if (downMoveSize < 1 && volumeRatio >= 2) {
       score += 10;
-      qualitySignals.push('Bearish Pressure');
+      qualitySignals.push('Early Bearish Setup');
+    } else if (downMoveSize >= 3) {
+      // PENALTY for chasing finished moves
+      score -= 10;
+      qualitySignals.push('⚠️ Move Already Extended');
+    }
+  }
+  
+  // Similar check for longs
+  if (signal.direction === 'long' && data.changePercent > 0) {
+    const upMoveSize = Math.abs(data.changePercent);
+    if (upMoveSize < 1 && volumeRatio >= 2) {
+      score += 10;
+      qualitySignals.push('Early Bullish Setup');
+    } else if (upMoveSize >= 3) {
+      score -= 10;
+      qualitySignals.push('⚠️ Move Already Extended');
     }
   }
 
@@ -1024,9 +1041,10 @@ export async function generateQuantIdeas(
         data.symbol,
         signal.direction,
         levels.entryPrice,
-        24 // Look back 24 hours
+        72 // Look back 72 hours (INCREASED from 24 to reduce duplicates)
       );
       if (duplicate) {
+        dataQuality.lowQuality++; // Count as filtered for better reporting
         continue; // Skip this idea, it's too similar to an existing one
       }
     }
@@ -1281,8 +1299,11 @@ export async function generateQuantIdeas(
       );
       const probabilityBand = getProbabilityBand(confidenceScore);
 
-      // Skip if below quality threshold (lowered to trust catalyst analysis)
-      if (confidenceScore < 55) continue;
+      // Skip if below quality threshold - STRICT B+ minimum (85+) for ALL ideas
+      if (confidenceScore < 85) {
+        logger.info(`Filtered out catalyst idea for ${catalyst.symbol} - below B+ threshold (score: ${confidenceScore})`);
+        continue;
+      }
 
       // Check for duplicate ideas before creating
       if (storage) {
@@ -1290,7 +1311,7 @@ export async function generateQuantIdeas(
           catalyst.symbol,
           direction,
           entryPrice,
-          24 // Look back 24 hours
+          72 // Look back 72 hours (INCREASED from 24 to reduce duplicates)
         );
         if (duplicate) {
           continue; // Skip this idea, it's too similar to an existing one

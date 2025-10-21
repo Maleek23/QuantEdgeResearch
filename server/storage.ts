@@ -708,7 +708,7 @@ export class MemStorage implements IStorage {
     const now = new Date();
     const cutoffTime = new Date(now.getTime() - hoursBack * 60 * 60 * 1000);
     
-    const priceThreshold = 0.05; // 5% price difference threshold
+    const priceThreshold = 0.02; // 2% price difference threshold (TIGHTENED from 5%)
     
     return Array.from(this.tradeIdeas.values()).find(idea => {
       const ideaTime = new Date(idea.timestamp);
