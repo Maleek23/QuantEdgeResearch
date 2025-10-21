@@ -1,7 +1,111 @@
+# ==========================================
+# QuantEdge Research - Public Demo .gitignore
+# ==========================================
+# Strategy: Open-source UI/educational components
+#           Protect proprietary quant algorithms
+# ==========================================
+
+# ============ PROPRIETARY CODE ============
+# Quant signal generator (proprietary algorithms)
+server/quant-ideas-generator.ts
+
+# ML training and weights (proprietary models)
+server/ml-*.ts
+server/machine-learning.ts
+server/performance-validator.ts
+ml-weights/
+ml-models/
+training-data/
+
+# Signal intelligence (derived from proprietary data)
+server/signal-*.ts
+
+# ============ SENSITIVE DATA ============
+# Environment variables and secrets
+.env
+.env.local
+.env.production
+.env.development
+*.pem
+*.key
+
+# Database files and backups
+*.db
+*.sqlite
+*.sqlite3
+db-backups/
+database-exports/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ============ BUILD & CACHE ============
+# Dependencies
 node_modules
+.pnpm-store/
+.yarn/
+.npm/
+
+# Build outputs
 dist
-.DS_Store
+dist-ssr/
+build/
+.next/
+out/
 server/public
+
+# Cache directories
+.cache/
+.vite/
+.turbo/
+.parcel-cache/
+
+# ============ EDITOR & OS ============
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Replit specific
+.replit
+.upm/
+.config/
+.breakpoints
+
+# ============ TESTING ============
+coverage/
+.nyc_output/
+*.lcov
+
+# ============ TEMPORARY FILES ============
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
 vite.config.ts.*
 *.tar.gz
 *.zip
+
+# ============ NOTES ============
+# This .gitignore allows the following to be public:
+# ✅ Frontend UI components (client/src/)
+# ✅ Educational pages (learning, risk disclosure)
+# ✅ Schema definitions (shared/schema.ts)
+# ✅ API routes (server/routes.ts)
+# ✅ Storage interface (server/storage.ts)
+# 
+# While protecting:
+# 🔒 Quant signal generation logic
+# 🔒 ML training algorithms
+# 🔒 Performance validation logic
+# 🔒 API keys and secrets
+# 🔒 Database content

@@ -30,6 +30,12 @@ export function Footer() {
             <Link href="/signals" className="hover:text-foreground transition-colors" data-testid="footer-link-signals">
               Signals
             </Link>
+            <Link href="/privacy" className="hover:text-foreground transition-colors" data-testid="footer-link-privacy">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="hover:text-foreground transition-colors" data-testid="footer-link-terms">
+              Terms of Service
+            </Link>
             <a 
               href="https://www.sec.gov/education" 
               target="_blank" 

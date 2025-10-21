@@ -20,6 +20,8 @@ import LearningPage from "@/pages/learning";
 import SettingsPage from "@/pages/settings";
 import AdminPanel from "@/pages/admin";
 import About from "@/pages/about";
+import PrivacyPolicy from "@/pages/privacy-policy";
+import TermsOfService from "@/pages/terms-of-service";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -38,6 +40,8 @@ function Router() {
       <Route path="/settings" component={SettingsPage} />
       <Route path="/admin" component={AdminPanel} />
       <Route path="/about" component={About} />
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/terms" component={TermsOfService} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -52,7 +56,7 @@ function App() {
   };
 
   // Show public landing pages without sidebar (admin page handles its own layout)
-  const publicPages = ['/', '/learn-more', '/admin'];
+  const publicPages = ['/', '/learn-more', '/admin', '/privacy', '/terms'];
   if (publicPages.includes(location)) {
     return (
       <QueryClientProvider client={queryClient}>
