@@ -43,7 +43,11 @@ export class PerformanceValidator {
     if (idea.exitBy) {
       try {
         const exitByDate = new Date(idea.exitBy);
-        if (now > exitByDate) {
+        // Validate date is parseable (handles legacy formatted strings)
+        if (isNaN(exitByDate.getTime())) {
+          console.warn(`Invalid exitBy date for ${idea.symbol}: ${idea.exitBy}`);
+          // Skip expiry check for invalid dates, fall through to other checks
+        } else if (now > exitByDate) {
           // Use last known price (entry, highest, or lowest) if current price unavailable
           const lastKnownPrice = currentPrice ?? 
             (idea.highestPriceReached || idea.lowestPriceReached || idea.entryPrice);

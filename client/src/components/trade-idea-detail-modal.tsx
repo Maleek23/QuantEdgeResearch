@@ -6,6 +6,7 @@ import { formatCurrency, formatPercent, cn } from "@/lib/utils";
 import { ArrowUpRight, ArrowDownRight, Clock, TrendingUp, Lightbulb, Star } from "lucide-react";
 import { ExplainabilityPanel } from "@/components/explainability-panel";
 import type { TradeIdea } from "@shared/schema";
+import { formatInTimeZone } from "date-fns-tz";
 
 interface TradeIdeaDetailModalProps {
   idea: TradeIdea | null;
@@ -234,7 +235,19 @@ export function TradeIdeaDetailModal({
                   {idea.exitBy && (
                     <div className="p-3 rounded-lg border bg-card">
                       <div className="text-xs text-muted-foreground mb-1">Exit By</div>
-                      <div className="text-sm font-semibold">{idea.exitBy}</div>
+                      <div className="text-sm font-semibold">
+                        {(() => {
+                          // Backward compatibility: handle both ISO timestamps and legacy formatted strings
+                          const exitDate = new Date(idea.exitBy);
+                          if (!isNaN(exitDate.getTime())) {
+                            // Valid ISO timestamp - format it
+                            return formatInTimeZone(exitDate, 'America/Chicago', 'MMM d, h:mm a') + ' CST';
+                          } else {
+                            // Legacy formatted string - display as-is
+                            return idea.exitBy;
+                          }
+                        })()}
+                      </div>
                       {idea.exitWindowMinutes && (
                         <div className="text-xs text-muted-foreground mt-1">
                           {idea.exitWindowMinutes} min window

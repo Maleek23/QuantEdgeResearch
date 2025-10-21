@@ -1051,22 +1051,21 @@ export async function generateQuantIdeas(
     })();
 
     const exitBy = (() => {
-      if (assetType === 'option') {
-        // Options: Use quantitative exit window but cap at expiry - INCLUDE DATE
-        const exitDate = new Date(now.getTime() + timingAnalytics.exitWindowMinutes * 60 * 1000);
-        return `${formatInTimeZone(exitDate, timezone, 'MMM d, h:mm a')} CST or Expiry`;
-      } else {
-        const exitDate = new Date(now.getTime() + timingAnalytics.exitWindowMinutes * 60 * 1000);
-        return formatInTimeZone(exitDate, timezone, 'MMM d, h:mm a') + ' CST';
-      }
+      const exitDate = new Date(now.getTime() + timingAnalytics.exitWindowMinutes * 60 * 1000);
+      // Store as ISO timestamp for reliable machine parsing
+      // Will be formatted for display in UI layer
+      return exitDate.toISOString();
     })();
     
     // Use holding period from timing analytics (includes week-ending strategy)
     const holdingPeriod = timingAnalytics.holdingPeriodType;
     
+    // Format exitBy for logging display
+    const exitByFormatted = formatInTimeZone(new Date(exitBy), timezone, 'MMM d, h:mm a') + ' CST';
+    
     logger.info(
       `⏰ ${data.symbol} QUANTITATIVE TIMING: Entry in ${timingAnalytics.entryWindowMinutes}min (${entryValidUntil}), ` +
-      `Exit in ${timingAnalytics.exitWindowMinutes}min (${exitBy}) | ` +
+      `Exit in ${timingAnalytics.exitWindowMinutes}min (${exitByFormatted}) | ` +
       `${holdingPeriod.toUpperCase()} TRADE | ` +
       `Regime: ${regime.volatilityRegime} volatility, ${regime.sessionPhase} session | ` +
       `Target hit probability: ${timingAnalytics.targetHitProbability.toFixed(1)}%`
