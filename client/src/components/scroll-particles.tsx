@@ -5,10 +5,9 @@ interface Particle {
   y: number;
   vx: number;
   vy: number;
-  life: number;
-  maxLife: number;
   size: number;
   opacity: number;
+  isAmbient: boolean;
 }
 
 export function ScrollParticles() {
@@ -28,6 +27,22 @@ export function ScrollParticles() {
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      
+      // Recreate ambient particles on resize
+      const ambientCount = 40;
+      particlesRef.current = particlesRef.current.filter(p => !p.isAmbient);
+      
+      for (let i = 0; i < ambientCount; i++) {
+        particlesRef.current.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          size: Math.random() * 2 + 1,
+          opacity: Math.random() * 0.3 + 0.2,
+          isAmbient: true,
+        });
+      }
     };
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
@@ -42,17 +57,15 @@ export function ScrollParticles() {
         const particleCount = Math.min(Math.floor(scrollDelta / 5), 8);
         
         for (let i = 0; i < particleCount; i++) {
-          const particle: Particle = {
+          particlesRef.current.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
             vx: (Math.random() - 0.5) * 1.5,
             vy: (Math.random() - 0.5) * 1.5,
-            life: 120, // Longer life for neural network effect
-            maxLife: 120,
             size: Math.random() * 2 + 1,
             opacity: Math.random() * 0.4 + 0.3,
-          };
-          particlesRef.current.push(particle);
+            isAmbient: false,
+          });
         }
       }
       
@@ -64,18 +77,22 @@ export function ScrollParticles() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
       // Update and draw particles
-      particlesRef.current = particlesRef.current.filter(particle => {
-        particle.life--;
+      particlesRef.current.forEach(particle => {
+        // Update position
         particle.x += particle.vx;
         particle.y += particle.vy;
         
-        if (particle.life <= 0) return false;
-        
-        const alpha = particle.life / particle.maxLife;
+        // Wrap around edges for ambient particles
+        if (particle.isAmbient) {
+          if (particle.x < 0) particle.x = canvas.width;
+          if (particle.x > canvas.width) particle.x = 0;
+          if (particle.y < 0) particle.y = canvas.height;
+          if (particle.y > canvas.height) particle.y = 0;
+        }
         
         // Draw particle (node)
         ctx.save();
-        ctx.globalAlpha = alpha * particle.opacity;
+        ctx.globalAlpha = particle.opacity;
         ctx.fillStyle = 'rgba(6, 182, 212, 1)'; // cyan-500 - neural network color
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
@@ -92,7 +109,7 @@ export function ScrollParticles() {
           
           // Draw connection if particles are close enough
           if (distance < 120) {
-            const connectionAlpha = alpha * (1 - distance / 120) * 0.15;
+            const connectionAlpha = particle.opacity * (1 - distance / 120) * 0.15;
             ctx.save();
             ctx.globalAlpha = connectionAlpha;
             ctx.strokeStyle = 'rgba(6, 182, 212, 1)'; // cyan-500
@@ -104,8 +121,13 @@ export function ScrollParticles() {
             ctx.restore();
           }
         });
-        
-        return true;
+      });
+      
+      // Remove scroll-triggered particles that are off-screen
+      particlesRef.current = particlesRef.current.filter(particle => {
+        if (particle.isAmbient) return true;
+        return particle.x >= -10 && particle.x <= canvas.width + 10 &&
+               particle.y >= -10 && particle.y <= canvas.height + 10;
       });
       
       animationFrameId.current = requestAnimationFrame(animate);

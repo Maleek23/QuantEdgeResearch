@@ -44,6 +44,10 @@ export default function Dashboard() {
     queryKey: ['/api/watchlist'],
   });
 
+  const { data: performanceStats } = useQuery<any>({
+    queryKey: ['/api/performance/stats'],
+  });
+
   // Generate Quant Ideas mutation
   const generateQuantIdeas = useMutation({
     mutationFn: async () => {
@@ -185,6 +189,66 @@ export default function Dashboard() {
             </Card>
           </div>
         </div>
+
+      {/* Performance Metrics - CONSISTENT WITH OTHER PAGES */}
+      {performanceStats && (
+        <div className="gradient-border-card">
+          <Card className="glass-card stat-card shadow-lg border-0">
+            <CardHeader className="bg-gradient-to-r from-card/80 to-muted/20 border-b border-border/50">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <Shield className="w-5 h-5 text-primary" />
+                System Performance
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground mb-1">Win Rate</div>
+                  <div className={`text-2xl font-bold font-mono ${performanceStats.overall.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
+                    {performanceStats.overall.winRate.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-muted-foreground">{performanceStats.overall.wonIdeas}W • {performanceStats.overall.lostIdeas}L</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground mb-1">Quant Accuracy</div>
+                  <div className={`text-2xl font-bold font-mono ${(performanceStats.overall.quantAccuracy ?? 0) >= 50 ? 'text-blue-500' : 'text-orange-500'}`}>
+                    {performanceStats.overall.quantAccuracy.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-muted-foreground">Weighted</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground mb-1">Directional</div>
+                  <div className={`text-2xl font-bold font-mono ${(performanceStats.overall.directionalAccuracy ?? 0) >= 40 ? 'text-cyan-500' : 'text-amber-500'}`}>
+                    {performanceStats.overall.directionalAccuracy.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-muted-foreground">Accuracy</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground mb-1">EV Score</div>
+                  <div className={`text-2xl font-bold font-mono ${performanceStats.overall.evScore >= 1.5 ? 'text-green-500' : performanceStats.overall.evScore >= 1.0 ? 'text-cyan-500' : 'text-red-500'}`}>
+                    {performanceStats.overall.evScore > 99 ? '∞' : performanceStats.overall.evScore.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Profitability</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-muted-foreground mb-1">Opposite Dir</div>
+                  <div className={`text-2xl font-bold font-mono ${performanceStats.overall.oppositeDirectionRate > 20 ? 'text-red-500' : performanceStats.overall.oppositeDirectionRate > 15 ? 'text-amber-500' : 'text-green-500'}`}>
+                    {performanceStats.overall.oppositeDirectionRate.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-muted-foreground">Blind Spot</div>
+                </div>
+              </div>
+              <div className="mt-4 text-center">
+                <Link href="/performance">
+                  <Button variant="outline" size="sm" className="gap-2" data-testid="button-view-full-performance">
+                    View Full Performance <ArrowRight className="w-3 h-3" />
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Metrics Summary */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
