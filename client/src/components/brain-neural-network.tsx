@@ -1,6 +1,6 @@
 import { useRef, useState, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Sphere, Html, Line } from '@react-three/drei';
+import { OrbitControls, Sphere, Html } from '@react-three/drei';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Brain } from "lucide-react";
@@ -143,21 +143,23 @@ interface NeuralConnectionProps {
 }
 
 function NeuralConnection({ start, end, strength }: NeuralConnectionProps) {
-  const points = useMemo(() => [
-    new THREE.Vector3(...start),
-    new THREE.Vector3(...end)
-  ], [start, end]);
+  const geometry = useMemo(() => {
+    const geom = new THREE.BufferGeometry();
+    const positions = new Float32Array([...start, ...end]);
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    return geom;
+  }, [start, end]);
   
-  const color = new THREE.Color().setHSL(0.55, 0.8, 0.5 + strength * 0.3);
+  const color = useMemo(() => new THREE.Color().setHSL(0.55, 0.8, 0.5 + strength * 0.3), [strength]);
   
   return (
-    <Line
-      points={points}
-      color={color}
-      lineWidth={1 + strength * 2}
-      transparent
-      opacity={0.3 + strength * 0.4}
-    />
+    <lineSegments args={[geometry]}>
+      <lineBasicMaterial
+        color={color}
+        transparent
+        opacity={0.3 + strength * 0.4}
+      />
+    </lineSegments>
   );
 }
 
