@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Footer } from "@/components/footer";
+import { ScrollParticles } from "@/components/scroll-particles";
 import Landing from "@/pages/landing";
 import LearnMore from "@/pages/learn-more";
 import Dashboard from "@/pages/dashboard";
@@ -64,6 +65,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
           <TooltipProvider>
+            <ScrollParticles />
             <Router />
             <Toaster />
           </TooltipProvider>
@@ -77,6 +79,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
         <TooltipProvider>
+          <ScrollParticles />
           <SidebarProvider style={style as React.CSSProperties}>
             <div className="flex h-screen w-full">
               <AppSidebar />
