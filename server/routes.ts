@@ -1863,6 +1863,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Manual Trade Validation (force validation of all open trades NOW)
+  app.post("/api/admin/validate-trades", requireAdmin, async (_req, res) => {
+    try {
+      const { PerformanceValidator } = await import('./performance-validator');
+      const openIdeas = (await storage.getAllTradeIdeas()).filter(i => i.outcomeStatus === 'open');
+      
+      logger.info(`📊 Admin: Force-validating ${openIdeas.length} open trades...`);
+      
+      // Fetch current prices for all symbols
+      const symbols = Array.from(new Set(openIdeas.map(i => i.symbol)));
+      const priceMap = new Map<string, number>();
+      
+      for (const symbol of symbols) {
+        try {
+          const idea = openIdeas.find(i => i.symbol === symbol)!;
+          let price: number | null = null;
+          
+          if (idea.assetType === 'crypto') {
+            const { fetchCryptoPrice } = await import('./market-api');
+            const priceData = await fetchCryptoPrice(symbol);
+            price = priceData?.currentPrice || null;
+          } else {
+            const { fetchStockPrice } = await import('./market-api');
+            const priceData = await fetchStockPrice(symbol);
+            price = priceData?.currentPrice || null;
+          }
+          
+          if (price) {
+            priceMap.set(symbol, price);
+          }
+        } catch (e) {
+          logger.warn(`Failed to fetch price for ${symbol}`);
+        }
+      }
+      
+      logger.info(`  ✓ Fetched ${priceMap.size}/${symbols.length} prices`);
+      
+      // Validate each trade
+      let validated = 0;
+      let closed = 0;
+      
+      for (const idea of openIdeas) {
+        const currentPrice = priceMap.get(idea.symbol);
+        const result = PerformanceValidator.validateTradeIdea(idea, currentPrice);
+        
+        if (result.shouldUpdate && result.outcomeStatus) {
+          await storage.updateTradeIdea(idea.id, result);
+          validated++;
+          if (result.outcomeStatus !== 'open') {
+            closed++;
+          }
+        }
+      }
+      
+      logger.info(`✅ Admin: Validated ${validated} trades, closed ${closed}`);
+      
+      res.json({
+        success: true,
+        totalOpen: openIdeas.length,
+        validated,
+        closed,
+        message: `Validated ${validated} trades, closed ${closed} with outcomes`
+      });
+    } catch (error: any) {
+      logger.error("Admin validation error:", error);
+      res.status(500).json({ error: error?.message || "Failed to validate trades" });
+    }
+  });
+
   // Admin: Data Integrity Verification
   app.get("/api/admin/verify-data-integrity", requireAdmin, async (_req, res) => {
     try {
