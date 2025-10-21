@@ -21,8 +21,9 @@ export class PerformanceValidator {
   /**
    * Validates a trade idea against current market price
    * Determines if it hit target, hit stop, or expired
+   * Note: currentPrice can be null/undefined for expiry checks when market is closed
    */
-  static validateTradeIdea(idea: TradeIdea, currentPrice: number): ValidationResult {
+  static validateTradeIdea(idea: TradeIdea, currentPrice?: number | null): ValidationResult {
     // Skip if already closed
     if (idea.outcomeStatus !== 'open') {
       return { shouldUpdate: false };
@@ -36,22 +37,83 @@ export class PerformanceValidator {
     const holdingTimeMs = now.getTime() - createdAt.getTime();
     const holdingTimeMinutes = Math.floor(holdingTimeMs / (1000 * 60));
 
-    // Track price extremes (update if current price is more extreme)
-    const highestPrice = Math.max(idea.highestPriceReached || idea.entryPrice, currentPrice);
-    const lowestPrice = Math.min(idea.lowestPriceReached || idea.entryPrice, currentPrice);
+    // Check if exitBy time has passed (holding period deadline)
+    // This check doesn't require current price
+    if (idea.exitBy) {
+      try {
+        const exitByDate = new Date(idea.exitBy);
+        if (now > exitByDate) {
+          // Use last known price (entry, highest, or lowest) if current price unavailable
+          const lastKnownPrice = currentPrice ?? 
+            (idea.highestPriceReached || idea.lowestPriceReached || idea.entryPrice);
+          
+          const highestPrice = Math.max(
+            idea.highestPriceReached || idea.entryPrice, 
+            currentPrice || idea.highestPriceReached || idea.entryPrice
+          );
+          const lowestPrice = Math.min(
+            idea.lowestPriceReached || idea.entryPrice,
+            currentPrice || idea.lowestPriceReached || idea.entryPrice
+          );
+          
+          const percentGain = this.calculatePercentGain(
+            idea.direction,
+            idea.entryPrice,
+            lastKnownPrice
+          );
+          
+          const predictionAccurate = this.checkPredictionAccuracy(
+            idea,
+            lastKnownPrice,
+            highestPrice,
+            lowestPrice
+          );
 
-    // Check if expired (7+ days old)
+          return {
+            shouldUpdate: true,
+            outcomeStatus: 'expired',
+            exitPrice: lastKnownPrice,
+            percentGain,
+            realizedPnL: 0,
+            resolutionReason: 'auto_expired',
+            exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+            actualHoldingTimeMinutes: holdingTimeMinutes,
+            predictionAccurate,
+            predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+            highestPriceReached: highestPrice,
+            lowestPriceReached: lowestPrice,
+          };
+        }
+      } catch (e) {
+        // If exitBy parsing fails, continue to other checks
+        console.warn(`Failed to parse exitBy date for ${idea.symbol}: ${idea.exitBy}`);
+      }
+    }
+
+    // Check if expired (7+ days old as backup)
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     if (createdAt < sevenDaysAgo) {
+      const lastKnownPrice = currentPrice ?? 
+        (idea.highestPriceReached || idea.lowestPriceReached || idea.entryPrice);
+      
+      const highestPrice = Math.max(
+        idea.highestPriceReached || idea.entryPrice, 
+        currentPrice || idea.highestPriceReached || idea.entryPrice
+      );
+      const lowestPrice = Math.min(
+        idea.lowestPriceReached || idea.entryPrice,
+        currentPrice || idea.lowestPriceReached || idea.entryPrice
+      );
+      
       const percentGain = this.calculatePercentGain(
         idea.direction,
         idea.entryPrice,
-        currentPrice
+        lastKnownPrice
       );
       
       const predictionAccurate = this.checkPredictionAccuracy(
         idea,
-        currentPrice,
+        lastKnownPrice,
         highestPrice,
         lowestPrice
       );
@@ -59,7 +121,7 @@ export class PerformanceValidator {
       return {
         shouldUpdate: true,
         outcomeStatus: 'expired',
-        exitPrice: currentPrice,
+        exitPrice: lastKnownPrice,
         percentGain,
         realizedPnL: 0, // Don't calculate P&L for expired ideas
         resolutionReason: 'auto_expired',
@@ -71,6 +133,15 @@ export class PerformanceValidator {
         lowestPriceReached: lowestPrice,
       };
     }
+
+    // For target/stop checks, we need current price
+    if (!currentPrice) {
+      return { shouldUpdate: false };
+    }
+
+    // Track price extremes (update if current price is more extreme)
+    const highestPrice = Math.max(idea.highestPriceReached || idea.entryPrice, currentPrice);
+    const lowestPrice = Math.min(idea.lowestPriceReached || idea.entryPrice, currentPrice);
 
     // Check if target hit
     const targetHit = idea.direction === 'long'
@@ -198,6 +269,7 @@ export class PerformanceValidator {
 
   /**
    * Batch validate multiple trade ideas
+   * Note: Validates ALL ideas, even without prices (for expiry checks)
    */
   static validateBatch(
     ideas: TradeIdea[],
@@ -206,9 +278,9 @@ export class PerformanceValidator {
     const results = new Map<string, ValidationResult>();
 
     for (const idea of ideas) {
+      // Get price if available, otherwise undefined (expiry checks don't need price)
       const currentPrice = priceMap.get(idea.symbol);
-      if (!currentPrice) continue;
-
+      
       const result = this.validateTradeIdea(idea, currentPrice);
       if (result.shouldUpdate) {
         results.set(idea.id, result);
