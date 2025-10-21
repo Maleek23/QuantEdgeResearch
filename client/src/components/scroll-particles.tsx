@@ -37,8 +37,8 @@ export function ScrollParticles() {
         particlesRef.current.push({
           x: Math.random() * canvas.width,
           y: Math.random() * canvas.height,
-          vx: (Math.random() - 0.5) * 0.3,
-          vy: (Math.random() - 0.5) * 0.3,
+          vx: (Math.random() - 0.5) * 0.2,
+          vy: (Math.random() - 0.5) * 0.2,
           size: Math.random() * 2 + 1,
           opacity: Math.random() * 0.3 + 0.2,
           isAmbient: true,
@@ -56,17 +56,17 @@ export function ScrollParticles() {
       
       // Apply scroll momentum to ALL particles for interactive feel
       if (scrollSpeed > 1) {
-        const momentumY = Math.sign(scrollDelta) * Math.min(scrollSpeed * 0.05, 5);
+        const momentumY = Math.sign(scrollDelta) * Math.min(scrollSpeed * 0.02, 2);
         scrollMomentum.current.y = momentumY;
         
-        // Add STRONG drift to all particles based on scroll direction for visibility
+        // Add gentle drift to all particles based on scroll direction
         particlesRef.current.forEach(particle => {
-          particle.vy += momentumY * 0.4; // Increased from 0.15 to 0.4 for more obvious effect
+          particle.vy += momentumY * 0.2;
           // Add horizontal drift for more dynamic feel
-          particle.vx += (Math.random() - 0.5) * 0.8;
+          particle.vx += (Math.random() - 0.5) * 0.3;
           // Temporarily increase opacity during scroll for visibility
           if (!particle.isAmbient) {
-            particle.opacity = Math.min(0.9, particle.opacity + 0.2);
+            particle.opacity = Math.min(0.8, particle.opacity + 0.15);
           }
         });
       }
@@ -76,18 +76,18 @@ export function ScrollParticles() {
       const currentCount = particlesRef.current.length;
       
       if (scrollSpeed > 1 && currentCount < MAX_TOTAL_PARTICLES) {
-        // Create MORE particles based on scroll velocity for better visibility
-        const particleCount = Math.min(Math.floor(scrollSpeed / 3), 12); // Increased from /5 and 8
+        // Create particles based on scroll velocity
+        const particleCount = Math.min(Math.floor(scrollSpeed / 4), 10);
         const allowedCount = Math.min(particleCount, MAX_TOTAL_PARTICLES - currentCount);
         
         for (let i = 0; i < allowedCount; i++) {
           particlesRef.current.push({
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
-            vx: (Math.random() - 0.5) * 3, // Increased from 2
-            vy: Math.sign(scrollDelta) * (Math.random() * 2.5 + 1), // Increased for visibility
-            size: Math.random() * 2.5 + 1.5, // Slightly larger particles
-            opacity: Math.random() * 0.5 + 0.4, // Brighter particles
+            vx: (Math.random() - 0.5) * 1.5,
+            vy: Math.sign(scrollDelta) * (Math.random() * 1.2 + 0.4),
+            size: Math.random() * 2.5 + 1.5,
+            opacity: Math.random() * 0.5 + 0.4,
             isAmbient: false,
           });
         }
@@ -107,20 +107,20 @@ export function ScrollParticles() {
       // Update and draw particles
       particlesRef.current.forEach(particle => {
         // Apply velocity dampening for smooth deceleration
-        particle.vx *= 0.96; // Reduced from 0.98 to keep momentum longer
-        particle.vy *= 0.96; // Reduced from 0.98 to keep momentum longer
+        particle.vx *= 0.97;
+        particle.vy *= 0.97;
         
         // Gradually reduce opacity back to normal
         if (!particle.isAmbient && particle.opacity > 0.5) {
-          particle.opacity *= 0.99;
+          particle.opacity *= 0.98;
         }
         
         // Keep ambient particles at minimum velocity
         if (particle.isAmbient) {
           const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
-          if (speed < 0.2) {
-            particle.vx = (Math.random() - 0.5) * 0.3;
-            particle.vy = (Math.random() - 0.5) * 0.3;
+          if (speed < 0.15) {
+            particle.vx = (Math.random() - 0.5) * 0.2;
+            particle.vy = (Math.random() - 0.5) * 0.2;
           }
         }
         
