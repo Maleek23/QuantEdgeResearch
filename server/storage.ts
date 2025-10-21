@@ -768,27 +768,30 @@ export class MemStorage implements IStorage {
     const decidedIdeas = wonIdeas.length + lostIdeas.length;
     const winRate = decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0;
     
-    // QUANT ACCURACY: Did the prediction come true (price moved in predicted direction)?
-    // For ALL trades (open + closed), check if price moved in predicted direction
+    // QUANT ACCURACY: Did the prediction come true (price moved 50% toward target)?
+    // For ALL trades (open + closed), use same 50% threshold for consistency
     const evaluatePredictionAccuracy = (idea: TradeIdea): boolean | null => {
       // Closed trades: use explicit predictionAccurate field
       if (idea.outcomeStatus !== 'open') {
         return idea.predictionAccurate ?? null;
       }
       
-      // Open trades: check if price has moved in predicted direction
+      // Open trades: check if price has moved at least 50% toward target (same as closed trades)
+      const expectedMove = idea.targetPrice - idea.entryPrice;
+      const midPoint = idea.entryPrice + (expectedMove * 0.5);
+      
       if (idea.direction === 'long') {
-        // For LONG: has price gone UP from entry?
+        // For LONG: has price reached at least 50% toward target?
         const highestPrice = idea.highestPriceReached;
         // If no price movement tracked yet, cannot evaluate
         if (!highestPrice || highestPrice === idea.entryPrice) return null;
-        return highestPrice > idea.entryPrice;
+        return highestPrice >= midPoint;
       } else {
-        // For SHORT: has price gone DOWN from entry?
+        // For SHORT: has price reached at least 50% toward target?
         const lowestPrice = idea.lowestPriceReached;
         // If no price movement tracked yet, cannot evaluate
         if (!lowestPrice || lowestPrice === idea.entryPrice) return null;
-        return lowestPrice < idea.entryPrice;
+        return lowestPrice <= midPoint;
       }
     };
     
@@ -1298,27 +1301,30 @@ export class DatabaseStorage implements IStorage {
     // WIN RATE FIX: Exclude expired ideas from denominator - only count actual wins vs losses
     const decidedIdeas = wonIdeas.length + lostIdeas.length;
 
-    // QUANT ACCURACY: Did the prediction come true (price moved in predicted direction)?
-    // For ALL trades (open + closed), check if price moved in predicted direction
+    // QUANT ACCURACY: Did the prediction come true (price moved 50% toward target)?
+    // For ALL trades (open + closed), use same 50% threshold for consistency
     const evaluatePredictionAccuracy = (idea: TradeIdea): boolean | null => {
       // Closed trades: use explicit predictionAccurate field
       if (idea.outcomeStatus !== 'open') {
         return idea.predictionAccurate ?? null;
       }
       
-      // Open trades: check if price has moved in predicted direction
+      // Open trades: check if price has moved at least 50% toward target (same as closed trades)
+      const expectedMove = idea.targetPrice - idea.entryPrice;
+      const midPoint = idea.entryPrice + (expectedMove * 0.5);
+      
       if (idea.direction === 'long') {
-        // For LONG: has price gone UP from entry?
+        // For LONG: has price reached at least 50% toward target?
         const highestPrice = idea.highestPriceReached;
         // If no price movement tracked yet, cannot evaluate
         if (!highestPrice || highestPrice === idea.entryPrice) return null;
-        return highestPrice > idea.entryPrice;
+        return highestPrice >= midPoint;
       } else {
-        // For SHORT: has price gone DOWN from entry?
+        // For SHORT: has price reached at least 50% toward target?
         const lowestPrice = idea.lowestPriceReached;
         // If no price movement tracked yet, cannot evaluate
         if (!lowestPrice || lowestPrice === idea.entryPrice) return null;
-        return lowestPrice < idea.entryPrice;
+        return lowestPrice <= midPoint;
       }
     };
     

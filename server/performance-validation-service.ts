@@ -99,6 +99,10 @@ class PerformanceValidationService {
             resolutionReason: result.resolutionReason,
             exitDate: result.exitDate,
             actualHoldingTimeMinutes: result.actualHoldingTimeMinutes,
+            predictionAccurate: result.predictionAccurate,
+            predictionValidatedAt: result.predictionValidatedAt,
+            highestPriceReached: result.highestPriceReached,
+            lowestPriceReached: result.lowestPriceReached,
           });
 
           validated++;
