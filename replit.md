@@ -79,6 +79,7 @@ Critical fixes (October 2025):
 - Added `excludeFromTraining` flag to prevent legacy/bad trades from poisoning ML model. All 35 trades from the flawed momentum-chasing strategy were marked as excluded (October 21, 2025).
 - Confidence scoring fixed to reward EARLY predictive setups (RSI extremes, MACD histogram strength, early breakouts with small moves) instead of finished price moves, aligning scoring with predictive strategy.
 - ML retraining now filters out trades where `excludeFromTraining = true`, preventing model poisoning from legacy bad data.
+- **B+ Quality Filter (October 21, 2025):** Removed backwards quality-based R:R adjustment that penalized weak trades; recalibrated confidence scoring to make 85+ achievable (increased points for R:R 2:1+ from 20→28, volume 1.5x+ from 15→18, strong signals from 20→25); implemented multi-tier filtering requiring confidence ≥85 AND R:R ≥1.3 (stocks) or ≥1.2 (crypto) AND volume ≥1.0x (longs), ≥0.8x (shorts), ≥0.6x (crypto). Result: Only B+ grade and above trades generated (scores 85-100).
 
 **Phase 1 - Professional Risk Metrics (October 21, 2025):**
 Following professional quant trader standards, implemented industry-standard risk metrics to improve user confidence and accuracy assessment:
