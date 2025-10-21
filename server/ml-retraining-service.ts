@@ -75,9 +75,10 @@ class MLRetrainingService {
         i.excludeFromTraining !== true // Exclude legacy/bad trades
       );
 
-      // Need minimum data for statistical validity
-      if (closedIdeas.length < 10) {
-        logger.info(`📊 ML training paused - need 10+ training-eligible closed trades (have ${closedIdeas.length})`);
+      // PHASE 1: Require 30+ trades for statistical validity (professional quant standard)
+      // Professional quants never trust results from <30 samples
+      if (closedIdeas.length < 30) {
+        logger.info(`📊 ML training paused - need 30+ training-eligible closed trades (have ${closedIdeas.length})`);
         return;
       }
 

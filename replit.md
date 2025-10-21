@@ -80,6 +80,32 @@ Critical fixes (October 2025):
 - Confidence scoring fixed to reward EARLY predictive setups (RSI extremes, MACD histogram strength, early breakouts with small moves) instead of finished price moves, aligning scoring with predictive strategy.
 - ML retraining now filters out trades where `excludeFromTraining = true`, preventing model poisoning from legacy bad data.
 
+**Phase 1 - Professional Risk Metrics (October 21, 2025):**
+Following professional quant trader standards, implemented industry-standard risk metrics to improve user confidence and accuracy assessment:
+
+1. **Professional Metrics Added:**
+   - **Sharpe Ratio:** Risk-adjusted returns (target >1.5 for day trading)
+   - **Max Drawdown:** Worst peak-to-trough equity decline (%)
+   - **Profit Factor:** Gross wins ÷ gross losses (target >1.3)
+   - **Expectancy:** Expected value per trade in percentage terms
+
+2. **ML Training Threshold Raised:**
+   - Increased from 10 → 30 trades minimum before ML training begins
+   - Professional quants never trust results from <30 samples
+   - Prevents premature pattern recognition from small sample sizes
+
+3. **UI Enhancements:**
+   - New "Professional Risk Metrics" section on Performance page
+   - Color-coded thresholds (green/amber/red) based on professional standards
+   - Clear target guidance for each metric
+
+**⏰ PHASE 2 TODO (Requires 30+ Closed Trades First):**
+Once sufficient clean data is available (30+ training-eligible closed trades), implement:
+- 70/30 train/test data split for ML validation
+- Validation set performance tracking
+- Only deploy ML weights if validation Sharpe >1.5
+- Prevents overfitting by testing on unseen data before production deployment
+
 ### System Design Choices
 The system uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) managed by Drizzle ORM. All critical data is stored permanently. The user schema is simplified for future Discord integration, with subscription tiers managed externally via Discord.
 

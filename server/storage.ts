@@ -48,6 +48,11 @@ export interface PerformanceStats {
     quantAccuracy: number; // Prediction accuracy: correct predictions / total validated
     avgPercentGain: number;
     avgHoldingTimeMinutes: number;
+    // PROFESSIONAL RISK METRICS (Phase 1)
+    sharpeRatio: number; // Risk-adjusted return (target >1.5 for day trading)
+    maxDrawdown: number; // Worst peak-to-trough decline (%)
+    profitFactor: number; // Gross wins / Gross losses (target >1.3)
+    expectancy: number; // Expected value per trade ($ per $1 risked)
   };
   bySource: {
     source: string;
@@ -1348,6 +1353,72 @@ export class DatabaseStorage implements IStorage {
     
     const quantAccuracy = evaluatedPredictions > 0 ? (accuratePredictions / evaluatedPredictions) * 100 : 0;
 
+    // ========================================
+    // PROFESSIONAL RISK METRICS (Phase 1)
+    // ========================================
+    
+    // 1. SHARPE RATIO: Risk-adjusted return
+    // Formula: (Avg Return - Risk Free Rate) / StdDev of Returns
+    // For day trading, risk-free rate ~0, so Sharpe = Avg Return / StdDev
+    const calculateStdDev = (arr: number[]): number => {
+      if (arr.length < 2) return 0;
+      const avg = calculateAvg(arr);
+      const squareDiffs = arr.map(val => Math.pow(val - avg, 2));
+      const variance = calculateAvg(squareDiffs);
+      return Math.sqrt(variance);
+    };
+    
+    const decidedGains = [...wonIdeas, ...lostIdeas]
+      .filter(i => i.percentGain !== null)
+      .map(i => i.percentGain!);
+    
+    const avgReturn = calculateAvg(decidedGains);
+    const stdDevReturn = calculateStdDev(decidedGains);
+    const sharpeRatio = stdDevReturn > 0 ? avgReturn / stdDevReturn : 0;
+    
+    // 2. MAX DRAWDOWN: Worst peak-to-trough decline
+    // Simulate equity curve from trade sequence
+    let peak = 100; // Start with $100
+    let equity = 100;
+    let maxDrawdown = 0;
+    
+    decidedIdeas > 0 && [...wonIdeas, ...lostIdeas]
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      .forEach(idea => {
+        if (idea.percentGain !== null) {
+          equity = equity * (1 + idea.percentGain / 100);
+          if (equity > peak) peak = equity;
+          const drawdown = ((peak - equity) / peak) * 100;
+          if (drawdown > maxDrawdown) maxDrawdown = drawdown;
+        }
+      });
+    
+    // 3. PROFIT FACTOR: Gross Wins / Gross Losses
+    const grossWins = wonIdeas
+      .filter(i => i.percentGain !== null && i.percentGain > 0)
+      .reduce((sum, i) => sum + i.percentGain!, 0);
+    
+    const grossLosses = Math.abs(lostIdeas
+      .filter(i => i.percentGain !== null && i.percentGain < 0)
+      .reduce((sum, i) => sum + i.percentGain!, 0));
+    
+    const profitFactor = grossLosses > 0 ? grossWins / grossLosses : (grossWins > 0 ? 99 : 0);
+    
+    // 4. EXPECTANCY: Expected value per trade
+    // Formula: (Avg Win × Win%) - (Avg Loss × Loss%)
+    const avgWin = wonIdeas.filter(i => i.percentGain !== null && i.percentGain > 0).length > 0
+      ? calculateAvg(wonIdeas.filter(i => i.percentGain !== null && i.percentGain > 0).map(i => i.percentGain!))
+      : 0;
+    
+    const avgLoss = lostIdeas.filter(i => i.percentGain !== null && i.percentGain < 0).length > 0
+      ? Math.abs(calculateAvg(lostIdeas.filter(i => i.percentGain !== null && i.percentGain < 0).map(i => i.percentGain!)))
+      : 0;
+    
+    const winPct = decidedIdeas > 0 ? wonIdeas.length / decidedIdeas : 0;
+    const lossPct = decidedIdeas > 0 ? lostIdeas.length / decidedIdeas : 0;
+    
+    const expectancy = (avgWin * winPct) - (avgLoss * lossPct);
+
     return {
       overall: {
         totalIdeas: allIdeas.length,
@@ -1360,6 +1431,11 @@ export class DatabaseStorage implements IStorage {
         quantAccuracy,
         avgPercentGain: calculateAvg(closedGains),
         avgHoldingTimeMinutes: calculateAvg(closedHoldingTimes),
+        // Professional risk metrics
+        sharpeRatio,
+        maxDrawdown,
+        profitFactor,
+        expectancy,
       },
       bySource,
       byAssetType,

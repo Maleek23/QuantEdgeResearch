@@ -41,6 +41,11 @@ interface PerformanceStats {
     quantAccuracy: number; // Prediction accuracy: correct predictions / total validated
     avgPercentGain: number;
     avgHoldingTimeMinutes: number;
+    // PROFESSIONAL RISK METRICS (Phase 1)
+    sharpeRatio: number; // Risk-adjusted return (target >1.5 for day trading)
+    maxDrawdown: number; // Worst peak-to-trough decline (%)
+    profitFactor: number; // Gross wins / Gross losses (target >1.3)
+    expectancy: number; // Expected value per trade ($ per $1 risked)
   };
   bySource: Array<{
     source: string;
@@ -610,6 +615,145 @@ export default function PerformancePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* PROFESSIONAL RISK METRICS - Phase 1 */}
+      {stats.overall.closedIdeas > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
+            <Badge variant="outline" className="bg-primary/10">
+              Professional Risk Metrics
+            </Badge>
+            <div className="h-px flex-1 bg-gradient-to-r from-primary/30 via-transparent to-transparent" />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Sharpe Ratio */}
+            <Card className={`stat-card shadow-lg ${
+              stats.overall.sharpeRatio >= 1.5 ? 'stat-card-bullish border-green-500/20' : 
+              stats.overall.sharpeRatio >= 1.0 ? 'border-amber-500/20' : 'border-red-500/20'
+            }`} data-testid="card-sharpe-ratio">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
+                <CardTitle className="text-sm font-semibold tracking-wide">Sharpe Ratio</CardTitle>
+                <div className={`p-2 rounded-lg ${
+                  stats.overall.sharpeRatio >= 1.5 ? 'bg-green-500/10' :
+                  stats.overall.sharpeRatio >= 1.0 ? 'bg-amber-500/10' : 'bg-red-500/10'
+                }`}>
+                  <TrendingUp className={`w-4 h-4 ${
+                    stats.overall.sharpeRatio >= 1.5 ? 'text-green-500' :
+                    stats.overall.sharpeRatio >= 1.0 ? 'text-amber-500' : 'text-red-500'
+                  }`} />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <div className={`text-3xl font-bold font-mono tracking-tight ${
+                  stats.overall.sharpeRatio >= 1.5 ? 'text-green-500' :
+                  stats.overall.sharpeRatio >= 1.0 ? 'text-amber-500' : 'text-red-500'
+                }`}>
+                  {stats.overall.sharpeRatio.toFixed(2)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.overall.sharpeRatio >= 1.5 ? 'Excellent' : 
+                   stats.overall.sharpeRatio >= 1.0 ? 'Good' : 'Needs improvement'}
+                  {' • Target >1.5'}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Max Drawdown */}
+            <Card className={`stat-card shadow-lg ${
+              stats.overall.maxDrawdown < 10 ? 'stat-card-bullish border-green-500/20' :
+              stats.overall.maxDrawdown < 15 ? 'border-amber-500/20' : 'border-red-500/20'
+            }`} data-testid="card-max-drawdown">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
+                <CardTitle className="text-sm font-semibold tracking-wide">Max Drawdown</CardTitle>
+                <div className={`p-2 rounded-lg ${
+                  stats.overall.maxDrawdown < 10 ? 'bg-green-500/10' :
+                  stats.overall.maxDrawdown < 15 ? 'bg-amber-500/10' : 'bg-red-500/10'
+                }`}>
+                  <TrendingDown className={`w-4 h-4 ${
+                    stats.overall.maxDrawdown < 10 ? 'text-green-500' :
+                    stats.overall.maxDrawdown < 15 ? 'text-amber-500' : 'text-red-500'
+                  }`} />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <div className={`text-3xl font-bold font-mono tracking-tight ${
+                  stats.overall.maxDrawdown < 10 ? 'text-green-500' :
+                  stats.overall.maxDrawdown < 15 ? 'text-amber-500' : 'text-red-500'
+                }`}>
+                  -{stats.overall.maxDrawdown.toFixed(1)}%
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Worst peak-to-trough loss
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Profit Factor */}
+            <Card className={`stat-card shadow-lg ${
+              stats.overall.profitFactor >= 1.5 ? 'stat-card-bullish border-green-500/20' :
+              stats.overall.profitFactor >= 1.3 ? 'border-amber-500/20' : 'border-red-500/20'
+            }`} data-testid="card-profit-factor">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
+                <CardTitle className="text-sm font-semibold tracking-wide">Profit Factor</CardTitle>
+                <div className={`p-2 rounded-lg ${
+                  stats.overall.profitFactor >= 1.5 ? 'bg-green-500/10' :
+                  stats.overall.profitFactor >= 1.3 ? 'bg-amber-500/10' : 'bg-red-500/10'
+                }`}>
+                  <Target className={`w-4 h-4 ${
+                    stats.overall.profitFactor >= 1.5 ? 'text-green-500' :
+                    stats.overall.profitFactor >= 1.3 ? 'text-amber-500' : 'text-red-500'
+                  }`} />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <div className={`text-3xl font-bold font-mono tracking-tight ${
+                  stats.overall.profitFactor >= 1.5 ? 'text-green-500' :
+                  stats.overall.profitFactor >= 1.3 ? 'text-amber-500' : 'text-red-500'
+                }`}>
+                  {stats.overall.profitFactor >= 99 ? '∞' : stats.overall.profitFactor.toFixed(2)}×
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.overall.profitFactor >= 1.5 ? 'Strong' : 
+                   stats.overall.profitFactor >= 1.3 ? 'Good' : 'Weak'}
+                  {' • Target >1.3'}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Expectancy */}
+            <Card className={`stat-card shadow-lg ${
+              stats.overall.expectancy >= 2.0 ? 'stat-card-bullish border-green-500/20' :
+              stats.overall.expectancy >= 0 ? 'border-amber-500/20' : 'border-red-500/20'
+            }`} data-testid="card-expectancy">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 gap-1">
+                <CardTitle className="text-sm font-semibold tracking-wide">Expectancy</CardTitle>
+                <div className={`p-2 rounded-lg ${
+                  stats.overall.expectancy >= 2.0 ? 'bg-green-500/10' :
+                  stats.overall.expectancy >= 0 ? 'bg-amber-500/10' : 'bg-red-500/10'
+                }`}>
+                  <Activity className={`w-4 h-4 ${
+                    stats.overall.expectancy >= 2.0 ? 'text-green-500' :
+                    stats.overall.expectancy >= 0 ? 'text-amber-500' : 'text-red-500'
+                  }`} />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <div className={`text-3xl font-bold font-mono tracking-tight ${
+                  stats.overall.expectancy >= 2.0 ? 'text-green-500' :
+                  stats.overall.expectancy >= 0 ? 'text-amber-500' : 'text-red-500'
+                }`}>
+                  {stats.overall.expectancy >= 0 ? '+' : ''}{stats.overall.expectancy.toFixed(2)}%
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Expected return per trade
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
 
       {/* Smart Insights (if enough data) */}
       {stats.overall.closedIdeas >= 5 && (
