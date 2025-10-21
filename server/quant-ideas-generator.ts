@@ -153,68 +153,56 @@ async function analyzeMultiTimeframe(
 }
 
 // Analyze market data for quantitative signals with RSI/MACD integration
+// REDESIGNED: Prioritize PREDICTIVE signals over REACTIVE chasing
 function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantSignal | null {
   const priceChange = data.changePercent;
   const volume = data.volume || 0;
   const avgVolume = data.avgVolume || volume;
   const volumeRatio = avgVolume > 0 ? volume / avgVolume : 1;
 
-  // Strong momentum signal (>5% move with good volume)
-  if (Math.abs(priceChange) >= 5 && volumeRatio >= 1.5) {
-    return {
-      type: 'momentum',
-      strength: 'strong',
-      direction: priceChange > 0 ? 'long' : 'short'
-    };
+  // PRIORITY 1: RSI and MACD Analysis - PREDICTIVE signals (check FIRST, not last!)
+  // Require real historical prices - no synthetic fallback
+  if (historicalPrices.length > 0) {
+    const prices = historicalPrices;
+    
+    const rsi = calculateRSI(prices, 14);
+    const macd = calculateMACD(prices);
+    
+    const rsiAnalysis = analyzeRSI(rsi);
+    const macdAnalysis = analyzeMACD(macd);
+    
+    // RSI Divergence Signal (strong oversold/overbought) - HIGHEST PRIORITY
+    if (rsiAnalysis.strength === 'strong' && rsiAnalysis.direction !== 'neutral') {
+      return {
+        type: 'rsi_divergence',
+        strength: 'strong',
+        direction: rsiAnalysis.direction,
+        rsiValue: rsi
+      };
+    }
+    
+    // MACD Crossover Signal - SECOND PRIORITY
+    if ((macdAnalysis.crossover || macdAnalysis.strength === 'strong') && macdAnalysis.direction !== 'neutral') {
+      return {
+        type: 'macd_crossover',
+        strength: macdAnalysis.strength,
+        direction: macdAnalysis.direction,
+        macdValues: macd
+      };
+    }
+    
+    // Moderate RSI signal - THIRD PRIORITY
+    if (rsiAnalysis.strength === 'moderate' && rsiAnalysis.direction !== 'neutral') {
+      return {
+        type: 'rsi_divergence',
+        strength: 'moderate',
+        direction: rsiAnalysis.direction,
+        rsiValue: rsi
+      };
+    }
   }
 
-  // Volume spike signal (>3x average volume)
-  if (volumeRatio >= 3) {
-    return {
-      type: 'volume_spike',
-      strength: volumeRatio >= 5 ? 'strong' : 'moderate',
-      direction: priceChange >= 0 ? 'long' : 'short'
-    };
-  }
-
-  // Moderate momentum (2-5% move) - LOWERED from 3% to 2% for more sensitivity
-  if (Math.abs(priceChange) >= 2 && volumeRatio >= 1.2) {
-    return {
-      type: 'momentum',
-      strength: 'moderate',
-      direction: priceChange > 0 ? 'long' : 'short'
-    };
-  }
-
-  // Breakout signal - price near highs with volume
-  // Detect when price is within 2% of 52-week high and volume is elevated
-  if (data.high52Week && data.currentPrice >= data.high52Week * 0.98 && volumeRatio >= 1.5) {
-    return {
-      type: 'breakout',
-      strength: volumeRatio >= 2.5 ? 'strong' : 'moderate',
-      direction: 'long' // breakout continuation
-    };
-  }
-
-  // Bearish breakdown - price near lows with volume
-  if (data.low52Week && data.currentPrice <= data.low52Week * 1.02 && volumeRatio >= 1.5) {
-    return {
-      type: 'breakout',
-      strength: volumeRatio >= 2.5 ? 'strong' : 'moderate',
-      direction: 'short' // breakdown continuation
-    };
-  }
-
-  // Weak bearish momentum - catch smaller down moves for PUT opportunities
-  if (priceChange <= -1.5 && volumeRatio >= 1.0) {
-    return {
-      type: 'momentum',
-      strength: 'weak',
-      direction: 'short'
-    };
-  }
-
-  // Mean reversion - strong oversold/overbought
+  // PRIORITY 2: Mean reversion on EXTREME oversold/overbought (before the bounce/crash starts)
   if (priceChange <= -7) {
     return {
       type: 'mean_reversion',
@@ -231,49 +219,37 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
     };
   }
 
-  // RSI and MACD Analysis - Advanced Technical Signals
-  // Require real historical prices - no synthetic fallback
-  if (historicalPrices.length === 0) {
-    return null; // Cannot analyze without real data
-  }
-  
-  const prices = historicalPrices;
-  
-  const rsi = calculateRSI(prices, 14);
-  const macd = calculateMACD(prices);
-  
-  const rsiAnalysis = analyzeRSI(rsi);
-  const macdAnalysis = analyzeMACD(macd);
-  
-  // RSI Divergence Signal (strong oversold/overbought)
-  if (rsiAnalysis.strength === 'strong' && rsiAnalysis.direction !== 'neutral') {
+  // PRIORITY 3: EARLY breakout signals - price APPROACHING highs (not after big move)
+  // Only trigger if move is small (<2%) but volume is building
+  if (data.high52Week && data.currentPrice >= data.high52Week * 0.95 && data.currentPrice < data.high52Week * 0.98 && volumeRatio >= 1.5 && Math.abs(priceChange) < 2) {
     return {
-      type: 'rsi_divergence',
-      strength: 'strong',
-      direction: rsiAnalysis.direction,
-      rsiValue: rsi
+      type: 'breakout',
+      strength: volumeRatio >= 2.5 ? 'strong' : 'moderate',
+      direction: 'long' // early breakout setup
     };
   }
-  
-  // MACD Crossover Signal
-  if ((macdAnalysis.crossover || macdAnalysis.strength === 'strong') && macdAnalysis.direction !== 'neutral') {
+
+  // Early bearish breakdown - price APPROACHING lows (not after crash)
+  if (data.low52Week && data.currentPrice <= data.low52Week * 1.05 && data.currentPrice > data.low52Week * 1.02 && volumeRatio >= 1.5 && Math.abs(priceChange) < 2) {
     return {
-      type: 'macd_crossover',
-      strength: macdAnalysis.strength,
-      direction: macdAnalysis.direction,
-      macdValues: macd
+      type: 'breakout',
+      strength: volumeRatio >= 2.5 ? 'strong' : 'moderate',
+      direction: 'short' // early breakdown setup
     };
   }
-  
-  // Moderate RSI signal
-  if (rsiAnalysis.strength === 'moderate' && rsiAnalysis.direction !== 'neutral') {
+
+  // PRIORITY 4: Volume spike with SMALL price move (institutional positioning BEFORE big move)
+  // Only if move is <1% but volume is exceptional - catching EARLY accumulation
+  if (volumeRatio >= 3 && Math.abs(priceChange) < 1) {
     return {
-      type: 'rsi_divergence',
-      strength: 'moderate',
-      direction: rsiAnalysis.direction,
-      rsiValue: rsi
+      type: 'volume_spike',
+      strength: volumeRatio >= 5 ? 'strong' : 'moderate',
+      direction: priceChange >= 0 ? 'long' : 'short'
     };
   }
+
+  // REMOVED: All "momentum" signals that chase finished moves (5%, 2%, 1.5% rallies)
+  // These were buying AFTER the move happened, leading to 2% accuracy
 
   return null;
 }
@@ -281,74 +257,75 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
 // Calculate entry, target, and stop based on REAL-TIME market prices for ACTIVE trading
 // Entry = CURRENT market price (immediate execution)
 // Target/Stop = Calculated from entry for actionable levels
+// UPDATED: Realistic 3-5% targets for day trading (was 8-15%, too aggressive)
 function calculateLevels(data: MarketData, signal: QuantSignal) {
   // ✅ ACTIVE TRADING: Entry is ALWAYS current market price for immediate execution
   const entryPrice = data.currentPrice;
   let targetPrice: number;
   let stopLoss: number;
 
+  // NOTE: "momentum" signal type removed from strategy, but keeping logic for backward compatibility
   if (signal.type === 'momentum') {
-    // Momentum trade - ride the trend
     if (signal.direction === 'long') {
-      targetPrice = entryPrice * 1.08; // 8% target from entry
-      stopLoss = entryPrice * 0.96; // 4% stop from entry
+      targetPrice = entryPrice * 1.04; // 4% target (was 8%)
+      stopLoss = entryPrice * 0.98; // 2% stop (was 4%)
     } else {
-      targetPrice = entryPrice * 0.92; // 8% target from entry
-      stopLoss = entryPrice * 1.04; // 4% stop from entry
+      targetPrice = entryPrice * 0.96; // 4% target
+      stopLoss = entryPrice * 1.02; // 2% stop
     }
   } else if (signal.type === 'volume_spike') {
-    // Volume breakout
+    // Early volume accumulation - conservative targets
     if (signal.direction === 'long') {
-      targetPrice = entryPrice * 1.12; // 12% target from entry
-      stopLoss = entryPrice * 0.94; // 6% stop from entry
+      targetPrice = entryPrice * 1.05; // 5% target (was 12%)
+      stopLoss = entryPrice * 0.98; // 2% stop (was 6%)
     } else {
-      targetPrice = entryPrice * 0.88;
-      stopLoss = entryPrice * 1.06;
+      targetPrice = entryPrice * 0.95; // 5% target
+      stopLoss = entryPrice * 1.02; // 2% stop
     }
   } else if (signal.type === 'breakout') {
-    // Breakout trade - momentum continuation
+    // Early breakout setup - realistic continuation
     if (signal.direction === 'long') {
-      targetPrice = entryPrice * 1.15; // 15% target from entry
-      stopLoss = entryPrice * 0.96; // 4% stop from entry
+      targetPrice = entryPrice * 1.05; // 5% target (was 15%)
+      stopLoss = entryPrice * 0.98; // 2% stop (was 4%)
     } else {
-      targetPrice = entryPrice * 0.85; // 15% target from entry
-      stopLoss = entryPrice * 1.04; // 4% stop from entry
+      targetPrice = entryPrice * 0.95; // 5% target
+      stopLoss = entryPrice * 1.02; // 2% stop
     }
   } else if (signal.type === 'mean_reversion') {
-    // Mean reversion - contrarian
+    // Mean reversion - bounce/pullback target
     if (signal.direction === 'long') {
-      targetPrice = entryPrice * 1.15; // bounce target from entry
-      stopLoss = entryPrice * 0.92; // 8% stop from entry
+      targetPrice = entryPrice * 1.06; // 6% bounce target (was 15%)
+      stopLoss = entryPrice * 0.97; // 3% stop (was 8%)
     } else {
-      targetPrice = entryPrice * 0.85;
-      stopLoss = entryPrice * 1.08;
+      targetPrice = entryPrice * 0.94; // 6% pullback target
+      stopLoss = entryPrice * 1.03; // 3% stop
     }
   } else if (signal.type === 'rsi_divergence') {
-    // RSI-based mean reversion
+    // RSI-based mean reversion - realistic bounce/pullback targets
     if (signal.direction === 'long') {
-      targetPrice = entryPrice * 1.12; // 12% reversal target from entry
-      stopLoss = entryPrice * 0.94; // 6% stop from entry
+      targetPrice = entryPrice * 1.05; // 5% reversal target (was 12%)
+      stopLoss = entryPrice * 0.97; // 3% stop (was 6%)
     } else {
-      targetPrice = entryPrice * 0.88;
-      stopLoss = entryPrice * 1.06;
+      targetPrice = entryPrice * 0.95; // 5% pullback target
+      stopLoss = entryPrice * 1.03; // 3% stop
     }
   } else if (signal.type === 'macd_crossover') {
-    // MACD trend following
+    // MACD trend following - realistic short-term targets
     if (signal.direction === 'long') {
-      targetPrice = entryPrice * 1.1; // 10% trend target from entry
-      stopLoss = entryPrice * 0.95; // 5% stop from entry
+      targetPrice = entryPrice * 1.04; // 4% trend target (was 10%)
+      stopLoss = entryPrice * 0.98; // 2% stop (was 5%)
     } else {
-      targetPrice = entryPrice * 0.9;
-      stopLoss = entryPrice * 1.05;
+      targetPrice = entryPrice * 0.96; // 4% target
+      stopLoss = entryPrice * 1.02; // 2% stop
     }
   } else {
-    // Default case
+    // Default case - conservative targets
     if (signal.direction === 'long') {
-      targetPrice = entryPrice * 1.1;
-      stopLoss = entryPrice * 0.95;
+      targetPrice = entryPrice * 1.04; // 4% target (was 10%)
+      stopLoss = entryPrice * 0.98; // 2% stop (was 5%)
     } else {
-      targetPrice = entryPrice * 0.9;
-      stopLoss = entryPrice * 1.05;
+      targetPrice = entryPrice * 0.96; // 4% target
+      stopLoss = entryPrice * 1.02; // 2% stop
     }
   }
 
@@ -360,6 +337,7 @@ function calculateLevels(data: MarketData, signal: QuantSignal) {
 }
 
 // Generate catalyst for signal type
+// UPDATED: Describe the SETUP, not the finished move (avoid chasing language)
 function generateCatalyst(data: MarketData, signal: QuantSignal, catalysts: Catalyst[]): string {
   // Check if there's a real catalyst for this symbol
   const symbolCatalyst = catalysts.find(c => c.symbol === data.symbol);
@@ -367,24 +345,25 @@ function generateCatalyst(data: MarketData, signal: QuantSignal, catalysts: Cata
     return symbolCatalyst.title;
   }
 
-  // Generate technical catalyst
+  // Generate technical catalyst - describe PREDICTIVE setup, not past moves
   const volumeRatio = data.volume && data.avgVolume ? (data.volume / data.avgVolume).toFixed(1) : '1.0';
   
   if (signal.type === 'momentum') {
-    return `${Math.abs(data.changePercent).toFixed(1)}% ${data.changePercent > 0 ? 'rally' : 'selloff'} on ${volumeRatio}x volume`;
+    // NOTE: Momentum signal removed from strategy, but keep for backward compatibility
+    return `Early momentum setup - volume building at ${volumeRatio}x average`;
   } else if (signal.type === 'volume_spike') {
-    return `Unusual volume spike (${volumeRatio}x average) - institutional activity detected`;
+    return `Institutional accumulation detected - ${volumeRatio}x volume before breakout`;
   } else if (signal.type === 'mean_reversion') {
-    return `Oversold/overbought condition - ${Math.abs(data.changePercent).toFixed(1)}% move creates reversal opportunity`;
+    return `Extreme ${data.changePercent < 0 ? 'oversold' : 'overbought'} condition - reversal setup forming`;
   } else if (signal.type === 'breakout') {
-    return `Price breakout on strong volume - momentum continuation expected`;
+    return `Early breakout setup - price approaching key resistance with volume`;
   } else if (signal.type === 'rsi_divergence') {
     const rsiValue = signal.rsiValue || 50;
-    return `RSI ${rsiValue < 30 ? 'oversold' : 'overbought'} at ${rsiValue.toFixed(0)} - reversal setup developing`;
+    return `RSI ${rsiValue < 30 ? 'oversold' : 'overbought'} at ${rsiValue.toFixed(0)} - reversal opportunity`;
   } else if (signal.type === 'macd_crossover') {
-    return `MACD ${signal.direction === 'long' ? 'bullish' : 'bearish'} crossover signal - trend momentum building`;
+    return `MACD ${signal.direction === 'long' ? 'bullish' : 'bearish'} crossover - early trend signal`;
   } else {
-    return `Technical setup - ${data.changePercent.toFixed(1)}% move with volume confirmation`;
+    return `Technical setup developing - ${volumeRatio}x volume confirmation`;
   }
 }
 
