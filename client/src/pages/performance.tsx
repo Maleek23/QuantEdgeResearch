@@ -1306,7 +1306,8 @@ export default function PerformancePage() {
         open={showValidationDialog}
         onOpenChange={setShowValidationDialog}
         results={validationResults}
-        summary={validationSummary}
+        totalValidated={validationSummary.validated}
+        totalUpdated={validationSummary.updated}
       />
     </div>
   );
