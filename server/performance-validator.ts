@@ -21,9 +21,10 @@ interface ValidationResult {
 export class PerformanceValidator {
   /**
    * Parse human-readable exitBy dates like "Oct 22, 10:28 AM CST" or "Oct 22, 9:55 AM CST or Expiry"
+   * Uses the trade's creation timestamp to determine the correct year
    * Returns a valid Date object or null if parsing fails
    */
-  private static parseExitByDate(exitByString: string): Date | null {
+  private static parseExitByDate(exitByString: string, tradeCreatedAt: Date): Date | null {
     try {
       // Remove "or Expiry" suffix if present
       const cleanedString = exitByString.replace(/\s+or\s+Expiry$/i, '').trim();
@@ -66,24 +67,18 @@ export class PerformanceValidator {
         hour = 0;
       }
       
-      // Determine year (use current year, or next year if date has already passed)
-      // IMPORTANT: exitBy times are in CST/CDT (America/Chicago)
-      // Create date string in ISO format and parse with timezone
-      const now = new Date();
-      const currentYear = now.getFullYear();
+      // CRITICAL FIX: Use trade creation year as baseline, not current year
+      // This prevents dates from rolling into next year after they've passed
+      const tradeYear = tradeCreatedAt.getFullYear();
       
-      // Create date in CST timezone using UTC offset adjustment
-      // CST is UTC-6, CDT is UTC-5. We'll use CST (UTC-6) as default
-      exitByDate = new Date(currentYear, month, day, hour, minute, 0, 0);
+      // Start with trade's year
+      exitByDate = new Date(Date.UTC(tradeYear, month, day, hour + 6, minute, 0, 0)); // +6 for CST offset
       
-      // If the date is in the past, assume it's next year
-      if (exitByDate < now) {
-        exitByDate = new Date(currentYear + 1, month, day, hour, minute, 0, 0);
+      // If exitBy is BEFORE trade creation, it must be next year
+      // (e.g., trade created Dec 31, exitBy Jan 1)
+      if (exitByDate < tradeCreatedAt) {
+        exitByDate = new Date(Date.UTC(tradeYear + 1, month, day, hour + 6, minute, 0, 0));
       }
-      
-      // Add 6 hours to convert CST to UTC (server time)
-      // This makes the comparison with `now` (UTC) accurate
-      exitByDate = new Date(exitByDate.getTime() + (6 * 60 * 60 * 1000));
       
       return exitByDate;
     } catch (e) {
@@ -114,7 +109,7 @@ export class PerformanceValidator {
     // This check doesn't require current price
     if (idea.exitBy) {
       try {
-        const exitByDate = this.parseExitByDate(idea.exitBy);
+        const exitByDate = this.parseExitByDate(idea.exitBy, createdAt);
         
         if (!exitByDate) {
           console.warn(`Invalid exitBy date for ${idea.symbol}: ${idea.exitBy}`);
