@@ -548,7 +548,7 @@ export default function TradeIdeasPage() {
                       {idea.probabilityBand}
                     </Badge>
                     <p className="text-xs text-muted-foreground mt-1">
-                      R:R {idea.riskRewardRatio?.toFixed(1)} • {idea.targetHitProbability}%
+                      R:R {idea.riskRewardRatio?.toFixed(1)} • Score: {idea.confidenceScore?.toFixed(0)}
                     </p>
                   </div>
                 </div>
