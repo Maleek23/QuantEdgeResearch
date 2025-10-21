@@ -661,8 +661,8 @@ export async function generateQuantIdeas(
   // This includes penny stocks which are auto-classified based on price < $5
   const stockGems = marketOpen ? await discoverStockGems(40) : [];
   if (marketOpen) {
-    const pennyCount = stockGems.filter(g => g.currentPrice < 10).length;
-    logger.info(`  ✓ Stock discovery: ${stockGems.length} total (${pennyCount} lower-priced stocks under $10)`);
+    const pennyCount = stockGems.filter(g => g.currentPrice < 5).length;
+    logger.info(`  ✓ Stock discovery: ${stockGems.length} total (${pennyCount} penny stocks under $5)`);
   }
   
   // Discover hidden crypto gems (small-caps with anomalies) - 24/7 markets
@@ -670,10 +670,9 @@ export async function generateQuantIdeas(
   logger.info(`  ✓ Crypto discovery: ${cryptoGems.length} gems found`);
 
   // Convert discovered stock gems to MarketData
-  // CLASSIFY: Stocks under $10 = penny_stock, $10+ = regular stock
-  // Note: Expanded from <$5 to <$10 because Yahoo Finance screeners rarely return sub-$5 stocks
+  // CLASSIFY: Stocks under $5 = penny_stock (SEC definition), $5+ = regular stock
   const discoveredStockData: MarketData[] = stockGems.map(gem => {
-    const assetType: 'stock' | 'penny_stock' = gem.currentPrice < 10 ? 'penny_stock' : 'stock';
+    const assetType: 'stock' | 'penny_stock' = gem.currentPrice < 5 ? 'penny_stock' : 'stock';
     return {
       id: `stock-gem-${gem.symbol}`,
       symbol: gem.symbol,
@@ -726,7 +725,7 @@ export async function generateQuantIdeas(
   // 🔥 PRIORITIZE DISCOVERED GEMS: Use dynamic discovery instead of static database symbols
   // Only use database symbols as fallback if discovery fails
   const totalPennyStocks = discoveredStockData.filter(d => d.assetType === 'penny_stock').length;
-  logger.info(`💎 Using ${discoveredStockData.length} discovered stocks (${totalPennyStocks} lower-priced <$10) + ${discoveredCryptoData.length} discovered cryptos`);
+  logger.info(`💎 Using ${discoveredStockData.length} discovered stocks (${totalPennyStocks} penny stocks <$5) + ${discoveredCryptoData.length} discovered cryptos`);
   
   const combinedData = [...discoveredStockData, ...discoveredCryptoData];
   
