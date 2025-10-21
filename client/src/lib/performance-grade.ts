@@ -17,7 +17,7 @@
 
 /**
  * Get performance grade based on ACTUAL EXPECTED WIN RATE
- * This is calibrated based on real historical data patterns
+ * This is calibrated based on real historical data patterns from 86 trades
  */
 export function getPerformanceGrade(confidenceScore: number): {
   grade: string;
@@ -25,70 +25,81 @@ export function getPerformanceGrade(confidenceScore: number): {
   expectedWinRate: number;
   description: string;
 } {
-  // Based on actual data analysis:
-  // A (90-94) performs best at 83.3% win rate
-  // B (80-84) performs well at 66.7% win rate
-  // A+ (95+) paradoxically underperforms at 44.4%
+  // Based on actual data analysis (86 total trades):
+  // A+ (95+) → 44.4% win rate (PARADOX: over-confident)
+  // A (90-94) → 83.3% win rate (BEST PERFORMANCE)
+  // B+ (85-89) → 50.0% win rate
+  // B (80-84) → 66.7% win rate (good)
+  // C+ (75-79) → 33.3% win rate (disaster zone)
+  // C (70-74) → 44.4% win rate
+  // D (<70) → 25.0% win rate
   
-  if (confidenceScore >= 90 && confidenceScore < 95) {
+  // A+ (95+): Over-confident signals that underperform
+  if (confidenceScore >= 95) {
+    return {
+      grade: 'A+',
+      color: 'text-amber-500',
+      expectedWinRate: 44,
+      description: 'Over-confident (44% win rate)',
+    };
+  }
+  
+  // A (90-94): Sweet spot - highest win rate
+  if (confidenceScore >= 90) {
     return {
       grade: 'A',
       color: 'text-green-500',
       expectedWinRate: 83,
-      description: 'Highest historical win rate (83%)',
+      description: 'Best performance (83% win rate)',
     };
   }
   
-  if (confidenceScore >= 80 && confidenceScore < 90) {
+  // B+ (85-89): Moderate performance
+  if (confidenceScore >= 85) {
     return {
       grade: 'B+',
       color: 'text-blue-500',
-      expectedWinRate: 60,
-      description: 'Strong historical performance (60%)',
+      expectedWinRate: 50,
+      description: 'Moderate (50% win rate)',
     };
   }
   
-  if (confidenceScore >= 95) {
-    return {
-      grade: 'A-',
-      color: 'text-green-400',
-      expectedWinRate: 45,
-      description: 'Over-confident signals (45% win rate)',
-    };
-  }
-  
-  if (confidenceScore >= 75) {
+  // B (80-84): Good performance
+  if (confidenceScore >= 80) {
     return {
       grade: 'B',
       color: 'text-cyan-500',
-      expectedWinRate: 40,
-      description: 'Moderate performance (40%)',
+      expectedWinRate: 67,
+      description: 'Good performance (67% win rate)',
     };
   }
   
-  if (confidenceScore >= 70) {
+  // C+ (75-79): Disaster zone
+  if (confidenceScore >= 75) {
     return {
       grade: 'C+',
-      color: 'text-amber-500',
-      expectedWinRate: 35,
-      description: 'Below average (35%)',
+      color: 'text-orange-500',
+      expectedWinRate: 33,
+      description: 'Weak signals (33% win rate)',
     };
   }
   
-  if (confidenceScore >= 60) {
+  // C (70-74): Below average
+  if (confidenceScore >= 70) {
     return {
       grade: 'C',
-      color: 'text-orange-500',
-      expectedWinRate: 25,
-      description: 'Low confidence (25%)',
+      color: 'text-amber-500',
+      expectedWinRate: 44,
+      description: 'Below average (44% win rate)',
     };
   }
   
+  // D (<70): High risk
   return {
     grade: 'D',
     color: 'text-red-500',
-    expectedWinRate: 20,
-    description: 'High risk (20%)',
+    expectedWinRate: 25,
+    description: 'High risk (25% win rate)',
   };
 }
 
