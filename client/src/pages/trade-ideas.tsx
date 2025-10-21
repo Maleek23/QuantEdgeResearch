@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { TradeIdea, IdeaSource, MarketData } from "@shared/schema";
+import type { TradeIdea, IdeaSource, MarketData, Catalyst } from "@shared/schema";
 import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO, subHours } from "date-fns";
 import { isWeekend, getNextTradingWeekStart } from "@/lib/utils";
@@ -43,6 +43,12 @@ export default function TradeIdeasPage() {
   const { data: marketData = [] } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
     refetchInterval: 30000, // Refresh every 30 seconds for live prices
+  });
+
+  // Fetch catalysts for earnings warnings
+  const { data: catalysts = [] } = useQuery<Catalyst[]>({
+    queryKey: ['/api/catalysts'],
+    refetchInterval: 3600000, // Refresh every hour
   });
 
   // Create a map of symbol to current price
@@ -689,6 +695,7 @@ export default function TradeIdeasPage() {
                               key={idea.id}
                               idea={idea}
                               currentPrice={priceMap[idea.symbol]}
+                              catalysts={catalysts}
                               isExpanded={expandedIdeaId === idea.id}
                               onToggleExpand={() => handleToggleExpand(idea.id)}
                               data-testid={`idea-card-${idea.id}`}
@@ -756,6 +763,7 @@ export default function TradeIdeasPage() {
                               key={idea.id}
                               idea={idea}
                               currentPrice={priceMap[idea.symbol]}
+                              catalysts={catalysts}
                               isExpanded={expandedIdeaId === idea.id}
                               onToggleExpand={() => handleToggleExpand(idea.id)}
                               data-testid={`idea-card-${idea.id}`}
@@ -789,6 +797,7 @@ export default function TradeIdeasPage() {
                     key={idea.id}
                     idea={idea}
                     currentPrice={priceMap[idea.symbol]}
+                    catalysts={catalysts}
                     isExpanded={expandedIdeaId === idea.id}
                     onToggleExpand={() => handleToggleExpand(idea.id)}
                     data-testid={`winner-idea-card-${idea.id}`}
@@ -818,6 +827,7 @@ export default function TradeIdeasPage() {
                     key={idea.id}
                     idea={idea}
                     currentPrice={priceMap[idea.symbol]}
+                    catalysts={catalysts}
                     isExpanded={expandedIdeaId === idea.id}
                     onToggleExpand={() => handleToggleExpand(idea.id)}
                     data-testid={`loser-idea-card-${idea.id}`}
@@ -847,6 +857,7 @@ export default function TradeIdeasPage() {
                     key={idea.id}
                     idea={idea}
                     currentPrice={priceMap[idea.symbol]}
+                    catalysts={catalysts}
                     isExpanded={expandedIdeaId === idea.id}
                     onToggleExpand={() => handleToggleExpand(idea.id)}
                     data-testid={`expired-idea-card-${idea.id}`}

@@ -16,18 +16,19 @@ import { ExplainabilityPanel } from "@/components/explainability-panel";
 import { TradeIdeaDetailModal } from "@/components/trade-idea-detail-modal";
 import { TradingAdvice } from "@/components/trading-advice";
 import { ManualOutcomeRecorder } from "@/components/manual-outcome-recorder";
-import type { TradeIdea } from "@shared/schema";
+import type { TradeIdea, Catalyst } from "@shared/schema";
 
 interface TradeIdeaBlockProps {
   idea: TradeIdea;
   currentPrice?: number;
+  catalysts?: Catalyst[];
   onAddToWatchlist?: (idea: TradeIdea) => void;
   onViewDetails?: (symbol: string) => void;
   isExpanded?: boolean;
   onToggleExpand?: (ideaId: string) => void;
 }
 
-export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDetails, isExpanded, onToggleExpand }: TradeIdeaBlockProps) {
+export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatchlist, onViewDetails, isExpanded, onToggleExpand }: TradeIdeaBlockProps) {
   const [localIsOpen, setLocalIsOpen] = useState(false);
   const isOpen = isExpanded !== undefined ? isExpanded : localIsOpen;
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -87,6 +88,23 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
     return `${month} ${day}, ${year}`;
   };
 
+  // Check for upcoming earnings within 3 days
+  const getUpcomingEarnings = (): Catalyst | null => {
+    const now = new Date();
+    const threeDaysFromNow = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000));
+    
+    const earningsCatalyst = catalysts.find(c => 
+      c.symbol === idea.symbol && 
+      c.eventType === 'earnings' &&
+      new Date(c.timestamp) >= now &&
+      new Date(c.timestamp) <= threeDaysFromNow
+    );
+    
+    return earningsCatalyst || null;
+  };
+
+  const upcomingEarnings = getUpcomingEarnings();
+
   const handleToggle = (newOpenState: boolean) => {
     if (onToggleExpand) {
       if (newOpenState || isOpen) {
@@ -142,6 +160,18 @@ export function TradeIdeaBlock({ idea, currentPrice, onAddToWatchlist, onViewDet
                   {idea.holdingPeriod === 'position' && <><Calendar className="h-3 w-3 mr-1" />POSITION</>}
                   {idea.holdingPeriod === 'week-ending' && <><Clock className="h-3 w-3 mr-1" />WEEK-ENDING</>}
                 </Badge>
+
+                {/* Earnings Warning Badge */}
+                {upcomingEarnings && (
+                  <Badge 
+                    variant="destructive"
+                    className="font-semibold animate-pulse"
+                    data-testid={`badge-earnings-${idea.symbol}`}
+                  >
+                    <Calendar className="h-3 w-3 mr-1" />
+                    EARNINGS {new Date(upcomingEarnings.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </Badge>
+                )}
                 
                 <span className="text-sm text-muted-foreground">
                   {idea.assetType === 'stock' ? 'Stock Shares' : 

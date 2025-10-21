@@ -20,6 +20,70 @@ interface ValidationResult {
 
 export class PerformanceValidator {
   /**
+   * Parse human-readable exitBy dates like "Oct 22, 10:28 AM CST" or "Oct 22, 9:55 AM CST or Expiry"
+   * Returns a valid Date object or null if parsing fails
+   */
+  private static parseExitByDate(exitByString: string): Date | null {
+    try {
+      // Remove "or Expiry" suffix if present
+      const cleanedString = exitByString.replace(/\s+or\s+Expiry$/i, '').trim();
+      
+      // Try standard parsing first (handles ISO dates)
+      let exitByDate = new Date(cleanedString);
+      if (!isNaN(exitByDate.getTime())) {
+        return exitByDate;
+      }
+      
+      // Parse human-readable format: "Oct 22, 10:28 AM CST"
+      // Regex: (Month) (Day), (Time) (AM/PM) (Timezone?)
+      const match = cleanedString.match(/^(\w{3})\s+(\d{1,2}),\s+(\d{1,2}):(\d{2})\s+(AM|PM)/i);
+      
+      if (!match) {
+        return null; // Can't parse
+      }
+      
+      const [, monthStr, dayStr, hourStr, minuteStr, ampm] = match;
+      
+      // Convert month abbreviation to number (0-indexed)
+      const monthMap: Record<string, number> = {
+        Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+        Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
+      };
+      
+      const month = monthMap[monthStr];
+      if (month === undefined) {
+        return null;
+      }
+      
+      const day = parseInt(dayStr);
+      let hour = parseInt(hourStr);
+      const minute = parseInt(minuteStr);
+      
+      // Convert to 24-hour format
+      if (ampm.toUpperCase() === 'PM' && hour !== 12) {
+        hour += 12;
+      } else if (ampm.toUpperCase() === 'AM' && hour === 12) {
+        hour = 0;
+      }
+      
+      // Determine year (use current year, or next year if date has already passed)
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      
+      exitByDate = new Date(currentYear, month, day, hour, minute, 0, 0);
+      
+      // If the date is in the past, assume it's next year
+      if (exitByDate < now) {
+        exitByDate = new Date(currentYear + 1, month, day, hour, minute, 0, 0);
+      }
+      
+      return exitByDate;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
    * Validates a trade idea against current market price
    * Determines if it hit target, hit stop, or expired
    * Note: currentPrice can be null/undefined for expiry checks when market is closed
@@ -42,9 +106,9 @@ export class PerformanceValidator {
     // This check doesn't require current price
     if (idea.exitBy) {
       try {
-        const exitByDate = new Date(idea.exitBy);
-        // Validate date is parseable (handles legacy formatted strings)
-        if (isNaN(exitByDate.getTime())) {
+        const exitByDate = this.parseExitByDate(idea.exitBy);
+        
+        if (!exitByDate) {
           console.warn(`Invalid exitBy date for ${idea.symbol}: ${idea.exitBy}`);
           // Skip expiry check for invalid dates, fall through to other checks
         } else if (now > exitByDate) {

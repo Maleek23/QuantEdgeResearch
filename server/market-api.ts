@@ -761,7 +761,7 @@ export async function fetchEarningsCalendar(horizon: '3month' | '6month' | '12mo
     }
 
     logger.info(`✅ Found ${earnings.length} upcoming earnings events`);
-    logAPISuccess('AlphaVantage', 'earnings_calendar', { count: earnings.length });
+    logAPISuccess('AlphaVantage', 'earnings_calendar');
     
     return earnings;
   } catch (error) {

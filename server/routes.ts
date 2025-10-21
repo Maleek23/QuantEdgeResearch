@@ -1010,6 +1010,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sync earnings calendar from Alpha Vantage
+  app.post("/api/catalysts/sync-earnings", async (_req, res) => {
+    try {
+      const { fetchEarningsCalendar } = await import("./market-api");
+      const earnings = await fetchEarningsCalendar('3month');
+      
+      if (earnings.length === 0) {
+        return res.json({ 
+          message: "No earnings data available", 
+          synced: 0 
+        });
+      }
+
+      // Filter for next 14 days only (most relevant)
+      // Normalize to midnight to include same-day earnings
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const twoWeeksFromNow = new Date(today);
+      twoWeeksFromNow.setDate(today.getDate() + 14);
+      
+      const upcomingEarnings = earnings.filter(e => {
+        const reportDate = new Date(e.reportDate);
+        reportDate.setHours(0, 0, 0, 0);
+        return reportDate >= today && reportDate <= twoWeeksFromNow;
+      });
+
+      // Sync to catalyst table
+      let syncedCount = 0;
+      
+      for (const earning of upcomingEarnings) {
+        try {
+          // Check if already exists
+          const existing = await storage.getCatalystsBySymbol(earning.symbol);
+          const alreadyExists = existing.some(c => 
+            c.eventType === 'earnings' && 
+            c.timestamp.startsWith(earning.reportDate)
+          );
+          
+          if (!alreadyExists) {
+            const estimateText = earning.estimate 
+              ? ` (Est. EPS: $${earning.estimate.toFixed(2)})` 
+              : '';
+            
+            // Calculate fiscal quarter correctly (months are 0-indexed)
+            const fiscalMonth = new Date(earning.fiscalDateEnding).getMonth();
+            const fiscalQuarter = Math.floor((fiscalMonth + 3) / 3);
+              
+            await storage.createCatalyst({
+              symbol: earning.symbol,
+              title: `${earning.name} Earnings Report`,
+              description: `${earning.symbol} reports Q${fiscalQuarter} earnings${estimateText}`,
+              source: 'Alpha Vantage',
+              sourceUrl: `https://finance.yahoo.com/quote/${earning.symbol}`,
+              timestamp: `${earning.reportDate}T16:00:00-05:00`, // After market close
+              eventType: 'earnings',
+              impact: 'high', // All earnings are high impact
+            });
+            syncedCount++;
+          }
+        } catch (error) {
+          logger.error(`Failed to sync earnings for ${earning.symbol}:`, error);
+        }
+      }
+
+      logger.info(`📅 Synced ${syncedCount} earnings events to catalyst feed`);
+      res.json({ 
+        message: `Synced ${syncedCount} upcoming earnings events`, 
+        total: upcomingEarnings.length,
+        synced: syncedCount 
+      });
+    } catch (error) {
+      logger.error('❌ Earnings sync error:', error);
+      res.status(500).json({ error: "Failed to sync earnings calendar" });
+    }
+  });
+
   // Watchlist Routes
   app.get("/api/watchlist", async (_req, res) => {
     try {

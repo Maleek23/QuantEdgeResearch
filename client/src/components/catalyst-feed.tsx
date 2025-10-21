@@ -4,7 +4,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { formatCTTime, cn } from "@/lib/utils";
 import type { Catalyst } from "@shared/schema";
-import { Calendar, Newspaper, TrendingUp, AlertCircle, FileText, ExternalLink } from "lucide-react";
+import { Calendar, Newspaper, TrendingUp, AlertCircle, FileText, ExternalLink, RefreshCw } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface CatalystFeedProps {
   catalysts: Catalyst[];
@@ -25,16 +29,70 @@ const impactColors = {
 };
 
 export function CatalystFeed({ catalysts }: CatalystFeedProps) {
+  const { toast } = useToast();
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const syncEarnings = useMutation({
+    mutationFn: async () => {
+      setIsSyncing(true);
+      const response = await apiRequest(
+        'POST',
+        '/api/catalysts/sync-earnings',
+        {}
+      );
+      const data = await response.json() as { message: string; total: number; synced: number };
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/catalysts'] });
+      toast({
+        title: "Earnings Synced",
+        description: `${data.synced} upcoming earnings added to catalyst feed`,
+      });
+      setIsSyncing(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Sync Failed",
+        description: error instanceof Error ? error.message : "Failed to sync earnings calendar",
+        variant: "destructive",
+      });
+      setIsSyncing(false);
+    },
+  });
+
+  const earningsCount = catalysts.filter(c => c.eventType === 'earnings').length;
+
   return (
     <Card data-testid="card-catalyst-feed">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Newspaper className="h-5 w-5" />
-          Market Catalysts
-        </CardTitle>
-        <CardDescription>
-          Latest events and news impacting trade opportunities
-        </CardDescription>
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <div className="space-y-1.5">
+            <CardTitle className="flex items-center gap-2">
+              <Newspaper className="h-5 w-5" />
+              Market Catalysts
+            </CardTitle>
+            <CardDescription>
+              Latest events and news impacting trade opportunities
+              {earningsCount > 0 && (
+                <span className="ml-2 text-xs text-primary font-medium">
+                  • {earningsCount} upcoming earnings
+                </span>
+              )}
+            </CardDescription>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => syncEarnings.mutate()}
+            disabled={isSyncing}
+            className="gap-2"
+            data-testid="button-sync-earnings"
+          >
+            <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
+            Sync Earnings
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-[500px] pr-4">
