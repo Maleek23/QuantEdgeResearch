@@ -1,10 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Text, Html } from '@react-three/drei';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Target } from "lucide-react";
 import * as THREE from 'three';
+import { WebGLErrorBoundary } from './webgl-error-boundary';
+import { isWebGLSupported } from '@/lib/webgl-support';
 
 interface SignalCombination {
   combination: string;
@@ -233,6 +235,24 @@ function CorrelationCube({ combinations }: { combinations: SignalCombination[] }
 }
 
 export function SignalCorrelationCube({ combinations }: SignalCorrelationCubeProps) {
+  const [hasWebGL, setHasWebGL] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    // Check for WebGL support before attempting to render Canvas
+    setHasWebGL(isWebGLSupported());
+  }, []);
+
+  const webglFallback = (
+    <div className="h-[500px] flex flex-col items-center justify-center text-center space-y-4">
+      <p className="text-sm text-muted-foreground">
+        3D visualization requires WebGL support, which is not available in your browser.
+      </p>
+      <p className="text-xs text-muted-foreground max-w-md">
+        Please try viewing this page in a modern browser with WebGL enabled, or check the Data Tables tab for the same information in table format.
+      </p>
+    </div>
+  );
+
   return (
     <Card className="gradient-border-card">
       <CardHeader>
@@ -251,28 +271,36 @@ export function SignalCorrelationCube({ combinations }: SignalCorrelationCubePro
           <div className="h-[500px] flex items-center justify-center text-muted-foreground">
             <p>No combination data available yet. Generate more trade ideas to see correlations.</p>
           </div>
-        ) : (
-          <div className="h-[500px] bg-gradient-to-br from-background to-background/50 rounded-lg overflow-hidden border border-border/50">
-            <Canvas
-              camera={{ position: [3, 3, 3], fov: 50 }}
-              gl={{ antialias: true, alpha: true }}
-            >
-              <color attach="background" args={['#0a0a0a']} />
-              <ambientLight intensity={0.5} />
-              <pointLight position={[10, 10, 10]} intensity={1} />
-              <pointLight position={[-10, -10, -10]} intensity={0.5} />
-              
-              <CorrelationCube combinations={combinations} />
-              
-              <OrbitControls
-                enableZoom={true}
-                enablePan={true}
-                minDistance={2}
-                maxDistance={8}
-                autoRotate={false}
-              />
-            </Canvas>
+        ) : hasWebGL === null ? (
+          <div className="h-[500px] flex items-center justify-center text-muted-foreground">
+            <p>Checking 3D support...</p>
           </div>
+        ) : !hasWebGL ? (
+          webglFallback
+        ) : (
+          <WebGLErrorBoundary fallback={webglFallback}>
+            <div className="h-[500px] bg-gradient-to-br from-background to-background/50 rounded-lg overflow-hidden border border-border/50">
+              <Canvas
+                camera={{ position: [3, 3, 3], fov: 50 }}
+                gl={{ antialias: true, alpha: true }}
+              >
+                <color attach="background" args={['#0a0a0a']} />
+                <ambientLight intensity={0.5} />
+                <pointLight position={[10, 10, 10]} intensity={1} />
+                <pointLight position={[-10, -10, -10]} intensity={0.5} />
+                
+                <CorrelationCube combinations={combinations} />
+                
+                <OrbitControls
+                  enableZoom={true}
+                  enablePan={true}
+                  minDistance={2}
+                  maxDistance={8}
+                  autoRotate={false}
+                />
+              </Canvas>
+            </div>
+          </WebGLErrorBoundary>
         )}
         
         {/* Legend */}

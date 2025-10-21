@@ -1,10 +1,12 @@
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Sphere, Html } from '@react-three/drei';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Brain } from "lucide-react";
 import * as THREE from 'three';
+import { WebGLErrorBoundary } from './webgl-error-boundary';
+import { isWebGLSupported } from '@/lib/webgl-support';
 
 interface SignalPerformance {
   signalName: string;
@@ -227,11 +229,29 @@ function RotatingBrain({ signals }: { signals: SignalPerformance[] }) {
 }
 
 export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
+  const [hasWebGL, setHasWebGL] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    // Check for WebGL support before attempting to render Canvas
+    setHasWebGL(isWebGLSupported());
+  }, []);
+
   // Calculate learning stats
   const totalTrades = signals.reduce((sum, s) => sum + s.tradeCount, 0);
   const avgWinRate = signals.reduce((sum, s) => sum + s.winRate, 0) / signals.length;
   const topPerformer = signals.reduce((best, s) => s.winRate > best.winRate ? s : best, signals[0]);
   const bottomPerformer = signals.reduce((worst, s) => s.winRate < worst.winRate ? s : worst, signals[0]);
+
+  const webglFallback = (
+    <div className="h-[500px] flex flex-col items-center justify-center text-center space-y-4">
+      <p className="text-sm text-muted-foreground">
+        3D visualization requires WebGL support, which is not available in your browser.
+      </p>
+      <p className="text-xs text-muted-foreground max-w-md">
+        Please try viewing this page in a modern browser with WebGL enabled, or check the Data Tables tab for the same information in table format.
+      </p>
+    </div>
+  );
 
   return (
     <Card className="gradient-border-card">
@@ -251,30 +271,38 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
           <div className="h-[500px] flex items-center justify-center text-muted-foreground">
             <p>No signal data available yet. Generate trade ideas to train the neural network.</p>
           </div>
+        ) : hasWebGL === null ? (
+          <div className="h-[500px] flex items-center justify-center text-muted-foreground">
+            <p>Checking 3D support...</p>
+          </div>
+        ) : !hasWebGL ? (
+          webglFallback
         ) : (
           <>
-            <div className="h-[500px] bg-gradient-to-br from-background to-background/50 rounded-lg overflow-hidden border border-border/50">
-              <Canvas
-                camera={{ position: [4, 3, 4], fov: 50 }}
-                gl={{ antialias: true, alpha: true }}
-              >
-                <color attach="background" args={['#0a0a0a']} />
-                <ambientLight intensity={0.4} />
-                <pointLight position={[10, 10, 10]} intensity={1} color="#00d9ff" />
-                <pointLight position={[-10, -10, -10]} intensity={0.5} color="#ff00ff" />
-                <pointLight position={[0, 10, 0]} intensity={0.5} color="#00ff88" />
-                
-                <RotatingBrain signals={signals} />
-                
-                <OrbitControls
-                  enableZoom={true}
-                  enablePan={true}
-                  minDistance={3}
-                  maxDistance={10}
-                  autoRotate={false}
-                />
-              </Canvas>
-            </div>
+            <WebGLErrorBoundary fallback={webglFallback}>
+              <div className="h-[500px] bg-gradient-to-br from-background to-background/50 rounded-lg overflow-hidden border border-border/50">
+                <Canvas
+                  camera={{ position: [4, 3, 4], fov: 50 }}
+                  gl={{ antialias: true, alpha: true }}
+                >
+                  <color attach="background" args={['#0a0a0a']} />
+                  <ambientLight intensity={0.4} />
+                  <pointLight position={[10, 10, 10]} intensity={1} color="#00d9ff" />
+                  <pointLight position={[-10, -10, -10]} intensity={0.5} color="#ff00ff" />
+                  <pointLight position={[0, 10, 0]} intensity={0.5} color="#00ff88" />
+                  
+                  <RotatingBrain signals={signals} />
+                  
+                  <OrbitControls
+                    enableZoom={true}
+                    enablePan={true}
+                    minDistance={3}
+                    maxDistance={10}
+                    autoRotate={false}
+                  />
+                </Canvas>
+              </div>
+            </WebGLErrorBoundary>
             
             {/* Learning stats panel */}
             <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
