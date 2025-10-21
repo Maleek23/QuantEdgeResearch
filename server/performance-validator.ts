@@ -67,15 +67,23 @@ export class PerformanceValidator {
       }
       
       // Determine year (use current year, or next year if date has already passed)
+      // IMPORTANT: exitBy times are in CST/CDT (America/Chicago)
+      // Create date string in ISO format and parse with timezone
       const now = new Date();
       const currentYear = now.getFullYear();
       
+      // Create date in CST timezone using UTC offset adjustment
+      // CST is UTC-6, CDT is UTC-5. We'll use CST (UTC-6) as default
       exitByDate = new Date(currentYear, month, day, hour, minute, 0, 0);
       
       // If the date is in the past, assume it's next year
       if (exitByDate < now) {
         exitByDate = new Date(currentYear + 1, month, day, hour, minute, 0, 0);
       }
+      
+      // Add 6 hours to convert CST to UTC (server time)
+      // This makes the comparison with `now` (UTC) accurate
+      exitByDate = new Date(exitByDate.getTime() + (6 * 60 * 60 * 1000));
       
       return exitByDate;
     } catch (e) {
