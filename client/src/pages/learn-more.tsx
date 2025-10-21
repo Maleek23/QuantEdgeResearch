@@ -100,10 +100,10 @@ export default function LearnMore() {
               <Button 
                 variant="outline"
                 onClick={() => setLocation('/')}
-                data-testid="button-back-dashboard"
+                data-testid="button-back-home"
                 className="btn-magnetic px-8 py-6 text-lg glass-card"
               >
-                Back to Dashboard
+                Back to Home
               </Button>
               <Button 
                 variant="outline"
