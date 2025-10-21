@@ -1514,18 +1514,20 @@ export class DatabaseStorage implements IStorage {
     // This shows the profitability quality - do wins compensate for losses?
     const evScore = avgLoss > 0 ? avgWin / avgLoss : (avgWin > 0 ? 99 : 1);
     
-    // Adjusted Weighted Accuracy = Enhanced Weighted Accuracy × EV Score
+    // Adjusted Weighted Accuracy = quantAccuracy × sqrt(EV Score)
     // Merges accuracy and profitability quality into one interpretive metric
-    const adjustedWeightedAccuracy = quantAccuracy * (evScore / 10); // Normalize EV score impact
+    // Using sqrt to keep the result in 0-100 range while EV Score impact is meaningful
+    const adjustedWeightedAccuracy = quantAccuracy * Math.sqrt(Math.min(evScore, 4)) / 2; // Cap at 2x boost
     
     // ========================================
     // OPPOSITE DIRECTION RATE - Critical Blind Spot Detection
     // ========================================
-    // Tracks trades that moved AGAINST prediction (negative accuracy)
-    // This catches model failures that pure directional accuracy might hide
+    // Tracks trades that moved AGAINST prediction by at least 10% of expected move
+    // This catches model failures where price moved significantly in wrong direction
     const oppositeDirectionCount = allIdeas.filter(idea => {
       const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
-      return accuracyPercent !== null && accuracyPercent < 0; // Moved opposite to prediction
+      // Moved opposite to prediction by at least 10% of expected move
+      return accuracyPercent !== null && accuracyPercent < -10;
     }).length;
     
     const oppositeDirectionRate = allIdeas.length > 0

@@ -54,6 +54,13 @@ interface PerformanceStats {
     maxDrawdown: number;
     profitFactor: number;
     expectancy: number;
+    // Enhanced quant-defensible metrics
+    evScore: number;
+    adjustedWeightedAccuracy: number;
+    oppositeDirectionRate: number;
+    oppositeDirectionCount: number;
+    avgWinSize: number;
+    avgLossSize: number;
   };
   bySource: Array<{
     source: string;
@@ -591,6 +598,97 @@ export default function PerformancePage() {
                     <div className="text-sm text-muted-foreground mb-1">Avg Hold Time</div>
                     <div className="text-2xl font-bold font-mono">{formatTime(stats.overall.avgHoldingTimeMinutes)}</div>
                     <div className="text-xs text-muted-foreground">Duration</div>
+                  </div>
+                </div>
+              </TooltipProvider>
+            </CardContent>
+          </Card>
+
+          <Card className="stat-card shadow-lg border-cyan-500/20" data-testid="card-enhanced-quant-metrics">
+            <CardHeader>
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <Activity className="w-5 h-5 text-cyan-500" />
+                Enhanced Quant Analytics
+              </CardTitle>
+              <CardDescription>Profitability quality and directional blind spot tracking</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TooltipProvider>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                  <div className="flex flex-col items-center">
+                    <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
+                      <span>EV Score</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-3.5 h-3.5 cursor-help inline-block" data-testid="tooltip-ev-score" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-semibold mb-1">Expected Value Score</p>
+                          <p className="text-xs mb-2">Formula: Avg(Expected Gain) / |Avg(Expected Loss)|</p>
+                          <p className="text-xs">Shows profitability quality - do wins compensate for losses?</p>
+                          <p className="text-xs mt-1 italic">Target: &gt;1.5 means wins are 50% larger than losses on average</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <div className={`text-2xl font-bold font-mono mb-1 ${
+                      stats.overall.evScore >= 1.5 ? 'text-green-500' : 
+                      stats.overall.evScore >= 1.0 ? 'text-cyan-500' : 'text-red-500'
+                    }`}>
+                      {stats.overall.evScore === Infinity || stats.overall.evScore > 99 ? '∞' : stats.overall.evScore.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {stats.overall.avgWinSize.toFixed(1)}% / {stats.overall.avgLossSize.toFixed(1)}%
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
+                      <span>Adjusted Accuracy</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-3.5 h-3.5 cursor-help inline-block" data-testid="tooltip-adjusted-accuracy" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-semibold mb-1">Adjusted Weighted Accuracy</p>
+                          <p className="text-xs mb-2">Formula: Quant Accuracy × √(EV Score) / 2</p>
+                          <p className="text-xs">Merges directional accuracy with profitability quality into one interpretive metric.</p>
+                          <p className="text-xs mt-1 italic">Maintains 0-100% range while rewarding high-quality wins</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <div className={`text-2xl font-bold font-mono mb-1 ${
+                      stats.overall.adjustedWeightedAccuracy >= 50 ? 'text-blue-500' : 
+                      stats.overall.adjustedWeightedAccuracy >= 30 ? 'text-cyan-500' : 'text-orange-500'
+                    }`}>
+                      {stats.overall.adjustedWeightedAccuracy.toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Accuracy × Quality
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
+                      <span>Opposite Direction</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="w-3.5 h-3.5 cursor-help inline-block" data-testid="tooltip-opposite-direction" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-semibold mb-1">Opposite Direction Rate</p>
+                          <p className="text-xs mb-2">Percentage of trades that moved AGAINST our prediction by at least 10% of expected move.</p>
+                          <p className="text-xs">Critical blind spot detector - catches model failures where price swung significantly in the wrong direction.</p>
+                          <p className="text-xs mt-1 italic">Lower is better. Target: &lt;15%</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <div className={`text-2xl font-bold font-mono mb-1 ${
+                      stats.overall.oppositeDirectionRate > 20 ? 'text-red-500' : 
+                      stats.overall.oppositeDirectionRate > 15 ? 'text-amber-500' : 'text-green-500'
+                    }`}>
+                      {stats.overall.oppositeDirectionRate.toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {stats.overall.oppositeDirectionCount} wrong way
+                    </div>
                   </div>
                 </div>
               </TooltipProvider>
