@@ -261,11 +261,43 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
             </div>
           </div>
 
-          {/* Current Price + Mini Sparkline Chart */}
-          <div className="mb-4 space-y-3">
+          {/* PROMINENT CURRENT PRICE DISPLAY */}
+          <div className="mb-4 p-4 rounded-lg border-2 bg-gradient-to-r from-blue-500/5 to-purple-500/5 border-blue-500/20">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current Price</span>
+              {currentPrice && (
+                <span className={cn(
+                  "text-xs font-bold px-2 py-0.5 rounded-full",
+                  priceChangePercent >= 0 ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
+                )}>
+                  {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
+                </span>
+              )}
+            </div>
+            {currentPrice ? (
+              <div className="flex items-baseline gap-3">
+                <span className={cn(
+                  "text-3xl font-bold font-mono",
+                  priceUpdated && "price-update"
+                )} data-testid={`text-current-price-${idea.symbol}`}>
+                  {formatCurrency(currentPrice)}
+                </span>
+                <div className="flex flex-col text-xs text-muted-foreground">
+                  <span>Entry: {formatCurrency(idea.entryPrice)}</span>
+                  <span>Target: {formatCurrency(idea.targetPrice)}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold font-mono text-muted-foreground">
+                  Loading...
+                </span>
+              </div>
+            )}
+            
             {/* Mini Sparkline Chart */}
             {sparklineData && sparklineData.prices.length > 0 && (
-              <div className="rounded-lg border bg-card/50 p-2">
+              <div className="mt-3 rounded-lg border bg-background/50 p-2">
                 <MiniSparkline
                   data={sparklineData.prices}
                   targetPrice={idea.targetPrice}
@@ -274,24 +306,6 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   direction={idea.direction as 'long' | 'short'}
                   className="w-full"
                 />
-              </div>
-            )}
-            
-            {/* Current Price Display */}
-            {currentPrice && (
-              <div className="flex items-baseline gap-2">
-                <span className={cn(
-                  "text-xl font-bold font-mono",
-                  priceUpdated && "price-update"
-                )} data-testid={`text-current-price-${idea.symbol}`}>
-                  {formatCurrency(currentPrice)}
-                </span>
-                <span className={cn(
-                  "text-sm font-medium",
-                  priceChangePercent >= 0 ? "text-green-500" : "text-red-500"
-                )}>
-                  {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
-                </span>
               </div>
             )}
           </div>

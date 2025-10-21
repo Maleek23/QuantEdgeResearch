@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { getPerformanceGrade } from "@/lib/performance-grade";
 
 interface ConfidenceCircleProps {
   score: number; // 0-100
@@ -8,27 +9,24 @@ interface ConfidenceCircleProps {
 }
 
 export function ConfidenceCircle({ score, size = "md", showLabel = true, className }: ConfidenceCircleProps) {
-  const getLetterGrade = (score: number): string => {
-    if (score >= 95) return 'A+';
-    if (score >= 90) return 'A';
-    if (score >= 85) return 'B+';
-    if (score >= 80) return 'B';
-    if (score >= 75) return 'C+';
-    if (score >= 70) return 'C';
-    return 'D';
-  };
-
-  const getGradeColor = (score: number): string => {
-    if (score >= 85) return 'text-green-500';
-    if (score >= 75) return 'text-cyan-500';
-    if (score >= 70) return 'text-amber-500';
+  // Use performance-based grading instead of simple confidence-based grading
+  const perfGrade = getPerformanceGrade(score);
+  
+  const getGradeColor = (grade: string): string => {
+    if (grade === 'A' || grade === 'A-') return 'text-green-500';
+    if (grade === 'B+') return 'text-blue-500';
+    if (grade === 'B') return 'text-cyan-500';
+    if (grade === 'C+') return 'text-amber-500';
+    if (grade === 'C') return 'text-orange-500';
     return 'text-red-500';
   };
 
-  const getStrokeColor = (score: number): string => {
-    if (score >= 85) return '#22c55e'; // green-500
-    if (score >= 75) return '#06b6d4'; // cyan-500
-    if (score >= 70) return '#f59e0b'; // amber-500
+  const getStrokeColor = (grade: string): string => {
+    if (grade === 'A' || grade === 'A-') return '#22c55e'; // green-500
+    if (grade === 'B+') return '#3b82f6'; // blue-500
+    if (grade === 'B') return '#06b6d4'; // cyan-500
+    if (grade === 'C+') return '#f59e0b'; // amber-500
+    if (grade === 'C') return '#f97316'; // orange-500
     return '#ef4444'; // red-500
   };
 
@@ -63,8 +61,8 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
             className="text-muted/10"
           />
           
-          {/* Colored zone markers showing confidence thresholds */}
-          {/* Red zone (0-70) - first 70% of circle */}
+          {/* Performance-based zone markers */}
+          {/* Poor zone (D) - red */}
           <circle
             cx={config.circle / 2}
             cy={config.circle / 2}
@@ -72,11 +70,11 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
             stroke="#ef4444"
             strokeWidth={config.stroke}
             fill="none"
-            strokeDasharray={`${circumference * 0.7} ${circumference}`}
-            className={score <= 70 ? 'opacity-30' : 'opacity-10'}
+            strokeDasharray={`${circumference * 0.6} ${circumference}`}
+            className={perfGrade.grade === 'D' ? 'opacity-30' : 'opacity-10'}
           />
           
-          {/* Amber zone (70-85) - 15% band from 70-85 */}
+          {/* Moderate zone (C/C+) - amber/orange */}
           <circle
             cx={config.circle / 2}
             cy={config.circle / 2}
@@ -85,11 +83,11 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
             strokeWidth={config.stroke}
             fill="none"
             strokeDasharray={`${circumference * 0.15} ${circumference}`}
-            strokeDashoffset={-circumference * 0.7}
-            className={score > 70 && score <= 85 ? 'opacity-30' : 'opacity-10'}
+            strokeDashoffset={-circumference * 0.6}
+            className={perfGrade.grade === 'C' || perfGrade.grade === 'C+' ? 'opacity-30' : 'opacity-10'}
           />
           
-          {/* Green zone (85-100) - 15% band from 85-100 */}
+          {/* Good zone (B/B+/A/A-) - blue/green */}
           <circle
             cx={config.circle / 2}
             cy={config.circle / 2}
@@ -97,9 +95,9 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
             stroke="#22c55e"
             strokeWidth={config.stroke}
             fill="none"
-            strokeDasharray={`${circumference * 0.15} ${circumference}`}
-            strokeDashoffset={-circumference * 0.85}
-            className={score > 85 ? 'opacity-30' : 'opacity-10'}
+            strokeDasharray={`${circumference * 0.25} ${circumference}`}
+            strokeDashoffset={-circumference * 0.75}
+            className={perfGrade.grade === 'A' || perfGrade.grade === 'B+' || perfGrade.grade === 'B' || perfGrade.grade === 'A-' ? 'opacity-30' : 'opacity-10'}
           />
           
           {/* Actual progress indicator */}
@@ -107,7 +105,7 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
             cx={config.circle / 2}
             cy={config.circle / 2}
             r={radius}
-            stroke={getStrokeColor(score)}
+            stroke={getStrokeColor(perfGrade.grade)}
             strokeWidth={config.stroke + 1}
             fill="none"
             strokeDasharray={circumference}
@@ -116,17 +114,22 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
             className="transition-all duration-500 ease-out"
           />
         </svg>
-        {/* Grade label inside circle */}
+        {/* Performance Grade label inside circle */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={cn("font-bold", config.font, getGradeColor(score))}>
-            {getLetterGrade(score)}
+          <span className={cn("font-bold", config.font, getGradeColor(perfGrade.grade))}>
+            {perfGrade.grade}
           </span>
         </div>
       </div>
       {showLabel && (
-        <span className="text-xs text-muted-foreground font-medium">
-          {score}% Confidence
-        </span>
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="text-xs text-muted-foreground font-medium">
+            ~{perfGrade.expectedWinRate}% Win Rate
+          </span>
+          <span className="text-[10px] text-muted-foreground/70">
+            {perfGrade.description}
+          </span>
+        </div>
       )}
     </div>
   );
