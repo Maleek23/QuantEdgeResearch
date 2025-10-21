@@ -13,6 +13,8 @@ import type {
   InsertOptionsData,
   UserPreferences,
   InsertUserPreferences,
+  ModelCard,
+  InsertModelCard,
   OutcomeStatus,
   User,
   UpsertUser,
@@ -26,6 +28,7 @@ import {
   watchlist as watchlistTable,
   optionsData as optionsDataTable,
   userPreferences as userPreferencesTable,
+  modelCards as modelCardsTable,
   users,
 } from "@shared/schema";
 
@@ -128,6 +131,13 @@ export interface IStorage {
   // User Preferences
   getUserPreferences(): Promise<UserPreferences | undefined>;
   updateUserPreferences(prefs: Partial<InsertUserPreferences>): Promise<UserPreferences>;
+
+  // 🔐 Model Cards (Governance & Auditability)
+  getAllModelCards(): Promise<ModelCard[]>;
+  getModelCardByVersion(engineVersion: string): Promise<ModelCard | undefined>;
+  createModelCard(card: InsertModelCard): Promise<ModelCard>;
+  updateModelCard(engineVersion: string, updates: Partial<ModelCard>): Promise<ModelCard | undefined>;
+  getActiveModelCard(): Promise<ModelCard | undefined>;
 
   // Chat Messages
   getChatHistory(): Promise<ChatMessage[]>;
@@ -1055,6 +1065,27 @@ export class MemStorage implements IStorage {
   async clearChatHistory(): Promise<void> {
     this.chatHistory.clear();
   }
+
+  // 🔐 Model Cards Methods (Stub - not persisted in MemStorage)
+  async getAllModelCards(): Promise<ModelCard[]> {
+    return [];
+  }
+
+  async getModelCardByVersion(_engineVersion: string): Promise<ModelCard | undefined> {
+    return undefined;
+  }
+
+  async createModelCard(_card: InsertModelCard): Promise<ModelCard> {
+    throw new Error("Model Cards not supported in MemStorage");
+  }
+
+  async updateModelCard(_engineVersion: string, _updates: Partial<ModelCard>): Promise<ModelCard | undefined> {
+    return undefined;
+  }
+
+  async getActiveModelCard(): Promise<ModelCard | undefined> {
+    return undefined;
+  }
 }
 
 // Database Storage Implementation (from javascript_database blueprint)
@@ -1566,6 +1597,37 @@ export class DatabaseStorage implements IStorage {
 
   async clearChatHistory(): Promise<void> {
     this.chatHistory.clear();
+  }
+
+  // 🔐 Model Cards Methods (Governance & Auditability)
+  async getAllModelCards(): Promise<ModelCard[]> {
+    return await db.select().from(modelCardsTable).orderBy(desc(modelCardsTable.createdAt));
+  }
+
+  async getModelCardByVersion(engineVersion: string): Promise<ModelCard | undefined> {
+    const [card] = await db.select().from(modelCardsTable).where(eq(modelCardsTable.engineVersion, engineVersion));
+    return card || undefined;
+  }
+
+  async createModelCard(card: InsertModelCard): Promise<ModelCard> {
+    const [created] = await db.insert(modelCardsTable).values(card).returning();
+    return created;
+  }
+
+  async updateModelCard(engineVersion: string, updates: Partial<ModelCard>): Promise<ModelCard | undefined> {
+    const [updated] = await db.update(modelCardsTable)
+      .set(updates)
+      .where(eq(modelCardsTable.engineVersion, engineVersion))
+      .returning();
+    return updated || undefined;
+  }
+
+  async getActiveModelCard(): Promise<ModelCard | undefined> {
+    const [card] = await db.select().from(modelCardsTable)
+      .where(eq(modelCardsTable.status, 'active'))
+      .orderBy(desc(modelCardsTable.createdAt))
+      .limit(1);
+    return card || undefined;
   }
 }
 

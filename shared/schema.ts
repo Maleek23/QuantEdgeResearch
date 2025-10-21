@@ -97,6 +97,11 @@ export const tradeIdeas = pgTable("trade_ideas", {
   // ML Training Eligibility - Flag to exclude legacy/bad trades from model training
   excludeFromTraining: boolean("exclude_from_training").default(false), // If true, ML retraining ignores this trade
   
+  // 🔐 MODEL GOVERNANCE & AUDITABILITY (SR 11-7 / OCC 201-12 compliance)
+  engineVersion: text("engine_version"), // Quant engine version that generated this idea (e.g., "v2.1.0")
+  mlWeightsVersion: text("ml_weights_version"), // ML weights snapshot used (e.g., "weights_v5_20251021")
+  generationTimestamp: text("generation_timestamp"), // ISO timestamp when idea was generated (for audit trail)
+  
   // Data Quality Tracking
   dataSourceUsed: text("data_source_used"), // 'tradier', 'yahoo', 'coingecko', 'alphavantage', 'estimated'
   
@@ -309,6 +314,46 @@ export const userPreferences = pgTable("user_preferences", {
 export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({ id: true });
 export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
 export type UserPreferences = typeof userPreferences.$inferSelect;
+
+// 🔐 MODEL CARDS - ML Ops governance & auditability (SR 11-7 / OCC 201-12 compliance)
+// Documents each quant engine version and ML weights snapshot for model risk management
+export const modelCards = pgTable("model_cards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  engineVersion: text("engine_version").notNull().unique(), // e.g., "v2.1.0"
+  mlWeightsVersion: text("ml_weights_version"), // e.g., "weights_v5_20251021" (null for pure quant)
+  
+  // Model Metadata
+  modelType: text("model_type").notNull(), // 'quant' | 'ml_hybrid' | 'ai'
+  description: text("description").notNull(), // What changed in this version
+  createdAt: text("created_at").notNull(), // When this version was deployed
+  createdBy: text("created_by"), // Who deployed it (for audit trail)
+  
+  // Model Assumptions & Data Limits
+  assumptions: text("assumptions"), // JSON: Key assumptions (e.g., "Assumes mean-reverting markets")
+  dataLimitations: text("data_limitations"), // JSON: Data quality issues (e.g., "Limited options chain data")
+  signalWeights: text("signal_weights"), // JSON: Signal importance scores
+  
+  // Performance Benchmarks
+  backtestStartDate: text("backtest_start_date"),
+  backtestEndDate: text("backtest_end_date"),
+  backtestWinRate: real("backtest_win_rate"), // % (e.g., 67.5)
+  backtestSharpeRatio: real("backtest_sharpe_ratio"),
+  backtestMaxDrawdown: real("backtest_max_drawdown"), // % (e.g., -12.3)
+  
+  // Live Performance Tracking
+  liveTradesGenerated: integer("live_trades_generated").default(0),
+  liveWinRate: real("live_win_rate"), // Real-world performance
+  liveAccuracyRate: real("live_accuracy_rate"), // % progress toward target
+  
+  // Model Status
+  status: text("status").notNull().default('active'), // 'active' | 'deprecated' | 'archived'
+  deprecatedAt: text("deprecated_at"),
+  deprecationReason: text("deprecation_reason"),
+});
+
+export const insertModelCardSchema = createInsertSchema(modelCards).omit({ id: true });
+export type InsertModelCard = z.infer<typeof insertModelCardSchema>;
+export type ModelCard = typeof modelCards.$inferSelect;
 
 // Position Calculation Interface (not stored, just for calculations)
 export interface PositionCalculation {

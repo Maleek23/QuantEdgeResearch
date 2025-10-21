@@ -2007,6 +2007,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 🔐 MODEL GOVERNANCE: Model Cards API
+  app.get("/api/model-cards", requirePremium, async (_req, res) => {
+    try {
+      const cards = await storage.getAllModelCards();
+      res.json(cards);
+    } catch (error: any) {
+      console.error("Get model cards error:", error);
+      res.status(500).json({ error: "Failed to fetch model cards" });
+    }
+  });
+
+  app.get("/api/model-cards/active", async (_req, res) => {
+    try {
+      const card = await storage.getActiveModelCard();
+      if (!card) {
+        return res.status(404).json({ error: "No active model card found" });
+      }
+      res.json(card);
+    } catch (error: any) {
+      console.error("Get active model card error:", error);
+      res.status(500).json({ error: "Failed to fetch active model card" });
+    }
+  });
+
+  app.post("/api/model-cards/initialize", requireAdmin, async (_req, res) => {
+    try {
+      // Check if model card already exists
+      const existing = await storage.getModelCardByVersion("v2.2.0");
+      if (existing) {
+        return res.json({ message: "Model card already exists", card: existing });
+      }
+
+      // Create the first model card documenting the current quant engine
+      const { QUANT_ENGINE_VERSION } = await import('./quant-ideas-generator');
+      const card = await storage.createModelCard({
+        engineVersion: QUANT_ENGINE_VERSION,
+        mlWeightsVersion: null, // Pure quant for now
+        modelType: 'quant',
+        description: 'Predictive quant engine with RSI divergence priority, early MACD crossovers, widened stops (4-5%), and removal of momentum-chasing signals. Focus on early setups rather than finished moves.',
+        createdAt: new Date().toISOString(),
+        createdBy: 'admin',
+        assumptions: JSON.stringify({
+          marketRegime: 'Mean-reverting with intraday volatility',
+          signalPriority: ['RSI Divergence', 'Early MACD Crossover', 'Volume Spike', 'Breakout Confirmation'],
+          stopLossPhilosophy: 'Wider stops to avoid premature exits on normal volatility'
+        }),
+        dataLimitations: JSON.stringify({
+          historicalData: 'Limited to 100 days lookback for technical indicators',
+          optionsData: 'Tradier API coverage may be incomplete for illiquid options',
+          earningsData: 'Alpha Vantage provides 14-day lookahead only'
+        }),
+        signalWeights: JSON.stringify({
+          'RSI Divergence': 25,
+          'MACD Crossover (Fresh)': 25,
+          'Early Breakout': 20,
+          'Volume Spike': 15,
+          'Mean Reversion': 15
+        }),
+        status: 'active'
+      });
+
+      res.json({ message: "Model card created successfully", card });
+    } catch (error: any) {
+      console.error("Initialize model card error:", error);
+      res.status(500).json({ error: "Failed to initialize model card" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

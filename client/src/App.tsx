@@ -16,6 +16,7 @@ import WatchlistPage from "@/pages/watchlist";
 import RiskCalculatorPage from "@/pages/risk-calculator";
 import PerformancePage from "@/pages/performance";
 import SignalIntelligencePage from "@/pages/signal-intelligence";
+import LearningPage from "@/pages/learning";
 import SettingsPage from "@/pages/settings";
 import AdminPanel from "@/pages/admin";
 import About from "@/pages/about";
@@ -33,6 +34,7 @@ function Router() {
       <Route path="/risk" component={RiskCalculatorPage} />
       <Route path="/performance" component={PerformancePage} />
       <Route path="/signals" component={SignalIntelligencePage} />
+      <Route path="/learning" component={LearningPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route path="/admin" component={AdminPanel} />
       <Route path="/about" component={About} />

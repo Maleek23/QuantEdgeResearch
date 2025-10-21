@@ -14,6 +14,14 @@ import { discoverHiddenCryptoGems, discoverStockGems, fetchCryptoPrice, fetchHis
 import { logger } from './logger';
 import { detectMarketRegime, calculateTimingWindows, type SignalStack } from './timing-intelligence';
 
+// 🔐 MODEL GOVERNANCE: Engine version for audit trail
+export const QUANT_ENGINE_VERSION = "v2.2.0"; // Updated Oct 21, 2025: Widened stops, RSI divergence priority, removed momentum-chasing
+export const ENGINE_CHANGELOG = {
+  "v2.2.0": "Predictive signals (RSI divergence, early MACD), widened stops (4-5%), removed momentum-chasing",
+  "v2.1.0": "Added timing intelligence, market regime detection",
+  "v2.0.0": "Initial production release with ML adaptive learning",
+};
+
 // Check if US stock market is open (Mon-Fri, 9:30 AM - 4:00 PM ET)
 function isStockMarketOpen(): boolean {
   const now = new Date();
@@ -1190,7 +1198,12 @@ export async function generateQuantIdeas(
       source: 'quant',
       confidenceScore: Math.round(confidenceScore),
       qualitySignals: qualitySignals,
-      probabilityBand: probabilityBand
+      probabilityBand: probabilityBand,
+      
+      // 🔐 MODEL GOVERNANCE: Audit trail for regulatory compliance
+      engineVersion: QUANT_ENGINE_VERSION,
+      mlWeightsVersion: learnedWeights.size > 0 ? `weights_v${learnedWeights.size}_${formatInTimeZone(now, timezone, 'yyyyMMdd')}` : null,
+      generationTimestamp: now.toISOString(),
     };
 
     // Check if we should accept this asset type based on distribution
@@ -1334,7 +1347,12 @@ export async function generateQuantIdeas(
         source: 'quant',
         confidenceScore: Math.round(confidenceScore),
         qualitySignals: qualitySignals,
-        probabilityBand: probabilityBand
+        probabilityBand: probabilityBand,
+        
+        // 🔐 MODEL GOVERNANCE: Audit trail for regulatory compliance
+        engineVersion: QUANT_ENGINE_VERSION,
+        mlWeightsVersion: learnedWeights.size > 0 ? `weights_v${learnedWeights.size}_${formatInTimeZone(now, timezone, 'yyyyMMdd')}` : null,
+        generationTimestamp: now.toISOString(),
       };
 
       ideas.push(idea);

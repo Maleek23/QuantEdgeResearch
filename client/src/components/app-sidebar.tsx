@@ -24,6 +24,7 @@ const toolItems = [
   { title: "Performance", url: "/performance", icon: Target },
   { title: "Signal Intelligence", url: "/signals", icon: Sparkles },
   { title: "Risk Calculator", url: "/risk", icon: Calculator },
+  { title: "Quant Learning", url: "/learning", icon: BookOpen },
 ];
 
 const systemItems = [

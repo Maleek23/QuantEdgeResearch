@@ -20,6 +20,7 @@ import type { TradeIdea, IdeaSource, MarketData, Catalyst } from "@shared/schema
 import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO, subHours } from "date-fns";
 import { isWeekend, getNextTradingWeekStart } from "@/lib/utils";
+import { RiskDisclosure } from "@/components/risk-disclosure";
 
 export default function TradeIdeasPage() {
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
@@ -216,6 +217,9 @@ export default function TradeIdeasPage() {
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </div>
+
+      {/* 🔐 Risk Disclosure - Auto-attached to all trade outputs */}
+      <RiskDisclosure variant="compact" engineVersion="v2.2.0" />
 
       {/* Weekend Notice Banner - Smart helper instead of duplicate feed */}
       {isWeekend() && (
