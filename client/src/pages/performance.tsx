@@ -562,12 +562,12 @@ export default function PerformancePage() {
             <CardContent>
               <TooltipProvider>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                  <div className="text-center">
-                    <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
-                      Sharpe Ratio
+                  <div className="flex flex-col items-center">
+                    <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
+                      <span>Sharpe Ratio</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <HelpCircle className="w-3 h-3 cursor-help" />
+                          <HelpCircle className="w-3.5 h-3.5 cursor-help inline-block" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p className="font-semibold mb-1">Sharpe Ratio</p>
@@ -576,7 +576,7 @@ export default function PerformancePage() {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <div className={`text-2xl font-bold font-mono ${
+                    <div className={`text-2xl font-bold font-mono mb-1 ${
                       stats.overall.sharpeRatio >= 1.5 ? 'text-green-500' : 
                       stats.overall.sharpeRatio >= 1.0 ? 'text-amber-500' : 'text-red-500'
                     }`}>
@@ -584,12 +584,12 @@ export default function PerformancePage() {
                     </div>
                     <div className="text-xs text-muted-foreground">Target: &gt;1.5</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
-                      Max Drawdown
+                  <div className="flex flex-col items-center">
+                    <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
+                      <span>Max Drawdown</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <HelpCircle className="w-3 h-3 cursor-help" />
+                          <HelpCircle className="w-3.5 h-3.5 cursor-help inline-block" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p className="font-semibold mb-1">Max Drawdown</p>
@@ -598,19 +598,19 @@ export default function PerformancePage() {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <div className={`text-2xl font-bold font-mono ${
+                    <div className={`text-2xl font-bold font-mono mb-1 ${
                       stats.overall.maxDrawdown > 0 ? 'text-red-500' : 'text-muted-foreground'
                     }`}>
                       {stats.overall.maxDrawdown > 0 ? '-' : ''}{stats.overall.maxDrawdown.toFixed(2)}%
                     </div>
                     <div className="text-xs text-muted-foreground">Peak-to-trough</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
-                      Profit Factor
+                  <div className="flex flex-col items-center">
+                    <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
+                      <span>Profit Factor</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <HelpCircle className="w-3 h-3 cursor-help" />
+                          <HelpCircle className="w-3.5 h-3.5 cursor-help inline-block" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p className="font-semibold mb-1">Profit Factor</p>
@@ -619,7 +619,7 @@ export default function PerformancePage() {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <div className={`text-2xl font-bold font-mono ${
+                    <div className={`text-2xl font-bold font-mono mb-1 ${
                       stats.overall.profitFactor >= 1.5 ? 'text-green-500' : 
                       stats.overall.profitFactor >= 1.0 ? 'text-amber-500' : 'text-red-500'
                     }`}>
@@ -627,12 +627,12 @@ export default function PerformancePage() {
                     </div>
                     <div className="text-xs text-muted-foreground">Target: &gt;1.3</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
-                      Expectancy
+                  <div className="flex flex-col items-center">
+                    <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
+                      <span>Expectancy</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <HelpCircle className="w-3 h-3 cursor-help" />
+                          <HelpCircle className="w-3.5 h-3.5 cursor-help inline-block" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p className="font-semibold mb-1">Expectancy</p>
@@ -641,7 +641,7 @@ export default function PerformancePage() {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <div className={`text-2xl font-bold font-mono ${
+                    <div className={`text-2xl font-bold font-mono mb-1 ${
                       stats.overall.expectancy >= 0 ? 'text-green-500' : 'text-red-500'
                     }`}>
                       {stats.overall.expectancy >= 0 ? '+' : ''}${stats.overall.expectancy.toFixed(3)}
