@@ -45,16 +45,24 @@ function SidebarHeaderContent() {
   const isCollapsed = state === "collapsed";
 
   return (
-    <SidebarMenuButton asChild className="h-auto items-center px-3 py-4">
+    <SidebarMenuButton asChild className="h-auto items-center px-3 py-5">
       <Link href="/" data-testid="nav-home">
         {isCollapsed ? (
-          /* Collapsed: Large logo + pulsing gradient slash portal */
-          <div className="flex flex-col items-center justify-center w-full gap-3">
-            <img 
-              src={quantEdgeLogoUrl} 
-              alt="QuantEdge" 
-              className="h-12 w-12 object-contain"
-            />
+          /* Collapsed: Large glowing logo + pulsing portal */
+          <div className="flex flex-col items-center justify-center w-full gap-4">
+            <div className="relative p-2 rounded-lg" style={{
+              background: 'rgba(59, 130, 246, 0.1)',
+              boxShadow: '0 0 20px rgba(59, 130, 246, 0.3), 0 0 40px rgba(139, 92, 246, 0.2)',
+            }}>
+              <img 
+                src={quantEdgeLogoUrl} 
+                alt="QuantEdge" 
+                className="h-14 w-14 object-contain"
+                style={{
+                  filter: 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.8))'
+                }}
+              />
+            </div>
             <UntitldLogo collapsed={true} />
           </div>
         ) : (

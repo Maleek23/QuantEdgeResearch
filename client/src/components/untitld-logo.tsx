@@ -39,14 +39,14 @@ export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) 
         <span
           className={cn(
             "inline-block font-bold relative transition-all duration-700 ease-in-out",
-            isCollapsed ? "text-xl scale-150" : "text-[11px] mx-0.5"
+            isCollapsed ? "text-3xl scale-150" : "text-[11px] mx-0.5"
           )}
           style={{
             background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ef4444 100%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             backgroundClip: "text",
-            filter: isCollapsed ? "drop-shadow(0 0 20px rgba(139, 92, 246, 1))" : "none",
+            filter: isCollapsed ? "drop-shadow(0 0 25px rgba(139, 92, 246, 1)) drop-shadow(0 0 15px rgba(59, 130, 246, 0.8))" : "none",
           }}
         >
           /
@@ -60,19 +60,19 @@ export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) 
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   backgroundClip: "text",
-                  filter: "blur(12px)",
+                  filter: "blur(15px)",
                 }}
               >
                 /
               </span>
               <span
-                className="absolute inset-0 animate-ping opacity-70"
+                className="absolute inset-0 animate-ping opacity-75"
                 style={{
                   background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ef4444 100%)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   backgroundClip: "text",
-                  filter: "blur(18px)",
+                  filter: "blur(22px)",
                 }}
               >
                 /
