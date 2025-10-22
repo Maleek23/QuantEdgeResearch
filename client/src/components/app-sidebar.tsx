@@ -44,34 +44,27 @@ function SidebarHeaderContent() {
   const isCollapsed = state === "collapsed";
 
   return (
-    <SidebarMenuButton asChild className="h-auto min-h-16 items-center px-4 py-3">
+    <SidebarMenuButton asChild className="h-auto items-center px-4 py-3">
       <Link href="/" data-testid="nav-home">
-        {/* When collapsed: Show just QuantEdge logo + Portal slash */}
         {isCollapsed ? (
-          <div className="flex flex-col items-center justify-center gap-2 w-full">
-            <img 
-              src={quantEdgeLogoUrl} 
-              alt="QuantEdge" 
-              className="h-8 w-8 object-contain"
-            />
-            <UntitldLogo collapsed={true} className="text-xs" />
+          /* Collapsed: Just the pulsing gradient slash portal */
+          <div className="flex items-center justify-center w-full">
+            <UntitldLogo collapsed={true} />
           </div>
         ) : (
+          /* Expanded: Logo + "by UN/TITLD" */
           <>
-            {/* When expanded: Show full branding */}
             <div className="flex shrink-0 items-center justify-center">
               <img 
                 src={quantEdgeLogoUrl} 
                 alt="QuantEdge" 
-                className="h-10 w-10 object-contain"
+                className="h-10 w-10 object-contain mix-blend-lighten"
+                style={{ filter: 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.3))' }}
               />
             </div>
-            <div className="flex flex-col gap-1.5 leading-none">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-muted-foreground/70">by</span>
-                <UntitldLogo collapsed={false} className="text-xs" />
-              </div>
-              <span className="text-xs text-muted-foreground">Research Platform</span>
+            <div className="flex items-center gap-1.5 leading-none">
+              <span className="text-[10px] text-muted-foreground/60">by</span>
+              <UntitldLogo collapsed={false} />
             </div>
           </>
         )}
