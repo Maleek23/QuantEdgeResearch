@@ -753,6 +753,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const openIdeas = ideas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus);
       const uniqueSymbols = Array.from(new Set(openIdeas.map(i => i.symbol)));
       
+      // VALIDATION: Auto-correct option types based on entry/target logic
+      for (const idea of openIdeas) {
+        if (idea.assetType === 'option' && idea.optionType) {
+          const isBullish = idea.targetPrice > idea.entryPrice;
+          const correctType = isBullish ? 'call' : 'put';
+          
+          if (idea.optionType !== correctType) {
+            logger.warn(`[OPTION-VALIDATION] ${idea.symbol}: Correcting optionType from '${idea.optionType}' to '${correctType}' (entry: $${idea.entryPrice}, target: $${idea.targetPrice})`);
+            await storage.updateTradeIdea(idea.id, { optionType: correctType });
+            idea.optionType = correctType; // Update in-memory for this response
+          }
+        }
+      }
+      
       // Fetch current prices for all trade idea symbols (including underlying stock prices for options)
       const stockSymbols = uniqueSymbols.filter(s => {
         const idea = openIdeas.find(i => i.symbol === s);
