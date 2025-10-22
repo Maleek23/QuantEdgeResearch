@@ -615,6 +615,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Batch market data endpoint - must come before single symbol route
+  app.get("/api/market-data/batch/:symbols", async (req, res) => {
+    try {
+      const symbols = req.params.symbols.split(',').map(s => s.trim().toUpperCase());
+      const allMarketData = await storage.getAllMarketData();
+      const filtered = allMarketData.filter(m => symbols.includes(m.symbol));
+      res.json(filtered);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch market data" });
+    }
+  });
+
   app.get("/api/market-data/:symbol", async (req, res) => {
     try {
       const data = await storage.getMarketDataBySymbol(req.params.symbol);

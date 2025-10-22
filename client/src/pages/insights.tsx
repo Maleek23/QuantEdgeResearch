@@ -27,8 +27,9 @@ export default function InsightsPage() {
 
   // Fetch market data for each watchlist symbol
   const watchlistSymbols = watchlist.map(w => w.symbol);
+  const symbolsParam = watchlistSymbols.join(',');
   const { data: marketDataList = [] } = useQuery<MarketData[]>({
-    queryKey: ['/api/market-data/batch', watchlistSymbols],
+    queryKey: [`/api/market-data/batch/${symbolsParam}`],
     enabled: watchlistSymbols.length > 0,
     refetchInterval: 30000, // Refresh every 30 seconds
   });
