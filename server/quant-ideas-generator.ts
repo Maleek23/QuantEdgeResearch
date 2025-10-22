@@ -15,8 +15,9 @@ import { logger } from './logger';
 import { detectMarketRegime, calculateTimingWindows, type SignalStack } from './timing-intelligence';
 
 // 🔐 MODEL GOVERNANCE: Engine version for audit trail
-export const QUANT_ENGINE_VERSION = "v2.3.0"; // Updated Oct 21, 2025: TIGHTENED stops (2-3%), stricter confidence (90+), improved accuracy
+export const QUANT_ENGINE_VERSION = "v2.4.0"; // Updated Oct 22, 2025: PERFORMANCE OPTIMIZATIONS - Removed reversal setups (18% WR), crypto tier filter (top 20 only), penalized weak signals, fixed MTF alignment
 export const ENGINE_CHANGELOG = {
+  "v2.4.0": "PERFORMANCE FIX: Removed reversal setups (18% WR → eliminated), crypto tier filter (top 20 only, was 16.7% WR), penalized moderate/weak signals, fixed MTF 'Strong Trend' penalty (-10pts, was 18.5% WR)",
   "v2.3.0": "ACCURACY BOOST: Tighter stops (2-3%), stricter filtering (90+ confidence), -30% max loss target",
   "v2.2.0": "Predictive signals (RSI divergence, early MACD), widened stops (4-5%), removed momentum-chasing",
   "v2.1.0": "Added timing intelligence, market regime detection",
@@ -231,23 +232,26 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
     };
   }
 
-  // PRIORITY 3: Mean reversion on EXTREME oversold/overbought (before the bounce/crash starts)
-  // MOVED DOWN: Still reactive to large moves, less predictive than breakouts
-  if (priceChange <= -7) {
-    return {
-      type: 'mean_reversion',
-      strength: 'strong',
-      direction: 'long' // oversold bounce
-    };
-  }
-
-  if (priceChange >= 7 && data.assetType === 'stock') {
-    return {
-      type: 'mean_reversion',
-      strength: 'moderate',
-      direction: 'short' // overbought pullback
-    };
-  }
+  // REMOVED: Mean reversion / reversal setups (PRIORITY 3)
+  // Analysis shows only 18-25% win rate on reversal trades (catching falling knives)
+  // Trades like ASTER (-3.09%), MYX (-2.88%), ARB (-3.23%), USAR (-9.38%), GLXY (-6.25%)
+  // all failed trying to catch "extreme oversold" bounces. Removed to improve accuracy.
+  // 
+  // if (priceChange <= -7) {
+  //   return {
+  //     type: 'mean_reversion',
+  //     strength: 'strong',
+  //     direction: 'long' // oversold bounce
+  //   };
+  // }
+  //
+  // if (priceChange >= 7 && data.assetType === 'stock') {
+  //   return {
+  //     type: 'mean_reversion',
+  //     strength: 'moderate',
+  //     direction: 'short' // overbought pullback
+  //   };
+  // }
 
   // PRIORITY 4: Volume spike with SMALL price move (institutional positioning BEFORE big move)
   // Only if move is <1% but volume is exceptional - catching EARLY accumulation
@@ -487,15 +491,16 @@ function calculateConfidenceScore(
     qualitySignals.push('Confirmed Volume');
   }
 
-  // 3. Signal Strength (0-25 points) - RECALIBRATED
+  // 3. Signal Strength (0-25 points) - RECALIBRATED & TIGHTENED (v2.4.0)
+  // Analysis: "Moderate Signal" has only 22.9% win rate vs 58.5% for "Strong Signal"
   if (signal.strength === 'strong') {
-    score += 25;  // Increased from 20
+    score += 25;  // Keep strong at 25
     qualitySignals.push('Strong Signal');
   } else if (signal.strength === 'moderate') {
-    score += 20;  // Increased from 15
+    score += 12;  // REDUCED from 20 to penalize moderate signals (22.9% win rate)
     qualitySignals.push('Moderate Signal');
   } else {
-    score += 15;  // Increased from 10
+    score += 5;   // REDUCED from 15 to heavily penalize weak signals
     qualitySignals.push('Weak Signal');
   }
 
@@ -555,18 +560,22 @@ function calculateConfidenceScore(
     qualitySignals.push('Technical Indicator Confirmed');
   }
 
-  // 7. Multi-Timeframe Alignment Bonus (0-8 points max)
-  // REDUCED: Strong trend indicates move is done, not early setup
+  // 7. Multi-Timeframe Alignment Bonus/Penalty (v2.4.0)
+  // Analysis: "Strong Trend" has 18.5% win rate (5W/27L), "Partial Timeframe" has 38.6%
+  // These indicate LATE entries after the move is exhausted
   if (mtfAnalysis) {
     if (mtfAnalysis.aligned && mtfAnalysis.strength === 'strong') {
-      // REDUCED from 15 to 5 - strong trend means late entry
-      score += 5;
-      qualitySignals.push('Timeframes Aligned');
+      // PENALTY: Strong aligned trend = late entry after move is done
+      score -= 10;  // CHANGED from +5 to -10 (18.5% win rate!)
+      qualitySignals.push('Strong Trend');
+    } else if (mtfAnalysis.aligned && mtfAnalysis.strength === 'moderate') {
+      score += 8;  // Moderate aligned trend = early building move
+      qualitySignals.push('Timeframes Aligned (Strong)');
     } else if (mtfAnalysis.aligned) {
-      score += 8;
+      score += 10; // Newly aligned = best early entry
       qualitySignals.push('Timeframes Building');
     } else if (mtfAnalysis.strength === 'moderate') {
-      score += 5;
+      score += 2;  // REDUCED from 5 (38.6% win rate)
       qualitySignals.push('Partial Timeframe Support');
     }
   }
@@ -963,6 +972,19 @@ export async function generateQuantIdeas(
       logger.info(`Filtered out ${data.symbol} - insufficient volume (${volumeRatio.toFixed(2)}x < ${minVolume}x)`);
       dataQuality.lowQuality++;
       continue;
+    }
+
+    // 4. Crypto Tier Filter (v2.4.0) - Only trade top-tier crypto
+    // Analysis: Crypto has 16.7% win rate (1W/5L) vs 44-47% for stocks/options
+    // Restrict to highly liquid, top 20 market cap coins only
+    if (data.assetType === 'crypto') {
+      const topTierCrypto = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'MATIC', 
+                             'LINK', 'UNI', 'ATOM', 'LTC', 'APT', 'ARB', 'OP', 'INJ', 'TIA', 'SUI'];
+      if (!topTierCrypto.includes(data.symbol.toUpperCase())) {
+        logger.info(`Filtered out ${data.symbol} - not top-tier crypto (16.7% win rate on low-tier)`);
+        dataQuality.lowQuality++;
+        continue;
+      }
     }
 
     // Intelligent asset type selection based on distribution targets
