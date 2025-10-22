@@ -3,6 +3,13 @@
 ## Overview
 QuantEdge Research is a professional quantitative trading research platform designed to identify day-trading opportunities in US equities, options, and crypto markets. Its primary purpose is to provide educational, research-grade trade ideas, robust risk management tools, and real-time market analysis. The platform emphasizes strong risk controls, clear educational disclaimers, and presents information via a professional dark-themed UI for rapid data scanning. It integrates real historical data for model accuracy, features adaptive learning, and operates on a public-access model managing membership tiers (Free vs. Premium) through Discord roles, with the web platform serving as a public dashboard.
 
+## Recent Updates (2025-10-22)
+- **Holographic Trading Floor:** New 3D visualization page with Matrix-style data rain, orbiting metrics, and deep space aesthetic using React Three Fiber. Includes WebGL fallback for unsupported environments.
+- **Grid Layout Fix:** Trade Ideas page grid reduced from 3 columns to 2 columns max to prevent confidence rings from being cut off.
+- **Performance Metrics Fix:** Added missing fields to PerformanceStats interface (evScore, adjustedWeightedAccuracy, oppositeDirectionRate, oppositeDirectionCount, avgWinSize, avgLossSize).
+- **Win Rate Display Bug Fix:** Fixed double multiplication bug where win rates were showing 0-10000% instead of 0-100% in Signal Intelligence page.
+- **WebGL Error Fix:** Removed missing font reference in holographic view that caused "replit" runtime errors.
+
 ## User Preferences
 All timestamps should be displayed in America/Chicago timezone with market session context.
 The UI should be a professional dark-themed interface optimized for rapid data scanning.

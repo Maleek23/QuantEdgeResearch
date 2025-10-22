@@ -160,7 +160,6 @@ function FallingSymbol({
       color="#22c55e"
       anchorX="center"
       anchorY="middle"
-      font="/fonts/JetBrainsMono-Regular.ttf"
     >
       {symbol}\n${price.toFixed(2)}
     </Text>

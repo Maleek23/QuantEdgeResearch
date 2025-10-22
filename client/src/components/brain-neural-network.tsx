@@ -116,7 +116,7 @@ function NeuronNode({ signal, position, index }: NeuronNodeProps) {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Win Rate:</span>
-                <span className="text-green-400 font-medium">{(signal.winRate * 100).toFixed(1)}%</span>
+                <span className="text-green-400 font-medium">{signal.winRate.toFixed(1)}%</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Avg Gain:</span>
@@ -317,12 +317,12 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
               <div className="rounded-lg bg-card/50 border border-border/50 p-3">
                 <div className="text-xs text-muted-foreground mb-1">Top Signal</div>
                 <div className="text-sm font-semibold text-cyan-400 truncate">{topPerformer?.signalName.split(' ')[0]}</div>
-                <div className="text-xs text-muted-foreground">{(topPerformer?.winRate * 100).toFixed(0)}% wins</div>
+                <div className="text-xs text-muted-foreground">{topPerformer?.winRate.toFixed(0)}% wins</div>
               </div>
               <div className="rounded-lg bg-card/50 border border-border/50 p-3">
                 <div className="text-xs text-muted-foreground mb-1">Improving</div>
                 <div className="text-sm font-semibold text-amber-400 truncate">{bottomPerformer?.signalName.split(' ')[0]}</div>
-                <div className="text-xs text-muted-foreground">{(bottomPerformer?.winRate * 100).toFixed(0)}% wins</div>
+                <div className="text-xs text-muted-foreground">{bottomPerformer?.winRate.toFixed(0)}% wins</div>
               </div>
             </div>
             

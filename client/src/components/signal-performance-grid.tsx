@@ -43,7 +43,7 @@ export function SignalPerformanceGrid({ signals }: SignalPerformanceGridProps) {
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {signals.map((signal, idx) => {
         const iconData = getSignalIcon(signal.signal);
-        const winRatePercent = signal.winRate * 100;
+        const winRatePercent = signal.winRate; // Already a percentage from backend
         const isPositive = signal.avgPercentGain > 0;
 
         return (

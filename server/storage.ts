@@ -57,6 +57,13 @@ export interface PerformanceStats {
     maxDrawdown: number; // Worst peak-to-trough decline (%)
     profitFactor: number; // Gross wins / Gross losses (target >1.3)
     expectancy: number; // Expected value per trade ($ per $1 risked)
+    // ENHANCED QUANT METRICS (Phase 2)
+    evScore: number; // Expected Value: Avg(Win Size) / |Avg(Loss Size)|
+    adjustedWeightedAccuracy: number; // quantAccuracy × √(min(EV Score, 4)) / 2
+    oppositeDirectionRate: number; // % of trades moving opposite to prediction
+    oppositeDirectionCount: number; // Count of opposite direction trades
+    avgWinSize: number; // Average win size (%)
+    avgLossSize: number; // Average loss size (%)
   };
   bySource: {
     source: string;
