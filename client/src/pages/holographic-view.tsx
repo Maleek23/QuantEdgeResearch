@@ -261,7 +261,7 @@ function LoadingFallback() {
 // Main Page Component
 export default function HolographicView() {
   const { data: stats } = usePerformanceStats();
-  const { data: tradeIdeas = [] } = useTradeIdeas();
+  const { data: tradeIdeas } = useTradeIdeas();
 
   return (
     <div className="h-screen w-full bg-black relative">
@@ -287,7 +287,7 @@ export default function HolographicView() {
         <Suspense fallback={<LoadingFallback />}>
           <HolographicScene 
             stats={stats} 
-            tradeIdeas={tradeIdeas || []} 
+            tradeIdeas={Array.isArray(tradeIdeas) ? tradeIdeas : []} 
           />
         </Suspense>
       </Canvas>
