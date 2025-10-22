@@ -17,9 +17,9 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, IdeaSource, MarketData, Catalyst } from "@shared/schema";
-import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock } from "lucide-react";
-import { format, startOfDay, isSameDay, parseISO, subHours } from "date-fns";
-import { isWeekend, getNextTradingWeekStart } from "@/lib/utils";
+import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock, Info, Activity } from "lucide-react";
+import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, subYears, isAfter, isBefore } from "date-fns";
+import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
 
 export default function TradeIdeasPage() {
@@ -28,6 +28,7 @@ export default function TradeIdeasPage() {
   const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
   const [activeAssetType, setActiveAssetType] = useState<"stock" | "penny_stock" | "option" | "crypto" | "all">("all");
   const [activeGrade, setActiveGrade] = useState<"all" | "A" | "B" | "C">("all");
+  const [dateRange, setDateRange] = useState<string>('all');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
@@ -137,6 +138,26 @@ export default function TradeIdeasPage() {
     return (confidenceScore * 0.4) + (rrRatio * 15) + (hitProbability * 0.3);
   };
 
+  // Calculate date range for filtering
+  const rangeStart = (() => {
+    const now = new Date();
+    switch (dateRange) {
+      case 'today':
+        return startOfDay(now);
+      case '7d':
+        return subDays(now, 7);
+      case '30d':
+        return subDays(now, 30);
+      case '3m':
+        return subMonths(now, 3);
+      case '1y':
+        return subYears(now, 1);
+      case 'all':
+      default:
+        return new Date(0);
+    }
+  })();
+
   // Filter ideas by search, direction, source, asset type, grade, date, and screener filters
   const filteredIdeas = tradeIdeas.filter(idea => {
     const matchesSearch = !tradeIdeaSearch || 
@@ -155,9 +176,14 @@ export default function TradeIdeasPage() {
     
     const matchesGrade = activeGrade === "all" || idea.probabilityBand?.startsWith(activeGrade) || false;
     
-    const matchesDate = !selectedDate || isSameDay(parseISO(idea.timestamp), selectedDate);
+    // Date range filtering (primary) - filters by when trade was created/posted
+    const ideaDate = parseISO(idea.timestamp);
+    const matchesDateRange = dateRange === 'all' || (!isBefore(ideaDate, rangeStart) || ideaDate.getTime() === rangeStart.getTime());
     
-    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDate;
+    // Single date filtering (secondary, only used if calendar date is selected)
+    const matchesDate = !selectedDate || isSameDay(ideaDate, selectedDate);
+    
+    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesDate;
   });
 
   // Helper function to check if an idea is from today (created same trading day)
@@ -229,6 +255,76 @@ export default function TradeIdeasPage() {
 
       {/* 🔐 Risk Disclosure - Auto-attached to all trade outputs */}
       <RiskDisclosure variant="compact" engineVersion="v2.2.0" />
+
+      {/* ACTIVE DATE FILTER BANNER */}
+      <Card className={cn(
+        "shadow-lg border-2 transition-all",
+        dateRange !== 'all' 
+          ? "bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/50" 
+          : "bg-card border-border/50"
+      )}>
+        <CardContent className="pt-6 pb-5">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <CalendarIcon className={cn(
+                "w-5 h-5",
+                dateRange !== 'all' ? "text-primary" : "text-muted-foreground"
+              )} />
+              <span className="text-sm font-semibold">Posted:</span>
+              <Select value={dateRange} onValueChange={setDateRange}>
+                <SelectTrigger className={cn(
+                  "w-40 font-semibold",
+                  dateRange !== 'all' && "border-primary/50 bg-primary/5"
+                )} data-testid="select-date-range-ideas">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today Only</SelectItem>
+                  <SelectItem value="7d">Last 7 Days</SelectItem>
+                  <SelectItem value="30d">Last 30 Days</SelectItem>
+                  <SelectItem value="3m">Last 3 Months</SelectItem>
+                  <SelectItem value="1y">Last Year</SelectItem>
+                  <SelectItem value="all">All Time</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex-1" />
+
+            {/* Data Range Indicator */}
+            {dateRange !== 'all' && (
+              <Badge variant="default" className="px-3 py-1.5 bg-primary text-primary-foreground font-semibold">
+                <Activity className="w-3 h-3 mr-1.5" />
+                Filtered view
+              </Badge>
+            )}
+
+            <Badge variant="outline" className="badge-shimmer px-3 py-1.5 font-semibold">
+              {filteredIdeas.length} trade{filteredIdeas.length !== 1 ? 's' : ''}
+            </Badge>
+          </div>
+
+          {/* Active Filter Description */}
+          {dateRange !== 'all' && (
+            <div className="mt-3 pt-3 border-t border-primary/20">
+              <div className="flex items-center gap-2 text-sm">
+                <Info className="w-4 h-4 text-primary flex-shrink-0" />
+                <span className="text-muted-foreground">
+                  Showing trade ideas posted 
+                  <span className="font-semibold text-foreground mx-1">
+                    {dateRange === 'today' && 'today'}
+                    {dateRange === '7d' && 'in the last 7 days'}
+                    {dateRange === '30d' && 'in the last 30 days'}
+                    {dateRange === '3m' && 'in the last 3 months'}
+                    {dateRange === '1y' && 'in the last year'}
+                  </span>
+                  ({filteredIdeas.filter(i => i.outcomeStatus === 'open').length} active, {filteredIdeas.filter(i => i.outcomeStatus === 'hit_target').length} winners)
+                </span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Weekend Notice Banner - Smart helper instead of duplicate feed */}
       {isWeekend() && (
