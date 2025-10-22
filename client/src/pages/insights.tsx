@@ -17,8 +17,11 @@ import {
   BarChart3
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocation } from "wouter";
 
 export default function InsightsPage() {
+  const [, setLocation] = useLocation();
+  
   const { data: watchlist = [], isLoading: watchlistLoading } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
     refetchInterval: 60000, // Refresh every minute
@@ -331,6 +334,7 @@ export default function InsightsPage() {
                       variant="secondary"
                       size="sm"
                       className="flex-1"
+                      onClick={() => setLocation(`/market?symbol=${item.symbol}`)}
                       data-testid={`button-view-details-${item.symbol.toLowerCase()}`}
                     >
                       <DollarSign className="h-3 w-3 mr-2" />
@@ -340,6 +344,7 @@ export default function InsightsPage() {
                       variant="outline"
                       size="sm"
                       className="flex-1"
+                      onClick={() => setLocation(`/trade-ideas?create=${item.symbol}`)}
                       data-testid={`button-generate-idea-${item.symbol.toLowerCase()}`}
                     >
                       <Target className="h-3 w-3 mr-2" />
