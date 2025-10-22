@@ -46,13 +46,13 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
   return (
     <div className={cn("flex flex-col items-center gap-1", className)}>
       <div className="relative" style={{ width: config.circle, height: config.circle }}>
-        {/* Multi-ring background showing confidence zones */}
+        {/* Simplified single-ring design */}
         <svg
           className="transform -rotate-90"
           width={config.circle}
           height={config.circle}
         >
-          {/* Background base */}
+          {/* Background circle - subtle gray */}
           <circle
             cx={config.circle / 2}
             cy={config.circle / 2}
@@ -63,59 +63,7 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
             className="text-muted/10"
           />
           
-          {/* Performance-based zone markers */}
-          {/* Poor zone (D, <70) - red - first 70% */}
-          <circle
-            cx={config.circle / 2}
-            cy={config.circle / 2}
-            r={radius}
-            stroke="#ef4444"
-            strokeWidth={config.stroke}
-            fill="none"
-            strokeDasharray={`${circumference * 0.7} ${circumference}`}
-            className={perfGrade.grade === 'D' ? 'opacity-30' : 'opacity-10'}
-          />
-          
-          {/* Weak zone (C/C+, 70-79) - orange/amber - 10% band */}
-          <circle
-            cx={config.circle / 2}
-            cy={config.circle / 2}
-            r={radius}
-            stroke="#f97316"
-            strokeWidth={config.stroke}
-            fill="none"
-            strokeDasharray={`${circumference * 0.1} ${circumference}`}
-            strokeDashoffset={-circumference * 0.7}
-            className={perfGrade.grade === 'C' || perfGrade.grade === 'C+' ? 'opacity-30' : 'opacity-10'}
-          />
-          
-          {/* Good zone (B/B+/A, 80-94) - cyan/blue/green - 15% band */}
-          <circle
-            cx={config.circle / 2}
-            cy={config.circle / 2}
-            r={radius}
-            stroke="#22c55e"
-            strokeWidth={config.stroke}
-            fill="none"
-            strokeDasharray={`${circumference * 0.15} ${circumference}`}
-            strokeDashoffset={-circumference * 0.8}
-            className={perfGrade.grade === 'A' || perfGrade.grade === 'B+' || perfGrade.grade === 'B' ? 'opacity-30' : 'opacity-10'}
-          />
-          
-          {/* Over-confident zone (A+, 95+) - RED danger warning - final 5% */}
-          <circle
-            cx={config.circle / 2}
-            cy={config.circle / 2}
-            r={radius}
-            stroke="#ef4444"
-            strokeWidth={config.stroke}
-            fill="none"
-            strokeDasharray={`${circumference * 0.05} ${circumference}`}
-            strokeDashoffset={-circumference * 0.95}
-            className={perfGrade.grade === 'A+' ? 'opacity-30' : 'opacity-10'}
-          />
-          
-          {/* Actual progress indicator */}
+          {/* Single colored progress ring matching grade */}
           <circle
             cx={config.circle / 2}
             cy={config.circle / 2}

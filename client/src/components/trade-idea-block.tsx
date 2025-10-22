@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
 import { formatInUserTZ, formatTimeUntilExpiry } from "@/lib/timezone";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3 } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -288,10 +288,16 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold font-mono text-muted-foreground">
-                  Loading...
-                </span>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Activity className="h-5 w-5 animate-pulse" />
+                <div className="flex flex-col">
+                  <span className="text-xl font-bold font-mono">
+                    Fetching price...
+                  </span>
+                  <span className="text-xs">
+                    Entry: {formatCurrency(idea.entryPrice)} • Target: {formatCurrency(idea.targetPrice)}
+                  </span>
+                </div>
               </div>
             )}
             

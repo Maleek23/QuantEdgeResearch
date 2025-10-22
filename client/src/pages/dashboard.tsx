@@ -5,6 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { TradeIdeaBlock } from "@/components/trade-idea-block";
 import { SymbolSearch } from "@/components/symbol-search";
 import { SymbolDetailModal } from "@/components/symbol-detail-modal";
@@ -15,7 +22,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { MarketData, TradeIdea, Catalyst, WatchlistItem } from "@shared/schema";
 import { 
   TrendingUp, TrendingDown, Activity, Star, Bot, Sparkles, BarChart3, 
-  AlertCircle, ArrowRight, Target, Shield, Zap 
+  AlertCircle, ArrowRight, Target, Shield, Zap, Info, HelpCircle 
 } from "lucide-react";
 import { parseISO, subHours } from "date-fns";
 
@@ -226,6 +233,33 @@ export default function Dashboard() {
 
       <div className="container mx-auto px-6 py-12 space-y-12">
 
+        {/* Early-Stage Learning Phase Banner */}
+        {performanceStats && performanceStats.overall.closedIdeas < 20 && (
+          <TooltipProvider>
+            <Alert className="border-amber-500/50 bg-amber-500/10">
+              <Info className="h-4 w-4 text-amber-500" />
+              <AlertDescription className="text-sm flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-amber-600 dark:text-amber-400">Platform Learning Phase:</span>
+                <span>
+                  {performanceStats.overall.wonIdeas} wins, {performanceStats.overall.lostIdeas} losses so far 
+                  ({performanceStats.overall.closedIdeas} total closed ideas)
+                </span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-3.5 w-3.5 text-amber-500 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-xs">
+                      The platform is in its early learning phase. Metrics with small sample sizes are expected 
+                      and accurate. Our ML models improve with more trade outcomes.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </AlertDescription>
+            </Alert>
+          </TooltipProvider>
+        )}
+
         {/* Symbol Search */}
         <div className="max-w-2xl mx-auto">
           <div className="gradient-border-card spotlight">
@@ -251,43 +285,97 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
-              <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-                <div className="text-center">
-                  <div className="text-sm text-muted-foreground mb-1">Win Rate</div>
-                  <div className={`text-2xl font-bold font-mono ${performanceStats.overall.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
-                    {performanceStats.overall.winRate.toFixed(1)}%
+              <TooltipProvider>
+                <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="text-center">
+                        <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                          Win Rate
+                          {performanceStats.overall.closedIdeas < 10 && (
+                            <HelpCircle className="h-3 w-3 opacity-50" />
+                          )}
+                        </div>
+                        <div className={`text-2xl font-bold font-mono ${performanceStats.overall.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
+                          {performanceStats.overall.winRate.toFixed(1)}%
+                          {performanceStats.overall.closedIdeas < 10 && (
+                            <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">Early Data</Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{performanceStats.overall.wonIdeas}W • {performanceStats.overall.lostIdeas}L</div>
+                      </div>
+                    </TooltipTrigger>
+                    {performanceStats.overall.closedIdeas < 10 && (
+                      <TooltipContent>
+                        <p className="text-xs">Small sample size ({performanceStats.overall.closedIdeas} trades). Values are accurate but will stabilize with more data.</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="text-center">
+                        <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                          Quant Accuracy
+                          <HelpCircle className="h-3 w-3 opacity-50" />
+                        </div>
+                        <div className={`text-2xl font-bold font-mono ${(performanceStats.overall.quantAccuracy ?? 0) >= 50 ? 'text-blue-500' : 'text-orange-500'}`}>
+                          {performanceStats.overall.quantAccuracy < 0 ? 'Bounded: ' : ''}
+                          {performanceStats.overall.quantAccuracy.toFixed(1)}%
+                          {performanceStats.overall.closedIdeas < 10 && (
+                            <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">Early Data</Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Weighted</div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-xs">
+                        Confidence-weighted accuracy with bounded penalty system. 
+                        Negative values indicate over-confident predictions. 
+                        {performanceStats.overall.closedIdeas < 10 && ' Early data - will stabilize with more trades.'}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="text-center">
+                        <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
+                          Directional
+                          {performanceStats.overall.closedIdeas < 10 && (
+                            <HelpCircle className="h-3 w-3 opacity-50" />
+                          )}
+                        </div>
+                        <div className={`text-2xl font-bold font-mono ${(performanceStats.overall.directionalAccuracy ?? 0) >= 40 ? 'text-cyan-500' : 'text-amber-500'}`}>
+                          {performanceStats.overall.directionalAccuracy.toFixed(1)}%
+                          {performanceStats.overall.closedIdeas < 10 && (
+                            <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">Early Data</Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Accuracy</div>
+                      </div>
+                    </TooltipTrigger>
+                    {performanceStats.overall.closedIdeas < 10 && (
+                      <TooltipContent>
+                        <p className="text-xs">Small sample size ({performanceStats.overall.closedIdeas} trades). Values are accurate but will stabilize with more data.</p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-1">EV Score</div>
+                    <div className={`text-2xl font-bold font-mono ${performanceStats.overall.evScore >= 1.5 ? 'text-green-500' : performanceStats.overall.evScore >= 1.0 ? 'text-cyan-500' : 'text-red-500'}`}>
+                      {performanceStats.overall.evScore > 99 ? '∞' : performanceStats.overall.evScore.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Profitability</div>
                   </div>
-                  <div className="text-xs text-muted-foreground">{performanceStats.overall.wonIdeas}W • {performanceStats.overall.lostIdeas}L</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm text-muted-foreground mb-1">Quant Accuracy</div>
-                  <div className={`text-2xl font-bold font-mono ${(performanceStats.overall.quantAccuracy ?? 0) >= 50 ? 'text-blue-500' : 'text-orange-500'}`}>
-                    {performanceStats.overall.quantAccuracy.toFixed(1)}%
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-1">Opposite Dir</div>
+                    <div className={`text-2xl font-bold font-mono ${performanceStats.overall.oppositeDirectionRate > 20 ? 'text-red-500' : performanceStats.overall.oppositeDirectionRate > 15 ? 'text-amber-500' : 'text-green-500'}`}>
+                      {performanceStats.overall.oppositeDirectionRate.toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">Blind Spot</div>
                   </div>
-                  <div className="text-xs text-muted-foreground">Weighted</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-sm text-muted-foreground mb-1">Directional</div>
-                  <div className={`text-2xl font-bold font-mono ${(performanceStats.overall.directionalAccuracy ?? 0) >= 40 ? 'text-cyan-500' : 'text-amber-500'}`}>
-                    {performanceStats.overall.directionalAccuracy.toFixed(1)}%
-                  </div>
-                  <div className="text-xs text-muted-foreground">Accuracy</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm text-muted-foreground mb-1">EV Score</div>
-                  <div className={`text-2xl font-bold font-mono ${performanceStats.overall.evScore >= 1.5 ? 'text-green-500' : performanceStats.overall.evScore >= 1.0 ? 'text-cyan-500' : 'text-red-500'}`}>
-                    {performanceStats.overall.evScore > 99 ? '∞' : performanceStats.overall.evScore.toFixed(2)}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Profitability</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm text-muted-foreground mb-1">Opposite Dir</div>
-                  <div className={`text-2xl font-bold font-mono ${performanceStats.overall.oppositeDirectionRate > 20 ? 'text-red-500' : performanceStats.overall.oppositeDirectionRate > 15 ? 'text-amber-500' : 'text-green-500'}`}>
-                    {performanceStats.overall.oppositeDirectionRate.toFixed(1)}%
-                  </div>
-                  <div className="text-xs text-muted-foreground">Blind Spot</div>
-                </div>
-              </div>
+              </TooltipProvider>
               <div className="mt-4 text-center">
                 <Link href="/performance">
                   <Button variant="outline" size="sm" className="gap-2" data-testid="button-view-full-performance">

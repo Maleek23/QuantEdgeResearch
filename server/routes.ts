@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { searchSymbol, fetchHistoricalPrices } from "./market-api";
+import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { generateTradeIdeas, chatWithQuantAI } from "./ai-service";
 import { generateQuantIdeas } from "./quant-ideas-generator";
 import {
@@ -22,6 +22,35 @@ import {
   adminLimiter
 } from "./rate-limiter";
 import { requireAdmin, generateAdminToken } from "./auth";
+
+// In-memory price cache with 5-minute TTL
+interface PriceCacheEntry {
+  price: number;
+  timestamp: number;
+}
+
+const priceCache = new Map<string, PriceCacheEntry>();
+const PRICE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+function getCachedPrice(symbol: string): number | null {
+  const cached = priceCache.get(symbol);
+  if (!cached) return null;
+  
+  const age = Date.now() - cached.timestamp;
+  if (age > PRICE_CACHE_TTL) {
+    priceCache.delete(symbol);
+    return null;
+  }
+  
+  return cached.price;
+}
+
+function setCachedPrice(symbol: string, price: number): void {
+  priceCache.set(symbol, {
+    price,
+    timestamp: Date.now()
+  });
+}
 
 // Premium subscription middleware
 function requirePremium(req: Request, res: Response, next: Function) {
@@ -719,51 +748,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return idea && idea.assetType === 'crypto';
       });
       
-      // Build price map from both market data and fresh fetches
+      // Build price map using cache-first strategy
       const priceMap = new Map<string, number>();
       
-      // Add existing market data prices
+      // Step 1: Add prices from market data
       marketData.forEach(data => {
         priceMap.set(data.symbol, data.currentPrice);
+        setCachedPrice(data.symbol, data.currentPrice); // Update cache
       });
       
-      // Fetch fresh prices for stock symbols not in market data (PARALLEL)
-      const stockPriceFetches = stockSymbols
-        .filter(symbol => !priceMap.has(symbol))
-        .map(async symbol => {
-          try {
-            const data = await fetchStockPrice(symbol);
-            return { symbol, price: data?.price || null };
-          } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-            logger.warn(`Failed to fetch price for ${symbol}`, { error: errorMsg });
-            return { symbol, price: null };
+      // Step 2: Check cache for remaining symbols
+      const stocksNeedingFetch: string[] = [];
+      const cryptosNeedingFetch: string[] = [];
+      
+      stockSymbols.forEach(symbol => {
+        if (priceMap.has(symbol)) return; // Already have from market data
+        
+        const cachedPrice = getCachedPrice(symbol);
+        if (cachedPrice !== null) {
+          priceMap.set(symbol, cachedPrice);
+          logger.info(`[TRADE-IDEAS] Cache hit for ${symbol}: $${cachedPrice}`);
+        } else {
+          stocksNeedingFetch.push(symbol);
+        }
+      });
+      
+      cryptoSymbols.forEach(symbol => {
+        if (priceMap.has(symbol)) return;
+        
+        const cachedPrice = getCachedPrice(symbol);
+        if (cachedPrice !== null) {
+          priceMap.set(symbol, cachedPrice);
+          logger.info(`[TRADE-IDEAS] Cache hit for ${symbol}: $${cachedPrice}`);
+        } else {
+          cryptosNeedingFetch.push(symbol);
+        }
+      });
+      
+      logger.info(`[TRADE-IDEAS] Building price map for ${uniqueSymbols.length} symbols (${stockSymbols.length} stocks, ${cryptoSymbols.length} crypto)`);
+      logger.info(`[TRADE-IDEAS] Cache hits: ${uniqueSymbols.length - stocksNeedingFetch.length - cryptosNeedingFetch.length}, Need to fetch: ${stocksNeedingFetch.length} stocks, ${cryptosNeedingFetch.length} crypto`);
+      
+      // Step 3: Fetch only uncached prices (PARALLEL)
+      const stockPriceFetches = stocksNeedingFetch.map(async symbol => {
+        try {
+          const data = await fetchStockPrice(symbol);
+          const price = data?.currentPrice || null;
+          if (price) {
+            logger.info(`[TRADE-IDEAS] Fetched ${symbol}: $${price}`);
+            setCachedPrice(symbol, price); // Cache the fresh price
           }
-        });
+          return { symbol, price };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          logger.warn(`Failed to fetch price for ${symbol}`, { error: errorMsg });
+          return { symbol, price: null };
+        }
+      });
 
       const stockPriceResults = await Promise.all(stockPriceFetches);
       stockPriceResults.forEach(({ symbol, price }) => {
         if (price) priceMap.set(symbol, price);
       });
       
-      // Fetch fresh prices for crypto symbols not in market data (PARALLEL)
-      const cryptoPriceFetches = cryptoSymbols
-        .filter(symbol => !priceMap.has(symbol))
-        .map(async symbol => {
-          try {
-            const data = await fetchCryptoPrice(symbol);
-            return { symbol, price: data?.price || null };
-          } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-            logger.warn(`Failed to fetch price for ${symbol}`, { error: errorMsg });
-            return { symbol, price: null };
+      const cryptoPriceFetches = cryptosNeedingFetch.map(async symbol => {
+        try {
+          const data = await fetchCryptoPrice(symbol);
+          const price = data?.currentPrice || null;
+          if (price) {
+            logger.info(`[TRADE-IDEAS] Fetched ${symbol}: $${price}`);
+            setCachedPrice(symbol, price); // Cache the fresh price
           }
-        });
+          return { symbol, price };
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          logger.warn(`Failed to fetch price for ${symbol}`, { error: errorMsg });
+          return { symbol, price: null };
+        }
+      });
 
       const cryptoPriceResults = await Promise.all(cryptoPriceFetches);
       cryptoPriceResults.forEach(({ symbol, price }) => {
         if (price) priceMap.set(symbol, price);
       });
+      
+      logger.info(`[TRADE-IDEAS] Final price map has ${priceMap.size} symbols`);
       
       for (const idea of ideas) {
         // Skip if already archived

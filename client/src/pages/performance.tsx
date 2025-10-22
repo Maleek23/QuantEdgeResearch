@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, TrendingUp, TrendingDown, Activity, Target, XCircle, Clock, Filter, Calendar, HelpCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Download, TrendingUp, TrendingDown, Activity, Target, XCircle, Clock, Filter, Calendar, HelpCircle, Info } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -508,6 +509,33 @@ export default function PerformancePage() {
         )}
       </div>
 
+      {/* Early-Stage Learning Phase Banner */}
+      {stats.overall.closedIdeas < 20 && (
+        <TooltipProvider>
+          <Alert className="border-amber-500/50 bg-amber-500/10">
+            <Info className="h-4 w-4 text-amber-500" />
+            <AlertDescription className="text-sm flex items-center gap-2 flex-wrap">
+              <span className="font-semibold text-amber-600 dark:text-amber-400">Platform Learning Phase:</span>
+              <span>
+                {stats.overall.wonIdeas} wins, {stats.overall.lostIdeas} losses so far 
+                ({stats.overall.closedIdeas} total closed ideas)
+              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="h-3.5 w-3.5 text-amber-500 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p className="text-xs">
+                    The platform is in its early learning phase. Small sample sizes are expected and 
+                    metrics are accurate. Performance will stabilize as more trades close.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </AlertDescription>
+          </Alert>
+        </TooltipProvider>
+      )}
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-4" data-testid="tabs-performance">
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
@@ -608,11 +636,20 @@ export default function PerformancePage() {
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <div className={`text-2xl font-bold font-mono ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'text-blue-500' : 'text-orange-500'}`}>
-                      {stats.overall.quantAccuracy !== null && stats.overall.quantAccuracy !== undefined ? stats.overall.quantAccuracy.toFixed(1) : '0.0'}%
+                    <div className={`text-2xl font-bold font-mono ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'text-blue-500' : 'text-orange-500'} flex items-center justify-center gap-1 flex-wrap`}>
+                      <span>
+                        {stats.overall.quantAccuracy < 0 && 'Bounded: '}
+                        {stats.overall.quantAccuracy !== null && stats.overall.quantAccuracy !== undefined ? stats.overall.quantAccuracy.toFixed(1) : '0.0'}%
+                      </span>
+                      {stats.overall.closedIdeas < 10 && (
+                        <Badge variant="outline" className="text-[10px] px-1 py-0">Early Data</Badge>
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {stats.overall.totalIdeas - stats.overall.openIdeas} trades
+                      {stats.overall.quantAccuracy < 0 && (
+                        <span className="block text-amber-500 dark:text-amber-400">penalty applied</span>
+                      )}
                     </div>
                   </div>
                   <div className="text-center">
