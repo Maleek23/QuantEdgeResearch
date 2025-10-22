@@ -54,7 +54,7 @@ function SidebarHeaderContent() {
               alt="QuantEdge" 
               className="h-8 w-8 object-contain"
             />
-            <UntitldLogo collapsed={true} className="text-sm" />
+            <UntitldLogo collapsed={true} className="text-xs" />
           </div>
         ) : (
           <>
@@ -66,11 +66,10 @@ function SidebarHeaderContent() {
                 className="h-10 w-10 object-contain"
               />
             </div>
-            <div className="flex flex-col gap-1 leading-none">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-base">QuantEdge</span>
-                <span className="text-muted-foreground">×</span>
-                <UntitldLogo collapsed={false} className="text-sm" />
+            <div className="flex flex-col gap-1.5 leading-none">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted-foreground/70">by</span>
+                <UntitldLogo collapsed={false} className="text-xs" />
               </div>
               <span className="text-xs text-muted-foreground">Research Platform</span>
             </div>
