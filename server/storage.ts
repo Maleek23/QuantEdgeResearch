@@ -779,8 +779,35 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async getPerformanceStats(): Promise<PerformanceStats> {
-    const allIdeas = Array.from(this.tradeIdeas.values());
+  async getPerformanceStats(filters?: {
+    startDate?: string; // ISO date string
+    endDate?: string;   // ISO date string
+    source?: string;    // 'ai', 'quant', 'manual'
+  }): Promise<PerformanceStats> {
+    let allIdeas = Array.from(this.tradeIdeas.values());
+    
+    // Apply date filters if provided
+    if (filters?.startDate || filters?.endDate) {
+      allIdeas = allIdeas.filter(idea => {
+        const ideaDate = new Date(idea.timestamp);
+        if (filters.startDate) {
+          const start = new Date(filters.startDate);
+          if (ideaDate < start) return false;
+        }
+        if (filters.endDate) {
+          const end = new Date(filters.endDate);
+          end.setHours(23, 59, 59, 999); // Include entire end date
+          if (ideaDate > end) return false;
+        }
+        return true;
+      });
+    }
+    
+    // Apply source filter if provided
+    if (filters?.source) {
+      allIdeas = allIdeas.filter(idea => idea.source === filters.source);
+    }
+    
     const closedIdeas = allIdeas.filter((idea) => idea.outcomeStatus !== 'open');
     const wonIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'hit_target');
     const lostIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'hit_stop');

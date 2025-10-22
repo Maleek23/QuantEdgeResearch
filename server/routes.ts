@@ -1115,26 +1115,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Performance stats cache (5-minute TTL)
-  let performanceStatsCache: { data: any; timestamp: number } | null = null;
+  // Performance stats cache (5-minute TTL) - separate cache per filter combination
+  const performanceStatsCache = new Map<string, { data: any; timestamp: number }>();
   const PERF_STATS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
   
-  app.get("/api/performance/stats", async (_req, res) => {
+  app.get("/api/performance/stats", async (req, res) => {
     try {
       const now = Date.now();
       
+      // Parse query parameters for filtering
+      const startDate = req.query.startDate as string | undefined;
+      const endDate = req.query.endDate as string | undefined;
+      const source = req.query.source as string | undefined;
+      
+      // Create cache key based on filters
+      const cacheKey = `${startDate || 'all'}_${endDate || 'all'}_${source || 'all'}`;
+      
       // Check cache
-      if (performanceStatsCache && (now - performanceStatsCache.timestamp) < PERF_STATS_CACHE_TTL) {
-        logger.info('[PERF-STATS] Cache hit');
-        return res.json(performanceStatsCache.data);
+      const cached = performanceStatsCache.get(cacheKey);
+      if (cached && (now - cached.timestamp) < PERF_STATS_CACHE_TTL) {
+        logger.info(`[PERF-STATS] Cache hit for filters: ${cacheKey}`);
+        return res.json(cached.data);
       }
       
-      // Cache miss - fetch fresh data
-      logger.info('[PERF-STATS] Cache miss - fetching fresh data');
-      const stats = await storage.getPerformanceStats();
+      // Cache miss - fetch fresh data with filters
+      logger.info(`[PERF-STATS] Cache miss for filters: ${cacheKey} - fetching fresh data`);
+      const filters = { startDate, endDate, source };
+      const stats = await storage.getPerformanceStats(filters);
       
-      // Update cache
-      performanceStatsCache = { data: stats, timestamp: now };
+      // Update cache for this filter combination
+      performanceStatsCache.set(cacheKey, { data: stats, timestamp: now });
+      logger.info(`[PERF-STATS] Cache updated for filters: ${cacheKey}`);
       
       res.json(stats);
     } catch (error) {
