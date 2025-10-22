@@ -9,6 +9,8 @@ QuantEdge Research is a professional quantitative trading research platform desi
 - **Performance Metrics Fix:** Added missing fields to PerformanceStats interface (evScore, adjustedWeightedAccuracy, oppositeDirectionRate, oppositeDirectionCount, avgWinSize, avgLossSize).
 - **Win Rate Display Bug Fix:** Fixed double multiplication bug where win rates were showing 0-10000% instead of 0-100% in Signal Intelligence and Brain Neural Network components.
 - **Vite Plugin Error Fix:** Resolved "Cannot read properties of undefined (reading 'replit')" errors by lazy-loading 3D components (holographic-scene.tsx, brain-scene.tsx) to prevent Vite Replit plugins from instrumenting Three.js code during initial build. Both Holographic View and ML Network now load without runtime errors.
+- **Price Display Bug Fix (Critical):** Frontend was ignoring `currentPrice` field from `/api/trade-ideas` response and instead looking up prices from separate market-data table, causing "Fetching price..." placeholders. Fixed by building price map from `idea.currentPrice` (with != null check for $0 edge case), falling back to market-data only when null. All trade ideas now display live prices immediately with 5-minute cache.
+- **Tesla Q3 2025 Earnings Analysis:** Created comprehensive pre/post-earnings trade idea for TSLA ($440.78, earnings Oct 22 after close). Includes bull/bear scenarios, risk management, timing strategy, and key watchpoints.
 
 ## User Preferences
 All timestamps should be displayed in America/Chicago timezone with market session context.
