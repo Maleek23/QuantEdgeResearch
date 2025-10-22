@@ -691,7 +691,7 @@ export default function TradeIdeasPage() {
                           </Badge>
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-3'}`}>
+                      <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}`}>
                         {ideas
                           .filter(isVeryFreshIdea)
                           .map(idea => (
@@ -759,7 +759,7 @@ export default function TradeIdeasPage() {
                           </Badge>
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-3'}`}>
+                      <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}`}>
                         {ideas
                           .filter(i => i.outcomeStatus === 'open')
                           .map(idea => (
@@ -793,7 +793,7 @@ export default function TradeIdeasPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-3'}>
+            <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}>
               {filteredIdeas
                 .filter(i => i.outcomeStatus === 'hit_target')
                 .map(idea => (
@@ -823,7 +823,7 @@ export default function TradeIdeasPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-3'}>
+            <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}>
               {filteredIdeas
                 .filter(i => i.outcomeStatus === 'hit_stop')
                 .map(idea => (
@@ -853,7 +853,7 @@ export default function TradeIdeasPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3' : 'space-y-3'}>
+            <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}>
               {filteredIdeas
                 .filter(i => i.outcomeStatus === 'expired')
                 .map(idea => (
