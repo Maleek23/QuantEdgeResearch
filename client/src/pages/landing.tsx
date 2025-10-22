@@ -25,6 +25,7 @@ import {
   Cpu,
   GitBranch
 } from "lucide-react";
+import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 
 export default function Landing() {
   const [, setLocation] = useLocation();
@@ -107,6 +108,15 @@ export default function Landing() {
             <Zap className="h-3 w-3 mr-1" />
             Dual-Engine Architecture: AI + Quantitative
           </Badge>
+          
+          {/* QuantEdge Logo */}
+          <div className="flex justify-center mb-8 animate-fade-up">
+            <img 
+              src={quantEdgeLogoUrl} 
+              alt="QuantEdge" 
+              className="h-32 w-32 md:h-40 md:w-40 object-contain drop-shadow-2xl"
+            />
+          </div>
           
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6 text-display animate-fade-up">
             <span className="text-gradient-premium">QuantEdge</span>
