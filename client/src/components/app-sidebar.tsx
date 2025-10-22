@@ -68,7 +68,7 @@ function SidebarHeaderContent() {
               alt="QuantEdge" 
               className={cn(
                 "object-contain transition-all duration-300",
-                isCollapsed ? "h-14 w-14" : "h-11 w-11"
+                isCollapsed ? "h-14 w-14" : "h-16 w-16"
               )}
               style={{
                 filter: isCollapsed ? 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.4))' : 'none',
@@ -84,7 +84,7 @@ function SidebarHeaderContent() {
           )}>
             {/* "by" text - fades out when collapsed */}
             <span className={cn(
-              "text-[9px] text-muted-foreground/50 tracking-wide transition-all duration-300",
+              "text-[7px] text-muted-foreground/40 tracking-wide transition-all duration-300 uppercase",
               isCollapsed ? "opacity-0 h-0 overflow-hidden" : "opacity-100"
             )}>
               by

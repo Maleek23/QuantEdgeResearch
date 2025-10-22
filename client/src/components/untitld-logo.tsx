@@ -29,10 +29,10 @@ export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) 
         {/* UN Text - slides RIGHT into slash with staggered timing */}
         <span
           className={cn(
-            "inline-block font-semibold",
+            "inline-block font-medium",
             collapsed
               ? "opacity-0 scale-0 translate-x-8 blur-md"
-              : "opacity-100 scale-100 translate-x-0 blur-0 text-[11px]"
+              : "opacity-100 scale-100 translate-x-0 blur-0 text-[9px]"
           )}
           style={{
             transformOrigin: "center right",
@@ -48,7 +48,7 @@ export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) 
         <span
           className={cn(
             "inline-block font-bold relative",
-            collapsed ? "text-4xl" : "text-[11px] mx-0.5"
+            collapsed ? "text-4xl" : "text-[9px] mx-0.5"
           )}
           style={{
             background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ef4444 100%)",
@@ -98,10 +98,10 @@ export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) 
         {/* TITLD Text - slides LEFT into slash with 80ms delay */}
         <span
           className={cn(
-            "inline-block font-semibold",
+            "inline-block font-medium",
             collapsed
               ? "opacity-0 scale-0 -translate-x-8 blur-md"
-              : "opacity-100 scale-100 translate-x-0 blur-0 text-[11px]"
+              : "opacity-100 scale-100 translate-x-0 blur-0 text-[9px]"
           )}
           style={{
             transformOrigin: "center left",
