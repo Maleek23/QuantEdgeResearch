@@ -1,4 +1,4 @@
-import { Home, TrendingUp, BarChart2, Star, Calculator, Target, User, Sparkles, Shield, BookOpen, Settings, Sparkle } from "lucide-react";
+import { Home, TrendingUp, BarChart2, Star, Calculator, Target, User, Sparkles, Shield, BookOpen, Settings, Sparkle, PanelLeftClose, PanelLeft } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -13,6 +13,7 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
 import { UntitldLogo } from "@/components/untitld-logo";
 import quantEdgeLogoUrl from "@assets/image_1761159378956.png";
 
@@ -70,6 +71,25 @@ function SidebarHeaderContent() {
         )}
       </Link>
     </SidebarMenuButton>
+  );
+}
+
+function SidebarToggleButton() {
+  const { toggleSidebar, state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={toggleSidebar}
+      className="w-full justify-start gap-2 group-data-[collapsible=icon]:justify-center"
+      data-testid="button-toggle-sidebar"
+    >
+      <PanelLeftClose className="h-4 w-4 group-data-[collapsible=icon]:hidden" />
+      <PanelLeft className="h-4 w-4 hidden group-data-[collapsible=icon]:block" />
+      <span className="group-data-[collapsible=icon]:hidden">Collapse</span>
+    </Button>
   );
 }
 
@@ -157,14 +177,8 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border/50">
-        <div className="px-4 py-3 group-data-[collapsible=icon]:hidden">
-          <div className="flex items-center justify-center opacity-30 hover:opacity-50 transition-opacity">
-            <span className="text-[10px] font-mono tracking-[0.2em] text-muted-foreground/50">
-              UN/TITLD
-            </span>
-          </div>
-        </div>
+      <SidebarFooter className="border-t border-sidebar-border/50 p-4">
+        <SidebarToggleButton />
       </SidebarFooter>
     </Sidebar>
   );
