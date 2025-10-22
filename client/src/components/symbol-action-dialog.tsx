@@ -651,13 +651,14 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
           )}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="flex-col sm:flex-row gap-2">
           {isManualMode ? (
             <>
               <Button
                 variant="outline"
                 onClick={() => handleOpenChange(false)}
                 data-testid="button-cancel-manual"
+                className="w-full sm:w-auto"
               >
                 Cancel
               </Button>
@@ -665,6 +666,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
                 onClick={handleCreateManualIdea}
                 disabled={createManualIdeaMutation.isPending || !manualEntry || !manualTarget || !manualStop}
                 data-testid="button-create-manual-idea"
+                className="w-full sm:w-auto"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 {createManualIdeaMutation.isPending ? 'Creating...' : 'Create Manual Idea'}
@@ -672,7 +674,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
             </>
           ) : (
             <>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -680,6 +682,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
                     setSelectedType(null);
                   }}
                   data-testid="button-cancel-action"
+                  className="flex-1 sm:flex-none"
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   View Only
@@ -689,7 +692,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
                   onClick={() => addToWatchlistMutation.mutate()}
                   disabled={addToWatchlistMutation.isPending}
                   data-testid="button-add-to-watchlist"
-                  className="gap-2"
+                  className="flex-1 sm:flex-none gap-2"
                 >
                   <Star className="h-4 w-4" />
                   {addToWatchlistMutation.isPending ? 'Adding...' : 'Add to Watchlist'}
@@ -701,17 +704,19 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
                   onClick={() => handleCreateIdea('crypto_shares')}
                   disabled={createIdeaMutation.isPending}
                   data-testid="button-add-crypto-shares"
+                  className="w-full sm:w-auto"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   {selectedType === 'crypto_shares' && createIdeaMutation.isPending ? 'Adding...' : 'Crypto Shares'}
                 </Button>
               ) : (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                   <Button
                     variant="secondary"
                     onClick={() => handleCreateIdea('stock_shares')}
                     disabled={createIdeaMutation.isPending}
                     data-testid="button-add-stock-shares"
+                    className="flex-1 sm:flex-none"
                   >
                     <DollarSign className="h-4 w-4 mr-2" />
                     {selectedType === 'stock_shares' && createIdeaMutation.isPending ? 'Adding...' : 'Stock Shares'}
@@ -721,6 +726,7 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
                     onClick={() => handleCreateIdea('stock_options')}
                     disabled={createIdeaMutation.isPending}
                     data-testid="button-add-stock-options"
+                    className="flex-1 sm:flex-none"
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     {selectedType === 'stock_options' && createIdeaMutation.isPending ? 'Adding...' : 'Stock Options'}

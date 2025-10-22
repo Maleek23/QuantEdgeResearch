@@ -1,4 +1,4 @@
-import { Home, TrendingUp, BarChart2, Star, Calculator, Target, User, Sparkles, Shield, BookOpen, Settings, Sparkle, PanelLeftClose, PanelLeft } from "lucide-react";
+import { Home, TrendingUp, BarChart2, Star, Calculator, Target, User, Sparkles, Shield, BookOpen, Settings, Sparkle, PanelLeftClose, PanelLeft, Lightbulb } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -23,6 +23,7 @@ const researchItems = [
   { title: "Trade Ideas", url: "/trade-ideas", icon: TrendingUp },
   { title: "Market", url: "/market", icon: BarChart2 },
   { title: "Watchlist", url: "/watchlist", icon: Star },
+  { title: "Insights", url: "/insights", icon: Lightbulb },
 ];
 
 const toolItems = [

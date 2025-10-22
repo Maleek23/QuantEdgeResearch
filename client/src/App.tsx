@@ -14,6 +14,7 @@ import Dashboard from "@/pages/dashboard";
 import TradeIdeasPage from "@/pages/trade-ideas";
 import MarketPage from "@/pages/market";
 import WatchlistPage from "@/pages/watchlist";
+import InsightsPage from "@/pages/insights";
 import RiskCalculatorPage from "@/pages/risk-calculator";
 import PerformancePage from "@/pages/performance";
 import SignalIntelligencePage from "@/pages/signal-intelligence";
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/trade-ideas" component={TradeIdeasPage} />
       <Route path="/market" component={MarketPage} />
       <Route path="/watchlist" component={WatchlistPage} />
+      <Route path="/insights" component={InsightsPage} />
       <Route path="/risk" component={RiskCalculatorPage} />
       <Route path="/performance" component={PerformancePage} />
       <Route path="/signals" component={SignalIntelligencePage} />
