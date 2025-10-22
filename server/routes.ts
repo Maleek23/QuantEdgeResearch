@@ -948,6 +948,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/trade-ideas", async (req, res) => {
     try {
       const validated = insertTradeIdeaSchema.parse(req.body);
+      
+      // CRITICAL: Validate direction/target/option type alignment
+      const { PerformanceValidator } = await import("./performance-validator");
+      const correction = PerformanceValidator.validateAndCorrectTrade({
+        direction: validated.direction,
+        assetType: validated.assetType,
+        optionType: validated.optionType,
+        entryPrice: validated.entryPrice,
+        targetPrice: validated.targetPrice,
+        stopLoss: validated.stopLoss
+      });
+      
+      if (!correction) {
+        return res.status(400).json({ error: "Invalid trade idea validation" });
+      }
+      
+      // Check for validation warnings
+      if (correction.warnings.length > 0) {
+        // Check if it's an INVALID option trade (should be rejected)
+        const hasInvalidOption = correction.warnings.some(w => w.includes('INVALID OPTION TRADE'));
+        
+        if (hasInvalidOption) {
+          logger.error('Rejected invalid option trade', {
+            symbol: validated.symbol,
+            warnings: correction.warnings,
+            submitted: { direction: validated.direction, optionType: validated.optionType, entry: validated.entryPrice, target: validated.targetPrice }
+          });
+          return res.status(400).json({ 
+            error: "Invalid option trade combination",
+            details: correction.warnings 
+          });
+        }
+        
+        // For stocks, log auto-correction
+        logger.warn('Trade idea auto-corrected', {
+          symbol: validated.symbol,
+          warnings: correction.warnings,
+          original: { direction: validated.direction, optionType: validated.optionType },
+          corrected: { direction: correction.direction, optionType: correction.optionType }
+        });
+      }
+      
+      // Apply corrections (for stocks only)
+      validated.direction = correction.direction;
+      if (correction.optionType !== undefined) {
+        validated.optionType = correction.optionType;
+      }
+      
       const idea = await storage.createTradeIdea(validated);
       res.status(201).json(idea);
     } catch (error) {

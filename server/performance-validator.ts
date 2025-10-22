@@ -106,6 +106,119 @@ export class PerformanceValidator {
   }
 
   /**
+   * Validate trade direction/target/stop/option type consistency
+   * Preserves all VALID option combinations, only corrects STOCKS with mismatched direction
+   * 
+   * Valid combinations:
+   * - Stocks: long (bullish) = target > entry, short (bearish) = target < entry
+   * - Options bullish: {long call} OR {short put} with target > entry
+   * - Options bearish: {long put} OR {short call} with target < entry
+   * 
+   * @returns Validated trade data with warnings for invalid options
+   */
+  static validateAndCorrectTrade(trade: {
+    direction: string;
+    assetType: string;
+    optionType?: string | null;
+    entryPrice: number;
+    targetPrice: number;
+    stopLoss: number;
+  }): {
+    direction: 'long' | 'short';
+    optionType?: 'call' | 'put' | null;
+    warnings: string[];
+  } | null {
+    const warnings: string[] = [];
+    
+    // Determine if trade is bullish or bearish based on entry/target
+    const isBullish = trade.targetPrice > trade.entryPrice;
+    
+    // For non-options, validate and AUTO-CORRECT direction if needed
+    if (trade.assetType !== 'option') {
+      const expectedDirection = isBullish ? 'long' : 'short';
+      if (trade.direction !== expectedDirection) {
+        warnings.push(`Stock direction "${trade.direction}" doesn't match entry/target logic (entry=${trade.entryPrice}, target=${trade.targetPrice}). Auto-corrected to "${expectedDirection}".`);
+        return {
+          direction: expectedDirection,
+          optionType: null,
+          warnings
+        };
+      }
+      // Valid stock trade
+      return {
+        direction: trade.direction as 'long' | 'short',
+        optionType: null,
+        warnings: []
+      };
+    }
+    
+    // For options, validate direction + optionType combination is valid for bias
+    const validBullish = (trade.direction === 'long' && trade.optionType === 'call') ||
+                         (trade.direction === 'short' && trade.optionType === 'put');
+    const validBearish = (trade.direction === 'long' && trade.optionType === 'put') ||
+                         (trade.direction === 'short' && trade.optionType === 'call');
+    
+    // Check if combination is valid for the expected directional bias
+    if (isBullish && !validBullish) {
+      warnings.push(`INVALID OPTION TRADE: Bullish target (${trade.targetPrice} > ${trade.entryPrice}) but direction="${trade.direction}" + optionType="${trade.optionType}" is not a valid bullish combination. Valid: {long call} or {short put}. Trade will be REJECTED.`);
+      // DO NOT auto-correct options - this could corrupt user intent
+      // Return original values with warning
+      return {
+        direction: trade.direction as 'long' | 'short',
+        optionType: trade.optionType as 'call' | 'put' | null,
+        warnings
+      };
+    } else if (!isBullish && !validBearish) {
+      warnings.push(`INVALID OPTION TRADE: Bearish target (${trade.targetPrice} < ${trade.entryPrice}) but direction="${trade.direction}" + optionType="${trade.optionType}" is not a valid bearish combination. Valid: {long put} or {short call}. Trade will be REJECTED.`);
+      // DO NOT auto-correct options - this could corrupt user intent
+      // Return original values with warning
+      return {
+        direction: trade.direction as 'long' | 'short',
+        optionType: trade.optionType as 'call' | 'put' | null,
+        warnings
+      };
+    }
+    
+    // Valid option trade - no corrections needed
+    return {
+      direction: trade.direction as 'long' | 'short',
+      optionType: trade.optionType as 'call' | 'put',
+      warnings: []
+    };
+  }
+
+  /**
+   * Normalize trade direction considering both direction field and option type
+   * This ensures correct validation for both stocks and options
+   * 
+   * Rules:
+   * - Stocks: direction field directly indicates bullish (long) vs bearish (short)
+   * - Options: {long call, short put} = bullish, {long put, short call} = bearish
+   * 
+   * @returns 'long' for bullish trades, 'short' for bearish trades
+   */
+  static getNormalizedDirection(idea: TradeIdea): 'long' | 'short' {
+    // For non-option assets, use direction field directly
+    if (idea.assetType !== 'option' || !idea.optionType) {
+      return idea.direction as 'long' | 'short';
+    }
+
+    // For options, normalize based on direction + option type combination
+    if (idea.direction === 'long' && idea.optionType === 'call') {
+      return 'long';  // Long call = bullish (price goes up)
+    } else if (idea.direction === 'long' && idea.optionType === 'put') {
+      return 'short'; // Long put = bearish (price goes down)
+    } else if (idea.direction === 'short' && idea.optionType === 'call') {
+      return 'short'; // Short call = bearish (price goes down)
+    } else if (idea.direction === 'short' && idea.optionType === 'put') {
+      return 'long';  // Short put = bullish (price goes up)
+    }
+
+    // Fallback to direction field if unable to normalize
+    return idea.direction as 'long' | 'short';
+  }
+
+  /**
    * Validates a trade idea against current market price
    * Determines if it hit target, hit stop, or expired
    * Note: currentPrice can be null/undefined for expiry checks when market is closed
@@ -156,8 +269,9 @@ export class PerformanceValidator {
             currentPrice || idea.lowestPriceReached || idea.entryPrice
           );
           
+          const normalizedDirectionForExpired = this.getNormalizedDirection(idea);
           const percentGain = this.calculatePercentGain(
-            idea.direction,
+            normalizedDirectionForExpired,
             idea.entryPrice,
             lastKnownPrice
           );
@@ -219,8 +333,9 @@ export class PerformanceValidator {
         currentPrice || idea.lowestPriceReached || idea.entryPrice
       );
       
+      const normalizedDirectionFor7Days = this.getNormalizedDirection(idea);
       const percentGain = this.calculatePercentGain(
-        idea.direction,
+        normalizedDirectionFor7Days,
         idea.entryPrice,
         lastKnownPrice
       );
@@ -265,14 +380,20 @@ export class PerformanceValidator {
     const highestPrice = Math.max(idea.highestPriceReached || idea.entryPrice, currentPrice);
     const lowestPrice = Math.min(idea.lowestPriceReached || idea.entryPrice, currentPrice);
 
-    // Check if target hit
-    const targetHit = idea.direction === 'long'
+    // CRITICAL: Normalize direction considering both direction field and option type
+    // This ensures we correctly validate options trades
+    // {long call, short put} = bullish (price goes UP)
+    // {long put, short call} = bearish (price goes DOWN)
+    const normalizedDirection = this.getNormalizedDirection(idea);
+
+    // Check if target hit based on normalized direction
+    const targetHit = normalizedDirection === 'long'
       ? currentPrice >= idea.targetPrice
       : currentPrice <= idea.targetPrice;
 
     if (targetHit) {
       const percentGain = this.calculatePercentGain(
-        idea.direction,
+        normalizedDirection,
         idea.entryPrice,
         idea.targetPrice
       );
@@ -294,14 +415,14 @@ export class PerformanceValidator {
       };
     }
 
-    // Check if stop loss hit
-    const stopHit = idea.direction === 'long'
+    // Check if stop loss hit based on normalized direction
+    const stopHit = normalizedDirection === 'long'
       ? currentPrice <= idea.stopLoss
       : currentPrice >= idea.stopLoss;
 
     if (stopHit) {
       const percentGain = this.calculatePercentGain(
-        idea.direction,
+        normalizedDirection,
         idea.entryPrice,
         idea.stopLoss
       );
