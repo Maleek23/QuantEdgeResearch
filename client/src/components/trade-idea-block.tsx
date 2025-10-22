@@ -224,7 +224,11 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
             <div className="flex items-center gap-4">
               {/* Enhanced Countdown Timer (for open ideas) */}
               {idea.outcomeStatus === 'open' && idea.exitBy && (
-                <EnhancedCountdown exitBy={idea.exitBy} />
+                <EnhancedCountdown 
+                  exitBy={idea.exitBy} 
+                  assetType={idea.assetType}
+                  showFullDate={idea.assetType === 'option'}
+                />
               )}
               
               {/* Outcome Badge for closed ideas */}

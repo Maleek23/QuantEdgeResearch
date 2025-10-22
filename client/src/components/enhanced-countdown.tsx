@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { Clock, AlertCircle } from 'lucide-react';
+import { Clock, AlertCircle, Calendar } from 'lucide-react';
+import { formatInTimeZone } from 'date-fns-tz';
 
 interface EnhancedCountdownProps {
   exitBy: string;
   className?: string;
+  showFullDate?: boolean; // Show DATE and TIME instead of just countdown
+  assetType?: string; // For special formatting for options
 }
 
-export function EnhancedCountdown({ exitBy, className }: EnhancedCountdownProps) {
+export function EnhancedCountdown({ exitBy, className, showFullDate = false, assetType }: EnhancedCountdownProps) {
   const [timeLeft, setTimeLeft] = useState<{
     total: number;
     hours: number;
@@ -106,6 +109,51 @@ export function EnhancedCountdown({ exitBy, className }: EnhancedCountdownProps)
     return `${timeLeft.minutes}m ${timeLeft.seconds}s`;
   };
 
+  const formatFullDate = () => {
+    const exitDate = new Date(exitBy);
+    if (isNaN(exitDate.getTime())) {
+      return exitBy; // Fallback to raw string if invalid date
+    }
+    return formatInTimeZone(exitDate, 'America/Chicago', 'MMM d, h:mm a') + ' CST';
+  };
+
+  // For options, show both full date and countdown
+  if (showFullDate || assetType === 'option') {
+    return (
+      <div 
+        className={cn(
+          "inline-flex flex-col gap-1 px-3 py-2 rounded-md border text-sm font-medium transition-all",
+          style.bg,
+          style.text,
+          style.border,
+          className
+        )}
+        data-testid="countdown-timer"
+      >
+        <div className="flex items-center gap-2">
+          <Calendar className="w-3.5 h-3.5" />
+          <span className="text-xs font-semibold">
+            {assetType === 'option' ? 'Exit By:' : 'Expires:'}
+          </span>
+        </div>
+        <div className="font-mono text-xs">
+          {formatFullDate()}
+        </div>
+        <div className="flex items-center gap-1.5 text-xs font-semibold">
+          {urgency === 'critical' ? (
+            <AlertCircle className="w-3 h-3 animate-pulse" />
+          ) : (
+            <Clock className="w-3 h-3" />
+          )}
+          <span className="tabular-nums">
+            {formatTimeDisplay()} remaining
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Default compact countdown view
   return (
     <div 
       className={cn(
