@@ -7,46 +7,48 @@ interface UntitldLogoProps {
 }
 
 export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) {
-  // Remove internal state - use prop directly for instant reactivity
   return (
     <div className={cn(
-      "relative inline-flex items-center justify-center transition-all duration-700 ease-in-out",
-      collapsed ? "min-h-[120px] scale-150" : "min-h-[24px] scale-100",
+      "relative inline-flex items-center justify-center",
+      collapsed ? "h-14 w-14" : "min-h-[24px]",
       className
     )}>
-      {/* Cinematic glow background when collapsed */}
+      {/* Contained portal badge when collapsed - 52px circle */}
       {collapsed && (
         <div 
-          className="absolute inset-0 rounded-full transition-all duration-700 animate-pulse"
+          className="absolute inset-0 rounded-full animate-pulse"
           style={{
-            background: 'radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, rgba(139, 92, 246, 0.2) 50%, transparent 100%)',
-            boxShadow: '0 0 40px rgba(59, 130, 246, 0.6), 0 0 80px rgba(139, 92, 246, 0.4)',
-            filter: 'blur(20px)',
+            background: 'radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.15) 50%, transparent 100%)',
+            boxShadow: '0 0 25px rgba(59, 130, 246, 0.3), 0 0 15px rgba(139, 92, 246, 0.2)',
+            filter: 'blur(12px)',
           }}
         />
       )}
       
       <div className="relative flex items-center justify-center">
-        {/* UN Text - slides RIGHT into slash */}
+        {/* UN Text - slides RIGHT into slash with staggered timing */}
         <span
           className={cn(
-            "inline-block font-semibold transition-all duration-700 ease-in-out",
+            "inline-block font-semibold",
             collapsed
-              ? "opacity-0 scale-0 translate-x-10 blur-md"
+              ? "opacity-0 scale-0 translate-x-8 blur-md"
               : "opacity-100 scale-100 translate-x-0 blur-0 text-[11px]"
           )}
           style={{
             transformOrigin: "center right",
+            transition: collapsed 
+              ? "all 320ms cubic-bezier(0.22, 1, 0.36, 1) 0ms" // UN starts immediately
+              : "all 240ms cubic-bezier(0.22, 1, 0.36, 1) 120ms", // UN returns with delay
           }}
         >
           UN
         </span>
 
-        {/* The Slash - PORTAL HERO */}
+        {/* The Slash - Portal with 3-stage animation (anticipation → expansion → convergence) */}
         <span
           className={cn(
-            "inline-block font-bold relative transition-all duration-700 ease-in-out",
-            collapsed ? "text-6xl scale-100" : "text-[11px] mx-0.5"
+            "inline-block font-bold relative",
+            collapsed ? "text-4xl" : "text-[11px] mx-0.5"
           )}
           style={{
             background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ef4444 100%)",
@@ -54,16 +56,31 @@ export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) 
             WebkitTextFillColor: "transparent",
             backgroundClip: "text",
             filter: collapsed 
-              ? "drop-shadow(0 0 30px rgba(139, 92, 246, 1)) drop-shadow(0 0 20px rgba(59, 130, 246, 1))" 
+              ? "drop-shadow(0 0 20px rgba(139, 92, 246, 0.8)) drop-shadow(0 0 12px rgba(59, 130, 246, 0.6))" 
               : "none",
+            transition: collapsed
+              ? "all 240ms cubic-bezier(0.22, 1, 0.36, 1) 120ms" // Portal expands after anticipation
+              : "all 180ms cubic-bezier(0.22, 1, 0.36, 1) 0ms",
           }}
         >
           /
-          {/* Multi-layer pulsing glow when collapsed */}
+          {/* Layered glow effects when collapsed */}
           {collapsed && (
             <>
               <span
                 className="absolute inset-0 animate-pulse"
+                style={{
+                  background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ef4444 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                  filter: "blur(15px)",
+                }}
+              >
+                /
+              </span>
+              <span
+                className="absolute inset-0 animate-ping opacity-70"
                 style={{
                   background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ef4444 100%)",
                   WebkitBackgroundClip: "text",
@@ -74,32 +91,23 @@ export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) 
               >
                 /
               </span>
-              <span
-                className="absolute inset-0 animate-ping opacity-80"
-                style={{
-                  background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ef4444 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                  filter: "blur(30px)",
-                }}
-              >
-                /
-              </span>
             </>
           )}
         </span>
 
-        {/* TITLD Text - slides LEFT into slash */}
+        {/* TITLD Text - slides LEFT into slash with 80ms delay */}
         <span
           className={cn(
-            "inline-block font-semibold transition-all duration-700 ease-in-out",
+            "inline-block font-semibold",
             collapsed
-              ? "opacity-0 scale-0 -translate-x-10 blur-md"
+              ? "opacity-0 scale-0 -translate-x-8 blur-md"
               : "opacity-100 scale-100 translate-x-0 blur-0 text-[11px]"
           )}
           style={{
             transformOrigin: "center left",
+            transition: collapsed
+              ? "all 320ms cubic-bezier(0.22, 1, 0.36, 1) 80ms" // TITLD follows 80ms after UN
+              : "all 240ms cubic-bezier(0.22, 1, 0.36, 1) 200ms", // TITLD returns last
           }}
         >
           TITLD

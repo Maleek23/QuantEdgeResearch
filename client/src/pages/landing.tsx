@@ -110,18 +110,27 @@ export default function Landing() {
             Dual-Engine Architecture: AI + Quantitative
           </Badge>
           
-          {/* QuantEdge Logo + UN/TITLD Branding */}
-          <div className="flex items-end justify-center gap-4 mb-10 animate-fade-up">
+          {/* QuantEdge Logo + UN/TITLD Branding - Professional Lockup */}
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8 mb-10 animate-fade-up">
             <img 
               src={quantEdgeLogoUrl} 
               alt="QuantEdge" 
-              className="h-48 w-48 md:h-64 md:w-64 object-contain drop-shadow-2xl"
+              className="h-36 w-36 md:h-44 md:w-44 object-contain drop-shadow-2xl"
             />
-            <div className="flex items-center gap-1 pb-2 text-[11px] text-muted-foreground/50">
-              <span>by</span>
-              <span className="font-medium">UN</span>
-              <span>/</span>
-              <span className="font-medium">TITLD</span>
+            
+            {/* Vertical divider on desktop */}
+            <div className="hidden md:block w-px h-16 bg-gradient-to-b from-transparent via-border to-transparent" />
+            
+            {/* Studio credit with proper hierarchy */}
+            <div className="flex flex-col items-center md:items-start gap-1.5">
+              <span className="text-xs md:text-sm text-muted-foreground/70 tracking-[0.24em] uppercase font-medium">
+                by
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-lg md:text-xl font-semibold text-foreground tracking-tight">UN</span>
+                <span className="text-lg md:text-xl font-bold text-muted-foreground/40">/</span>
+                <span className="text-lg md:text-xl font-semibold text-foreground tracking-tight">TITLD</span>
+              </div>
             </div>
           </div>
           

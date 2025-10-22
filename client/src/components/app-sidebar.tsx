@@ -45,44 +45,51 @@ function SidebarHeaderContent() {
   const isCollapsed = state === "collapsed";
 
   return (
-    <SidebarMenuButton asChild className="h-auto items-center px-3 py-6">
-      <Link href="/" data-testid="nav-home" className="relative overflow-visible">
-        {/* Single persistent structure - no unmounting */}
-        <div className="flex items-center justify-center w-full relative">
-          {/* Logo - shrinks and fades in collapsed state */}
-          <div 
-            className={cn(
-              "flex shrink-0 items-center justify-center transition-all duration-700 ease-in-out",
-              isCollapsed ? "opacity-0 scale-50 w-0" : "opacity-100 scale-100"
-            )}
+    <SidebarMenuButton asChild className="h-auto items-center px-3 py-4">
+      <Link href="/" data-testid="nav-home" className="relative">
+        {/* Single persistent structure - no conditional branches */}
+        <div className={cn(
+          "flex w-full relative transition-all duration-300",
+          isCollapsed ? "flex-col items-center gap-3" : "flex-row items-center"
+        )}>
+          {/* Logo - transitions between horizontal and vertical layouts */}
+          <div className={cn(
+            "relative transition-all duration-300 ease-out rounded-lg",
+            isCollapsed ? "p-3" : "p-0"
+          )}
+          style={{
+            background: isCollapsed ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+            boxShadow: isCollapsed ? '0 0 20px rgba(59, 130, 246, 0.15), inset 0 0 12px rgba(59, 130, 246, 0.05)' : 'none',
+          }}
           >
             <img 
               src={quantEdgeLogoUrl} 
               alt="QuantEdge" 
-              className="h-11 w-11 object-contain"
+              className={cn(
+                "object-contain transition-all duration-300",
+                isCollapsed ? "h-14 w-14" : "h-11 w-11"
+              )}
+              style={{
+                filter: isCollapsed ? 'drop-shadow(0 0 6px rgba(59, 130, 246, 0.4))' : 'none',
+                opacity: isCollapsed ? 0.9 : 1
+              }}
             />
           </div>
           
-          {/* Branding section - transforms based on state */}
-          <div 
-            className={cn(
-              "flex flex-col transition-all duration-700 ease-in-out",
-              isCollapsed 
-                ? "items-center justify-center absolute inset-0" 
-                : "gap-0.5 leading-none ml-3"
-            )}
-          >
+          {/* Branding section - always mounted, transforms between states */}
+          <div className={cn(
+            "flex flex-col transition-all duration-300",
+            isCollapsed ? "gap-0" : "gap-0.5 leading-none ml-3"
+          )}>
             {/* "by" text - fades out when collapsed */}
-            <span 
-              className={cn(
-                "text-[9px] text-muted-foreground/50 tracking-wide transition-all duration-700",
-                isCollapsed ? "opacity-0 h-0" : "opacity-100"
-              )}
-            >
+            <span className={cn(
+              "text-[9px] text-muted-foreground/50 tracking-wide transition-all duration-300",
+              isCollapsed ? "opacity-0 h-0 overflow-hidden" : "opacity-100"
+            )}>
               by
             </span>
             
-            {/* Portal animation component - always mounted */}
+            {/* Portal animation - ALWAYS MOUNTED */}
             <UntitldLogo collapsed={isCollapsed} />
           </div>
         </div>
