@@ -1321,9 +1321,9 @@ export class DatabaseStorage implements IStorage {
   async getPerformanceStats(): Promise<PerformanceStats> {
     const allIdeasRaw = await this.getAllTradeIdeas();
     
-    // CRITICAL FIX: Filter out trades marked as excludeFromTraining (legacy/bad data)
-    // This prevents ML poisoning from old momentum-chasing strategy
-    const allIdeas = allIdeasRaw.filter(i => i.excludeFromTraining !== true);
+    // PERFORMANCE STATS: Include ALL trades to show honest platform performance
+    // excludeFromTraining flag only affects ML training, not performance display
+    const allIdeas = allIdeasRaw;
     
     const openIdeas = allIdeas.filter(i => i.outcomeStatus === 'open');
     const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open');
