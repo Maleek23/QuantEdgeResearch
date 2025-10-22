@@ -10,19 +10,23 @@ export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) 
   const [isCollapsed, setIsCollapsed] = useState(collapsed);
   
   useEffect(() => {
-    setIsCollapsed(collapsed);
+    // Add slight delay to ensure transition is visible
+    const timer = setTimeout(() => {
+      setIsCollapsed(collapsed);
+    }, 50);
+    return () => clearTimeout(timer);
   }, [collapsed]);
 
   return (
-    <div className={cn("relative inline-flex items-center justify-center", className)}>
+    <div className={cn("relative inline-flex items-center justify-center min-h-[24px]", className)}>
       <div className="relative flex items-center justify-center">
         {/* UN Text - slides into slash */}
         <span
           className={cn(
-            "inline-block font-bold text-sm transition-all duration-700 ease-in-out",
+            "inline-block font-semibold text-[11px] transition-all duration-700 ease-in-out",
             isCollapsed
-              ? "opacity-0 scale-0 translate-x-8"
-              : "opacity-100 scale-100 translate-x-0"
+              ? "opacity-0 scale-0 translate-x-6 blur-sm"
+              : "opacity-100 scale-100 translate-x-0 blur-0"
           )}
           style={{
             transformOrigin: "center right",
@@ -35,14 +39,14 @@ export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) 
         <span
           className={cn(
             "inline-block font-bold relative transition-all duration-700 ease-in-out",
-            isCollapsed ? "text-2xl scale-125" : "text-sm mx-0.5"
+            isCollapsed ? "text-xl scale-150" : "text-[11px] mx-0.5"
           )}
           style={{
             background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ef4444 100%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             backgroundClip: "text",
-            filter: isCollapsed ? "drop-shadow(0 0 16px rgba(139, 92, 246, 0.9))" : "none",
+            filter: isCollapsed ? "drop-shadow(0 0 20px rgba(139, 92, 246, 1))" : "none",
           }}
         >
           /
@@ -56,19 +60,19 @@ export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) 
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   backgroundClip: "text",
-                  filter: "blur(10px)",
+                  filter: "blur(12px)",
                 }}
               >
                 /
               </span>
               <span
-                className="absolute inset-0 animate-ping opacity-60"
+                className="absolute inset-0 animate-ping opacity-70"
                 style={{
                   background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ef4444 100%)",
                   WebkitBackgroundClip: "text",
                   WebkitTextFillColor: "transparent",
                   backgroundClip: "text",
-                  filter: "blur(16px)",
+                  filter: "blur(18px)",
                 }}
               >
                 /
@@ -80,10 +84,10 @@ export function UntitldLogo({ collapsed = false, className }: UntitldLogoProps) 
         {/* TITLD Text - slides into slash */}
         <span
           className={cn(
-            "inline-block font-bold text-sm transition-all duration-700 ease-in-out",
+            "inline-block font-semibold text-[11px] transition-all duration-700 ease-in-out",
             isCollapsed
-              ? "opacity-0 scale-0 -translate-x-8"
-              : "opacity-100 scale-100 translate-x-0"
+              ? "opacity-0 scale-0 -translate-x-6 blur-sm"
+              : "opacity-100 scale-100 translate-x-0 blur-0"
           )}
           style={{
             transformOrigin: "center left",
