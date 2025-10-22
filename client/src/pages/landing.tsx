@@ -110,23 +110,19 @@ export default function Landing() {
             Dual-Engine Architecture: AI + Quantitative
           </Badge>
           
-          {/* QuantEdge Logo + Branding */}
-          <div className="flex flex-col items-center gap-6 mb-10 animate-fade-up">
+          {/* QuantEdge Logo + UN/TITLD Branding */}
+          <div className="flex items-center justify-center gap-6 mb-10 animate-fade-up">
             <img 
               src={quantEdgeLogoUrl} 
               alt="QuantEdge" 
               className="h-40 w-40 md:h-48 md:w-48 object-contain drop-shadow-2xl"
             />
-            <div className="flex flex-col items-center gap-2">
-              <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-display">
-                <span className="text-gradient-premium">QuantEdge</span>
-              </h1>
-              <p className="text-lg md:text-xl text-muted-foreground tracking-wide">
-                Research Platform
-              </p>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="text-xs text-muted-foreground/60">by</span>
-                <UntitldLogo collapsed={false} />
+            <div className="flex flex-col gap-1.5">
+              <span className="text-sm text-muted-foreground/60">by</span>
+              <div className="flex items-center gap-1">
+                <span className="text-lg font-semibold text-foreground">UN</span>
+                <span className="text-lg font-bold text-muted-foreground/40">/</span>
+                <span className="text-lg font-semibold text-foreground">TITLD</span>
               </div>
             </div>
           </div>
