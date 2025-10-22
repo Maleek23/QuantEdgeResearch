@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { UntitldLogo } from "@/components/untitld-logo";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
+import { cn } from "@/lib/utils";
 
 const researchItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
