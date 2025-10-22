@@ -48,18 +48,18 @@ function SidebarHeaderContent() {
     <SidebarMenuButton asChild className="h-auto items-center px-3 py-5">
       <Link href="/" data-testid="nav-home">
         {isCollapsed ? (
-          /* Collapsed: HUGE glowing logo + pulsing portal */
-          <div className="flex flex-col items-center justify-center w-full gap-4 py-2">
-            <div className="relative p-3 rounded-lg" style={{
-              background: 'rgba(59, 130, 246, 0.15)',
-              boxShadow: '0 0 25px rgba(59, 130, 246, 0.4), 0 0 50px rgba(139, 92, 246, 0.3)',
+          /* Collapsed: MASSIVE glowing logo + pulsing portal */
+          <div className="flex flex-col items-center justify-center w-full gap-5 py-3">
+            <div className="relative p-1.5 rounded-xl" style={{
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)',
+              boxShadow: '0 0 30px rgba(59, 130, 246, 0.5), 0 0 60px rgba(139, 92, 246, 0.3), inset 0 0 20px rgba(59, 130, 246, 0.1)',
             }}>
               <img 
                 src={quantEdgeLogoUrl} 
                 alt="QuantEdge" 
-                className="h-20 w-20 object-contain"
+                className="h-24 w-24 object-contain"
                 style={{
-                  filter: 'drop-shadow(0 0 12px rgba(59, 130, 246, 1)) brightness(1.2)'
+                  filter: 'drop-shadow(0 0 15px rgba(59, 130, 246, 1)) drop-shadow(0 0 8px rgba(139, 92, 246, 0.8)) brightness(1.3) contrast(1.1)'
                 }}
               />
             </div>
