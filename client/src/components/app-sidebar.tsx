@@ -143,7 +143,7 @@ export function AppSidebar() {
                     <Link 
                       href={item.url}
                       className="flex items-center gap-3"
-                      data-testid={`nav-${item.title.toLowerCase().replace(' ', '-')}`}
+                      data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
                     >
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
@@ -166,7 +166,7 @@ export function AppSidebar() {
                     <Link 
                       href={item.url}
                       className="flex items-center gap-3"
-                      data-testid={`nav-${item.title.toLowerCase().replace(' ', '-')}`}
+                      data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
                     >
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
@@ -189,7 +189,7 @@ export function AppSidebar() {
                     <Link 
                       href={item.url}
                       className="flex items-center gap-3"
-                      data-testid={`nav-${item.title.toLowerCase().replace(' ', '-')}`}
+                      data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
                     >
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
