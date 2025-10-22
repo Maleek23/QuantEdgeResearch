@@ -590,9 +590,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Market Data Routes
+  // Market data cache (2-minute TTL for fresher price updates)
+  let marketDataCache: { data: any; timestamp: number } | null = null;
+  const MARKET_DATA_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+  
   app.get("/api/market-data", marketDataLimiter, async (_req, res) => {
     try {
+      const now = Date.now();
+      
+      // Check cache
+      if (marketDataCache && (now - marketDataCache.timestamp) < MARKET_DATA_CACHE_TTL) {
+        return res.json(marketDataCache.data);
+      }
+      
+      // Cache miss - fetch fresh data
       const data = await storage.getAllMarketData();
+      
+      // Update cache
+      marketDataCache = { data, timestamp: now };
+      
       res.json(data);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch market data" });
@@ -1085,9 +1101,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Performance stats cache (5-minute TTL)
+  let performanceStatsCache: { data: any; timestamp: number } | null = null;
+  const PERF_STATS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  
   app.get("/api/performance/stats", async (_req, res) => {
     try {
+      const now = Date.now();
+      
+      // Check cache
+      if (performanceStatsCache && (now - performanceStatsCache.timestamp) < PERF_STATS_CACHE_TTL) {
+        logger.info('[PERF-STATS] Cache hit');
+        return res.json(performanceStatsCache.data);
+      }
+      
+      // Cache miss - fetch fresh data
+      logger.info('[PERF-STATS] Cache miss - fetching fresh data');
       const stats = await storage.getPerformanceStats();
+      
+      // Update cache
+      performanceStatsCache = { data: stats, timestamp: now };
+      
       res.json(stats);
     } catch (error) {
       console.error("Stats error:", error);
