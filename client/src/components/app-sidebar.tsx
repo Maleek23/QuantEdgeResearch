@@ -45,42 +45,47 @@ function SidebarHeaderContent() {
   const isCollapsed = state === "collapsed";
 
   return (
-    <SidebarMenuButton asChild className="h-auto items-center px-3 py-5">
-      <Link href="/" data-testid="nav-home">
-        {isCollapsed ? (
-          /* Collapsed: MASSIVE glowing logo + pulsing portal */
-          <div className="flex flex-col items-center justify-center w-full gap-5 py-3">
-            <div className="relative p-1.5 rounded-xl" style={{
-              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)',
-              boxShadow: '0 0 30px rgba(59, 130, 246, 0.5), 0 0 60px rgba(139, 92, 246, 0.3), inset 0 0 20px rgba(59, 130, 246, 0.1)',
-            }}>
-              <img 
-                src={quantEdgeLogoUrl} 
-                alt="QuantEdge" 
-                className="h-24 w-24 object-contain"
-                style={{
-                  filter: 'drop-shadow(0 0 15px rgba(59, 130, 246, 1)) drop-shadow(0 0 8px rgba(139, 92, 246, 0.8)) brightness(1.3) contrast(1.1)'
-                }}
-              />
-            </div>
-            <UntitldLogo collapsed={true} />
+    <SidebarMenuButton asChild className="h-auto items-center px-3 py-6">
+      <Link href="/" data-testid="nav-home" className="relative overflow-visible">
+        {/* Single persistent structure - no unmounting */}
+        <div className="flex items-center justify-center w-full relative">
+          {/* Logo - shrinks and fades in collapsed state */}
+          <div 
+            className={cn(
+              "flex shrink-0 items-center justify-center transition-all duration-700 ease-in-out",
+              isCollapsed ? "opacity-0 scale-50 w-0" : "opacity-100 scale-100"
+            )}
+          >
+            <img 
+              src={quantEdgeLogoUrl} 
+              alt="QuantEdge" 
+              className="h-11 w-11 object-contain"
+            />
           </div>
-        ) : (
-          /* Expanded: Logo + "by UN/TITLD" */
-          <>
-            <div className="flex shrink-0 items-center justify-center">
-              <img 
-                src={quantEdgeLogoUrl} 
-                alt="QuantEdge" 
-                className="h-11 w-11 object-contain"
-              />
-            </div>
-            <div className="flex flex-col gap-0.5 leading-none">
-              <span className="text-[9px] text-muted-foreground/50 tracking-wide">by</span>
-              <UntitldLogo collapsed={false} />
-            </div>
-          </>
-        )}
+          
+          {/* Branding section - transforms based on state */}
+          <div 
+            className={cn(
+              "flex flex-col transition-all duration-700 ease-in-out",
+              isCollapsed 
+                ? "items-center justify-center absolute inset-0" 
+                : "gap-0.5 leading-none ml-3"
+            )}
+          >
+            {/* "by" text - fades out when collapsed */}
+            <span 
+              className={cn(
+                "text-[9px] text-muted-foreground/50 tracking-wide transition-all duration-700",
+                isCollapsed ? "opacity-0 h-0" : "opacity-100"
+              )}
+            >
+              by
+            </span>
+            
+            {/* Portal animation component - always mounted */}
+            <UntitldLogo collapsed={isCollapsed} />
+          </div>
+        </div>
       </Link>
     </SidebarMenuButton>
   );
