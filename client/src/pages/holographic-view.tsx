@@ -1,11 +1,12 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars, Text, Sphere, Html } from '@react-three/drei';
 import { useQuery } from '@tanstack/react-query';
-import { Suspense, useRef, useMemo } from 'react';
+import { Suspense, useRef, useMemo, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { Card } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 // Fetch performance stats
 function usePerformanceStats() {
@@ -258,13 +259,116 @@ function LoadingFallback() {
   );
 }
 
+// WebGL Detection Hook
+function useWebGLSupport() {
+  const [supported, setSupported] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      setSupported(!!gl);
+    } catch (e) {
+      setSupported(false);
+    }
+  }, []);
+
+  return supported;
+}
+
+// WebGL Fallback Component
+function WebGLFallback({ stats }: { stats: any }) {
+  return (
+    <div className="h-screen w-full bg-gradient-to-b from-black via-blue-950/20 to-black flex items-center justify-center p-6">
+      <div className="max-w-2xl w-full space-y-6">
+        <Alert className="border-amber-500/50 bg-amber-500/10">
+          <AlertTriangle className="h-5 w-5 text-amber-500" />
+          <AlertTitle className="text-amber-500">WebGL Not Available</AlertTitle>
+          <AlertDescription className="text-muted-foreground">
+            Your browser or environment doesn't support WebGL, which is required for 3D visualization.
+            Showing performance metrics in 2D mode instead.
+          </AlertDescription>
+        </Alert>
+
+        <Card className="bg-background/80 backdrop-blur-sm border-primary/30">
+          <CardContent className="p-6">
+            <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+              Performance Metrics
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="bg-card/50 rounded-lg p-4 border border-primary/20">
+                <p className="text-xs text-muted-foreground uppercase mb-1">Win Rate</p>
+                <p className="text-3xl font-bold text-green-500">
+                  {stats?.overall?.winRate?.toFixed(1) || '0'}%
+                </p>
+              </div>
+              <div className="bg-card/50 rounded-lg p-4 border border-primary/20">
+                <p className="text-xs text-muted-foreground uppercase mb-1">Quant Accuracy</p>
+                <p className="text-3xl font-bold text-blue-500">
+                  {stats?.overall?.quantAccuracy?.toFixed(1) || '0'}%
+                </p>
+              </div>
+              <div className="bg-card/50 rounded-lg p-4 border border-primary/20">
+                <p className="text-xs text-muted-foreground uppercase mb-1">Total Trades</p>
+                <p className="text-3xl font-bold text-amber-500">
+                  {stats?.overall?.totalIdeas || '0'}
+                </p>
+              </div>
+              <div className="bg-card/50 rounded-lg p-4 border border-primary/20">
+                <p className="text-xs text-muted-foreground uppercase mb-1">Active Ideas</p>
+                <p className="text-3xl font-bold text-purple-500">
+                  {stats?.overall?.openIdeas || '0'}
+                </p>
+              </div>
+              <div className="bg-card/50 rounded-lg p-4 border border-primary/20">
+                <p className="text-xs text-muted-foreground uppercase mb-1">Winners</p>
+                <p className="text-3xl font-bold text-green-500">
+                  {stats?.overall?.wonIdeas || '0'}
+                </p>
+              </div>
+              <div className="bg-card/50 rounded-lg p-4 border border-primary/20">
+                <p className="text-xs text-muted-foreground uppercase mb-1">Losers</p>
+                <p className="text-3xl font-bold text-red-500">
+                  {stats?.overall?.lostIdeas || '0'}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <p className="text-sm text-muted-foreground text-center">
+          To view the full 3D holographic visualization, please use a modern browser with WebGL support.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // Main Page Component
 export default function HolographicView() {
   const { data: stats } = usePerformanceStats();
   const { data: tradeIdeas } = useTradeIdeas();
+  const webglSupported = useWebGLSupport();
+
+  // Show fallback if WebGL is not supported
+  if (webglSupported === false) {
+    return <WebGLFallback stats={stats} />;
+  }
+
+  // Show loading while checking WebGL support
+  if (webglSupported === null) {
+    return (
+      <div className="h-screen w-full bg-black flex items-center justify-center">
+        <div className="flex flex-col items-center gap-2 text-primary">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="text-sm">Initializing...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="h-screen w-full bg-black relative">
+    <div className="h-screen w-full bg-black relative" data-testid="holographic-view-canvas">
       {/* Header Overlay */}
       <div className="absolute top-0 left-0 right-0 z-10 p-6">
         <Card className="bg-background/80 backdrop-blur-sm border-primary/30">
