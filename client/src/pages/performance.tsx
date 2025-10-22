@@ -190,6 +190,7 @@ export default function PerformancePage() {
   const rangeStart = useMemo(() => {
     const now = new Date();
     switch (dateRange) {
+      case 'today': return startOfDay(now);
       case '7d': return subDays(now, 7);
       case '30d': return subDays(now, 30);
       case '3m': return subMonths(now, 3);
@@ -606,8 +607,8 @@ export default function PerformancePage() {
         </CardContent>
       </Card>
 
-      {/* TODAY'S PERFORMANCE SPOTLIGHT */}
-      {todayStats && todayStats.overall.totalIdeas > 0 && dateRange === 'all' && (
+      {/* TODAY'S PERFORMANCE SPOTLIGHT - Only show when explicitly viewing "Today" */}
+      {todayStats && todayStats.overall.totalIdeas > 0 && dateRange === 'today' && (
         <Card className="glass-card shadow-xl border-2 border-primary/50 bg-gradient-to-br from-primary/5 via-card to-accent/5">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
@@ -623,11 +624,11 @@ export default function PerformancePage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setDateRange('today')}
-                data-testid="button-view-today"
+                onClick={() => setDateRange('all')}
+                data-testid="button-view-all-time"
                 className="hover-elevate"
               >
-                View Details
+                View All Time
               </Button>
             </div>
           </CardHeader>
@@ -707,6 +708,21 @@ export default function PerformancePage() {
               </div>
             )}
           </CardContent>
+        </Card>
+      )}
+
+      {/* ALL TIME PERFORMANCE HEADER - Show prominently when viewing all time */}
+      {dateRange === 'all' && (
+        <Card className="glass-card shadow-xl border-2 border-blue-500/50 bg-gradient-to-br from-blue-500/5 via-card to-blue-500/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-2xl font-bold flex items-center gap-2">
+              <TrendingUp className="w-6 h-6 text-blue-500" />
+              All Time Performance
+            </CardTitle>
+            <CardDescription className="text-base">
+              Complete platform history • {stats.overall.totalIdeas} total ideas ({stats.overall.closedIdeas} closed, {stats.overall.openIdeas} open)
+            </CardDescription>
+          </CardHeader>
         </Card>
       )}
 
