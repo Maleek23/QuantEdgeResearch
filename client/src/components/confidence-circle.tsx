@@ -14,7 +14,7 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
   
   const getGradeColor = (grade: string): string => {
     if (grade === 'A') return 'text-green-500';
-    if (grade === 'A+') return 'text-red-500'; // RED - Over-confident warning (44% win rate!)
+    if (grade === 'A+') return 'text-green-500';
     if (grade === 'B+') return 'text-blue-500';
     if (grade === 'B') return 'text-blue-500';
     if (grade === 'C+') return 'text-yellow-500';
@@ -24,7 +24,7 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
 
   const getStrokeColor = (grade: string): string => {
     if (grade === 'A') return '#22c55e'; // green-500
-    if (grade === 'A+') return '#ef4444'; // RED - warning color for overconfidence (44% win rate)
+    if (grade === 'A+') return '#22c55e'; // green-500
     if (grade === 'B+') return '#3b82f6'; // blue-500
     if (grade === 'B') return '#3b82f6'; // blue-500
     if (grade === 'C+') return '#eab308'; // yellow-500

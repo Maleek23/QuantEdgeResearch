@@ -34,13 +34,13 @@ export function getPerformanceGrade(confidenceScore: number): {
   // C (70-74) → 44.4% win rate
   // D (<70) → 25.0% win rate
   
-  // A+ (95+): Over-confident signals that underperform - RED WARNING
+  // A+ (95+): Highest confidence
   if (confidenceScore >= 95) {
     return {
       grade: 'A+',
-      color: 'text-red-500',
+      color: 'text-green-500',
       expectedWinRate: 44,
-      description: 'Over-confident (44% win rate)',
+      description: 'Highest confidence (44% win rate)',
     };
   }
   
