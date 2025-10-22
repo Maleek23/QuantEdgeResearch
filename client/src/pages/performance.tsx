@@ -163,6 +163,9 @@ export default function PerformancePage() {
 
   const { data: stats, isLoading } = useQuery<PerformanceStats>({
     queryKey: ['/api/performance/stats', apiFilters],
+    staleTime: 0,
+    gcTime: 0, // Don't cache in memory
+    refetchOnMount: 'always', // Always refetch when component mounts
   });
   
   // Also fetch today's specific stats for prominent display
