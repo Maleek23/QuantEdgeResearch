@@ -518,47 +518,93 @@ export default function PerformancePage() {
         <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </div>
 
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Time Range:</span>
-          <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-40" data-testid="select-date-range">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="today">Today Only</SelectItem>
-              <SelectItem value="7d">Last 7 Days</SelectItem>
-              <SelectItem value="30d">Last 30 Days</SelectItem>
-              <SelectItem value="3m">Last 3 Months</SelectItem>
-              <SelectItem value="1y">Last Year</SelectItem>
-              <SelectItem value="all">All Time</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {/* ACTIVE FILTERS BANNER */}
+      <Card className={cn(
+        "shadow-lg border-2 transition-all",
+        dateRange !== 'all' 
+          ? "bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/50" 
+          : "bg-card border-border/50"
+      )}>
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Calendar className={cn(
+                "w-5 h-5",
+                dateRange !== 'all' ? "text-primary" : "text-muted-foreground"
+              )} />
+              <span className="text-sm font-semibold">Time Range:</span>
+              <Select value={dateRange} onValueChange={setDateRange}>
+                <SelectTrigger className={cn(
+                  "w-40 font-semibold",
+                  dateRange !== 'all' && "border-primary/50 bg-primary/5"
+                )} data-testid="select-date-range">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today Only</SelectItem>
+                  <SelectItem value="7d">Last 7 Days</SelectItem>
+                  <SelectItem value="30d">Last 30 Days</SelectItem>
+                  <SelectItem value="3m">Last 3 Months</SelectItem>
+                  <SelectItem value="1y">Last Year</SelectItem>
+                  <SelectItem value="all">All Time</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Group By:</span>
-          <Select value={periodView} onValueChange={setPeriodView}>
-            <SelectTrigger className="w-32" data-testid="select-period-view">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
-              <SelectItem value="yearly">Yearly</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Group By:</span>
+              <Select value={periodView} onValueChange={setPeriodView}>
+                <SelectTrigger className="w-32" data-testid="select-period-view">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-        {closedIdeas.length > 0 && (
-          <Badge variant="outline" className="badge-shimmer ml-auto">
-            {closedIdeas.length} closed trade{closedIdeas.length !== 1 ? 's' : ''} in range
-          </Badge>
-        )}
-      </div>
+            <div className="flex-1" />
+
+            {/* Data Range Indicator */}
+            {dateRange !== 'all' && (
+              <Badge variant="default" className="px-3 py-1.5 bg-primary text-primary-foreground font-semibold">
+                <Activity className="w-3 h-3 mr-1.5" />
+                Showing filtered data
+              </Badge>
+            )}
+
+            {closedIdeas.length > 0 && (
+              <Badge variant="outline" className="badge-shimmer px-3 py-1.5 font-semibold">
+                {closedIdeas.length} closed trade{closedIdeas.length !== 1 ? 's' : ''} in range
+              </Badge>
+            )}
+          </div>
+
+          {/* Active Filter Description */}
+          {dateRange !== 'all' && (
+            <div className="mt-3 pt-3 border-t border-primary/20">
+              <div className="flex items-center gap-2 text-sm">
+                <Info className="w-4 h-4 text-primary flex-shrink-0" />
+                <span className="text-muted-foreground">
+                  All metrics below reflect 
+                  <span className="font-semibold text-foreground mx-1">
+                    {dateRange === 'today' && 'today\'s performance only'}
+                    {dateRange === '7d' && 'the last 7 days'}
+                    {dateRange === '30d' && 'the last 30 days'}
+                    {dateRange === '3m' && 'the last 3 months'}
+                    {dateRange === '1y' && 'the last year'}
+                  </span>
+                  ({stats.overall.totalIdeas} ideas, {stats.overall.closedIdeas} closed)
+                </span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* TODAY'S PERFORMANCE SPOTLIGHT */}
       {todayStats && todayStats.overall.totalIdeas > 0 && dateRange === 'all' && (
