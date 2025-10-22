@@ -16,9 +16,9 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
     if (grade === 'A') return 'text-green-500';
     if (grade === 'A+') return 'text-red-500'; // RED - Over-confident warning (44% win rate!)
     if (grade === 'B+') return 'text-blue-500';
-    if (grade === 'B') return 'text-cyan-500';
-    if (grade === 'C+') return 'text-orange-500';
-    if (grade === 'C') return 'text-amber-500';
+    if (grade === 'B') return 'text-blue-500';
+    if (grade === 'C+') return 'text-yellow-500';
+    if (grade === 'C') return 'text-yellow-500';
     return 'text-red-500';
   };
 
@@ -26,9 +26,9 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
     if (grade === 'A') return '#22c55e'; // green-500
     if (grade === 'A+') return '#ef4444'; // RED - warning color for overconfidence (44% win rate)
     if (grade === 'B+') return '#3b82f6'; // blue-500
-    if (grade === 'B') return '#06b6d4'; // cyan-500
-    if (grade === 'C+') return '#f97316'; // orange-500
-    if (grade === 'C') return '#f59e0b'; // amber-500
+    if (grade === 'B') return '#3b82f6'; // blue-500
+    if (grade === 'C+') return '#eab308'; // yellow-500
+    if (grade === 'C') return '#eab308'; // yellow-500
     return '#ef4444'; // red-500
   };
 

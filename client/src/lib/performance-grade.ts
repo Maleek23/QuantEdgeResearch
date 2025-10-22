@@ -68,7 +68,7 @@ export function getPerformanceGrade(confidenceScore: number): {
   if (confidenceScore >= 80) {
     return {
       grade: 'B',
-      color: 'text-cyan-500',
+      color: 'text-blue-500',
       expectedWinRate: 67,
       description: 'Good performance (67% win rate)',
     };
@@ -78,7 +78,7 @@ export function getPerformanceGrade(confidenceScore: number): {
   if (confidenceScore >= 75) {
     return {
       grade: 'C+',
-      color: 'text-orange-500',
+      color: 'text-yellow-500',
       expectedWinRate: 33,
       description: 'Weak signals (33% win rate)',
     };
@@ -88,7 +88,7 @@ export function getPerformanceGrade(confidenceScore: number): {
   if (confidenceScore >= 70) {
     return {
       grade: 'C',
-      color: 'text-amber-500',
+      color: 'text-yellow-500',
       expectedWinRate: 44,
       description: 'Below average (44% win rate)',
     };
