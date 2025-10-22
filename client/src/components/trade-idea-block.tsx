@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
 import { formatInUserTZ, formatTimeUntilExpiry } from "@/lib/timezone";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -322,7 +322,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   </div>
                   <div>
                     <div className="text-xs text-green-400 mb-1 uppercase tracking-wide flex items-center gap-1">
-                      <Target className="h-3 w-3" />
+                      <TargetIcon className="h-3 w-3" />
                       Target
                     </div>
                     <div className="text-lg font-semibold font-mono text-green-400">{formatCurrency(idea.targetPrice)}</div>
@@ -335,6 +335,42 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     <div className="text-lg font-semibold font-mono text-red-400">{formatCurrency(idea.stopLoss)}</div>
                   </div>
                 </div>
+
+                {/* Option Details Grid - Only for Options */}
+                {idea.assetType === 'option' && idea.strikePrice !== null && idea.strikePrice !== undefined && idea.expiryDate && idea.optionType && (
+                  <div className="grid grid-cols-3 gap-3 pt-3 mt-3 border-t border-border/50">
+                    <div>
+                      <div className="text-xs text-blue-400 mb-1 uppercase tracking-wide flex items-center gap-1">
+                        <Activity className="h-3 w-3" />
+                        Type
+                      </div>
+                      <div className={cn(
+                        "text-lg font-semibold font-mono uppercase",
+                        idea.optionType === 'call' ? 'text-green-400' : 'text-red-400'
+                      )}>
+                        {idea.optionType}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-amber-400 mb-1 uppercase tracking-wide flex items-center gap-1">
+                        <TargetIcon className="h-3 w-3" />
+                        Strike
+                      </div>
+                      <div className="text-lg font-semibold font-mono text-amber-400">
+                        {formatCurrency(idea.strikePrice)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-purple-400 mb-1 uppercase tracking-wide flex items-center gap-1">
+                        <CalendarDays className="h-3 w-3" />
+                        Expiry
+                      </div>
+                      <div className="text-lg font-semibold font-mono text-purple-400">
+                        {formatInUserTZ(idea.expiryDate, 'MMM dd')}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-3 text-muted-foreground py-2">
