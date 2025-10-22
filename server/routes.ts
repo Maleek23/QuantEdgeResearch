@@ -704,6 +704,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const now = new Date();
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       
+      // Get unique symbols from open ideas for price fetching
+      const openIdeas = ideas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus);
+      const uniqueSymbols = Array.from(new Set(openIdeas.map(i => i.symbol)));
+      
+      // Fetch current prices for all trade idea symbols
+      const stockSymbols = uniqueSymbols.filter(s => {
+        const idea = ideas.find(i => i.symbol === s);
+        return idea && (idea.assetType === 'stock' || idea.assetType === 'penny_stock');
+      });
+      
+      const cryptoSymbols = uniqueSymbols.filter(s => {
+        const idea = ideas.find(i => i.symbol === s);
+        return idea && idea.assetType === 'crypto';
+      });
+      
+      // Build price map from both market data and fresh fetches
+      const priceMap = new Map<string, number>();
+      
+      // Add existing market data prices
+      marketData.forEach(data => {
+        priceMap.set(data.symbol, data.currentPrice);
+      });
+      
+      // Fetch fresh prices for stock symbols not in market data (PARALLEL)
+      const stockPriceFetches = stockSymbols
+        .filter(symbol => !priceMap.has(symbol))
+        .map(async symbol => {
+          try {
+            const data = await fetchStockPrice(symbol);
+            return { symbol, price: data?.price || null };
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            logger.warn(`Failed to fetch price for ${symbol}`, { error: errorMsg });
+            return { symbol, price: null };
+          }
+        });
+
+      const stockPriceResults = await Promise.all(stockPriceFetches);
+      stockPriceResults.forEach(({ symbol, price }) => {
+        if (price) priceMap.set(symbol, price);
+      });
+      
+      // Fetch fresh prices for crypto symbols not in market data (PARALLEL)
+      const cryptoPriceFetches = cryptoSymbols
+        .filter(symbol => !priceMap.has(symbol))
+        .map(async symbol => {
+          try {
+            const data = await fetchCryptoPrice(symbol);
+            return { symbol, price: data?.price || null };
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            logger.warn(`Failed to fetch price for ${symbol}`, { error: errorMsg });
+            return { symbol, price: null };
+          }
+        });
+
+      const cryptoPriceResults = await Promise.all(cryptoPriceFetches);
+      cryptoPriceResults.forEach(({ symbol, price }) => {
+        if (price) priceMap.set(symbol, price);
+      });
+      
       for (const idea of ideas) {
         // Skip if already archived
         if (idea.outcomeStatus && idea.outcomeStatus !== 'open') continue;
@@ -722,10 +783,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // Get current price for the symbol
-        const symbolData = marketData.find(m => m.symbol === idea.symbol);
-        if (!symbolData) continue;
-        
-        const currentPrice = symbolData.currentPrice;
+        const currentPrice = priceMap.get(idea.symbol);
+        if (!currentPrice) continue;
         
         // Check if target or stop hit
         if (idea.direction === 'long') {
@@ -763,7 +822,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Fetch updated ideas after archiving
       const updatedIdeas = await storage.getAllTradeIdeas();
-      res.json(updatedIdeas);
+      
+      // Add current prices to response
+      const ideasWithPrices = updatedIdeas.map(idea => ({
+        ...idea,
+        currentPrice: priceMap.get(idea.symbol) || null,
+      }));
+      
+      res.json(ideasWithPrices);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch trade ideas" });
     }

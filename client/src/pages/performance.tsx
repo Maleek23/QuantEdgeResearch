@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ValidationResultsDialog } from "@/components/validation-results-dialog";
+import { CrossValidationPanel } from "@/components/cross-validation-panel";
 
 interface PerformanceStats {
   overall: {
@@ -508,10 +509,11 @@ export default function PerformancePage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3" data-testid="tabs-performance">
+        <TabsList className="grid w-full grid-cols-4" data-testid="tabs-performance">
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
           <TabsTrigger value="trends" data-testid="tab-trends">Trends</TabsTrigger>
           <TabsTrigger value="deep-dive" data-testid="tab-deep-dive">Deep Dive</TabsTrigger>
+          <TabsTrigger value="validation" data-testid="tab-validation">Cross-Validation</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-6">
@@ -1506,6 +1508,10 @@ export default function PerformancePage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="validation" className="space-y-6 mt-6">
+          <CrossValidationPanel />
         </TabsContent>
       </Tabs>
 
