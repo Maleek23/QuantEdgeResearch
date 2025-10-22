@@ -26,6 +26,7 @@ import {
   GitBranch
 } from "lucide-react";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
+import { UntitldLogo } from "@/components/untitld-logo";
 
 export default function Landing() {
   const [, setLocation] = useLocation();
@@ -103,26 +104,32 @@ export default function Landing() {
         <ParticleBackground />
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
         
-        <div className="container relative mx-auto px-6 py-16 md:py-20 text-center">
-          <Badge variant="secondary" className="mb-6 badge-shimmer neon-accent transition-spring">
+        <div className="container relative mx-auto px-6 py-16 md:py-24 text-center">
+          <Badge variant="secondary" className="mb-8 badge-shimmer neon-accent transition-spring">
             <Zap className="h-3 w-3 mr-1" />
             Dual-Engine Architecture: AI + Quantitative
           </Badge>
           
-          {/* QuantEdge Logo */}
-          <div className="flex justify-center mb-8 animate-fade-up">
+          {/* QuantEdge Logo + Branding */}
+          <div className="flex flex-col items-center gap-6 mb-10 animate-fade-up">
             <img 
               src={quantEdgeLogoUrl} 
               alt="QuantEdge" 
-              className="h-32 w-32 md:h-40 md:w-40 object-contain drop-shadow-2xl"
+              className="h-40 w-40 md:h-48 md:w-48 object-contain drop-shadow-2xl"
             />
+            <div className="flex flex-col items-center gap-2">
+              <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-display">
+                <span className="text-gradient-premium">QuantEdge</span>
+              </h1>
+              <p className="text-lg md:text-xl text-muted-foreground tracking-wide">
+                Research Platform
+              </p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs text-muted-foreground/60">by</span>
+                <UntitldLogo collapsed={false} />
+              </div>
+            </div>
           </div>
-          
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6 text-display animate-fade-up">
-            <span className="text-gradient-premium">QuantEdge</span>
-            <br />
-            <span className="text-foreground">Research Platform</span>
-          </h1>
           
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 leading-relaxed animate-fade-up animate-delay-100">
             Discover day-trading opportunities across US equities, options, and crypto markets. 
