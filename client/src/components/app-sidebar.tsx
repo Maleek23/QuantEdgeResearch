@@ -11,7 +11,10 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import { UntitldLogo } from "@/components/untitld-logo";
+import quantEdgeLogoUrl from "@assets/image_1761159378956.png";
 
 const researchItems = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
@@ -36,6 +39,48 @@ const systemItems = [
   { title: "Admin", url: "/admin", icon: Shield },
 ];
 
+function SidebarHeaderContent() {
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+
+  return (
+    <SidebarMenuButton asChild className="h-auto min-h-16 items-center px-4 py-3">
+      <Link href="/" data-testid="nav-home">
+        {/* When collapsed: Show just QuantEdge logo + Portal slash */}
+        {isCollapsed ? (
+          <div className="flex flex-col items-center justify-center gap-2 w-full">
+            <img 
+              src={quantEdgeLogoUrl} 
+              alt="QuantEdge" 
+              className="h-8 w-8 object-contain"
+            />
+            <UntitldLogo collapsed={true} className="text-sm" />
+          </div>
+        ) : (
+          <>
+            {/* When expanded: Show full branding */}
+            <div className="flex shrink-0 items-center justify-center">
+              <img 
+                src={quantEdgeLogoUrl} 
+                alt="QuantEdge" 
+                className="h-10 w-10 object-contain"
+              />
+            </div>
+            <div className="flex flex-col gap-1 leading-none">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-base">QuantEdge</span>
+                <span className="text-muted-foreground">×</span>
+                <UntitldLogo collapsed={false} className="text-sm" />
+              </div>
+              <span className="text-xs text-muted-foreground">Research Platform</span>
+            </div>
+          </>
+        )}
+      </Link>
+    </SidebarMenuButton>
+  );
+}
+
 export function AppSidebar() {
   const [location] = useLocation();
 
@@ -44,17 +89,7 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className="h-auto min-h-12 items-start px-4 py-3">
-              <Link href="/" data-testid="nav-home">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <TrendingUp className="h-4 w-4" />
-                </div>
-                <div className="flex flex-col gap-0.5 leading-none group-data-[collapsible=icon]:hidden">
-                  <span className="font-semibold">QuantEdge</span>
-                  <span className="text-xs text-muted-foreground">Research Platform</span>
-                </div>
-              </Link>
-            </SidebarMenuButton>
+            <SidebarHeaderContent />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
