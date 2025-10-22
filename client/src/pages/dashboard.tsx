@@ -105,6 +105,21 @@ export default function Dashboard() {
     queryKey: ['/api/performance/stats'],
   });
 
+  // Create price map from trade ideas (already includes live prices from backend)
+  const priceMap = tradeIdeas.reduce((acc, idea) => {
+    if (idea.currentPrice != null) {
+      acc[idea.symbol] = idea.currentPrice;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+  
+  // Fallback to market data for symbols not in trade ideas
+  marketData.forEach(data => {
+    if (!priceMap[data.symbol]) {
+      priceMap[data.symbol] = data.currentPrice;
+    }
+  });
+
   // Generate Quant Ideas mutation
   const generateQuantIdeas = useMutation({
     mutationFn: async () => {
@@ -563,7 +578,7 @@ export default function Dashboard() {
                 <TradeIdeaBlock
                   key={idea.id}
                   idea={idea}
-                  currentPrice={marketData.find(d => d.symbol === idea.symbol)?.currentPrice}
+                  currentPrice={priceMap[idea.symbol]}
                   onViewDetails={handleViewDetails}
                   onAddToWatchlist={handleAddToWatchlist}
                   data-testid={`preview-idea-${idea.id}`}
