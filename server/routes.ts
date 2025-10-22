@@ -753,14 +753,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const openIdeas = ideas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus);
       const uniqueSymbols = Array.from(new Set(openIdeas.map(i => i.symbol)));
       
-      // Fetch current prices for all trade idea symbols
+      // Fetch current prices for all trade idea symbols (including underlying stock prices for options)
       const stockSymbols = uniqueSymbols.filter(s => {
-        const idea = ideas.find(i => i.symbol === s);
-        return idea && (idea.assetType === 'stock' || idea.assetType === 'penny_stock');
+        const idea = openIdeas.find(i => i.symbol === s);
+        return idea && (idea.assetType === 'stock' || idea.assetType === 'penny_stock' || idea.assetType === 'option');
       });
       
       const cryptoSymbols = uniqueSymbols.filter(s => {
-        const idea = ideas.find(i => i.symbol === s);
+        const idea = openIdeas.find(i => i.symbol === s);
         return idea && idea.assetType === 'crypto';
       });
       
