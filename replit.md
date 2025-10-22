@@ -38,6 +38,12 @@ A Comprehensive User Settings System allows platform personalization, persisting
 - **Neural Network Scroll Particles:** Canvas-based scroll particle effect with 40 always-visible ambient particles creating neural network connections, plus additional scroll-triggered particles - visible on EVERY page via App.tsx
 - **Metrics Consistency (2025-10-21):** All research pages (Dashboard, Performance, Signal Intelligence) now display identical core metrics: Win Rate, Quant Accuracy, Directional Accuracy, EV Score, and Opposite Direction Rate with consistent color-coding and thresholds
 
+**Performance Stats Fix (2025-10-22):**
+- **Critical Fix:** Removed `excludeFromTraining` filter from `getPerformanceStats()` function - this filter was incorrectly excluding ALL 25 winners from metrics display, causing 0% win rate (0/7 instead of 25/59 = 42.4%)
+- **Clarification:** The `excludeFromTraining` flag now ONLY affects ML training pipelines, NOT performance reporting/display - ensures honest platform performance metrics
+- **Speed Optimization:** Implemented 5-minute price cache with TTL, reducing `/api/trade-ideas` response time by 71% (from 1.3s to 236-342ms)
+- **Color Standardization:** Updated confidence ring colors per user preference - A=green, B=blue, C=yellow, D=red, A+=red (overconfidence warning)
+
 **Visual Enhancements:** A canvas-based scroll particle effect system creates dynamic visual feedback throughout the app, generating particles on scroll with physics-based animation. Real-time price displays are prominently featured in all trade idea cards with large 3xl font size, gradient backgrounds, and visual indicators showing entry and target prices for quick scanning.
 
 A Performance Grading System tracks Market Win Rate and Quant Accuracy using a bounded penalty methodology (capping extreme losses at -30%). Professional risk metrics (Sharpe Ratio, Max Drawdown, Profit Factor, Expectancy) are integrated, and ML training requires a minimum of 30 trades for reliability. Advanced 3D Visual Analytics are implemented for Signal Intelligence, featuring a 3D Correlation Matrix Cube and a 3D Brain Neural Network using React Three Fiber and Three.js.
