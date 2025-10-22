@@ -790,23 +790,21 @@ export class MemStorage implements IStorage {
     console.log(`[STORAGE] getPerformanceStats called with filters:`, JSON.stringify(filters));
     console.log(`[STORAGE] Total ideas before filtering:`, originalCount);
     
-    // Apply date filters if provided
+    // Apply date filters if provided (filter by date portion only, avoiding timezone issues)
     if (filters?.startDate || filters?.endDate) {
       allIdeas = allIdeas.filter(idea => {
-        const ideaDate = new Date(idea.timestamp);
+        // Extract just the date portion (YYYY-MM-DD) from ISO timestamp
+        const ideaDateStr = idea.timestamp.split('T')[0];
+        
         if (filters.startDate) {
-          const start = new Date(filters.startDate);
-          start.setHours(0, 0, 0, 0); // Start of day
-          if (ideaDate < start) return false;
+          if (ideaDateStr < filters.startDate) return false;
         }
         if (filters.endDate) {
-          const end = new Date(filters.endDate);
-          end.setHours(23, 59, 59, 999); // Include entire end date
-          if (ideaDate > end) return false;
+          if (ideaDateStr > filters.endDate) return false;
         }
         return true;
       });
-      console.log(`📅 [PERF-STATS] Date filter: ${filters.startDate} to ${filters.endDate} → ${originalCount} ideas filtered to ${allIdeas.length}`);
+      logger.info(`[PERF-STATS] Date filter applied: ${filters.startDate} to ${filters.endDate} → ${originalCount} ideas filtered to ${allIdeas.length}`);
     }
     
     // Apply source filter if provided
@@ -1358,8 +1356,36 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(tradeIdeas).where(eq(tradeIdeas.outcomeStatus, 'open'));
   }
 
-  async getPerformanceStats(): Promise<PerformanceStats> {
-    const allIdeasRaw = await this.getAllTradeIdeas();
+  async getPerformanceStats(filters?: {
+    startDate?: string; // ISO date string (YYYY-MM-DD)
+    endDate?: string;   // ISO date string (YYYY-MM-DD)
+    source?: string;    // 'ai', 'quant', 'manual'
+  }): Promise<PerformanceStats> {
+    let allIdeasRaw = await this.getAllTradeIdeas();
+    const originalCount = allIdeasRaw.length;
+    
+    // Apply date filters if provided (filter by date portion only, avoiding timezone issues)
+    if (filters?.startDate || filters?.endDate) {
+      allIdeasRaw = allIdeasRaw.filter(idea => {
+        // Extract just the date portion (YYYY-MM-DD) from ISO timestamp
+        const ideaDateStr = idea.timestamp.split('T')[0];
+        
+        if (filters.startDate) {
+          if (ideaDateStr < filters.startDate) return false;
+        }
+        if (filters.endDate) {
+          if (ideaDateStr > filters.endDate) return false;
+        }
+        return true;
+      });
+      console.log(`[PERF-STATS] Date filter applied: ${filters.startDate || 'all'} to ${filters.endDate || 'all'} → ${originalCount} ideas filtered to ${allIdeasRaw.length}`);
+    }
+    
+    // Apply source filter if provided
+    if (filters?.source) {
+      allIdeasRaw = allIdeasRaw.filter(idea => idea.source === filters.source);
+      console.log(`[PERF-STATS] Source filter applied: ${filters.source} → ${allIdeasRaw.length} ideas`);
+    }
     
     // PERFORMANCE STATS: Include ALL trades to show honest platform performance
     // excludeFromTraining flag only affects ML training, not performance display
