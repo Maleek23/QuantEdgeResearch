@@ -54,7 +54,7 @@ export default function TradeIdeasPage() {
 
   // Create a map of symbol to current price from trade ideas (already includes live prices from backend)
   const priceMap = tradeIdeas.reduce((acc, idea) => {
-    if (idea.currentPrice) {
+    if (idea.currentPrice != null) { // Use != null to handle $0 edge case
       acc[idea.symbol] = idea.currentPrice;
     }
     return acc;
