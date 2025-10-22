@@ -124,8 +124,58 @@ export default function PerformancePage() {
   const [validationSummary, setValidationSummary] = useState({ validated: 0, updated: 0 });
   const { toast } = useToast();
 
+  // Calculate date filters for API
+  const apiFilters = useMemo(() => {
+    const now = new Date();
+    let startDate: string | undefined;
+    let endDate: string | undefined;
+    
+    switch (dateRange) {
+      case 'today':
+        startDate = format(startOfDay(now), 'yyyy-MM-dd');
+        endDate = format(now, 'yyyy-MM-dd');
+        break;
+      case '7d':
+        startDate = format(subDays(now, 7), 'yyyy-MM-dd');
+        break;
+      case '30d':
+        startDate = format(subDays(now, 30), 'yyyy-MM-dd');
+        break;
+      case '3m':
+        startDate = format(subMonths(now, 3), 'yyyy-MM-dd');
+        break;
+      case '1y':
+        startDate = format(subYears(now, 1), 'yyyy-MM-dd');
+        break;
+      case 'all':
+      default:
+        // No filters
+        break;
+    }
+    
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (sourceFilter !== 'all') params.append('source', sourceFilter);
+    
+    return params.toString() ? `?${params.toString()}` : '';
+  }, [dateRange, sourceFilter]);
+
   const { data: stats, isLoading } = useQuery<PerformanceStats>({
-    queryKey: ['/api/performance/stats'],
+    queryKey: ['/api/performance/stats', apiFilters],
+  });
+  
+  // Also fetch today's specific stats for prominent display
+  const todayParams = useMemo(() => {
+    const now = new Date();
+    const params = new URLSearchParams();
+    params.append('startDate', format(startOfDay(now), 'yyyy-MM-dd'));
+    params.append('endDate', format(now, 'yyyy-MM-dd'));
+    return `?${params.toString()}`;
+  }, []);
+  
+  const { data: todayStats } = useQuery<PerformanceStats>({
+    queryKey: ['/api/performance/stats', todayParams],
   });
 
   const { data: trends } = useQuery<TrendData>({
@@ -477,6 +527,7 @@ export default function PerformancePage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="today">Today Only</SelectItem>
               <SelectItem value="7d">Last 7 Days</SelectItem>
               <SelectItem value="30d">Last 30 Days</SelectItem>
               <SelectItem value="3m">Last 3 Months</SelectItem>
@@ -508,6 +559,110 @@ export default function PerformancePage() {
           </Badge>
         )}
       </div>
+
+      {/* TODAY'S PERFORMANCE SPOTLIGHT */}
+      {todayStats && todayStats.overall.totalIdeas > 0 && dateRange === 'all' && (
+        <Card className="glass-card shadow-xl border-2 border-primary/50 bg-gradient-to-br from-primary/5 via-card to-accent/5">
+          <CardHeader className="pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl font-bold flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-primary animate-pulse" />
+                  Today's Performance
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  {format(new Date(), 'EEEE, MMMM d, yyyy')} • {todayStats.overall.totalIdeas} trade ideas posted today
+                </CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDateRange('today')}
+                data-testid="button-view-today"
+                className="hover-elevate"
+              >
+                View Details
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="space-y-1">
+                <div className="text-sm text-muted-foreground">Ideas Posted</div>
+                <div className="text-2xl font-bold font-mono">{todayStats.overall.totalIdeas}</div>
+                <Badge variant="secondary" className="text-xs">
+                  {todayStats.overall.openIdeas} open
+                </Badge>
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm text-muted-foreground">Quant Accuracy</div>
+                <div className={`text-2xl font-bold font-mono ${
+                  todayStats.overall.quantAccuracy >= 70 ? 'text-green-500' : 
+                  todayStats.overall.quantAccuracy >= 50 ? 'text-amber-500' : 'text-red-500'
+                }`}>
+                  {todayStats.overall.quantAccuracy.toFixed(1)}%
+                </div>
+                <Badge variant={todayStats.overall.quantAccuracy >= 70 ? 'default' : 'secondary'} className="text-xs">
+                  {todayStats.overall.quantAccuracy >= 70 ? 'Strong' : 'Building'}
+                </Badge>
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm text-muted-foreground">Win Rate</div>
+                <div className={`text-2xl font-bold font-mono ${
+                  todayStats.overall.winRate >= 60 ? 'text-green-500' : 
+                  todayStats.overall.winRate >= 50 ? 'text-amber-500' : 
+                  todayStats.overall.winRate > 0 ? 'text-red-500' : 'text-muted-foreground'
+                }`}>
+                  {todayStats.overall.closedIdeas > 0 ? `${todayStats.overall.winRate.toFixed(1)}%` : 'N/A'}
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  {todayStats.overall.wonIdeas}W / {todayStats.overall.lostIdeas}L
+                </Badge>
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm text-muted-foreground">Directional Accuracy</div>
+                <div className={`text-2xl font-bold font-mono ${
+                  todayStats.overall.directionalAccuracy >= 70 ? 'text-green-500' : 
+                  todayStats.overall.directionalAccuracy >= 50 ? 'text-amber-500' : 'text-red-500'
+                }`}>
+                  {todayStats.overall.directionalAccuracy.toFixed(1)}%
+                </div>
+                <Badge variant="secondary" className="text-xs">
+                  25%+ to target
+                </Badge>
+              </div>
+            </div>
+            
+            {/* Today's Quick Recommendations */}
+            {todayStats.overall.quantAccuracy < 70 && (
+              <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                <div className="flex items-start gap-2">
+                  <Info className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-1 text-sm">
+                    <div className="font-semibold text-amber-600 dark:text-amber-400">
+                      Improvement Opportunities for Today
+                    </div>
+                    <ul className="space-y-1 text-muted-foreground">
+                      {todayStats.overall.quantAccuracy < 50 && (
+                        <li>• Consider reviewing entry timing on today's signals</li>
+                      )}
+                      {todayStats.overall.directionalAccuracy < 50 && (
+                        <li>• Multiple signals moving against prediction - check market conditions</li>
+                      )}
+                      {todayStats.bySource.find(s => s.source === 'quant')?.totalIdeas === 0 && (
+                        <li>• No quant signals posted today - run generator for fresh ideas</li>
+                      )}
+                      {todayStats.overall.openIdeas > 10 && (
+                        <li>• {todayStats.overall.openIdeas} open positions - monitor risk exposure</li>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Early-Stage Learning Phase Banner */}
       {stats.overall.closedIdeas < 20 && (

@@ -1140,6 +1140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Cache miss - fetch fresh data with filters
       logger.info(`[PERF-STATS] Cache miss for filters: ${cacheKey} - fetching fresh data`);
+      logger.info(`[PERF-STATS] Filter values: startDate=${startDate}, endDate=${endDate}, source=${source}`);
       const filters = { startDate, endDate, source };
       const stats = await storage.getPerformanceStats(filters);
       

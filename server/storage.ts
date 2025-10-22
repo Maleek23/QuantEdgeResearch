@@ -785,6 +785,10 @@ export class MemStorage implements IStorage {
     source?: string;    // 'ai', 'quant', 'manual'
   }): Promise<PerformanceStats> {
     let allIdeas = Array.from(this.tradeIdeas.values());
+    const originalCount = allIdeas.length;
+    
+    console.log(`[STORAGE] getPerformanceStats called with filters:`, JSON.stringify(filters));
+    console.log(`[STORAGE] Total ideas before filtering:`, originalCount);
     
     // Apply date filters if provided
     if (filters?.startDate || filters?.endDate) {
@@ -792,6 +796,7 @@ export class MemStorage implements IStorage {
         const ideaDate = new Date(idea.timestamp);
         if (filters.startDate) {
           const start = new Date(filters.startDate);
+          start.setHours(0, 0, 0, 0); // Start of day
           if (ideaDate < start) return false;
         }
         if (filters.endDate) {
@@ -801,6 +806,7 @@ export class MemStorage implements IStorage {
         }
         return true;
       });
+      console.log(`📅 [PERF-STATS] Date filter: ${filters.startDate} to ${filters.endDate} → ${originalCount} ideas filtered to ${allIdeas.length}`);
     }
     
     // Apply source filter if provided
