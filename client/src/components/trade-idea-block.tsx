@@ -21,6 +21,7 @@ import { ConfidenceCircle } from "@/components/confidence-circle";
 import { MiniSparkline } from "@/components/mini-sparkline";
 import { SignalStrengthBars } from "@/components/signal-strength-bars";
 import { EnhancedCountdown } from "@/components/enhanced-countdown";
+import { TimingDisplay } from "@/components/timing-display";
 import type { TradeIdea, Catalyst } from "@shared/schema";
 
 interface TradeIdeaBlockProps {
@@ -141,18 +142,20 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
     >
       <CollapsibleTrigger className="w-full" data-testid={`block-trade-idea-${idea.symbol}`}>
         <div className="p-6 border rounded-lg bg-card hover-elevate transition-all block">
-          {/* Header: Symbol + Direction + Holding Period + Grade */}
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <h3 className="text-xl font-semibold" data-testid={`text-symbol-${idea.symbol}`}>
-                {idea.symbol}
-              </h3>
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Source Badge (AI vs Quant) */}
+          {/* ===== HEADER SECTION ===== */}
+          <div className="flex items-start justify-between mb-5">
+            <div className="flex-1 min-w-0">
+              {/* Symbol + Primary Badges */}
+              <div className="flex items-center gap-3 mb-3 flex-wrap">
+                <h3 className="text-2xl font-bold font-mono" data-testid={`text-symbol-${idea.symbol}`}>
+                  {idea.symbol}
+                </h3>
+                
+                {/* Source Badge */}
                 <Badge 
                   variant="outline"
                   className={cn(
-                    "font-semibold border-2",
+                    "font-semibold border-2 text-xs",
                     idea.source === 'ai' 
                       ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/50" 
                       : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/50"
@@ -169,7 +172,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 {/* Direction Badge */}
                 <Badge 
                   variant={isLong ? "default" : "destructive"}
-                  className="font-semibold"
+                  className="font-semibold text-xs"
                   data-testid={`badge-direction-${idea.symbol}`}
                 >
                   {isLong ? (
@@ -183,7 +186,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 <Badge 
                   variant="outline"
                   className={cn(
-                    "font-medium",
+                    "font-medium text-xs",
                     idea.holdingPeriod === 'day' && "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
                     idea.holdingPeriod === 'swing' && "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30",
                     idea.holdingPeriod === 'position' && "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30",
@@ -197,40 +200,39 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   {idea.holdingPeriod === 'week-ending' && <><Clock className="h-3 w-3 mr-1" />WEEK-ENDING</>}
                 </Badge>
 
+                {/* Asset Type Badge */}
+                <Badge variant="outline" className="text-xs font-medium">
+                  {idea.assetType === 'stock' ? 'Stock Shares' : 
+                   idea.assetType === 'penny_stock' ? 'Penny Stock' : 
+                   idea.assetType === 'option' ? 'Stock Options' : 
+                   'Crypto'}
+                </Badge>
+
                 {/* Earnings Warning Badge */}
                 {upcomingEarnings && (
                   <Badge 
                     variant="destructive"
-                    className="font-semibold animate-pulse"
+                    className="font-semibold animate-pulse text-xs"
                     data-testid={`badge-earnings-${idea.symbol}`}
                   >
                     <Calendar className="h-3 w-3 mr-1" />
                     EARNINGS {new Date(upcomingEarnings.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </Badge>
                 )}
-                
-                <span className="text-sm text-muted-foreground">
-                  {idea.assetType === 'stock' ? 'Stock Shares' : 
-                   idea.assetType === 'penny_stock' ? 'Penny Stock' : 
-                   idea.assetType === 'option' ? 'Stock Options' : 
-                   'Crypto'}
+              </div>
+
+              {/* Metadata Row */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                <span className="font-medium" data-testid={`text-date-${idea.symbol}`}>
+                  {getFormattedDate()}
                 </span>
-                <span className="mx-1.5 text-muted-foreground">·</span>
-                <span className="text-xs font-medium text-muted-foreground" data-testid={`text-date-${idea.symbol}`}>{getFormattedDate()}</span>
-                <span className="mx-1.5 text-muted-foreground">·</span>
-                <span className="text-xs text-muted-foreground">{getTimeSincePosted()}</span>
+                <span>·</span>
+                <span>{getTimeSincePosted()}</span>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              {/* Enhanced Countdown Timer (for open ideas) */}
-              {idea.outcomeStatus === 'open' && idea.exitBy && (
-                <EnhancedCountdown 
-                  exitBy={idea.exitBy} 
-                  assetType={idea.assetType}
-                  showFullDate={idea.assetType === 'option'}
-                />
-              )}
-              
+
+            {/* Right Side: Confidence Grade + Expand Button */}
+            <div className="flex items-center gap-4 flex-shrink-0">
               {/* Outcome Badge for closed ideas */}
               {idea.outcomeStatus && idea.outcomeStatus !== 'open' && (
                 <Badge 
@@ -239,7 +241,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     idea.outcomeStatus === 'hit_stop' ? 'destructive' : 
                     'secondary'
                   }
-                  className="font-semibold"
+                  className="font-semibold text-xs"
                   data-testid={`badge-outcome-${idea.symbol}`}
                 >
                   {idea.outcomeStatus === 'hit_target' ? 'HIT TARGET' :
@@ -249,10 +251,9 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 </Badge>
               )}
               
-              {/* Circular Confidence Indicator */}
               <ConfidenceCircle 
                 score={idea.confidenceScore} 
-                size="md" 
+                size="lg" 
                 showLabel={false}
               />
               
@@ -265,42 +266,86 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
             </div>
           </div>
 
-          {/* PROMINENT CURRENT PRICE DISPLAY */}
-          <div className="mb-4 p-4 rounded-lg border-2 bg-gradient-to-r from-blue-500/5 to-purple-500/5 border-blue-500/20">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current Price</span>
-              {currentPrice && (
-                <span className={cn(
-                  "text-xs font-bold px-2 py-0.5 rounded-full",
-                  priceChangePercent >= 0 ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
-                )}>
-                  {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
-                </span>
+          {/* ===== TIMING SECTION ===== */}
+          {idea.outcomeStatus === 'open' && (
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              {/* Enter When */}
+              {idea.entryValidUntil && (
+                <TimingDisplay 
+                  timestamp={idea.entryValidUntil}
+                  label="Enter When"
+                  showCountdown={new Date(idea.entryValidUntil) > new Date()}
+                />
+              )}
+              
+              {/* Exit By */}
+              {idea.exitBy && (
+                <TimingDisplay 
+                  timestamp={idea.exitBy}
+                  label="Exit By"
+                  showCountdown={true}
+                />
               )}
             </div>
+          )}
+
+          {/* ===== PRICE DISPLAY SECTION ===== */}
+          <div className="mb-5 p-5 rounded-lg border bg-gradient-to-br from-card via-card to-muted/5">
             {currentPrice ? (
-              <div className="flex items-baseline gap-3">
-                <span className={cn(
-                  "text-3xl font-bold font-mono",
-                  priceUpdated && "price-update"
-                )} data-testid={`text-current-price-${idea.symbol}`}>
-                  {formatCurrency(currentPrice)}
-                </span>
-                <div className="flex flex-col text-xs text-muted-foreground">
-                  <span>Entry: {formatCurrency(idea.entryPrice)}</span>
-                  <span>Target: {formatCurrency(idea.targetPrice)}</span>
+              <div className="space-y-4">
+                {/* Current Price with Change */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      CURRENT PRICE
+                    </span>
+                    <span className={cn(
+                      "text-sm font-bold px-2.5 py-1 rounded-md",
+                      priceChangePercent >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+                    )}>
+                      {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
+                    </span>
+                  </div>
+                  <div className={cn(
+                    "text-4xl font-bold font-mono",
+                    priceUpdated && "price-update"
+                  )} data-testid={`text-current-price-${idea.symbol}`}>
+                    {formatCurrency(currentPrice)}
+                  </div>
+                </div>
+
+                {/* Entry/Target/Stop Grid */}
+                <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border/50">
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Entry</div>
+                    <div className="text-lg font-semibold font-mono">{formatCurrency(idea.entryPrice)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-green-400 mb-1 uppercase tracking-wide flex items-center gap-1">
+                      <Target className="h-3 w-3" />
+                      Target
+                    </div>
+                    <div className="text-lg font-semibold font-mono text-green-400">{formatCurrency(idea.targetPrice)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-red-400 mb-1 uppercase tracking-wide flex items-center gap-1">
+                      <Shield className="h-3 w-3" />
+                      Stop
+                    </div>
+                    <div className="text-lg font-semibold font-mono text-red-400">{formatCurrency(idea.stopLoss)}</div>
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Activity className="h-5 w-5 animate-pulse" />
-                <div className="flex flex-col">
-                  <span className="text-xl font-bold font-mono">
+              <div className="flex items-center gap-3 text-muted-foreground py-2">
+                <Activity className="h-6 w-6 animate-pulse" />
+                <div>
+                  <div className="text-xl font-bold font-mono">
                     Fetching price...
-                  </span>
-                  <span className="text-xs">
+                  </div>
+                  <div className="text-xs">
                     Entry: {formatCurrency(idea.entryPrice)} • Target: {formatCurrency(idea.targetPrice)}
-                  </span>
+                  </div>
                 </div>
               </div>
             )}
