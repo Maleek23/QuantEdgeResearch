@@ -126,7 +126,9 @@ export const tradeIdeas = pgTable("trade_ideas", {
 
 export const insertTradeIdeaSchema = createInsertSchema(tradeIdeas).omit({ id: true });
 export type InsertTradeIdea = z.infer<typeof insertTradeIdeaSchema>;
-export type TradeIdea = typeof tradeIdeas.$inferSelect;
+export type TradeIdea = typeof tradeIdeas.$inferSelect & {
+  currentPrice?: number | null; // Dynamically added by backend with live price data
+};
 
 // Data Source Type
 export type DataSource = 'seed' | 'live';

@@ -52,11 +52,20 @@ export default function TradeIdeasPage() {
     refetchInterval: 3600000, // Refresh every hour
   });
 
-  // Create a map of symbol to current price
-  const priceMap = marketData.reduce((acc, data) => {
-    acc[data.symbol] = data.currentPrice;
+  // Create a map of symbol to current price from trade ideas (already includes live prices from backend)
+  const priceMap = tradeIdeas.reduce((acc, idea) => {
+    if (idea.currentPrice) {
+      acc[idea.symbol] = idea.currentPrice;
+    }
     return acc;
   }, {} as Record<string, number>);
+  
+  // Fallback to market data for symbols not in trade ideas
+  marketData.forEach(data => {
+    if (!priceMap[data.symbol]) {
+      priceMap[data.symbol] = data.currentPrice;
+    }
+  });
 
   // Generate Quant Ideas mutation
   const generateQuantIdeas = useMutation({
