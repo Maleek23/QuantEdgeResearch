@@ -106,21 +106,22 @@ export function ScrollParticles() {
       
       // Update and draw particles
       particlesRef.current.forEach(particle => {
-        // Apply velocity dampening for smooth deceleration
-        particle.vx *= 0.97;
-        particle.vy *= 0.97;
-        
-        // Gradually reduce opacity back to normal
-        if (!particle.isAmbient && particle.opacity > 0.5) {
-          particle.opacity *= 0.98;
-        }
-        
-        // Keep ambient particles at minimum velocity
+        // Ambient particles: CONSTANT velocity like landing page
         if (particle.isAmbient) {
+          // Maintain constant gentle movement (no dampening for ambient)
           const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
-          if (speed < 0.15) {
-            particle.vx = (Math.random() - 0.5) * 0.2;
-            particle.vy = (Math.random() - 0.5) * 0.2;
+          if (speed < 0.1 || speed > 0.3) {
+            particle.vx = (Math.random() - 0.5) * 0.4;
+            particle.vy = (Math.random() - 0.5) * 0.4;
+          }
+        } else {
+          // Scroll particles: Apply velocity dampening
+          particle.vx *= 0.97;
+          particle.vy *= 0.97;
+          
+          // Gradually reduce opacity back to normal
+          if (particle.opacity > 0.5) {
+            particle.opacity *= 0.98;
           }
         }
         
