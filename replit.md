@@ -7,8 +7,8 @@ QuantEdge Research is a professional quantitative trading research platform desi
 - **Holographic Trading Floor:** New 3D visualization page with Matrix-style data rain, orbiting metrics, and deep space aesthetic using React Three Fiber. Includes WebGL fallback for unsupported environments.
 - **Grid Layout Fix:** Trade Ideas page grid reduced from 3 columns to 2 columns max to prevent confidence rings from being cut off.
 - **Performance Metrics Fix:** Added missing fields to PerformanceStats interface (evScore, adjustedWeightedAccuracy, oppositeDirectionRate, oppositeDirectionCount, avgWinSize, avgLossSize).
-- **Win Rate Display Bug Fix:** Fixed double multiplication bug where win rates were showing 0-10000% instead of 0-100% in Signal Intelligence page.
-- **WebGL Error Fix:** Removed missing font reference in holographic view that caused "replit" runtime errors.
+- **Win Rate Display Bug Fix:** Fixed double multiplication bug where win rates were showing 0-10000% instead of 0-100% in Signal Intelligence and Brain Neural Network components.
+- **Vite Plugin Error Fix:** Resolved "Cannot read properties of undefined (reading 'replit')" errors by lazy-loading 3D components (holographic-scene.tsx, brain-scene.tsx) to prevent Vite Replit plugins from instrumenting Three.js code during initial build. Both Holographic View and ML Network now load without runtime errors.
 
 ## User Preferences
 All timestamps should be displayed in America/Chicago timezone with market session context.
