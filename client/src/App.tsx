@@ -21,6 +21,7 @@ import LearningPage from "@/pages/learning";
 import AnalyticsPage from "@/pages/analytics";
 import SettingsPage from "@/pages/settings";
 import AdminPanel from "@/pages/admin";
+import HolographicView from "@/pages/holographic-view";
 import About from "@/pages/about";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import TermsOfService from "@/pages/terms-of-service";
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/signals" component={SignalIntelligencePage} />
       <Route path="/learning" component={LearningPage} />
       <Route path="/analytics" component={AnalyticsPage} />
+      <Route path="/holographic" component={HolographicView} />
       <Route path="/settings" component={SettingsPage} />
       <Route path="/admin" component={AdminPanel} />
       <Route path="/about" component={About} />
