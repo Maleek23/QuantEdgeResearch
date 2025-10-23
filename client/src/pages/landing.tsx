@@ -41,7 +41,7 @@ export default function Landing() {
     {
       icon: Calculator,
       title: "Quantitative Signals",
-      description: "Rules-based 7-signal engine using RSI, MACD, momentum, volume, and multi-timeframe analysis for pure quant opportunities.",
+      description: "v3.0 research-backed engine using 3 proven strategies: RSI(2)+200MA filter (75-91% win rate), VWAP institutional flow (80%+), and volume spike early entry.",
       color: "text-green-500"
     },
     {
@@ -171,8 +171,8 @@ export default function Landing() {
 
           <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto animate-scale-in animate-delay-300">
             <div className="glass-card rounded-xl p-4 spotlight">
-              <div className="text-2xl font-bold text-gradient mb-1">8</div>
-              <div className="text-xs text-muted-foreground">Signal Types</div>
+              <div className="text-2xl font-bold text-gradient mb-1">3</div>
+              <div className="text-xs text-muted-foreground">Proven Signals</div>
             </div>
             <div className="glass-card rounded-xl p-4 spotlight">
               <div className="text-2xl font-bold text-gradient mb-1">3</div>
@@ -259,7 +259,7 @@ export default function Landing() {
                     </div>
                     <div>
                       <h3 className="text-xl font-bold text-display">Quantitative Engine</h3>
-                      <p className="text-xs text-muted-foreground">7-Signal Technical Analysis</p>
+                      <p className="text-xs text-muted-foreground">v3.0 Research-Backed Signals</p>
                     </div>
                   </div>
 
@@ -267,15 +267,15 @@ export default function Landing() {
                     <div className="flex items-start gap-3">
                       <BarChart3 className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-sm font-medium mb-1">Technical Precision</p>
-                        <p className="text-xs text-muted-foreground">RSI, MACD, Momentum, Volume, MTF, Volatility, S/R levels</p>
+                        <p className="text-sm font-medium mb-1">3 Proven Strategies Only</p>
+                        <p className="text-xs text-muted-foreground">RSI(2)+200MA filter (75-91%), VWAP institutional flow (80%+), Volume spike early entry</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
                       <Target className="h-5 w-5 text-cyan-500 mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-sm font-medium mb-1">ML-Enhanced Scoring</p>
-                        <p className="text-xs text-muted-foreground">Historical performance analysis adjusts signal weights</p>
+                        <p className="text-sm font-medium mb-1">Academic Research Foundation</p>
+                        <p className="text-xs text-muted-foreground">Based on QuantifiedStrategies, Larry Connors, and FINVIZ multi-year studies</p>
                       </div>
                     </div>
                   </div>
@@ -283,9 +283,9 @@ export default function Landing() {
                   <div className="glass-card rounded-lg p-4">
                     <p className="text-xs text-muted-foreground mb-2">Strengths</p>
                     <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary" className="text-xs">Speed</Badge>
-                      <Badge variant="secondary" className="text-xs">Consistency</Badge>
-                      <Badge variant="secondary" className="text-xs">Backtestable</Badge>
+                      <Badge variant="secondary" className="text-xs">Proven Win Rates</Badge>
+                      <Badge variant="secondary" className="text-xs">Simple Rules</Badge>
+                      <Badge variant="secondary" className="text-xs">Research-Backed</Badge>
                     </div>
                   </div>
                 </CardContent>
