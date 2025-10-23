@@ -33,7 +33,7 @@ The platform employs a multi-page, publicly accessible architecture with members
 
 ### Data Sources
 -   **CoinGecko API:** Crypto (real-time prices, historical data, market cap, discovery).
--   **Yahoo Finance:** Stocks (real-time quotes, discovery via screener, historical data). **Predictive Discovery**: Scans ~500 stocks per run (250 most active, 100 small-cap gainers, 150 undervalued). Prioritizes unusual volume (3x+) with small price changes (<5%) to catch stocks BEFORE big moves, not after. Retry logic handles rate limiting.
+-   **Yahoo Finance:** Stocks (real-time quotes, discovery via screener, historical data). **Predictive Discovery System**: Scans ~500 stocks per run (250 most active, 100 small-cap gainers, 150 undervalued) with 5-filter enforcement: (1) Real avg volume data required, (2) Intraday high data required, (3) Volume ratio ≥3x, (4) Bullish 0-3% move only, (5) Price within 5% of day high (gap-and-fade rejection). This catches stocks BEFORE big moves during early accumulation, not after rallies. Retry logic handles rate limiting.
 -   **Alpha Vantage API:** Fallback for Stock historical data, Earnings calendar.
 -   **Tradier API:** Options data (chains, delta targeting, live pricing).
 

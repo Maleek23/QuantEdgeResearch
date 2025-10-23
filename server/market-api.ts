@@ -527,6 +527,8 @@ interface StockGem {
   volume: number;
   marketCap: number;
   avgVolume?: number; // For volume ratio calculation
+  dayHigh?: number;   // Intraday high to detect gap-and-fade
+  dayLow?: number;    // Intraday low for reference
 }
 
 export async function discoverStockGems(limit: number = 30): Promise<StockGem[]> {
@@ -593,8 +595,10 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
             const price = quote.regularMarketPrice?.raw || quote.regularMarketPrice;
             const change = quote.regularMarketChangePercent?.raw || quote.regularMarketChangePercent || 0;
             const volume = quote.regularMarketVolume?.raw || quote.regularMarketVolume || 0;
-            const avgVolume = quote.averageDailyVolume3Month?.raw || quote.averageDailyVolume3Month || volume;
+            const avgVolume = quote.averageDailyVolume3Month?.raw || quote.averageDailyVolume3Month;
             const marketCap = quote.marketCap?.raw || quote.marketCap || 0;
+            const dayHigh = quote.regularMarketDayHigh?.raw || quote.regularMarketDayHigh;
+            const dayLow = quote.regularMarketDayLow?.raw || quote.regularMarketDayLow;
             
             if (!price || price < 1 || price > 500) continue;
             if (volume < 100000) continue; // Minimum 100K volume
@@ -608,7 +612,9 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
               changePercent: change,
               volume: volume,
               marketCap: marketCap,
-              avgVolume: avgVolume
+              avgVolume: avgVolume,
+              dayHigh: dayHigh,
+              dayLow: dayLow
             });
           }
         } catch (error) {
@@ -628,39 +634,72 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
       }
     });
     
-    // PREDICTIVE SORTING:
-    // Prioritize stocks with UNUSUAL VOLUME (3x+) and SMALL PRICE MOVES (<5%)
-    // These are early accumulation signals BEFORE the big move
+    // PREDICTIVE FILTERING + SCORING:
+    // HARD REQUIREMENTS: Volume ratio ≥ 3x AND bullish 0-3% AND near day high
+    // This ensures we ONLY surface early accumulation signals, not reactive chasing or gap-and-fade
     const sortedGems = Array.from(uniqueGems.values())
-      .map(gem => {
-        const volumeRatio = gem.avgVolume ? gem.volume / gem.avgVolume : 1;
-        const priceChangeAbs = Math.abs(gem.changePercent);
+      .filter(gem => {
+        // DATA QUALITY FILTERS: Require REAL data, not defaults/fallbacks
+        // Reject if missing average volume (can't calculate ratio accurately)
+        if (!gem.avgVolume || gem.avgVolume === 0) {
+          return false;
+        }
         
-        // Score formula: High volume + small price change = best early signal
-        // Perfect score: 5x volume, 0% price change (institutions accumulating before news)
+        // Reject if missing day high (can't detect gap-and-fade)
+        if (!gem.dayHigh || gem.dayHigh === 0) {
+          return false;
+        }
+        
+        const volumeRatio = gem.volume / gem.avgVolume;
+        
+        // CRITICAL FILTERS: Must meet ALL to be predictive
+        const hasUnusualVolume = volumeRatio >= 3.0;           // 3x+ average volume
+        const isBullish = gem.changePercent >= 0;               // Only bullish (exclude selloffs)
+        const hasSmallMove = gem.changePercent < 3.0;          // Less than 3% gain (exclude big gap-ups)
+        
+        // GAP-AND-FADE FILTER: Price must be within 5% of day high
+        // This rejects stocks that spiked and faded (e.g., +15% open → +2% close)
+        const nearDayHigh = (gem.currentPrice / gem.dayHigh) >= 0.95;
+        
+        // Perfect target: AAPL with 4x volume, +0.8% gain, price = day high = institutions accumulating
+        // Rejected: Stock that gapped +15%, faded to +2.5% (currentPrice/dayHigh = 0.875 < 0.95)
+        // Rejected: Stock with 3x volume but -2% = selloff, not accumulation
+        // Rejected: Stock missing dayHigh or avgVolume data = unreliable signal
+        return hasUnusualVolume && isBullish && hasSmallMove && nearDayHigh;
+      })
+      .map(gem => {
+        const volumeRatio = gem.volume / gem.avgVolume!; // Safe: filtered above
+        
+        // Score formula: High volume + minimal bullish price change = best early signal
+        // Perfect score: 5x volume, +0.5% gain = institutions accumulating before news
         let score = 0;
         
         // Volume component (0-60 points): Higher volume = better
         if (volumeRatio >= 5) score += 60;
+        else if (volumeRatio >= 4) score += 55;
         else if (volumeRatio >= 3) score += 50;
-        else if (volumeRatio >= 2) score += 35;
-        else if (volumeRatio >= 1.5) score += 20;
-        else score += 10;
         
-        // Price change component (0-40 points): SMALLER change = better (we want early signals)
-        if (priceChangeAbs < 1) score += 40;        // Best: minimal price move
-        else if (priceChangeAbs < 2) score += 30;   // Good: small move
-        else if (priceChangeAbs < 3) score += 20;   // OK: moderate move
-        else if (priceChangeAbs < 5) score += 10;   // Late: significant move
-        else score += 0;                             // Too late: big move already happened
+        // Price change component (0-40 points): SMALLER bullish move = better
+        // Note: gem.changePercent is already 0-3% due to filter
+        if (gem.changePercent < 0.5) score += 40;      // Best: minimal price move
+        else if (gem.changePercent < 1.0) score += 35;  // Excellent: tiny move
+        else if (gem.changePercent < 1.5) score += 30;  // Good: small move
+        else if (gem.changePercent < 2.0) score += 25;  // OK: moderate move
+        else score += 20;                               // Acceptable: <3% move
         
         return { ...gem, volumeRatio, score };
       })
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
     
-    logger.info(`🎯 PREDICTIVE SCAN: ${sortedGems.length} stocks found (prioritizing unusual volume + small price moves)`);
-    logger.info(`   Top 5: ${sortedGems.slice(0, 5).map(g => `${g.symbol} (${g.changePercent > 0 ? '+' : ''}${g.changePercent.toFixed(1)}%, ${g.volumeRatio?.toFixed(1)}x vol)`).join(', ')}`);
+    const totalScanned = uniqueGems.size;
+    const passedFilters = sortedGems.length;
+    const rejectionRate = totalScanned > 0 ? ((totalScanned - passedFilters) / totalScanned * 100).toFixed(1) : '0.0';
+    
+    logger.info(`🎯 PREDICTIVE SCAN: ${passedFilters}/${totalScanned} stocks passed filters (${rejectionRate}% rejected)`);
+    if (passedFilters > 0) {
+      logger.info(`   Top 5: ${sortedGems.slice(0, 5).map(g => `${g.symbol} (+${g.changePercent.toFixed(1)}%, ${g.volumeRatio?.toFixed(1)}x vol, ${((g.currentPrice / g.dayHigh!) * 100).toFixed(1)}% of high)`).join(', ')}`);
+    }
     
     return sortedGems;
   } catch (error) {
