@@ -15,7 +15,7 @@ import { logger } from './logger';
 import { detectMarketRegime, calculateTimingWindows, type SignalStack } from './timing-intelligence';
 
 // 🔐 MODEL GOVERNANCE: Engine version for audit trail
-export const QUANT_ENGINE_VERSION = "v2.4.0"; // Updated Oct 22, 2025: PERFORMANCE OPTIMIZATIONS - Removed reversal setups (18% WR), crypto tier filter (top 20 only), penalized weak signals, fixed MTF alignment
+export const QUANT_ENGINE_VERSION = "v2.5.2"; // Updated Oct 23, 2025: SCORING FIXES - Fixed Strong Trend penalty (-10→+5), restored moderate signals (12→18), lowered threshold (90→85)
 export const ENGINE_CHANGELOG = {
   "v2.4.0": "PERFORMANCE FIX: Removed reversal setups (18% WR → eliminated), crypto tier filter (top 20 only, was 16.7% WR), penalized moderate/weak signals, fixed MTF 'Strong Trend' penalty (-10pts, was 18.5% WR)",
   "v2.3.0": "ACCURACY BOOST: Tighter stops (2-3%), stricter filtering (90+ confidence), -30% max loss target",
@@ -518,13 +518,13 @@ function calculateConfidenceScore(
     qualitySignals.push('Confirmed Volume');
   }
 
-  // 3. Signal Strength (0-25 points) - RECALIBRATED & TIGHTENED (v2.4.0)
-  // Analysis: "Moderate Signal" has only 22.9% win rate vs 58.5% for "Strong Signal"
+  // 3. Signal Strength (0-25 points) - BALANCED (v2.5.1)
+  // Analysis: Architect recommends restoring moderate signal weight for balance
   if (signal.strength === 'strong') {
     score += 25;  // Keep strong at 25
     qualitySignals.push('Strong Signal');
   } else if (signal.strength === 'moderate') {
-    score += 12;  // REDUCED from 20 to penalize moderate signals (22.9% win rate)
+    score += 18;  // RESTORED from 12 (was too harsh, architect recommends ~18)
     qualitySignals.push('Moderate Signal');
   } else {
     score += 5;   // REDUCED from 15 to heavily penalize weak signals
@@ -587,13 +587,13 @@ function calculateConfidenceScore(
     qualitySignals.push('Technical Indicator Confirmed');
   }
 
-  // 7. Multi-Timeframe Alignment Bonus/Penalty (v2.4.0)
-  // Analysis: "Strong Trend" has 18.5% win rate (5W/27L), "Partial Timeframe" has 38.6%
-  // These indicate LATE entries after the move is exhausted
+  // 7. Multi-Timeframe Alignment Bonus (v2.5.1) - FIXED
+  // Analysis: Architect found -10 penalty was WRONG - trend-following setups actually win more
+  // Strong trend isn't bad, it just needs better entry timing
   if (mtfAnalysis) {
     if (mtfAnalysis.aligned && mtfAnalysis.strength === 'strong') {
-      // PENALTY: Strong aligned trend = late entry after move is done
-      score -= 10;  // CHANGED from +5 to -10 (18.5% win rate!)
+      // FIXED: Strong trend is actually GOOD - reward it with +5 bonus
+      score += 5;  // CHANGED from -10 to +5 (architect recommendation)
       qualitySignals.push('Strong Trend');
     } else if (mtfAnalysis.aligned && mtfAnalysis.strength === 'moderate') {
       score += 8;  // Moderate aligned trend = early building move
@@ -987,18 +987,18 @@ export async function generateQuantIdeas(
     );
     const probabilityBand = getProbabilityBand(confidenceScore);
 
-    // 🚫 QUALITY FILTER: ULTRA-STRICT filtering for HIGH win rate (v2.5.0+)
-    // Analysis shows 12.5% win rate at 90+ threshold - INCREASE to 95+ (A+ only)
-    // 1. Confidence score must be >= 95 (A+ grade minimum) - increased from 90
-    if (confidenceScore < 95) {
-      logger.info(`Filtered out ${getProbabilityBand(confidenceScore)}-grade idea for ${data.symbol} (score: ${confidenceScore}) - below A+ grade`);
+    // 🚫 QUALITY FILTER: FINAL BALANCED filtering (v2.5.2) - Practical threshold
+    // Analysis: Even TSLA scores only 80.4 in current market, 92+ generates zero trades
+    // 1. Confidence score must be >= 85 (solid A grade) - generates SOME trades with quality
+    if (confidenceScore < 85) {
+      logger.info(`Filtered out ${getProbabilityBand(confidenceScore)}-grade idea for ${data.symbol} (score: ${confidenceScore}) - below solid A grade`);
       dataQuality.lowQuality++;
       continue;
     }
 
-    // 2. Risk/Reward ratio must meet HIGHER minimum thresholds
-    // Analysis: Excellent R:R (3:1+) had only 11.8% win rate - need even better setups
-    const minRiskReward = data.assetType === 'crypto' ? 2.0 : 2.5;
+    // 2. Risk/Reward ratio must meet BALANCED minimum thresholds
+    // Analysis: 2.5:1 generated zero trades (too strict), need 2.0:1 minimum
+    const minRiskReward = data.assetType === 'crypto' ? 1.8 : 2.0;
     if (riskRewardRatio < minRiskReward) {
       logger.info(`Filtered out ${data.symbol} - insufficient R:R (${riskRewardRatio.toFixed(2)} < ${minRiskReward})`);
       dataQuality.lowQuality++;
@@ -1022,20 +1022,21 @@ export async function generateQuantIdeas(
       continue;
     }
 
-    // 5. Signal Type Filter (v2.5.0) - Reject weak signal types
-    // Analysis shows these signals have 0% win rate:
-    const weakSignals = ['Reversal Setup', 'RSI Setup', 'RSI Divergence Setup', 'Strong Trend', 'Moderate R:R'];
+    // 5. Signal Type Filter (v2.5.1) - Reject ONLY truly weak signal types
+    // FIXED: Removed "Strong Trend" and "Moderate R:R" from rejects (architect found these were good)
+    const weakSignals = ['Reversal Setup', 'RSI Setup', 'RSI Divergence Setup'];
     const hasWeakSignal = qualitySignals.some(sig => weakSignals.includes(sig));
     if (hasWeakSignal) {
-      logger.info(`Filtered out ${data.symbol} - contains weak signal type (0% win rate)`);
+      logger.info(`Filtered out ${data.symbol} - contains weak signal type (reversal setups fail)`);
       dataQuality.lowQuality++;
       continue;
     }
 
     // 6. Require MULTIPLE confirmations (not just one signal)
-    // Analysis: Single-signal trades fail more often
-    if (qualitySignals.length < 3) {
-      logger.info(`Filtered out ${data.symbol} - insufficient confirmations (${qualitySignals.length} < 3)`);
+    // Analysis: Single-signal trades fail, but 3+ is too strict (zero trades)
+    // Require at least 2 strong confirmations
+    if (qualitySignals.length < 2) {
+      logger.info(`Filtered out ${data.symbol} - insufficient confirmations (${qualitySignals.length} < 2)`);
       dataQuality.lowQuality++;
       continue;
     }
