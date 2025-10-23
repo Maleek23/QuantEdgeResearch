@@ -163,18 +163,20 @@ For each trade idea, provide:
 - symbol: Stock ticker or crypto symbol
 - assetType: "stock", "option", or "crypto"
 - direction: "long" or "short"
-- entryPrice: Current realistic market price for the symbol
-- targetPrice: MUST be HIGHER than entryPrice for long trades, LOWER for short trades
-- stopLoss: MUST be LOWER than entryPrice for long trades, HIGHER for short trades
+- entryPrice: Current realistic market price (for stocks/crypto use stock price, for options use option premium like $5-$20)
+- targetPrice: Price target (MUST follow direction rules below)
+- stopLoss: Stop loss price (MUST follow direction rules below)
 - catalyst: Key catalyst driving this trade (1-2 sentences)
 - analysis: Technical/fundamental analysis (2-3 sentences)
 - sessionContext: Market session context
 - expiryDate: (only for options, format: "YYYY-MM-DD")
 
 CRITICAL PRICE RULES:
-- For LONG trades: targetPrice > entryPrice > stopLoss
-- For SHORT trades: stopLoss > entryPrice > targetPrice
-- Use realistic current market prices (SPY ~$580, NVDA ~$140, BTC ~$67000, ETH ~$2600)
+- For LONG stocks/crypto: targetPrice > entryPrice > stopLoss (e.g., Entry $580, Target $590, Stop $575)
+- For SHORT stocks/crypto: stopLoss > entryPrice > targetPrice (e.g., Entry $580, Target $570, Stop $585)
+- For options: Use option PREMIUM prices ($5-$50 range), NOT stock prices
+- NO options trades - focus on stocks and crypto only
+- Use realistic prices: SPY ~$580, NVDA ~$140, BTC ~$67000, ETH ~$2600
 
 Return valid JSON object with structure: {"ideas": [array of trade ideas]}
 Focus on actionable, research-grade opportunities.`;

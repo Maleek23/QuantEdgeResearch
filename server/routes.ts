@@ -1699,17 +1699,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // ✅ PRICE VALIDATION: Ensure correct price relationships
         let { entryPrice, targetPrice, stopLoss } = aiIdea;
+        
         if (aiIdea.direction === 'long') {
           // For LONG: target should be > entry > stop
           if (targetPrice <= entryPrice || stopLoss >= entryPrice) {
-            logger.info(`⚠️  AI: Fixing inverted prices for ${aiIdea.symbol} LONG - was entry:${entryPrice} target:${targetPrice} stop:${stopLoss}`);
-            // Fix: assume AI mixed up target/stop
+            logger.warn(`⚠️  AI: Fixing inverted prices for ${aiIdea.symbol} LONG - was entry:${entryPrice} target:${targetPrice} stop:${stopLoss}`);
             if (targetPrice < entryPrice && stopLoss > entryPrice) {
-              [targetPrice, stopLoss] = [stopLoss, targetPrice]; // Swap them
+              [targetPrice, stopLoss] = [stopLoss, targetPrice];
             } else {
-              // Calculate proper levels
-              targetPrice = entryPrice * 1.05; // +5% target
-              stopLoss = entryPrice * 0.97;    // -3% stop
+              targetPrice = entryPrice * 1.05;
+              stopLoss = entryPrice * 0.97;
+            }
+            logger.info(`   → Fixed to entry:${entryPrice} target:${targetPrice.toFixed(2)} stop:${stopLoss.toFixed(2)}`);
+          }
+        } else if (aiIdea.direction === 'short') {
+          // For SHORT: stop should be > entry > target
+          if (stopLoss <= entryPrice || targetPrice >= entryPrice) {
+            logger.warn(`⚠️  AI: Fixing inverted prices for ${aiIdea.symbol} SHORT - was entry:${entryPrice} target:${targetPrice} stop:${stopLoss}`);
+            if (stopLoss < entryPrice && targetPrice > entryPrice) {
+              [targetPrice, stopLoss] = [stopLoss, targetPrice];
+            } else {
+              targetPrice = entryPrice * 0.95;
+              stopLoss = entryPrice * 1.03;
             }
             logger.info(`   → Fixed to entry:${entryPrice} target:${targetPrice.toFixed(2)} stop:${stopLoss.toFixed(2)}`);
           }
@@ -1787,6 +1798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // ✅ PRICE VALIDATION: Ensure correct price relationships (defensive check)
         let { entryPrice, targetPrice, stopLoss } = hybridIdea;
+        
         if (hybridIdea.direction === 'long') {
           if (targetPrice <= entryPrice || stopLoss >= entryPrice) {
             logger.warn(`⚠️  Hybrid: Fixing inverted prices for ${hybridIdea.symbol} LONG`);
@@ -1795,6 +1807,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             } else {
               targetPrice = entryPrice * 1.05;
               stopLoss = entryPrice * 0.97;
+            }
+          }
+        } else if (hybridIdea.direction === 'short') {
+          if (stopLoss <= entryPrice || targetPrice >= entryPrice) {
+            logger.warn(`⚠️  Hybrid: Fixing inverted prices for ${hybridIdea.symbol} SHORT`);
+            if (stopLoss < entryPrice && targetPrice > entryPrice) {
+              [targetPrice, stopLoss] = [stopLoss, targetPrice];
+            } else {
+              targetPrice = entryPrice * 0.95;
+              stopLoss = entryPrice * 1.03;
             }
           }
         }
