@@ -1696,7 +1696,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           logger.info(`⏭️  AI: Skipped ${aiIdea.symbol} - already has open trade`);
           continue;
         }
-        const riskRewardRatio = (aiIdea.targetPrice - aiIdea.entryPrice) / (aiIdea.entryPrice - aiIdea.stopLoss);
+        
+        // ✅ PRICE VALIDATION: Ensure correct price relationships
+        let { entryPrice, targetPrice, stopLoss } = aiIdea;
+        if (aiIdea.direction === 'long') {
+          // For LONG: target should be > entry > stop
+          if (targetPrice <= entryPrice || stopLoss >= entryPrice) {
+            logger.info(`⚠️  AI: Fixing inverted prices for ${aiIdea.symbol} LONG - was entry:${entryPrice} target:${targetPrice} stop:${stopLoss}`);
+            // Fix: assume AI mixed up target/stop
+            if (targetPrice < entryPrice && stopLoss > entryPrice) {
+              [targetPrice, stopLoss] = [stopLoss, targetPrice]; // Swap them
+            } else {
+              // Calculate proper levels
+              targetPrice = entryPrice * 1.05; // +5% target
+              stopLoss = entryPrice * 0.97;    // -3% stop
+            }
+            logger.info(`   → Fixed to entry:${entryPrice} target:${targetPrice.toFixed(2)} stop:${stopLoss.toFixed(2)}`);
+          }
+        }
+        
+        const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
         
         // AI ideas default to day trades unless they're crypto (which can be position trades)
         const holdingPeriod: 'day' | 'swing' | 'position' = aiIdea.assetType === 'crypto' ? 'position' : 'day';
@@ -1706,9 +1725,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           assetType: aiIdea.assetType,
           direction: aiIdea.direction,
           holdingPeriod: holdingPeriod,
-          entryPrice: aiIdea.entryPrice,
-          targetPrice: aiIdea.targetPrice,
-          stopLoss: aiIdea.stopLoss,
+          entryPrice,
+          targetPrice,
+          stopLoss,
           riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
           catalyst: aiIdea.catalyst,
           analysis: aiIdea.analysis,
