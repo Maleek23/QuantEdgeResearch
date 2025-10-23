@@ -25,27 +25,50 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
     return null; // Don't show panel if no indicator data available
   }
 
-  // RSI interpretation (handle both null and undefined)
-  const getRSIInterpretation = (rsi: number | null | undefined): { label: string; color: string; signal: string } => {
-    if (rsi == null) return { label: 'N/A', color: 'text-muted-foreground', signal: 'No data' };
+  // RSI interpretation - CONTEXT-AWARE of trade direction
+  const getRSIInterpretation = (rsi: number | null | undefined, isShort: boolean): { label: string; color: string; signal: string; isSupporting: boolean } => {
+    if (rsi == null) return { label: 'N/A', color: 'text-muted-foreground', signal: 'No data', isSupporting: false };
     
-    if (rsi <= 20) return { label: 'Extremely Oversold', color: 'text-green-400', signal: 'Strong buy signal' };
-    if (rsi <= 30) return { label: 'Oversold', color: 'text-green-300', signal: 'Buy signal' };
-    if (rsi >= 80) return { label: 'Extremely Overbought', color: 'text-red-400', signal: 'Strong sell signal' };
-    if (rsi >= 70) return { label: 'Overbought', color: 'text-red-300', signal: 'Sell signal' };
-    return { label: 'Neutral', color: 'text-muted-foreground', signal: 'No clear signal' };
+    // For SHORT trades
+    if (isShort) {
+      if (rsi >= 80) return { label: 'Extremely Overbought', color: 'text-green-400', signal: 'Strong sell signal', isSupporting: true };
+      if (rsi >= 70) return { label: 'Overbought', color: 'text-green-300', signal: 'Sell signal', isSupporting: true };
+      if (rsi <= 20) return { label: 'Extremely Oversold', color: 'text-red-400', signal: 'Already oversold (risky)', isSupporting: false };
+      if (rsi <= 30) return { label: 'Oversold', color: 'text-amber-400', signal: 'Approaching oversold', isSupporting: false };
+    }
+    // For LONG trades
+    else {
+      if (rsi <= 20) return { label: 'Extremely Oversold', color: 'text-green-400', signal: 'Strong buy signal', isSupporting: true };
+      if (rsi <= 30) return { label: 'Oversold', color: 'text-green-300', signal: 'Buy signal', isSupporting: true };
+      if (rsi >= 80) return { label: 'Extremely Overbought', color: 'text-red-400', signal: 'Already overbought (risky)', isSupporting: false };
+      if (rsi >= 70) return { label: 'Overbought', color: 'text-amber-400', signal: 'Approaching overbought', isSupporting: false };
+    }
+    
+    return { label: 'Neutral', color: 'text-muted-foreground', signal: 'No clear signal', isSupporting: false };
   };
 
-  // MACD interpretation (handle both null and undefined)
-  const getMACDInterpretation = (histogram: number | null | undefined): { label: string; color: string; signal: string } => {
-    if (histogram == null) return { label: 'N/A', color: 'text-muted-foreground', signal: 'No data' };
+  // MACD interpretation - CONTEXT-AWARE of trade direction
+  const getMACDInterpretation = (histogram: number | null | undefined, isShort: boolean): { label: string; color: string; signal: string; isSupporting: boolean } => {
+    if (histogram == null) return { label: 'N/A', color: 'text-muted-foreground', signal: 'No data', isSupporting: false };
     
-    if (Math.abs(histogram) < 0.05) return { label: 'Crossover Imminent', color: 'text-amber-400', signal: 'Watch closely' };
-    if (histogram > 0.5) return { label: 'Strong Bullish', color: 'text-green-400', signal: 'Strong momentum' };
-    if (histogram > 0) return { label: 'Bullish', color: 'text-green-300', signal: 'Positive momentum' };
-    if (histogram < -0.5) return { label: 'Strong Bearish', color: 'text-red-400', signal: 'Strong downtrend' };
-    if (histogram < 0) return { label: 'Bearish', color: 'text-red-300', signal: 'Negative momentum' };
-    return { label: 'Neutral', color: 'text-muted-foreground', signal: 'No trend' };
+    if (Math.abs(histogram) < 0.05) return { label: 'Crossover Imminent', color: 'text-amber-400', signal: 'Watch closely', isSupporting: false };
+    
+    // For SHORT trades
+    if (isShort) {
+      if (histogram > 0.5) return { label: 'Against Position', color: 'text-red-400', signal: 'Strong upward momentum', isSupporting: false };
+      if (histogram > 0) return { label: 'Against Position', color: 'text-amber-400', signal: 'Upward momentum', isSupporting: false };
+      if (histogram < -0.5) return { label: 'Supports Short', color: 'text-green-400', signal: 'Strong downward momentum', isSupporting: true };
+      if (histogram < 0) return { label: 'Supports Short', color: 'text-green-300', signal: 'Downward momentum', isSupporting: true };
+    }
+    // For LONG trades
+    else {
+      if (histogram > 0.5) return { label: 'Supports Long', color: 'text-green-400', signal: 'Strong upward momentum', isSupporting: true };
+      if (histogram > 0) return { label: 'Supports Long', color: 'text-green-300', signal: 'Upward momentum', isSupporting: true };
+      if (histogram < -0.5) return { label: 'Against Position', color: 'text-red-400', signal: 'Strong downward momentum', isSupporting: false };
+      if (histogram < 0) return { label: 'Against Position', color: 'text-amber-400', signal: 'Downward momentum', isSupporting: false };
+    }
+    
+    return { label: 'Neutral', color: 'text-muted-foreground', signal: 'No trend', isSupporting: false };
   };
 
   // Volume interpretation (handle both null and undefined)
@@ -60,8 +83,9 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
     return { label: 'Below Average', color: 'text-amber-400', signal: 'Weak confirmation' };
   };
 
-  const rsiInfo = getRSIInterpretation(idea.rsiValue);
-  const macdInfo = getMACDInterpretation(idea.macdHistogram);
+  const isShort = idea.direction === 'SHORT';
+  const rsiInfo = getRSIInterpretation(idea.rsiValue, isShort);
+  const macdInfo = getMACDInterpretation(idea.macdHistogram, isShort);
   const volumeInfo = getVolumeInterpretation(idea.volumeRatio);
 
   return (
@@ -90,7 +114,19 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
             </div>
             <Progress value={idea.rsiValue} className="h-2" />
             <p className="text-xs text-muted-foreground">
-              {rsiInfo.signal} - {idea.rsiValue <= 30 ? 'Price likely oversold, potential reversal up' : idea.rsiValue >= 70 ? 'Price likely overbought, potential reversal down' : 'RSI in neutral zone'}
+              {rsiInfo.signal} - {
+                isShort
+                  ? (idea.rsiValue >= 70 
+                      ? 'Price overbought, good short entry signal' 
+                      : idea.rsiValue <= 30 
+                        ? 'Price already oversold - shorting here is risky' 
+                        : 'RSI in neutral zone')
+                  : (idea.rsiValue <= 30 
+                      ? 'Price oversold, good long entry signal' 
+                      : idea.rsiValue >= 70 
+                        ? 'Price already overbought - buying here is risky' 
+                        : 'RSI in neutral zone')
+              }
             </p>
           </div>
         )}
@@ -130,7 +166,17 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
             </div>
             {idea.macdHistogram != null && (
               <p className="text-xs text-muted-foreground">
-                {macdInfo.signal} - {Math.abs(idea.macdHistogram) < 0.05 ? 'MACD lines near crossover, potential trend change' : idea.macdHistogram > 0 ? 'MACD above signal line, bullish momentum' : 'MACD below signal line, bearish momentum'}
+                {macdInfo.signal} - {
+                  Math.abs(idea.macdHistogram) < 0.05 
+                    ? 'MACD lines near crossover, potential trend change' 
+                    : isShort
+                      ? (idea.macdHistogram > 0 
+                          ? 'MACD above signal line (upward momentum contradicts short position)' 
+                          : 'MACD below signal line, confirming bearish setup')
+                      : (idea.macdHistogram > 0 
+                          ? 'MACD above signal line, confirming bullish setup' 
+                          : 'MACD below signal line (downward momentum contradicts long position)')
+                }
               </p>
             )}
           </div>
