@@ -494,6 +494,19 @@ export async function generateQuantIdeas(
   const timezone = 'America/Chicago';
   const now = new Date();
 
+  // 🚫 DEDUPLICATION: Get all open trades to avoid duplicate symbols
+  const existingOpenSymbols = new Set<string>();
+  if (storage) {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const openIdeas = allIdeas.filter((idea: any) => idea.outcomeStatus === 'open');
+      openIdeas.forEach((idea: any) => existingOpenSymbols.add(idea.symbol.toUpperCase()));
+      logger.info(`🚫 Deduplication: ${existingOpenSymbols.size} symbols already have open trades`);
+    } catch (error) {
+      logger.info('⚠️  Could not fetch existing trades for deduplication');
+    }
+  }
+
   // 🧠 ML ENHANCEMENT: Load learned signal weights from performance data
   const learnedWeights = await fetchLearnedWeights();
 
@@ -644,6 +657,12 @@ export async function generateQuantIdeas(
   for (const data of sortedData) {
     if (ideas.length >= count) break;
     dataQuality.processed++;
+
+    // 🚫 Skip if symbol already has an open trade
+    if (existingOpenSymbols.has(data.symbol.toUpperCase())) {
+      logger.info(`  ⏭️  ${data.symbol}: Skipped - already has open trade`);
+      continue;
+    }
 
     // Fetch real historical prices - REQUIRED for accurate analysis (no synthetic fallback)
     const apiKey = process.env.ALPHA_VANTAGE_API_KEY;

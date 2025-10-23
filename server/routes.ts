@@ -1678,11 +1678,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const { marketContext } = schema.parse(req.body);
       
+      // 🚫 DEDUPLICATION: Get existing open symbols
+      const allIdeas = await storage.getAllTradeIdeas();
+      const existingOpenSymbols = new Set(
+        allIdeas
+          .filter((idea: any) => idea.outcomeStatus === 'open')
+          .map((idea: any) => idea.symbol.toUpperCase())
+      );
+      
       const aiIdeas = await generateTradeIdeas(marketContext);
       
-      // Save AI-generated ideas to storage and send Discord alerts
+      // Save AI-generated ideas to storage and send Discord alerts (skip duplicates)
       const savedIdeas = [];
       for (const aiIdea of aiIdeas) {
+        // 🚫 Skip if symbol already has an open trade
+        if (existingOpenSymbols.has(aiIdea.symbol.toUpperCase())) {
+          logger.info(`⏭️  AI: Skipped ${aiIdea.symbol} - already has open trade`);
+          continue;
+        }
         const riskRewardRatio = (aiIdea.targetPrice - aiIdea.entryPrice) / (aiIdea.entryPrice - aiIdea.stopLoss);
         
         // AI ideas default to day trades unless they're crypto (which can be position trades)
@@ -1733,12 +1746,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const { marketContext } = schema.parse(req.body);
       
+      // 🚫 DEDUPLICATION: Get existing open symbols
+      const allIdeas = await storage.getAllTradeIdeas();
+      const existingOpenSymbols = new Set(
+        allIdeas
+          .filter((idea: any) => idea.outcomeStatus === 'open')
+          .map((idea: any) => idea.symbol.toUpperCase())
+      );
+      
       const { generateHybridIdeas } = await import("./ai-service");
       const hybridIdeas = await generateHybridIdeas(marketContext);
       
-      // Save hybrid ideas to storage
+      // Save hybrid ideas to storage (skip duplicates)
       const savedIdeas = [];
       for (const hybridIdea of hybridIdeas) {
+        // 🚫 Skip if symbol already has an open trade
+        if (existingOpenSymbols.has(hybridIdea.symbol.toUpperCase())) {
+          logger.info(`⏭️  Hybrid: Skipped ${hybridIdea.symbol} - already has open trade`);
+          continue;
+        }
         const riskRewardRatio = (hybridIdea.targetPrice - hybridIdea.entryPrice) / (hybridIdea.entryPrice - hybridIdea.stopLoss);
         
         const holdingPeriod: 'day' | 'swing' | 'position' = hybridIdea.assetType === 'crypto' ? 'position' : 'day';
