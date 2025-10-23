@@ -229,3 +229,62 @@ export function calculateBollingerBands(
     lower: Number(lower.toFixed(2))
   };
 }
+
+/**
+ * Calculate VWAP (Volume-Weighted Average Price)
+ * VWAP is the average price weighted by volume - used by institutional traders
+ * @param prices - Array of closing prices (most recent last)
+ * @param volumes - Array of volumes (same length as prices)
+ * @returns VWAP value
+ */
+export function calculateVWAP(prices: number[], volumes: number[]): number {
+  if (prices.length === 0 || volumes.length === 0 || prices.length !== volumes.length) {
+    return prices[prices.length - 1] || 0;
+  }
+
+  let totalPV = 0;
+  let totalVolume = 0;
+
+  for (let i = 0; i < prices.length; i++) {
+    totalPV += prices[i] * volumes[i];
+    totalVolume += volumes[i];
+  }
+
+  if (totalVolume === 0) {
+    return prices[prices.length - 1] || 0;
+  }
+
+  return Number((totalPV / totalVolume).toFixed(2));
+}
+
+/**
+ * Analyze RSI(2) mean reversion signal (Proven 75-91% win rate)
+ * Based on Larry Connors' research: RSI(2) < 10 with 200-day MA trend filter
+ * @param rsi2 - RSI value with 2-period
+ * @param currentPrice - Current price
+ * @param sma200 - 200-day simple moving average
+ * @returns Mean reversion signal
+ */
+export function analyzeRSI2MeanReversion(
+  rsi2: number,
+  currentPrice: number,
+  sma200: number
+): {
+  signal: 'strong_buy' | 'buy' | 'none';
+  strength: 'strong' | 'moderate' | 'weak';
+} {
+  // CRITICAL: Only trade WITH the trend (price above 200 MA for longs)
+  const aboveTrend = currentPrice > sma200;
+
+  // RSI(2) < 5 = Strong oversold (Connors' extreme threshold)
+  if (rsi2 < 5 && aboveTrend) {
+    return { signal: 'strong_buy', strength: 'strong' };
+  }
+
+  // RSI(2) < 10 = Standard oversold (75-91% win rate threshold)
+  if (rsi2 < 10 && aboveTrend) {
+    return { signal: 'buy', strength: 'moderate' };
+  }
+
+  return { signal: 'none', strength: 'weak' };
+}
