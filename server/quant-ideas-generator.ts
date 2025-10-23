@@ -190,17 +190,23 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
       const rsiAnalysis = analyzeRSI(rsi);
       const macdAnalysis = analyzeMACD(macd);
       
-      // RSI Divergence Signal (strong oversold/overbought) - HIGHEST PRIORITY
-      if (rsiAnalysis.strength === 'strong' && rsiAnalysis.direction !== 'neutral') {
-        return {
-          type: 'rsi_divergence',
-          strength: 'strong',
-          direction: rsiAnalysis.direction,
-          rsiValue: rsi
-        };
-      }
+      // REMOVED: RSI Divergence Signal - Analysis shows 0% win rate
+      // These "reversal" trades were catching falling knives (trying to pick bottoms/tops)
+      // All RSI-based reversal trades failed:
+      // - ITGR long (RSI 19): -6.25%, -1.81%, -1.81%
+      // - GTX short (RSI 72): -24.97%
+      // - QBTS short (RSI 75): -25.01%
+      //
+      // if (rsiAnalysis.strength === 'strong' && rsiAnalysis.direction !== 'neutral') {
+      //   return {
+      //     type: 'rsi_divergence',
+      //     strength: 'strong',
+      //     direction: rsiAnalysis.direction,
+      //     rsiValue: rsi
+      //   };
+      // }
       
-      // MACD Crossover Signal - SECOND PRIORITY
+      // MACD Crossover Signal - PRIORITY 1 (was #2, now promoted)
       if ((macdAnalysis.crossover || macdAnalysis.strength === 'strong') && macdAnalysis.direction !== 'neutral') {
         return {
           type: 'macd_crossover',
@@ -210,15 +216,15 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
         };
       }
       
-      // Moderate RSI signal - THIRD PRIORITY
-      if (rsiAnalysis.strength === 'moderate' && rsiAnalysis.direction !== 'neutral') {
-        return {
-          type: 'rsi_divergence',
-          strength: 'moderate',
-          direction: rsiAnalysis.direction,
-          rsiValue: rsi
-        };
-      }
+      // REMOVED: Moderate RSI signals also disabled (same 0% win rate issue)
+      // if (rsiAnalysis.strength === 'moderate' && rsiAnalysis.direction !== 'neutral') {
+      //   return {
+      //     type: 'rsi_divergence',
+      //     strength: 'moderate',
+      //     direction: rsiAnalysis.direction,
+      //     rsiValue: rsi
+      //   };
+      // }
     }
 
     // PRIORITY 2: EARLY breakout signals - price APPROACHING highs (not after big move)
@@ -942,9 +948,20 @@ export async function generateQuantIdeas(
       continue;
     }
 
-    let levels = calculateLevels(data, signal, data.assetType);
-    const catalyst = generateCatalyst(data, signal, catalysts);
-    const analysis = generateAnalysis(data, signal);
+    // CRITICAL FIX: For options, normalize signal direction BEFORE calculating levels
+    // Options always use LONG positions (no shorts), so direction should always be 'long'
+    // The option type (call/put) determines the directional bias
+    let normalizedSignal = signal;
+    if (data.assetType === 'option') {
+      normalizedSignal = {
+        ...signal,
+        direction: 'long' as 'long' | 'short' // Always LONG for options
+      };
+    }
+
+    let levels = calculateLevels(data, normalizedSignal, data.assetType);
+    const catalyst = generateCatalyst(data, normalizedSignal, catalysts);
+    const analysis = generateAnalysis(data, normalizedSignal);
     
     // Multi-timeframe analysis for enhanced confidence
     const mtfAnalysis = await analyzeMultiTimeframe(data, historicalPrices);
@@ -963,7 +980,7 @@ export async function generateQuantIdeas(
     // Calculate confidence score and quality signals with multi-timeframe analysis  
     const { score: confidenceScore, signals: qualitySignals } = calculateConfidenceScore(
       data, 
-      signal, 
+      normalizedSignal, 
       riskRewardRatio,
       mtfAnalysis,
       learnedWeights  // 🧠 ML enhancement
@@ -1035,7 +1052,7 @@ export async function generateQuantIdeas(
       
       // IMPORTANT: If assetType changed to 'option', recalculate levels with option thresholds (25% target)
       if (assetType === 'option' && data.assetType === 'stock') {
-        levels = calculateLevels(data, signal, assetType);
+        levels = calculateLevels(data, normalizedSignal, assetType);
         
         // Recalculate R:R with new option levels
         const riskDistance = Math.abs(levels.entryPrice - levels.stopLoss);
@@ -1068,6 +1085,7 @@ export async function generateQuantIdeas(
       if (tradierKey) {
         try {
           const { findOptimalStrike } = await import('./tradier-api');
+          // Use ORIGINAL signal direction for Tradier (not normalized), as it needs the true bias
           const optimalStrike = await findOptimalStrike(data.symbol, data.currentPrice, signal.direction, tradierKey);
           if (optimalStrike) {
             strikePrice = optimalStrike.strike;
@@ -1079,19 +1097,37 @@ export async function generateQuantIdeas(
       }
       
       // Fallback to simple calculation if Tradier unavailable
+      // Use ORIGINAL signal direction (not normalized) to determine option type
       if (!strikePrice) {
         strikePrice = signal.direction === 'long' 
           ? Number((data.currentPrice * 1.02).toFixed(2)) // Slightly OTM call for bullish
           : Number((data.currentPrice * 0.98).toFixed(2)); // Slightly OTM put for bearish
         optionType = signal.direction === 'long' ? 'call' : 'put';
       }
+      
+      // CRITICAL FIX: For options, we need to normalize direction BEFORE calculating levels
+      // Options work differently than stocks:
+      // - LONG CALL = bullish (price goes up)
+      // - LONG PUT = bearish (price goes down)
+      // - SHORT CALL = bearish (price goes down) - AVOID for simplicity
+      // - SHORT PUT = bullish (price goes up) - AVOID for simplicity
+      //
+      // DECISION: Always use LONG options to avoid confusion
+      // If current signal suggests SHORT PUT or SHORT CALL, flip to LONG with correct option type
+      //
+      // This ensures target/stop prices match the directional bias:
+      // - Bullish (LONG CALL): target ABOVE entry, stop BELOW entry
+      // - Bearish (LONG PUT): target BELOW entry, stop ABOVE entry
+      //
+      // BEFORE FIX: SHORT PUT had bearish targets (WRONG - short put is bullish!)
+      // AFTER FIX: Convert SHORT PUT → LONG CALL, SHORT CALL → LONG PUT for clarity
     }
 
     // Check for duplicate ideas before creating
     if (storage) {
       const duplicate = await storage.findSimilarTradeIdea(
         data.symbol,
-        signal.direction,
+        normalizedSignal.direction,
         levels.entryPrice,
         72, // Look back 72 hours (INCREASED from 24 to reduce duplicates)
         assetType, // Asset type filter (stock/option/crypto)
@@ -1115,8 +1151,8 @@ export async function generateQuantIdeas(
     const actualVolumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : null;
 
     // Extract RSI/MACD values for timing intelligence and transparency
-    const rsiValue = signal.rsiValue ?? (historicalPrices.length > 0 ? calculateRSI(historicalPrices, 14) : undefined);
-    const macdValues = signal.macdValues ?? (historicalPrices.length > 0 ? calculateMACD(historicalPrices) : undefined);
+    const rsiValue = normalizedSignal.rsiValue ?? (historicalPrices.length > 0 ? calculateRSI(historicalPrices, 14) : undefined);
+    const macdValues = normalizedSignal.macdValues ?? (historicalPrices.length > 0 ? calculateMACD(historicalPrices) : undefined);
     
     // Build signal stack for timing intelligence system
     const signalStack: SignalStack = {
@@ -1165,10 +1201,12 @@ export async function generateQuantIdeas(
       `Target hit probability: ${timingAnalytics.targetHitProbability.toFixed(1)}%`
     );
     
+    // For consistency, use normalizedSignal.direction (already set to 'long' for options)
+    
     const idea: InsertTradeIdea = {
       symbol: data.symbol,
       assetType: assetType,
-      direction: signal.direction,
+      direction: normalizedSignal.direction,
       holdingPeriod: holdingPeriod,
       entryPrice: levels.entryPrice,
       targetPrice: levels.targetPrice,
