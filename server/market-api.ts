@@ -534,59 +534,83 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
     logger.info('🔍 Scanning stock market for movers and breakouts...');
     
     // Fetch multiple categories to get a diverse set of opportunities
-    // Include undervalued stocks to capture more low-priced/penny stock candidates
+    // CRITICAL: Increased from 20-25 to 100-150 to catch ALL big movers (SCNX, VTYX, AREB, etc.)
     const categories = [
-      { name: 'gainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_gainers&count=20' },
-      { name: 'losers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_losers&count=20' },
-      { name: 'mostActive', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_actives&count=20' },
-      { name: 'undervalued', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=undervalued_growth_stocks&count=25' }
+      { name: 'gainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_gainers&count=150', retries: 3 },
+      { name: 'losers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_losers&count=100', retries: 3 },
+      { name: 'mostActive', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_actives&count=150', retries: 3 },
+      { name: 'undervalued', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=undervalued_growth_stocks&count=100', retries: 3 }
     ];
     
     for (const category of categories) {
-      try {
-        const response = await fetch(category.url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      let attempt = 0;
+      let success = false;
+      
+      while (attempt < category.retries && !success) {
+        try {
+          attempt++;
+          
+          // Add delay between retries (exponential backoff)
+          if (attempt > 1) {
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000); // Max 8s delay
+            logger.info(`  ⏳ Retry attempt ${attempt}/${category.retries} for ${category.name} after ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
           }
-        });
-        
-        if (!response.ok) {
-          logger.info(`⚠️  Yahoo ${category.name} endpoint returned ${response.status}`);
-          continue;
-        }
-        
-        const data = await response.json();
-        const quotes = data?.finance?.result?.[0]?.quotes || [];
-        
-        logger.info(`  ✓ Found ${quotes.length} stocks in ${category.name}`);
-        
-        for (const quote of quotes) {
-          // Filter criteria: 
-          // - Price > $1 (avoid sub-dollar micro-caps, but include $1-$5 penny stocks)
-          // - Price < $500 (avoid expensive stocks that are hard to trade)
-          // - Volume exists
-          // - Market cap varies: $10M+ for penny stocks, $50M+ for regular stocks
-          const price = quote.regularMarketPrice?.raw || quote.regularMarketPrice;
-          const change = quote.regularMarketChangePercent?.raw || quote.regularMarketChangePercent || 0;
-          const volume = quote.regularMarketVolume?.raw || quote.regularMarketVolume || 0;
-          const marketCap = quote.marketCap?.raw || quote.marketCap || 0;
           
-          if (!price || price < 1 || price > 500) continue;
-          if (volume < 100000) continue; // Minimum 100K volume
-          // Relax market cap filter for penny stocks ($1-$5) - allow smaller caps
-          if (price >= 5 && marketCap < 50_000_000) continue; // Regular stocks need $50M+ cap
-          if (price < 5 && marketCap < 10_000_000) continue; // Penny stocks need $10M+ cap
-          
-          gems.push({
-            symbol: quote.symbol,
-            currentPrice: price,
-            changePercent: change,
-            volume: volume,
-            marketCap: marketCap
+          const response = await fetch(category.url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
           });
+          
+          // Handle rate limiting
+          if (response.status === 429) {
+            logger.info(`⚠️  Yahoo ${category.name} rate limited (429) - will retry`);
+            continue; // Try again with backoff
+          }
+          
+          if (!response.ok) {
+            logger.info(`⚠️  Yahoo ${category.name} endpoint returned ${response.status}`);
+            break; // Don't retry on other errors
+          }
+          
+          const data = await response.json();
+          const quotes = data?.finance?.result?.[0]?.quotes || [];
+          
+          logger.info(`  ✓ Found ${quotes.length} stocks in ${category.name}`);
+          success = true;
+          
+          for (const quote of quotes) {
+            // Filter criteria: 
+            // - Price > $1 (avoid sub-dollar micro-caps, but include $1-$5 penny stocks)
+            // - Price < $500 (avoid expensive stocks that are hard to trade)
+            // - Volume exists
+            // - Market cap varies: $10M+ for penny stocks, $50M+ for regular stocks
+            const price = quote.regularMarketPrice?.raw || quote.regularMarketPrice;
+            const change = quote.regularMarketChangePercent?.raw || quote.regularMarketChangePercent || 0;
+            const volume = quote.regularMarketVolume?.raw || quote.regularMarketVolume || 0;
+            const marketCap = quote.marketCap?.raw || quote.marketCap || 0;
+            
+            if (!price || price < 1 || price > 500) continue;
+            if (volume < 100000) continue; // Minimum 100K volume
+            // Relax market cap filter for penny stocks ($1-$5) - allow smaller caps
+            if (price >= 5 && marketCap < 50_000_000) continue; // Regular stocks need $50M+ cap
+            if (price < 5 && marketCap < 10_000_000) continue; // Penny stocks need $10M+ cap
+            
+            gems.push({
+              symbol: quote.symbol,
+              currentPrice: price,
+              changePercent: change,
+              volume: volume,
+              marketCap: marketCap
+            });
+          }
+        } catch (error) {
+          logger.info(`  ⚠️  Failed to fetch ${category.name} (attempt ${attempt}):`, error instanceof Error ? error.message : 'Unknown error');
+          if (attempt >= category.retries) {
+            break; // Give up after max retries
+          }
         }
-      } catch (error) {
-        logger.info(`  ⚠️  Failed to fetch ${category.name}:`, error instanceof Error ? error.message : 'Unknown error');
       }
     }
     
