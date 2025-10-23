@@ -813,6 +813,9 @@ export class MemStorage implements IStorage {
     console.log(`[STORAGE] getPerformanceStats called with filters:`, JSON.stringify(filters));
     console.log(`[STORAGE] Total ideas before filtering:`, originalCount);
     
+    // Exclude buggy/test trades (exclude_from_training=true)
+    allIdeas = allIdeas.filter(idea => !idea.excludeFromTraining);
+    
     // Apply date filters if provided (filter by date portion only, avoiding timezone issues)
     if (filters?.startDate || filters?.endDate) {
       allIdeas = allIdeas.filter(idea => {
@@ -827,7 +830,7 @@ export class MemStorage implements IStorage {
         }
         return true;
       });
-      logger.info(`[PERF-STATS] Date filter applied: ${filters.startDate} to ${filters.endDate} → ${originalCount} ideas filtered to ${allIdeas.length}`);
+      console.log(`[PERF-STATS] Date filter applied: ${filters.startDate} to ${filters.endDate} → ${originalCount} ideas filtered to ${allIdeas.length}`);
     }
     
     // Apply source filter if provided
@@ -1434,9 +1437,9 @@ export class DatabaseStorage implements IStorage {
       console.log(`[PERF-STATS] Source filter applied: ${filters.source} → ${allIdeasRaw.length} ideas`);
     }
     
-    // PERFORMANCE STATS: Include ALL trades to show honest platform performance
-    // excludeFromTraining flag only affects ML training, not performance display
-    const allIdeas = allIdeasRaw;
+    // PERFORMANCE STATS: Exclude buggy/test trades (exclude_from_training=true)
+    // These are legacy trades with known issues (e.g., inverted option directions)
+    const allIdeas = allIdeasRaw.filter(idea => !idea.excludeFromTraining);
     
     const openIdeas = allIdeas.filter(i => i.outcomeStatus === 'open');
     const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open');
