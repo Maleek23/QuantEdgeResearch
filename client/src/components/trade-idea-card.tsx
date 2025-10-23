@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency, formatPercent, formatCTTime, cn, calculateDynamicSignal, type TradeSignal } from "@/lib/utils";
 import type { TradeIdea } from "@shared/schema";
-import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink, Brain, Sparkles } from "lucide-react";
+import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink, Bot, BarChart3 } from "lucide-react";
 
 interface TradeIdeaCardProps {
   idea: TradeIdea;
@@ -59,22 +59,24 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
               )}
               {idea.source && (
                 <Badge 
-                  variant={idea.source === 'ai' ? 'secondary' : 'outline'} 
+                  variant="outline"
                   className={cn(
-                    "text-xs font-semibold gap-1",
-                    idea.source === 'ai' ? "bg-purple-500/20 text-purple-300 border-purple-500/30" : "bg-blue-500/20 text-blue-300 border-blue-500/30"
+                    "text-xs font-semibold gap-1 border-2",
+                    idea.source === 'ai' 
+                      ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/50" 
+                      : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/50"
                   )}
                   data-testid={`badge-source-${idea.symbol}`}
                 >
                   {idea.source === 'ai' ? (
                     <>
-                      <Brain className="h-3 w-3" />
-                      AI
+                      <Bot className="h-3 w-3" />
+                      AI ENGINE
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-3 w-3" />
-                      QUANT
+                      <BarChart3 className="h-3 w-3" />
+                      QUANT ENGINE
                     </>
                   )}
                 </Badge>
