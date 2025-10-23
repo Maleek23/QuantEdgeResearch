@@ -517,29 +517,33 @@ export async function discoverHiddenCryptoGems(limit: number = 10): Promise<Hidd
   }
 }
 
-// 🔍 STOCK MARKET SCREENER: Discover high-volume movers and breakout candidates
-// Similar to crypto gem finder but for stocks across the entire market
+// 🔍 PREDICTIVE STOCK SCANNER: Find stocks BEFORE big moves
+// Strategy: Scan high-volume universe for early technical setups (unusual volume, RSI divergence, breakout patterns)
+// NOT "top gainers" (reactive) - those already moved
 interface StockGem {
   symbol: string;
   currentPrice: number;
   changePercent: number;
   volume: number;
   marketCap: number;
+  avgVolume?: number; // For volume ratio calculation
 }
 
 export async function discoverStockGems(limit: number = 30): Promise<StockGem[]> {
   const gems: StockGem[] = [];
   
   try {
-    logger.info('🔍 Scanning stock market for movers and breakouts...');
+    logger.info('🔍 PREDICTIVE SCAN: Finding stocks BEFORE big moves (high volume + small price changes)...');
     
-    // Fetch multiple categories to get a diverse set of opportunities
-    // CRITICAL: Increased from 20-25 to 100-150 to catch ALL big movers (SCNX, VTYX, AREB, etc.)
+    // REDESIGNED STRATEGY:
+    // 1. Scan "most_actives" (high volume, but NOT necessarily big price moves)
+    // 2. Scan "small_cap_gainers" (smaller stocks more likely to have explosive moves)
+    // 3. Skip "top gainers/losers" (those already moved - we want to catch BEFORE the rally)
+    // 4. Let quant engine filter for: unusual volume (3x+), small moves (<2%), RSI divergence
     const categories = [
-      { name: 'gainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_gainers&count=150', retries: 3 },
-      { name: 'losers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_losers&count=100', retries: 3 },
-      { name: 'mostActive', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_actives&count=150', retries: 3 },
-      { name: 'undervalued', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=undervalued_growth_stocks&count=100', retries: 3 }
+      { name: 'mostActive', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_actives&count=250', retries: 3 },
+      { name: 'smallCapsGainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=small_cap_gainers&count=100', retries: 3 },
+      { name: 'undervalued', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=undervalued_growth_stocks&count=150', retries: 3 }
     ];
     
     for (const category of categories) {
@@ -589,6 +593,7 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
             const price = quote.regularMarketPrice?.raw || quote.regularMarketPrice;
             const change = quote.regularMarketChangePercent?.raw || quote.regularMarketChangePercent || 0;
             const volume = quote.regularMarketVolume?.raw || quote.regularMarketVolume || 0;
+            const avgVolume = quote.averageDailyVolume3Month?.raw || quote.averageDailyVolume3Month || volume;
             const marketCap = quote.marketCap?.raw || quote.marketCap || 0;
             
             if (!price || price < 1 || price > 500) continue;
@@ -602,7 +607,8 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
               currentPrice: price,
               changePercent: change,
               volume: volume,
-              marketCap: marketCap
+              marketCap: marketCap,
+              avgVolume: avgVolume
             });
           }
         } catch (error) {
@@ -622,12 +628,39 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
       }
     });
     
-    // Sort by absolute price change (both gainers and losers are interesting)
+    // PREDICTIVE SORTING:
+    // Prioritize stocks with UNUSUAL VOLUME (3x+) and SMALL PRICE MOVES (<5%)
+    // These are early accumulation signals BEFORE the big move
     const sortedGems = Array.from(uniqueGems.values())
-      .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
+      .map(gem => {
+        const volumeRatio = gem.avgVolume ? gem.volume / gem.avgVolume : 1;
+        const priceChangeAbs = Math.abs(gem.changePercent);
+        
+        // Score formula: High volume + small price change = best early signal
+        // Perfect score: 5x volume, 0% price change (institutions accumulating before news)
+        let score = 0;
+        
+        // Volume component (0-60 points): Higher volume = better
+        if (volumeRatio >= 5) score += 60;
+        else if (volumeRatio >= 3) score += 50;
+        else if (volumeRatio >= 2) score += 35;
+        else if (volumeRatio >= 1.5) score += 20;
+        else score += 10;
+        
+        // Price change component (0-40 points): SMALLER change = better (we want early signals)
+        if (priceChangeAbs < 1) score += 40;        // Best: minimal price move
+        else if (priceChangeAbs < 2) score += 30;   // Good: small move
+        else if (priceChangeAbs < 3) score += 20;   // OK: moderate move
+        else if (priceChangeAbs < 5) score += 10;   // Late: significant move
+        else score += 0;                             // Too late: big move already happened
+        
+        return { ...gem, volumeRatio, score };
+      })
+      .sort((a, b) => b.score - a.score)
       .slice(0, limit);
     
-    logger.info(`🎯 Discovered ${sortedGems.length} stock gems: ${sortedGems.slice(0, 5).map(g => `${g.symbol} (${g.changePercent > 0 ? '+' : ''}${g.changePercent.toFixed(1)}%)`).join(', ')}${sortedGems.length > 5 ? '...' : ''}`);
+    logger.info(`🎯 PREDICTIVE SCAN: ${sortedGems.length} stocks found (prioritizing unusual volume + small price moves)`);
+    logger.info(`   Top 5: ${sortedGems.slice(0, 5).map(g => `${g.symbol} (${g.changePercent > 0 ? '+' : ''}${g.changePercent.toFixed(1)}%, ${g.volumeRatio?.toFixed(1)}x vol)`).join(', ')}`);
     
     return sortedGems;
   } catch (error) {
