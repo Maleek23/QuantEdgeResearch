@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { BarChart3, TrendingUp, Target, Activity, AlertTriangle, LineChart as LineChartIcon } from "lucide-react";
+import { BarChart3, TrendingUp, Target, Activity, AlertTriangle, LineChart as LineChartIcon, Sparkles, Brain } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter, ReferenceLine } from "recharts";
 
 interface BacktestMetrics {
@@ -44,19 +45,31 @@ interface CalibrationPoint {
 }
 
 export default function AnalyticsPage() {
+  const [activeSource, setActiveSource] = useState<'all' | 'quant' | 'ai' | 'hybrid'>('all');
+
   const { data: backtestData, isLoading: backtestLoading } = useQuery<{
     metrics: BacktestMetrics;
     signalPerformance: SignalPerformance[];
     calibration: CalibrationPoint[];
+    source: string;
   }>({
-    queryKey: ['/api/analytics/backtest'],
+    queryKey: ['/api/analytics/backtest', activeSource],
+    queryFn: async () => {
+      const res = await fetch(`/api/analytics/backtest?source=${activeSource}`);
+      return res.json();
+    }
   });
 
   const { data: rollingData, isLoading: rollingLoading } = useQuery<{
     data: Array<{ date: string; winRate: number; trades: number }>;
     windowSize: number;
+    source: string;
   }>({
-    queryKey: ['/api/analytics/rolling-winrate'],
+    queryKey: ['/api/analytics/rolling-winrate', activeSource],
+    queryFn: async () => {
+      const res = await fetch(`/api/analytics/rolling-winrate?source=${activeSource}`);
+      return res.json();
+    }
   });
 
   if (backtestLoading || rollingLoading) {
@@ -78,86 +91,178 @@ export default function AnalyticsPage() {
       {/* Header */}
       <div className="relative overflow-hidden border-b aurora-hero rounded-xl -mx-6 px-6 pb-6 mb-8">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
-        <div className="relative pt-6">
-          <div className="flex items-center gap-3">
-            <BarChart3 className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-gradient-premium">Quant Analytics Lab</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Professional-grade performance metrics and model validation
-              </p>
+        <div className="relative pt-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <BarChart3 className="h-8 w-8 text-primary" />
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight text-gradient-premium">Analytics Lab</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Performance metrics by generation source
+                </p>
+              </div>
             </div>
           </div>
+
+          {/* Source Filter Tabs */}
+          <Tabs value={activeSource} onValueChange={(value: any) => setActiveSource(value)} className="w-full">
+            <TabsList className="grid w-full max-w-md grid-cols-4">
+              <TabsTrigger value="all" data-testid="tab-source-all">
+                All Sources
+              </TabsTrigger>
+              <TabsTrigger value="quant" data-testid="tab-source-quant" className="gap-1.5">
+                <BarChart3 className="h-3.5 w-3.5" />
+                Quant
+              </TabsTrigger>
+              <TabsTrigger value="ai" data-testid="tab-source-ai" className="gap-1.5">
+                <Sparkles className="h-3.5 w-3.5" />
+                AI
+              </TabsTrigger>
+              <TabsTrigger value="hybrid" data-testid="tab-source-hybrid" className="gap-1.5">
+                <Brain className="h-3.5 w-3.5" />
+                Hybrid
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </div>
 
-      {/* Key Metrics Overview */}
+      {/* Source Badge */}
       {metrics && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="hover-elevate">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Target className="h-4 w-4 text-primary" />
-                Win Rate
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.winRate.toFixed(1)}%</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {metrics.winners}W / {metrics.losers}L of {metrics.totalTrades}
-              </p>
-            </CardContent>
-          </Card>
+        <div className="flex items-center gap-2 mb-4">
+          <Badge variant="outline" className="text-xs">
+            Analyzing {activeSource === 'all' ? 'All Sources' : activeSource.toUpperCase()} performance
+          </Badge>
+          <span className="text-xs text-muted-foreground">
+            {metrics.totalTrades} total trades ({metrics.winners}W / {metrics.losers}L)
+          </span>
+        </div>
+      )}
 
-          <Card className="hover-elevate">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                Sharpe Ratio
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.sharpeRatio.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Sortino: {metrics.sortinoRatio.toFixed(2)}
-              </p>
-            </CardContent>
-          </Card>
+      {/* Key Performance Metrics */}
+      {metrics && (
+        <div className="space-y-6">
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              Core Performance Metrics
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="hover-elevate">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">{metrics.winRate.toFixed(1)}%</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {metrics.winners}W • {metrics.losers}L
+                  </p>
+                </CardContent>
+              </Card>
 
-          <Card className="hover-elevate">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                Max Drawdown
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-500">
-                {metrics.maxDrawdownPercent.toFixed(1)}%
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Profit Factor: {metrics.profitFactor.toFixed(2)}
-              </p>
-            </CardContent>
-          </Card>
+              <Card className="hover-elevate">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Avg Gain</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-emerald-500">
+                    +{((metrics.avgWin || 0) * 100).toFixed(2)}%
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Per winning trade
+                  </p>
+                </CardContent>
+              </Card>
 
-          <Card className="hover-elevate">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Activity className="h-4 w-4 text-primary" />
-                Expectancy
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {metrics.expectancy > 0 ? '+' : ''}{metrics.expectancy.toFixed(2)}%
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Avg Win: {metrics.avgWin.toFixed(1)}% | Loss: {metrics.avgLoss.toFixed(1)}%
-              </p>
-            </CardContent>
-          </Card>
+              <Card className="hover-elevate">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Avg Loss</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-red-500">
+                    {((metrics.avgLoss || 0) * 100).toFixed(2)}%
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Per losing trade
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover-elevate">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Expectancy</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-3xl font-bold ${metrics.expectancy >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                    ${metrics.expectancy.toFixed(2)}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Per trade
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Risk Metrics */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Risk & Drawdown Analysis
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="hover-elevate">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Sharpe Ratio</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">{metrics.sharpeRatio.toFixed(2)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Target: &gt;1.5
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover-elevate">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Max Drawdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-red-500">
+                    {metrics.maxDrawdownPercent.toFixed(1)}%
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Peak-to-trough
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover-elevate">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Profit Factor</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">{metrics.profitFactor.toFixed(2)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Target: &gt;1.3
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover-elevate">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Sortino Ratio</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">{metrics.sortinoRatio.toFixed(2)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Downside risk
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </div>
       )}
 

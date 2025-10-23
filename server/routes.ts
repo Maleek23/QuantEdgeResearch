@@ -2145,11 +2145,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Analytics: Backtesting Metrics
-  app.get("/api/analytics/backtest", async (_req, res) => {
+  // Analytics: Backtesting Metrics (with source filtering)
+  app.get("/api/analytics/backtest", async (req, res) => {
     try {
       const { BacktestingEngine } = await import('./backtesting');
-      const allIdeas = await storage.getAllTradeIdeas();
+      const source = req.query.source as string | undefined;
+      
+      let allIdeas = await storage.getAllTradeIdeas();
+      
+      // Filter by source if specified
+      if (source && source !== 'all') {
+        allIdeas = allIdeas.filter(idea => idea.source === source);
+      }
       
       // Calculate comprehensive metrics
       const metrics = BacktestingEngine.calculateMetrics(allIdeas);
@@ -2160,6 +2167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metrics,
         signalPerformance,
         calibration,
+        source: source || 'all',
         timestamp: new Date().toISOString()
       });
     } catch (error: any) {
@@ -2168,10 +2176,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Analytics: Rolling Win Rate (time series)
-  app.get("/api/analytics/rolling-winrate", async (_req, res) => {
+  // Analytics: Rolling Win Rate (time series with source filtering)
+  app.get("/api/analytics/rolling-winrate", async (req, res) => {
     try {
-      const allIdeas = await storage.getAllTradeIdeas();
+      const source = req.query.source as string | undefined;
+      
+      let allIdeas = await storage.getAllTradeIdeas();
+      
+      // Filter by source if specified
+      if (source && source !== 'all') {
+        allIdeas = allIdeas.filter(idea => idea.source === source);
+      }
+      
       const closedIdeas = allIdeas
         .filter(i => i.outcomeStatus !== 'open' && i.exitDate)
         .sort((a, b) => new Date(a.exitDate!).getTime() - new Date(b.exitDate!).getTime());
@@ -2196,7 +2212,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      res.json({ data: rollingData, windowSize });
+      res.json({ data: rollingData, windowSize, source: source || 'all' });
     } catch (error: any) {
       console.error("Rolling win rate error:", error);
       res.status(500).json({ error: error?.message || "Failed to calculate rolling win rate" });

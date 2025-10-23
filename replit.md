@@ -7,6 +7,8 @@ QuantEdge Research is a professional quantitative trading research platform desi
 - **Free AI Tier**: Switched to Gemini free tier (25 requests/day, commercial use allowed) - eliminates paid API costs
 - **Hybrid AI+Quant System**: New `/api/hybrid/generate-ideas` endpoint combines proven quant signals with AI fundamental analysis
 - **Dashboard Integration**: Added "Free AI Ideas" button with FREE badge and "Hybrid (AI+Quant)" button for best-of-both-worlds generation
+- **Analytics Source Filtering**: Analytics page now supports filtering by source (All/Quant/AI/Hybrid) to compare performance across generation methods
+- **Improved Analytics UI**: Reorganized metrics into clear sections (Core Performance, Risk & Drawdown Analysis) with larger text and better readability
 
 ## User Preferences
 All timestamps should be displayed in America/Chicago timezone with market session context.
