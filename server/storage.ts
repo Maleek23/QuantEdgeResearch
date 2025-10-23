@@ -114,7 +114,7 @@ export interface IStorage {
   createTradeIdea(idea: InsertTradeIdea): Promise<TradeIdea>;
   updateTradeIdea(id: string, updates: Partial<TradeIdea>): Promise<TradeIdea | undefined>;
   deleteTradeIdea(id: string): Promise<boolean>;
-  findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack?: number): Promise<TradeIdea | undefined>;
+  findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack?: number, assetType?: string, optionType?: string, strikePrice?: number): Promise<TradeIdea | undefined>;
   updateTradeIdeaPerformance(id: string, performance: Partial<Pick<TradeIdea, 'outcomeStatus' | 'exitPrice' | 'exitDate' | 'resolutionReason' | 'actualHoldingTimeMinutes' | 'percentGain' | 'realizedPnL' | 'validatedAt' | 'outcomeNotes' | 'predictionAccurate' | 'predictionValidatedAt' | 'highestPriceReached' | 'lowestPriceReached'>>): Promise<TradeIdea | undefined>;
   getOpenTradeIdeas(): Promise<TradeIdea[]>;
   getPerformanceStats(): Promise<PerformanceStats>;
@@ -722,22 +722,45 @@ export class MemStorage implements IStorage {
     return this.tradeIdeas.delete(id);
   }
 
-  async findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack: number = 24): Promise<TradeIdea | undefined> {
+  async findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack: number = 24, assetType?: string, optionType?: string, strikePrice?: number): Promise<TradeIdea | undefined> {
     const now = new Date();
     const cutoffTime = new Date(now.getTime() - hoursBack * 60 * 60 * 1000);
     
-    const priceThreshold = 0.02; // 2% price difference threshold (TIGHTENED from 5%)
+    const priceThreshold = 0.02; // 2% price difference threshold
     
     return Array.from(this.tradeIdeas.values()).find(idea => {
       const ideaTime = new Date(idea.timestamp);
       const priceDiff = Math.abs(idea.entryPrice - entryPrice) / entryPrice;
       
-      return (
+      // Base conditions
+      let matches = (
         idea.symbol === symbol &&
         idea.direction === direction &&
         priceDiff <= priceThreshold &&
-        ideaTime >= cutoffTime
+        ideaTime >= cutoffTime &&
+        idea.source === 'quant' && // Only check quant ideas
+        idea.outcomeStatus === 'open' // Only check open ideas
       );
+      
+      // Add asset type check if provided
+      if (matches && assetType) {
+        matches = matches && idea.assetType === assetType;
+      }
+      
+      // Add option type check if provided
+      if (matches && optionType) {
+        matches = matches && idea.optionType === optionType;
+      }
+      
+      // Add strike price check for options (within $1)
+      if (matches && assetType === 'option' && strikePrice !== undefined && strikePrice !== null) {
+        matches = matches && 
+          idea.strikePrice !== null && 
+          idea.strikePrice !== undefined &&
+          Math.abs(idea.strikePrice - strikePrice) <= 1;
+      }
+      
+      return matches;
     });
   }
 
@@ -1314,19 +1337,43 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount ? result.rowCount > 0 : false;
   }
 
-  async findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack: number = 24): Promise<TradeIdea | undefined> {
+  async findSimilarTradeIdea(symbol: string, direction: string, entryPrice: number, hoursBack: number = 24, assetType?: string, optionType?: string, strikePrice?: number): Promise<TradeIdea | undefined> {
     const cutoffTime = new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
     const tolerance = entryPrice * 0.02; // 2% price tolerance
 
-    const results = await db.select().from(tradeIdeas)
-      .where(
-        and(
-          eq(tradeIdeas.symbol, symbol),
-          eq(tradeIdeas.direction, direction),
-          gte(tradeIdeas.timestamp, cutoffTime)
-        )
-      );
+    // Build base query conditions
+    const conditions = [
+      eq(tradeIdeas.symbol, symbol),
+      eq(tradeIdeas.direction, direction),
+      gte(tradeIdeas.timestamp, cutoffTime),
+      eq(tradeIdeas.source, 'quant'), // Only check quant ideas to prevent duplicates
+      eq(tradeIdeas.outcomeStatus, 'open') // Only check open ideas
+    ];
 
+    // Add asset type filter if provided
+    if (assetType) {
+      conditions.push(eq(tradeIdeas.assetType, assetType));
+    }
+
+    // Add option-specific filters if provided
+    if (optionType) {
+      conditions.push(eq(tradeIdeas.optionType, optionType));
+    }
+
+    const results = await db.select().from(tradeIdeas)
+      .where(and(...conditions));
+
+    // For options, also check strike price match (within $1)
+    if (assetType === 'option' && strikePrice !== undefined && strikePrice !== null) {
+      return results.find(idea => 
+        Math.abs(idea.entryPrice - entryPrice) <= tolerance &&
+        idea.strikePrice !== null &&
+        idea.strikePrice !== undefined &&
+        Math.abs(idea.strikePrice - strikePrice) <= 1
+      );
+    }
+
+    // For stocks/crypto, just check entry price tolerance
     return results.find(idea => 
       Math.abs(idea.entryPrice - entryPrice) <= tolerance
     );

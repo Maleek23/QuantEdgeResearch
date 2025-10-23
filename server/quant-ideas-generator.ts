@@ -1072,7 +1072,10 @@ export async function generateQuantIdeas(
         data.symbol,
         signal.direction,
         levels.entryPrice,
-        72 // Look back 72 hours (INCREASED from 24 to reduce duplicates)
+        72, // Look back 72 hours (INCREASED from 24 to reduce duplicates)
+        assetType, // Asset type filter (stock/option/crypto)
+        optionType, // Option type filter (call/put) for options
+        strikePrice // Strike price filter for options
       );
       if (duplicate) {
         dataQuality.lowQuality++; // Count as filtered for better reporting
@@ -1347,7 +1350,8 @@ export async function generateQuantIdeas(
           catalyst.symbol,
           direction,
           entryPrice,
-          72 // Look back 72 hours (INCREASED from 24 to reduce duplicates)
+          72, // Look back 72 hours (INCREASED from 24 to reduce duplicates)
+          symbolData.assetType // Asset type filter
         );
         if (duplicate) {
           continue; // Skip this idea, it's too similar to an existing one
