@@ -10,7 +10,11 @@ QuantEdge Research is a professional quantitative trading research platform desi
 - **Analytics Source Filtering**: Analytics page now supports filtering by source (All/Quant/AI/Hybrid) to compare performance across generation methods
 - **Improved Analytics UI**: Reorganized metrics into clear sections (Core Performance, Risk & Drawdown Analysis) with larger text and better readability
 - **Duplicate Prevention**: All three generation methods (Quant, AI, Hybrid) now check for existing open trades and skip duplicate symbols automatically
-- **CRITICAL PRICE FIX**: Fixed AI-generated ideas having inverted prices (target < entry, stop > entry). Added explicit price relationship rules to AI prompt and automatic price validation/correction before saving to database
+- **CRITICAL PRICE FIXES (Oct 23)**: Fixed price inversion bugs across ALL generation systems
+  - **AI:** Added explicit price rules to prompt (LONG: target > entry > stop) + automatic validation
+  - **Quant:** Fixed `calculateLevels()` to handle PUT options correctly (target DOWN, stop UP for bearish)
+  - **Hybrid:** Inherits quant fix + defensive validation layer
+  - **Triple Protection:** AI prompt rules → Calculation logic → Validation safety net
 
 ## User Preferences
 All timestamps should be displayed in America/Chicago timezone with market session context.

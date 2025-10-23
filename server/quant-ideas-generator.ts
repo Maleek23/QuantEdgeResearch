@@ -245,7 +245,8 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
 // Calculate entry, target, and stop based on signal type
 // v3.0: Simplified for mean reversion strategy (all signals are LONG only)
 // Research shows mean reversion needs TIGHT stops and realistic targets
-function calculateLevels(data: MarketData, signal: QuantSignal, assetType?: string) {
+// CRITICAL: For options, direction determines price levels (CALL vs PUT)
+function calculateLevels(data: MarketData, signal: QuantSignal, assetType?: string, optionType?: 'call' | 'put') {
   const entryPrice = data.currentPrice;
   let targetPrice: number;
   let stopLoss: number;
@@ -255,11 +256,19 @@ function calculateLevels(data: MarketData, signal: QuantSignal, assetType?: stri
                           assetType === 'option' ? 3.125 : // 25% min for options
                           1.0;  // 8% min for stocks
 
-  // v3.0: ALL signals are LONG mean reversion or early institutional flow
-  // Use CONSERVATIVE targets (8%) with TIGHT stops (2%) = 4:1 R:R
-  // Research shows mean reversion works with small, quick profits
-  targetPrice = entryPrice * (1 + 0.08 * assetMultiplier); // 8% stocks, 12% crypto, 25% options
-  stopLoss = entryPrice * (1 - 0.02 * assetMultiplier);    // 2% stops - limit losses
+  // ✅ CRITICAL FIX: For PUT options, invert target/stop logic
+  // PUT options profit when price goes DOWN, so target < entry < stop
+  if (assetType === 'option' && optionType === 'put') {
+    // BEARISH PUT: Target DOWN, Stop UP
+    targetPrice = entryPrice * (1 - 0.08 * assetMultiplier); // Target 25% DOWN
+    stopLoss = entryPrice * (1 + 0.02 * assetMultiplier);    // Stop 6.25% UP
+  } else {
+    // BULLISH (stocks, crypto, CALL options): Target UP, Stop DOWN
+    // v3.0: ALL signals are LONG mean reversion or early institutional flow
+    // Use CONSERVATIVE targets (8%) with TIGHT stops (2%) = 4:1 R:R
+    targetPrice = entryPrice * (1 + 0.08 * assetMultiplier); // 8% stocks, 12% crypto, 25% options
+    stopLoss = entryPrice * (1 - 0.02 * assetMultiplier);    // 2% stops - limit losses
+  }
 
   return {
     entryPrice: Number(entryPrice.toFixed(2)),
@@ -687,14 +696,18 @@ export async function generateQuantIdeas(
     // Options always use LONG positions (no shorts), so direction should always be 'long'
     // The option type (call/put) determines the directional bias
     let normalizedSignal = signal;
+    let initialOptionType: 'call' | 'put' | undefined = undefined;
+    
     if (data.assetType === 'option') {
       normalizedSignal = {
         ...signal,
         direction: 'long' // Always LONG for options (type already correct)
       };
+      // Determine option type based on ORIGINAL signal direction
+      initialOptionType = signal.direction === 'long' ? 'call' : 'put';
     }
 
-    let levels = calculateLevels(data, normalizedSignal, data.assetType);
+    let levels = calculateLevels(data, normalizedSignal, data.assetType, initialOptionType);
     const catalyst = generateCatalyst(data, normalizedSignal, catalysts);
     const analysis = generateAnalysis(data, normalizedSignal);
     
@@ -801,7 +814,9 @@ export async function generateQuantIdeas(
       
       // IMPORTANT: If assetType changed to 'option', recalculate levels with option thresholds (25% target)
       if (assetType === 'option' && data.assetType === 'stock') {
-        levels = calculateLevels(data, normalizedSignal, assetType);
+        // Determine option type first (needed for correct price levels)
+        const tempOptionType = signal.direction === 'long' ? 'call' : 'put';
+        levels = calculateLevels(data, normalizedSignal, assetType, tempOptionType);
         
         // Recalculate R:R with new option levels
         const riskDistance = Math.abs(levels.entryPrice - levels.stopLoss);

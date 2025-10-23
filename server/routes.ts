@@ -1784,7 +1784,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           logger.info(`⏭️  Hybrid: Skipped ${hybridIdea.symbol} - already has open trade`);
           continue;
         }
-        const riskRewardRatio = (hybridIdea.targetPrice - hybridIdea.entryPrice) / (hybridIdea.entryPrice - hybridIdea.stopLoss);
+        
+        // ✅ PRICE VALIDATION: Ensure correct price relationships (defensive check)
+        let { entryPrice, targetPrice, stopLoss } = hybridIdea;
+        if (hybridIdea.direction === 'long') {
+          if (targetPrice <= entryPrice || stopLoss >= entryPrice) {
+            logger.warn(`⚠️  Hybrid: Fixing inverted prices for ${hybridIdea.symbol} LONG`);
+            if (targetPrice < entryPrice && stopLoss > entryPrice) {
+              [targetPrice, stopLoss] = [stopLoss, targetPrice];
+            } else {
+              targetPrice = entryPrice * 1.05;
+              stopLoss = entryPrice * 0.97;
+            }
+          }
+        }
+        
+        const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
         
         const holdingPeriod: 'day' | 'swing' | 'position' = hybridIdea.assetType === 'crypto' ? 'position' : 'day';
         
@@ -1793,9 +1808,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           assetType: hybridIdea.assetType,
           direction: hybridIdea.direction,
           holdingPeriod: holdingPeriod,
-          entryPrice: hybridIdea.entryPrice,
-          targetPrice: hybridIdea.targetPrice,
-          stopLoss: hybridIdea.stopLoss,
+          entryPrice,
+          targetPrice,
+          stopLoss,
           riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
           catalyst: hybridIdea.catalyst,
           analysis: hybridIdea.analysis,
