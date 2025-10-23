@@ -3,6 +3,11 @@
 ## Overview
 QuantEdge Research is a professional quantitative trading research platform designed to identify day-trading opportunities in US equities, options, and crypto markets. Its primary purpose is to provide educational, research-grade trade ideas, robust risk management tools, and real-time market analysis. The platform emphasizes strong risk controls, clear educational disclaimers, and presents information via a professional dark-themed UI for rapid data scanning. It integrates real historical data for model accuracy, features adaptive learning, and operates on a public-access model managing membership tiers (Free vs. Premium) through Discord roles, with the web platform serving as a public dashboard. The platform's ambition is to offer a comprehensive, data-driven solution for quantitative trading research.
 
+**NEW: AI System Overhaul (Oct 23, 2025)**
+- **Free AI Tier**: Switched to Gemini free tier (25 requests/day, commercial use allowed) - eliminates paid API costs
+- **Hybrid AI+Quant System**: New `/api/hybrid/generate-ideas` endpoint combines proven quant signals with AI fundamental analysis
+- **Dashboard Integration**: Added "Free AI Ideas" button with FREE badge and "Hybrid (AI+Quant)" button for best-of-both-worlds generation
+
 ## User Preferences
 All timestamps should be displayed in America/Chicago timezone with market session context.
 The UI should be a professional dark-themed interface optimized for rapid data scanning.

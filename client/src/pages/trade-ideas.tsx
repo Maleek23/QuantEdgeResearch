@@ -770,7 +770,7 @@ export default function TradeIdeasPage() {
               </CardContent>
             </Card>
           ) : (
-            <Accordion type="single" collapsible className="space-y-4">
+            <Accordion type="single" collapsible className="space-y-4" defaultValue={Object.entries(groupedIdeas).filter(([, ideas]) => ideas.some(isVeryFreshIdea))[0]?.[0]}>
               {Object.entries(groupedIdeas)
                 .filter(([, ideas]) => ideas.some(isVeryFreshIdea))
                 .sort(([a], [b]) => {
@@ -838,7 +838,7 @@ export default function TradeIdeasPage() {
               </CardContent>
             </Card>
           ) : (
-            <Accordion type="single" collapsible className="space-y-4">
+            <Accordion type="single" collapsible className="space-y-4" defaultValue={Object.entries(groupedIdeas).filter(([, ideas]) => ideas.some(i => i.outcomeStatus === 'open'))[0]?.[0]}>
               {Object.entries(groupedIdeas)
                 .filter(([, ideas]) => ideas.some(i => i.outcomeStatus === 'open'))
                 .sort(([a], [b]) => {
