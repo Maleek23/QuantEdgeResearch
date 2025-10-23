@@ -17,8 +17,17 @@ interface TradeIdeaCardProps {
 
 export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails, onAddToWatchlist }: TradeIdeaCardProps) {
   const isLong = idea.direction === 'long';
-  const stopLossPercent = ((idea.stopLoss - idea.entryPrice) / idea.entryPrice) * 100;
-  const targetPercent = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice) * 100;
+  
+  // Calculate percentages respecting trade direction
+  // For LONG: target above entry = positive, stop below = negative
+  // For SHORT: target below entry = positive (shown as gain), stop above = negative (shown as risk)
+  const stopLossPercent = isLong
+    ? ((idea.stopLoss - idea.entryPrice) / idea.entryPrice) * 100  // Long: stop below entry = negative
+    : ((idea.entryPrice - idea.stopLoss) / idea.entryPrice) * 100; // Short: stop above entry = negative (inverted)
+  
+  const targetPercent = isLong
+    ? ((idea.targetPrice - idea.entryPrice) / idea.entryPrice) * 100  // Long: target above entry = positive
+    : ((idea.entryPrice - idea.targetPrice) / idea.entryPrice) * 100; // Short: target below entry = positive (inverted)
   
   const riskDollars = Math.abs(idea.stopLoss - idea.entryPrice);
   const rewardDollars = Math.abs(idea.targetPrice - idea.entryPrice);
@@ -74,13 +83,17 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                 {isLong ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
                 {idea.direction.toUpperCase()}
               </Badge>
-              <Badge variant="outline" className="text-xs font-semibold">
-                {idea.assetType === 'option' ? 'STOCK OPTIONS' : 
-                 idea.assetType === 'stock' ? 'STOCK SHARES' : 
-                 'CRYPTO'}
+              <Badge variant="outline" className="text-xs font-semibold uppercase">
+                {idea.assetType === 'option' ? 'Option' : 
+                 idea.assetType === 'stock' ? 'Stock' : 
+                 idea.assetType === 'penny_stock' ? 'Penny Stock' :
+                 'Crypto'}
               </Badge>
               {idea.assetType === 'option' && idea.strikePrice && idea.optionType && (
-                <Badge variant="secondary" className="text-xs font-semibold gap-1">
+                <Badge variant="secondary" className={cn(
+                  "text-xs font-semibold gap-1",
+                  idea.optionType === 'call' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
+                )}>
                   ${idea.strikePrice} {idea.optionType.toUpperCase()}
                 </Badge>
               )}

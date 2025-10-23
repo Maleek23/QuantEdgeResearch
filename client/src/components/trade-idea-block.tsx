@@ -66,8 +66,13 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
   }, [currentPrice]);
 
   const isLong = idea.direction === 'long';
+  // Price change calculation that respects trade direction
+  // For LONG: price up = profit (green), price down = loss (red)
+  // For SHORT: price down = profit (green), price up = loss (red)
   const priceChangePercent = currentPrice 
-    ? ((currentPrice - idea.entryPrice) / idea.entryPrice) * 100
+    ? isLong
+      ? ((currentPrice - idea.entryPrice) / idea.entryPrice) * 100  // Long: normal calculation
+      : ((idea.entryPrice - currentPrice) / idea.entryPrice) * 100   // Short: inverted (price down = positive)
     : 0;
 
   const getLetterGrade = (score: number): string => {
@@ -201,10 +206,10 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 </Badge>
 
                 {/* Asset Type Badge */}
-                <Badge variant="outline" className="text-xs font-medium">
-                  {idea.assetType === 'stock' ? 'Stock Shares' : 
+                <Badge variant="outline" className="text-xs font-medium uppercase">
+                  {idea.assetType === 'stock' ? 'Stock' : 
                    idea.assetType === 'penny_stock' ? 'Penny Stock' : 
-                   idea.assetType === 'option' ? 'Stock Options' : 
+                   idea.assetType === 'option' ? 'Option' : 
                    'Crypto'}
                 </Badge>
 

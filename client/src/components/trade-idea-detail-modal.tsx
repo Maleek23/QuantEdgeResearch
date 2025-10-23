@@ -26,8 +26,11 @@ export function TradeIdeaDetailModal({
   if (!idea) return null;
 
   const isLong = idea.direction === 'long';
+  // Price change calculation that respects trade direction
   const priceChangePercent = currentPrice 
-    ? ((currentPrice - idea.entryPrice) / idea.entryPrice) * 100
+    ? isLong
+      ? ((currentPrice - idea.entryPrice) / idea.entryPrice) * 100  // Long: price up = profit
+      : ((idea.entryPrice - currentPrice) / idea.entryPrice) * 100   // Short: price down = profit (inverted)
     : 0;
 
   const getLetterGrade = (score: number): string => {
