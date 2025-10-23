@@ -141,7 +141,7 @@ export default function Dashboard() {
     }
   });
 
-  // Generate AI Ideas mutation
+  // Generate AI Ideas mutation (Free Gemini tier)
   const generateAIIdeas = useMutation({
     mutationFn: async () => {
       return await apiRequest('POST', '/api/ai/generate-ideas', {
@@ -151,14 +151,37 @@ export default function Dashboard() {
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       toast({
-        title: "AI Ideas Generated",
-        description: `Generated ${data.count || 0} new AI-powered trade ideas`,
+        title: "Free AI Ideas Generated",
+        description: `Generated ${data.count || 0} ideas using Gemini free tier`,
       });
     },
     onError: (error: any) => {
       toast({
         title: "Generation Failed",
         description: error.message || "Failed to generate AI ideas",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Generate Hybrid Ideas mutation (Quant signals + AI intelligence)
+  const generateHybridIdeas = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/hybrid/generate-ideas', {
+        marketContext: "Current market conditions"
+      });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      toast({
+        title: "Hybrid Ideas Generated",
+        description: `Generated ${data.count || 0} ideas combining quant signals with AI analysis`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate hybrid ideas",
         variant: "destructive"
       });
     }
@@ -177,6 +200,7 @@ export default function Dashboard() {
   
   const aiIdeas = freshIdeas.filter(i => i.source === 'ai');
   const quantIdeas = freshIdeas.filter(i => i.source === 'quant');
+  const hybridIdeas = freshIdeas.filter(i => i.source === 'hybrid');
   const topGainers = marketData.filter(d => d.changePercent > 0).sort((a, b) => b.changePercent - a.changePercent).slice(0, 3);
   const topLosers = marketData.filter(d => d.changePercent < 0).sort((a, b) => a.changePercent - b.changePercent).slice(0, 3);
   const recentIdeas = freshIdeas.slice(0, 3);
@@ -225,11 +249,24 @@ export default function Dashboard() {
                 onClick={() => generateAIIdeas.mutate()}
                 disabled={generateAIIdeas.isPending}
                 variant="outline"
-                className="btn-magnetic glass-card"
+                className="btn-magnetic glass-card relative"
                 data-testid="button-generate-ai"
               >
                 <Sparkles className="h-4 w-4 mr-2" />
-                {generateAIIdeas.isPending ? "Generating..." : "Generate AI Ideas"}
+                {generateAIIdeas.isPending ? "Generating..." : "Free AI Ideas"}
+                <Badge variant="secondary" className="ml-2 text-xs px-1.5 py-0 bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                  FREE
+                </Badge>
+              </Button>
+              <Button 
+                onClick={() => generateHybridIdeas.mutate()}
+                disabled={generateHybridIdeas.isPending}
+                variant="outline"
+                className="btn-magnetic glass-card"
+                data-testid="button-generate-hybrid"
+              >
+                <Target className="h-4 w-4 mr-2" />
+                {generateHybridIdeas.isPending ? "Generating..." : "Hybrid (AI+Quant)"}
               </Button>
               <Button 
                 onClick={() => setChatBotOpen(true)}
@@ -416,7 +453,7 @@ export default function Dashboard() {
             <CardContent className="space-y-2">
               <div className="text-3xl font-bold font-mono tracking-tight" data-testid="metric-fresh-ideas">{freshIdeas.length}</div>
               <p className="text-xs text-muted-foreground">Last 2 hours</p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className="gap-1 text-xs badge-shimmer">
                   <Sparkles className="h-3 w-3" />
                   {aiIdeas.length} AI
@@ -425,6 +462,12 @@ export default function Dashboard() {
                   <BarChart3 className="h-3 w-3" />
                   {quantIdeas.length} Quant
                 </Badge>
+                {hybridIdeas.length > 0 && (
+                  <Badge variant="outline" className="gap-1 text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                    <Target className="h-3 w-3" />
+                    {hybridIdeas.length} Hybrid
+                  </Badge>
+                )}
               </div>
             </CardContent>
           </Card>

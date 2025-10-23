@@ -22,6 +22,7 @@ const COLORS = {
   SHORT: 0xef4444,   // Red for short/sell
   AI: 0xa855f7,      // Purple for AI signals
   QUANT: 0x3b82f6,   // Blue for quant signals
+  HYBRID: 0x10b981,  // Emerald for hybrid (AI + Quant)
   MANUAL: 0x64748b,  // Gray for manual trades
 };
 
@@ -32,7 +33,8 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
   
   // Source badge
   const sourceBadge = idea.source === 'ai' ? '🧠 AI Signal' : 
-                     idea.source === 'quant' ? '✨ Quant Signal' : 
+                     idea.source === 'quant' ? '✨ Quant Signal' :
+                     idea.source === 'hybrid' ? '🎯 Hybrid (AI+Quant)' :
                      '📝 Manual';
   
   // Asset type badge
@@ -231,7 +233,7 @@ export async function sendDiscordAlert(alert: {
 }
 
 // Send batch summary to Discord
-export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai' | 'quant'): Promise<void> {
+export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai' | 'quant' | 'hybrid'): Promise<void> {
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl || ideas.length === 0) {
@@ -239,8 +241,12 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
   }
   
   try {
-    const sourceLabel = source === 'ai' ? '🧠 AI' : '✨ Quant';
-    const color = source === 'ai' ? COLORS.AI : COLORS.QUANT;
+    const sourceLabel = source === 'ai' ? '🧠 AI' : 
+                       source === 'hybrid' ? '🎯 Hybrid (AI+Quant)' :
+                       '✨ Quant';
+    const color = source === 'ai' ? COLORS.AI :
+                 source === 'hybrid' ? COLORS.HYBRID :
+                 COLORS.QUANT;
     
     const summary = ideas.map(idea => 
       `${idea.direction === 'long' ? '🟢' : '🔴'} **${idea.symbol}** (${idea.assetType}) - Entry: $${idea.entryPrice.toFixed(2)}`
