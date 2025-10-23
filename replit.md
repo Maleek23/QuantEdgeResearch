@@ -33,7 +33,7 @@ The platform employs a multi-page, publicly accessible architecture with members
 
 ### Data Sources
 -   **CoinGecko API:** Crypto (real-time prices, historical data, market cap, discovery).
--   **Yahoo Finance:** Stocks (real-time quotes, discovery via screener, historical data).
+-   **Yahoo Finance:** Stocks (real-time quotes, discovery via screener, historical data). **Enhanced Discovery**: Scans ~500 stocks per run (150 gainers, 100 losers, 150 most active, 100 undervalued) with retry logic for rate limiting resilience.
 -   **Alpha Vantage API:** Fallback for Stock historical data, Earnings calendar.
 -   **Tradier API:** Options data (chains, delta targeting, live pricing).
 
