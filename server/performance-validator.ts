@@ -371,14 +371,16 @@ export class PerformanceValidator {
       };
     }
 
-    // For target/stop checks, we need current price
-    if (!currentPrice) {
-      return { shouldUpdate: false };
-    }
-
+    // For target/stop checks, we need current price to update extremes
+    // But we can still validate using historical extremes if current price unavailable
+    
     // Track price extremes (update if current price is more extreme)
-    const highestPrice = Math.max(idea.highestPriceReached || idea.entryPrice, currentPrice);
-    const lowestPrice = Math.min(idea.lowestPriceReached || idea.entryPrice, currentPrice);
+    const highestPrice = currentPrice 
+      ? Math.max(idea.highestPriceReached || idea.entryPrice, currentPrice)
+      : (idea.highestPriceReached || idea.entryPrice);
+    const lowestPrice = currentPrice
+      ? Math.min(idea.lowestPriceReached || idea.entryPrice, currentPrice)
+      : (idea.lowestPriceReached || idea.entryPrice);
 
     // CRITICAL: Normalize direction considering both direction field and option type
     // This ensures we correctly validate options trades
@@ -386,10 +388,13 @@ export class PerformanceValidator {
     // {long put, short call} = bearish (price goes DOWN)
     const normalizedDirection = this.getNormalizedDirection(idea);
 
-    // Check if target hit based on normalized direction
+    // 🎯 CRITICAL FIX: Check INTRADAY highs/lows instead of current price
+    // This catches targets that were hit intraday but reversed by EOD
+    // For LONG trades: Check if highest price reached >= target
+    // For SHORT trades: Check if lowest price reached <= target
     const targetHit = normalizedDirection === 'long'
-      ? currentPrice >= idea.targetPrice
-      : currentPrice <= idea.targetPrice;
+      ? highestPrice >= idea.targetPrice
+      : lowestPrice <= idea.targetPrice;
 
     if (targetHit) {
       const percentGain = this.calculatePercentGain(
@@ -397,6 +402,8 @@ export class PerformanceValidator {
         idea.entryPrice,
         idea.targetPrice
       );
+
+      console.log(`🎯 [VALIDATION] ${idea.symbol} HIT TARGET intraday (${normalizedDirection.toUpperCase()}: ${normalizedDirection === 'long' ? `high $${highestPrice.toFixed(2)} >= target $${idea.targetPrice}` : `low $${lowestPrice.toFixed(2)} <= target $${idea.targetPrice}`})`);
 
       return {
         shouldUpdate: true,
@@ -415,10 +422,12 @@ export class PerformanceValidator {
       };
     }
 
-    // Check if stop loss hit based on normalized direction
+    // 🎯 CRITICAL FIX: Check INTRADAY highs/lows for stops too
+    // For LONG trades: Check if lowest price reached <= stop
+    // For SHORT trades: Check if highest price reached >= stop
     const stopHit = normalizedDirection === 'long'
-      ? currentPrice <= idea.stopLoss
-      : currentPrice >= idea.stopLoss;
+      ? lowestPrice <= idea.stopLoss
+      : highestPrice >= idea.stopLoss;
 
     if (stopHit) {
       const percentGain = this.calculatePercentGain(
@@ -430,17 +439,19 @@ export class PerformanceValidator {
       // Even if stop hit, check if prediction moved in right direction before reversing
       const predictionAccurate = this.checkPredictionAccuracy(
         idea,
-        currentPrice,
+        currentPrice || lowestPrice,
         highestPrice,
         lowestPrice
       );
       
       const predictionAccuracyPercent = this.calculatePredictionAccuracyPercent(
         idea,
-        currentPrice,
+        currentPrice || lowestPrice,
         highestPrice,
         lowestPrice
       );
+
+      console.log(`🛑 [VALIDATION] ${idea.symbol} HIT STOP intraday (${normalizedDirection.toUpperCase()}: ${normalizedDirection === 'long' ? `low $${lowestPrice.toFixed(2)} <= stop $${idea.stopLoss}` : `high $${highestPrice.toFixed(2)} >= stop $${idea.stopLoss}`})`);
 
       return {
         shouldUpdate: true,
@@ -460,9 +471,10 @@ export class PerformanceValidator {
     }
 
     // Still open - update price extremes if they changed
-    const priceExtremesChanged = 
+    const priceExtremesChanged = currentPrice && (
       highestPrice !== (idea.highestPriceReached || idea.entryPrice) ||
-      lowestPrice !== (idea.lowestPriceReached || idea.entryPrice);
+      lowestPrice !== (idea.lowestPriceReached || idea.entryPrice)
+    );
 
     if (priceExtremesChanged) {
       return {
