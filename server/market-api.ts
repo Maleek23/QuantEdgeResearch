@@ -634,58 +634,64 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
       }
     });
     
-    // PREDICTIVE FILTERING + SCORING:
-    // HARD REQUIREMENTS: Volume ratio ≥ 3x AND bullish 0-3% AND near day high
-    // This ensures we ONLY surface early accumulation signals, not reactive chasing or gap-and-fade
+    // ADAPTIVE DISCOVERY: Wide net captures multiple momentum phases
+    // Strategy: Let quant engine decide entry timing, discovery just finds unusual volume + healthy price action
     const sortedGems = Array.from(uniqueGems.values())
       .filter(gem => {
-        // DATA QUALITY FILTERS: Require REAL data, not defaults/fallbacks
-        // Reject if missing average volume (can't calculate ratio accurately)
-        if (!gem.avgVolume || gem.avgVolume === 0) {
-          return false;
-        }
-        
-        // Reject if missing day high (can't detect gap-and-fade)
+        // DATA QUALITY FILTERS: Require day high (critical for gap-fade detection)
+        // More lenient with avgVolume (use current volume as proxy if missing)
         if (!gem.dayHigh || gem.dayHigh === 0) {
-          return false;
+          return false; // Can't detect gap-and-fade without intraday high
         }
         
-        const volumeRatio = gem.volume / gem.avgVolume;
+        // Use avgVolume if available, otherwise use current volume (less accurate but usable)
+        const effectiveAvgVolume = gem.avgVolume && gem.avgVolume > 0 ? gem.avgVolume : gem.volume;
+        const volumeRatio = gem.volume / effectiveAvgVolume;
         
-        // CRITICAL FILTERS: Must meet ALL to be predictive
-        const hasUnusualVolume = volumeRatio >= 3.0;           // 3x+ average volume
+        // CORE FILTERS: Unusual volume + healthy price action
+        const hasUnusualVolume = volumeRatio >= 3.0;           // 3x+ average volume (institutions active)
         const isBullish = gem.changePercent >= 0;               // Only bullish (exclude selloffs)
-        const hasSmallMove = gem.changePercent < 3.0;          // Less than 3% gain (exclude big gap-ups)
+        const notTooLate = gem.changePercent < 10.0;           // Skip stocks that already rallied >10% (too late)
         
         // GAP-AND-FADE FILTER: Price must be within 5% of day high
         // This rejects stocks that spiked and faded (e.g., +15% open → +2% close)
         const nearDayHigh = (gem.currentPrice / gem.dayHigh) >= 0.95;
         
-        // Perfect target: AAPL with 4x volume, +0.8% gain, price = day high = institutions accumulating
-        // Rejected: Stock that gapped +15%, faded to +2.5% (currentPrice/dayHigh = 0.875 < 0.95)
-        // Rejected: Stock with 3x volume but -2% = selloff, not accumulation
-        // Rejected: Stock missing dayHigh or avgVolume data = unreliable signal
-        return hasUnusualVolume && isBullish && hasSmallMove && nearDayHigh;
+        // ADAPTIVE APPROACH: Accept 0-10% bullish moves, let quant engine decide strategy
+        // - 0-2%: Early accumulation (RSI, MACD)
+        // - 2-5%: Breakout phase (MACD, volume spike)
+        // - 5-10%: Strong momentum (5x+ volume required)
+        // - Rejected: Stock that gapped +15%, faded to +4% (currentPrice/dayHigh < 95%)
+        // - Rejected: Stock with -2% = selloff (bearish)
+        // - Rejected: Stock missing dayHigh = can't verify gap-and-fade
+        return hasUnusualVolume && isBullish && notTooLate && nearDayHigh;
       })
       .map(gem => {
-        const volumeRatio = gem.volume / gem.avgVolume!; // Safe: filtered above
+        // Use avgVolume if available, otherwise use current volume (same as filter)
+        const effectiveAvgVolume = gem.avgVolume && gem.avgVolume > 0 ? gem.avgVolume : gem.volume;
+        const volumeRatio = gem.volume / effectiveAvgVolume;
         
-        // Score formula: High volume + minimal bullish price change = best early signal
-        // Perfect score: 5x volume, +0.5% gain = institutions accumulating before news
+        // BALANCED SCORING: All phases get competitive scores
         let score = 0;
         
-        // Volume component (0-60 points): Higher volume = better
+        // Volume component (0-60 points): Higher volume = better (all phases)
         if (volumeRatio >= 5) score += 60;
         else if (volumeRatio >= 4) score += 55;
         else if (volumeRatio >= 3) score += 50;
         
-        // Price change component (0-40 points): SMALLER bullish move = better
-        // Note: gem.changePercent is already 0-3% due to filter
-        if (gem.changePercent < 0.5) score += 40;      // Best: minimal price move
-        else if (gem.changePercent < 1.0) score += 35;  // Excellent: tiny move
-        else if (gem.changePercent < 1.5) score += 30;  // Good: small move
-        else if (gem.changePercent < 2.0) score += 25;  // OK: moderate move
-        else score += 20;                               // Acceptable: <3% move
+        // Price change component (0-40 points): Balanced across phases
+        // Early accumulation (0-2%): Slight preference (38-40 points)
+        if (gem.changePercent < 0.5) score += 40;
+        else if (gem.changePercent < 1.0) score += 39;
+        else if (gem.changePercent < 1.5) score += 39;
+        else if (gem.changePercent < 2.0) score += 38;
+        // Breakout phase (2-5%): Competitive score (35-37 points)
+        else if (gem.changePercent < 3.0) score += 37;
+        else if (gem.changePercent < 4.0) score += 36;
+        else if (gem.changePercent < 5.0) score += 35;
+        // Strong momentum (5-10%): Still competitive (32-34 points)
+        else if (gem.changePercent < 7.0) score += 34;
+        else if (gem.changePercent < 10.0) score += 32;
         
         return { ...gem, volumeRatio, score };
       })

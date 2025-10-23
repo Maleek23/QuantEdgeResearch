@@ -163,109 +163,130 @@ async function analyzeMultiTimeframe(
 }
 
 // Analyze market data for quantitative signals with RSI/MACD integration
-// REDESIGNED: Prioritize PREDICTIVE signals over REACTIVE chasing
+// ADAPTIVE STRATEGY: Different signals for different momentum phases
 function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantSignal | null {
   const priceChange = data.changePercent;
   const volume = data.volume || 0;
   const avgVolume = data.avgVolume || volume;
   const volumeRatio = avgVolume > 0 ? volume / avgVolume : 1;
+  
+  // Determine momentum phase
+  const priceChangeAbs = Math.abs(priceChange);
+  const isEarlyPhase = priceChangeAbs < 2;     // 0-2%: Early accumulation
+  const isBreakoutPhase = priceChangeAbs < 5;  // 2-5%: Breakout building
+  const isMomentumPhase = priceChangeAbs < 10; // 5-10%: Strong momentum
 
-  // PRIORITY 1: RSI and MACD Analysis - PREDICTIVE signals (check FIRST, not last!)
-  // Require real historical prices - no synthetic fallback
-  if (historicalPrices.length > 0) {
-    const prices = historicalPrices;
-    
-    const rsi = calculateRSI(prices, 14);
-    const macd = calculateMACD(prices);
-    
-    const rsiAnalysis = analyzeRSI(rsi);
-    const macdAnalysis = analyzeMACD(macd);
-    
-    // RSI Divergence Signal (strong oversold/overbought) - HIGHEST PRIORITY
-    if (rsiAnalysis.strength === 'strong' && rsiAnalysis.direction !== 'neutral') {
+  // PHASE 1: EARLY ACCUMULATION (0-2%)
+  // Use RSI, MACD, volume spike - predictive signals
+  if (isEarlyPhase) {
+    // PRIORITY 1: RSI and MACD Analysis - PREDICTIVE signals (check FIRST, not last!)
+    // Require real historical prices - no synthetic fallback
+    if (historicalPrices.length > 0) {
+      const prices = historicalPrices;
+      
+      const rsi = calculateRSI(prices, 14);
+      const macd = calculateMACD(prices);
+      
+      const rsiAnalysis = analyzeRSI(rsi);
+      const macdAnalysis = analyzeMACD(macd);
+      
+      // RSI Divergence Signal (strong oversold/overbought) - HIGHEST PRIORITY
+      if (rsiAnalysis.strength === 'strong' && rsiAnalysis.direction !== 'neutral') {
+        return {
+          type: 'rsi_divergence',
+          strength: 'strong',
+          direction: rsiAnalysis.direction,
+          rsiValue: rsi
+        };
+      }
+      
+      // MACD Crossover Signal - SECOND PRIORITY
+      if ((macdAnalysis.crossover || macdAnalysis.strength === 'strong') && macdAnalysis.direction !== 'neutral') {
+        return {
+          type: 'macd_crossover',
+          strength: macdAnalysis.strength,
+          direction: macdAnalysis.direction,
+          macdValues: macd
+        };
+      }
+      
+      // Moderate RSI signal - THIRD PRIORITY
+      if (rsiAnalysis.strength === 'moderate' && rsiAnalysis.direction !== 'neutral') {
+        return {
+          type: 'rsi_divergence',
+          strength: 'moderate',
+          direction: rsiAnalysis.direction,
+          rsiValue: rsi
+        };
+      }
+    }
+
+    // PRIORITY 2: EARLY breakout signals - price APPROACHING highs (not after big move)
+    // Only trigger if move is small (<2%) but volume is building
+    if (data.high52Week && data.currentPrice >= data.high52Week * 0.95 && data.currentPrice < data.high52Week * 0.98 && volumeRatio >= 1.5) {
       return {
-        type: 'rsi_divergence',
+        type: 'breakout',
+        strength: volumeRatio >= 2.5 ? 'strong' : 'moderate',
+        direction: 'long' // early breakout setup
+      };
+    }
+
+    // PRIORITY 3: Volume spike with SMALL price move (institutional positioning BEFORE big move)
+    // Only long positions (discovery filters out bearish moves)
+    if (volumeRatio >= 3 && priceChange >= 0 && priceChange < 1) {
+      return {
+        type: 'volume_spike',
+        strength: volumeRatio >= 5 ? 'strong' : 'moderate',
+        direction: 'long'
+      };
+    }
+  }
+  
+  // PHASE 2: BREAKOUT BUILDING (2-5%)
+  // Use MACD crossover, volume confirmation - momentum building
+  // Discovery only sends bullish moves, so always long
+  else if (isBreakoutPhase && !isEarlyPhase && priceChange >= 0) {
+    // Require MACD confirmation for breakouts
+    if (historicalPrices.length > 0) {
+      const macd = calculateMACD(historicalPrices);
+      const macdAnalysis = analyzeMACD(macd);
+      
+      // MACD must confirm bullish direction
+      if (macdAnalysis.direction === 'long') {
+        return {
+          type: 'macd_crossover',
+          strength: volumeRatio >= 3 ? 'strong' : 'moderate',
+          direction: 'long',
+          macdValues: macd
+        };
+      }
+    }
+    
+    // Volume spike with building momentum (bullish only)
+    if (volumeRatio >= 3) {
+      return {
+        type: 'volume_spike',
+        strength: volumeRatio >= 5 ? 'strong' : 'moderate',
+        direction: 'long'
+      };
+    }
+  }
+  
+  // PHASE 3: STRONG MOMENTUM (5-10%)
+  // Require exceptional volume to ride the wave
+  // Discovery only sends bullish moves, so always long
+  else if (isMomentumPhase && !isBreakoutPhase && priceChange >= 0) {
+    // Only trade with exceptional volume (5x+) to avoid late entries
+    if (volumeRatio >= 5) {
+      return {
+        type: 'volume_spike',
         strength: 'strong',
-        direction: rsiAnalysis.direction,
-        rsiValue: rsi
-      };
-    }
-    
-    // MACD Crossover Signal - SECOND PRIORITY
-    if ((macdAnalysis.crossover || macdAnalysis.strength === 'strong') && macdAnalysis.direction !== 'neutral') {
-      return {
-        type: 'macd_crossover',
-        strength: macdAnalysis.strength,
-        direction: macdAnalysis.direction,
-        macdValues: macd
-      };
-    }
-    
-    // Moderate RSI signal - THIRD PRIORITY
-    if (rsiAnalysis.strength === 'moderate' && rsiAnalysis.direction !== 'neutral') {
-      return {
-        type: 'rsi_divergence',
-        strength: 'moderate',
-        direction: rsiAnalysis.direction,
-        rsiValue: rsi
+        direction: 'long'
       };
     }
   }
 
-  // PRIORITY 2: EARLY breakout signals - price APPROACHING highs (not after big move)
-  // MOVED UP: More predictive than mean reversion (uses structure + volume, not just size)
-  // Only trigger if move is small (<2%) but volume is building
-  if (data.high52Week && data.currentPrice >= data.high52Week * 0.95 && data.currentPrice < data.high52Week * 0.98 && volumeRatio >= 1.5 && Math.abs(priceChange) < 2) {
-    return {
-      type: 'breakout',
-      strength: volumeRatio >= 2.5 ? 'strong' : 'moderate',
-      direction: 'long' // early breakout setup
-    };
-  }
-
-  // Early bearish breakdown - price APPROACHING lows (not after crash)
-  if (data.low52Week && data.currentPrice <= data.low52Week * 1.05 && data.currentPrice > data.low52Week * 1.02 && volumeRatio >= 1.5 && Math.abs(priceChange) < 2) {
-    return {
-      type: 'breakout',
-      strength: volumeRatio >= 2.5 ? 'strong' : 'moderate',
-      direction: 'short' // early breakdown setup
-    };
-  }
-
-  // REMOVED: Mean reversion / reversal setups (PRIORITY 3)
-  // Analysis shows only 18-25% win rate on reversal trades (catching falling knives)
-  // Trades like ASTER (-3.09%), MYX (-2.88%), ARB (-3.23%), USAR (-9.38%), GLXY (-6.25%)
-  // all failed trying to catch "extreme oversold" bounces. Removed to improve accuracy.
-  // 
-  // if (priceChange <= -7) {
-  //   return {
-  //     type: 'mean_reversion',
-  //     strength: 'strong',
-  //     direction: 'long' // oversold bounce
-  //   };
-  // }
-  //
-  // if (priceChange >= 7 && data.assetType === 'stock') {
-  //   return {
-  //     type: 'mean_reversion',
-  //     strength: 'moderate',
-  //     direction: 'short' // overbought pullback
-  //   };
-  // }
-
-  // PRIORITY 4: Volume spike with SMALL price move (institutional positioning BEFORE big move)
-  // Only if move is <1% but volume is exceptional - catching EARLY accumulation
-  if (volumeRatio >= 3 && Math.abs(priceChange) < 1) {
-    return {
-      type: 'volume_spike',
-      strength: volumeRatio >= 5 ? 'strong' : 'moderate',
-      direction: priceChange >= 0 ? 'long' : 'short'
-    };
-  }
-
-  // REMOVED: All "momentum" signals that chase finished moves (5%, 2%, 1.5% rallies)
-  // These were buying AFTER the move happened, leading to 2% accuracy
-
+  // No signal found for this stock at this phase
   return null;
 }
 
