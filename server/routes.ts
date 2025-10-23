@@ -1725,6 +1725,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 🎯 AI + Quant HYBRID Ideas (Combines proven quant signals with FREE AI intelligence)
+  app.post("/api/hybrid/generate-ideas", aiGenerationLimiter, async (req, res) => {
+    try {
+      const schema = z.object({
+        marketContext: z.string().optional().default("Current market conditions"),
+      });
+      const { marketContext } = schema.parse(req.body);
+      
+      const { generateHybridIdeas } = await import("./ai-service");
+      const hybridIdeas = await generateHybridIdeas(marketContext);
+      
+      // Save hybrid ideas to storage
+      const savedIdeas = [];
+      for (const hybridIdea of hybridIdeas) {
+        const riskRewardRatio = (hybridIdea.targetPrice - hybridIdea.entryPrice) / (hybridIdea.entryPrice - hybridIdea.stopLoss);
+        
+        const holdingPeriod: 'day' | 'swing' | 'position' = hybridIdea.assetType === 'crypto' ? 'position' : 'day';
+        
+        const tradeIdea = await storage.createTradeIdea({
+          symbol: hybridIdea.symbol,
+          assetType: hybridIdea.assetType,
+          direction: hybridIdea.direction,
+          holdingPeriod: holdingPeriod,
+          entryPrice: hybridIdea.entryPrice,
+          targetPrice: hybridIdea.targetPrice,
+          stopLoss: hybridIdea.stopLoss,
+          riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
+          catalyst: hybridIdea.catalyst,
+          analysis: hybridIdea.analysis,
+          liquidityWarning: hybridIdea.entryPrice < 5,
+          sessionContext: hybridIdea.sessionContext,
+          timestamp: new Date().toISOString(),
+          expiryDate: hybridIdea.expiryDate || null,
+          strikePrice: hybridIdea.assetType === 'option' ? hybridIdea.entryPrice * (hybridIdea.direction === 'long' ? 1.02 : 0.98) : null,
+          optionType: hybridIdea.assetType === 'option' ? (hybridIdea.direction === 'long' ? 'call' : 'put') : null,
+          source: 'hybrid' // NEW: Mark as hybrid (quant + AI)
+        });
+        savedIdeas.push(tradeIdea);
+      }
+      
+      // Send Discord notification for batch
+      if (savedIdeas.length > 0) {
+        const { sendBatchSummaryToDiscord } = await import("./discord-service");
+        sendBatchSummaryToDiscord(savedIdeas, 'hybrid').catch(err => 
+          console.error('Discord notification failed:', err)
+        );
+      }
+      
+      res.json({ success: true, ideas: savedIdeas, count: savedIdeas.length });
+    } catch (error: any) {
+      console.error("Hybrid idea generation error:", error);
+      res.status(500).json({ error: error?.message || "Failed to generate hybrid ideas" });
+    }
+  });
+
   app.post("/api/ai/chat", async (req, res) => {
     try {
       const schema = z.object({

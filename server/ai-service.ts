@@ -155,7 +155,7 @@ If no clear trade ideas are found, return empty array.`;
   }
 }
 
-// Generate trade ideas using all 3 AI models
+// Generate trade ideas using FREE Gemini tier (25 requests/day)
 export async function generateTradeIdeas(marketContext: string): Promise<AITradeIdea[]> {
   const systemPrompt = `You are a quantitative trading analyst. Generate 3-4 high-quality trade ideas based on current market conditions.
 
@@ -177,62 +177,25 @@ Focus on actionable, research-grade opportunities.`;
   const userPrompt = `Generate trade ideas for: ${marketContext}`;
 
   try {
-    // Use all 3 models in parallel for diverse perspectives
+    // Use FREE Gemini Flash tier (25 requests/day, commercial use allowed)
     const startTime = Date.now();
-    const [openaiResponse, anthropicResponse, geminiResponse] = await Promise.all([
-      // OpenAI GPT-5
-      getOpenAI().chat.completions.create({
-        model: "gpt-5",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        response_format: { type: "json_object" },
-        max_completion_tokens: 2048,
-      }).then(res => {
-        logAPISuccess('OpenAI', 'chat.completions', Date.now() - startTime);
-        return res;
-      }).catch(err => {
-        logAPIError('OpenAI', 'chat.completions', err);
-        throw err;
-      }),
-      
-      // Anthropic Claude
-      getAnthropic().messages.create({
-        model: DEFAULT_ANTHROPIC_MODEL,
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-      }).then(res => {
-        logAPISuccess('Anthropic', 'messages.create', Date.now() - startTime);
-        return res;
-      }).catch(err => {
-        logAPIError('Anthropic', 'messages.create', err);
-        throw err;
-      }),
-      
-      // Google Gemini
-      getGemini().models.generateContent({
-        model: "gemini-2.5-pro",
-        config: {
-          systemInstruction: systemPrompt,
-          responseMimeType: "application/json",
-        },
-        contents: userPrompt,
-      }).then(res => {
-        logAPISuccess('Gemini', 'generateContent', Date.now() - startTime);
-        return res;
-      }).catch(err => {
-        logAPIError('Gemini', 'generateContent', err);
-        throw err;
-      })
-    ]);
+    logger.info("🆓 Using FREE Gemini API tier (25 requests/day)");
+    
+    const geminiResponse = await getGemini().models.generateContent({
+      model: "gemini-2.5-flash", // Free tier model
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: "application/json",
+      },
+      contents: userPrompt,
+    });
 
-    // Parse responses - handle both array and object formats
+    logAPISuccess('Gemini (Free)', 'generateContent', Date.now() - startTime);
+
+    // Parse response
     const parseIdeas = (content: string): AITradeIdea[] => {
       try {
         const parsed = JSON.parse(content);
-        // Handle both array format and object with ideas property
         if (Array.isArray(parsed)) {
           return parsed;
         } else if (parsed.ideas && Array.isArray(parsed.ideas)) {
@@ -244,42 +207,27 @@ Focus on actionable, research-grade opportunities.`;
       }
     };
 
-    const openaiIdeas = parseIdeas(openaiResponse.choices[0].message.content || '[]');
-    
-    const anthropicText = anthropicResponse.content.find(block => block.type === 'text');
-    const anthropicIdeas = parseIdeas(anthropicText && 'text' in anthropicText ? anthropicText.text : '[]');
-    
-    // Gemini: use text getter
     const geminiText = geminiResponse.text || '';
     const geminiIdeas = parseIdeas(geminiText);
 
-    // Combine all ideas
-    const allIdeas: AITradeIdea[] = [
-      ...openaiIdeas,
-      ...anthropicIdeas,
-      ...geminiIdeas
-    ];
+    logger.info(`🆓 Generated ${geminiIdeas.length} ideas using FREE Gemini tier`);
 
-    logger.info(`Generated ${openaiIdeas.length} ideas from OpenAI, ${anthropicIdeas.length} from Anthropic, ${geminiIdeas.length} from Gemini`);
-
-    return allIdeas.slice(0, 10); // Return max 10 ideas
+    return geminiIdeas.slice(0, 10); // Return max 10 ideas
   } catch (error: any) {
-    logger.error("AI trade idea generation failed:", error);
+    logger.error("Gemini AI trade idea generation failed:", error);
     
     // Provide helpful error messages
-    if (error?.status === 400 && error?.message?.includes('credit balance')) {
-      throw new Error("AI service unavailable: Please check your API credits");
+    if (error?.status === 429) {
+      throw new Error("Free AI limit reached (25/day). Try again tomorrow or upgrade to paid tier.");
     } else if (error?.status === 401) {
       throw new Error("AI service unavailable: Invalid API credentials");
-    } else if (error?.status === 429) {
-      throw new Error("AI service unavailable: Rate limit exceeded");
     }
     
-    throw new Error("Failed to generate trade ideas");
+    throw new Error("Failed to generate trade ideas with free AI");
   }
 }
 
-// Chat with QuantAI Bot
+// Chat with QuantAI Bot (using FREE Gemini tier)
 export async function chatWithQuantAI(userMessage: string, conversationHistory: Array<{role: string, content: string}>): Promise<string> {
   const systemPrompt = `You are QuantAI Bot, an expert quantitative trading assistant for QuantEdge Research platform.
 
@@ -292,76 +240,32 @@ Your role:
 
 Be concise, professional, and data-driven. Use plain language while maintaining technical accuracy.`;
 
-  // Try Anthropic (Claude) first - best conversational AI
+  // Use FREE Gemini tier (25 requests/day)
   try {
-    const response = await getAnthropic().messages.create({
-      model: DEFAULT_ANTHROPIC_MODEL,
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: [
-        ...conversationHistory.map(msg => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content
-        })),
-        { role: 'user', content: userMessage }
-      ],
+    logger.info("🆓 Using FREE Gemini for chat");
+    const conversationText = conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n');
+    const fullPrompt = conversationText ? `${conversationText}\nuser: ${userMessage}` : userMessage;
+    
+    const geminiResponse = await getGemini().models.generateContent({
+      model: "gemini-2.5-flash", // Free tier model
+      config: {
+        systemInstruction: systemPrompt,
+      },
+      contents: fullPrompt,
     });
 
-    const textBlock = response.content.find(block => block.type === 'text');
-    return textBlock && 'text' in textBlock ? textBlock.text : "I couldn't process that request";
+    return geminiResponse.text || "I couldn't process that request";
   } catch (error: any) {
-    logger.error("QuantAI chat failed:", error);
+    logger.error("Gemini chat failed:", error);
     
-    // Try OpenAI as fallback
-    try {
-      logger.info("Falling back to OpenAI for chat...");
-      const openaiResponse = await getOpenAI().chat.completions.create({
-        model: "gpt-5",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...conversationHistory.map(msg => ({
-            role: msg.role as 'system' | 'user' | 'assistant',
-            content: msg.content
-          })),
-          { role: "user", content: userMessage }
-        ],
-        max_completion_tokens: 1024,
-      });
-
-      return openaiResponse.choices[0].message.content || "I couldn't process that request";
-    } catch (openaiError: any) {
-      logger.error("OpenAI chat also failed:", openaiError);
-      
-      // Try Gemini as final fallback
-      try {
-        logger.info("Falling back to Gemini for chat...");
-        const conversationText = conversationHistory.map(msg => msg.content).join('\n');
-        const fullPrompt = conversationText ? `${conversationText}\n\n${userMessage}` : userMessage;
-        
-        const geminiResponse = await getGemini().models.generateContent({
-          model: "gemini-2.5-pro",
-          config: {
-            systemInstruction: systemPrompt,
-          },
-          contents: fullPrompt,
-        });
-
-        return geminiResponse.text || "I couldn't process that request";
-      } catch (geminiError: any) {
-        logger.error("All AI providers failed for chat:", geminiError);
-        
-        // Provide helpful error message
-        if (error?.status === 400 && error?.message?.includes('credit balance')) {
-          throw new Error("AI service unavailable: Anthropic credits low. Please add OpenAI or Gemini credits, or upgrade Anthropic at https://console.anthropic.com/settings/billing");
-        } else if (error?.status === 401) {
-          throw new Error("AI service unavailable: Please check your API keys for OpenAI, Anthropic, or Gemini");
-        } else if (error?.status === 429) {
-          throw new Error("AI service unavailable: Rate limits exceeded on all providers. Please try again in a moment.");
-        }
-        
-        throw new Error("Failed to process chat message - all AI providers unavailable");
-      }
+    // Provide helpful error message
+    if (error?.status === 429) {
+      throw new Error("Free AI limit reached (25/day). Try again tomorrow.");
+    } else if (error?.status === 401) {
+      throw new Error("AI service unavailable: Invalid API credentials");
     }
+    
+    throw new Error("Failed to process chat message with free AI");
   }
 }
 
@@ -470,5 +374,97 @@ Return valid JSON object with structure: {"ideas": [array of trade ideas]}`;
 
   } else {
     throw new Error(`Invalid provider: ${provider}`);
+  }
+}
+
+// 🎯 AI + Quant HYBRID: Combine proven quant signals with FREE AI market intelligence
+export async function generateHybridIdeas(marketContext: string = "Current market conditions"): Promise<AITradeIdea[]> {
+  logger.info("🔬 Starting AI + Quant HYBRID generation");
+  
+  try {
+    // Import quant generator and storage
+    const { generateQuantIdeas } = await import('./quant-ideas-generator');
+    const { storage } = await import('./storage');
+    
+    // Step 1: Generate quant ideas using v3.0.0 proven signals (RSI2+200MA, VWAP, Volume)
+    const marketData = await storage.getAllMarketData();
+    const catalysts = await storage.getAllCatalysts();
+    const quantIdeas = await generateQuantIdeas(marketData, catalysts, 4, storage);
+    
+    if (quantIdeas.length === 0) {
+      logger.info("No quant signals found, falling back to pure AI");
+      return await generateTradeIdeas(marketContext);
+    }
+    
+    logger.info(`✅ Generated ${quantIdeas.length} quant ideas, enhancing with AI...`);
+    
+    // Step 2: Use FREE Gemini to enhance each quant idea with market intelligence
+    const enhancedIdeas: AITradeIdea[] = [];
+    
+    for (const quantIdea of quantIdeas.slice(0, 3)) { // Enhance top 3 to stay within free tier
+      try {
+        const aiPrompt = `You are a market analyst. A quantitative signal detected this opportunity:
+
+Symbol: ${quantIdea.symbol}
+Type: ${quantIdea.assetType}
+Direction: ${quantIdea.direction}
+Entry: $${quantIdea.entryPrice}
+Target: $${quantIdea.targetPrice}
+Stop Loss: $${quantIdea.stopLoss}
+Quant Signal: ${quantIdea.source || 'v3.0 proven signal'}
+
+Provide:
+1. Fundamental context (earnings, news, sector strength)
+2. Institutional sentiment
+3. Risk factors specific to this symbol
+4. Enhanced catalyst analysis (2-3 sentences)
+
+Keep response concise (3-4 sentences total).`;
+
+        const geminiResponse = await getGemini().models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: aiPrompt,
+        });
+        
+        const aiContext = geminiResponse.text || quantIdea.analysis;
+        
+        // Combine quant data with AI intelligence
+        enhancedIdeas.push({
+          symbol: quantIdea.symbol,
+          assetType: quantIdea.assetType as 'stock' | 'option' | 'crypto',
+          direction: quantIdea.direction as 'long' | 'short',
+          entryPrice: quantIdea.entryPrice,
+          targetPrice: quantIdea.targetPrice,
+          stopLoss: quantIdea.stopLoss,
+          catalyst: quantIdea.catalyst || `${quantIdea.source || 'v3.0'} signal detected`,
+          analysis: `🔬 HYBRID: ${aiContext}`,
+          sessionContext: quantIdea.sessionContext || marketContext,
+          expiryDate: quantIdea.expiryDate || undefined,
+        });
+        
+      } catch (aiError) {
+        logger.warn(`AI enhancement failed for ${quantIdea.symbol}, using quant-only data`);
+        // Fallback to quant-only idea
+        enhancedIdeas.push({
+          symbol: quantIdea.symbol,
+          assetType: quantIdea.assetType as 'stock' | 'option' | 'crypto',
+          direction: quantIdea.direction as 'long' | 'short',
+          entryPrice: quantIdea.entryPrice,
+          targetPrice: quantIdea.targetPrice,
+          stopLoss: quantIdea.stopLoss,
+          catalyst: quantIdea.catalyst || `${quantIdea.source || 'v3.0'} signal`,
+          analysis: quantIdea.analysis || `Quantitative signal: ${quantIdea.source || 'v3.0'}`,
+          sessionContext: quantIdea.sessionContext || marketContext,
+          expiryDate: quantIdea.expiryDate || undefined,
+        });
+      }
+    }
+    
+    logger.info(`🎯 HYBRID complete: ${enhancedIdeas.length} ideas (quant signals + AI intelligence)`);
+    return enhancedIdeas;
+    
+  } catch (error: any) {
+    logger.error("Hybrid generation failed:", error);
+    throw new Error("Failed to generate hybrid AI + Quant ideas");
   }
 }
