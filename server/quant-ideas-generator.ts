@@ -987,16 +987,18 @@ export async function generateQuantIdeas(
     );
     const probabilityBand = getProbabilityBand(confidenceScore);
 
-    // 🚫 QUALITY FILTER: Stricter filtering for A grade and above (v2.3.0+)
-    // 1. Confidence score must be >= 90 (A grade minimum) - improved from 85
-    if (confidenceScore < 90) {
-      logger.info(`Filtered out ${getProbabilityBand(confidenceScore)}-grade idea for ${data.symbol} (score: ${confidenceScore}) - below A grade`);
+    // 🚫 QUALITY FILTER: ULTRA-STRICT filtering for HIGH win rate (v2.5.0+)
+    // Analysis shows 12.5% win rate at 90+ threshold - INCREASE to 95+ (A+ only)
+    // 1. Confidence score must be >= 95 (A+ grade minimum) - increased from 90
+    if (confidenceScore < 95) {
+      logger.info(`Filtered out ${getProbabilityBand(confidenceScore)}-grade idea for ${data.symbol} (score: ${confidenceScore}) - below A+ grade`);
       dataQuality.lowQuality++;
       continue;
     }
 
-    // 2. Risk/Reward ratio must meet minimum thresholds
-    const minRiskReward = data.assetType === 'crypto' ? 1.2 : 1.3;
+    // 2. Risk/Reward ratio must meet HIGHER minimum thresholds
+    // Analysis: Excellent R:R (3:1+) had only 11.8% win rate - need even better setups
+    const minRiskReward = data.assetType === 'crypto' ? 2.0 : 2.5;
     if (riskRewardRatio < minRiskReward) {
       logger.info(`Filtered out ${data.symbol} - insufficient R:R (${riskRewardRatio.toFixed(2)} < ${minRiskReward})`);
       dataQuality.lowQuality++;
@@ -1012,17 +1014,30 @@ export async function generateQuantIdeas(
       continue;
     }
 
-    // 4. Crypto Tier Filter (v2.4.0) - Only trade top-tier crypto
-    // Analysis: Crypto has 16.7% win rate (1W/5L) vs 44-47% for stocks/options
-    // Restrict to highly liquid, top 20 market cap coins only
+    // 4. Crypto DISABLED (v2.5.0) - 0% win rate on current legitimate trades
+    // Analysis: Crypto has 0% win rate (0W/5L) - DISABLE entirely until strategy improves
     if (data.assetType === 'crypto') {
-      const topTierCrypto = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'MATIC', 
-                             'LINK', 'UNI', 'ATOM', 'LTC', 'APT', 'ARB', 'OP', 'INJ', 'TIA', 'SUI'];
-      if (!topTierCrypto.includes(data.symbol.toUpperCase())) {
-        logger.info(`Filtered out ${data.symbol} - not top-tier crypto (16.7% win rate on low-tier)`);
-        dataQuality.lowQuality++;
-        continue;
-      }
+      logger.info(`Filtered out ${data.symbol} - crypto disabled (0% win rate)`);
+      dataQuality.lowQuality++;
+      continue;
+    }
+
+    // 5. Signal Type Filter (v2.5.0) - Reject weak signal types
+    // Analysis shows these signals have 0% win rate:
+    const weakSignals = ['Reversal Setup', 'RSI Setup', 'RSI Divergence Setup', 'Strong Trend', 'Moderate R:R'];
+    const hasWeakSignal = qualitySignals.some(sig => weakSignals.includes(sig));
+    if (hasWeakSignal) {
+      logger.info(`Filtered out ${data.symbol} - contains weak signal type (0% win rate)`);
+      dataQuality.lowQuality++;
+      continue;
+    }
+
+    // 6. Require MULTIPLE confirmations (not just one signal)
+    // Analysis: Single-signal trades fail more often
+    if (qualitySignals.length < 3) {
+      logger.info(`Filtered out ${data.symbol} - insufficient confirmations (${qualitySignals.length} < 3)`);
+      dataQuality.lowQuality++;
+      continue;
     }
 
     // Intelligent asset type selection based on distribution targets
