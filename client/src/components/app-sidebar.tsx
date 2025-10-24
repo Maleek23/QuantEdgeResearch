@@ -115,18 +115,18 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
       
-      <SidebarContent className="gap-0">
+      <SidebarContent className="gap-0 py-2">
         {/* Research Section */}
-        <SidebarGroup className="py-3">
-          <SidebarGroupLabel className="mb-1">Research</SidebarGroupLabel>
+        <SidebarGroup className="py-1.5 px-3">
+          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Research</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-0.5">
+            <SidebarMenu className="gap-0">
               {researchItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link 
                       href={item.url}
-                      className="flex items-center gap-3"
+                      className="flex items-center gap-3 h-8"
                       data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
                     >
                       <item.icon className="h-4 w-4" />
@@ -140,16 +140,16 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Tools Section */}
-        <SidebarGroup className="py-3">
-          <SidebarGroupLabel className="mb-1">Tools</SidebarGroupLabel>
+        <SidebarGroup className="py-1.5 px-3">
+          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Tools</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-0.5">
+            <SidebarMenu className="gap-0">
               {toolItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link 
                       href={item.url}
-                      className="flex items-center gap-3"
+                      className="flex items-center gap-3 h-8"
                       data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
                     >
                       <item.icon className="h-4 w-4" />
@@ -163,16 +163,16 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* System Section */}
-        <SidebarGroup className="py-3">
-          <SidebarGroupLabel className="mb-1">System</SidebarGroupLabel>
+        <SidebarGroup className="py-1.5 px-3">
+          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">System</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-0.5">
+            <SidebarMenu className="gap-0">
               {systemItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link 
                       href={item.url}
-                      className="flex items-center gap-3"
+                      className="flex items-center gap-3 h-8"
                       data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
                     >
                       <item.icon className="h-4 w-4" />
@@ -186,7 +186,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border/50 p-3 mt-auto">
+      <SidebarFooter className="border-t border-sidebar-border/50 p-2 mt-auto">
         <SidebarToggleButton />
       </SidebarFooter>
     </Sidebar>
