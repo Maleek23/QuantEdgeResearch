@@ -18,6 +18,12 @@ QuantEdge Research is a professional quantitative trading research platform desi
   - **Performance page**: ALL core metrics (Win Rate, Sharpe, Drawdown, Profit Factor, Expectancy)
   - **Analytics page**: ONLY advanced tools (Rolling Win Rate, Signal Breakdown, Calibration)
   - Removed duplicate metric cards that frustrated users
+- **CRITICAL EXIT PRICE FIX (Oct 24)**: Removed broken validation from GET /api/trade-ideas
+  - Root cause: GET endpoint had inline validation setting exitPrice = currentPrice instead of target/stop
+  - Fixed 72 trades with wrong exit prices (35 hit_target, 37 hit_stop)
+  - Recalculated percentGain for 118 trades using correct formula
+  - Database repair: profitFactor improved from 0.92 to 2.02, evScore from 1.82 to 3.24
+  - Validation now ONLY happens in Performance Validation Service (every 5 min) and manual endpoint
 
 **AI System Overhaul (Oct 23, 2025)**
 - **Free AI Tier**: Switched to Gemini free tier (25 requests/day, commercial use allowed) - eliminates paid API costs
