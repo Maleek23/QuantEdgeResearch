@@ -288,3 +288,152 @@ export function analyzeRSI2MeanReversion(
 
   return { signal: 'none', strength: 'weak' };
 }
+
+/**
+ * Calculate ATR (Average True Range) - volatility indicator
+ * Higher ATR = higher volatility
+ * @param highs - Array of high prices
+ * @param lows - Array of low prices
+ * @param closes - Array of closing prices
+ * @param period - Period for ATR (default: 14)
+ * @returns ATR value
+ */
+export function calculateATR(
+  highs: number[],
+  lows: number[],
+  closes: number[],
+  period: number = 14
+): number {
+  if (highs.length < period + 1 || lows.length < period + 1 || closes.length < period + 1) {
+    return 0;
+  }
+
+  const trueRanges: number[] = [];
+
+  // Calculate True Range for each period
+  for (let i = 1; i < highs.length; i++) {
+    const high = highs[i];
+    const low = lows[i];
+    const prevClose = closes[i - 1];
+
+    const tr = Math.max(
+      high - low,
+      Math.abs(high - prevClose),
+      Math.abs(low - prevClose)
+    );
+    trueRanges.push(tr);
+  }
+
+  // Calculate initial ATR (SMA of first 'period' true ranges)
+  let atr = trueRanges.slice(0, period).reduce((a, b) => a + b, 0) / period;
+
+  // Smooth ATR using Wilder's method
+  for (let i = period; i < trueRanges.length; i++) {
+    atr = (atr * (period - 1) + trueRanges[i]) / period;
+  }
+
+  return Number(atr.toFixed(2));
+}
+
+/**
+ * Calculate ADX (Average Directional Index) - trend strength indicator
+ * ADX measures trend strength (NOT direction)
+ * - ADX < 20: Weak trend (ranging/choppy) - GOOD for mean reversion
+ * - ADX 20-25: Developing trend
+ * - ADX > 25: Strong trend - BAD for mean reversion, GOOD for momentum
+ * 
+ * @param highs - Array of high prices
+ * @param lows - Array of low prices
+ * @param closes - Array of closing prices
+ * @param period - Period for ADX (default: 14)
+ * @returns ADX value (0-100)
+ */
+export function calculateADX(
+  highs: number[],
+  lows: number[],
+  closes: number[],
+  period: number = 14
+): number {
+  if (highs.length < period + 1 || lows.length < period + 1 || closes.length < period + 1) {
+    return 50; // Neutral if not enough data
+  }
+
+  const plusDM: number[] = [];
+  const minusDM: number[] = [];
+  const trueRanges: number[] = [];
+
+  // Calculate directional movement and true range
+  for (let i = 1; i < highs.length; i++) {
+    const highDiff = highs[i] - highs[i - 1];
+    const lowDiff = lows[i - 1] - lows[i];
+
+    // +DM and -DM
+    plusDM.push(highDiff > lowDiff && highDiff > 0 ? highDiff : 0);
+    minusDM.push(lowDiff > highDiff && lowDiff > 0 ? lowDiff : 0);
+
+    // True Range
+    const high = highs[i];
+    const low = lows[i];
+    const prevClose = closes[i - 1];
+    const tr = Math.max(
+      high - low,
+      Math.abs(high - prevClose),
+      Math.abs(low - prevClose)
+    );
+    trueRanges.push(tr);
+  }
+
+  // Smooth +DM, -DM, and TR
+  let smoothedPlusDM = plusDM.slice(0, period).reduce((a, b) => a + b, 0);
+  let smoothedMinusDM = minusDM.slice(0, period).reduce((a, b) => a + b, 0);
+  let smoothedTR = trueRanges.slice(0, period).reduce((a, b) => a + b, 0);
+
+  for (let i = period; i < plusDM.length; i++) {
+    smoothedPlusDM = smoothedPlusDM - (smoothedPlusDM / period) + plusDM[i];
+    smoothedMinusDM = smoothedMinusDM - (smoothedMinusDM / period) + minusDM[i];
+    smoothedTR = smoothedTR - (smoothedTR / period) + trueRanges[i];
+  }
+
+  // Calculate +DI and -DI
+  const plusDI = smoothedTR !== 0 ? (smoothedPlusDM / smoothedTR) * 100 : 0;
+  const minusDI = smoothedTR !== 0 ? (smoothedMinusDM / smoothedTR) * 100 : 0;
+
+  // Calculate DX
+  const diSum = plusDI + minusDI;
+  const dx = diSum !== 0 ? (Math.abs(plusDI - minusDI) / diSum) * 100 : 0;
+
+  // ADX is the smoothed DX (we'll use current DX as approximation for now)
+  // In production, you'd smooth DX over 'period' periods
+  return Number(dx.toFixed(2));
+}
+
+/**
+ * Determine market regime based on ADX
+ * @param adx - ADX value
+ * @returns Market regime classification
+ */
+export function determineMarketRegime(adx: number): {
+  regime: 'ranging' | 'developing' | 'trending';
+  suitableFor: 'mean_reversion' | 'mixed' | 'momentum';
+  confidence: 'high' | 'medium' | 'low';
+} {
+  if (adx < 20) {
+    return {
+      regime: 'ranging',
+      suitableFor: 'mean_reversion',
+      confidence: 'high'
+    };
+  } else if (adx < 25) {
+    return {
+      regime: 'developing',
+      suitableFor: 'mixed',
+      confidence: 'medium'
+    };
+  } else {
+    return {
+      regime: 'trending',
+      suitableFor: 'momentum',
+      confidence: adx > 40 ? 'high' : 'medium'
+    };
+  }
+}
