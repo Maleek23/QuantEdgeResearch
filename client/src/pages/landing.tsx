@@ -110,11 +110,11 @@ export default function Landing() {
           </Badge>
           
           {/* QuantEdge Logo */}
-          <div className="flex items-center justify-center mb-10 animate-fade-up">
+          <div className="flex items-center justify-center mb-4 animate-fade-up">
             <img 
               src={quantEdgeLogoUrl} 
               alt="QuantEdge" 
-              className="h-36 w-36 md:h-44 md:w-44 object-contain drop-shadow-2xl"
+              className="h-48 w-48 md:h-60 md:w-60 object-contain drop-shadow-2xl"
             />
           </div>
           
