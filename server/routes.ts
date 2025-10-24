@@ -875,60 +875,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       logger.info(`[TRADE-IDEAS] Final price map has ${priceMap.size} symbols`);
       
-      for (const idea of ideas) {
-        // Skip if already archived
-        if (idea.outcomeStatus && idea.outcomeStatus !== 'open') continue;
-        
-        // Skip options - we don't have live option prices to compare
-        if (idea.assetType === 'option') continue;
-        
-        // Check if idea is stale (7+ days old with no movement)
-        const ideaDate = new Date(idea.timestamp);
-        if (ideaDate < sevenDaysAgo) {
-          await storage.updateTradeIdeaPerformance(idea.id, { 
-            outcomeStatus: 'expired',
-            exitDate: now.toISOString()
-          });
-          continue;
-        }
-        
-        // Get current price for the symbol
-        const currentPrice = priceMap.get(idea.symbol);
-        if (!currentPrice) continue;
-        
-        // Check if target or stop hit
-        if (idea.direction === 'long') {
-          // Long trade: check if price >= target or <= stop
-          if (currentPrice >= idea.targetPrice) {
-            await storage.updateTradeIdeaPerformance(idea.id, {
-              outcomeStatus: 'hit_target',
-              exitPrice: currentPrice,
-              exitDate: now.toISOString()
-            });
-          } else if (currentPrice <= idea.stopLoss) {
-            await storage.updateTradeIdeaPerformance(idea.id, {
-              outcomeStatus: 'hit_stop',
-              exitPrice: currentPrice,
-              exitDate: now.toISOString()
-            });
-          }
-        } else {
-          // Short trade: check if price <= target or >= stop
-          if (currentPrice <= idea.targetPrice) {
-            await storage.updateTradeIdeaPerformance(idea.id, {
-              outcomeStatus: 'hit_target',
-              exitPrice: currentPrice,
-              exitDate: now.toISOString()
-            });
-          } else if (currentPrice >= idea.stopLoss) {
-            await storage.updateTradeIdeaPerformance(idea.id, {
-              outcomeStatus: 'hit_stop',
-              exitPrice: currentPrice,
-              exitDate: now.toISOString()
-            });
-          }
-        }
-      }
+      // NOTE: Validation is handled by the Performance Validation Service (every 5 minutes)
+      // and the manual /api/performance/validate endpoint.
+      // We should NOT validate trades in the GET endpoint to avoid incorrect validations.
       
       // Fetch updated ideas after archiving
       const updatedIdeas = await storage.getAllTradeIdeas();
