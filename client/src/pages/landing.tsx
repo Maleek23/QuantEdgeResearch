@@ -110,7 +110,7 @@ export default function Landing() {
           </Badge>
           
           {/* QuantEdge Logo */}
-          <div className="flex items-center justify-center mb-4 animate-fade-up">
+          <div className="flex items-center justify-center mb-2 animate-fade-up">
             <img 
               src={quantEdgeLogoUrl} 
               alt="QuantEdge" 
@@ -118,7 +118,7 @@ export default function Landing() {
             />
           </div>
           
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 leading-relaxed animate-fade-up animate-delay-100">
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 leading-relaxed animate-fade-up animate-delay-100">
             Discover day-trading opportunities across US equities, options, and crypto markets. 
             Real market data, transparent explainability, professional-grade risk management.
           </p>
