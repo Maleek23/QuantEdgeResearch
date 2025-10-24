@@ -115,12 +115,12 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
       
-      <SidebarContent>
+      <SidebarContent className="gap-0">
         {/* Research Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Research</SidebarGroupLabel>
+        <SidebarGroup className="py-3">
+          <SidebarGroupLabel className="mb-1">Research</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-0.5">
               {researchItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
@@ -140,10 +140,10 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Tools Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Tools</SidebarGroupLabel>
+        <SidebarGroup className="py-3">
+          <SidebarGroupLabel className="mb-1">Tools</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-0.5">
               {toolItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
@@ -163,10 +163,10 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* System Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel>System</SidebarGroupLabel>
+        <SidebarGroup className="py-3">
+          <SidebarGroupLabel className="mb-1">System</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-0.5">
               {systemItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
@@ -186,7 +186,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border/50 p-4">
+      <SidebarFooter className="border-t border-sidebar-border/50 p-3 mt-auto">
         <SidebarToggleButton />
       </SidebarFooter>
     </Sidebar>
