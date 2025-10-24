@@ -272,7 +272,7 @@ export default function AnalyticsPage() {
           <TabsTrigger value="rolling" data-testid="tab-rolling-winrate">Rolling Win Rate</TabsTrigger>
           <TabsTrigger value="signals" data-testid="tab-signal-performance">Signal Performance</TabsTrigger>
           <TabsTrigger value="calibration" data-testid="tab-calibration">Calibration</TabsTrigger>
-          <TabsTrigger value="metrics" data-testid="tab-detailed-metrics">Detailed Metrics</TabsTrigger>
+          <TabsTrigger value="metrics" data-testid="tab-additional-metrics">Additional Metrics</TabsTrigger>
         </TabsList>
 
         {/* Rolling Win Rate Chart */}
@@ -497,33 +497,28 @@ export default function AnalyticsPage() {
           </Card>
         </TabsContent>
 
-        {/* Detailed Metrics Table */}
+        {/* Additional Metrics Table */}
         <TabsContent value="metrics">
           <Card>
             <CardHeader>
-              <CardTitle>Detailed Performance Metrics</CardTitle>
+              <CardTitle>Additional Metrics</CardTitle>
               <CardDescription>
-                Comprehensive risk-adjusted returns and statistical measures
+                Extended performance details not shown in overview cards
               </CardDescription>
             </CardHeader>
             <CardContent>
               {metrics && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-3">
-                    <h3 className="font-semibold text-sm">Return Metrics</h3>
+                    <h3 className="font-semibold text-sm">Return Details</h3>
                     <MetricRow label="Total Return" value={`${metrics.totalReturn.toFixed(2)}%`} />
                     <MetricRow label="Return Per Day" value={`${metrics.returnPerDay.toFixed(2)}%`} />
-                    <MetricRow label="Profit Factor" value={metrics.profitFactor.toFixed(2)} />
-                    <MetricRow label="Expectancy" value={`${metrics.expectancy.toFixed(2)}%`} />
                     <MetricRow label="Largest Win" value={`${metrics.largestWin.toFixed(2)}%`} />
                     <MetricRow label="Largest Loss" value={`${metrics.largestLoss.toFixed(2)}%`} />
                   </div>
 
                   <div className="space-y-3">
-                    <h3 className="font-semibold text-sm">Risk Metrics</h3>
-                    <MetricRow label="Sharpe Ratio" value={metrics.sharpeRatio.toFixed(2)} />
-                    <MetricRow label="Sortino Ratio" value={metrics.sortinoRatio.toFixed(2)} />
-                    <MetricRow label="Max Drawdown" value={`${metrics.maxDrawdownPercent.toFixed(2)}%`} />
+                    <h3 className="font-semibold text-sm">Trade Streaks & Duration</h3>
                     <MetricRow label="Consecutive Wins" value={metrics.consecutiveWins.toString()} />
                     <MetricRow label="Consecutive Losses" value={metrics.consecutiveLosses.toString()} />
                     <MetricRow label="Avg Holding Time" value={`${Math.round(metrics.avgHoldingTimeMinutes)}min`} />
