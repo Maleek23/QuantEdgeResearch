@@ -7,12 +7,14 @@ import { Loader2 } from 'lucide-react';
 
 // Types
 interface PerformanceStats {
-  winRate: number;
-  totalTrades: number;
-  profitFactor: number;
-  sharpeRatio: number;
-  maxDrawdown: number;
-  evScore: number;
+  overall?: {
+    winRate: number;
+    totalIdeas: number;
+    profitFactor: number;
+    sharpeRatio: number;
+    maxDrawdown: number;
+    evScore: number;
+  };
 }
 
 interface TradeIdea {
@@ -187,7 +189,9 @@ export function HolographicScene({
   tradeIdeas: TradeIdea[] | undefined;
 }) {
   const metrics = useMemo(() => {
-    if (!stats) {
+    const overall = stats?.overall;
+    
+    if (!overall) {
       return [
         { label: 'Win Rate', value: '0.0%', angle: 0, color: '#10b981' },
         { label: 'Total Trades', value: '0', angle: Math.PI / 3, color: '#3b82f6' },
@@ -201,39 +205,39 @@ export function HolographicScene({
     return [
       { 
         label: 'Win Rate', 
-        value: `${stats.winRate.toFixed(1)}%`, 
+        value: `${overall.winRate.toFixed(1)}%`, 
         angle: 0, 
-        color: stats.winRate >= 50 ? '#10b981' : '#ef4444' 
+        color: overall.winRate >= 50 ? '#10b981' : '#ef4444' 
       },
       { 
         label: 'Total Trades', 
-        value: stats.totalTrades.toString(), 
+        value: overall.totalIdeas.toString(), 
         angle: Math.PI / 3, 
         color: '#3b82f6' 
       },
       { 
         label: 'Profit Factor', 
-        value: stats.profitFactor.toFixed(2), 
+        value: overall.profitFactor.toFixed(2), 
         angle: (2 * Math.PI) / 3, 
-        color: stats.profitFactor >= 1 ? '#10b981' : '#ef4444' 
+        color: overall.profitFactor >= 1 ? '#10b981' : '#ef4444' 
       },
       { 
         label: 'Sharpe Ratio', 
-        value: stats.sharpeRatio.toFixed(2), 
+        value: overall.sharpeRatio.toFixed(2), 
         angle: Math.PI, 
-        color: stats.sharpeRatio >= 1 ? '#8b5cf6' : '#f59e0b' 
+        color: overall.sharpeRatio >= 1 ? '#8b5cf6' : '#f59e0b' 
       },
       { 
         label: 'Max Drawdown', 
-        value: `${Math.abs(stats.maxDrawdown).toFixed(1)}%`, 
+        value: `${Math.abs(overall.maxDrawdown).toFixed(1)}%`, 
         angle: (4 * Math.PI) / 3, 
         color: '#ef4444' 
       },
       { 
         label: 'EV Score', 
-        value: stats.evScore.toFixed(2), 
+        value: overall.evScore.toFixed(2), 
         angle: (5 * Math.PI) / 3, 
-        color: stats.evScore >= 1 ? '#06b6d4' : '#f59e0b' 
+        color: overall.evScore >= 1 ? '#06b6d4' : '#f59e0b' 
       },
     ];
   }, [stats]);

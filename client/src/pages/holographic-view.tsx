@@ -43,12 +43,13 @@ function useWebGLSupport() {
 
 // WebGL Fallback Component
 function WebGLFallback({ stats }: { stats: any }) {
-  const winRate = stats?.winRate ?? 0;
-  const totalTrades = stats?.totalTrades ?? 0;
-  const profitFactor = stats?.profitFactor ?? 0;
-  const sharpeRatio = stats?.sharpeRatio ?? 0;
-  const maxDrawdown = stats?.maxDrawdown ?? 0;
-  const evScore = stats?.evScore ?? 0;
+  const overall = stats?.overall ?? {};
+  const winRate = overall.winRate ?? 0;
+  const totalTrades = overall.totalIdeas ?? 0;
+  const profitFactor = overall.profitFactor ?? 0;
+  const sharpeRatio = overall.sharpeRatio ?? 0;
+  const maxDrawdown = overall.maxDrawdown ?? 0;
+  const evScore = overall.evScore ?? 0;
 
   return (
     <div className="h-screen w-full bg-gradient-to-b from-black via-blue-950/20 to-black flex items-center justify-center p-6">
