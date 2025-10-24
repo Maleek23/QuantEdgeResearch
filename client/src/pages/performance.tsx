@@ -56,7 +56,6 @@ interface PerformanceStats {
     maxDrawdown: number;
     profitFactor: number;
     expectancy: number;
-    // Enhanced quant-defensible metrics
     evScore: number;
     adjustedWeightedAccuracy: number;
     oppositeDirectionRate: number;
@@ -124,7 +123,6 @@ export default function PerformancePage() {
   const [validationSummary, setValidationSummary] = useState({ validated: 0, updated: 0 });
   const { toast } = useToast();
 
-  // Calculate date filters for API
   const apiFilters = useMemo(() => {
     const now = new Date();
     let startDate: string | undefined;
@@ -149,7 +147,6 @@ export default function PerformancePage() {
         break;
       case 'all':
       default:
-        // No filters
         break;
     }
     
@@ -164,11 +161,10 @@ export default function PerformancePage() {
   const { data: stats, isLoading } = useQuery<PerformanceStats>({
     queryKey: ['/api/performance/stats', apiFilters],
     staleTime: 0,
-    gcTime: 0, // Don't cache in memory
-    refetchOnMount: 'always', // Always refetch when component mounts
+    gcTime: 0,
+    refetchOnMount: 'always',
   });
   
-  // Also fetch today's specific stats for prominent display
   const todayParams = useMemo(() => {
     const now = new Date();
     const params = new URLSearchParams();
@@ -478,22 +474,21 @@ export default function PerformancePage() {
 
   const getOutcomeBadge = (status: string) => {
     if (status === 'hit_target') {
-      return <Badge className="bg-green-500/10 text-green-500 border-green-500/20">WON</Badge>;
+      return <Badge variant="default" className="bg-green-500 text-white">WON</Badge>;
     }
     if (status === 'hit_stop') {
-      return <Badge className="bg-red-500/10 text-red-500 border-red-500/20">LOST</Badge>;
+      return <Badge variant="destructive">LOST</Badge>;
     }
     return <Badge variant="outline">EXPIRED</Badge>;
   };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="relative overflow-hidden border-b aurora-hero rounded-xl -mx-6 px-6 pb-6 mb-8">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
-        <div className="relative flex items-center justify-between pt-6">
+      <div className="border-b pb-6">
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gradient-premium">Performance Tracker</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-3xl font-bold">Performance Tracker</h1>
+            <p className="text-muted-foreground mt-1">
               Validate trade ideas and analyze performance metrics
             </p>
           </div>
@@ -503,7 +498,6 @@ export default function PerformancePage() {
               onClick={handleValidate}
               disabled={isValidating}
               data-testid="button-validate-ideas"
-              className="btn-magnetic glass-card"
             >
               <Activity className={`w-4 h-4 mr-2 ${isValidating ? 'animate-spin' : ''}`} />
               {isValidating ? 'Validating...' : 'Validate Ideas'}
@@ -512,36 +506,22 @@ export default function PerformancePage() {
               variant="default" 
               onClick={handleExport}
               data-testid="button-export-csv"
-              className="btn-magnetic neon-accent"
             >
               <Download className="w-4 h-4 mr-2" />
               Export CSV
             </Button>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </div>
 
-      {/* ACTIVE FILTERS BANNER */}
-      <Card className={cn(
-        "shadow-lg border-2 transition-all",
-        dateRange !== 'all' 
-          ? "bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/50" 
-          : "bg-card border-border/50"
-      )}>
+      <Card>
         <CardContent className="pt-6">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <Calendar className={cn(
-                "w-5 h-5",
-                dateRange !== 'all' ? "text-primary" : "text-muted-foreground"
-              )} />
+              <Calendar className="w-5 h-5 text-muted-foreground" />
               <span className="text-sm font-semibold">Time Range:</span>
               <Select value={dateRange} onValueChange={setDateRange}>
-                <SelectTrigger className={cn(
-                  "w-40 font-semibold",
-                  dateRange !== 'all' && "border-primary/50 bg-primary/5"
-                )} data-testid="select-date-range">
+                <SelectTrigger className="w-40" data-testid="select-date-range">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -573,26 +553,24 @@ export default function PerformancePage() {
 
             <div className="flex-1" />
 
-            {/* Data Range Indicator */}
             {dateRange !== 'all' && (
-              <Badge variant="default" className="px-3 py-1.5 bg-primary text-primary-foreground font-semibold">
+              <Badge variant="default">
                 <Activity className="w-3 h-3 mr-1.5" />
                 Showing filtered data
               </Badge>
             )}
 
             {closedIdeas.length > 0 && (
-              <Badge variant="outline" className="badge-shimmer px-3 py-1.5 font-semibold">
+              <Badge variant="outline">
                 {closedIdeas.length} closed trade{closedIdeas.length !== 1 ? 's' : ''} in range
               </Badge>
             )}
           </div>
 
-          {/* Active Filter Description */}
           {dateRange !== 'all' && (
-            <div className="mt-3 pt-3 border-t border-primary/20">
+            <div className="mt-3 pt-3 border-t">
               <div className="flex items-center gap-2 text-sm">
-                <Info className="w-4 h-4 text-primary flex-shrink-0" />
+                <Info className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 <span className="text-muted-foreground">
                   All metrics below reflect 
                   <span className="font-semibold text-foreground mx-1">
@@ -610,14 +588,13 @@ export default function PerformancePage() {
         </CardContent>
       </Card>
 
-      {/* TODAY'S PERFORMANCE SPOTLIGHT - Only show when explicitly viewing "Today" */}
       {todayStats && todayStats.overall.totalIdeas > 0 && dateRange === 'today' && (
-        <Card className="glass-card shadow-xl border-2 border-primary/50 bg-gradient-to-br from-primary/5 via-card to-accent/5">
-          <CardHeader className="pb-4">
+        <Card>
+          <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-xl font-bold flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-primary animate-pulse" />
+                  <Activity className="w-5 h-5" />
                   Today's Performance
                 </CardTitle>
                 <CardDescription className="mt-1">
@@ -629,7 +606,6 @@ export default function PerformancePage() {
                 size="sm"
                 onClick={() => setDateRange('all')}
                 data-testid="button-view-all-time"
-                className="hover-elevate"
               >
                 View All Time
               </Button>
@@ -683,11 +659,10 @@ export default function PerformancePage() {
               </div>
             </div>
             
-            {/* Today's Quick Recommendations */}
             {todayStats.overall.quantAccuracy < 70 && (
-              <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+              <div className="mt-4 p-3 rounded-lg border bg-amber-500/10 border-amber-500/20">
                 <div className="flex items-start gap-2">
-                  <Info className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <Info className="w-4 h-4 text-amber-600 dark:text-amber-500 mt-0.5 flex-shrink-0" />
                   <div className="space-y-1 text-sm">
                     <div className="font-semibold text-amber-600 dark:text-amber-400">
                       Improvement Opportunities for Today
@@ -714,12 +689,11 @@ export default function PerformancePage() {
         </Card>
       )}
 
-      {/* ALL TIME PERFORMANCE HEADER - Show prominently when viewing all time */}
       {dateRange === 'all' && (
-        <Card className="glass-card shadow-xl border-2 border-blue-500/50 bg-gradient-to-br from-blue-500/5 via-card to-blue-500/5">
-          <CardHeader className="pb-3">
+        <Card>
+          <CardHeader>
             <CardTitle className="text-2xl font-bold flex items-center gap-2">
-              <TrendingUp className="w-6 h-6 text-blue-500" />
+              <TrendingUp className="w-6 h-6" />
               All Time Performance
             </CardTitle>
             <CardDescription className="text-base">
@@ -729,20 +703,19 @@ export default function PerformancePage() {
         </Card>
       )}
 
-      {/* Early-Stage Learning Phase Banner */}
       {stats.overall.closedIdeas < 20 && (
         <TooltipProvider>
-          <Alert className="border-amber-500/50 bg-amber-500/10">
-            <Info className="h-4 w-4 text-amber-500" />
+          <Alert>
+            <Info className="h-4 w-4" />
             <AlertDescription className="text-sm flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-amber-600 dark:text-amber-400">Platform Learning Phase:</span>
+              <span className="font-semibold">Platform Learning Phase:</span>
               <span>
                 {stats.overall.wonIdeas} wins, {stats.overall.lostIdeas} losses so far 
                 ({stats.overall.closedIdeas} total closed ideas)
               </span>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <HelpCircle className="h-3.5 w-3.5 text-amber-500 cursor-help" />
+                  <HelpCircle className="h-3.5 w-3.5 cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
                   <p className="text-xs">
@@ -765,243 +738,200 @@ export default function PerformancePage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-6">
-          {/* MARKET WIN RATE - PROMINENTLY DISPLAYED */}
-          <div className="gradient-border-card spotlight">
-            <Card className="glass-card shadow-lg border-0 bg-gradient-to-br from-card via-card to-muted/30">
-              <CardHeader className="bg-gradient-to-r from-primary/10 to-primary/5 border-b border-primary/20">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div>
-                    <CardTitle className="text-2xl font-bold flex items-center gap-2">
-                      <Target className="w-7 h-7 text-primary" />
-                      Market Win Rate
-                    </CardTitle>
-                    <CardDescription className="mt-2 text-base">
-                      {stats.overall.wonIdeas} wins / {stats.overall.lostIdeas} losses 
-                      {stats.overall.expiredIdeas > 0 && ` (${stats.overall.expiredIdeas} expired excluded)`}
-                    </CardDescription>
+          <Card data-testid="card-market-win-rate">
+            <CardHeader>
+              <CardTitle className="text-xl font-bold">Market Win Rate</CardTitle>
+              <CardDescription>Overall success rate across all closed positions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                <div className="flex items-baseline gap-3">
+                  <div className={cn(
+                    "text-6xl font-bold font-mono",
+                    stats.overall.winRate >= 60 ? "text-green-500" : 
+                    stats.overall.winRate >= 50 ? "text-amber-500" : 
+                    stats.overall.winRate > 0 ? "text-red-500" : "text-muted-foreground"
+                  )}>
+                    {stats.overall.closedIdeas > 0 ? stats.overall.winRate.toFixed(1) : 'N/A'}
+                  </div>
+                  {stats.overall.closedIdeas > 0 && (
+                    <div className="text-3xl font-semibold text-muted-foreground">%</div>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold font-mono text-green-500">{stats.overall.wonIdeas}</div>
+                    <div className="text-xs text-muted-foreground">Wins</div>
                   </div>
                   <div className="text-center">
-                    <div className={`text-6xl font-bold font-mono ${stats.overall.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
-                      {stats.overall.winRate.toFixed(1)}%
-                    </div>
-                    <Badge variant={stats.overall.winRate >= 60 ? 'default' : stats.overall.winRate >= 50 ? 'secondary' : 'destructive'} className="mt-2">
-                      {stats.overall.winRate >= 60 ? 'Excellent' : stats.overall.winRate >= 50 ? 'Acceptable' : 'Needs Improvement'}
-                    </Badge>
+                    <div className="text-2xl font-bold font-mono text-red-500">{stats.overall.lostIdeas}</div>
+                    <div className="text-xs text-muted-foreground">Losses</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold font-mono text-muted-foreground">{stats.overall.expiredIdeas}</div>
+                    <div className="text-xs text-muted-foreground">Expired</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold font-mono">{stats.overall.closedIdeas}</div>
+                    <div className="text-xs text-muted-foreground">Total Closed</div>
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card data-testid="card-core-metrics">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <Activity className="w-5 h-5" />
+                  Core Performance Metrics
+                </CardTitle>
+                <CardDescription>Primary accuracy and performance indicators</CardDescription>
               </CardHeader>
-              <CardContent className="pt-6">
-                <div className="grid gap-6 md:grid-cols-3">
-                  <div className="text-center p-4 rounded-lg bg-green-500/5 border border-green-500/20">
-                    <TrendingUp className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                    <div className="text-3xl font-bold font-mono text-green-500">{stats.overall.wonIdeas}</div>
-                    <div className="text-sm text-muted-foreground mt-1">Winners (Hit Target)</div>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between py-2 border-b">
+                    <span className="text-sm text-muted-foreground">Total Ideas</span>
+                    <span className="font-mono font-bold">{stats.overall.totalIdeas}</span>
                   </div>
-                  <div className="text-center p-4 rounded-lg bg-red-500/5 border border-red-500/20">
-                    <TrendingDown className="w-8 h-8 text-red-500 mx-auto mb-2" />
-                    <div className="text-3xl font-bold font-mono text-red-500">{stats.overall.lostIdeas}</div>
-                    <div className="text-sm text-muted-foreground mt-1">Losers (Hit Stop)</div>
+                  <div className="flex items-center justify-between py-2 border-b">
+                    <span className="text-sm text-muted-foreground">Open Positions</span>
+                    <span className="font-mono font-bold">{stats.overall.openIdeas}</span>
                   </div>
-                  <div className="text-center p-4 rounded-lg bg-amber-500/5 border border-amber-500/20">
-                    <Clock className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                    <div className="text-3xl font-bold font-mono text-amber-500">{stats.overall.expiredIdeas}</div>
-                    <div className="text-sm text-muted-foreground mt-1">Expired (Excluded)</div>
+                  <div className="flex items-center justify-between py-2 border-b">
+                    <span className="text-sm text-muted-foreground">Avg Holding Time</span>
+                    <span className="font-mono font-bold">{formatTime(stats.overall.avgHoldingTimeMinutes)}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm text-muted-foreground">Avg Percent Gain</span>
+                    <span className={cn(
+                      "font-mono font-bold",
+                      stats.overall.avgPercentGain >= 0 ? "text-green-500" : "text-red-500"
+                    )}>
+                      {stats.overall.avgPercentGain >= 0 ? '+' : ''}{stats.overall.avgPercentGain.toFixed(2)}%
+                    </span>
                   </div>
                 </div>
               </CardContent>
             </Card>
+
+            <Card data-testid="card-quant-defensible-metrics">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold flex items-center gap-2">
+                  <Target className="w-5 h-5" />
+                  Advanced Accuracy Metrics
+                </CardTitle>
+                <CardDescription>Quant-defensible performance measures</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TooltipProvider>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
+                        <span>Quant Accuracy</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3.5 h-3.5 cursor-help inline-block" data-testid="tooltip-quant-accuracy" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p className="font-semibold mb-1">Quant Accuracy</p>
+                            <p className="text-xs mb-2">Percentage of trades that hit target before stop loss. The primary measure of model success.</p>
+                            <p className="text-xs">This is the classic win rate that professionals use.</p>
+                            <p className="text-xs mt-1 italic">Target: &gt;70% for high-confidence signals</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <div className={`text-2xl font-bold font-mono mb-1 ${
+                        stats.overall.quantAccuracy >= 70 ? 'text-green-500' : 
+                        stats.overall.quantAccuracy >= 50 ? 'text-amber-500' : 'text-red-500'
+                      }`}>
+                        {stats.overall.quantAccuracy.toFixed(1)}%
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {stats.overall.wonIdeas}W / {stats.overall.lostIdeas}L
+                      </div>
+                    </div>
+
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
+                        <span>Directional</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3.5 h-3.5 cursor-help inline-block" data-testid="tooltip-directional-accuracy" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p className="font-semibold mb-1">Directional Accuracy</p>
+                            <p className="text-xs mb-2">Percentage of trades that moved at least 25% toward target before hitting stop.</p>
+                            <p className="text-xs">Shows if we got the direction right, even if position sizing or stops were off.</p>
+                            <p className="text-xs mt-1 italic">Target: &gt;70% means model has edge</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <div className={`text-2xl font-bold font-mono mb-1 ${
+                        stats.overall.directionalAccuracy >= 70 ? 'text-green-500' : 
+                        stats.overall.directionalAccuracy >= 50 ? 'text-amber-500' : 'text-red-500'
+                      }`}>
+                        {stats.overall.directionalAccuracy.toFixed(1)}%
+                      </div>
+                      <div className="text-xs text-muted-foreground">25%+ to target</div>
+                    </div>
+
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
+                        <span>EV Score</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3.5 h-3.5 cursor-help inline-block" data-testid="tooltip-ev-score" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p className="font-semibold mb-1">Expected Value Score</p>
+                            <p className="text-xs mb-2">Combines win rate with average win/loss sizes to calculate theoretical edge.</p>
+                            <p className="text-xs">Formula: (Win% × AvgWin) - (Loss% × AvgLoss)</p>
+                            <p className="text-xs mt-1 italic">Positive = profitable, Negative = losing edge</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <div className={`text-2xl font-bold font-mono mb-1 ${
+                        stats.overall.evScore >= 0 ? 'text-green-500' : 'text-red-500'
+                      }`}>
+                        {stats.overall.evScore >= 0 ? '+' : ''}{stats.overall.evScore.toFixed(2)}%
+                      </div>
+                      <div className="text-xs text-muted-foreground">Per trade</div>
+                    </div>
+
+                    <div className="text-center">
+                      <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
+                        <span>Opposite Direction</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="w-3.5 h-3.5 cursor-help inline-block" data-testid="tooltip-opposite-direction" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p className="font-semibold mb-1">Opposite Direction Rate</p>
+                            <p className="text-xs mb-2">Percentage of trades that moved AGAINST our prediction by at least 10% of expected move.</p>
+                            <p className="text-xs">Critical blind spot detector - catches model failures where price swung significantly in the wrong direction.</p>
+                            <p className="text-xs mt-1 italic">Lower is better. Target: &lt;15%</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <div className={`text-2xl font-bold font-mono mb-1 ${
+                        stats.overall.oppositeDirectionRate > 20 ? 'text-red-500' : 
+                        stats.overall.oppositeDirectionRate > 15 ? 'text-amber-500' : 'text-green-500'
+                      }`}>
+                        {stats.overall.oppositeDirectionRate.toFixed(1)}%
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {stats.overall.oppositeDirectionCount} wrong way
+                      </div>
+                    </div>
+                  </div>
+                </TooltipProvider>
+              </CardContent>
+            </Card>
           </div>
 
-          <Card className="stat-card shadow-lg border-primary/20" data-testid="card-key-metrics">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <Activity className="w-5 h-5" />
-                Quant Analytics Lab
-              </CardTitle>
-              <CardDescription>Data-driven accuracy and profitability metrics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TooltipProvider>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-                  <div className="text-center">
-                    <div className="text-sm text-muted-foreground mb-1">Total Ideas</div>
-                    <div className="text-2xl font-bold font-mono">{stats.overall.totalIdeas}</div>
-                    <div className="text-xs text-muted-foreground">{stats.overall.openIdeas} open</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm text-muted-foreground mb-1">Market Win Rate</div>
-                    <div className={`text-2xl font-bold font-mono ${stats.overall.winRate >= 50 ? 'text-green-500' : 'text-red-500'}`}>
-                      {stats.overall.winRate.toFixed(1)}%
-                    </div>
-                    <div className="text-xs text-muted-foreground">{stats.overall.wonIdeas}W • {stats.overall.lostIdeas}L</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
-                      <span>Quant Accuracy</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className="w-3 h-3 cursor-help" data-testid="tooltip-quant-accuracy" />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p className="font-semibold mb-1">Weighted Quant Accuracy</p>
-                          <p className="text-xs mb-2">Average progress toward target with bounded penalties:</p>
-                          <ul className="text-xs list-disc pl-4 space-y-1">
-                            <li>Includes ALL trades (wins, losses, expired)</li>
-                            <li>Extreme losses capped at -30% to prevent outlier skew</li>
-                            <li>High confidence (&gt;85): 2x weight</li>
-                            <li>Normal confidence: 1x weight</li>
-                            <li>Low confidence/expired: 0.5x weight</li>
-                          </ul>
-                          <p className="text-xs mt-2 italic">Example: A -66% loss is counted as -30% to maintain honesty without letting single bad trades dominate.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <div className={`text-2xl font-bold font-mono ${(stats.overall.quantAccuracy ?? 0) >= 50 ? 'text-blue-500' : 'text-orange-500'} flex items-center justify-center gap-1 flex-wrap`}>
-                      <span>
-                        {stats.overall.quantAccuracy < 0 && 'Bounded: '}
-                        {stats.overall.quantAccuracy !== null && stats.overall.quantAccuracy !== undefined ? stats.overall.quantAccuracy.toFixed(1) : '0.0'}%
-                      </span>
-                      {stats.overall.closedIdeas < 10 && (
-                        <Badge variant="outline" className="text-[10px] px-1 py-0">Early Data</Badge>
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {stats.overall.totalIdeas - stats.overall.openIdeas} trades
-                      {stats.overall.quantAccuracy < 0 && (
-                        <span className="block text-amber-500 dark:text-amber-400">penalty applied</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1">
-                      <span>Directional Accuracy</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className="w-3 h-3 cursor-help" data-testid="tooltip-directional-accuracy" />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p className="font-semibold mb-1">Directional Accuracy</p>
-                          <p className="text-xs mb-2">Percentage of trade ideas that moved at least 25% toward their target price before expiring or hitting stop.</p>
-                          <p className="text-xs italic">Shows how often our predictions move in the right direction, even if they don't reach the full target.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <div className={`text-2xl font-bold font-mono ${(stats.overall.directionalAccuracy ?? 0) >= 40 ? 'text-cyan-500' : 'text-amber-500'}`}>
-                      {stats.overall.directionalAccuracy !== null && stats.overall.directionalAccuracy !== undefined ? stats.overall.directionalAccuracy.toFixed(1) : '0.0'}%
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {stats.overall.totalIdeas - stats.overall.openIdeas} trades
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm text-muted-foreground mb-1">Avg Gain</div>
-                    <div className={`text-2xl font-bold font-mono ${stats.overall.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                      {stats.overall.avgPercentGain >= 0 ? '+' : ''}{stats.overall.avgPercentGain.toFixed(2)}%
-                    </div>
-                    <div className="text-xs text-muted-foreground">{stats.overall.closedIdeas} closed</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm text-muted-foreground mb-1">Avg Hold Time</div>
-                    <div className="text-2xl font-bold font-mono">{formatTime(stats.overall.avgHoldingTimeMinutes)}</div>
-                    <div className="text-xs text-muted-foreground">Duration</div>
-                  </div>
-                </div>
-              </TooltipProvider>
-            </CardContent>
-          </Card>
-
-          <Card className="stat-card shadow-lg border-cyan-500/20" data-testid="card-enhanced-quant-metrics">
-            <CardHeader>
-              <CardTitle className="text-lg font-bold flex items-center gap-2">
-                <Activity className="w-5 h-5 text-cyan-500" />
-                Enhanced Quant Analytics
-              </CardTitle>
-              <CardDescription>Profitability quality and directional blind spot tracking</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <TooltipProvider>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                  <div className="flex flex-col items-center">
-                    <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
-                      <span>EV Score</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className="w-3.5 h-3.5 cursor-help inline-block" data-testid="tooltip-ev-score" />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p className="font-semibold mb-1">Expected Value Score</p>
-                          <p className="text-xs mb-2">Formula: Avg(Expected Gain) / |Avg(Expected Loss)|</p>
-                          <p className="text-xs">Shows profitability quality - do wins compensate for losses?</p>
-                          <p className="text-xs mt-1 italic">Target: &gt;1.5 means wins are 50% larger than losses on average</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <div className={`text-2xl font-bold font-mono mb-1 ${
-                      stats.overall.evScore >= 1.5 ? 'text-green-500' : 
-                      stats.overall.evScore >= 1.0 ? 'text-cyan-500' : 'text-red-500'
-                    }`}>
-                      {stats.overall.evScore === Infinity || stats.overall.evScore > 99 ? '∞' : stats.overall.evScore.toFixed(2)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {stats.overall.avgWinSize.toFixed(1)}% / {stats.overall.avgLossSize.toFixed(1)}%
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
-                      <span>Adjusted Accuracy</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className="w-3.5 h-3.5 cursor-help inline-block" data-testid="tooltip-adjusted-accuracy" />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p className="font-semibold mb-1">Adjusted Weighted Accuracy</p>
-                          <p className="text-xs mb-2">Formula: Quant Accuracy × √(EV Score) / 2</p>
-                          <p className="text-xs">Merges directional accuracy with profitability quality into one interpretive metric.</p>
-                          <p className="text-xs mt-1 italic">Maintains 0-100% range while rewarding high-quality wins</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <div className={`text-2xl font-bold font-mono mb-1 ${
-                      stats.overall.adjustedWeightedAccuracy >= 50 ? 'text-blue-500' : 
-                      stats.overall.adjustedWeightedAccuracy >= 30 ? 'text-cyan-500' : 'text-orange-500'
-                    }`}>
-                      {stats.overall.adjustedWeightedAccuracy.toFixed(1)}%
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Accuracy × Quality
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
-                      <span>Opposite Direction</span>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <HelpCircle className="w-3.5 h-3.5 cursor-help inline-block" data-testid="tooltip-opposite-direction" />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
-                          <p className="font-semibold mb-1">Opposite Direction Rate</p>
-                          <p className="text-xs mb-2">Percentage of trades that moved AGAINST our prediction by at least 10% of expected move.</p>
-                          <p className="text-xs">Critical blind spot detector - catches model failures where price swung significantly in the wrong direction.</p>
-                          <p className="text-xs mt-1 italic">Lower is better. Target: &lt;15%</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                    <div className={`text-2xl font-bold font-mono mb-1 ${
-                      stats.overall.oppositeDirectionRate > 20 ? 'text-red-500' : 
-                      stats.overall.oppositeDirectionRate > 15 ? 'text-amber-500' : 'text-green-500'
-                    }`}>
-                      {stats.overall.oppositeDirectionRate.toFixed(1)}%
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {stats.overall.oppositeDirectionCount} wrong way
-                    </div>
-                  </div>
-                </div>
-              </TooltipProvider>
-            </CardContent>
-          </Card>
-
-          <Card className="stat-card shadow-lg border-blue-500/20" data-testid="card-professional-metrics">
+          <Card data-testid="card-professional-metrics">
             <CardHeader>
               <CardTitle className="text-lg font-bold flex items-center gap-2">
                 <Target className="w-5 h-5" />
@@ -1012,7 +942,7 @@ export default function PerformancePage() {
             <CardContent>
               <TooltipProvider>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                  <div className="flex flex-col items-center">
+                  <div className="text-center">
                     <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
                       <span>Sharpe Ratio</span>
                       <Tooltip>
@@ -1034,7 +964,8 @@ export default function PerformancePage() {
                     </div>
                     <div className="text-xs text-muted-foreground">Target: &gt;1.5</div>
                   </div>
-                  <div className="flex flex-col items-center">
+
+                  <div className="text-center">
                     <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
                       <span>Max Drawdown</span>
                       <Tooltip>
@@ -1055,7 +986,8 @@ export default function PerformancePage() {
                     </div>
                     <div className="text-xs text-muted-foreground">Peak-to-trough</div>
                   </div>
-                  <div className="flex flex-col items-center">
+
+                  <div className="text-center">
                     <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
                       <span>Profit Factor</span>
                       <Tooltip>
@@ -1077,7 +1009,8 @@ export default function PerformancePage() {
                     </div>
                     <div className="text-xs text-muted-foreground">Target: &gt;1.3</div>
                   </div>
-                  <div className="flex flex-col items-center">
+
+                  <div className="text-center">
                     <div className="text-sm text-muted-foreground mb-2 flex items-baseline justify-center gap-1.5">
                       <span>Expectancy</span>
                       <Tooltip>
@@ -1106,22 +1039,20 @@ export default function PerformancePage() {
 
         <TabsContent value="trends" className="space-y-6">
           {stats.overall.closedIdeas >= 5 && (
-            <Card className="shadow-lg border-primary/20" data-testid="card-smart-insights">
-              <CardHeader className="bg-gradient-to-r from-card to-muted/30 border-b border-border/50">
+            <Card data-testid="card-smart-insights">
+              <CardHeader>
                 <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Activity className="w-5 h-5 text-primary" />
-                  </div>
+                  <Activity className="w-5 h-5" />
                   Smart Insights
                 </CardTitle>
                 <CardDescription>
                   AI-powered analysis of your trading performance
                 </CardDescription>
               </CardHeader>
-              <CardContent className="pt-6">
+              <CardContent>
                 <div className="space-y-4">
                   {stats.overall.winRate >= 60 && (
-                    <div className="flex items-start gap-3 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
+                    <div className="flex items-start gap-3 p-3 rounded-lg border">
                       <TrendingUp className="w-5 h-5 text-green-500 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-green-500">Strong Win Rate</p>
@@ -1132,7 +1063,7 @@ export default function PerformancePage() {
                     </div>
                   )}
                   {stats.overall.sharpeRatio >= 1.5 && (
-                    <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+                    <div className="flex items-start gap-3 p-3 rounded-lg border">
                       <Target className="w-5 h-5 text-blue-500 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-blue-500">Excellent Risk-Adjusted Returns</p>
@@ -1143,7 +1074,7 @@ export default function PerformancePage() {
                     </div>
                   )}
                   {stats.overall.profitFactor >= 1.3 && (
-                    <div className="flex items-start gap-3 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
+                    <div className="flex items-start gap-3 p-3 rounded-lg border">
                       <TrendingUp className="w-5 h-5 text-green-500 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-green-500">Profitable System</p>
@@ -1154,7 +1085,7 @@ export default function PerformancePage() {
                     </div>
                   )}
                   {stats.overall.closedIdeas >= 5 && stats.overall.winRate < 50 && (
-                    <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                    <div className="flex items-start gap-3 p-3 rounded-lg border">
                       <Activity className="w-5 h-5 text-amber-500 mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-amber-500">Improvement Opportunity</p>
@@ -1244,7 +1175,7 @@ export default function PerformancePage() {
                             <td className="text-right py-2 px-3 text-green-500">{period.wins}</td>
                             <td className="text-right py-2 px-3 text-red-500">{period.losses}</td>
                             <td className="text-right py-2 px-3">
-                              <Badge variant={period.winRate >= 50 ? 'default' : 'destructive'} className="neon-accent">
+                              <Badge variant={period.winRate >= 50 ? 'default' : 'destructive'}>
                                 {period.winRate.toFixed(1)}%
                               </Badge>
                             </td>
@@ -1353,24 +1284,22 @@ export default function PerformancePage() {
         <TabsContent value="deep-dive" className="space-y-6">
           {advancedMetrics && advancedMetrics.bestTrades.length > 0 && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="shadow-lg border-green-500/20" data-testid="card-best-trades">
-                <CardHeader className="bg-gradient-to-r from-green-500/5 to-green-500/10 border-b border-border/50">
+              <Card data-testid="card-best-trades">
+                <CardHeader>
                   <CardTitle className="text-lg font-bold flex items-center gap-2">
-                    <div className="p-2 rounded-lg bg-green-500/10">
-                      <TrendingUp className="w-4 h-4 text-green-500" />
-                    </div>
+                    <TrendingUp className="w-4 h-4 text-green-500" />
                     Top Winners
                   </CardTitle>
                   <CardDescription>
                     Best performing trades
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="p-4">
+                <CardContent>
                   <div className="space-y-3">
                     {advancedMetrics.bestTrades.map((trade) => (
                       <div 
                         key={trade.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover-elevate"
+                        className="flex items-center justify-between p-3 rounded-lg border hover-elevate"
                         data-testid={`best-trade-${trade.symbol}`}
                       >
                         <div className="flex items-center gap-3">
@@ -1378,13 +1307,7 @@ export default function PerformancePage() {
                           <Badge variant="outline" className="text-xs capitalize">
                             {trade.assetType}
                           </Badge>
-                          <Badge 
-                            className={`text-xs ${
-                              trade.direction === 'long' 
-                                ? 'bg-green-500/10 text-green-500 border-green-500/20' 
-                                : 'bg-red-500/10 text-red-500 border-red-500/20'
-                            }`}
-                          >
+                          <Badge variant={trade.direction === 'long' ? 'default' : 'destructive'} className="text-xs">
                             {trade.direction.toUpperCase()}
                           </Badge>
                         </div>
@@ -1399,24 +1322,22 @@ export default function PerformancePage() {
                 </CardContent>
               </Card>
 
-              <Card className="shadow-lg border-red-500/20" data-testid="card-worst-trades">
-                <CardHeader className="bg-gradient-to-r from-red-500/5 to-red-500/10 border-b border-border/50">
+              <Card data-testid="card-worst-trades">
+                <CardHeader>
                   <CardTitle className="text-lg font-bold flex items-center gap-2">
-                    <div className="p-2 rounded-lg bg-red-500/10">
-                      <TrendingDown className="w-4 h-4 text-red-500" />
-                    </div>
+                    <TrendingDown className="w-4 h-4 text-red-500" />
                     Top Losers
                   </CardTitle>
                   <CardDescription>
                     Worst performing trades
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="p-4">
+                <CardContent>
                   <div className="space-y-3">
                     {advancedMetrics.worstTrades.map((trade) => (
                       <div 
                         key={trade.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover-elevate"
+                        className="flex items-center justify-between p-3 rounded-lg border hover-elevate"
                         data-testid={`worst-trade-${trade.symbol}`}
                       >
                         <div className="flex items-center gap-3">
@@ -1424,13 +1345,7 @@ export default function PerformancePage() {
                           <Badge variant="outline" className="text-xs capitalize">
                             {trade.assetType}
                           </Badge>
-                          <Badge 
-                            className={`text-xs ${
-                              trade.direction === 'long' 
-                                ? 'bg-green-500/10 text-green-500 border-green-500/20' 
-                                : 'bg-red-500/10 text-red-500 border-red-500/20'
-                            }`}
-                          >
+                          <Badge variant={trade.direction === 'long' ? 'default' : 'destructive'} className="text-xs">
                             {trade.direction.toUpperCase()}
                           </Badge>
                         </div>
@@ -1447,327 +1362,143 @@ export default function PerformancePage() {
             </div>
           )}
 
-          {advancedMetrics && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card data-testid="card-streaks">
-                <CardHeader>
-                  <CardTitle>Winning & Losing Streaks</CardTitle>
-                  <CardDescription>
-                    Consecutive win/loss patterns
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-green-500/5 border border-green-500/20">
-                      <div className="flex items-center gap-3">
-                        <TrendingUp className="w-6 h-6 text-green-500" />
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">Best Win Streak</p>
-                          <p className="text-xs text-muted-foreground">Consecutive wins</p>
+          {stats.byAssetType.length > 0 && (
+            <Card data-testid="card-asset-breakdown">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold">Performance by Asset Type</CardTitle>
+                <CardDescription>
+                  Win rates and average gains across different asset classes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {stats.byAssetType.map((asset) => (
+                    <div key={asset.assetType} className="border-b pb-4 last:border-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold capitalize">{asset.assetType}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {asset.totalIdeas} trades
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-sm">
+                            <span className="text-green-500 font-mono">{asset.wonIdeas}W</span>
+                            <span className="text-muted-foreground mx-1">/</span>
+                            <span className="text-red-500 font-mono">{asset.lostIdeas}L</span>
+                          </div>
+                          <Badge variant={asset.winRate >= 50 ? 'default' : 'destructive'}>
+                            {asset.winRate.toFixed(1)}%
+                          </Badge>
                         </div>
                       </div>
-                      <div className="text-3xl font-bold font-mono text-green-500">
-                        {advancedMetrics.bestWinStreak}
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Avg Gain</span>
+                        <span className={cn(
+                          "font-mono font-bold",
+                          asset.avgPercentGain >= 0 ? "text-green-500" : "text-red-500"
+                        )}>
+                          {asset.avgPercentGain >= 0 ? '+' : ''}{asset.avgPercentGain.toFixed(2)}%
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-red-500/5 border border-red-500/20">
-                      <div className="flex items-center gap-3">
-                        <TrendingDown className="w-6 h-6 text-red-500" />
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">Worst Loss Streak</p>
-                          <p className="text-xs text-muted-foreground">Consecutive losses</p>
-                        </div>
-                      </div>
-                      <div className="text-3xl font-bold font-mono text-red-500">
-                        {advancedMetrics.worstLossStreak}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card data-testid="card-profit-loss-breakdown">
-                <CardHeader>
-                  <CardTitle>Profit/Loss Breakdown</CardTitle>
-                  <CardDescription>
-                    Gross wins vs. gross losses
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-green-500/5 border border-green-500/20">
-                      <div className="flex items-center gap-3">
-                        <TrendingUp className="w-6 h-6 text-green-500" />
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">Gross Profit</p>
-                          <p className="text-xs text-muted-foreground">Total winning %</p>
-                        </div>
-                      </div>
-                      <div className="text-3xl font-bold font-mono text-green-500">
-                        {formatPercent(advancedMetrics.grossProfit)}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between p-4 rounded-lg bg-red-500/5 border border-red-500/20">
-                      <div className="flex items-center gap-3">
-                        <TrendingDown className="w-6 h-6 text-red-500" />
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">Gross Loss</p>
-                          <p className="text-xs text-muted-foreground">Total losing %</p>
-                        </div>
-                      </div>
-                      <div className="text-3xl font-bold font-mono text-red-500">
-                        {formatPercent(-advancedMetrics.grossLoss)}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          <Card data-testid="card-breakdown-by-source">
-            <CardHeader>
-              <CardTitle>Breakdown by Source</CardTitle>
-              <CardDescription>
-                Performance metrics grouped by signal source
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-auto">
-                <table className="pro-table">
-                  <thead>
-                    <tr>
-                      <th className="text-left py-2 px-3">Source</th>
-                      <th className="text-right py-2 px-3">Total Ideas</th>
-                      <th className="text-right py-2 px-3">Wins</th>
-                      <th className="text-right py-2 px-3">Losses</th>
-                      <th className="text-right py-2 px-3">Win Rate</th>
-                      <th className="text-right py-2 px-3">Avg Gain</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.bySource.map((source, idx) => (
-                      <tr key={source.source} className={idx % 2 === 0 ? 'bg-muted/30' : ''}>
-                        <td className="py-2 px-3 font-medium capitalize">{source.source}</td>
-                        <td className="text-right py-2 px-3">{source.totalIdeas}</td>
-                        <td className="text-right py-2 px-3 text-green-500">{source.wonIdeas}</td>
-                        <td className="text-right py-2 px-3 text-red-500">{source.lostIdeas}</td>
-                        <td className="text-right py-2 px-3">
-                          <Badge variant={source.winRate >= 50 ? 'default' : 'destructive'} className="neon-accent">
+          {stats.bySource.length > 0 && (
+            <Card data-testid="card-source-breakdown">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold">Performance by Source</CardTitle>
+                <CardDescription>
+                  Comparing AI vs. Quant signal performance
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {stats.bySource.map((source) => (
+                    <div key={source.source} className="border-b pb-4 last:border-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold capitalize">{source.source}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {source.totalIdeas} trades
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-sm">
+                            <span className="text-green-500 font-mono">{source.wonIdeas}W</span>
+                            <span className="text-muted-foreground mx-1">/</span>
+                            <span className="text-red-500 font-mono">{source.lostIdeas}L</span>
+                          </div>
+                          <Badge variant={source.winRate >= 50 ? 'default' : 'destructive'}>
                             {source.winRate.toFixed(1)}%
                           </Badge>
-                        </td>
-                        <td className={`text-right py-2 px-3 font-mono ${source.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Avg Gain</span>
+                        <span className={cn(
+                          "font-mono font-bold",
+                          source.avgPercentGain >= 0 ? "text-green-500" : "text-red-500"
+                        )}>
                           {source.avgPercentGain >= 0 ? '+' : ''}{source.avgPercentGain.toFixed(2)}%
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card data-testid="card-breakdown-by-asset">
-              <CardHeader>
-                <CardTitle>Breakdown by Asset Type</CardTitle>
-                <CardDescription>
-                  Performance across different asset classes
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-auto">
-                  <table className="pro-table">
-                    <thead>
-                      <tr>
-                        <th className="text-left py-2 px-3">Asset Type</th>
-                        <th className="text-right py-2 px-3">Ideas</th>
-                        <th className="text-right py-2 px-3">Win Rate</th>
-                        <th className="text-right py-2 px-3">Avg Gain</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stats.byAssetType.map((asset, idx) => (
-                        <tr key={asset.assetType} className={idx % 2 === 0 ? 'bg-muted/30' : ''}>
-                          <td className="py-2 px-3 font-medium capitalize">{asset.assetType}</td>
-                          <td className="text-right py-2 px-3">{asset.totalIdeas}</td>
-                          <td className="text-right py-2 px-3">
-                            <Badge variant={asset.winRate >= 50 ? 'default' : 'destructive'} className="neon-accent">
-                              {asset.winRate.toFixed(1)}%
-                            </Badge>
-                          </td>
-                          <td className={`text-right py-2 px-3 font-mono ${asset.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {asset.avgPercentGain >= 0 ? '+' : ''}{asset.avgPercentGain.toFixed(2)}%
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
+          )}
 
-            <Card data-testid="card-breakdown-by-signal">
+          {advancedMetrics && (
+            <Card data-testid="card-advanced-stats">
               <CardHeader>
-                <CardTitle>Breakdown by Signal Type</CardTitle>
+                <CardTitle className="text-lg font-bold">Advanced Statistics</CardTitle>
                 <CardDescription>
-                  Performance by technical signal patterns
+                  Detailed performance metrics and streaks
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-auto">
-                  <table className="pro-table">
-                    <thead>
-                      <tr>
-                        <th className="text-left py-2 px-3">Signal</th>
-                        <th className="text-right py-2 px-3">Ideas</th>
-                        <th className="text-right py-2 px-3">Win Rate</th>
-                        <th className="text-right py-2 px-3">Avg Gain</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stats.bySignalType.map((signal, idx) => (
-                        <tr key={signal.signal} className={idx % 2 === 0 ? 'bg-muted/30' : ''}>
-                          <td className="py-2 px-3 font-medium">{signal.signal}</td>
-                          <td className="text-right py-2 px-3">{signal.totalIdeas}</td>
-                          <td className="text-right py-2 px-3">
-                            <Badge variant={signal.winRate >= 50 ? 'default' : 'destructive'} className="neon-accent">
-                              {signal.winRate.toFixed(1)}%
-                            </Badge>
-                          </td>
-                          <td className={`text-right py-2 px-3 font-mono ${signal.avgPercentGain >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {signal.avgPercentGain >= 0 ? '+' : ''}{signal.avgPercentGain.toFixed(2)}%
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="filters" data-testid="accordion-filters">
-              <AccordionTrigger className="text-lg font-semibold">
-                Advanced Filters
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Filter by Source</label>
-                    <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                      <SelectTrigger data-testid="select-source-filter">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Sources</SelectItem>
-                        {stats.bySource.map(s => (
-                          <SelectItem key={s.source} value={s.source} className="capitalize">
-                            {s.source} ({s.totalIdeas})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-2">Best Win Streak</div>
+                    <div className="text-2xl font-bold font-mono text-green-500">
+                      {advancedMetrics.bestWinStreak}
+                    </div>
+                    <div className="text-xs text-muted-foreground">consecutive wins</div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Filter by Outcome</label>
-                    <Select value={outcomeFilter} onValueChange={setOutcomeFilter}>
-                      <SelectTrigger data-testid="select-outcome-filter">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Outcomes</SelectItem>
-                        <SelectItem value="won">Wins Only</SelectItem>
-                        <SelectItem value="lost">Losses Only</SelectItem>
-                        <SelectItem value="expired">Expired Only</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-2">Worst Loss Streak</div>
+                    <div className="text-2xl font-bold font-mono text-red-500">
+                      {advancedMetrics.worstLossStreak}
+                    </div>
+                    <div className="text-xs text-muted-foreground">consecutive losses</div>
                   </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-
-          {filteredIdeas.length > 0 && (
-            <Card data-testid="card-filtered-trades">
-              <CardHeader>
-                <CardTitle>Filtered Trade Ideas ({filteredIdeas.length})</CardTitle>
-                <CardDescription>
-                  Trades matching current filter criteria
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-auto max-h-96">
-                  <table className="pro-table">
-                    <thead>
-                      <tr>
-                        <th className="text-left py-2 px-3">Symbol</th>
-                        <th className="text-left py-2 px-3">Type</th>
-                        <th className="text-left py-2 px-3">Direction</th>
-                        <th className="text-left py-2 px-3">Source</th>
-                        <th className="text-right py-2 px-3">Entry</th>
-                        <th className="text-right py-2 px-3">Exit</th>
-                        <th className="text-center py-2 px-3">Outcome</th>
-                        <th className="text-right py-2 px-3">Gain</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredIdeas.map((idea, idx) => {
-                        const isWinner = idea.outcomeStatus === 'hit_target';
-                        const isLoser = idea.outcomeStatus === 'hit_stop';
-                        
-                        return (
-                          <tr 
-                            key={idea.id} 
-                            className={cn(
-                              "transition-all hover:scale-[1.01] hover-elevate",
-                              idx % 2 === 0 ? 'bg-muted/30' : '',
-                              isWinner && "bg-green-500/5 border-l-4 border-l-green-500 shadow-sm shadow-green-500/20",
-                              isLoser && "bg-red-500/5 border-l-4 border-l-red-500 shadow-sm shadow-red-500/20"
-                            )}
-                          >
-                            <td className="py-2 px-3 font-mono font-bold">
-                              {idea.symbol}
-                              {isWinner && <span className="ml-2 text-green-500">✓</span>}
-                              {isLoser && <span className="ml-2 text-red-500">✗</span>}
-                            </td>
-                            <td className="py-2 px-3 capitalize text-xs">{idea.assetType}</td>
-                            <td className="py-2 px-3">
-                              <Badge 
-                                className={`text-xs ${
-                                  idea.direction === 'long' 
-                                    ? 'bg-green-500/10 text-green-500 border-green-500/20' 
-                                    : 'bg-red-500/10 text-red-500 border-red-500/20'
-                                }`}
-                              >
-                                {idea.direction.toUpperCase()}
-                              </Badge>
-                            </td>
-                            <td className="py-2 px-3 capitalize text-xs">{idea.source}</td>
-                            <td className="text-right py-2 px-3 font-mono">${idea.entryPrice.toFixed(2)}</td>
-                            <td className="text-right py-2 px-3 font-mono">${idea.exitPrice?.toFixed(2) || '—'}</td>
-                            <td className="text-center py-2 px-3">{getOutcomeBadge(idea.outcomeStatus)}</td>
-                            <td className={`text-right py-2 px-3 font-mono font-bold ${
-                              (idea.percentGain || 0) >= 0 ? 'text-green-500' : 'text-red-500'
-                            }`}>
-                              {idea.percentGain !== null 
-                                ? `${idea.percentGain >= 0 ? '+' : ''}${idea.percentGain.toFixed(2)}%` 
-                                : '—'}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-2">Gross Profit</div>
+                    <div className="text-2xl font-bold font-mono text-green-500">
+                      +{advancedMetrics.grossProfit.toFixed(2)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">total gains</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm text-muted-foreground mb-2">Gross Loss</div>
+                    <div className="text-2xl font-bold font-mono text-red-500">
+                      -{advancedMetrics.grossLoss.toFixed(2)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">total losses</div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
-        <TabsContent value="validation" className="space-y-6 mt-6">
+        <TabsContent value="validation" className="space-y-6">
           <CrossValidationPanel />
         </TabsContent>
       </Tabs>

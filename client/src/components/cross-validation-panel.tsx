@@ -154,7 +154,7 @@ export function CrossValidationPanel() {
   const successes = validations.filter(v => v.valid).length;
 
   return (
-    <Card className="gradient-border-card">
+    <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
