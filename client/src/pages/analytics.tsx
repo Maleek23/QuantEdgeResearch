@@ -135,144 +135,30 @@ export default function AnalyticsPage() {
             Analyzing {activeSource === 'all' ? 'All Sources' : activeSource.toUpperCase()} performance
           </Badge>
           <span className="text-xs text-muted-foreground">
-            {metrics.totalTrades} total trades ({metrics.winners}W / {metrics.losers}L)
+            {metrics.totalTrades} total trades ({metrics.winners}W / {metrics.losers}L) • {metrics.winRate.toFixed(1)}% win rate
           </span>
         </div>
       )}
 
-      {/* Key Performance Metrics */}
-      {metrics && (
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              Core Performance Metrics
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="hover-elevate">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{metrics.winRate.toFixed(1)}%</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {metrics.winners}W • {metrics.losers}L
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="hover-elevate">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Avg Gain</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-emerald-500">
-                    +{((metrics.avgWin || 0) * 100).toFixed(2)}%
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Per winning trade
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="hover-elevate">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Avg Loss</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-red-500">
-                    {((metrics.avgLoss || 0) * 100).toFixed(2)}%
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Per losing trade
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="hover-elevate">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Expectancy</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className={`text-3xl font-bold ${metrics.expectancy >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                    ${metrics.expectancy.toFixed(2)}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Per trade
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+      {/* Note: Core metrics moved to Performance page */}
+      <Card className="bg-muted/30 border-primary/20">
+        <CardContent className="pt-6">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <Target className="h-4 w-4 text-primary shrink-0" />
+            <span>
+              <strong className="text-foreground">Core performance metrics</strong> (Win Rate, Sharpe, Drawdown, Profit Factor) are on the <strong className="text-primary">Performance</strong> page.
+              This page focuses on advanced analytical tools.
+            </span>
           </div>
+        </CardContent>
+      </Card>
 
-          {/* Risk Metrics */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Risk & Drawdown Analysis
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="hover-elevate">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Sharpe Ratio</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{metrics.sharpeRatio.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Target: &gt;1.5
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="hover-elevate">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Max Drawdown</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-red-500">
-                    {metrics.maxDrawdownPercent.toFixed(1)}%
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Peak-to-trough
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="hover-elevate">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Profit Factor</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{metrics.profitFactor.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Target: &gt;1.3
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="hover-elevate">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Sortino Ratio</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold">{metrics.sortinoRatio.toFixed(2)}</div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Downside risk
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tabs for Different Analytics Views */}
+      {/* Advanced Analytics Tools */}
       <Tabs defaultValue="rolling" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-1 md:grid-cols-4">
+        <TabsList className="grid w-full grid-cols-1 md:grid-cols-3">
           <TabsTrigger value="rolling" data-testid="tab-rolling-winrate">Rolling Win Rate</TabsTrigger>
-          <TabsTrigger value="signals" data-testid="tab-signal-performance">Signal Performance</TabsTrigger>
-          <TabsTrigger value="calibration" data-testid="tab-calibration">Calibration</TabsTrigger>
-          <TabsTrigger value="metrics" data-testid="tab-additional-metrics">Additional Metrics</TabsTrigger>
+          <TabsTrigger value="signals" data-testid="tab-signal-performance">Signal Breakdown</TabsTrigger>
+          <TabsTrigger value="calibration" data-testid="tab-calibration">Model Calibration</TabsTrigger>
         </TabsList>
 
         {/* Rolling Win Rate Chart */}
@@ -497,47 +383,7 @@ export default function AnalyticsPage() {
           </Card>
         </TabsContent>
 
-        {/* Additional Metrics Table */}
-        <TabsContent value="metrics">
-          <Card>
-            <CardHeader>
-              <CardTitle>Additional Metrics</CardTitle>
-              <CardDescription>
-                Extended performance details not shown in overview cards
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {metrics && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <h3 className="font-semibold text-sm">Return Details</h3>
-                    <MetricRow label="Total Return" value={`${metrics.totalReturn.toFixed(2)}%`} />
-                    <MetricRow label="Return Per Day" value={`${metrics.returnPerDay.toFixed(2)}%`} />
-                    <MetricRow label="Largest Win" value={`${metrics.largestWin.toFixed(2)}%`} />
-                    <MetricRow label="Largest Loss" value={`${metrics.largestLoss.toFixed(2)}%`} />
-                  </div>
-
-                  <div className="space-y-3">
-                    <h3 className="font-semibold text-sm">Trade Streaks & Duration</h3>
-                    <MetricRow label="Consecutive Wins" value={metrics.consecutiveWins.toString()} />
-                    <MetricRow label="Consecutive Losses" value={metrics.consecutiveLosses.toString()} />
-                    <MetricRow label="Avg Holding Time" value={`${Math.round(metrics.avgHoldingTimeMinutes)}min`} />
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-function MetricRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between py-2 border-b border-border/40">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm font-mono font-semibold">{value}</span>
     </div>
   );
 }

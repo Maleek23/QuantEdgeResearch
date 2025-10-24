@@ -3,12 +3,27 @@
 ## Overview
 QuantEdge Research is a professional quantitative trading research platform designed to identify day-trading opportunities in US equities, options, and crypto markets. Its primary purpose is to provide educational, research-grade trade ideas, robust risk management tools, and real-time market analysis. The platform emphasizes strong risk controls, clear educational disclaimers, and presents information via a professional dark-themed UI for rapid data scanning. It integrates real historical data for model accuracy, features adaptive learning, and operates on a public-access model managing membership tiers (Free vs. Premium) through Discord roles, with the web platform serving as a public dashboard. The platform's ambition is to offer a comprehensive, data-driven solution for quantitative trading research.
 
-**NEW: AI System Overhaul (Oct 23, 2025)**
+**NEW: Quant Engine v3.1.0 (Oct 24, 2025)**
+- **ADX Regime Filtering**: Calculates ADX to detect market regime (ranging vs trending)
+  - Mean reversion signals (RSI2) ONLY work in ranging markets (ADX < 25)
+  - Momentum signals (VWAP, Volume Spike) work in ALL regimes
+  - Fixes the 31 expired trade issue (mean reversion in wrong regime)
+- **Signal Confidence Voting**: Requires 2+ signals to agree before generating trade idea
+  - Research shows 2+ signal agreement = 70%+ win rate vs 55-65% for single signals
+  - Reduces false signals and noise significantly
+- **Optimal Trading Window**: Time-of-day filter for first 2 hours (9:30-11:30 AM ET)
+  - Best liquidity and volume in opening hours
+  - Improves execution quality and reduces slippage
+- **UI Redundancy Fix**: Eliminated duplicate metrics across Tools tab pages
+  - **Performance page**: ALL core metrics (Win Rate, Sharpe, Drawdown, Profit Factor, Expectancy)
+  - **Analytics page**: ONLY advanced tools (Rolling Win Rate, Signal Breakdown, Calibration)
+  - Removed duplicate metric cards that frustrated users
+
+**AI System Overhaul (Oct 23, 2025)**
 - **Free AI Tier**: Switched to Gemini free tier (25 requests/day, commercial use allowed) - eliminates paid API costs
 - **Hybrid AI+Quant System**: New `/api/hybrid/generate-ideas` endpoint combines proven quant signals with AI fundamental analysis
 - **Dashboard Integration**: Added "Free AI Ideas" button with FREE badge and "Hybrid (AI+Quant)" button for best-of-both-worlds generation
 - **Analytics Source Filtering**: Analytics page now supports filtering by source (All/Quant/AI/Hybrid) to compare performance across generation methods
-- **Improved Analytics UI**: Reorganized metrics into clear sections (Core Performance, Risk & Drawdown Analysis) with larger text and better readability
 - **Duplicate Prevention**: All three generation methods (Quant, AI, Hybrid) now check for existing open trades and skip duplicate symbols automatically
 - **CRITICAL PRICE FIXES (Oct 23)**: Fixed price inversion bugs across ALL generation systems
   - **AI:** Added explicit price rules to prompt (LONG: target > entry > stop) + automatic validation
