@@ -14,7 +14,107 @@ import {
 } from './technical-indicators';
 import { discoverHiddenCryptoGems, discoverStockGems, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
 import { logger } from './logger';
-import { detectMarketRegime, calculateTimingWindows, type SignalStack } from './timing-intelligence';
+
+// v3.1: Simplified timing intelligence (removed complex DB-based timing-intelligence.ts)
+// Timing windows based on proven day-trading patterns
+interface SignalStack {
+  rsiValue?: number;
+  macdHistogram?: number;
+  volumeRatio?: number;
+  priceVs52WeekHigh?: number;
+  priceVs52WeekLow?: number;
+  signals: string[];
+  confidenceScore: number;
+  grade: string;
+}
+
+interface MarketRegime {
+  volatilityRegime: 'low' | 'moderate' | 'high';
+  sessionPhase: 'opening' | 'mid-day' | 'closing' | 'pre-market' | 'after-hours';
+  trendStrength: number;
+}
+
+interface TimingAnalytics {
+  entryWindowMinutes: number;
+  exitWindowMinutes: number;
+  holdingPeriodType: 'day' | 'swing' | 'position' | 'week-ending';
+  timingConfidence: number;
+  targetHitProbability: number;
+  volatilityRegime: 'low' | 'moderate' | 'high';
+  sessionPhase: 'opening' | 'mid-day' | 'closing' | 'pre-market' | 'after-hours';
+  trendStrength: number;
+}
+
+// Simple regime detection based on signal stack
+function detectMarketRegime(signalStack: SignalStack): MarketRegime {
+  // Determine volatility based on confidence and volume
+  let volatilityRegime: 'low' | 'moderate' | 'high' = 'moderate';
+  if (signalStack.volumeRatio && signalStack.volumeRatio > 3) {
+    volatilityRegime = 'high';
+  } else if (signalStack.volumeRatio && signalStack.volumeRatio < 1.5) {
+    volatilityRegime = 'low';
+  }
+
+  // Determine session phase based on current time (ET)
+  const now = new Date();
+  const etHour = parseInt(formatInTimeZone(now, 'America/New_York', 'H'));
+  let sessionPhase: 'opening' | 'mid-day' | 'closing' | 'pre-market' | 'after-hours' = 'mid-day';
+  if (etHour >= 4 && etHour < 9) sessionPhase = 'pre-market';
+  else if (etHour >= 9 && etHour < 11) sessionPhase = 'opening';
+  else if (etHour >= 11 && etHour < 15) sessionPhase = 'mid-day';
+  else if (etHour >= 15 && etHour < 16) sessionPhase = 'closing';
+  else sessionPhase = 'after-hours';
+
+  // Trend strength based on price vs 52-week high/low
+  let trendStrength = 50; // neutral
+  if (signalStack.priceVs52WeekHigh && signalStack.priceVs52WeekHigh > -5) {
+    trendStrength = 80; // strong uptrend
+  } else if (signalStack.priceVs52WeekLow && signalStack.priceVs52WeekLow < 5) {
+    trendStrength = 20; // strong downtrend
+  }
+
+  return { volatilityRegime, sessionPhase, trendStrength };
+}
+
+// Simple timing windows based on asset type and confidence
+async function calculateTimingWindows(
+  assetType: 'stock' | 'crypto',
+  signalStack: SignalStack,
+  regime: MarketRegime
+): Promise<TimingAnalytics> {
+  // Entry window: 30-60 minutes for day trades
+  const entryWindowMinutes = regime.volatilityRegime === 'high' ? 30 : 60;
+  
+  // Exit window based on holding period
+  let holdingPeriodType: 'day' | 'swing' | 'position' | 'week-ending' = 'day';
+  let exitWindowMinutes = 360; // 6 hours for day trades
+  
+  // High confidence day trades get shorter windows
+  if (signalStack.confidenceScore >= 90) {
+    holdingPeriodType = 'day';
+    exitWindowMinutes = 360; // 6 hours
+  } else if (signalStack.confidenceScore >= 85) {
+    holdingPeriodType = 'swing';
+    exitWindowMinutes = 1440; // 24 hours
+  } else {
+    holdingPeriodType = 'position';
+    exitWindowMinutes = 4320; // 3 days
+  }
+  
+  // Target hit probability based on confidence score
+  const targetHitProbability = signalStack.confidenceScore * 0.8; // 80% of confidence score
+  
+  return {
+    entryWindowMinutes,
+    exitWindowMinutes,
+    holdingPeriodType,
+    timingConfidence: signalStack.confidenceScore,
+    targetHitProbability,
+    volatilityRegime: regime.volatilityRegime,
+    sessionPhase: regime.sessionPhase,
+    trendStrength: regime.trendStrength,
+  };
+}
 
 // 🔐 MODEL GOVERNANCE: Engine version for audit trail
 export const QUANT_ENGINE_VERSION = "v3.1.0"; // Updated Oct 24, 2025: REGIME FILTERING - Added ADX market regime detection + signal confidence voting + improved discovery filters
@@ -82,23 +182,10 @@ function isOptimalTradingWindow(): boolean {
   return false;
 }
 
-// Machine Learning: Fetch learned signal weights from retraining service (cached)
+// v3.0: ML system removed - return empty weights
+// All signal weighting now done via simple rule-based scoring (see calculateConfidenceScore)
 async function fetchLearnedWeights(): Promise<Map<string, number>> {
-  try {
-    const { mlRetrainingService } = await import('./ml-retraining-service');
-    const weights = mlRetrainingService.getSignalWeights();
-    
-    if (weights.size === 0) {
-      logger.info('📊 ML patterns not ready yet - using default weights');
-      return new Map();
-    }
-    
-    logger.info(`🧠 ML-Enhanced: Using ${weights.size} cached signal weights`);
-    return weights;
-  } catch (error) {
-    logger.info('📊 Using default weights (ML service unavailable)');
-    return new Map();
-  }
+  return new Map<string, number>(); // v3.0: No ML weights - pure rule-based
 }
 
 interface QuantSignal {

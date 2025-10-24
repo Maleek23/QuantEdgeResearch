@@ -24,6 +24,12 @@ QuantEdge Research is a professional quantitative trading research platform desi
   - Recalculated percentGain for 118 trades using correct formula
   - Database repair: profitFactor improved from 0.92 to 2.02, evScore from 1.82 to 3.24
   - Validation now ONLY happens in Performance Validation Service (every 5 min) and manual endpoint
+- **CODE CLEANUP (Oct 24)**: Removed 886 lines of dead code from v3.0.0 rebuild
+  - Deleted `backtesting.ts` (305 lines) - never used
+  - Deleted `timing-intelligence.ts` (356 lines) - v3.0 removed complex DB-based timing
+  - Deleted `ml-retraining-service.ts` (225 lines) - v3.0 removed ML system
+  - Replaced complex timing with simple 120-line implementation in quant-ideas-generator.ts
+  - Result: Cleaner codebase, no more hourly ML retraining waste, faster startup
 
 **AI System Overhaul (Oct 23, 2025)**
 - **Free AI Tier**: Switched to Gemini free tier (25 requests/day, commercial use allowed) - eliminates paid API costs
