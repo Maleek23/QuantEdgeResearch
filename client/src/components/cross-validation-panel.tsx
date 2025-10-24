@@ -71,8 +71,13 @@ export function CrossValidationPanel() {
     severity: totalIdeas === perfTotal ? 'success' : 'error'
   });
 
-  // Validate closed ideas
-  const closedIdeas = tradeIdeas.filter((idea: any) => idea.outcomeStatus === 'won' || idea.outcomeStatus === 'lost' || idea.outcomeStatus === 'expired').length;
+  // Validate closed ideas (hit_target, hit_stop, expired, closed)
+  const closedIdeas = tradeIdeas.filter((idea: any) => 
+    idea.outcomeStatus === 'hit_target' || 
+    idea.outcomeStatus === 'hit_stop' || 
+    idea.outcomeStatus === 'expired' ||
+    idea.outcomeStatus === 'closed'
+  ).length;
   const perfClosed = performanceStats.overall.closedIdeas;
   validations.push({
     metric: 'Closed Trade Ideas',
@@ -83,8 +88,8 @@ export function CrossValidationPanel() {
     severity: closedIdeas === perfClosed ? 'success' : 'error'
   });
 
-  // Validate won ideas
-  const wonIdeas = tradeIdeas.filter((idea: any) => idea.outcomeStatus === 'won').length;
+  // Validate won ideas (hit_target)
+  const wonIdeas = tradeIdeas.filter((idea: any) => idea.outcomeStatus === 'hit_target').length;
   const perfWon = performanceStats.overall.wonIdeas;
   validations.push({
     metric: 'Won Trade Ideas',
@@ -95,8 +100,8 @@ export function CrossValidationPanel() {
     severity: wonIdeas === perfWon ? 'success' : 'error'
   });
 
-  // Validate lost ideas
-  const lostIdeas = tradeIdeas.filter((idea: any) => idea.outcomeStatus === 'lost').length;
+  // Validate lost ideas (hit_stop)
+  const lostIdeas = tradeIdeas.filter((idea: any) => idea.outcomeStatus === 'hit_stop').length;
   const perfLost = performanceStats.overall.lostIdeas;
   validations.push({
     metric: 'Lost Trade Ideas',
