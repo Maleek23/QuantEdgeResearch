@@ -87,6 +87,8 @@ export function Footer() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 pt-4 border-t border-border/40">
           <p className="text-xs text-muted-foreground">
             © {currentYear.getFullYear()} QuantEdge Research. All rights reserved.
+            <span className="hidden md:inline mx-2">•</span>
+            <span className="text-muted-foreground/60">by UN/TITLD</span>
           </p>
           
           <div className="flex flex-col md:flex-row items-start md:items-center gap-2 text-xs text-muted-foreground">

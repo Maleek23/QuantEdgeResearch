@@ -14,7 +14,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { UntitldLogo } from "@/components/untitld-logo";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 import { cn } from "@/lib/utils";
 
@@ -78,22 +77,6 @@ function SidebarHeaderContent() {
             />
           </div>
           
-          {/* Branding section - always mounted, transforms between states */}
-          <div className={cn(
-            "flex flex-col transition-all duration-300",
-            isCollapsed ? "gap-0" : "gap-0.5 leading-none ml-3"
-          )}>
-            {/* "by" text - fades out when collapsed */}
-            <span className={cn(
-              "text-[6px] text-muted-foreground/40 tracking-wide transition-all duration-300 uppercase font-medium",
-              isCollapsed ? "opacity-0 h-0 overflow-hidden" : "opacity-100"
-            )}>
-              by
-            </span>
-            
-            {/* Portal animation - ALWAYS MOUNTED */}
-            <UntitldLogo collapsed={isCollapsed} />
-          </div>
         </div>
       </Link>
     </SidebarMenuButton>

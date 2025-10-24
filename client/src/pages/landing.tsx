@@ -26,7 +26,6 @@ import {
   GitBranch
 } from "lucide-react";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
-import { UntitldLogo } from "@/components/untitld-logo";
 
 export default function Landing() {
   const [, setLocation] = useLocation();
@@ -110,28 +109,13 @@ export default function Landing() {
             Dual-Engine Architecture: AI + Quantitative
           </Badge>
           
-          {/* QuantEdge Logo + UN/TITLD Branding - Professional Lockup */}
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8 mb-10 animate-fade-up">
+          {/* QuantEdge Logo */}
+          <div className="flex items-center justify-center mb-10 animate-fade-up">
             <img 
               src={quantEdgeLogoUrl} 
               alt="QuantEdge" 
               className="h-36 w-36 md:h-44 md:w-44 object-contain drop-shadow-2xl"
             />
-            
-            {/* Vertical divider on desktop */}
-            <div className="hidden md:block w-px h-16 bg-gradient-to-b from-transparent via-border to-transparent" />
-            
-            {/* Studio credit with proper hierarchy */}
-            <div className="flex flex-col items-center md:items-start gap-1.5">
-              <span className="text-xs md:text-sm text-muted-foreground/70 tracking-[0.24em] uppercase font-medium">
-                by
-              </span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-lg md:text-xl font-semibold text-foreground tracking-tight">UN</span>
-                <span className="text-lg md:text-xl font-bold text-muted-foreground/40">/</span>
-                <span className="text-lg md:text-xl font-semibold text-foreground tracking-tight">TITLD</span>
-              </div>
-            </div>
           </div>
           
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 leading-relaxed animate-fade-up animate-delay-100">
