@@ -797,6 +797,7 @@ export class MemStorage implements IStorage {
     startDate?: string; // ISO date string
     endDate?: string;   // ISO date string
     source?: string;    // 'ai', 'quant', 'manual'
+    includeAllVersions?: boolean; // When true, includes v2.x trades for ML/admin analysis (default: false = v3.0+ only)
   }): Promise<PerformanceStats> {
     let allIdeas = Array.from(this.tradeIdeas.values());
     const originalCount = allIdeas.length;
@@ -829,18 +830,26 @@ export class MemStorage implements IStorage {
       allIdeas = allIdeas.filter(idea => idea.source === filters.source);
     }
     
-    // 🆕 FILTER v3.0+ ONLY: Exclude old v2.x trades with broken signals (MACD, ML, etc)
-    // Old v2.x trades: 131 total (39.4% WR) - polluting metrics with failed MACD/ML signals
-    // v3.0+: Research-backed signals only (RSI2 75-91% WR, VWAP 80%+ WR)
-    allIdeas = allIdeas.filter(idea => {
-      // Include trades with v3.0.0 or higher
-      if (idea.engineVersion && idea.engineVersion.startsWith('v3.')) {
-        return true;
-      }
-      // Exclude trades without engineVersion or with v2.x versions
-      return false;
-    });
-    console.log(`[PERF-STATS] Engine filter applied: v3.0+ only → ${originalCount} ideas filtered to ${allIdeas.length}`);
+    // 🎯 SMART ENGINE VERSION FILTERING
+    // Default behavior (includeAllVersions=false): Filter to v3.0+ only for clean user-facing metrics
+    // ML/Admin mode (includeAllVersions=true): Include ALL versions for training, analysis, and auditing
+    if (!filters?.includeAllVersions) {
+      // 🆕 FILTER v3.0+ ONLY: Exclude old v2.x trades with broken signals (MACD, ML, etc)
+      // Old v2.x trades: 131 total (39.4% WR) - polluting metrics with failed MACD/ML signals
+      // v3.0+: Research-backed signals only (RSI2 75-91% WR, VWAP 80%+ WR)
+      const beforeVersionFilter = allIdeas.length;
+      allIdeas = allIdeas.filter(idea => {
+        // Include trades with v3.0.0 or higher
+        if (idea.engineVersion && idea.engineVersion.startsWith('v3.')) {
+          return true;
+        }
+        // Exclude trades without engineVersion or with v2.x versions
+        return false;
+      });
+      console.log(`[PERF-STATS] Engine filter applied: v3.0+ only → ${beforeVersionFilter} ideas filtered to ${allIdeas.length}`);
+    } else {
+      console.log(`[PERF-STATS] All engine versions included (ML/Admin mode) → ${allIdeas.length} total ideas`);
+    }
     
     const closedIdeas = allIdeas.filter((idea) => idea.outcomeStatus !== 'open');
     const wonIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'hit_target');
@@ -1414,6 +1423,7 @@ export class DatabaseStorage implements IStorage {
     startDate?: string; // ISO date string (YYYY-MM-DD)
     endDate?: string;   // ISO date string (YYYY-MM-DD)
     source?: string;    // 'ai', 'quant', 'manual'
+    includeAllVersions?: boolean; // When true, includes v2.x trades for ML/admin analysis (default: false = v3.0+ only)
   }): Promise<PerformanceStats> {
     let allIdeasRaw = await this.getAllTradeIdeas();
     const originalCount = allIdeasRaw.length;
@@ -1443,7 +1453,28 @@ export class DatabaseStorage implements IStorage {
     
     // PERFORMANCE STATS: Exclude buggy/test trades (exclude_from_training=true)
     // These are legacy trades with known issues (e.g., inverted option directions)
-    const allIdeas = allIdeasRaw.filter(idea => !idea.excludeFromTraining);
+    let allIdeas = allIdeasRaw.filter(idea => !idea.excludeFromTraining);
+    
+    // 🎯 SMART ENGINE VERSION FILTERING
+    // Default behavior (includeAllVersions=false): Filter to v3.0+ only for clean user-facing metrics
+    // ML/Admin mode (includeAllVersions=true): Include ALL versions for training, analysis, and auditing
+    if (!filters?.includeAllVersions) {
+      // 🆕 FILTER v3.0+ ONLY: Exclude old v2.x trades with broken signals (MACD, ML, etc)
+      // Old v2.x trades: 131 total (39.4% WR) - polluting metrics with failed MACD/ML signals
+      // v3.0+: Research-backed signals only (RSI2 75-91% WR, VWAP 80%+ WR)
+      const beforeVersionFilter = allIdeas.length;
+      allIdeas = allIdeas.filter(idea => {
+        // Include trades with v3.0.0 or higher
+        if (idea.engineVersion && idea.engineVersion.startsWith('v3.')) {
+          return true;
+        }
+        // Exclude trades without engineVersion or with v2.x versions
+        return false;
+      });
+      console.log(`[PERF-STATS] Engine filter applied: v3.0+ only → ${beforeVersionFilter} ideas filtered to ${allIdeas.length}`);
+    } else {
+      console.log(`[PERF-STATS] All engine versions included (ML/Admin mode) → ${allIdeas.length} total ideas`);
+    }
     
     const openIdeas = allIdeas.filter(i => i.outcomeStatus === 'open');
     const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open');

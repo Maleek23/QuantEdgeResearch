@@ -1962,7 +1962,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Signal Intelligence & ML Routes
   app.get("/api/ml/signal-intelligence", async (_req, res) => {
     try {
-      const stats = await storage.getPerformanceStats();
+      // 🧠 ML MODE: Include ALL engine versions for comprehensive signal analysis
+      const stats = await storage.getPerformanceStats({ includeAllVersions: true });
       const allIdeas = await storage.getAllTradeIdeas();
       const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open');
       
@@ -2135,7 +2136,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Learn signal effectiveness weights
       const signalWeights = new Map<string, number>();
-      const stats = await storage.getPerformanceStats();
+      // 🧠 ML MODE: Include ALL engine versions to learn from historical signal performance (including v2.x failures)
+      const stats = await storage.getPerformanceStats({ includeAllVersions: true });
       
       stats.bySignalType.forEach(signal => {
         // Calculate weight adjustment based on performance
@@ -2402,7 +2404,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/verify-data-integrity", requireAdmin, async (_req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
-      const stats = await storage.getPerformanceStats();
+      // 🔐 ADMIN MODE: Include ALL engine versions for complete data integrity verification
+      const stats = await storage.getPerformanceStats({ includeAllVersions: true });
       
       // Check 1: Count consistency
       const totalCount = allIdeas.length;
