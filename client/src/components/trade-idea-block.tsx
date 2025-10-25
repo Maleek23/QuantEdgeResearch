@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
 import { formatInUserTZ, formatTimeUntilExpiry } from "@/lib/timezone";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -163,12 +163,16 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     "font-semibold border-2 text-xs",
                     idea.source === 'ai' 
                       ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/50" 
+                      : idea.source === 'hybrid'
+                      ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/50"
                       : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/50"
                   )}
                   data-testid={`badge-source-${idea.symbol}`}
                 >
                   {idea.source === 'ai' ? (
                     <><Bot className="h-3 w-3 mr-1" />AI ENGINE</>
+                  ) : idea.source === 'hybrid' ? (
+                    <><Sparkles className="h-3 w-3 mr-1" />HYBRID (AI+QUANT)</>
                   ) : (
                     <><BarChart3 className="h-3 w-3 mr-1" />QUANT ENGINE</>
                   )}
@@ -473,7 +477,12 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
             </div>
             <div className="text-center">
               <div className="text-xs text-muted-foreground mb-1">Source</div>
-              <div className="text-sm font-semibold">{idea.source === 'ai' ? 'AI' : idea.source === 'quant' ? 'Quant' : 'Manual'}</div>
+              <div className="text-sm font-semibold">
+                {idea.source === 'ai' ? 'AI' : 
+                 idea.source === 'quant' ? 'Quant' : 
+                 idea.source === 'hybrid' ? 'Hybrid' : 
+                 'Manual'}
+              </div>
             </div>
           </div>
 
