@@ -829,6 +829,19 @@ export class MemStorage implements IStorage {
       allIdeas = allIdeas.filter(idea => idea.source === filters.source);
     }
     
+    // 🆕 FILTER v3.0+ ONLY: Exclude old v2.x trades with broken signals (MACD, ML, etc)
+    // Old v2.x trades: 131 total (39.4% WR) - polluting metrics with failed MACD/ML signals
+    // v3.0+: Research-backed signals only (RSI2 75-91% WR, VWAP 80%+ WR)
+    allIdeas = allIdeas.filter(idea => {
+      // Include trades with v3.0.0 or higher
+      if (idea.engineVersion && idea.engineVersion.startsWith('v3.')) {
+        return true;
+      }
+      // Exclude trades without engineVersion or with v2.x versions
+      return false;
+    });
+    console.log(`[PERF-STATS] Engine filter applied: v3.0+ only → ${originalCount} ideas filtered to ${allIdeas.length}`);
+    
     const closedIdeas = allIdeas.filter((idea) => idea.outcomeStatus !== 'open');
     const wonIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'hit_target');
     const lostIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'hit_stop');

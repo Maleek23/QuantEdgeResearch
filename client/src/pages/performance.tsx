@@ -514,6 +514,13 @@ export default function PerformancePage() {
         </div>
       </div>
 
+      <Alert className="bg-blue-500/10 border-blue-500/20">
+        <Info className="h-4 w-4 text-blue-500" />
+        <AlertDescription className="text-sm">
+          <strong>Metrics v3.0+</strong> - Performance metrics now filter to <strong>v3.0.0+</strong> engine only (research-backed RSI2, VWAP, Volume signals). Old v2.x trades (131 total with 39% WR using broken MACD/ML signals) are excluded from calculations.
+        </AlertDescription>
+      </Alert>
+
       <Card>
         <CardContent className="pt-6">
           <div className="flex items-center gap-3 flex-wrap">
