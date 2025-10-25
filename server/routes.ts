@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice } from "./market-api";
-import { generateTradeIdeas, chatWithQuantAI } from "./ai-service";
+import { generateTradeIdeas, chatWithQuantAI, validateTradeRisk } from "./ai-service";
 import { generateQuantIdeas } from "./quant-ideas-generator";
 import {
   insertMarketDataSchema,
@@ -1637,8 +1637,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const aiIdeas = await generateTradeIdeas(marketContext);
       
-      // Save AI-generated ideas to storage and send Discord alerts (skip duplicates)
+      // 🛡️ Apply strict risk validation to all AI-generated ideas
       const savedIdeas = [];
+      const rejectedIdeas: Array<{symbol: string, reason: string}> = [];
+      
       for (const aiIdea of aiIdeas) {
         // 🚫 Skip if symbol already has an open trade
         if (existingOpenSymbols.has(aiIdea.symbol.toUpperCase())) {
@@ -1646,35 +1648,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
         
-        // ✅ PRICE VALIDATION: Ensure correct price relationships
-        let { entryPrice, targetPrice, stopLoss } = aiIdea;
+        // 🛡️ CRITICAL: Validate risk guardrails (max 5% loss, min 2:1 R:R, price sanity)
+        const validation = validateTradeRisk(aiIdea);
         
-        if (aiIdea.direction === 'long') {
-          // For LONG: target should be > entry > stop
-          if (targetPrice <= entryPrice || stopLoss >= entryPrice) {
-            logger.warn(`⚠️  AI: Fixing inverted prices for ${aiIdea.symbol} LONG - was entry:${entryPrice} target:${targetPrice} stop:${stopLoss}`);
-            if (targetPrice < entryPrice && stopLoss > entryPrice) {
-              [targetPrice, stopLoss] = [stopLoss, targetPrice];
-            } else {
-              targetPrice = entryPrice * 1.05;
-              stopLoss = entryPrice * 0.97;
-            }
-            logger.info(`   → Fixed to entry:${entryPrice} target:${targetPrice.toFixed(2)} stop:${stopLoss.toFixed(2)}`);
-          }
-        } else if (aiIdea.direction === 'short') {
-          // For SHORT: stop should be > entry > target
-          if (stopLoss <= entryPrice || targetPrice >= entryPrice) {
-            logger.warn(`⚠️  AI: Fixing inverted prices for ${aiIdea.symbol} SHORT - was entry:${entryPrice} target:${targetPrice} stop:${stopLoss}`);
-            if (stopLoss < entryPrice && targetPrice > entryPrice) {
-              [targetPrice, stopLoss] = [stopLoss, targetPrice];
-            } else {
-              targetPrice = entryPrice * 0.95;
-              stopLoss = entryPrice * 1.03;
-            }
-            logger.info(`   → Fixed to entry:${entryPrice} target:${targetPrice.toFixed(2)} stop:${stopLoss.toFixed(2)}`);
-          }
+        if (!validation.isValid) {
+          logger.warn(`🚫 AI: REJECTED ${aiIdea.symbol} - ${validation.reason}`);
+          rejectedIdeas.push({ symbol: aiIdea.symbol, reason: validation.reason || 'Unknown' });
+          continue; // Skip this trade - does NOT save to database
         }
         
+        // ✅ Trade passes risk validation - log metrics and save
+        logger.info(`✅ AI: ${aiIdea.symbol} passed validation - Loss:${validation.metrics?.maxLossPercent.toFixed(2)}% R:R:${validation.metrics?.riskRewardRatio.toFixed(2)}:1 Gain:${validation.metrics?.potentialGainPercent.toFixed(2)}%`);
+        
+        const { entryPrice, targetPrice, stopLoss } = aiIdea;
         const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
         
         // AI ideas default to day trades unless they're crypto (which can be position trades)
@@ -1710,7 +1696,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
       
-      res.json({ success: true, ideas: savedIdeas, count: savedIdeas.length });
+      // Log summary of risk validation
+      if (rejectedIdeas.length > 0) {
+        logger.warn(`🛡️ AI Risk Validation Summary: ${rejectedIdeas.length} ideas rejected, ${savedIdeas.length} passed`);
+        rejectedIdeas.forEach(r => logger.warn(`   - ${r.symbol}: ${r.reason}`));
+      }
+      
+      res.json({ 
+        success: true, 
+        ideas: savedIdeas, 
+        count: savedIdeas.length,
+        rejected: rejectedIdeas.length,
+        message: rejectedIdeas.length > 0 
+          ? `${savedIdeas.length} ideas saved, ${rejectedIdeas.length} rejected for risk violations`
+          : undefined
+      });
     } catch (error: any) {
       console.error("AI idea generation error:", error);
       res.status(500).json({ error: error?.message || "Failed to generate trade ideas" });
@@ -1736,8 +1736,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { generateHybridIdeas } = await import("./ai-service");
       const hybridIdeas = await generateHybridIdeas(marketContext);
       
-      // Save hybrid ideas to storage (skip duplicates)
+      // 🛡️ Apply strict risk validation to all hybrid ideas
       const savedIdeas = [];
+      const rejectedIdeas: Array<{symbol: string, reason: string}> = [];
+      
       for (const hybridIdea of hybridIdeas) {
         // 🚫 Skip if symbol already has an open trade
         if (existingOpenSymbols.has(hybridIdea.symbol.toUpperCase())) {
@@ -1745,31 +1747,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
         
-        // ✅ PRICE VALIDATION: Ensure correct price relationships (defensive check)
-        let { entryPrice, targetPrice, stopLoss } = hybridIdea;
+        // 🛡️ CRITICAL: Validate risk guardrails (inherits from quant but adds AI safety layer)
+        const validation = validateTradeRisk(hybridIdea);
         
-        if (hybridIdea.direction === 'long') {
-          if (targetPrice <= entryPrice || stopLoss >= entryPrice) {
-            logger.warn(`⚠️  Hybrid: Fixing inverted prices for ${hybridIdea.symbol} LONG`);
-            if (targetPrice < entryPrice && stopLoss > entryPrice) {
-              [targetPrice, stopLoss] = [stopLoss, targetPrice];
-            } else {
-              targetPrice = entryPrice * 1.05;
-              stopLoss = entryPrice * 0.97;
-            }
-          }
-        } else if (hybridIdea.direction === 'short') {
-          if (stopLoss <= entryPrice || targetPrice >= entryPrice) {
-            logger.warn(`⚠️  Hybrid: Fixing inverted prices for ${hybridIdea.symbol} SHORT`);
-            if (stopLoss < entryPrice && targetPrice > entryPrice) {
-              [targetPrice, stopLoss] = [stopLoss, targetPrice];
-            } else {
-              targetPrice = entryPrice * 0.95;
-              stopLoss = entryPrice * 1.03;
-            }
-          }
+        if (!validation.isValid) {
+          logger.warn(`🚫 Hybrid: REJECTED ${hybridIdea.symbol} - ${validation.reason}`);
+          rejectedIdeas.push({ symbol: hybridIdea.symbol, reason: validation.reason || 'Unknown' });
+          continue; // Skip this trade - does NOT save to database
         }
         
+        // ✅ Trade passes risk validation - log metrics and save
+        logger.info(`✅ Hybrid: ${hybridIdea.symbol} passed validation - Loss:${validation.metrics?.maxLossPercent.toFixed(2)}% R:R:${validation.metrics?.riskRewardRatio.toFixed(2)}:1 Gain:${validation.metrics?.potentialGainPercent.toFixed(2)}%`);
+        
+        const { entryPrice, targetPrice, stopLoss } = hybridIdea;
         const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
         
         const holdingPeriod: 'day' | 'swing' | 'position' = hybridIdea.assetType === 'crypto' ? 'position' : 'day';
@@ -1804,7 +1794,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
       
-      res.json({ success: true, ideas: savedIdeas, count: savedIdeas.length });
+      // Log summary of risk validation
+      if (rejectedIdeas.length > 0) {
+        logger.warn(`🛡️ Hybrid Risk Validation Summary: ${rejectedIdeas.length} ideas rejected, ${savedIdeas.length} passed`);
+        rejectedIdeas.forEach(r => logger.warn(`   - ${r.symbol}: ${r.reason}`));
+      }
+      
+      res.json({ 
+        success: true, 
+        ideas: savedIdeas, 
+        count: savedIdeas.length,
+        rejected: rejectedIdeas.length,
+        message: rejectedIdeas.length > 0 
+          ? `${savedIdeas.length} ideas saved, ${rejectedIdeas.length} rejected for risk violations`
+          : undefined
+      });
     } catch (error: any) {
       console.error("Hybrid idea generation error:", error);
       res.status(500).json({ error: error?.message || "Failed to generate hybrid ideas" });

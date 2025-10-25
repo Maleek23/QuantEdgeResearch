@@ -52,6 +52,94 @@ interface AITradeIdea {
   expiryDate?: string;
 }
 
+interface RiskValidationResult {
+  isValid: boolean;
+  reason?: string;
+  metrics?: {
+    maxLossPercent: number;
+    riskRewardRatio: number;
+    potentialGainPercent: number;
+  };
+}
+
+// 🛡️ RISK VALIDATION: Enforce strict guardrails to prevent catastrophic losses
+export function validateTradeRisk(idea: AITradeIdea): RiskValidationResult {
+  const { entryPrice, targetPrice, stopLoss, direction, assetType } = idea;
+  
+  // Validate price relationships first
+  if (direction === 'long') {
+    if (!(targetPrice > entryPrice && entryPrice > stopLoss)) {
+      return {
+        isValid: false,
+        reason: `Invalid LONG price relationship: target=${targetPrice}, entry=${entryPrice}, stop=${stopLoss}. Must be: target > entry > stop`
+      };
+    }
+  } else if (direction === 'short') {
+    if (!(stopLoss > entryPrice && entryPrice > targetPrice)) {
+      return {
+        isValid: false,
+        reason: `Invalid SHORT price relationship: stop=${stopLoss}, entry=${entryPrice}, target=${targetPrice}. Must be: stop > entry > target`
+      };
+    }
+  }
+  
+  // Calculate risk metrics
+  const maxLoss = direction === 'long' 
+    ? (entryPrice - stopLoss) 
+    : (stopLoss - entryPrice);
+  
+  const potentialGain = direction === 'long'
+    ? (targetPrice - entryPrice)
+    : (entryPrice - targetPrice);
+  
+  const maxLossPercent = (maxLoss / entryPrice) * 100;
+  const potentialGainPercent = (potentialGain / entryPrice) * 100;
+  const riskRewardRatio = potentialGain / maxLoss;
+  
+  // 🚨 GUARDRAIL #1: Maximum 5% loss cap (prevents -197% catastrophic losses)
+  const MAX_LOSS_PERCENT = 5.0;
+  if (maxLossPercent > MAX_LOSS_PERCENT) {
+    return {
+      isValid: false,
+      reason: `Max loss ${maxLossPercent.toFixed(2)}% exceeds ${MAX_LOSS_PERCENT}% cap (stop too wide). Entry=$${entryPrice}, Stop=$${stopLoss}`,
+      metrics: { maxLossPercent, riskRewardRatio, potentialGainPercent }
+    };
+  }
+  
+  // 🚨 GUARDRAIL #2: Minimum 2:1 Risk/Reward ratio
+  const MIN_RR_RATIO = 2.0;
+  if (riskRewardRatio < MIN_RR_RATIO) {
+    return {
+      isValid: false,
+      reason: `R:R ratio ${riskRewardRatio.toFixed(2)}:1 below minimum ${MIN_RR_RATIO}:1 (risk=${maxLossPercent.toFixed(2)}%, reward=${potentialGainPercent.toFixed(2)}%)`,
+      metrics: { maxLossPercent, riskRewardRatio, potentialGainPercent }
+    };
+  }
+  
+  // 🚨 GUARDRAIL #3: Sanity checks for unrealistic prices
+  if (entryPrice <= 0 || targetPrice <= 0 || stopLoss <= 0) {
+    return {
+      isValid: false,
+      reason: `Invalid prices: entry=$${entryPrice}, target=$${targetPrice}, stop=$${stopLoss} (must be > 0)`
+    };
+  }
+  
+  // 🚨 GUARDRAIL #4: Prevent extreme volatility trades (>50% potential gain suggests unrealistic)
+  if (assetType !== 'option' && potentialGainPercent > 50) {
+    return {
+      isValid: false,
+      reason: `Potential gain ${potentialGainPercent.toFixed(2)}% exceeds 50% (unrealistic for ${assetType}). Entry=$${entryPrice}, Target=$${targetPrice}`,
+      metrics: { maxLossPercent, riskRewardRatio, potentialGainPercent }
+    };
+  }
+  
+  // ✅ Trade passes all risk guardrails
+  return {
+    isValid: true,
+    metrics: { maxLossPercent, riskRewardRatio, potentialGainPercent }
+  };
+}
+
 // Parse trade ideas from conversational text with multi-provider fallback
 export async function parseTradeIdeasFromText(text: string): Promise<AITradeIdea[]> {
   const systemPrompt = `You are a trade idea extraction specialist. Parse the given text and extract any trade ideas mentioned.
