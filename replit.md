@@ -104,6 +104,26 @@ After 12.1% win rate (4W/29L) proved complex ML system fundamentally broken, the
 **Critical Fixes:**
 - **Option Direction Normalization**: All option trades now use direction='long' with option type (call/put) indicating directional bias. Previously, the system created SHORT PUT trades for bearish signals, which caused inverted target/stop prices and misclassified outcomes. Now: Bullish = LONG CALL, Bearish = LONG PUT.
 
+**Smart Engine Version Filtering (Oct 25, 2025)**:
+The platform implements a two-tier data filtering system to balance clean user-facing metrics with comprehensive ML learning:
+
+- **User-Facing Mode** (default): Shows v3.0+ trades only
+  - Performance page displays only v3.0.0+ trades (currently 4 total)
+  - Blue alert banner explains filtering ("Showing v3.0+ only for cleaner metrics")
+  - Rationale: v2.x trades used broken signals (MACD, ML) with 39.4% win rate - polluting metrics
+  - Implementation: `getPerformanceStats()` filters to `engineVersion.startsWith('v3.')`
+
+- **ML/Admin Mode** (includeAllVersions=true): Analyzes ALL historical trades
+  - ML endpoints (`/api/ml/signal-intelligence`, `/api/ml/learned-patterns`) include all 169 trades
+  - Admin verification (`/api/ml/verify-data-integrity`) audits complete database
+  - Rationale: Signal intelligence NEEDS v2.x failures to learn which signals don't work
+  - Implementation: `getPerformanceStats({ includeAllVersions: true })` skips version filter
+
+- **Database Preservation**: All 169 trades remain in database (127 unversioned, 21 v2.3.0, 17 v2.4.0, 4 v3.0.0)
+  - Nothing deleted - complete historical record for analysis and learning
+  - ML can analyze why RSI Divergence (0% WR) and MACD (academic research: "very low success rate") failed
+  - Admin can audit data integrity across all engine versions
+
 ### System Design Choices
 The platform employs a multi-page, publicly accessible architecture with membership managed via Discord roles. The system uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) via Drizzle ORM. Access tiers include Free, Premium, and Admin, with a password-protected `/admin` panel for comprehensive platform management. Security features include dual authentication, JWT authentication with HTTP-only cookies, session tokens with expiration, rate limiting, and `requireAdmin`/`requirePremium` middleware.
 
