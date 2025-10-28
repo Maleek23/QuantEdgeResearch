@@ -312,7 +312,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                       "text-sm font-bold px-2.5 py-1 rounded-md",
                       priceChangePercent >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
                     )}>
-                      {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
+                      {formatPercent(priceChangePercent)}
                     </span>
                   </div>
                   <div className={cn(
@@ -416,28 +416,6 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
               <SignalStrengthBars signals={idea.qualitySignals} />
             </div>
           )}
-
-          {/* Price Levels Grid - Essential Info Only */}
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">Entry</div>
-              <div className="text-base font-mono font-semibold">
-                {formatCurrency(idea.entryPrice)}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">Target</div>
-              <div className="text-base font-mono font-semibold text-green-500" data-testid={`text-target-preview-${idea.symbol}`}>
-                {formatCurrency(idea.targetPrice)}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">Stop</div>
-              <div className="text-base font-mono font-semibold text-red-500">
-                {formatCurrency(idea.stopLoss)}
-              </div>
-            </div>
-          </div>
 
           {/* One-line catalyst preview */}
           <div className="pt-3 border-t">
