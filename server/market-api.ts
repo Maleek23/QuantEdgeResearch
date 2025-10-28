@@ -649,13 +649,14 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
         const volumeRatio = gem.volume / effectiveAvgVolume;
         
         // CORE FILTERS: Unusual volume + healthy price action
-        const hasUnusualVolume = volumeRatio >= 3.0;           // 3x+ average volume (institutions active)
+        // RELAXED from 3x to 2x volume (catch more opportunities)
+        const hasUnusualVolume = volumeRatio >= 2.0;           // 2x+ average volume (above-average interest)
         const isBullish = gem.changePercent >= 0;               // Only bullish (exclude selloffs)
-        const notTooLate = gem.changePercent < 10.0;           // Skip stocks that already rallied >10% (too late)
+        const notTooLate = gem.changePercent < 15.0;           // Skip stocks that already rallied >15% (was 10%, now more lenient)
         
-        // GAP-AND-FADE FILTER: Price must be within 5% of day high
-        // This rejects stocks that spiked and faded (e.g., +15% open → +2% close)
-        const nearDayHigh = (gem.currentPrice / gem.dayHigh) >= 0.95;
+        // GAP-AND-FADE FILTER: Price must be within 10% of day high
+        // RELAXED from 95% to 90% (allow stocks with minor pullbacks)
+        const nearDayHigh = (gem.currentPrice / gem.dayHigh) >= 0.90;
         
         // ADAPTIVE APPROACH: Accept 0-10% bullish moves, let quant engine decide strategy
         // - 0-2%: Early accumulation (RSI, MACD)
@@ -718,23 +719,28 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
 // Yahoo screeners don't return penny stocks, so we maintain a curated watchlist
 export async function discoverPennyStocks(): Promise<StockGem[]> {
   try {
-    logger.info('🔍 Discovering penny stocks ($1-$7 range - expanded to find candidates)...');
+    logger.info('🔍 Discovering popular stocks ($1-$50 range - penny stocks + retail favorites)...');
     
-    // Curated penny stock watchlist - actively traded major stocks under $5
-    // Focus on well-known tickers to avoid delisted/404 errors
+    // Expanded stock watchlist - popular retail/swing trading stocks
+    // Includes penny stocks ($1-$7) AND popular mid-cap stocks ($7-$50)
     const pennyStockSymbols = [
-      // Major stocks currently under $5 (high liquidity)
+      // Major stocks currently under $7 (high liquidity penny stocks)
       'AAL', 'NOK', 'F', 'SNAP', 'CCL', 'NCLH',
-      // Tech & EV sector ($1-$5)
+      // Tech & EV sector
       'FUBO', 'GSAT', 'BB',
-      // Healthcare ($1-$5)
+      // Healthcare
       'SNDL', 'MNKD', 'OCGN', 'BNGO',
-      // Energy & Resources ($1-$5)
+      // Energy & Resources
       'BTU', 'KGC', 'VALE',
-      // Financial ($1-$5)
+      // Financial
       'UWMC', 'PBF',
       // User-requested penny stocks
-      'VSEE', 'XHLD'
+      'VSEE', 'XHLD',
+      // Popular retail/swing stocks ($7-$50 range)
+      'SOFI', 'PLTR', 'NIO', 'RIVN', 'LCID', 'BBBY', 'AMC', 'GME',
+      'WISH', 'HOOD', 'DKNG', 'OPEN', 'UPST', 'SQ', 'ROKU',
+      // High-volume tech stocks
+      'INTC', 'AMD', 'MARA', 'RIOT', 'COIN'
     ];
     
     const pennyStocks: StockGem[] = [];
@@ -750,9 +756,9 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
         const volume = priceData.volume || 0;
         const marketCap = priceData.marketCap || 0;
         
-        // Filter: Must be $1-$7 (expanded range to find actual penny stocks)
-        // Market conditions: Many former penny stocks have recovered above $5
-        if (price >= 1 && price < 7 && volume >= 100000 && marketCap >= 10_000_000) {
+        // Filter: Must be $1-$50 (expanded to include popular swing trading stocks)
+        // Minimum volume 100K for liquidity, min market cap $10M to avoid scams
+        if (price >= 1 && price <= 50 && volume >= 100000 && marketCap >= 10_000_000) {
           pennyStocks.push({
             symbol,
             currentPrice: price,
@@ -769,12 +775,11 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
     
     // Sort by volume (higher volume = more liquid)
     const sortedPennyStocks = pennyStocks
-      .sort((a, b) => b.volume - a.volume)
-      .slice(0, 10);
+      .sort((a, b) => b.volume - a.volume);
     
-    logger.info(`💎 Discovered ${sortedPennyStocks.length} penny stocks: ${sortedPennyStocks.slice(0, 5).map(g => `${g.symbol} ($${g.currentPrice.toFixed(2)})`).join(', ')}${sortedPennyStocks.length > 5 ? '...' : ''}`);
+    logger.info(`💎 Discovered ${sortedPennyStocks.length} popular stocks: ${sortedPennyStocks.slice(0, 10).map(g => `${g.symbol} ($${g.currentPrice.toFixed(2)})`).join(', ')}${sortedPennyStocks.length > 10 ? '...' : ''}`);
     
-    return sortedPennyStocks;
+    return sortedPennyStocks.slice(0, 30); // Return top 30 by volume
   } catch (error) {
     logger.error('❌ Penny stock discovery error:', error);
     return [];
