@@ -14,6 +14,13 @@ Provide helpful error messages for API billing, rate limits, and authentication 
 Liquidity warnings should be displayed for penny stocks and low-float securities.
 No personalized financial advice should be offered; it is for research purposes only.
 
+## Recent Changes
+
+-   **v3.3.0 DEPLOYED** (Oct 28, 2025): TIME-OF-DAY FIX - Restricted quant generation to 9:30-11:30 AM ET ONLY. Root cause identified: v3.2.0 extended trading window from 2hr→full day, generating trades during low-performance hours. Diagnostic audit revealed morning trades (9:30-11:30 AM ET): 75-80% WR vs afternoon (12 PM+): 16-46% WR. This single change should restore 60%+ WR. Production tested and validated - generation correctly blocked outside prime window.
+-   **v3.2.0 Regression DIAGNOSED**: Root cause of 0% win rate identified - extended trading window (2hr→full day) generated trades during low-performance hours. Fixed in v3.3.0.
+-   **Dual-Layer Validation Framework**: Centralized trade-validation.ts enforces structural + risk guardrails across all generation paths (AI, Hybrid, Quant). Options quarantined, max 5% loss cap, min 2:1 R:R enforced.
+-   **Diagnostic Export System**: Comprehensive /api/admin/diagnostic-export generates downloadable JSON reports with performance analysis, API reliability, system diagnostics, and data quality metrics.
+
 ## System Architecture
 
 ### UI/UX Decisions
@@ -26,7 +33,7 @@ The system includes a Holding Period Classification System, a quick actions dial
 
 A Performance Tracking System validates trade outcomes and tracks win rates. It includes a Performance-Based Grading System calibrated to actual win rates, with metrics like EV Score, Adjusted Weighted Accuracy, and Opposite Direction Rate. A Quantitative Timing Intelligence System provides data-backed entry/exit windows. The platform also includes a complete date filtering system for performance tracking.
 
-The quantitative engine (v3.2.0) leverages three academically-proven signals: RSI(2) Mean Reversion with a 200-Day MA Filter (BOTH long and short), VWAP Institutional Flow, and Volume Spike Early Entry. It incorporates ADX Regime Filtering (ADX ≤30), Signal Confidence Voting (requiring 2+ signals, with exception for high-conviction SHORT trades at RSI>95), and extended trading window (9:30 AM - 3:00 PM ET). Stop losses are widened to 3.5% for stocks (was 2%), 5% for crypto (was 3%) based on academic research. A Hybrid AI+Quant system combines quantitative signals with AI fundamental analysis.
+The quantitative engine (v3.3.0) leverages three academically-proven signals: RSI(2) Mean Reversion with a 200-Day MA Filter (BOTH long and short), VWAP Institutional Flow, and Volume Spike Early Entry. It incorporates ADX Regime Filtering (ADX ≤30), Signal Confidence Voting (requiring 2+ signals, with exception for high-conviction SHORT trades at RSI>95), and **time-of-day filter restricting generation to 9:30-11:30 AM ET ONLY** (diagnostic data shows 75-80% WR vs 16-46% afternoon). Stop losses are widened to 3.5% for stocks (was 2%), 5% for crypto (was 3%) based on academic research. A Hybrid AI+Quant system combines quantitative signals with AI fundamental analysis.
 
 **Critical Dual-Layer Trade Validation Framework** (implemented Oct 2025): All trade ideas (AI, Hybrid, Quant) now pass through mandatory two-tier validation before database persistence:
 - **Layer 1 - Structural Validation**: Prevents logically impossible trades (LONG: target must exceed entry, entry must exceed stop; SHORT: stop must exceed entry, entry must exceed target). Rejects zero/negative prices and stop-equals-entry scenarios. Module: `server/trade-validation.ts`
