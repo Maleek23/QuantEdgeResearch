@@ -14,19 +14,6 @@ Provide helpful error messages for API billing, rate limits, and authentication 
 Liquidity warnings should be displayed for penny stocks and low-float securities.
 No personalized financial advice should be offered; it is for research purposes only.
 
-## Recent Changes
-
--   **Expanded Stock Discovery Universe** (Oct 28, 2025): Massively expanded stock discovery to include popular retail stocks. ROOT CAUSE: System was missing obvious opportunities like SOFI and NOK. Discovery was too narrow (~500 Yahoo stocks + 25 hardcoded penny stocks) with overly strict filters (3x volume, <10% change, 95% of day high). FIX: (1) Expanded watchlist from 25 → 45 symbols including SOFI, PLTR, NIO, RIVN, AMC, GME, HOOD, INTC, AMD, MARA, RIOT, COIN, etc. (2) Expanded price range from $1-$7 to $1-$50 to include mid-cap swing stocks. (3) Relaxed filters: 2x volume (was 3x), <15% change (was <10%), 90% day high (was 95%). (4) Increased return limit from 10 → 30 stocks. Result: System now discovers 2-3x more opportunities including popular retail stocks users actually trade.
--   **Manual Quant Generation Flexibility** (Oct 28, 2025): Removed time restrictions for user-initiated quant generation while preserving auto-generation optimal window. ROOT CAUSE: Users couldn't click "Quant" button outside 9:30-11:30 AM ET window despite seeing market opportunities. PHILOSOPHY: "Generate based on market open and opportunities" - users need platform available when THEY identify setups. FIX: Added `skipTimeCheck` parameter to `generateQuantIdeas()`. Manual generation (POST /api/quant/generate-ideas) passes `skipTimeCheck=true` to bypass time restrictions. Auto-generation (9:30 AM ET cron) uses default `skipTimeCheck=false` to preserve optimal window enforcement. Result: Users can generate anytime, auto-gen still restricted to prime hours (75-80% WR window).
--   **Entry Time Display for Open Trades** (Oct 28, 2025): Added clear timestamp display for OPEN trades. ROOT CAUSE: Users only saw relative time ("2h ago") but not actual entry date/time when trade was posted. Closed trades already showed full timing analysis. FIX: Added "Trade Entry Information" section for open trades showing Posted Time, Enter When, and Exit By (all in CST format like "Oct 28, 2:15 PM CST"). Includes defensive date parsing to handle legacy string formats. Appears in both trade cards and detail modal. Now users can see exact timestamps for all trades, not just closed ones.
--   **Penny Stock Discovery Integration** (Oct 28, 2025): Fixed missing penny stock analysis. ROOT CAUSE: `discoverPennyStocks()` function existed but was never called by quant generator. FIX: (1) Now calls both `discoverStockGems()` (Yahoo screeners) AND `discoverPennyStocks()` (curated watchlist), (2) Added VSEE and XHLD to watchlist, (3) Merges and deduplicates results. Penny stocks (<$5) now properly discovered and filterable in UI.
--   **Entry/Exit Timing Analysis** (Oct 28, 2025): Added comprehensive timing display for closed trades showing entry time, exit time, and holding duration with intelligent formatting (minutes, hours, days). Appears on both trade cards and detail modal. Addresses user request for visibility into trade lifecycle timestamps.
--   **v3.4.0 DEPLOYED** (Oct 28, 2025): CONFIDENCE RECALIBRATION - Fixed inverted scoring system where high confidence (90-100%) had 15.6% actual WR while low confidence (<60%) had 63% WR. ROOT CAUSE: "Excellent R:R (3:1+)" bonus was worst-performing signal (5.1% WR) - bonuses were inverse predictors. FIXES: (1) Removed ALL R:R and volume bonuses, (2) Lowered base scores from 90-95 to 50-65 matching actual 30-60% WR, (3) Recalibrated timing windows (62/55 thresholds vs old 90/85), (4) Fixed targetHitProbability to use score directly. Confidence scores now CORRELATE with actual performance instead of being inverted.
--   **v3.3.0 DEPLOYED** (Oct 28, 2025): TIME-OF-DAY FIX - Restricted quant generation to 9:30-11:30 AM ET ONLY. Root cause identified: v3.2.0 extended trading window from 2hr→full day, generating trades during low-performance hours. Diagnostic audit revealed morning trades (9:30-11:30 AM ET): 75-80% WR vs afternoon (12 PM+): 16-46% WR. This single change should restore 60%+ WR. Production tested and validated - generation correctly blocked outside prime window.
--   **v3.2.0 Regression DIAGNOSED**: Root cause of 0% win rate identified - extended trading window (2hr→full day) generated trades during low-performance hours. Fixed in v3.3.0.
--   **Dual-Layer Validation Framework**: Centralized trade-validation.ts enforces structural + risk guardrails across all generation paths (AI, Hybrid, Quant). Options quarantined, max 5% loss cap, min 2:1 R:R enforced.
--   **Diagnostic Export System**: Comprehensive /api/admin/diagnostic-export generates downloadable JSON reports with performance analysis, API reliability, system diagnostics, and data quality metrics.
-
 ## System Architecture
 
 ### UI/UX Decisions
@@ -39,34 +26,25 @@ The system includes a Holding Period Classification System, a quick actions dial
 
 A Performance Tracking System validates trade outcomes and tracks win rates. It includes a Performance-Based Grading System calibrated to actual win rates, with metrics like EV Score, Adjusted Weighted Accuracy, and Opposite Direction Rate. A Quantitative Timing Intelligence System provides data-backed entry/exit windows. The platform also includes a complete date filtering system for performance tracking.
 
-The quantitative engine (v3.4.0) leverages three academically-proven signals: RSI(2) Mean Reversion with a 200-Day MA Filter (BOTH long and short), VWAP Institutional Flow, and Volume Spike Early Entry. It incorporates ADX Regime Filtering (ADX ≤30), Signal Confidence Voting (requiring 2+ signals, with exception for high-conviction SHORT trades at RSI>95), and **time-of-day filter restricting generation to 9:30-11:30 AM ET ONLY** (diagnostic data shows 75-80% WR vs 16-46% afternoon). Stop losses are widened to 3.5% for stocks (was 2%), 5% for crypto (was 3%) based on academic research. 
+The quantitative engine (v3.4.0) leverages three academically-proven signals: RSI(2) Mean Reversion with a 200-Day MA Filter (BOTH long and short), VWAP Institutional Flow, and Volume Spike Early Entry. It incorporates ADX Regime Filtering (ADX ≤30), Signal Confidence Voting (requiring 2+ signals, with exception for high-conviction SHORT trades at RSI>95), and time-of-day filter restricting generation to 9:30-11:30 AM ET ONLY. Stop losses are widened to 3.5% for stocks (was 2%), 5% for crypto (was 3%) based on academic research. Confidence scoring (v3.4.0) is data-driven, recalibrated to match actual performance with base scores lowered to 50-65 range and removal of non-predictive bonuses like R:R and volume. All trades use standard 2:1 R:R. A Hybrid AI+Quant system combines quantitative signals with AI fundamental analysis.
 
-**Confidence Scoring (v3.4.0)**: Data-driven recalibration based on actual performance - base scores lowered to 50-65 range (was 90-95) to match actual 30-60% win rates. Removed ALL R:R bonuses (inverse predictors: "Excellent R:R 3:1+" had 5.1% WR) and volume bonuses (not predictive). Timing windows recalibrated for 45-65 score range with thresholds at 62 (day trade), 55 (swing trade). All trades use standard 2:1 R:R - higher R:R targets correlated with lower win rates. A Hybrid AI+Quant system combines quantitative signals with AI fundamental analysis.
+A critical dual-layer trade validation framework (implemented Oct 2025) ensures all trade ideas (AI, Hybrid, Quant) pass through mandatory two-tier validation: Structural Validation (prevents logically impossible trades) and Risk Guardrails (enforces max 5% loss, min 2:1 R:R, price sanity, volatility filters). Options trades are explicitly blocked pending pricing logic audit.
 
-**Critical Dual-Layer Trade Validation Framework** (implemented Oct 2025): All trade ideas (AI, Hybrid, Quant) now pass through mandatory two-tier validation before database persistence:
-- **Layer 1 - Structural Validation**: Prevents logically impossible trades (LONG: target must exceed entry, entry must exceed stop; SHORT: stop must exceed entry, entry must exceed target). Rejects zero/negative prices and stop-equals-entry scenarios. Module: `server/trade-validation.ts`
-- **Layer 2 - Risk Guardrails**: Enforces maximum 5% loss cap, minimum 2:1 risk/reward ratio, price sanity checks (rejects >50% single-day moves), extreme volatility filters. Detailed rejection logging for audit compliance.
-- **Options Quarantine**: All options trades explicitly blocked across AI prompts, hybrid generation, and quant routes pending pricing logic audit (historical avg return: -99.3%).
-
-All generation methods prevent duplicate trades and maintain comprehensive audit trails via engineVersion, mlWeightsVersion, and generationTimestamp fields.
-
-The platform implements a two-tier data filtering system: a User-Facing Mode displays only v3.0+ trades for cleaner metrics, while an ML/Admin Mode includes all historical trades for comprehensive analysis and learning. All historical trade data is preserved for analytical purposes.
+All generation methods prevent duplicate trades and maintain comprehensive audit trails. The platform implements a two-tier data filtering system: a User-Facing Mode displays only v3.0+ trades, while an ML/Admin Mode includes all historical trades for analysis.
 
 ### System Design Choices
 The platform employs a multi-page, publicly accessible architecture with membership managed via Discord roles. The system uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) via Drizzle ORM. Access tiers include Free, Premium, and Admin, with a password-protected `/admin` panel for comprehensive platform management. Security features include dual authentication, JWT authentication with HTTP-only cookies, session tokens with expiration, rate limiting, and `requireAdmin`/`requirePremium` middleware.
 
 ### Automated Services
-**Auto Idea Generator:** Automatically generates 3-5 fresh AI trade ideas every weekday at 9:30 AM CT (market open). The service runs every 5 minutes to check for the target time window and ensures no duplicate generations on the same day. All generated ideas pass through the same four-layer risk validation framework (max 5% loss, min 2:1 R:R, price sanity, volatility filters) and deduplication checks. Manual triggering available via admin endpoint `/api/admin/trigger-auto-gen` for testing.
-
-**Performance Validation Service:** Runs every 5 minutes to automatically validate open trade ideas by checking if they hit target, stop loss, or expired. Uses intraday price monitoring with high/low tracking.
-
+**Auto Idea Generator:** Automatically generates 3-5 fresh AI trade ideas every weekday at 9:30 AM CT (market open).
+**Performance Validation Service:** Runs every 5 minutes to automatically validate open trade ideas.
 **Watchlist Monitor:** Checks watchlist items every 5 minutes for price alerts and updates.
 
 ## External Dependencies
 
 ### Data Sources
 -   **CoinGecko API:** Crypto (real-time prices, historical data, market cap, discovery).
--   **Yahoo Finance:** Stocks (real-time quotes, discovery via screener, historical data). An Adaptive Discovery System scans ~500 stocks per run with 5-filter enforcement.
+-   **Yahoo Finance:** Stocks (real-time quotes, discovery via screener, historical data).
 -   **Alpha Vantage API:** Fallback for Stock historical data, Earnings calendar.
 -   **Tradier API:** Options data (chains, delta targeting, live pricing).
 
