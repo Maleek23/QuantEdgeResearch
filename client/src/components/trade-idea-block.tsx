@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
 import { formatInUserTZ, formatTimeUntilExpiry } from "@/lib/timezone";
 import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles } from "lucide-react";
+import { formatInTimeZone } from "date-fns-tz";
+import { parseISO } from "date-fns";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -295,6 +297,73 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   showCountdown={true}
                 />
               )}
+            </div>
+          )}
+
+          {/* ===== ENTRY/EXIT TIMING ANALYSIS (CLOSED TRADES) ===== */}
+          {idea.outcomeStatus !== 'open' && (
+            <div className="mb-5 p-4 rounded-lg border bg-gradient-to-br from-blue-500/5 via-card to-purple-500/5" data-testid={`timing-analysis-${idea.symbol}`}>
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="h-4 w-4 text-blue-400" />
+                <h4 className="text-sm font-semibold text-blue-400">Trade Timing Analysis</h4>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-3">
+                {/* Entry Time */}
+                <div className="p-3 rounded-lg bg-card border border-border/50">
+                  <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Entry Time</div>
+                  <div className="text-sm font-semibold" data-testid={`text-entry-time-${idea.symbol}`}>
+                    {formatInTimeZone(parseISO(idea.timestamp), 'America/Chicago', 'MMM d, h:mm a')}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                </div>
+
+                {/* Exit Time */}
+                {idea.exitDate && (
+                  <div className="p-3 rounded-lg bg-card border border-border/50">
+                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Exit Time</div>
+                    <div className="text-sm font-semibold" data-testid={`text-exit-time-${idea.symbol}`}>
+                      {formatInTimeZone(parseISO(idea.exitDate), 'America/Chicago', 'MMM d, h:mm a')}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                  </div>
+                )}
+
+                {/* Holding Duration */}
+                {idea.actualHoldingTimeMinutes !== null && idea.actualHoldingTimeMinutes !== undefined && (
+                  <div className="p-3 rounded-lg bg-card border border-border/50">
+                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Duration</div>
+                    <div className="text-sm font-semibold" data-testid={`text-duration-${idea.symbol}`}>
+                      {(() => {
+                        if (idea.actualHoldingTimeMinutes < 60) {
+                          return `${idea.actualHoldingTimeMinutes} min`;
+                        } else if (idea.actualHoldingTimeMinutes < 1440) {
+                          const hours = Math.floor(idea.actualHoldingTimeMinutes / 60);
+                          const minutes = idea.actualHoldingTimeMinutes % 60;
+                          return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+                        } else {
+                          const days = Math.floor(idea.actualHoldingTimeMinutes / 1440);
+                          const remainingMinutes = idea.actualHoldingTimeMinutes % 1440;
+                          const hours = Math.floor(remainingMinutes / 60);
+                          const minutes = remainingMinutes % 60;
+                          if (minutes > 0) {
+                            return `${days}d ${hours}h ${minutes}m`;
+                          } else if (hours > 0) {
+                            return `${days}d ${hours}h`;
+                          } else {
+                            return `${days}d`;
+                          }
+                        }
+                      })()}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {idea.holdingPeriod === 'day' ? 'Day Trade' : 
+                       idea.holdingPeriod === 'swing' ? 'Swing Trade' : 
+                       'Position'}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

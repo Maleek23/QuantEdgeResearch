@@ -303,6 +303,106 @@ export function TradeIdeaDetailModal({
               </div>
             )}
 
+            {/* Entry/Exit Timing Analysis (Closed Trades Only) */}
+            {idea.outcomeStatus !== 'open' && (
+              <div className="p-4 rounded-lg border bg-gradient-to-br from-blue-500/5 via-card to-purple-500/5">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-blue-400" />
+                  <span className="text-blue-400">Trade Timing Analysis</span>
+                </h3>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  {/* Entry Time */}
+                  <div className="p-3 rounded-lg bg-card border border-border/50">
+                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Entry Time</div>
+                    <div className="text-sm font-semibold">
+                      {formatInTimeZone(new Date(idea.timestamp), 'America/Chicago', 'MMM d, h:mm a')}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                  </div>
+
+                  {/* Exit Time */}
+                  {idea.exitDate && (
+                    <div className="p-3 rounded-lg bg-card border border-border/50">
+                      <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Exit Time</div>
+                      <div className="text-sm font-semibold">
+                        {formatInTimeZone(new Date(idea.exitDate), 'America/Chicago', 'MMM d, h:mm a')}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                    </div>
+                  )}
+
+                  {/* Holding Duration */}
+                  {idea.actualHoldingTimeMinutes !== null && idea.actualHoldingTimeMinutes !== undefined && (
+                    <div className="p-3 rounded-lg bg-card border border-border/50">
+                      <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Duration</div>
+                      <div className="text-sm font-semibold">
+                        {(() => {
+                          if (idea.actualHoldingTimeMinutes < 60) {
+                            return `${idea.actualHoldingTimeMinutes} min`;
+                          } else if (idea.actualHoldingTimeMinutes < 1440) {
+                            const hours = Math.floor(idea.actualHoldingTimeMinutes / 60);
+                            const minutes = idea.actualHoldingTimeMinutes % 60;
+                            return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+                          } else {
+                            const days = Math.floor(idea.actualHoldingTimeMinutes / 1440);
+                            const remainingMinutes = idea.actualHoldingTimeMinutes % 1440;
+                            const hours = Math.floor(remainingMinutes / 60);
+                            const minutes = remainingMinutes % 60;
+                            if (minutes > 0) {
+                              return `${days}d ${hours}h ${minutes}m`;
+                            } else if (hours > 0) {
+                              return `${days}d ${hours}h`;
+                            } else {
+                              return `${days}d`;
+                            }
+                          }
+                        })()}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {idea.holdingPeriod === 'day' ? 'Day Trade' : 
+                         idea.holdingPeriod === 'swing' ? 'Swing Trade' : 
+                         'Position'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Outcome Status */}
+                {idea.outcomeStatus && (
+                  <div className="mt-3 p-3 rounded-lg bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide">Outcome</span>
+                      <Badge 
+                        variant={
+                          idea.outcomeStatus === 'hit_target' ? 'default' : 
+                          idea.outcomeStatus === 'hit_stop' ? 'destructive' : 
+                          'secondary'
+                        }
+                        className="font-semibold"
+                      >
+                        {idea.outcomeStatus === 'hit_target' ? 'HIT TARGET' :
+                         idea.outcomeStatus === 'hit_stop' ? 'HIT STOP' :
+                         idea.outcomeStatus === 'expired' ? 'EXPIRED' :
+                         'CLOSED'}
+                      </Badge>
+                    </div>
+                    {idea.percentGain !== null && idea.percentGain !== undefined && (
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Realized P/L</span>
+                        <span className={cn(
+                          "text-sm font-bold",
+                          idea.percentGain >= 0 ? "text-green-500" : "text-red-500"
+                        )}>
+                          {idea.percentGain >= 0 ? '+' : ''}{formatPercent(idea.percentGain)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Trade Details */}
             <div>
               <h3 className="text-sm font-semibold mb-3">Trade Details</h3>
