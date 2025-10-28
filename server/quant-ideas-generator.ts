@@ -117,8 +117,9 @@ async function calculateTimingWindows(
 }
 
 // 🔐 MODEL GOVERNANCE: Engine version for audit trail
-export const QUANT_ENGINE_VERSION = "v3.2.0"; // Updated Oct 28, 2025: CRITICAL RECALIBRATION - Enabled SHORT trades, widened stops to 3.5%, relaxed ADX filter, extended trading window, re-enabled crypto
+export const QUANT_ENGINE_VERSION = "v3.3.0"; // Updated Oct 28, 2025: TIME-OF-DAY FIX - Restricted to 9:30-11:30 AM ET (diagnostic data shows 75-80% WR vs 16-46% afternoon)
 export const ENGINE_CHANGELOG = {
+  "v3.3.0": "TIME-OF-DAY FIX: Restricted generation to 9:30-11:30 AM ET ONLY. Diagnostic audit revealed morning trades: 75-80% WR, afternoon trades: 16-46% WR. v3.2.0 extended window killed performance. This single change should restore 60%+ WR based on historical data.",
   "v3.2.0": "CRITICAL RECALIBRATION: (1) Enabled SHORT trades (RSI>90 below 200MA = 42.9% WR boost), (2) Widened stops 2%→3.5% stocks, 3%→5% crypto (match academic research), (3) Relaxed ADX filter 25→30 (less restrictive), (4) Extended window 2hr→full day, (5) Re-enabled crypto (collect training data). Target: 60%+ WR.",
   "v3.1.0": "REGIME FILTERING: Added ADX-based market regime detection (ranging vs trending), signal confidence voting (require 2+ confirmations), ATR liquidity filter, time-of-day filter (first 2 hours only), earnings blackout (skip ±3 days). Research shows mean reversion fails in trending markets (ADX >25).",
   "v3.0.0": "COMPLETE REBUILD: Removed failing signals (MACD 'very low success', complex scoring). Implemented ONLY proven strategies: (1) RSI(2)<10 + 200MA filter (75-91% win rate), (2) VWAP institutional flow (80%+ win rate), (3) Volume spike early entry. Simplified to rule-based entries per academic research.",
@@ -175,11 +176,14 @@ function isOptimalTradingWindow(): boolean {
   const etHour = parseInt(timePart.split(':')[0]);
   const etMinute = parseInt(timePart.split(':')[1]);
   
-  // Extended window: 9:30 AM - 3:00 PM ET (full trading day except last hour)
-  // Removed restrictive 2-hour window - need more opportunities
-  if (etHour === 9 && etMinute >= 30) return true;  // 9:30-9:59
-  if (etHour >= 10 && etHour < 15) return true;  // 10:00-14:59
+  // 🎯 PRIME WINDOW: 9:30 AM - 11:30 AM ET ONLY
+  // Diagnostic data: Morning = 75-80% WR, Afternoon = 16-46% WR
+  // Restricting to morning session based on historical performance
+  if (etHour === 9 && etMinute >= 30) return true;  // 9:30-9:59 AM
+  if (etHour === 10) return true;  // 10:00-10:59 AM
+  if (etHour === 11 && etMinute < 30) return true;  // 11:00-11:29 AM
   
+  logger.info(`⏰ Outside optimal trading window (9:30-11:30 AM ET) - current time: ${timePart.substring(0, 5)} ET`);
   return false;
 }
 
@@ -695,6 +699,13 @@ export async function generateQuantIdeas(
   const ideas: InsertTradeIdea[] = [];
   const timezone = 'America/Chicago';
   const now = new Date();
+
+  // 🎯 CRITICAL: Time-of-day filter (9:30-11:30 AM ET prime window)
+  // Diagnostic data: Morning 75-80% WR vs Afternoon 16-46% WR
+  if (!isOptimalTradingWindow()) {
+    logger.info('⏰ Quant generation skipped - outside optimal trading window (9:30-11:30 AM ET)');
+    return ideas; // Return empty array, don't generate trades outside prime window
+  }
 
   // 🚫 DEDUPLICATION: Get all open trades to avoid duplicate symbols
   const existingOpenSymbols = new Set<string>();
