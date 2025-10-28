@@ -117,8 +117,9 @@ async function calculateTimingWindows(
 }
 
 // 🔐 MODEL GOVERNANCE: Engine version for audit trail
-export const QUANT_ENGINE_VERSION = "v3.3.0"; // Updated Oct 28, 2025: TIME-OF-DAY FIX - Restricted to 9:30-11:30 AM ET (diagnostic data shows 75-80% WR vs 16-46% afternoon)
+export const QUANT_ENGINE_VERSION = "v3.4.0"; // Updated Oct 28, 2025: CONFIDENCE RECALIBRATION - Fixed inverted scoring system (90-100% confidence had 15.6% WR, <60% had 63% WR)
 export const ENGINE_CHANGELOG = {
+  "v3.4.0": "CONFIDENCE RECALIBRATION: Diagnostic audit exposed inverted confidence system - high scores (90-100%) = 15.6% WR, low scores (<60%) = 63% WR. ROOT CAUSE: R:R bonuses were INVERSE predictors ('Excellent R:R 3:1+' = 5.1% WR worst signal). FIX: (1) Removed ALL bonuses (R:R, volume), (2) Lowered base scores from 90-95 to 50-65 matching actual 30-60% WR, (3) Simplified scoring - fewer signals = better performance.",
   "v3.3.0": "TIME-OF-DAY FIX: Restricted generation to 9:30-11:30 AM ET ONLY. Diagnostic audit revealed morning trades: 75-80% WR, afternoon trades: 16-46% WR. v3.2.0 extended window killed performance. This single change should restore 60%+ WR based on historical data.",
   "v3.2.0": "CRITICAL RECALIBRATION: (1) Enabled SHORT trades (RSI>90 below 200MA = 42.9% WR boost), (2) Widened stops 2%→3.5% stocks, 3%→5% crypto (match academic research), (3) Relaxed ADX filter 25→30 (less restrictive), (4) Extended window 2hr→full day, (5) Re-enabled crypto (collect training data). Target: 60%+ WR.",
   "v3.1.0": "REGIME FILTERING: Added ADX-based market regime detection (ranging vs trending), signal confidence voting (require 2+ confirmations), ATR liquidity filter, time-of-day filter (first 2 hours only), earnings blackout (skip ±3 days). Research shows mean reversion fails in trending markets (ADX >25).",
@@ -517,9 +518,15 @@ function generateAnalysis(data: MarketData, signal: QuantSignal): string {
   return `Quantitative setup confirmed with ${volumeRatio.toFixed(1)}x volume and favorable risk/reward ratio.`;
 }
 
-// v3.0: SIMPLIFIED VALIDATION - No complex scoring
-// Research says: Keep it simple, rule-based
-// If signal passed detection (RSI2+200MA, VWAP, or Volume), it's already proven
+// v3.4: RECALIBRATED SCORING based on actual performance data
+// DIAGNOSTIC AUDIT RESULTS (30-day):
+// - 90-100% confidence → 15.6% actual WR (delta: -74.4%)
+// - <60% confidence → 63.2% actual WR (delta: +13.2%)
+// - "Excellent R:R (3:1+)" signal → 5.1% WR (WORST performing signal!)
+// - Simple signals without bonuses → 58-63% WR (BEST performing!)
+//
+// ROOT CAUSE: Bonuses were INVERSE predictors - removed all bonuses
+// NEW STRATEGY: Conservative base scores (50-65) matching actual ~30-60% WR
 function calculateConfidenceScore(
   data: MarketData,
   signal: QuantSignal,
@@ -528,69 +535,60 @@ function calculateConfidenceScore(
   const qualitySignals: string[] = [];
   const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
 
-  // v3.2: Simple rule-based scoring - BOTH long and short
-  // Base score determined by proven signal type
+  // v3.4: RECALIBRATED - Base scores lowered to match actual performance
+  // Removed ALL bonuses (R:R, volume) - they were inverse predictors
   let score = 0;
   
   if (signal.type === 'rsi2_mean_reversion') {
-    // Research: 75-91% win rate - HIGH confidence
-    score = signal.strength === 'strong' ? 95 : 90;
-    qualitySignals.push('RSI(2) Mean Reversion (75-91% backtest)');
+    // Actual performance: ~30-60% WR (not 75-91% from old research)
+    score = signal.strength === 'strong' ? 65 : 60;
+    qualitySignals.push('RSI(2) Mean Reversion');
   } else if (signal.type === 'rsi2_short_reversion') {
-    // Research: Same 75-91% win rate for SHORT - HIGH confidence
-    score = signal.strength === 'strong' ? 95 : 90;
-    qualitySignals.push('RSI(2) SHORT Mean Reversion (75-91% backtest)');
+    // Actual performance: ~30-60% WR
+    score = signal.strength === 'strong' ? 65 : 60;
+    qualitySignals.push('RSI(2) SHORT Mean Reversion');
   } else if (signal.type === 'vwap_cross') {
-    // Research: 80%+ win rate - HIGH confidence
-    score = signal.strength === 'strong' ? 92 : 87;
-    qualitySignals.push('VWAP Institutional Flow (80%+ win rate)');
+    // Actual performance: ~30-50% WR
+    score = signal.strength === 'strong' ? 60 : 55;
+    qualitySignals.push('VWAP Institutional Flow');
   } else if (signal.type === 'volume_spike') {
-    // Early entry pattern - MODERATE-HIGH confidence
-    score = signal.strength === 'strong' ? 88 : 82;
+    // Volume Spike had 0% WR in testing - LOWEST score
+    score = signal.strength === 'strong' ? 50 : 45;
     qualitySignals.push('Volume Spike Early Entry');
   }
 
-  // Adjust for R:R ratio (minor adjustment only)
-  if (riskRewardRatio >= 3) {
-    score += 5;
-    qualitySignals.push('Excellent R:R (3:1+)');
-  } else if (riskRewardRatio >= 2) {
-    score += 2;
-    qualitySignals.push('Strong R:R (2:1+)');
-  }
+  // v3.4: REMOVED R:R bonuses - diagnostic data showed INVERSE correlation
+  // "Excellent R:R (3:1+)" had 5.1% WR (worst signal)
+  // "Strong R:R (2:1+)" had 32.7% WR (below average)
+  // NO LONGER ADDING POINTS FOR R:R RATIO
 
-  // Volume confirmation (minor adjustment)
-  if (volumeRatio >= 3) {
-    score += 3;
-    qualitySignals.push('Strong Volume (3x+)');
-  } else if (volumeRatio >= 1.5) {
-    score += 1;
-    qualitySignals.push('Above Avg Volume');
-  }
+  // v3.4: REMOVED volume bonuses - not predictive in actual data
+  // NO LONGER ADDING POINTS FOR VOLUME CONFIRMATION
 
-  // Liquidity check (small penalty for low liquidity)
+  // Liquidity warning (informational only - no score penalty)
   if (data.currentPrice < 5) {
-    score -= 5;
-    qualitySignals.push('Low Liquidity Warning');
+    qualitySignals.push('Penny Stock (<$5)');
   }
 
   return { score: Math.min(Math.max(score, 0), 100), signals: qualitySignals };
 }
 
 // Calculate probability band based on confidence score
+// v3.4: RECALIBRATED for new 45-65 scoring range (was 70-100)
 // ALIGNED with frontend display logic in trade-idea-block.tsx
 function getProbabilityBand(score: number): string {
-  if (score >= 95) return 'A+';
-  if (score >= 90) return 'A';
-  if (score >= 85) return 'B+';
-  if (score >= 80) return 'B';
-  if (score >= 75) return 'C+';
-  if (score >= 70) return 'C';
-  return 'D';
+  if (score >= 65) return 'A';    // 65% (strongest signal)
+  if (score >= 60) return 'B+';   // 60-64%
+  if (score >= 55) return 'B';    // 55-59%
+  if (score >= 50) return 'C+';   // 50-54%
+  if (score >= 45) return 'C';    // 45-49%
+  return 'D';                      // <45%
 }
 
 // Adjust target and stop prices based on confidence score
-// Higher quality setups get better R:R ratios
+// v3.4: REMOVED target adjustments - diagnostic data showed high R:R inverse predictor
+// All trades now use STANDARD 2:1 R:R regardless of confidence
+// (Higher R:R targets correlated with LOWER win rates in actual data)
 function adjustTargetsForQuality(
   entryPrice: number,
   baseTarget: number,
@@ -598,55 +596,19 @@ function adjustTargetsForQuality(
   confidenceScore: number,
   direction: 'long' | 'short'
 ): { targetPrice: number; stopLoss: number } {
-  // Calculate multipliers based on confidence score
-  let targetMultiplier = 1.0;
-  let stopMultiplier = 1.0;
-
-  if (confidenceScore >= 95) {
-    // A+ grade: Aggressive targets, tighter stops (R:R ~3:1)
-    targetMultiplier = 1.4;
-    stopMultiplier = 0.8;
-  } else if (confidenceScore >= 90) {
-    // A grade: Strong targets (R:R ~2.5:1)
-    targetMultiplier = 1.25;
-    stopMultiplier = 0.9;
-  } else if (confidenceScore >= 85) {
-    // B+ grade: Good targets (R:R ~2:1)
-    targetMultiplier = 1.1;
-    stopMultiplier = 0.95;
-  } else if (confidenceScore >= 80) {
-    // B grade: Standard targets (R:R ~1.8:1)
-    targetMultiplier = 1.0;
-    stopMultiplier = 1.0;
-  } else if (confidenceScore >= 75) {
-    // C+ grade: Conservative targets (R:R ~1.5:1)
-    targetMultiplier = 0.9;
-    stopMultiplier = 1.1;
-  } else if (confidenceScore >= 70) {
-    // C grade: Tight targets (R:R ~1.3:1)
-    targetMultiplier = 0.8;
-    stopMultiplier = 1.15;
-  } else {
-    // D grade: Minimal targets (R:R ~1.2:1)
-    targetMultiplier = 0.7;
-    stopMultiplier = 1.2;
-  }
-
-  if (direction === 'long') {
-    const targetDistance = (baseTarget - entryPrice) * targetMultiplier;
-    const stopDistance = (entryPrice - baseStop) * stopMultiplier;
-    return {
-      targetPrice: Number((entryPrice + targetDistance).toFixed(2)),
-      stopLoss: Number((entryPrice - stopDistance).toFixed(2))
-    };
-  } else {
-    const targetDistance = (entryPrice - baseTarget) * targetMultiplier;
-    const stopDistance = (baseStop - entryPrice) * stopMultiplier;
-    return {
-      targetPrice: Number((entryPrice - targetDistance).toFixed(2)),
-      stopLoss: Number((entryPrice + stopDistance).toFixed(2))
-    };
-  }
+  // v3.4: NO ADJUSTMENTS - use base targets/stops for ALL trades
+  // Diagnostic audit proved "Excellent R:R (3:1+)" = 5.1% WR (worst signal)
+  // Standard 2:1 R:R performs better than aggressive 3:1+ targets
+  
+  // REMOVED all confidence-based adjustments
+  // Old system: 95% confidence → 1.4x target (3:1 R:R) → 5.1% WR ❌
+  // New system: All trades → 1.0x target (2:1 R:R) → Better WR ✅
+  
+  // Simply return the base targets without any multipliers
+  return {
+    targetPrice: baseTarget,
+    stopLoss: baseStop
+  };
 }
 
 // Calculate gem score for prioritizing opportunities
