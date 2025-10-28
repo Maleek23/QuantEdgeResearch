@@ -33,6 +33,13 @@ The platform implements a two-tier data filtering system: a User-Facing Mode dis
 ### System Design Choices
 The platform employs a multi-page, publicly accessible architecture with membership managed via Discord roles. The system uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) via Drizzle ORM. Access tiers include Free, Premium, and Admin, with a password-protected `/admin` panel for comprehensive platform management. Security features include dual authentication, JWT authentication with HTTP-only cookies, session tokens with expiration, rate limiting, and `requireAdmin`/`requirePremium` middleware.
 
+### Automated Services
+**Auto Idea Generator:** Automatically generates 3-5 fresh AI trade ideas every weekday at 9:30 AM CT (market open). The service runs every 5 minutes to check for the target time window and ensures no duplicate generations on the same day. All generated ideas pass through the same four-layer risk validation framework (max 5% loss, min 2:1 R:R, price sanity, volatility filters) and deduplication checks. Manual triggering available via admin endpoint `/api/admin/trigger-auto-gen` for testing.
+
+**Performance Validation Service:** Runs every 5 minutes to automatically validate open trade ideas by checking if they hit target, stop loss, or expired. Uses intraday price monitoring with high/low tracking.
+
+**Watchlist Monitor:** Checks watchlist items every 5 minutes for price alerts and updates.
+
 ## External Dependencies
 
 ### Data Sources

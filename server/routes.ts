@@ -275,6 +275,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual Auto-Generation Trigger (Admin Testing)
+  app.post("/api/admin/trigger-auto-gen", requireAdmin, async (_req, res) => {
+    try {
+      const { autoIdeaGenerator } = await import('./auto-idea-generator');
+      await autoIdeaGenerator.manualGenerate();
+      const status = autoIdeaGenerator.getStatus();
+      res.json({ 
+        success: true, 
+        message: 'Auto-generation triggered manually',
+        status 
+      });
+    } catch (error: any) {
+      logger.error('Manual auto-gen trigger failed', { error });
+      res.status(500).json({ error: error?.message || "Failed to trigger auto-generation" });
+    }
+  });
+
   // Recent Activity Log
   app.get("/api/admin/activity", requireAdmin, async (_req, res) => {
     try {
