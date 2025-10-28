@@ -88,5 +88,10 @@ app.use((req, res, next) => {
     // Start automated performance validation (checks every 5 minutes)
     const { performanceValidationService } = await import('./performance-validation-service');
     performanceValidationService.start();
+    
+    // Start automated daily idea generation (9:30 AM CT on weekdays)
+    const { autoIdeaGenerator } = await import('./auto-idea-generator');
+    autoIdeaGenerator.start();
+    log('🤖 Auto Idea Generator started - will generate fresh ideas at 9:30 AM CT weekdays');
   });
 })();

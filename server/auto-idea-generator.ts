@@ -1,0 +1,222 @@
+import { logger } from "./logger";
+import { storage } from "./storage";
+import { generateTradeIdeas, validateTradeRisk } from "./ai-service";
+
+/**
+ * Automated Daily Idea Generation Service
+ * Generates fresh AI trade ideas every weekday at 9:30 AM CT (market open)
+ */
+class AutoIdeaGenerator {
+  private intervalId: NodeJS.Timeout | null = null;
+  private isGenerating = false;
+  private lastRunTime: Date | null = null;
+  private lastRunSuccess = false;
+
+  /**
+   * Start the automated idea generation service
+   * Checks every 5 minutes and generates ideas at 9:30 AM CT on weekdays
+   */
+  start() {
+    if (this.intervalId) {
+      logger.info('⚠️  Auto idea generator already running');
+      return;
+    }
+
+    logger.info('🤖 Starting Auto Idea Generator (checks every 5 minutes for 9:30 AM CT)');
+    
+    // Check immediately on startup
+    this.checkAndGenerate().catch(err => 
+      logger.error('❌ Initial idea generation check failed:', err)
+    );
+
+    // Check every 5 minutes
+    this.intervalId = setInterval(() => {
+      this.checkAndGenerate().catch(err => 
+        logger.error('❌ Idea generation check failed:', err)
+      );
+    }, 5 * 60 * 1000); // 5 minutes
+
+    logger.info('✅ Auto idea generator started');
+  }
+
+  /**
+   * Stop the service
+   */
+  stop() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+      logger.info('🛑 Auto idea generator stopped');
+    }
+  }
+
+  /**
+   * Check if it's time to generate ideas and do it if needed
+   */
+  private async checkAndGenerate(): Promise<void> {
+    // Prevent concurrent generations
+    if (this.isGenerating) {
+      return;
+    }
+
+    const now = new Date();
+    const nowCT = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+    
+    // Extract CT time components
+    const hour = nowCT.getHours();
+    const minute = nowCT.getMinutes();
+    const dayOfWeek = nowCT.getDay(); // 0 = Sunday, 6 = Saturday
+
+    // Skip weekends (Saturday = 6, Sunday = 0)
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      return;
+    }
+
+    // Check if it's 9:30 AM CT (hour = 9, minute = 30-34 to catch the window)
+    const isMarketOpen = hour === 9 && minute >= 30 && minute < 35;
+    
+    if (!isMarketOpen) {
+      return;
+    }
+
+    // Check if we already ran today
+    if (this.lastRunTime) {
+      const lastRunCT = new Date(this.lastRunTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+      const isSameDay = 
+        lastRunCT.getFullYear() === nowCT.getFullYear() &&
+        lastRunCT.getMonth() === nowCT.getMonth() &&
+        lastRunCT.getDate() === nowCT.getDate();
+      
+      if (isSameDay && this.lastRunSuccess) {
+        return; // Already ran successfully today
+      }
+    }
+
+    // Time to generate!
+    await this.generateFreshIdeas();
+  }
+
+  /**
+   * Generate fresh AI trade ideas with full risk validation
+   */
+  private async generateFreshIdeas(): Promise<void> {
+    this.isGenerating = true;
+    this.lastRunTime = new Date();
+
+    try {
+      const nowCT = new Date(this.lastRunTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+      logger.info(`🎯 [AUTO-GEN] Generating fresh AI ideas for ${nowCT.toLocaleDateString('en-US')} at 9:30 AM CT`);
+
+      // 🚫 DEDUPLICATION: Get existing open symbols
+      const allIdeas = await storage.getAllTradeIdeas();
+      const existingOpenSymbols = new Set(
+        allIdeas
+          .filter((idea: any) => idea.outcomeStatus === 'open')
+          .map((idea: any) => idea.symbol.toUpperCase())
+      );
+
+      const marketContext = "Current market conditions with focus on stocks, options, and crypto";
+      const aiIdeas = await generateTradeIdeas(marketContext);
+
+      // 🛡️ Apply strict risk validation to all AI-generated ideas
+      const savedIdeas = [];
+      const rejectedIdeas: Array<{symbol: string, reason: string}> = [];
+
+      for (const aiIdea of aiIdeas) {
+        // 🚫 Skip if symbol already has an open trade
+        if (existingOpenSymbols.has(aiIdea.symbol.toUpperCase())) {
+          logger.info(`⏭️  [AUTO-GEN] Skipped ${aiIdea.symbol} - already has open trade`);
+          continue;
+        }
+
+        // 🛡️ CRITICAL: Validate risk guardrails (max 5% loss, min 2:1 R:R, price sanity)
+        const validation = validateTradeRisk(aiIdea);
+
+        if (!validation.isValid) {
+          logger.warn(`🚫 [AUTO-GEN] REJECTED ${aiIdea.symbol} - ${validation.reason}`);
+          rejectedIdeas.push({ symbol: aiIdea.symbol, reason: validation.reason || 'Unknown' });
+          continue; // Skip this trade - does NOT save to database
+        }
+
+        // ✅ Trade passes risk validation - log metrics and save
+        logger.info(`✅ [AUTO-GEN] ${aiIdea.symbol} passed validation - Loss:${validation.metrics?.maxLossPercent.toFixed(2)}% R:R:${validation.metrics?.riskRewardRatio.toFixed(2)}:1 Gain:${validation.metrics?.potentialGainPercent.toFixed(2)}%`);
+
+        const { entryPrice, targetPrice, stopLoss } = aiIdea;
+        const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
+
+        // AI ideas default to day trades unless they're crypto (which can be position trades)
+        const holdingPeriod: 'day' | 'swing' | 'position' = aiIdea.assetType === 'crypto' ? 'position' : 'day';
+
+        const tradeIdea = await storage.createTradeIdea({
+          symbol: aiIdea.symbol,
+          assetType: aiIdea.assetType,
+          direction: aiIdea.direction,
+          holdingPeriod: holdingPeriod,
+          entryPrice,
+          targetPrice,
+          stopLoss,
+          riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
+          catalyst: aiIdea.catalyst,
+          analysis: aiIdea.analysis,
+          liquidityWarning: aiIdea.entryPrice < 5,
+          sessionContext: aiIdea.sessionContext,
+          timestamp: new Date().toISOString(),
+          expiryDate: aiIdea.expiryDate || null,
+          strikePrice: aiIdea.assetType === 'option' ? aiIdea.entryPrice * (aiIdea.direction === 'long' ? 1.02 : 0.98) : null,
+          optionType: aiIdea.assetType === 'option' ? (aiIdea.direction === 'long' ? 'call' : 'put') : null,
+          source: 'ai'
+        });
+        savedIdeas.push(tradeIdea);
+      }
+
+      // Send Discord notification for batch
+      if (savedIdeas.length > 0) {
+        const { sendBatchSummaryToDiscord } = await import("./discord-service");
+        sendBatchSummaryToDiscord(savedIdeas, 'ai').catch(err => 
+          logger.error('[AUTO-GEN] Discord notification failed:', err)
+        );
+      }
+
+      // Log summary of risk validation
+      if (rejectedIdeas.length > 0) {
+        logger.warn(`🛡️ [AUTO-GEN] Risk Validation Summary: ${rejectedIdeas.length} ideas rejected, ${savedIdeas.length} passed`);
+        rejectedIdeas.forEach(r => logger.warn(`   - ${r.symbol}: ${r.reason}`));
+      }
+
+      if (savedIdeas.length > 0) {
+        logger.info(`✅ [AUTO-GEN] Successfully generated ${savedIdeas.length} fresh AI trade ideas`);
+        this.lastRunSuccess = true;
+      } else {
+        logger.warn('⚠️  [AUTO-GEN] No ideas generated - all rejected or AI unavailable');
+        this.lastRunSuccess = false;
+      }
+    } catch (error: any) {
+      logger.error('[AUTO-GEN] Failed to generate ideas:', error);
+      this.lastRunSuccess = false;
+    } finally {
+      this.isGenerating = false;
+    }
+  }
+
+  /**
+   * Get service status for monitoring
+   */
+  getStatus() {
+    return {
+      running: this.intervalId !== null,
+      isGenerating: this.isGenerating,
+      lastRunTime: this.lastRunTime,
+      lastRunSuccess: this.lastRunSuccess
+    };
+  }
+
+  /**
+   * Manually trigger idea generation (for testing/admin use)
+   */
+  async manualGenerate(): Promise<void> {
+    await this.generateFreshIdeas();
+  }
+}
+
+// Export singleton instance
+export const autoIdeaGenerator = new AutoIdeaGenerator();
