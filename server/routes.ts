@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { generateTradeIdeas, chatWithQuantAI, validateTradeRisk } from "./ai-service";
 import { generateQuantIdeas } from "./quant-ideas-generator";
+import { generateDiagnosticExport } from "./diagnostic-export";
 import {
   insertMarketDataSchema,
   insertTradeIdeaSchema,
@@ -2689,6 +2690,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Initialize model card error:", error);
       res.status(500).json({ error: "Failed to initialize model card" });
+    }
+  });
+
+  // 📊 DIAGNOSTIC EXPORT: Comprehensive data export for LLM analysis
+  app.get("/api/admin/diagnostic-export", requireAdmin, async (req, res) => {
+    try {
+      const daysBack = parseInt(req.query.daysBack as string) || 30;
+      const includeRawData = req.query.includeRawData === 'true';
+      
+      logger.info(`📊 Generating diagnostic export (${daysBack} days, rawData: ${includeRawData})`);
+      
+      const diagnosticData = await generateDiagnosticExport(daysBack, includeRawData);
+      
+      // Set headers for file download
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="quantedge-diagnostic-${new Date().toISOString().split('T')[0]}.json"`);
+      
+      res.json(diagnosticData);
+    } catch (error: any) {
+      logger.error("Diagnostic export error:", error);
+      res.status(500).json({ error: error?.message || "Failed to generate diagnostic export" });
     }
   });
 
