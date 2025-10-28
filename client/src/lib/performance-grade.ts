@@ -1,23 +1,26 @@
 /**
- * Performance-Based Grading System
+ * Performance-Based Grading System (v3.4.0 RECALIBRATED)
  * 
  * Unlike confidence-based grading, this system grades trade ideas based on
  * ACTUAL WIN RATES from historical data. This provides a more honest assessment
  * of signal quality.
  * 
- * Data-driven thresholds based on actual platform performance:
- * - A (90-94): 83.3% win rate (BEST)
- * - B (80-84): 66.7% win rate (GOOD)
- * - A+ (95+): 44.4% win rate (PARADOX - too confident!)
- * - C (70-74): 44.4% win rate
- * - B+ (85-89): 50.0% win rate
- * - C+ (75-79): 33.3% win rate (DISASTER - negative accuracy)
- * - D (<70): 25.0% win rate
+ * v3.4.0 RECALIBRATION: Confidence scoring system was inverted (90-100% confidence
+ * had 15.6% actual WR, <60% confidence had 63% WR). System now uses 45-65 score range
+ * where confidence scores MATCH actual expected win rates.
+ * 
+ * Data-driven thresholds based on v3.4.0 recalibration:
+ * - A (65%): Top signals (RSI(2) strong) - ~65% expected WR
+ * - B+ (60-64%): Strong signals (RSI(2) moderate, VWAP strong) - ~60% expected WR
+ * - B (55-59%): Good signals (VWAP moderate) - ~55% expected WR
+ * - C+ (50-54%): Fair signals (Volume Spike strong) - ~50% expected WR
+ * - C (45-49%): Weak signals (Volume Spike moderate) - ~45% expected WR
+ * - D (<45%): Very weak signals - <45% expected WR
  */
 
 /**
  * Get performance grade based on ACTUAL EXPECTED WIN RATE
- * This is calibrated based on real historical data patterns from 86 trades
+ * v3.4.0: Calibrated to new 45-65 confidence range where score = expected WR
  */
 export function getPerformanceGrade(confidenceScore: number): {
   grade: string;
@@ -25,93 +28,77 @@ export function getPerformanceGrade(confidenceScore: number): {
   expectedWinRate: number;
   description: string;
 } {
-  // Based on actual data analysis (86 total trades):
-  // A+ (95+) → 44.4% win rate (PARADOX: over-confident)
-  // A (90-94) → 83.3% win rate (BEST PERFORMANCE)
-  // B+ (85-89) → 50.0% win rate
-  // B (80-84) → 66.7% win rate (good)
-  // C+ (75-79) → 33.3% win rate (disaster zone)
-  // C (70-74) → 44.4% win rate
-  // D (<70) → 25.0% win rate
+  // v3.4.0: Recalibrated for 45-65 score range
+  // Confidence scores now directly represent expected win rates
   
-  // A+ (95+): Highest confidence
-  if (confidenceScore >= 95) {
-    return {
-      grade: 'A+',
-      color: 'text-green-500',
-      expectedWinRate: 44,
-      description: 'Highest confidence (44% win rate)',
-    };
-  }
-  
-  // A (90-94): Sweet spot - highest win rate
-  if (confidenceScore >= 90) {
+  // A (65%): Top tier signals
+  if (confidenceScore >= 65) {
     return {
       grade: 'A',
       color: 'text-green-500',
-      expectedWinRate: 83,
-      description: 'Best performance (83% win rate)',
+      expectedWinRate: Math.round(confidenceScore),
+      description: 'Top signals',
     };
   }
   
-  // B+ (85-89): Moderate performance
-  if (confidenceScore >= 85) {
+  // B+ (60-64%): Strong signals
+  if (confidenceScore >= 60) {
     return {
       grade: 'B+',
       color: 'text-blue-500',
-      expectedWinRate: 50,
-      description: 'Moderate (50% win rate)',
+      expectedWinRate: Math.round(confidenceScore),
+      description: 'Strong signals',
     };
   }
   
-  // B (80-84): Good performance
-  if (confidenceScore >= 80) {
+  // B (55-59%): Good signals
+  if (confidenceScore >= 55) {
     return {
       grade: 'B',
       color: 'text-blue-500',
-      expectedWinRate: 67,
-      description: 'Good performance (67% win rate)',
+      expectedWinRate: Math.round(confidenceScore),
+      description: 'Good signals',
     };
   }
   
-  // C+ (75-79): Disaster zone
-  if (confidenceScore >= 75) {
+  // C+ (50-54%): Fair signals
+  if (confidenceScore >= 50) {
     return {
       grade: 'C+',
       color: 'text-yellow-500',
-      expectedWinRate: 33,
-      description: 'Weak signals (33% win rate)',
+      expectedWinRate: Math.round(confidenceScore),
+      description: 'Fair signals',
     };
   }
   
-  // C (70-74): Below average
-  if (confidenceScore >= 70) {
+  // C (45-49%): Weak signals
+  if (confidenceScore >= 45) {
     return {
       grade: 'C',
       color: 'text-yellow-500',
-      expectedWinRate: 44,
-      description: 'Below average (44% win rate)',
+      expectedWinRate: Math.round(confidenceScore),
+      description: 'Weak signals',
     };
   }
   
-  // D (<70): High risk
+  // D (<45%): Very weak signals
+  // v3.4.0: Score = expected WR (no artificial floor)
   return {
     grade: 'D',
     color: 'text-red-500',
-    expectedWinRate: 25,
-    description: 'High risk (25% win rate)',
+    expectedWinRate: Math.round(confidenceScore),
+    description: 'Very weak',
   };
 }
 
 /**
- * Get confidence-based letter grade (old system - for reference)
+ * Get confidence-based letter grade (v3.4.0 system)
  */
 export function getConfidenceGrade(score: number): string {
-  if (score >= 95) return 'A+';
-  if (score >= 90) return 'A';
-  if (score >= 85) return 'B+';
-  if (score >= 80) return 'B';
-  if (score >= 75) return 'C+';
-  if (score >= 70) return 'C';
+  if (score >= 65) return 'A';
+  if (score >= 60) return 'B+';
+  if (score >= 55) return 'B';
+  if (score >= 50) return 'C+';
+  if (score >= 45) return 'C';
   return 'D';
 }

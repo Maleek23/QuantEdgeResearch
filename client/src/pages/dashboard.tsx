@@ -204,7 +204,7 @@ export default function Dashboard() {
   const topGainers = marketData.filter(d => d.changePercent > 0).sort((a, b) => b.changePercent - a.changePercent).slice(0, 3);
   const topLosers = marketData.filter(d => d.changePercent < 0).sort((a, b) => a.changePercent - b.changePercent).slice(0, 3);
   const recentIdeas = freshIdeas.slice(0, 3);
-  const highGradeIdeas = freshIdeas.filter(i => i.confidenceScore >= 85); // B+ and above
+  const highGradeIdeas = freshIdeas.filter(i => i.confidenceScore >= 60); // v3.4.0: B+ and above (was 85)
 
   const handleViewDetails = (symbol: string) => {
     const symbolData = marketData.find(d => d.symbol === symbol);
