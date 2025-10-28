@@ -77,6 +77,7 @@ function detectMarketRegime(signalStack: SignalStack): MarketRegime {
 }
 
 // Simple timing windows based on asset type and confidence
+// v3.4: RECALIBRATED for new 45-65 confidence range (was 70-100)
 async function calculateTimingWindows(
   assetType: 'stock' | 'crypto',
   signalStack: SignalStack,
@@ -89,20 +90,26 @@ async function calculateTimingWindows(
   let holdingPeriodType: 'day' | 'swing' | 'position' | 'week-ending' = 'day';
   let exitWindowMinutes = 360; // 6 hours for day trades
   
-  // High confidence day trades get shorter windows
-  if (signalStack.confidenceScore >= 90) {
+  // v3.4: RECALIBRATED thresholds for new 45-65 scoring range
+  // Old thresholds (90/85) would make ALL trades "position" with new scores
+  if (signalStack.confidenceScore >= 62) {
+    // Top tier (62-65): Day trade - strongest signals
     holdingPeriodType = 'day';
     exitWindowMinutes = 360; // 6 hours
-  } else if (signalStack.confidenceScore >= 85) {
+  } else if (signalStack.confidenceScore >= 55) {
+    // Mid tier (55-61): Swing trade - moderate signals
     holdingPeriodType = 'swing';
     exitWindowMinutes = 1440; // 24 hours
   } else {
+    // Bottom tier (<55): Position trade - weakest signals
     holdingPeriodType = 'position';
     exitWindowMinutes = 4320; // 3 days
   }
   
-  // Target hit probability based on confidence score
-  const targetHitProbability = signalStack.confidenceScore * 0.8; // 80% of confidence score
+  // v3.4: Target hit probability based on ACTUAL win rate data
+  // Confidence scores now match actual performance (45-65 range)
+  // Use confidence score directly as probability (it's already calibrated)
+  const targetHitProbability = signalStack.confidenceScore;
   
   return {
     entryWindowMinutes,
