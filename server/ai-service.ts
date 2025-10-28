@@ -5,6 +5,7 @@ import { GoogleGenAI } from "@google/genai";
 import type { TradeIdea, InsertTradeIdea } from "@shared/schema";
 import { logger } from './logger';
 import { logAPIError, logAPISuccess } from './monitoring-service';
+import { validateAndLog } from './trade-validation';
 
 // The newest Anthropic model is "claude-sonnet-4-20250514"
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
@@ -262,8 +263,8 @@ For each trade idea, provide:
 CRITICAL PRICE RULES:
 - For LONG stocks/crypto: targetPrice > entryPrice > stopLoss (e.g., Entry $580, Target $590, Stop $575)
 - For SHORT stocks/crypto: stopLoss > entryPrice > targetPrice (e.g., Entry $580, Target $570, Stop $585)
-- For options: Use option PREMIUM prices ($5-$50 range), NOT stock prices
-- NO options trades - focus on stocks and crypto only
+- 🚫 CRITICAL: DO NOT generate options trades - they are quarantined due to systematic failures (avg return -99%)
+- ONLY generate stock and crypto trades
 - Use realistic prices: SPY ~$580, NVDA ~$140, BTC ~$67000, ETH ~$2600
 
 Return valid JSON object with structure: {"ideas": [array of trade ideas]}

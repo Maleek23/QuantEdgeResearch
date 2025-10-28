@@ -5,6 +5,7 @@ import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice 
 import { generateTradeIdeas, chatWithQuantAI, validateTradeRisk } from "./ai-service";
 import { generateQuantIdeas } from "./quant-ideas-generator";
 import { generateDiagnosticExport } from "./diagnostic-export";
+import { validateAndLog as validateTradeStructure } from "./trade-validation";
 import {
   insertMarketDataSchema,
   insertTradeIdeaSchema,
@@ -1605,11 +1606,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate quantitative ideas with deduplication
       const quantIdeas = await generateQuantIdeas(marketData, catalysts, count, storage);
       
-      // Save ideas to storage and send Discord alerts
+      // Save ideas to storage with validation and send Discord alerts
       const savedIdeas = [];
+      const rejectedIdeas: Array<{symbol: string, reason: string}> = [];
+      
       for (const idea of quantIdeas) {
+        // 🚫 QUARANTINE: Block options trades until pricing logic is audited
+        if (idea.assetType === 'option') {
+          logger.warn(`🚫 Quant: REJECTED ${idea.symbol} - Options quarantined (avg return -99%, audit pending)`);
+          rejectedIdeas.push({ symbol: idea.symbol, reason: 'Options quarantined pending audit' });
+          continue;
+        }
+        
+        // 🛡️ LAYER 1: Structural validation (prevents logically impossible trades)
+        const structureValid = validateTradeStructure({
+          symbol: idea.symbol,
+          assetType: idea.assetType,
+          direction: idea.direction,
+          entryPrice: idea.entryPrice,
+          targetPrice: idea.targetPrice,
+          stopLoss: idea.stopLoss
+        }, 'Quant');
+        
+        if (!structureValid) {
+          rejectedIdeas.push({ symbol: idea.symbol, reason: 'Structural validation failed (check logs)' });
+          continue;
+        }
+        
+        // 🛡️ LAYER 2: Risk guardrails (max 5% loss, min 2:1 R:R, price sanity)
+        const validation = validateTradeRisk({
+          symbol: idea.symbol,
+          assetType: idea.assetType,
+          direction: idea.direction,
+          entryPrice: idea.entryPrice,
+          targetPrice: idea.targetPrice,
+          stopLoss: idea.stopLoss,
+          catalyst: idea.catalyst || '',
+          analysis: idea.analysis || '',
+          sessionContext: idea.sessionContext || ''
+        });
+        
+        if (!validation.isValid) {
+          logger.warn(`🚫 Quant: REJECTED ${idea.symbol} - ${validation.reason}`);
+          rejectedIdeas.push({ symbol: idea.symbol, reason: validation.reason || 'Risk validation failed' });
+          continue;
+        }
+        
+        logger.info(`✅ Quant: ${idea.symbol} passed validation - Loss:${validation.metrics?.maxLossPercent.toFixed(2)}% R:R:${validation.metrics?.riskRewardRatio.toFixed(2)}:1`);
+        
         const tradeIdea = await storage.createTradeIdea(idea);
         savedIdeas.push(tradeIdea);
+      }
+      
+      // Log rejection summary if any
+      if (rejectedIdeas.length > 0) {
+        logger.warn(`🛡️ Quant Validation Summary: ${rejectedIdeas.length} ideas rejected, ${savedIdeas.length} passed`);
+        rejectedIdeas.forEach(r => logger.warn(`   - ${r.symbol}: ${r.reason}`));
       }
       
       // Send Discord notification for batch
@@ -1666,7 +1718,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
         
-        // 🛡️ CRITICAL: Validate risk guardrails (max 5% loss, min 2:1 R:R, price sanity)
+        // 🚫 QUARANTINE: Block options trades until pricing logic is audited
+        if (aiIdea.assetType === 'option') {
+          logger.warn(`🚫 AI: REJECTED ${aiIdea.symbol} - Options quarantined (avg return -99%, audit pending)`);
+          rejectedIdeas.push({ symbol: aiIdea.symbol, reason: 'Options quarantined pending audit' });
+          continue;
+        }
+        
+        // 🛡️ LAYER 1: Structural validation (prevents logically impossible trades)
+        const structureValid = validateTradeStructure({
+          symbol: aiIdea.symbol,
+          assetType: aiIdea.assetType,
+          direction: aiIdea.direction,
+          entryPrice: aiIdea.entryPrice,
+          targetPrice: aiIdea.targetPrice,
+          stopLoss: aiIdea.stopLoss
+        }, 'AI');
+        
+        if (!structureValid) {
+          rejectedIdeas.push({ symbol: aiIdea.symbol, reason: 'Structural validation failed (check logs)' });
+          continue;
+        }
+        
+        // 🛡️ LAYER 2: Risk guardrails (max 5% loss, min 2:1 R:R, price sanity)
         const validation = validateTradeRisk(aiIdea);
         
         if (!validation.isValid) {
@@ -1765,7 +1839,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
         
-        // 🛡️ CRITICAL: Validate risk guardrails (inherits from quant but adds AI safety layer)
+        // 🚫 QUARANTINE: Block options trades until pricing logic is audited
+        if (hybridIdea.assetType === 'option') {
+          logger.warn(`🚫 Hybrid: REJECTED ${hybridIdea.symbol} - Options quarantined (avg return -99%, audit pending)`);
+          rejectedIdeas.push({ symbol: hybridIdea.symbol, reason: 'Options quarantined pending audit' });
+          continue;
+        }
+        
+        // 🛡️ LAYER 1: Structural validation (prevents logically impossible trades)
+        const structureValid = validateTradeStructure({
+          symbol: hybridIdea.symbol,
+          assetType: hybridIdea.assetType,
+          direction: hybridIdea.direction,
+          entryPrice: hybridIdea.entryPrice,
+          targetPrice: hybridIdea.targetPrice,
+          stopLoss: hybridIdea.stopLoss
+        }, 'Hybrid');
+        
+        if (!structureValid) {
+          rejectedIdeas.push({ symbol: hybridIdea.symbol, reason: 'Structural validation failed (check logs)' });
+          continue;
+        }
+        
+        // 🛡️ LAYER 2: Risk guardrails (inherits from quant but adds AI safety layer)
         const validation = validateTradeRisk(hybridIdea);
         
         if (!validation.isValid) {

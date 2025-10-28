@@ -1,0 +1,219 @@
+/**
+ * 🛡️ CRITICAL: Pre-execution trade validation
+ * Prevents logically impossible trades from entering the system
+ * Based on diagnostic audit findings (2025-10-28)
+ */
+
+import { logger } from './logger';
+
+export interface TradeValidationInput {
+  symbol: string;
+  assetType: 'stock' | 'option' | 'crypto';
+  direction: 'long' | 'short';
+  entryPrice: number;
+  targetPrice: number;
+  stopLoss: number;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+  severity: 'critical' | 'high' | 'medium' | 'low' | null;
+}
+
+/**
+ * Comprehensive trade validation with multiple safety layers
+ */
+export function validateTrade(trade: TradeValidationInput): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  let severity: 'critical' | 'high' | 'medium' | 'low' | null = null;
+
+  const { symbol, assetType, direction, entryPrice, targetPrice, stopLoss } = trade;
+
+  // ===== CRITICAL VALIDATIONS =====
+  
+  // 1. Check for zero or negative prices
+  if (entryPrice <= 0 || targetPrice <= 0 || stopLoss <= 0) {
+    errors.push(`Invalid prices: entry=$${entryPrice}, target=$${targetPrice}, stop=$${stopLoss} (must be > 0)`);
+    severity = 'critical';
+  }
+
+  // 2. Check for stop loss equals entry price (CRITICAL BUG from audit)
+  if (stopLoss === entryPrice) {
+    errors.push(`Stop loss equals entry price ($${entryPrice}). This is a fatal configuration error.`);
+    severity = 'critical';
+  }
+
+  // 3. Validate price relationships based on direction
+  if (direction === 'long') {
+    // For LONG trades: target > entry > stop
+    if (targetPrice <= entryPrice) {
+      errors.push(
+        `LONG trade has target ($${targetPrice}) at or below entry ($${entryPrice}). ` +
+        `For LONG: target must be > entry. Current: target=${targetPrice}, entry=${entryPrice}`
+      );
+      severity = 'critical';
+    }
+    
+    if (stopLoss >= entryPrice) {
+      errors.push(
+        `LONG trade has stop ($${stopLoss}) at or above entry ($${entryPrice}). ` +
+        `For LONG: stop must be < entry. Current: stop=${stopLoss}, entry=${entryPrice}`
+      );
+      severity = 'critical';
+    }
+
+    // Sanity check: target should definitely be above stop
+    if (targetPrice <= stopLoss) {
+      errors.push(
+        `LONG trade has target ($${targetPrice}) at or below stop ($${stopLoss}). ` +
+        `Logical order must be: target > entry > stop`
+      );
+      severity = 'critical';
+    }
+  } else if (direction === 'short') {
+    // For SHORT trades: stop > entry > target
+    if (targetPrice >= entryPrice) {
+      errors.push(
+        `SHORT trade has target ($${targetPrice}) at or above entry ($${entryPrice}). ` +
+        `For SHORT: target must be < entry. Current: target=${targetPrice}, entry=${entryPrice}`
+      );
+      severity = 'critical';
+    }
+    
+    if (stopLoss <= entryPrice) {
+      errors.push(
+        `SHORT trade has stop ($${stopLoss}) at or below entry ($${entryPrice}). ` +
+        `For SHORT: stop must be > entry. Current: stop=${stopLoss}, entry=${entryPrice}`
+      );
+      severity = 'critical';
+    }
+
+    // Sanity check: stop should definitely be above target
+    if (stopLoss <= targetPrice) {
+      errors.push(
+        `SHORT trade has stop ($${stopLoss}) at or below target ($${targetPrice}). ` +
+        `Logical order must be: stop > entry > target`
+      );
+      severity = 'critical';
+    }
+  }
+
+  // 4. Check for unrealistic price movements (>50% in day trades)
+  const gainPercent = Math.abs((targetPrice - entryPrice) / entryPrice) * 100;
+  const lossPercent = Math.abs((stopLoss - entryPrice) / entryPrice) * 100;
+
+  if (gainPercent > 50) {
+    warnings.push(
+      `Unrealistic gain target: ${gainPercent.toFixed(1)}% move expected. ` +
+      `Day trades typically target <20% moves.`
+    );
+    if (!severity) severity = 'medium';
+  }
+
+  if (lossPercent > 10) {
+    warnings.push(
+      `Extremely wide stop loss: ${lossPercent.toFixed(1)}% risk. ` +
+      `Stop should typically be <5% for stocks, <7% for crypto.`
+    );
+    if (!severity) severity = 'medium';
+  }
+
+  // 5. Calculate and validate R:R ratio
+  const maxLoss = direction === 'long' 
+    ? (entryPrice - stopLoss) 
+    : (stopLoss - entryPrice);
+  
+  const potentialGain = direction === 'long'
+    ? (targetPrice - entryPrice)
+    : (entryPrice - targetPrice);
+
+  if (maxLoss > 0) { // Avoid division by zero
+    const rrRatio = potentialGain / maxLoss;
+    
+    if (rrRatio < 1.5) {
+      warnings.push(
+        `Poor risk/reward ratio: ${rrRatio.toFixed(2)}:1. ` +
+        `Minimum recommended is 2:1 for day trades.`
+      );
+      if (!severity) severity = 'medium';
+    }
+  }
+
+  // 6. Asset-specific validations
+  if (assetType === 'option') {
+    // Based on audit: options have -99.3% avg return - need stricter checks
+    if (!symbol.includes(' ') && !symbol.match(/[CP]\d{8}/)) {
+      errors.push(
+        `Invalid option symbol format: "${symbol}". ` +
+        `Expected format with strike/expiry (e.g., "AAPL C150 2025-11-15")`
+      );
+      if (!severity) severity = 'high';
+    }
+  }
+
+  // 7. Check for penny stock risks (< $1)
+  if (entryPrice < 1 && assetType === 'stock') {
+    warnings.push(
+      `Penny stock detected (entry=$${entryPrice}). ` +
+      `High slippage and liquidity risks expected.`
+    );
+    if (!severity) severity = 'low';
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+    severity
+  };
+}
+
+/**
+ * Validate and log trade with detailed error reporting
+ */
+export function validateAndLog(trade: TradeValidationInput, source: string): boolean {
+  const result = validateTrade(trade);
+  
+  if (!result.isValid) {
+    logger.error(`🚨 TRADE VALIDATION FAILED [${source}]`, {
+      symbol: trade.symbol,
+      direction: trade.direction,
+      severity: result.severity,
+      errors: result.errors,
+      warnings: result.warnings,
+      prices: {
+        entry: trade.entryPrice,
+        target: trade.targetPrice,
+        stop: trade.stopLoss
+      }
+    });
+    return false;
+  }
+  
+  if (result.warnings.length > 0) {
+    logger.warn(`⚠️ TRADE VALIDATION WARNINGS [${source}]`, {
+      symbol: trade.symbol,
+      direction: trade.direction,
+      severity: result.severity,
+      warnings: result.warnings
+    });
+  }
+  
+  return true;
+}
+
+/**
+ * Get validation error summary for API responses
+ */
+export function getValidationSummary(result: ValidationResult): string {
+  if (result.isValid) {
+    return result.warnings.length > 0 
+      ? `Trade valid with ${result.warnings.length} warning(s)`
+      : 'Trade validated successfully';
+  }
+  
+  return `${result.errors.length} validation error(s): ${result.errors.join('; ')}`;
+}
