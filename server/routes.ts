@@ -1604,7 +1604,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const catalysts = await storage.getAllCatalysts();
       
       // Generate quantitative ideas with deduplication
-      const quantIdeas = await generateQuantIdeas(marketData, catalysts, count, storage);
+      // Manual generation: skip time check (user can generate anytime)
+      const quantIdeas = await generateQuantIdeas(marketData, catalysts, count, storage, true);
       
       // Save ideas to storage with validation and send Discord alerts
       const savedIdeas = [];

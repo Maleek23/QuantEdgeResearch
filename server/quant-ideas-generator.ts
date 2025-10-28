@@ -663,24 +663,24 @@ export async function generateQuantIdeas(
   marketData: MarketData[],
   catalysts: Catalyst[],
   count: number = 8,
-  storage?: any
+  storage?: any,
+  skipTimeCheck: boolean = false  // Allow manual generation anytime
 ): Promise<InsertTradeIdea[]> {
   const ideas: InsertTradeIdea[] = [];
   const timezone = 'America/Chicago';
   const now = new Date();
 
-  // 🎯 CRITICAL: Time-of-day filter (9:30-11:30 AM ET prime window)
-  // Diagnostic data: Morning 75-80% WR vs Afternoon 16-46% WR
-  if (!isOptimalTradingWindow()) {
+  // 🎯 Time-of-day filter
+  // Manual generation (skipTimeCheck=true): Allowed anytime
+  // Auto generation (skipTimeCheck=false): Only during optimal window (9:30-11:30 AM ET)
+  const isOptimalWindow = isOptimalTradingWindow();
+  if (!isOptimalWindow && !skipTimeCheck) {
+    // Auto-generation blocked outside optimal window
     const now = new Date();
     const etTime = formatInTimeZone(now, 'America/New_York', 'h:mm a');
     const ctTime = formatInTimeZone(now, 'America/Chicago', 'h:mm a');
-    logger.info(`⏰ Quant generation skipped - outside optimal trading window (current: ${etTime} ET / ${ctTime} CT)`);
-    throw new Error(
-      `Quant ideas only generate during prime market hours (9:30-11:30 AM ET / 8:30-10:30 AM CT). ` +
-      `Current time: ${etTime} ET. This restriction maximizes win rate (75-80% morning vs 16-46% afternoon). ` +
-      `Try again during tomorrow's morning session.`
-    );
+    logger.info(`⏰ Auto-generation skipped - outside optimal trading window (current: ${etTime} ET / ${ctTime} CT)`);
+    return ideas; // Return empty array for auto-generation outside window
   }
 
   // 🚫 DEDUPLICATION: Get all open trades to avoid duplicate symbols
