@@ -708,8 +708,9 @@ export async function generateQuantIdeas(
   // Discover stock movers and breakouts ONLY if market is open
   const stockGems = marketOpen ? await discoverStockGems(40) : [];
   
-  // ALSO discover curated penny stocks from watchlist (includes VSEE, XHLD, etc.)
-  const pennyStockGems = marketOpen ? await discoverPennyStocks() : [];
+  // 💎 ALWAYS discover curated watchlist stocks (SOFI, NOK, PLTR, AMC, etc.) - 24/7
+  // These are high-interest retail stocks we want to monitor regardless of market hours
+  const pennyStockGems = await discoverPennyStocks();
   
   // Combine and deduplicate stock discoveries
   const allStockGems = [...stockGems];
