@@ -214,51 +214,74 @@ export function TradeIdeaDetailModal({
               </div>
             </div>
 
+            {/* Entry Time Display (Open Trades Only) */}
+            {idea.outcomeStatus === 'open' && (
+              <div className="p-4 rounded-lg border bg-gradient-to-br from-blue-500/5 via-card to-purple-500/5">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-blue-400" />
+                  <span className="text-blue-400">Trade Entry Information</span>
+                </h3>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  {/* Posted Time */}
+                  <div className="p-3 rounded-lg bg-card border border-border/50">
+                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Posted Time</div>
+                    <div className="text-sm font-semibold">
+                      {(() => {
+                        const postedDate = new Date(idea.timestamp);
+                        if (!isNaN(postedDate.getTime())) {
+                          return formatInTimeZone(postedDate, 'America/Chicago', 'MMM d, h:mm a');
+                        }
+                        return idea.timestamp;
+                      })()}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                  </div>
+
+                  {/* Enter By */}
+                  {idea.entryValidUntil && (
+                    <div className="p-3 rounded-lg bg-card border border-border/50">
+                      <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Enter By</div>
+                      <div className="text-sm font-semibold">
+                        {(() => {
+                          const entryDate = new Date(idea.entryValidUntil);
+                          if (!isNaN(entryDate.getTime())) {
+                            return formatInTimeZone(entryDate, 'America/Chicago', 'MMM d, h:mm a');
+                          }
+                          return idea.entryValidUntil;
+                        })()}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                    </div>
+                  )}
+
+                  {/* Exit By */}
+                  {idea.exitBy && (
+                    <div className="p-3 rounded-lg bg-card border border-border/50">
+                      <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Exit By</div>
+                      <div className="text-sm font-semibold">
+                        {(() => {
+                          const exitDate = new Date(idea.exitBy);
+                          if (!isNaN(exitDate.getTime())) {
+                            return formatInTimeZone(exitDate, 'America/Chicago', 'MMM d, h:mm a');
+                          }
+                          return idea.exitBy;
+                        })()}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Quantitative Timing Intelligence */}
-            {(idea.entryValidUntil || idea.exitBy) && (
+            {idea.outcomeStatus === 'open' && (idea.targetHitProbability || idea.timingConfidence || idea.volatilityRegime || idea.sessionPhase) && (
               <div>
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                   <Clock className="h-4 w-4" />
                   Quantitative Timing Intelligence
                 </h3>
-                
-                {/* Entry and Exit Windows */}
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  {idea.entryValidUntil && (
-                    <div className="p-3 rounded-lg border bg-card">
-                      <div className="text-xs text-muted-foreground mb-1">Enter By</div>
-                      <div className="text-sm font-semibold">{idea.entryValidUntil}</div>
-                      {idea.entryWindowMinutes && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {idea.entryWindowMinutes} min window
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {idea.exitBy && (
-                    <div className="p-3 rounded-lg border bg-card">
-                      <div className="text-xs text-muted-foreground mb-1">Exit By</div>
-                      <div className="text-sm font-semibold">
-                        {(() => {
-                          // Backward compatibility: handle both ISO timestamps and legacy formatted strings
-                          const exitDate = new Date(idea.exitBy);
-                          if (!isNaN(exitDate.getTime())) {
-                            // Valid ISO timestamp - format it
-                            return formatInTimeZone(exitDate, 'America/Chicago', 'MMM d, h:mm a') + ' CST';
-                          } else {
-                            // Legacy formatted string - display as-is
-                            return idea.exitBy;
-                          }
-                        })()}
-                      </div>
-                      {idea.exitWindowMinutes && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {idea.exitWindowMinutes} min window
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
                 
                 {/* Timing Analytics - Data-Backed Probabilities */}
                 {(idea.targetHitProbability || idea.timingConfidence || idea.volatilityRegime || idea.sessionPhase) && (

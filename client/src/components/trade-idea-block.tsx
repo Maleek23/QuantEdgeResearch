@@ -277,26 +277,64 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
             </div>
           </div>
 
-          {/* ===== TIMING SECTION ===== */}
+          {/* ===== ENTRY TIME DISPLAY (OPEN TRADES) ===== */}
           {idea.outcomeStatus === 'open' && (
-            <div className="grid grid-cols-2 gap-3 mb-5">
-              {/* Enter When */}
-              {idea.entryValidUntil && (
-                <TimingDisplay 
-                  timestamp={idea.entryValidUntil}
-                  label="Enter When"
-                  showCountdown={new Date(idea.entryValidUntil) > new Date()}
-                />
-              )}
+            <div className="mb-5 p-4 rounded-lg border bg-gradient-to-br from-blue-500/5 via-card to-purple-500/5" data-testid={`entry-info-${idea.symbol}`}>
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="h-4 w-4 text-blue-400" />
+                <h4 className="text-sm font-semibold text-blue-400">Trade Entry Information</h4>
+              </div>
               
-              {/* Exit By */}
-              {idea.exitBy && (
-                <TimingDisplay 
-                  timestamp={idea.exitBy}
-                  label="Exit By"
-                  showCountdown={true}
-                />
-              )}
+              <div className="grid grid-cols-3 gap-3">
+                {/* Posted Time */}
+                <div className="p-3 rounded-lg bg-card border border-border/50">
+                  <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Posted Time</div>
+                  <div className="text-sm font-semibold" data-testid={`text-posted-time-${idea.symbol}`}>
+                    {(() => {
+                      const postedDate = new Date(idea.timestamp);
+                      if (!isNaN(postedDate.getTime())) {
+                        return formatInTimeZone(postedDate, 'America/Chicago', 'MMM d, h:mm a');
+                      }
+                      return idea.timestamp;
+                    })()}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                </div>
+
+                {/* Enter When */}
+                {idea.entryValidUntil && (
+                  <div className="p-3 rounded-lg bg-card border border-border/50">
+                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Enter When</div>
+                    <div className="text-sm font-semibold" data-testid={`text-entry-valid-${idea.symbol}`}>
+                      {(() => {
+                        const entryDate = new Date(idea.entryValidUntil);
+                        if (!isNaN(entryDate.getTime())) {
+                          return formatInTimeZone(entryDate, 'America/Chicago', 'MMM d, h:mm a');
+                        }
+                        return idea.entryValidUntil;
+                      })()}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                  </div>
+                )}
+                
+                {/* Exit By */}
+                {idea.exitBy && (
+                  <div className="p-3 rounded-lg bg-card border border-border/50">
+                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Exit By</div>
+                    <div className="text-sm font-semibold" data-testid={`text-exit-by-${idea.symbol}`}>
+                      {(() => {
+                        const exitDate = new Date(idea.exitBy);
+                        if (!isNaN(exitDate.getTime())) {
+                          return formatInTimeZone(exitDate, 'America/Chicago', 'MMM d, h:mm a');
+                        }
+                        return idea.exitBy;
+                      })()}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
