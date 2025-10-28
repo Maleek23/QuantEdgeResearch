@@ -732,7 +732,9 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
       // Energy & Resources ($1-$5)
       'BTU', 'KGC', 'VALE',
       // Financial ($1-$5)
-      'UWMC', 'PBF'
+      'UWMC', 'PBF',
+      // User-requested penny stocks
+      'VSEE', 'XHLD'
     ];
     
     const pennyStocks: StockGem[] = [];

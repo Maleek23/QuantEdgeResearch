@@ -12,7 +12,7 @@ import {
   determineMarketRegime,
   analyzeRSI2MeanReversion
 } from './technical-indicators';
-import { discoverHiddenCryptoGems, discoverStockGems, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
+import { discoverHiddenCryptoGems, discoverStockGems, discoverPennyStocks, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
 import { logger } from './logger';
 
 // v3.1: Simplified timing intelligence (removed complex DB-based timing-intelligence.ts)
@@ -699,11 +699,23 @@ export async function generateQuantIdeas(
   const marketOpen = isStockMarketOpen();
   
   // Discover stock movers and breakouts ONLY if market is open
-  // This includes penny stocks which are auto-classified based on price < $5
   const stockGems = marketOpen ? await discoverStockGems(40) : [];
+  
+  // ALSO discover curated penny stocks from watchlist (includes VSEE, XHLD, etc.)
+  const pennyStockGems = marketOpen ? await discoverPennyStocks() : [];
+  
+  // Combine and deduplicate stock discoveries
+  const allStockGems = [...stockGems];
+  pennyStockGems.forEach(penny => {
+    // Only add if not already in stockGems
+    if (!stockGems.find(s => s.symbol === penny.symbol)) {
+      allStockGems.push(penny);
+    }
+  });
+  
   if (marketOpen) {
-    const pennyCount = stockGems.filter(g => g.currentPrice < 5).length;
-    logger.info(`  ✓ Stock discovery: ${stockGems.length} total (${pennyCount} penny stocks under $5)`);
+    const pennyCount = allStockGems.filter(g => g.currentPrice < 5).length;
+    logger.info(`  ✓ Stock discovery: ${allStockGems.length} total (${pennyCount} penny stocks <$5, ${pennyStockGems.length} from watchlist)`);
   }
   
   // Discover hidden crypto gems (small-caps with anomalies) - 24/7 markets
@@ -712,7 +724,7 @@ export async function generateQuantIdeas(
 
   // Convert discovered stock gems to MarketData
   // CLASSIFY: Stocks under $5 = penny_stock (SEC definition), $5+ = regular stock
-  const discoveredStockData: MarketData[] = stockGems.map(gem => {
+  const discoveredStockData: MarketData[] = allStockGems.map(gem => {
     const assetType: 'stock' | 'penny_stock' = gem.currentPrice < 5 ? 'penny_stock' : 'stock';
     return {
       id: `stock-gem-${gem.symbol}`,
