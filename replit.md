@@ -19,6 +19,8 @@ No personalized financial advice should be offered; it is for research purposes 
 ### UI/UX Decisions
 The UI features a Bloomberg-style dark theme with deep charcoal backgrounds, gradients, shadows, and glassmorphism. A consistent color palette uses green for bullish, red for bearish, amber for neutral/warning, and blue for primary actions. Typography uses Inter for UI and JetBrains Mono for financial data. Custom CSS provides enhanced styling, including enhanced cards, sticky-header tables, responsive grids, loading skeletons, pulsing "FRESH" badges, smart notifications, and optimistic UI updates. Features like glowing verification badges, real-time price displays, detailed analysis modals, and full mobile responsiveness are included. An intelligent advisory system offers real-time trading advice with dynamic R:R analysis and P/L tracking. Toast notifications provide user feedback, and contextual button placement optimizes the UI. Advanced 3D Visual Analytics, including a Holographic Trading Floor, 3D Correlation Matrix Cube, and a 3D Brain Neural Network, are implemented using React Three Fiber and Three.js. A canvas-based scroll particle effect system provides dynamic visual feedback.
 
+**UI Consolidation (Oct 29, 2025):** Platform simplified from 19 pages to 10 total (6 core + 3 legal + 1 utility) following LuxAlgo's clean design approach. Sidebar navigation reduced from 15 links to 6 core items in 3 sections: Trade Engine (Trade Ideas), Market Intelligence (Performance with 7 tabs, Market with integrated watchlist), and System (Settings, Admin). Merged insights/analytics/signals into unified Performance page. Route redirects maintain backward compatibility (/dashboard→/trade-ideas, /watchlist→/market, /insights|/analytics|/signals→/performance). All functionality preserved while improving navigation clarity.
+
 ### Technical Implementations & Feature Specifications
 The frontend is built with React/TypeScript, Tailwind CSS, Shadcn UI, TanStack Query, Wouter, and date-fns-tz. The backend uses Express.js with TypeScript, a PostgreSQL database (Neon) with Drizzle ORM, and Zod validation. Key features include a collapsible sidebar, symbol search with real-time pricing, a metrics-focused dashboard, a unified trade ideas feed (Quant and AI generated), and a conversational QuantAI Bot with multi-provider fallback and chat history. A quality scoring system incorporates confidence scores and probability bands.
 
@@ -41,13 +43,14 @@ The platform employs a multi-page, publicly accessible architecture with members
 **Auto Idea Generator:** Automatically generates 3-5 fresh AI trade ideas every weekday at 9:30 AM CT (market open).
 **Performance Validation Service:** Runs every 5 minutes to automatically validate open trade ideas.
 **Watchlist Monitor:** Checks watchlist items every 5 minutes for price alerts and updates.
+**News Monitor:** Fetches breaking news from Alpha Vantage every 15 minutes during market hours (08:00-20:00 ET) and auto-generates trade ideas from major market events. Uses sentiment analysis (>|0.7|) and keyword detection (earnings, acquisitions, Fed events) with News Catalyst Mode (1.5:1 R:R minimum). Quota protection (500 calls/day) and UUID deduplication prevent duplicate ideas.
 
 ## External Dependencies
 
 ### Data Sources
 -   **CoinGecko API:** Crypto (real-time prices, historical data, market cap, discovery).
 -   **Yahoo Finance:** Stocks (real-time quotes, discovery via screener, historical data).
--   **Alpha Vantage API:** Fallback for Stock historical data, Earnings calendar.
+-   **Alpha Vantage API:** Breaking news (NEWS_SENTIMENT endpoint, 500 req/day free tier), fallback for stock historical data, earnings calendar.
 -   **Tradier API:** Options data (chains, delta targeting, live pricing).
 
 ### AI Providers
