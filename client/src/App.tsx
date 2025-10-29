@@ -1,4 +1,4 @@
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -9,20 +9,11 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { Footer } from "@/components/footer";
 import { ScrollParticles } from "@/components/scroll-particles";
 import Landing from "@/pages/landing";
-import LearnMore from "@/pages/learn-more";
-import Dashboard from "@/pages/dashboard";
 import TradeIdeasPage from "@/pages/trade-ideas";
 import MarketPage from "@/pages/market";
-import WatchlistPage from "@/pages/watchlist";
-import InsightsPage from "@/pages/insights";
-import RiskCalculatorPage from "@/pages/risk-calculator";
 import PerformancePage from "@/pages/performance";
-import SignalIntelligencePage from "@/pages/signal-intelligence";
-import LearningPage from "@/pages/learning";
-import AnalyticsPage from "@/pages/analytics";
 import SettingsPage from "@/pages/settings";
 import AdminPanel from "@/pages/admin";
-import HolographicView from "@/pages/holographic-view";
 import About from "@/pages/about";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import TermsOfService from "@/pages/terms-of-service";
@@ -31,24 +22,45 @@ import NotFound from "@/pages/not-found";
 function Router() {
   return (
     <Switch>
+      {/* Core Pages */}
       <Route path="/" component={Landing} />
-      <Route path="/learn-more" component={LearnMore} />
-      <Route path="/dashboard" component={Dashboard} />
       <Route path="/trade-ideas" component={TradeIdeasPage} />
-      <Route path="/market" component={MarketPage} />
-      <Route path="/watchlist" component={WatchlistPage} />
-      <Route path="/insights" component={InsightsPage} />
-      <Route path="/risk" component={RiskCalculatorPage} />
       <Route path="/performance" component={PerformancePage} />
-      <Route path="/signals" component={SignalIntelligencePage} />
-      <Route path="/learning" component={LearningPage} />
-      <Route path="/analytics" component={AnalyticsPage} />
-      <Route path="/holographic" component={HolographicView} />
+      <Route path="/market" component={MarketPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route path="/admin" component={AdminPanel} />
       <Route path="/about" component={About} />
+      
+      {/* Legal Pages */}
       <Route path="/privacy" component={PrivacyPolicy} />
       <Route path="/terms" component={TermsOfService} />
+      
+      {/* Redirects - Consolidated Pages */}
+      <Route path="/dashboard">
+        <Redirect to="/trade-ideas" />
+      </Route>
+      <Route path="/insights">
+        <Redirect to="/performance" />
+      </Route>
+      <Route path="/analytics">
+        <Redirect to="/performance" />
+      </Route>
+      <Route path="/signals">
+        <Redirect to="/performance" />
+      </Route>
+      <Route path="/watchlist">
+        <Redirect to="/market" />
+      </Route>
+      
+      {/* Redirects - Removed Pages */}
+      <Route path="/learn-more">
+        <Redirect to="/" />
+      </Route>
+      <Route path="/holographic" component={NotFound} />
+      <Route path="/learning" component={NotFound} />
+      <Route path="/risk" component={NotFound} />
+      
+      {/* 404 Fallback */}
       <Route component={NotFound} />
     </Switch>
   );
@@ -63,7 +75,7 @@ function App() {
   };
 
   // Show public landing pages without sidebar (admin page handles its own layout)
-  const publicPages = ['/', '/learn-more', '/admin', '/privacy', '/terms'];
+  const publicPages = ['/', '/admin', '/privacy', '/terms'];
   if (publicPages.includes(location)) {
     return (
       <QueryClientProvider client={queryClient}>

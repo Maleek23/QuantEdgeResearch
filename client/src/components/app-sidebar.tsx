@@ -1,4 +1,4 @@
-import { Home, TrendingUp, BarChart2, Star, Calculator, Target, User, Sparkles, Shield, BookOpen, Settings, Sparkle, PanelLeftClose, PanelLeft, Lightbulb } from "lucide-react";
+import { TrendingUp, BarChart2, Target, User, Shield, Settings, PanelLeftClose, PanelLeft } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -17,27 +17,18 @@ import { Button } from "@/components/ui/button";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 import { cn } from "@/lib/utils";
 
-const researchItems = [
-  { title: "Dashboard", url: "/dashboard", icon: Home },
+const tradeEngineItems = [
   { title: "Trade Ideas", url: "/trade-ideas", icon: TrendingUp },
-  { title: "Market", url: "/market", icon: BarChart2 },
-  { title: "Watchlist", url: "/watchlist", icon: Star },
-  { title: "Insights", url: "/insights", icon: Lightbulb },
+  { title: "Performance", url: "/performance", icon: Target },
 ];
 
-const toolItems = [
-  { title: "Performance", url: "/performance", icon: Target },
-  { title: "Signal Intelligence", url: "/signals", icon: Sparkles },
-  { title: "Quant Analytics", url: "/analytics", icon: BarChart2 },
-  { title: "Holographic View", url: "/holographic", icon: Sparkle },
-  { title: "Risk Calculator", url: "/risk", icon: Calculator },
-  { title: "Quant Learning", url: "/learning", icon: BookOpen },
+const marketIntelligenceItems = [
+  { title: "Market", url: "/market", icon: BarChart2 },
 ];
 
 const systemItems = [
   { title: "Settings", url: "/settings", icon: Settings },
   { title: "About", url: "/about", icon: User },
-  { title: "Learn More", url: "/learn-more", icon: BookOpen },
   { title: "Admin", url: "/admin", icon: Shield },
 ];
 
@@ -116,12 +107,12 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent className="gap-0 py-2">
-        {/* Research Section */}
+        {/* Trade Engine Section */}
         <SidebarGroup className="py-1.5 px-3">
-          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Research</SidebarGroupLabel>
+          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Trade Engine</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0">
-              {researchItems.map((item) => (
+              {tradeEngineItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link 
@@ -139,12 +130,12 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Tools Section */}
+        {/* Market Intelligence Section */}
         <SidebarGroup className="py-1.5 px-3">
-          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Tools</SidebarGroupLabel>
+          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Market Intelligence</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0">
-              {toolItems.map((item) => (
+              {marketIntelligenceItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link 

@@ -7,12 +7,14 @@ import { CatalystFeed } from "@/components/catalyst-feed";
 import { SymbolSearch } from "@/components/symbol-search";
 import { SymbolDetailModal } from "@/components/symbol-detail-modal";
 import { MarketSessionBadge } from "@/components/market-session-badge";
+import { WatchlistTable } from "@/components/watchlist-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import type { MarketData, Catalyst } from "@shared/schema";
-import { TrendingUp, DollarSign, Activity, RefreshCw, Clock, ArrowUp, ArrowDown } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { MarketData, Catalyst, WatchlistItem } from "@shared/schema";
+import { TrendingUp, DollarSign, Activity, RefreshCw, Clock, ArrowUp, ArrowDown, Star } from "lucide-react";
 import { getMarketSession, formatCTTime, formatCurrency, formatPercent } from "@/lib/utils";
 
 export default function MarketPage() {
@@ -32,6 +34,11 @@ export default function MarketPage() {
   const { data: catalysts = [], isLoading: catalystsLoading } = useQuery<Catalyst[]>({
     queryKey: ['/api/catalysts'],
     refetchInterval: 60000,
+  });
+
+  const { data: watchlist = [], isLoading: watchlistLoading } = useQuery<WatchlistItem[]>({
+    queryKey: ['/api/watchlist'],
+    refetchOnWindowFocus: true,
   });
 
   const refreshPricesMutation = useMutation({
@@ -276,6 +283,31 @@ export default function MarketPage() {
       ) : (
         <CatalystFeed catalysts={catalysts} />
       )}
+
+      {/* Watchlist Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Star className="h-5 w-5 text-amber-500" />
+            Watchlist ({watchlist.length} symbols)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {watchlistLoading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : watchlist.length === 0 ? (
+            <div className="text-center py-12">
+              <Star className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Symbols Tracked</h3>
+              <p className="text-muted-foreground">
+                Use Symbol Search above to add symbols to your watchlist
+              </p>
+            </div>
+          ) : (
+            <WatchlistTable />
+          )}
+        </CardContent>
+      </Card>
 
       {/* Symbol Detail Modal */}
       <SymbolDetailModal

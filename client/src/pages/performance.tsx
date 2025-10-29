@@ -737,11 +737,14 @@ export default function PerformancePage() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4" data-testid="tabs-performance">
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 gap-1" data-testid="tabs-performance">
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
           <TabsTrigger value="trends" data-testid="tab-trends">Trends</TabsTrigger>
           <TabsTrigger value="deep-dive" data-testid="tab-deep-dive">Deep Dive</TabsTrigger>
-          <TabsTrigger value="validation" data-testid="tab-validation">Cross-Validation</TabsTrigger>
+          <TabsTrigger value="insights" data-testid="tab-insights">Insights</TabsTrigger>
+          <TabsTrigger value="analytics" data-testid="tab-analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="signals" data-testid="tab-signals">Signals</TabsTrigger>
+          <TabsTrigger value="validation" data-testid="tab-validation">Validation</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-6">
@@ -1503,6 +1506,167 @@ export default function PerformancePage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="insights" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" />
+                Market Insights
+              </CardTitle>
+              <CardDescription>
+                Deep analysis and tracking for your watchlist symbols
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  Market insights for watchlist symbols are available on the <strong>Market</strong> page.
+                  Navigate to Market → Select a symbol to view detailed insights, price action analysis, and technical indicators.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-primary" />
+                Advanced Analytics
+              </CardTitle>
+              <CardDescription>
+                Quant metrics, backtesting, and model calibration
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Core analytics tools:</strong> Backtesting metrics, rolling win rates, signal breakdowns, and model calibration charts are coming soon to this tab.
+                    For now, use the <strong>Overview</strong>, <strong>Trends</strong>, and <strong>Deep Dive</strong> tabs for comprehensive performance analysis.
+                  </AlertDescription>
+                </Alert>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card className="border-primary/20">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm">Backtest Metrics</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-xs text-muted-foreground">
+                        Sharpe Ratio: {stats.overall.sharpeRatio.toFixed(2)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Max Drawdown: {stats.overall.maxDrawdown.toFixed(2)}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Profit Factor: {stats.overall.profitFactor.toFixed(2)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-primary/20">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm">Risk Metrics</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-xs text-muted-foreground">
+                        Avg Win: {stats.overall.avgWinSize.toFixed(2)}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Avg Loss: {stats.overall.avgLossSize.toFixed(2)}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Expectancy: {stats.overall.expectancy.toFixed(2)}%
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-primary/20">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm">Model Quality</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-xs text-muted-foreground">
+                        Quant Accuracy: {stats.overall.quantAccuracy.toFixed(1)}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Direction Accuracy: {stats.overall.directionalAccuracy.toFixed(1)}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        EV Score: {stats.overall.evScore.toFixed(2)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="signals" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
+                Signal Intelligence
+              </CardTitle>
+              <CardDescription>
+                Machine learning insights and signal performance analysis
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Signal Performance Analysis:</strong> Individual signal breakdowns, correlation matrices, and ML network visualizations are available in the <strong>Deep Dive</strong> tab.
+                  View signal-specific win rates and performance metrics by source under the <strong>Overview</strong> tab.
+                </AlertDescription>
+              </Alert>
+              {stats.bySignalType && stats.bySignalType.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-semibold mb-4">Signal Performance Summary</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {stats.bySignalType.slice(0, 6).map((signal) => (
+                      <Card key={signal.signal} className="border-primary/20">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm">{signal.signal}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Win Rate:</span>
+                              <span className={cn(
+                                "font-mono font-semibold",
+                                signal.winRate >= 60 ? "text-green-500" : signal.winRate >= 50 ? "text-amber-500" : "text-red-500"
+                              )}>
+                                {signal.winRate.toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Trades:</span>
+                              <span className="font-mono">{signal.totalIdeas}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Avg Gain:</span>
+                              <span className={cn(
+                                "font-mono",
+                                signal.avgPercentGain >= 0 ? "text-green-500" : "text-red-500"
+                              )}>
+                                {signal.avgPercentGain >= 0 ? '+' : ''}{signal.avgPercentGain.toFixed(2)}%
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="validation" className="space-y-6">

@@ -1185,6 +1185,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 📰 NEWS API ROUTES
+  
+  // GET /api/news - Fetch recent breaking news (last 24h)
+  app.get("/api/news", marketDataLimiter, async (req, res) => {
+    try {
+      const { fetchBreakingNews, getNewsServiceStatus } = await import('./news-service');
+      
+      // Optional query params for filtering
+      const tickers = req.query.tickers as string | undefined;
+      const topics = req.query.topics as string | undefined;
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      logger.info(`📰 [NEWS-API] Fetching breaking news (tickers=${tickers || 'all'}, topics=${topics || 'all'}, limit=${limit})`);
+      
+      const breakingNews = await fetchBreakingNews(tickers, topics, limit);
+      const status = getNewsServiceStatus();
+      
+      res.json({
+        news: breakingNews,
+        count: breakingNews.length,
+        serviceStatus: status
+      });
+    } catch (error: any) {
+      logger.error('📰 [NEWS-API] Error fetching news:', error);
+      res.status(500).json({ error: "Failed to fetch news" });
+    }
+  });
+  
+  // POST /api/trade-ideas/news - Manually trigger news-based trade generation (admin only)
+  app.post("/api/trade-ideas/news", requireAdmin, async (req, res) => {
+    try {
+      const { fetchBreakingNews } = await import('./news-service');
+      const { generateTradeIdeasFromNews } = await import('./ai-service');
+      
+      // Optional: manually provide news article or fetch fresh news
+      const manualNewsArticle = req.body.newsArticle;
+      
+      logger.info('📰 [NEWS-TRADE] Manual news-based trade generation triggered');
+      
+      if (manualNewsArticle) {
+        // Generate from provided article
+        logger.info(`📰 [NEWS-TRADE] Using manually provided article: "${manualNewsArticle.title}"`);
+        
+        const aiIdea = await generateTradeIdeasFromNews(manualNewsArticle);
+        
+        if (!aiIdea) {
+          return res.status(400).json({ 
+            success: false,
+            error: "Failed to generate valid trade idea from news article" 
+          });
+        }
+        
+        // Save trade idea
+        const { entryPrice, targetPrice, stopLoss } = aiIdea;
+        const riskRewardRatio = aiIdea.direction === 'long'
+          ? (targetPrice - entryPrice) / (entryPrice - stopLoss)
+          : (entryPrice - targetPrice) / (stopLoss - entryPrice);
+        
+        const tradeIdea = await storage.createTradeIdea({
+          symbol: aiIdea.symbol,
+          assetType: aiIdea.assetType,
+          direction: aiIdea.direction,
+          holdingPeriod: 'day',
+          entryPrice,
+          targetPrice,
+          stopLoss,
+          riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
+          catalyst: aiIdea.catalyst,
+          catalystSourceUrl: manualNewsArticle.url, // Store news URL
+          analysis: aiIdea.analysis,
+          liquidityWarning: aiIdea.entryPrice < 5,
+          sessionContext: aiIdea.sessionContext,
+          timestamp: new Date().toISOString(),
+          source: 'news',
+          isNewsCatalyst: true,
+        });
+        
+        logger.info(`✅ [NEWS-TRADE] Created news-driven trade: ${tradeIdea.symbol} ${tradeIdea.direction.toUpperCase()}`);
+        
+        res.json({
+          success: true,
+          tradeIdea,
+          newsSource: manualNewsArticle.url
+        });
+      } else {
+        // Fetch fresh breaking news and generate trades
+        logger.info('📰 [NEWS-TRADE] Fetching fresh breaking news for trade generation');
+        
+        const breakingNews = await fetchBreakingNews(undefined, undefined, 20);
+        
+        if (breakingNews.length === 0) {
+          return res.json({ 
+            success: false,
+            message: "No breaking news found in last 24 hours",
+            generated: 0
+          });
+        }
+        
+        logger.info(`📰 [NEWS-TRADE] Found ${breakingNews.length} breaking news articles`);
+        
+        // Generate trade ideas from breaking news (limit to top 5 articles)
+        const generatedTrades = [];
+        const failedArticles = [];
+        
+        for (const article of breakingNews.slice(0, 5)) {
+          try {
+            const aiIdea = await generateTradeIdeasFromNews(article);
+            
+            if (!aiIdea) {
+              failedArticles.push({ 
+                title: article.title, 
+                reason: 'Failed validation or generation' 
+              });
+              continue;
+            }
+            
+            // Save trade idea
+            const { entryPrice, targetPrice, stopLoss } = aiIdea;
+            const riskRewardRatio = aiIdea.direction === 'long'
+              ? (targetPrice - entryPrice) / (entryPrice - stopLoss)
+              : (entryPrice - targetPrice) / (stopLoss - entryPrice);
+            
+            const tradeIdea = await storage.createTradeIdea({
+              symbol: aiIdea.symbol,
+              assetType: aiIdea.assetType,
+              direction: aiIdea.direction,
+              holdingPeriod: 'day',
+              entryPrice,
+              targetPrice,
+              stopLoss,
+              riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
+              catalyst: aiIdea.catalyst,
+              catalystSourceUrl: article.url, // Store news URL
+              analysis: aiIdea.analysis,
+              liquidityWarning: aiIdea.entryPrice < 5,
+              sessionContext: aiIdea.sessionContext,
+              timestamp: new Date().toISOString(),
+              source: 'news',
+              isNewsCatalyst: true,
+            });
+            
+            generatedTrades.push(tradeIdea);
+            logger.info(`✅ [NEWS-TRADE] Created news-driven trade: ${tradeIdea.symbol} from "${article.title}"`);
+          } catch (error: any) {
+            logger.error(`📰 [NEWS-TRADE] Failed to generate trade from article "${article.title}":`, error);
+            failedArticles.push({ 
+              title: article.title, 
+              reason: error.message 
+            });
+          }
+        }
+        
+        logger.info(`📰 [NEWS-TRADE] Generated ${generatedTrades.length} trades from ${breakingNews.length} breaking news articles`);
+        
+        res.json({
+          success: true,
+          generated: generatedTrades.length,
+          tradeIdeas: generatedTrades,
+          breakingNewsCount: breakingNews.length,
+          failedCount: failedArticles.length,
+          failures: failedArticles
+        });
+      }
+    } catch (error: any) {
+      logger.error('📰 [NEWS-TRADE] Error generating news-based trades:', error);
+      res.status(500).json({ error: "Failed to generate news-based trade ideas" });
+    }
+  });
+
   // Performance stats cache (5-minute TTL) - separate cache per filter combination
   const performanceStatsCache = new Map<string, { data: any; timestamp: number }>();
   const PERF_STATS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes

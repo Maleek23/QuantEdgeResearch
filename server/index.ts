@@ -93,5 +93,132 @@ app.use((req, res, next) => {
     const { autoIdeaGenerator } = await import('./auto-idea-generator');
     autoIdeaGenerator.start();
     log('🤖 Auto Idea Generator started - will generate fresh ideas at 9:30 AM CT weekdays');
+    
+    // Start automated news-driven trade generation (every 15 minutes during market hours)
+    const cron = await import('node-cron');
+    const { fetchBreakingNews, getNewsServiceStatus } = await import('./news-service');
+    const { generateTradeIdeasFromNews } = await import('./ai-service');
+    const { storage } = await import('./storage');
+    
+    // Schedule news fetching every 15 minutes
+    cron.default.schedule('*/15 * * * *', async () => {
+      try {
+        // Check if market is open or in extended hours (08:00-20:00 ET Mon-Fri)
+        const now = new Date();
+        const nyTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+        const hour = nyTime.getHours();
+        const dayOfWeek = nyTime.getDay(); // 0 = Sunday, 6 = Saturday
+        
+        // Skip weekends
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          return;
+        }
+        
+        // Only run during extended market hours: 08:00-20:00 ET (pre-market to after-hours)
+        if (hour < 8 || hour >= 20) {
+          return;
+        }
+        
+        // Check API quota status
+        const status = getNewsServiceStatus();
+        if (!status.isHealthy || status.quotaRemaining < 10) {
+          logger.warn(`📰 [NEWS-CRON] Skipping news fetch - quota low: ${status.quotaRemaining}/500 remaining`);
+          return;
+        }
+        
+        logger.info(`📰 [NEWS-CRON] Fetching breaking news (${hour}:${nyTime.getMinutes().toString().padStart(2, '0')} ET)`);
+        
+        // Fetch breaking news (limit to 20 articles to conserve quota)
+        const breakingNews = await fetchBreakingNews(undefined, undefined, 20);
+        
+        if (breakingNews.length === 0) {
+          logger.info('📰 [NEWS-CRON] No breaking news found');
+          return;
+        }
+        
+        logger.info(`📰 [NEWS-CRON] Found ${breakingNews.length} breaking news articles`);
+        
+        // Get existing open trade symbols to avoid duplicates
+        const allIdeas = await storage.getAllTradeIdeas();
+        const existingOpenSymbols = new Set(
+          allIdeas
+            .filter((idea: any) => idea.outcomeStatus === 'open')
+            .map((idea: any) => idea.symbol.toUpperCase())
+        );
+        
+        // Generate trade ideas from breaking news (limit to top 3 to avoid spam)
+        let generatedCount = 0;
+        let skippedCount = 0;
+        
+        for (const article of breakingNews.slice(0, 3)) {
+          try {
+            // Skip if we already have an open trade for this ticker
+            if (existingOpenSymbols.has(article.primaryTicker.toUpperCase())) {
+              logger.info(`📰 [NEWS-CRON] Skipped ${article.primaryTicker} - already has open trade`);
+              skippedCount++;
+              continue;
+            }
+            
+            // Generate trade idea from news
+            const aiIdea = await generateTradeIdeasFromNews(article);
+            
+            if (!aiIdea) {
+              logger.warn(`📰 [NEWS-CRON] Failed to generate valid trade from "${article.title}"`);
+              continue;
+            }
+            
+            // Save trade idea
+            const { entryPrice, targetPrice, stopLoss } = aiIdea;
+            const riskRewardRatio = aiIdea.direction === 'long'
+              ? (targetPrice - entryPrice) / (entryPrice - stopLoss)
+              : (entryPrice - targetPrice) / (stopLoss - entryPrice);
+            
+            const tradeIdea = await storage.createTradeIdea({
+              symbol: aiIdea.symbol,
+              assetType: aiIdea.assetType,
+              direction: aiIdea.direction,
+              holdingPeriod: 'day',
+              entryPrice,
+              targetPrice,
+              stopLoss,
+              riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
+              catalyst: aiIdea.catalyst,
+              catalystSourceUrl: article.url, // Store news URL
+              analysis: aiIdea.analysis,
+              liquidityWarning: aiIdea.entryPrice < 5,
+              sessionContext: aiIdea.sessionContext,
+              timestamp: new Date().toISOString(),
+              source: 'news',
+              isNewsCatalyst: true,
+            });
+            
+            generatedCount++;
+            logger.info(`✅ [NEWS-CRON] Created news-driven trade: ${tradeIdea.symbol} ${tradeIdea.direction.toUpperCase()} from "${article.title}"`);
+            
+            // Send Discord notification for news-driven trade
+            const { sendBatchSummaryToDiscord } = await import('./discord-service');
+            sendBatchSummaryToDiscord([tradeIdea], 'news').catch(err => 
+              logger.error('[NEWS-CRON] Discord notification failed:', err)
+            );
+          } catch (error: any) {
+            logger.error(`📰 [NEWS-CRON] Failed to process article "${article.title}":`, error);
+          }
+        }
+        
+        if (generatedCount > 0) {
+          logger.info(`📰 [NEWS-CRON] Generated ${generatedCount} news-driven trades (${skippedCount} skipped - duplicates)`);
+        } else {
+          logger.info(`📰 [NEWS-CRON] No trades generated from ${breakingNews.length} breaking news articles`);
+        }
+        
+        // Log quota status
+        const updatedStatus = getNewsServiceStatus();
+        logger.info(`📰 [NEWS-CRON] API quota: ${updatedStatus.quotaUsed}/500 used, ${updatedStatus.quotaRemaining} remaining`);
+      } catch (error: any) {
+        logger.error('📰 [NEWS-CRON] News processing failed:', error);
+      }
+    });
+    
+    log('📰 News Monitor started - fetching breaking news every 15 minutes during market hours (08:00-20:00 ET)');
   });
 })();

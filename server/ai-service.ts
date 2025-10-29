@@ -398,6 +398,110 @@ Keep it concise and actionable.`;
   }
 }
 
+/**
+ * 📰 Generate trade idea from breaking news article
+ * Uses News Catalyst Mode (1.5:1 R:R minimum instead of 2:1)
+ * 
+ * @param newsArticle Breaking news article with sentiment and tickers
+ * @returns AITradeIdea with isNewsCatalyst flag set
+ */
+export async function generateTradeIdeasFromNews(newsArticle: {
+  title: string;
+  summary: string;
+  url: string;
+  timePublished: string;
+  primaryTicker: string;
+  tradingDirection: 'long' | 'short';
+  overallSentimentScore: number;
+  overallSentimentLabel: string;
+  breakingReason: string;
+}): Promise<AITradeIdea | null> {
+  const { title, summary, url, primaryTicker, tradingDirection, overallSentimentScore, overallSentimentLabel } = newsArticle;
+  
+  logger.info(`📰 [NEWS-AI] Generating trade idea for ${primaryTicker} from news: "${title}"`);
+  
+  const systemPrompt = `You are a news-driven quantitative trading analyst. Generate a trade idea based on breaking financial news.
+
+For this trade idea, provide:
+- symbol: The ticker symbol (use the provided primaryTicker)
+- assetType: "stock" (news-driven trades focus on stocks)
+- direction: "${tradingDirection}" (determined by news sentiment)
+- entryPrice: Current realistic market price for ${primaryTicker} (estimate based on typical price range)
+- targetPrice: Price target based on news impact (MUST follow direction rules below)
+- stopLoss: Stop loss price (MUST follow direction rules below)
+- catalyst: The news headline/summary (1-2 sentences)
+- analysis: Trading rationale based on news event (2-3 sentences explaining why this news justifies the trade)
+- sessionContext: Market conditions and timing
+
+CRITICAL PRICE RULES:
+- For LONG trades: targetPrice > entryPrice > stopLoss (e.g., Entry $100, Target $105, Stop $97)
+- For SHORT trades: stopLoss > entryPrice > targetPrice (e.g., Entry $100, Target $95, Stop $103)
+- News Catalyst Mode: Minimum 1.5:1 Risk/Reward ratio (relaxed from standard 2:1)
+- Maximum 5% stop loss from entry price
+- Target based on typical news-driven moves (5-15% for major events, 2-8% for moderate news)
+
+NEWS CONTEXT:
+Title: ${title}
+Summary: ${summary}
+Sentiment: ${overallSentimentLabel} (${overallSentimentScore.toFixed(2)})
+Direction: ${tradingDirection.toUpperCase()}
+
+Return valid JSON object with structure: {"idea": {trade idea object}}`;
+
+  const userPrompt = `Generate a ${tradingDirection} trade idea for ${primaryTicker} based on this breaking news. Ensure the trade has realistic prices and follows News Catalyst Mode validation (1.5:1 R:R minimum).`;
+
+  try {
+    const startTime = Date.now();
+    logger.info(`📰 [NEWS-AI] Using Gemini to analyze news for ${primaryTicker}`);
+    
+    const geminiResponse = await getGemini().models.generateContent({
+      model: "gemini-2.5-flash",
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: "application/json",
+      },
+      contents: userPrompt,
+    });
+
+    logAPISuccess('Gemini News AI', 'generateContent', Date.now() - startTime);
+
+    const geminiText = geminiResponse.text || '{}';
+    const parsed = JSON.parse(geminiText);
+    
+    // Extract trade idea from response
+    const idea: AITradeIdea = parsed.idea || parsed;
+    
+    if (!idea.symbol || !idea.entryPrice || !idea.targetPrice || !idea.stopLoss) {
+      logger.warn(`📰 [NEWS-AI] Invalid trade idea generated for ${primaryTicker} - missing required fields`);
+      return null;
+    }
+    
+    // Mark as news catalyst
+    idea.isNewsCatalyst = true;
+    
+    // Validate the trade with News Catalyst Mode (1.5:1 R:R)
+    const validation = validateTradeRisk(idea, true); // true = isNewsCatalyst
+    
+    if (!validation.isValid) {
+      logger.warn(`📰 [NEWS-AI] Generated trade failed validation: ${validation.reason}`);
+      return null;
+    }
+    
+    logger.info(`📰 [NEWS-AI] ✅ Valid news-driven trade: ${idea.symbol} ${idea.direction.toUpperCase()} - Entry: $${idea.entryPrice}, Target: $${idea.targetPrice}, Stop: $${idea.stopLoss}`);
+    logger.info(`   → R:R: ${validation.metrics?.riskRewardRatio.toFixed(2)}:1, Risk: ${validation.metrics?.maxLossPercent.toFixed(2)}%, Reward: ${validation.metrics?.potentialGainPercent.toFixed(2)}%`);
+    
+    return idea;
+  } catch (error: any) {
+    logger.error(`📰 [NEWS-AI] Failed to generate trade from news:`, error);
+    
+    if (error?.status === 429) {
+      logger.warn("📰 [NEWS-AI] Gemini API limit reached");
+    }
+    
+    return null;
+  }
+}
+
 // Test a specific AI provider (admin tool)
 export async function testAIProvider(provider: string, prompt: string): Promise<AITradeIdea[]> {
   const systemPrompt = `You are a quantitative trading analyst. Generate 1-2 high-quality trade ideas based on the user's request.
