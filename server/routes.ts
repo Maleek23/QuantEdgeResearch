@@ -61,6 +61,48 @@ function requirePremium(req: Request, res: Response, next: Function) {
   next();
 }
 
+// 📰 NEWS CATALYST DETECTION: Identifies breaking news events for relaxed R:R validation
+function detectNewsCatalyst(catalyst: string, analysis: string): boolean {
+  const combinedText = `${catalyst} ${analysis}`.toLowerCase();
+  
+  // News catalyst keywords that indicate major market-moving events
+  const newsKeywords = [
+    // Earnings & Guidance
+    'earnings beat', 'earnings surprise', 'guidance raised', 'guidance increased',
+    'beat estimates', 'exceeded expectations', 'record earnings', 'blowout earnings',
+    
+    // Corporate Actions
+    'acquisition', 'merger', 'buyout', 'takeover', 'deal announced',
+    'partnership announced', 'collaboration announced',
+    
+    // Regulatory & Fed
+    'fed', 'rate cut', 'rate hike', 'fomc', 'interest rate',
+    'fda approval', 'regulatory approval', 'cleared by',
+    
+    // Market Cap Milestones
+    '$1t', '$2t', '$3t', '$4t', '$5t', '$1b', '$2b', '$5b', '$10b',
+    '1 trillion', '2 trillion', '3 trillion', '4 trillion', '5 trillion',
+    
+    // Major Price Movements (from catalyst text)
+    '+10%', '+15%', '+20%', '+25%', '+30%', 'up 10%', 'up 15%', 'up 20%',
+    'surged', 'spiked', 'soared', 'rallied',
+    
+    // Breaking News Indicators
+    'breaking:', 'just announced', 'just reported', 'alert:',
+    'announced today', 'reported today', 'confirmed today'
+  ];
+  
+  // Check if any news keyword is present
+  for (const keyword of newsKeywords) {
+    if (combinedText.includes(keyword)) {
+      logger.info(`📰 NEWS CATALYST DETECTED: "${keyword}" found in trade catalyst/analysis`);
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Apply general rate limiting to all API routes
   app.use('/api/', generalApiLimiter);
@@ -1694,9 +1736,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/generate-ideas", aiGenerationLimiter, async (req, res) => {
     try {
       const schema = z.object({
-        marketContext: z.string().optional().default("Current market conditions with focus on stocks, options, and crypto"),
+        marketContext: z.string().optional(),
+        customPrompt: z.string().optional(),
+        count: z.number().optional()
       });
-      const { marketContext } = schema.parse(req.body);
+      const { marketContext: rawMarketContext, customPrompt, count } = schema.parse(req.body);
+      
+      // Use customPrompt if provided, otherwise use marketContext or default
+      const marketContext = customPrompt || rawMarketContext || "Current market conditions with focus on stocks, options, and crypto";
       
       // 🚫 DEDUPLICATION: Get existing open symbols
       const allIdeas = await storage.getAllTradeIdeas();
@@ -1726,6 +1773,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
         
+        // 📰 NEWS CATALYST DETECTION: Check if user's prompt contains breaking news keywords
+        // Detect from user input (marketContext) not AI output, since AI may not include news keywords
+        const isNewsCatalyst = detectNewsCatalyst(marketContext, '');
+        if (isNewsCatalyst) {
+          logger.info(`📰 ${aiIdea.symbol}: News Catalyst Mode activated (detected in user prompt) - R:R requirement relaxed to 1.5:1`);
+        }
+        
         // 🛡️ LAYER 1: Structural validation (prevents logically impossible trades)
         const structureValid = validateTradeStructure({
           symbol: aiIdea.symbol,
@@ -1741,8 +1795,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
         
-        // 🛡️ LAYER 2: Risk guardrails (max 5% loss, min 2:1 R:R, price sanity)
-        const validation = validateTradeRisk(aiIdea);
+        // 🛡️ LAYER 2: Risk guardrails (max 5% loss, min R:R based on catalyst type, price sanity)
+        const validation = validateTradeRisk(aiIdea, isNewsCatalyst);
         
         if (!validation.isValid) {
           logger.warn(`🚫 AI: REJECTED ${aiIdea.symbol} - ${validation.reason}`);
@@ -1776,7 +1830,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           expiryDate: aiIdea.expiryDate || null,
           strikePrice: aiIdea.assetType === 'option' ? aiIdea.entryPrice * (aiIdea.direction === 'long' ? 1.02 : 0.98) : null,
           optionType: aiIdea.assetType === 'option' ? (aiIdea.direction === 'long' ? 'call' : 'put') : null,
-          source: 'ai'
+          source: 'ai',
+          isNewsCatalyst: isNewsCatalyst
         });
         savedIdeas.push(tradeIdea);
       }

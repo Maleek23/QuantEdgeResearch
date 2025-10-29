@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
 import { formatInUserTZ, formatTimeUntilExpiry } from "@/lib/timezone";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles, Newspaper } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { parseISO } from "date-fns";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -179,6 +179,18 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     <><BarChart3 className="h-3 w-3 mr-1" />QUANT ENGINE</>
                   )}
                 </Badge>
+                
+                {/* News Catalyst Badge - Shows when trade uses relaxed R:R validation */}
+                {idea.isNewsCatalyst && (
+                  <Badge 
+                    variant="outline"
+                    className="font-semibold border-2 text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/50"
+                    data-testid={`badge-news-catalyst-${idea.symbol}`}
+                  >
+                    <Newspaper className="h-3 w-3 mr-1" />
+                    NEWS CATALYST
+                  </Badge>
+                )}
                 
                 {/* Direction Badge */}
                 <Badge 

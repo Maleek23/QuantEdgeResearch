@@ -51,6 +51,7 @@ interface AITradeIdea {
   analysis: string;
   sessionContext: string;
   expiryDate?: string;
+  isNewsCatalyst?: boolean; // Flag for major news events (relaxes R:R validation)
 }
 
 interface RiskValidationResult {
@@ -64,7 +65,7 @@ interface RiskValidationResult {
 }
 
 // 🛡️ RISK VALIDATION: Enforce strict guardrails to prevent catastrophic losses
-export function validateTradeRisk(idea: AITradeIdea): RiskValidationResult {
+export function validateTradeRisk(idea: AITradeIdea, isNewsCatalyst: boolean = false): RiskValidationResult {
   const { entryPrice, targetPrice, stopLoss, direction, assetType } = idea;
   
   // Validate price relationships first
@@ -107,14 +108,21 @@ export function validateTradeRisk(idea: AITradeIdea): RiskValidationResult {
     };
   }
   
-  // 🚨 GUARDRAIL #2: Minimum 2:1 Risk/Reward ratio
-  const MIN_RR_RATIO = 2.0;
+  // 🚨 GUARDRAIL #2: Minimum Risk/Reward ratio (relaxed for news catalysts)
+  // News Catalyst Mode: 1.5:1 R:R for breaking news events (earnings, acquisitions, Fed announcements)
+  // Regular Mode: 2.0:1 R:R for standard technical/quant trades
+  const MIN_RR_RATIO = isNewsCatalyst ? 1.5 : 2.0;
   if (riskRewardRatio < MIN_RR_RATIO) {
     return {
       isValid: false,
-      reason: `R:R ratio ${riskRewardRatio.toFixed(2)}:1 below minimum ${MIN_RR_RATIO}:1 (risk=${maxLossPercent.toFixed(2)}%, reward=${potentialGainPercent.toFixed(2)}%)`,
+      reason: `R:R ratio ${riskRewardRatio.toFixed(2)}:1 below minimum ${MIN_RR_RATIO}:1${isNewsCatalyst ? ' (News Catalyst Mode)' : ''} (risk=${maxLossPercent.toFixed(2)}%, reward=${potentialGainPercent.toFixed(2)}%)`,
       metrics: { maxLossPercent, riskRewardRatio, potentialGainPercent }
     };
+  }
+  
+  // Log when News Catalyst Mode relaxes validation
+  if (isNewsCatalyst && riskRewardRatio >= 1.5 && riskRewardRatio < 2.0) {
+    logger.info(`📰 NEWS CATALYST MODE: Accepting ${riskRewardRatio.toFixed(2)}:1 R:R (below standard 2:1 but valid for breaking news)`);
   }
   
   // 🚨 GUARDRAIL #3: Sanity checks for unrealistic prices

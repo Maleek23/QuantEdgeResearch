@@ -122,6 +122,9 @@ export const tradeIdeas = pgTable("trade_ideas", {
   exitWindowMinutes: integer("exit_window_minutes"), // Quantitatively-derived optimal exit window
   timingConfidence: real("timing_confidence"), // 0-100 confidence in timing windows
   targetHitProbability: real("target_hit_probability"), // ML-predicted probability of hitting target within exit window
+  
+  // News Catalyst Mode - Relaxes R:R validation for breaking news events
+  isNewsCatalyst: boolean("is_news_catalyst").default(false), // True for major news events (earnings beat, acquisition, Fed announcements, etc.)
 });
 
 export const insertTradeIdeaSchema = createInsertSchema(tradeIdeas).omit({ id: true });
