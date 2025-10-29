@@ -737,10 +737,14 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
       // User-requested penny stocks
       'VSEE', 'XHLD',
       // Popular retail/swing stocks ($7-$50 range)
-      'SOFI', 'PLTR', 'NIO', 'RIVN', 'LCID', 'BBBY', 'AMC', 'GME',
-      'WISH', 'HOOD', 'DKNG', 'OPEN', 'UPST', 'SQ', 'ROKU',
-      // High-volume tech stocks
-      'INTC', 'AMD', 'MARA', 'RIOT', 'COIN'
+      'SOFI', 'PLTR', 'NIO', 'RIVN', 'LCID', 'AMC', 'GME',
+      'HOOD', 'DKNG', 'OPEN', 'UPST', 'ROKU',
+      // Mega-cap tech (news-driven - NVDA $5T, AAPL/MSFT $4T)
+      'NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSLA',
+      // High-volume tech & crypto stocks
+      'INTC', 'AMD', 'MARA', 'RIOT', 'COIN',
+      // Earnings/news movers
+      'UPS', 'CVS', 'UNH'
     ];
     
     const pennyStocks: StockGem[] = [];
