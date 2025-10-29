@@ -626,7 +626,7 @@ export function TradeIdeaDetailModal({
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold mb-2">Session Context</h3>
+                <h3 className="text-sm font-semibold mb-2">Market Session (When Generated)</h3>
                 <p className="text-sm text-muted-foreground">
                   {idea.sessionContext}
                 </p>
