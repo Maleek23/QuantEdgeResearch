@@ -843,7 +843,11 @@ export class MemStorage implements IStorage {
         if (idea.engineVersion && idea.engineVersion.startsWith('v3.')) {
           return true;
         }
-        // Exclude trades without engineVersion or with v2.x versions
+        // Include trades without engineVersion (newly generated AI/Quant trades, treated as v3.0+)
+        if (!idea.engineVersion) {
+          return true;
+        }
+        // Exclude only v2.x and v1.x versions
         return false;
       });
       console.log(`[PERF-STATS] Engine filter applied: v3.0+ only → ${beforeVersionFilter} ideas filtered to ${allIdeas.length}`);
@@ -1468,7 +1472,11 @@ export class DatabaseStorage implements IStorage {
         if (idea.engineVersion && idea.engineVersion.startsWith('v3.')) {
           return true;
         }
-        // Exclude trades without engineVersion or with v2.x versions
+        // Include trades without engineVersion (newly generated AI/Quant trades, treated as v3.0+)
+        if (!idea.engineVersion) {
+          return true;
+        }
+        // Exclude only v2.x and v1.x versions
         return false;
       });
       console.log(`[PERF-STATS] Engine filter applied: v3.0+ only → ${beforeVersionFilter} ideas filtered to ${allIdeas.length}`);
