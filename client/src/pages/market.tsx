@@ -304,7 +304,7 @@ export default function MarketPage() {
               </p>
             </div>
           ) : (
-            <WatchlistTable />
+            <WatchlistTable items={watchlist} />
           )}
         </CardContent>
       </Card>
