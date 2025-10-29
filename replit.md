@@ -30,6 +30,8 @@ The quantitative engine (v3.4.0) leverages three academically-proven signals: RS
 
 A critical dual-layer trade validation framework (implemented Oct 2025) ensures all trade ideas (AI, Hybrid, Quant) pass through mandatory two-tier validation: Structural Validation (prevents logically impossible trades) and Risk Guardrails (enforces max 5% loss, min 2:1 R:R, price sanity, volatility filters). Options trades are explicitly blocked pending pricing logic audit.
 
+**News Catalyst Mode** (implemented Oct 29, 2025) addresses competitive gaps versus platforms like LuxAlgo by enabling trade generation during major market events. When breaking news keywords are detected in the user's prompt (earnings, acquisitions, Fed announcements, +10%/+20% price movements, $1B/$5T milestones), the R:R minimum requirement is relaxed from 2:1 to 1.5:1 to capture momentum plays. Detection scans `customPrompt` or `marketContext` parameters on the AI generation endpoint, not the AI's output, ensuring user intent drives news-based risk tolerance. Trades are marked with `isNewsCatalyst: true` in the database and display an amber "NEWS CATALYST" badge on the frontend. Successfully enabled generation of NVDA (1.67:1 R:R) and UPS (2.67:1 R:R) ideas during Oct 29 breaking news events. Manual generation via POST /api/ai/generate-ideas accepts `customPrompt` parameter for user-specified news context.
+
 All generation methods prevent duplicate trades and maintain comprehensive audit trails. The platform implements a two-tier data filtering system: a User-Facing Mode displays only v3.0+ trades, while an ML/Admin Mode includes all historical trades for analysis.
 
 ### System Design Choices
