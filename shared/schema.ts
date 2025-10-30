@@ -137,7 +137,7 @@ export type TradeIdea = typeof tradeIdeas.$inferSelect & {
 export type DataSource = 'seed' | 'live';
 
 // Idea Source Type
-export type IdeaSource = 'ai' | 'quant' | 'hybrid' | 'manual' | 'news';
+export type IdeaSource = 'ai' | 'quant' | 'hybrid' | 'manual' | 'news' | 'flow';
 
 // Hidden Gem Discovery Criteria
 export interface HiddenGemCriteria {

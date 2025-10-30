@@ -220,5 +220,117 @@ app.use((req, res, next) => {
     });
     
     log('📰 News Monitor started - fetching breaking news every 15 minutes during market hours (08:00-20:00 ET)');
+    
+    // Start automated unusual options flow scanner (every 15 minutes during market hours)
+    const { scanUnusualOptionsFlow, isMarketHoursForFlow } = await import('./flow-scanner');
+    const { validateAndLog: validateTradeStructure } = await import('./trade-validation');
+    
+    // Schedule flow scanning every 15 minutes
+    cron.default.schedule('*/15 * * * *', async () => {
+      try {
+        // Check if market is open (9:30 AM - 4:00 PM ET, Mon-Fri)
+        if (!isMarketHoursForFlow()) {
+          return;
+        }
+        
+        logger.info('📊 [FLOW-CRON] Starting automated flow scan...');
+        
+        // Scan for unusual options flow
+        const flowIdeas = await scanUnusualOptionsFlow();
+        
+        if (flowIdeas.length === 0) {
+          logger.info('📊 [FLOW-CRON] No unusual flow detected');
+          return;
+        }
+        
+        logger.info(`📊 [FLOW-CRON] Found ${flowIdeas.length} flow signals, validating...`);
+        
+        // Get existing open trade symbols to avoid duplicates
+        const allIdeas = await storage.getAllTradeIdeas();
+        const existingOpenSymbols = new Set(
+          allIdeas
+            .filter((idea: any) => idea.outcomeStatus === 'open')
+            .map((idea: any) => idea.symbol.toUpperCase())
+        );
+        
+        // Validate and save flow trades
+        let savedCount = 0;
+        let rejectedCount = 0;
+        let duplicateCount = 0;
+        const savedIdeas = [];
+        
+        for (const idea of flowIdeas) {
+          try {
+            // Skip duplicates
+            if (existingOpenSymbols.has(idea.symbol.toUpperCase())) {
+              logger.info(`📊 [FLOW-CRON] Skipped ${idea.symbol} - already has open trade`);
+              duplicateCount++;
+              continue;
+            }
+            
+            // 🛡️ LAYER 1: Structural validation
+            const structureValid = validateTradeStructure({
+              symbol: idea.symbol,
+              assetType: idea.assetType,
+              direction: idea.direction,
+              entryPrice: idea.entryPrice,
+              targetPrice: idea.targetPrice,
+              stopLoss: idea.stopLoss
+            }, 'Flow-Cron');
+            
+            if (!structureValid) {
+              rejectedCount++;
+              continue;
+            }
+            
+            // 🛡️ LAYER 2: Risk validation
+            const { validateTradeRisk } = await import('./ai-service');
+            const validation = validateTradeRisk({
+              symbol: idea.symbol,
+              assetType: idea.assetType,
+              direction: idea.direction,
+              entryPrice: idea.entryPrice,
+              targetPrice: idea.targetPrice,
+              stopLoss: idea.stopLoss,
+              catalyst: idea.catalyst || '',
+              analysis: idea.analysis || '',
+              sessionContext: idea.sessionContext || ''
+            });
+            
+            if (!validation.isValid) {
+              logger.warn(`📊 [FLOW-CRON] REJECTED ${idea.symbol} - ${validation.reason}`);
+              rejectedCount++;
+              continue;
+            }
+            
+            // Save trade idea
+            const tradeIdea = await storage.createTradeIdea(idea);
+            savedIdeas.push(tradeIdea);
+            savedCount++;
+            
+            logger.info(`✅ [FLOW-CRON] Created flow trade: ${tradeIdea.symbol} ${tradeIdea.direction.toUpperCase()} - Entry=$${tradeIdea.entryPrice}, Target=$${tradeIdea.targetPrice}, R:R=${tradeIdea.riskRewardRatio.toFixed(2)}:1`);
+            
+          } catch (error: any) {
+            logger.error(`📊 [FLOW-CRON] Failed to process ${idea.symbol}:`, error);
+            rejectedCount++;
+          }
+        }
+        
+        // Send Discord notification for batch
+        if (savedCount > 0) {
+          const { sendBatchSummaryToDiscord } = await import('./discord-service');
+          sendBatchSummaryToDiscord(savedIdeas, 'flow').catch(err => 
+            logger.error('[FLOW-CRON] Discord notification failed:', err)
+          );
+        }
+        
+        logger.info(`📊 [FLOW-CRON] Complete: ${savedCount} trades created, ${rejectedCount} rejected, ${duplicateCount} duplicates skipped`);
+        
+      } catch (error: any) {
+        logger.error('📊 [FLOW-CRON] Flow scan failed:', error);
+      }
+    });
+    
+    log('📊 Flow Scanner started - scanning unusual options every 15 minutes during market hours (9:30 AM-4:00 PM ET)');
   });
 })();
