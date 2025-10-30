@@ -13,10 +13,11 @@ const FLOW_SCAN_TICKERS = [
   'NFLX', 'DIS', 'BA', 'COIN', 'PLTR', 'SOFI', 'HOOD', 'RIOT', 'MARA', 'MSTR'
 ];
 
-// Unusual activity thresholds
-const VOLUME_RATIO_THRESHOLD = 3.0; // 3x average volume
-const PREMIUM_THRESHOLD = 100000; // $100k+ premium
-const IV_THRESHOLD = 1.0; // 100%+ implied volatility (Tradier returns IV as decimal: 0-1)
+// Unusual activity thresholds (adjusted for Tradier Sandbox limitations)
+// NOTE: Tradier Sandbox doesn't provide average_volume data, so we use absolute volume
+const VOLUME_THRESHOLD = 500; // Absolute volume >500 contracts (since avg_vol=0 in sandbox)
+const PREMIUM_THRESHOLD = 50000; // $50k+ premium
+const IV_THRESHOLD = 0.5; // 50%+ implied volatility
 
 interface UnusualOption {
   symbol: string;
@@ -25,8 +26,6 @@ interface UnusualOption {
   strike: number;
   expiration: string;
   volume: number;
-  averageVolume: number;
-  volumeRatio: number;
   premium: number; // volume * last * 100
   lastPrice: number;
   impliedVol: number;
@@ -55,24 +54,40 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
       return [];
     }
 
+    logger.info(`📊 [FLOW] ${ticker}: Found ${options.length} option contracts to analyze`);
+    
+    // Debug: Sample first contract to see what data we're getting
+    if (options.length > 0) {
+      const sample = options[0];
+      logger.info(`📊 [FLOW] ${ticker}: Sample contract - volume=${sample.volume}, avg_vol=${sample.average_volume}, last=${sample.last}, greeks=${sample.greeks ? 'yes' : 'no'}`);
+    }
+    
     const unusualOptions: UnusualOption[] = [];
+    let skippedCount = 0;
+    let missingVolume = 0;
+    let missingAvgVolume = 0;
+    let missingLast = 0;
 
     for (const option of options) {
-      // Skip if missing critical data
-      if (!option.volume || !option.average_volume || !option.last || option.last <= 0) {
+      // Skip if missing critical data (NOTE: average_volume is 0 in Tradier Sandbox, so we don't check it)
+      if (!option.volume) missingVolume++;
+      if (!option.average_volume) missingAvgVolume++;
+      if (!option.last || option.last <= 0) missingLast++;
+      
+      if (!option.volume || !option.last || option.last <= 0) {
+        skippedCount++;
         continue;
       }
 
-      const volumeRatio = option.volume / Math.max(option.average_volume, 1);
       const premium = option.volume * option.last * 100; // Contract size = 100
       const impliedVol = option.greeks?.mid_iv || option.greeks?.bid_iv || 0;
 
       const reasons: string[] = [];
       let isUnusual = false;
 
-      // Check volume ratio
-      if (volumeRatio >= VOLUME_RATIO_THRESHOLD) {
-        reasons.push(`${volumeRatio.toFixed(1)}x avg volume`);
+      // Check absolute volume (since Tradier Sandbox doesn't provide average_volume)
+      if (option.volume >= VOLUME_THRESHOLD) {
+        reasons.push(`${option.volume} vol`);
         isUnusual = true;
       }
 
@@ -96,8 +111,6 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
           strike: option.strike,
           expiration: option.expiration_date,
           volume: option.volume,
-          averageVolume: option.average_volume,
-          volumeRatio,
           premium,
           lastPrice: option.last,
           impliedVol,
@@ -108,6 +121,7 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
       }
     }
 
+    logger.info(`📊 [FLOW] ${ticker}: Analyzed ${options.length} contracts, skipped ${skippedCount} (missing: vol=${missingVolume}, avg_vol=${missingAvgVolume}, last=${missingLast}), found ${unusualOptions.length} unusual`);
     return unusualOptions;
   } catch (error) {
     logger.error(`📊 [FLOW] Error scanning ${ticker}:`, error);
@@ -142,9 +156,9 @@ function analyzeFlowSignals(ticker: string, currentPrice: number, unusualOptions
     totalPremium = putPremium;
   }
 
-  // Calculate signal strength (0-100)
-  const avgVolumeRatio = dominantOptions.reduce((sum, opt) => sum + opt.volumeRatio, 0) / dominantOptions.length;
-  const signalStrength = Math.min(100, 50 + (avgVolumeRatio - VOLUME_RATIO_THRESHOLD) * 10);
+  // Calculate signal strength (0-100) based on average volume
+  const avgVolume = dominantOptions.reduce((sum, opt) => sum + opt.volume, 0) / dominantOptions.length;
+  const signalStrength = Math.min(100, 50 + ((avgVolume - VOLUME_THRESHOLD) / 100));
 
   logger.info(`📊 [FLOW] ${ticker} FLOW SIGNAL: ${direction.toUpperCase()} - ${dominantOptions.length} unusual ${direction === 'long' ? 'calls' : 'puts'}, $${(totalPremium / 1000000).toFixed(2)}M premium, ${signalStrength.toFixed(0)}% strength`);
 
@@ -220,7 +234,7 @@ function generateTradeFromFlow(signal: FlowSignal): InsertTradeIdea | null {
     `${opt.optionType.toUpperCase()} $${opt.strike} (${opt.reasons.join(', ')})`
   ).join('; ');
 
-  const analysis = `Smart money targeting $${targetStrike} strike. Most active: ${mostActiveOption.optionType.toUpperCase()} $${mostActiveOption.strike} with ${mostActiveOption.volumeRatio.toFixed(1)}x volume surge and $${(mostActiveOption.premium / 1000).toFixed(0)}k premium. Top unusual options: ${topOptions}. Flow suggests ${direction === 'long' ? 'bullish' : 'bearish'} move toward $${targetStrike}.`;
+  const analysis = `Smart money targeting $${targetStrike} strike. Most active: ${mostActiveOption.optionType.toUpperCase()} $${mostActiveOption.strike} with ${mostActiveOption.volume} volume and $${(mostActiveOption.premium / 1000).toFixed(0)}k premium. Top unusual options: ${topOptions}. Flow suggests ${direction === 'long' ? 'bullish' : 'bearish'} move toward $${targetStrike}.`;
 
   const sessionContext = `${formatInTimeZone(now, 'America/New_York', 'ha zzz')} - Unusual options flow detected in ${ticker}`;
 
@@ -243,7 +257,7 @@ function generateTradeFromFlow(signal: FlowSignal): InsertTradeIdea | null {
     confidenceScore: signalStrength,
     qualitySignals: [
       `unusual_${direction === 'long' ? 'call' : 'put'}_flow`,
-      `volume_surge_${mostActiveOption.volumeRatio.toFixed(1)}x`,
+      `volume_${mostActiveOption.volume}_contracts`,
       `premium_$${(totalPremium / 1000000).toFixed(2)}M`
     ],
     probabilityBand: signalStrength >= 70 ? 'B+' : signalStrength >= 60 ? 'B' : 'C+',
