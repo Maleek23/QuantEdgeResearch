@@ -32,7 +32,7 @@ interface PriceCacheEntry {
 }
 
 const priceCache = new Map<string, PriceCacheEntry>();
-const PRICE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+const PRICE_CACHE_TTL = 60 * 1000; // 60 seconds (was 5 minutes - caused stale $203 NVDA price on $140 trade)
 
 function getCachedPrice(symbol: string): number | null {
   const cached = priceCache.get(symbol);
@@ -52,6 +52,11 @@ function setCachedPrice(symbol: string, price: number): void {
     price,
     timestamp: Date.now()
   });
+}
+
+function clearCachedPrice(symbol: string): void {
+  priceCache.delete(symbol);
+  logger.info(`[PRICE-CACHE] Cleared stale cache for ${symbol}`);
 }
 
 // Premium subscription middleware

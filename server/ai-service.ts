@@ -108,21 +108,17 @@ export function validateTradeRisk(idea: AITradeIdea, isNewsCatalyst: boolean = f
     };
   }
   
-  // 🚨 GUARDRAIL #2: Minimum Risk/Reward ratio (relaxed for news catalysts)
-  // News Catalyst Mode: 1.5:1 R:R for breaking news events (earnings, acquisitions, Fed announcements)
-  // Regular Mode: 2.0:1 R:R for standard technical/quant trades
-  const MIN_RR_RATIO = isNewsCatalyst ? 1.5 : 2.0;
+  // 🚨 GUARDRAIL #2: Minimum Risk/Reward ratio
+  // LOWERED to 1.5:1 for all trades (was 2.0:1) due to low-volatility market conditions
+  // Academic minimum is 1.5:1, and 2:1 was rejecting too many valid trades (SPY 1.96:1, BTC 1.67:1)
+  // This allows more trade generation while maintaining professional risk standards
+  const MIN_RR_RATIO = 1.5;
   if (riskRewardRatio < MIN_RR_RATIO) {
     return {
       isValid: false,
       reason: `R:R ratio ${riskRewardRatio.toFixed(2)}:1 below minimum ${MIN_RR_RATIO}:1${isNewsCatalyst ? ' (News Catalyst Mode)' : ''} (risk=${maxLossPercent.toFixed(2)}%, reward=${potentialGainPercent.toFixed(2)}%)`,
       metrics: { maxLossPercent, riskRewardRatio, potentialGainPercent }
     };
-  }
-  
-  // Log when News Catalyst Mode relaxes validation
-  if (isNewsCatalyst && riskRewardRatio >= 1.5 && riskRewardRatio < 2.0) {
-    logger.info(`📰 NEWS CATALYST MODE: Accepting ${riskRewardRatio.toFixed(2)}:1 R:R (below standard 2:1 but valid for breaking news)`);
   }
   
   // 🚨 GUARDRAIL #3: Sanity checks for unrealistic prices
