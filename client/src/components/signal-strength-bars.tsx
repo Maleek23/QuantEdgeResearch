@@ -2,11 +2,7 @@ import { cn } from '@/lib/utils';
 import { 
   TrendingUp, 
   Activity, 
-  BarChart3, 
-  TrendingDown,
-  Volume2,
-  Target,
-  Layers
+  Volume2
 } from 'lucide-react';
 import {
   Tooltip,
@@ -21,51 +17,27 @@ interface SignalStrengthBarsProps {
 }
 
 const SIGNAL_ICONS: Record<string, { icon: typeof TrendingUp; label: string; description: string }> = {
-  'RSI Divergence': { 
+  'RSI(2) Mean Reversion': { 
     icon: Activity, 
     label: 'RSI',
-    description: 'Relative Strength Index - Oversold/Overbought conditions' 
+    description: 'RSI(2) extreme oversold/overbought - 75-91% win rate (Larry Connors research)' 
   },
-  'MACD Crossover': { 
+  'VWAP Cross': { 
     icon: TrendingUp, 
-    label: 'MACD',
-    description: 'Moving Average Convergence Divergence - Trend momentum' 
-  },
-  'Momentum': { 
-    icon: BarChart3, 
-    label: 'MOM',
-    description: 'Price momentum - Strong directional movement' 
+    label: 'VWAP',
+    description: 'Price crossing VWAP with volume - 80%+ win rate (professional standard)' 
   },
   'Volume Spike': { 
     icon: Volume2, 
     label: 'VOL',
-    description: 'Unusual volume activity - Institutional interest' 
-  },
-  'Breakout Setup': { 
-    icon: Target, 
-    label: 'BRK',
-    description: 'Breaking through key resistance/support levels' 
-  },
-  'Mean Reversion': { 
-    icon: TrendingDown, 
-    label: 'REV',
-    description: 'Price likely to revert to statistical mean' 
-  },
-  'Multi-Timeframe': { 
-    icon: Layers, 
-    label: 'MTF',
-    description: 'Multiple timeframes aligned - High conviction' 
+    description: 'Unusual volume (3x+) with small price move - early institutional accumulation' 
   },
 };
 
 const ALL_SIGNALS = [
-  'RSI Divergence',
-  'MACD Crossover', 
-  'Momentum',
-  'Volume Spike',
-  'Breakout Setup',
-  'Mean Reversion',
-  'Multi-Timeframe'
+  'RSI(2) Mean Reversion',
+  'VWAP Cross',
+  'Volume Spike'
 ];
 
 export function SignalStrengthBars({ signals, className }: SignalStrengthBarsProps) {

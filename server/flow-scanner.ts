@@ -6,6 +6,7 @@ import { getTradierQuote, getTradierOptionsChain } from './tradier-api';
 import { validateTradeRisk } from './ai-service';
 import { logger } from './logger';
 import { formatInTimeZone } from 'date-fns-tz';
+import { storage } from './storage';
 
 // Top 20 high-volume tickers for flow scanning
 const FLOW_SCAN_TICKERS = [
@@ -270,12 +271,26 @@ function generateTradeFromFlow(signal: FlowSignal): InsertTradeIdea | null {
 export async function scanUnusualOptionsFlow(): Promise<InsertTradeIdea[]> {
   logger.info(`📊 [FLOW] Starting unusual options flow scan on ${FLOW_SCAN_TICKERS.length} tickers...`);
   
+  // 🚫 DEDUPLICATION: Get existing open symbols to avoid duplicate trades
+  const allIdeas = await storage.getAllTradeIdeas();
+  const existingOpenSymbols = new Set(
+    allIdeas
+      .filter((idea: any) => idea.outcomeStatus === 'open')
+      .map((idea: any) => idea.symbol.toUpperCase())
+  );
+  
   const tradeIdeas: InsertTradeIdea[] = [];
   let scannedCount = 0;
   let unusualCount = 0;
 
   for (const ticker of FLOW_SCAN_TICKERS) {
     try {
+      // 🚫 Skip if symbol already has an open trade
+      if (existingOpenSymbols.has(ticker.toUpperCase())) {
+        logger.info(`📊 [FLOW] Skipped ${ticker} - already has open trade`);
+        continue;
+      }
+      
       // Get current stock price
       const quote = await getTradierQuote(ticker);
       if (!quote || !quote.last || quote.last <= 0) {

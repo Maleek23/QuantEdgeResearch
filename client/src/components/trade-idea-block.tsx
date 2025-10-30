@@ -24,6 +24,7 @@ import { MiniSparkline } from "@/components/mini-sparkline";
 import { SignalStrengthBars } from "@/components/signal-strength-bars";
 import { EnhancedCountdown } from "@/components/enhanced-countdown";
 import { TimingDisplay } from "@/components/timing-display";
+import { getPerformanceGrade } from "@/lib/performance-grade";
 import type { TradeIdea, Catalyst } from "@shared/schema";
 
 interface TradeIdeaBlockProps {
@@ -76,16 +77,6 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
       ? ((currentPrice - idea.entryPrice) / idea.entryPrice) * 100  // Long: normal calculation
       : ((idea.entryPrice - currentPrice) / idea.entryPrice) * 100   // Short: inverted (price down = positive)
     : 0;
-
-  const getLetterGrade = (score: number): string => {
-    if (score >= 95) return 'A+';
-    if (score >= 90) return 'A';
-    if (score >= 85) return 'B+';
-    if (score >= 80) return 'B';
-    if (score >= 75) return 'C+';
-    if (score >= 70) return 'C';
-    return 'D';
-  };
 
   const getTimeSincePosted = (): string => {
     const now = new Date();
@@ -570,7 +561,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
           <div className="grid grid-cols-3 gap-4 p-4 rounded-lg bg-background/50 border">
             <div className="text-center">
               <div className="text-xs text-muted-foreground mb-1">Grade</div>
-              <div className="text-lg font-bold">{getLetterGrade(idea.confidenceScore)}</div>
+              <div className="text-lg font-bold">{getPerformanceGrade(idea.confidenceScore).grade}</div>
             </div>
             <div className="text-center border-x">
               <div className="text-xs text-muted-foreground mb-1">R:R Ratio</div>

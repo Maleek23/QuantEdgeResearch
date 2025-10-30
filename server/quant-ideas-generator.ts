@@ -1142,7 +1142,7 @@ export async function generateQuantIdeas(
     // Format entry and exit windows using quantitative timing intelligence
     const entryValidUntil = (() => {
       const validUntilDate = new Date(now.getTime() + timingAnalytics.entryWindowMinutes * 60 * 1000);
-      return formatInTimeZone(validUntilDate, timezone, 'h:mm a') + ' CST';
+      return validUntilDate.toISOString();
     })();
 
     const exitBy = (() => {
@@ -1155,11 +1155,12 @@ export async function generateQuantIdeas(
     // Use holding period from timing analytics (includes week-ending strategy)
     const holdingPeriod = timingAnalytics.holdingPeriodType;
     
-    // Format exitBy for logging display
+    // Format timestamps for logging display
+    const entryValidUntilFormatted = formatInTimeZone(new Date(entryValidUntil), timezone, 'MMM d, h:mm a') + ' CST';
     const exitByFormatted = formatInTimeZone(new Date(exitBy), timezone, 'MMM d, h:mm a') + ' CST';
     
     logger.info(
-      `⏰ ${data.symbol} QUANTITATIVE TIMING: Entry in ${timingAnalytics.entryWindowMinutes}min (${entryValidUntil}), ` +
+      `⏰ ${data.symbol} QUANTITATIVE TIMING: Entry in ${timingAnalytics.entryWindowMinutes}min (${entryValidUntilFormatted}), ` +
       `Exit in ${timingAnalytics.exitWindowMinutes}min (${exitByFormatted}) | ` +
       `${holdingPeriod.toUpperCase()} TRADE | ` +
       `Regime: ${regime.volatilityRegime} volatility, ${regime.sessionPhase} session | ` +
