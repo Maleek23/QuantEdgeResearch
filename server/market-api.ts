@@ -374,7 +374,18 @@ export async function fetchHistoricalPrices(
       );
 
       if (!response.ok) {
-        logger.info(`CoinGecko historical data error for ${symbol}`);
+        const errorText = await response.text().catch(() => 'Unable to read error');
+        logger.warn(`CoinGecko historical data error for ${symbol}: HTTP ${response.status} - ${errorText.substring(0, 200)}`);
+        
+        // Check for specific error types
+        if (response.status === 429) {
+          logger.error(`🚨 CoinGecko Rate Limit Hit - ${symbol}`);
+        } else if (response.status === 403) {
+          logger.error(`🚨 CoinGecko Access Forbidden - ${symbol} - Check API key/permissions`);
+        } else if (response.status === 404) {
+          logger.warn(`⚠️  CoinGecko Coin Not Found - ${symbol} (coinId: ${resolvedCoinId})`);
+        }
+        
         return [];
       }
 

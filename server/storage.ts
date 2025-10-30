@@ -1761,7 +1761,21 @@ export class DatabaseStorage implements IStorage {
 
   // Catalyst Methods
   async getAllCatalysts(): Promise<Catalyst[]> {
-    return await db.select().from(catalystsTable).orderBy(desc(catalystsTable.timestamp));
+    // 🎯 PERFORMANCE FIX: Only return upcoming catalysts (next 14 days)
+    // Was sending 5700 catalysts (1.78MB) to frontend, causing browser freeze
+    const now = new Date();
+    const fourteenDaysFromNow = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    
+    const allCatalysts = await db.select().from(catalystsTable).orderBy(catalystsTable.timestamp);
+    
+    // Filter to only upcoming events (future to 14 days out)
+    const upcomingCatalysts = allCatalysts.filter(catalyst => {
+      const eventDate = new Date(catalyst.timestamp);
+      return eventDate >= now && eventDate <= fourteenDaysFromNow;
+    });
+    
+    logger.info(`📰 Catalyst Feed: Showing ${upcomingCatalysts.length} upcoming events (next 14 days) out of ${allCatalysts.length} total`);
+    return upcomingCatalysts;
   }
 
   async getCatalystsBySymbol(symbol: string): Promise<Catalyst[]> {
