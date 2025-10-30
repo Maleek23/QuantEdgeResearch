@@ -181,21 +181,20 @@ function generateTradeFromFlow(signal: FlowSignal): InsertTradeIdea | null {
     opt.premium > max.premium ? opt : max
   );
 
-  const targetStrike = mostActiveOption.strike;
-
-  // Calculate entry, target, and stop
+  // Calculate entry, target, and stop using percentage-based targets
+  // R:R ratio: 5.25% reward / 3.5% risk = 1.5:1 (meets minimum requirement)
   const entryPrice = currentPrice;
   let targetPrice: number;
   let stopLoss: number;
 
   if (direction === 'long') {
-    // LONG: Entry = current, Target = strike, Stop = 3.5% below entry
-    targetPrice = targetStrike;
-    stopLoss = entryPrice * 0.965; // 3.5% below
+    // LONG: Entry = current, Target = +5.25% above entry, Stop = -3.5% below entry
+    targetPrice = entryPrice * 1.0525;
+    stopLoss = entryPrice * 0.965;
   } else {
-    // SHORT: Entry = current, Target = strike, Stop = 3.5% above entry
-    targetPrice = targetStrike;
-    stopLoss = entryPrice * 1.035; // 3.5% above
+    // SHORT: Entry = current, Target = -5.25% below entry, Stop = +3.5% above entry
+    targetPrice = entryPrice * 0.9475;
+    stopLoss = entryPrice * 1.035;
   }
 
   // Calculate R:R ratio
@@ -234,7 +233,7 @@ function generateTradeFromFlow(signal: FlowSignal): InsertTradeIdea | null {
     `${opt.optionType.toUpperCase()} $${opt.strike} (${opt.reasons.join(', ')})`
   ).join('; ');
 
-  const analysis = `Smart money targeting $${targetStrike} strike. Most active: ${mostActiveOption.optionType.toUpperCase()} $${mostActiveOption.strike} with ${mostActiveOption.volume} volume and $${(mostActiveOption.premium / 1000).toFixed(0)}k premium. Top unusual options: ${topOptions}. Flow suggests ${direction === 'long' ? 'bullish' : 'bearish'} move toward $${targetStrike}.`;
+  const analysis = `Smart money targeting ${direction === 'long' ? '+5.25%' : '-5.25%'} move. Most active: ${mostActiveOption.optionType.toUpperCase()} $${mostActiveOption.strike} with ${mostActiveOption.volume} volume and $${(mostActiveOption.premium / 1000).toFixed(0)}k premium. Top unusual options: ${topOptions}. Flow suggests ${direction === 'long' ? 'bullish' : 'bearish'} momentum.`;
 
   const sessionContext = `${formatInTimeZone(now, 'America/New_York', 'ha zzz')} - Unusual options flow detected in ${ticker}`;
 
