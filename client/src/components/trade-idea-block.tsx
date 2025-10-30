@@ -167,6 +167,10 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                       ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/50" 
                       : idea.source === 'hybrid'
                       ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/50"
+                      : idea.source === 'news'
+                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/50"
+                      : idea.source === 'flow'
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/50"
                       : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/50"
                   )}
                   data-testid={`badge-source-${idea.symbol}`}
@@ -175,6 +179,10 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     <><Bot className="h-3 w-3 mr-1" />AI ENGINE</>
                   ) : idea.source === 'hybrid' ? (
                     <><Sparkles className="h-3 w-3 mr-1" />HYBRID (AI+QUANT)</>
+                  ) : idea.source === 'news' ? (
+                    <><Newspaper className="h-3 w-3 mr-1" />NEWS</>
+                  ) : idea.source === 'flow' ? (
+                    <><Activity className="h-3 w-3 mr-1" />FLOW SCANNER</>
                   ) : (
                     <><BarChart3 className="h-3 w-3 mr-1" />QUANT ENGINE</>
                   )}

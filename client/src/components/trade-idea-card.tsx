@@ -5,7 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency, formatPercent, formatCTTime, cn, calculateDynamicSignal, type TradeSignal } from "@/lib/utils";
 import type { TradeIdea } from "@shared/schema";
-import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink, Bot, BarChart3, Sparkles } from "lucide-react";
+import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink, Bot, BarChart3, Sparkles, Newspaper, Activity } from "lucide-react";
 
 interface TradeIdeaCardProps {
   idea: TradeIdea;
@@ -66,6 +66,10 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                       ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/50" 
                       : idea.source === 'hybrid'
                       ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/50"
+                      : idea.source === 'news'
+                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/50"
+                      : idea.source === 'flow'
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/50"
                       : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/50"
                   )}
                   data-testid={`badge-source-${idea.symbol}`}
@@ -79,6 +83,16 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                     <>
                       <Sparkles className="h-3 w-3" />
                       HYBRID
+                    </>
+                  ) : idea.source === 'news' ? (
+                    <>
+                      <Newspaper className="h-3 w-3" />
+                      NEWS
+                    </>
+                  ) : idea.source === 'flow' ? (
+                    <>
+                      <Activity className="h-3 w-3" />
+                      FLOW SCANNER
                     </>
                   ) : (
                     <>
