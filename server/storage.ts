@@ -1768,13 +1768,13 @@ export class DatabaseStorage implements IStorage {
     
     const allCatalysts = await db.select().from(catalystsTable).orderBy(catalystsTable.timestamp);
     
-    // Filter to only upcoming events (future to 14 days out)
+    // Filter to only upcoming events (today to 14 days out)
     const upcomingCatalysts = allCatalysts.filter(catalyst => {
       const eventDate = new Date(catalyst.timestamp);
       return eventDate >= now && eventDate <= fourteenDaysFromNow;
     });
     
-    logger.info(`📰 Catalyst Feed: Showing ${upcomingCatalysts.length} upcoming events (next 14 days) out of ${allCatalysts.length} total`);
+    console.log(`📰 Catalyst Feed: Showing ${upcomingCatalysts.length} upcoming events (next 14 days) out of ${allCatalysts.length} total`);
     return upcomingCatalysts;
   }
 
