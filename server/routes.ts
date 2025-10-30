@@ -1331,6 +1331,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               isNewsCatalyst: true,
             });
             
+            // 🔥 Clear stale price cache to force fresh fetch on next validation
+            clearCachedPrice(aiIdea.symbol);
+            
             generatedTrades.push(tradeIdea);
             logger.info(`✅ [NEWS-TRADE] Created news-driven trade: ${tradeIdea.symbol} from "${article.title}"`);
           } catch (error: any) {
@@ -1872,6 +1875,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logger.info(`✅ Quant: ${idea.symbol} passed validation - Loss:${validation.metrics?.maxLossPercent.toFixed(2)}% R:R:${validation.metrics?.riskRewardRatio.toFixed(2)}:1`);
         
         const tradeIdea = await storage.createTradeIdea(idea);
+        
+        // 🔥 Clear stale price cache to force fresh fetch on next validation
+        clearCachedPrice(idea.symbol);
+        
         savedIdeas.push(tradeIdea);
       }
       
@@ -2007,6 +2014,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           source: 'ai',
           isNewsCatalyst: isNewsCatalyst
         });
+        
+        // 🔥 CRITICAL FIX: Clear stale price cache to force fresh fetch on next validation
+        // Prevents $203 NVDA cached price from being used on $140 entry trades
+        clearCachedPrice(aiIdea.symbol);
+        
         savedIdeas.push(tradeIdea);
       }
       
