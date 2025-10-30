@@ -148,13 +148,13 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
       className="group"
     >
       <CollapsibleTrigger className="w-full" data-testid={`block-trade-idea-${idea.symbol}`}>
-        <div className="p-6 border rounded-lg bg-card hover-elevate transition-all block">
+        <div className="p-4 border rounded-lg bg-card hover-elevate transition-all block">
           {/* ===== HEADER SECTION ===== */}
-          <div className="flex items-start justify-between mb-5">
+          <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">
               {/* Symbol + Primary Badges */}
-              <div className="flex items-center gap-3 mb-3 flex-wrap">
-                <h3 className="text-2xl font-bold font-mono" data-testid={`text-symbol-${idea.symbol}`}>
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <h3 className="text-xl font-bold font-mono" data-testid={`text-symbol-${idea.symbol}`}>
                   {idea.symbol}
                 </h3>
                 
@@ -299,17 +299,17 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
           {/* ===== ENTRY TIME DISPLAY (OPEN TRADES) ===== */}
           {idea.outcomeStatus === 'open' && (
-            <div className="mb-5 p-4 rounded-lg border bg-gradient-to-br from-blue-500/5 via-card to-purple-500/5" data-testid={`entry-info-${idea.symbol}`}>
-              <div className="flex items-center gap-2 mb-3">
-                <Clock className="h-4 w-4 text-blue-400" />
-                <h4 className="text-sm font-semibold text-blue-400">Trade Entry Information</h4>
+            <div className="mb-3 p-3 rounded-lg border bg-gradient-to-br from-blue-500/5 via-card to-purple-500/5" data-testid={`entry-info-${idea.symbol}`}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Clock className="h-3.5 w-3.5 text-blue-400" />
+                <h4 className="text-xs font-semibold text-blue-400 uppercase tracking-wide">Entry/Exit Windows</h4>
               </div>
               
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 {/* Posted Time */}
-                <div className="p-3 rounded-lg bg-card border border-border/50">
-                  <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Posted Time</div>
-                  <div className="text-sm font-semibold" data-testid={`text-posted-time-${idea.symbol}`}>
+                <div className="p-2 rounded-lg bg-card border border-border/50">
+                  <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">Entry Time</div>
+                  <div className="text-xs font-bold" data-testid={`text-posted-time-${idea.symbol}`}>
                     {(() => {
                       const postedDate = new Date(idea.timestamp);
                       if (!isNaN(postedDate.getTime())) {
@@ -318,14 +318,14 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                       return idea.timestamp;
                     })()}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">CST</div>
                 </div>
 
                 {/* Enter When */}
                 {idea.entryValidUntil && (
-                  <div className="p-3 rounded-lg bg-card border border-border/50">
-                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Enter When</div>
-                    <div className="text-sm font-semibold" data-testid={`text-entry-valid-${idea.symbol}`}>
+                  <div className="p-2 rounded-lg bg-card border border-border/50">
+                    <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">Valid Until</div>
+                    <div className="text-xs font-bold" data-testid={`text-entry-valid-${idea.symbol}`}>
                       {(() => {
                         const entryDate = new Date(idea.entryValidUntil);
                         if (!isNaN(entryDate.getTime())) {
@@ -334,15 +334,15 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                         return idea.entryValidUntil;
                       })()}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">CST</div>
                   </div>
                 )}
                 
                 {/* Exit By */}
                 {idea.exitBy && (
-                  <div className="p-3 rounded-lg bg-card border border-border/50">
-                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Exit By</div>
-                    <div className="text-sm font-semibold" data-testid={`text-exit-by-${idea.symbol}`}>
+                  <div className="p-2 rounded-lg bg-card border border-border/50">
+                    <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">Exit By</div>
+                    <div className="text-xs font-bold" data-testid={`text-exit-by-${idea.symbol}`}>
                       {(() => {
                         const exitDate = new Date(idea.exitBy);
                         if (!isNaN(exitDate.getTime())) {
@@ -351,7 +351,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                         return idea.exitBy;
                       })()}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">CST</div>
                   </div>
                 )}
               </div>
@@ -360,38 +360,38 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
           {/* ===== ENTRY/EXIT TIMING ANALYSIS (CLOSED TRADES) ===== */}
           {idea.outcomeStatus !== 'open' && (
-            <div className="mb-5 p-4 rounded-lg border bg-gradient-to-br from-blue-500/5 via-card to-purple-500/5" data-testid={`timing-analysis-${idea.symbol}`}>
-              <div className="flex items-center gap-2 mb-3">
-                <Clock className="h-4 w-4 text-blue-400" />
-                <h4 className="text-sm font-semibold text-blue-400">Trade Timing Analysis</h4>
+            <div className="mb-3 p-3 rounded-lg border bg-gradient-to-br from-blue-500/5 via-card to-purple-500/5" data-testid={`timing-analysis-${idea.symbol}`}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Clock className="h-3.5 w-3.5 text-blue-400" />
+                <h4 className="text-xs font-semibold text-blue-400 uppercase tracking-wide">Timing</h4>
               </div>
               
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 {/* Entry Time */}
-                <div className="p-3 rounded-lg bg-card border border-border/50">
-                  <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Entry Time</div>
-                  <div className="text-sm font-semibold" data-testid={`text-entry-time-${idea.symbol}`}>
+                <div className="p-2 rounded-lg bg-card border border-border/50">
+                  <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">Entry</div>
+                  <div className="text-xs font-bold" data-testid={`text-entry-time-${idea.symbol}`}>
                     {formatInTimeZone(parseISO(idea.timestamp), 'America/Chicago', 'MMM d, h:mm a')}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">CST</div>
                 </div>
 
                 {/* Exit Time */}
                 {idea.exitDate && (
-                  <div className="p-3 rounded-lg bg-card border border-border/50">
-                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Exit Time</div>
-                    <div className="text-sm font-semibold" data-testid={`text-exit-time-${idea.symbol}`}>
+                  <div className="p-2 rounded-lg bg-card border border-border/50">
+                    <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">Exit</div>
+                    <div className="text-xs font-bold" data-testid={`text-exit-time-${idea.symbol}`}>
                       {formatInTimeZone(parseISO(idea.exitDate), 'America/Chicago', 'MMM d, h:mm a')}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">CST</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">CST</div>
                   </div>
                 )}
 
                 {/* Holding Duration */}
                 {idea.actualHoldingTimeMinutes !== null && idea.actualHoldingTimeMinutes !== undefined && (
-                  <div className="p-3 rounded-lg bg-card border border-border/50">
-                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Duration</div>
-                    <div className="text-sm font-semibold" data-testid={`text-duration-${idea.symbol}`}>
+                  <div className="p-2 rounded-lg bg-card border border-border/50">
+                    <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">Duration</div>
+                    <div className="text-xs font-bold" data-testid={`text-duration-${idea.symbol}`}>
                       {(() => {
                         if (idea.actualHoldingTimeMinutes < 60) {
                           return `${idea.actualHoldingTimeMinutes} min`;
@@ -414,9 +414,9 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                         }
                       })()}
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {idea.holdingPeriod === 'day' ? 'Day Trade' : 
-                       idea.holdingPeriod === 'swing' ? 'Swing Trade' : 
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                      {idea.holdingPeriod === 'day' ? 'Day' : 
+                       idea.holdingPeriod === 'swing' ? 'Swing' : 
                        'Position'}
                     </div>
                   </div>
@@ -426,24 +426,24 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
           )}
 
           {/* ===== PRICE DISPLAY SECTION ===== */}
-          <div className="mb-5 p-5 rounded-lg border bg-gradient-to-br from-card via-card to-muted/5">
+          <div className="mb-3 p-3 rounded-lg border bg-gradient-to-br from-card via-card to-muted/5">
             {currentPrice ? (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {/* Current Price with Change */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      CURRENT PRICE
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      CURRENT
                     </span>
                     <span className={cn(
-                      "text-sm font-bold px-2.5 py-1 rounded-md",
+                      "text-xs font-bold px-2 py-0.5 rounded-md",
                       priceChangePercent >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
                     )}>
                       {formatPercent(priceChangePercent)}
                     </span>
                   </div>
                   <div className={cn(
-                    "text-4xl font-bold font-mono",
+                    "text-2xl font-bold font-mono",
                     priceUpdated && "price-update"
                   )} data-testid={`text-current-price-${idea.symbol}`}>
                     {formatCurrency(currentPrice)}
@@ -451,37 +451,37 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 </div>
 
                 {/* Entry/Target/Stop Grid */}
-                <div className="grid grid-cols-3 gap-3 pt-3 border-t border-border/50">
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/50">
                   <div>
-                    <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wide">Entry</div>
-                    <div className="text-lg font-semibold font-mono">{formatCurrency(idea.entryPrice)}</div>
+                    <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">Entry</div>
+                    <div className="text-sm font-semibold font-mono">{formatCurrency(idea.entryPrice)}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-green-400 mb-1 uppercase tracking-wide flex items-center gap-1">
-                      <TargetIcon className="h-3 w-3" />
+                    <div className="text-[10px] text-green-400 mb-0.5 uppercase tracking-wider flex items-center gap-0.5">
+                      <TargetIcon className="h-2.5 w-2.5" />
                       Target
                     </div>
-                    <div className="text-lg font-semibold font-mono text-green-400">{formatCurrency(idea.targetPrice)}</div>
+                    <div className="text-sm font-semibold font-mono text-green-400">{formatCurrency(idea.targetPrice)}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-red-400 mb-1 uppercase tracking-wide flex items-center gap-1">
-                      <Shield className="h-3 w-3" />
+                    <div className="text-[10px] text-red-400 mb-0.5 uppercase tracking-wider flex items-center gap-0.5">
+                      <Shield className="h-2.5 w-2.5" />
                       Stop
                     </div>
-                    <div className="text-lg font-semibold font-mono text-red-400">{formatCurrency(idea.stopLoss)}</div>
+                    <div className="text-sm font-semibold font-mono text-red-400">{formatCurrency(idea.stopLoss)}</div>
                   </div>
                 </div>
 
                 {/* Option Details Grid - Only for Options */}
                 {idea.assetType === 'option' && idea.strikePrice !== null && idea.strikePrice !== undefined && idea.expiryDate && idea.optionType && (
-                  <div className="grid grid-cols-3 gap-3 pt-3 mt-3 border-t border-border/50">
+                  <div className="grid grid-cols-3 gap-2 pt-2 mt-2 border-t border-border/50">
                     <div>
-                      <div className="text-xs text-blue-400 mb-1 uppercase tracking-wide flex items-center gap-1">
-                        <Activity className="h-3 w-3" />
+                      <div className="text-[10px] text-blue-400 mb-0.5 uppercase tracking-wider flex items-center gap-0.5">
+                        <Activity className="h-2.5 w-2.5" />
                         Type
                       </div>
                       <div className={cn(
-                        "text-lg font-semibold font-mono uppercase",
+                        "text-sm font-semibold font-mono uppercase",
                         idea.optionType === 'call' ? 'text-green-400' : 'text-red-400'
                       )}>
                         {idea.optionType}
