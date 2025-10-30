@@ -44,6 +44,7 @@ The platform employs a multi-page, publicly accessible architecture with members
 **Performance Validation Service:** Runs every 5 minutes to automatically validate open trade ideas.
 **Watchlist Monitor:** Checks watchlist items every 5 minutes for price alerts and updates.
 **News Monitor:** Fetches breaking news from Alpha Vantage every 15 minutes during market hours (08:00-20:00 ET) and auto-generates trade ideas from major market events. Uses sentiment analysis (>|0.7|) and keyword detection (earnings, acquisitions, Fed events) with News Catalyst Mode (1.5:1 R:R minimum). Quota protection (500 calls/day) and UUID deduplication prevent duplicate ideas.
+**Flow Scanner:** DIY unusual options flow scanner using Tradier API. Scans 20 high-volume tickers (SPY, QQQ, AAPL, NVDA, TSLA, MSFT, AMZN, META, GOOGL, AMD, NFLX, DIS, BA, COIN, PLTR, SOFI, HOOD, RIOT, MARA, MSTR) every 15 minutes during market hours (9:30 AM-4:00 PM ET). Detects unusual activity via volume ratio >3x average, premium >$100k, and IV spikes. Generates LONG stock trades on heavy call buying, SHORT on heavy put buying. Trades marked with source='flow' and display emerald "FLOW SCANNER" badge on UI.
 
 ## External Dependencies
 

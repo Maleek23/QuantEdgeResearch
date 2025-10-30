@@ -16,7 +16,7 @@ const FLOW_SCAN_TICKERS = [
 // Unusual activity thresholds
 const VOLUME_RATIO_THRESHOLD = 3.0; // 3x average volume
 const PREMIUM_THRESHOLD = 100000; // $100k+ premium
-const IV_THRESHOLD = 100; // 100%+ implied volatility
+const IV_THRESHOLD = 1.0; // 100%+ implied volatility (Tradier returns IV as decimal: 0-1)
 
 interface UnusualOption {
   symbol: string;
@@ -82,9 +82,9 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
         isUnusual = true;
       }
 
-      // Check IV spike
+      // Check IV spike (Tradier returns IV as decimal, multiply by 100 for display)
       if (impliedVol >= IV_THRESHOLD) {
-        reasons.push(`${impliedVol.toFixed(0)}% IV`);
+        reasons.push(`${(impliedVol * 100).toFixed(0)}% IV`);
         isUnusual = true;
       }
 
