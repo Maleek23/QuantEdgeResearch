@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, IdeaSource, MarketData, Catalyst } from "@shared/schema";
-import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock, Info, Activity } from "lucide-react";
+import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock, Info, Activity, Newspaper, Bot } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, subYears, isAfter, isBefore } from "date-fns";
 import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
@@ -109,6 +109,72 @@ export default function TradeIdeasPage() {
       toast({
         title: "Generation Failed",
         description: error.message || "Failed to generate AI ideas",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Generate Hybrid Ideas mutation (AI + Quant)
+  const generateHybridIdeas = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/hybrid/generate-ideas', {});
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
+      toast({
+        title: "Hybrid Ideas Generated",
+        description: `Generated ${data.count || 0} new hybrid (AI+Quant) trade ideas`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate hybrid ideas",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Generate News-based Ideas mutation
+  const generateNewsIdeas = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/news/generate-ideas', {});
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
+      toast({
+        title: "News Ideas Generated",
+        description: `Generated ${data.count || 0} news-driven trade ideas`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate news ideas",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Generate Flow Scanner Ideas mutation
+  const generateFlowIdeas = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/flow/generate-ideas', {});
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
+      toast({
+        title: "Flow Scanner Complete",
+        description: data.message || `Scanned 20 tickers, generated ${data.count || 0} flow trades`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Scan Failed",
+        description: error.message || "Failed to scan options flow",
         variant: "destructive"
       });
     }
@@ -408,29 +474,56 @@ export default function TradeIdeasPage() {
           )}
         </div>
 
-        {/* Generate Ideas Buttons - Always Available */}
+        {/* Generate Ideas Buttons - All 5 Sources */}
         <Button 
           onClick={() => generateQuantIdeas.mutate()}
           disabled={generateQuantIdeas.isPending}
           size="sm"
-          className="gap-1.5"
+          className="gap-1.5 bg-cyan-600 hover:bg-cyan-700"
           data-testid="button-generate-quant-permanent"
         >
           <BarChart3 className="h-4 w-4" />
-          <span className="hidden sm:inline">{generateQuantIdeas.isPending ? "Generating..." : "Quant"}</span>
-          <span className="sm:hidden">{generateQuantIdeas.isPending ? "..." : "Q"}</span>
+          <span className="hidden sm:inline">{generateQuantIdeas.isPending ? "..." : "Quant"}</span>
         </Button>
         <Button 
           onClick={() => generateAIIdeas.mutate()}
           disabled={generateAIIdeas.isPending}
           size="sm"
-          variant="outline"
-          className="gap-1.5"
+          className="gap-1.5 bg-purple-600 hover:bg-purple-700"
           data-testid="button-generate-ai-permanent"
         >
+          <Bot className="h-4 w-4" />
+          <span className="hidden sm:inline">{generateAIIdeas.isPending ? "..." : "AI"}</span>
+        </Button>
+        <Button 
+          onClick={() => generateHybridIdeas.mutate()}
+          disabled={generateHybridIdeas.isPending}
+          size="sm"
+          className="gap-1.5 bg-indigo-600 hover:bg-indigo-700"
+          data-testid="button-generate-hybrid-permanent"
+        >
           <Sparkles className="h-4 w-4" />
-          <span className="hidden sm:inline">{generateAIIdeas.isPending ? "Generating..." : "AI"}</span>
-          <span className="sm:hidden">{generateAIIdeas.isPending ? "..." : "A"}</span>
+          <span className="hidden sm:inline">{generateHybridIdeas.isPending ? "..." : "Hybrid"}</span>
+        </Button>
+        <Button 
+          onClick={() => generateNewsIdeas.mutate()}
+          disabled={generateNewsIdeas.isPending}
+          size="sm"
+          className="gap-1.5 bg-amber-600 hover:bg-amber-700"
+          data-testid="button-generate-news-permanent"
+        >
+          <Newspaper className="h-4 w-4" />
+          <span className="hidden sm:inline">{generateNewsIdeas.isPending ? "..." : "News"}</span>
+        </Button>
+        <Button 
+          onClick={() => generateFlowIdeas.mutate()}
+          disabled={generateFlowIdeas.isPending}
+          size="sm"
+          className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+          data-testid="button-generate-flow-permanent"
+        >
+          <Activity className="h-4 w-4" />
+          <span className="hidden sm:inline">{generateFlowIdeas.isPending ? "..." : "Flow"}</span>
         </Button>
 
         {/* View Mode Toggle */}
