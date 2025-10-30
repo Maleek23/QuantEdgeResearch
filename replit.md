@@ -40,11 +40,28 @@ All generation methods prevent duplicate trades and maintain comprehensive audit
 The platform employs a multi-page, publicly accessible architecture with membership managed via Discord roles. The system uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) via Drizzle ORM. Access tiers include Free, Premium, and Admin, with a password-protected `/admin` panel for comprehensive platform management. Security features include dual authentication, JWT authentication with HTTP-only cookies, session tokens with expiration, rate limiting, and `requireAdmin`/`requirePremium` middleware.
 
 ### Automated Services
-**Auto Idea Generator:** Automatically generates 3-5 fresh AI trade ideas every weekday at 9:30 AM CT (market open).
-**Performance Validation Service:** Runs every 5 minutes to automatically validate open trade ideas.
-**Watchlist Monitor:** Checks watchlist items every 5 minutes for price alerts and updates.
-**News Monitor:** Fetches breaking news from Alpha Vantage every 15 minutes during market hours (08:00-20:00 ET) and auto-generates trade ideas from major market events. Uses sentiment analysis (>|0.7|) and keyword detection (earnings, acquisitions, Fed events) with News Catalyst Mode (1.5:1 R:R minimum). Quota protection (500 calls/day) and UUID deduplication prevent duplicate ideas.
-**Flow Scanner:** DIY unusual options flow scanner using Tradier API. Scans 20 high-volume tickers (SPY, QQQ, AAPL, NVDA, TSLA, MSFT, AMZN, META, GOOGL, AMD, NFLX, DIS, BA, COIN, PLTR, SOFI, HOOD, RIOT, MARA, MSTR) every 15 minutes during market hours (9:30 AM-4:00 PM ET). Detects unusual activity via volume ratio >3x average, premium >$100k, and IV spikes. Generates LONG stock trades on heavy call buying, SHORT on heavy put buying. Trades marked with source='flow' and display emerald "FLOW SCANNER" badge on UI.
+
+**Complete Automation Schedule:**
+- **9:30 AM CT (Weekdays):** AI + Quant idea generation (3-5 trades each)
+- **9:45 AM CT (Weekdays):** Hybrid AI+Quant generation (15 min after market open)
+- **Every 15 min:** News Monitor (08:00-20:00 ET, market hours)
+- **Every 15 min:** Flow Scanner (09:30-16:00 ET, regular market hours)
+- **Every 5 min:** Performance Validation (automatic trade outcome detection)
+- **Every 5 min:** Watchlist Monitor (price alerts and updates)
+
+**Auto Idea Generator:** Automatically generates 3-5 fresh AI trade ideas every weekday at 9:30 AM CT (market open). Includes earnings calendar integration to block trades 2 days before/after earnings announcements (unless news catalyst). Quant ideas also generated at 9:30 AM CT with same earnings avoidance.
+
+**Hybrid Generator:** Automatically generates hybrid AI+Quant fusion trade ideas every weekday at 9:45 AM CT (15 minutes after market open). Combines quantitative signals with AI fundamental analysis. Includes deduplication (skips existing open symbols), earnings avoidance, risk validation, and Discord notifications. Trades marked with source='hybrid'.
+
+**Earnings Calendar Integration:** Alpha Vantage EARNINGS_CALENDAR endpoint provides 3-month forward-looking earnings data. 24-hour caching reduces API usage. All automated generators (AI, Quant, Hybrid) block trade generation 2 days before earnings unless source='news' and isNewsCatalyst=true (news-driven momentum plays bypass earnings filter).
+
+**Performance Validation Service:** Runs every 5 minutes to automatically validate open trade ideas against real-time price data. Detects target hits, stop loss hits, and expirations. Calculates prediction accuracy, highest/lowest prices reached, and holding times.
+
+**Watchlist Monitor:** Checks watchlist items every 5 minutes for price alerts and updates. Triggers Discord notifications when price targets are reached. Supports both stock and crypto symbols.
+
+**News Monitor:** Fetches breaking news from Alpha Vantage every 15 minutes during market hours (08:00-20:00 ET) and auto-generates trade ideas from major market events. Uses sentiment analysis (>|0.7|) and keyword detection (earnings, acquisitions, Fed events) with News Catalyst Mode (1.5:1 R:R minimum). Quota protection (500 calls/day) and UUID deduplication prevent duplicate ideas. Skips symbols with existing open trades.
+
+**Flow Scanner:** DIY unusual options flow scanner using Tradier API. Scans 20 high-volume tickers (SPY, QQQ, AAPL, NVDA, TSLA, MSFT, AMZN, META, GOOGL, AMD, NFLX, DIS, BA, COIN, PLTR, SOFI, HOOD, RIOT, MARA, MSTR) every 15 minutes during market hours (9:30 AM-4:00 PM ET). Detects unusual activity via volume ratio >3x average, premium >$100k, and IV spikes. Generates LONG stock trades on heavy call buying, SHORT on heavy put buying. Skips symbols with existing open trades. Trades marked with source='flow' and display emerald "FLOW SCANNER" badge on UI.
 
 ## External Dependencies
 

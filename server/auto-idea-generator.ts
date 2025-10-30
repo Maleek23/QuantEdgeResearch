@@ -1,6 +1,7 @@
 import { logger } from "./logger";
 import { storage } from "./storage";
 import { generateTradeIdeas, validateTradeRisk } from "./ai-service";
+import { shouldBlockSymbol } from "./earnings-service";
 
 /**
  * Automated Daily Idea Generation Service
@@ -127,6 +128,17 @@ class AutoIdeaGenerator {
         if (existingOpenSymbols.has(aiIdea.symbol.toUpperCase())) {
           logger.info(`⏭️  [AUTO-GEN] Skipped ${aiIdea.symbol} - already has open trade`);
           continue;
+        }
+
+        // 📅 Check earnings calendar (block if earnings within 2 days, unless it's a news catalyst)
+        // AI-generated ideas are NOT news catalysts by default
+        if (aiIdea.assetType === 'stock' || aiIdea.assetType === 'option') {
+          const isBlocked = await shouldBlockSymbol(aiIdea.symbol, false);
+          if (isBlocked) {
+            logger.warn(`📅 [AUTO-GEN] Skipped ${aiIdea.symbol} - earnings within 2 days`);
+            rejectedIdeas.push({ symbol: aiIdea.symbol, reason: 'Earnings within 2 days' });
+            continue;
+          }
         }
 
         // 🛡️ CRITICAL: Validate risk guardrails (max 5% loss, min 2:1 R:R, price sanity)

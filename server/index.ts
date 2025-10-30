@@ -94,8 +94,175 @@ app.use((req, res, next) => {
     autoIdeaGenerator.start();
     log('🤖 Auto Idea Generator started - will generate fresh ideas at 9:30 AM CT weekdays');
     
-    // Start automated news-driven trade generation (every 15 minutes during market hours)
+    // Start automated hybrid idea generation (9:45 AM CT on weekdays - 15 min after AI/Quant)
     const cron = await import('node-cron');
+    let lastHybridRunDate: string | null = null;
+    let isHybridGenerating = false;
+    
+    // Check every 5 minutes for 9:45 AM CT window
+    cron.default.schedule('*/5 * * * *', async () => {
+      try {
+        // Prevent concurrent generations
+        if (isHybridGenerating) {
+          return;
+        }
+        
+        const now = new Date();
+        const nowCT = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        
+        // Extract CT time components
+        const hour = nowCT.getHours();
+        const minute = nowCT.getMinutes();
+        const dayOfWeek = nowCT.getDay(); // 0 = Sunday, 6 = Saturday
+        const dateKey = nowCT.toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        // Skip weekends
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          return;
+        }
+        
+        // Check if it's 9:45 AM CT (hour = 9, minute = 45-49 to catch the window)
+        const isHybridTime = hour === 9 && minute >= 45 && minute < 50;
+        
+        if (!isHybridTime) {
+          return;
+        }
+        
+        // Check if we already ran today
+        if (lastHybridRunDate === dateKey) {
+          return; // Already ran today
+        }
+        
+        isHybridGenerating = true;
+        lastHybridRunDate = dateKey;
+        
+        logger.info(`🔀 [HYBRID-CRON] Starting automated hybrid generation at 9:45 AM CT`);
+        
+        // 🚫 DEDUPLICATION: Get existing open symbols
+        const allIdeas = await storage.getAllTradeIdeas();
+        const existingOpenSymbols = new Set(
+          allIdeas
+            .filter((idea: any) => idea.outcomeStatus === 'open')
+            .map((idea: any) => idea.symbol.toUpperCase())
+        );
+        
+        // Generate hybrid ideas
+        const { generateHybridIdeas } = await import('./ai-service');
+        const { validateTradeRisk } = await import('./ai-service');
+        const { validateAndLog: validateTradeStructure } = await import('./trade-validation');
+        const hybridIdeas = await generateHybridIdeas("Market open conditions with quant + AI fusion");
+        
+        // 🛡️ Apply strict risk validation to all hybrid ideas
+        const savedIdeas = [];
+        const rejectedIdeas: Array<{symbol: string, reason: string}> = [];
+        
+        for (const hybridIdea of hybridIdeas) {
+          // 🚫 Skip if symbol already has an open trade
+          if (existingOpenSymbols.has(hybridIdea.symbol.toUpperCase())) {
+            logger.info(`⏭️  [HYBRID-CRON] Skipped ${hybridIdea.symbol} - already has open trade`);
+            continue;
+          }
+          
+          // 📅 Check earnings calendar (block if earnings within 2 days, unless it's a news catalyst)
+          if (hybridIdea.assetType === 'stock' || hybridIdea.assetType === 'option') {
+            const { shouldBlockSymbol } = await import('./earnings-service');
+            const isBlocked = await shouldBlockSymbol(hybridIdea.symbol, false);
+            if (isBlocked) {
+              logger.warn(`📅 [HYBRID-CRON] Skipped ${hybridIdea.symbol} - earnings within 2 days`);
+              rejectedIdeas.push({ symbol: hybridIdea.symbol, reason: 'Earnings within 2 days' });
+              continue;
+            }
+          }
+          
+          // 🚫 QUARANTINE: Block options trades until pricing logic is audited
+          if (hybridIdea.assetType === 'option') {
+            logger.warn(`🚫 [HYBRID-CRON] REJECTED ${hybridIdea.symbol} - Options quarantined`);
+            rejectedIdeas.push({ symbol: hybridIdea.symbol, reason: 'Options quarantined pending audit' });
+            continue;
+          }
+          
+          // 🛡️ LAYER 1: Structural validation
+          const structureValid = validateTradeStructure({
+            symbol: hybridIdea.symbol,
+            assetType: hybridIdea.assetType,
+            direction: hybridIdea.direction,
+            entryPrice: hybridIdea.entryPrice,
+            targetPrice: hybridIdea.targetPrice,
+            stopLoss: hybridIdea.stopLoss
+          }, 'Hybrid-Cron');
+          
+          if (!structureValid) {
+            rejectedIdeas.push({ symbol: hybridIdea.symbol, reason: 'Structural validation failed' });
+            continue;
+          }
+          
+          // 🛡️ LAYER 2: Risk guardrails
+          const validation = validateTradeRisk(hybridIdea);
+          
+          if (!validation.isValid) {
+            logger.warn(`🚫 [HYBRID-CRON] REJECTED ${hybridIdea.symbol} - ${validation.reason}`);
+            rejectedIdeas.push({ symbol: hybridIdea.symbol, reason: validation.reason || 'Unknown' });
+            continue;
+          }
+          
+          // ✅ Trade passes validation - save
+          logger.info(`✅ [HYBRID-CRON] ${hybridIdea.symbol} passed validation - Loss:${validation.metrics?.maxLossPercent.toFixed(2)}% R:R:${validation.metrics?.riskRewardRatio.toFixed(2)}:1`);
+          
+          const { entryPrice, targetPrice, stopLoss } = hybridIdea;
+          const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
+          const holdingPeriod: 'day' | 'swing' | 'position' = hybridIdea.assetType === 'crypto' ? 'position' : 'day';
+          
+          const tradeIdea = await storage.createTradeIdea({
+            symbol: hybridIdea.symbol,
+            assetType: hybridIdea.assetType,
+            direction: hybridIdea.direction,
+            holdingPeriod: holdingPeriod,
+            entryPrice,
+            targetPrice,
+            stopLoss,
+            riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
+            catalyst: hybridIdea.catalyst,
+            analysis: hybridIdea.analysis,
+            liquidityWarning: hybridIdea.entryPrice < 5,
+            sessionContext: hybridIdea.sessionContext,
+            timestamp: new Date().toISOString(),
+            expiryDate: hybridIdea.expiryDate || null,
+            strikePrice: hybridIdea.assetType === 'option' ? hybridIdea.entryPrice * (hybridIdea.direction === 'long' ? 1.02 : 0.98) : null,
+            optionType: hybridIdea.assetType === 'option' ? (hybridIdea.direction === 'long' ? 'call' : 'put') : null,
+            source: 'hybrid'
+          });
+          savedIdeas.push(tradeIdea);
+        }
+        
+        // Send Discord notification for batch
+        if (savedIdeas.length > 0) {
+          const { sendBatchSummaryToDiscord } = await import('./discord-service');
+          sendBatchSummaryToDiscord(savedIdeas, 'hybrid').catch(err => 
+            logger.error('[HYBRID-CRON] Discord notification failed:', err)
+          );
+        }
+        
+        // Log summary
+        if (rejectedIdeas.length > 0) {
+          logger.warn(`🛡️ [HYBRID-CRON] Risk Validation Summary: ${rejectedIdeas.length} rejected, ${savedIdeas.length} passed`);
+        }
+        
+        if (savedIdeas.length > 0) {
+          logger.info(`✅ [HYBRID-CRON] Successfully generated ${savedIdeas.length} hybrid trade ideas`);
+        } else {
+          logger.warn('⚠️  [HYBRID-CRON] No ideas generated - all rejected or AI unavailable');
+        }
+        
+      } catch (error: any) {
+        logger.error('🔀 [HYBRID-CRON] Hybrid generation failed:', error);
+      } finally {
+        isHybridGenerating = false;
+      }
+    });
+    
+    log('🔀 Hybrid Generator started - will generate ideas at 9:45 AM CT weekdays (15 min after AI/Quant)');
+    
+    // Start automated news-driven trade generation (every 15 minutes during market hours)
     const { fetchBreakingNews, getNewsServiceStatus } = await import('./news-service');
     const { generateTradeIdeasFromNews } = await import('./ai-service');
     const { storage } = await import('./storage');

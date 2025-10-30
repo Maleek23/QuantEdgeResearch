@@ -2170,6 +2170,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
         
+        // 📅 Check earnings calendar (block if earnings within 2 days, unless it's a news catalyst)
+        // Hybrid ideas are NOT news catalysts by default
+        if (hybridIdea.assetType === 'stock' || hybridIdea.assetType === 'option') {
+          const { shouldBlockSymbol } = await import('./earnings-service');
+          const isBlocked = await shouldBlockSymbol(hybridIdea.symbol, false);
+          if (isBlocked) {
+            logger.warn(`📅 [HYBRID] Skipped ${hybridIdea.symbol} - earnings within 2 days`);
+            rejectedIdeas.push({ symbol: hybridIdea.symbol, reason: 'Earnings within 2 days' });
+            continue;
+          }
+        }
+        
         // 🚫 QUARANTINE: Block options trades until pricing logic is audited
         if (hybridIdea.assetType === 'option') {
           logger.warn(`🚫 Hybrid: REJECTED ${hybridIdea.symbol} - Options quarantined (avg return -99%, audit pending)`);

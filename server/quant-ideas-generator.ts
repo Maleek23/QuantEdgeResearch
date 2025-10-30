@@ -14,6 +14,7 @@ import {
 } from './technical-indicators';
 import { discoverHiddenCryptoGems, discoverStockGems, discoverPennyStocks, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
 import { logger } from './logger';
+import { shouldBlockSymbol } from './earnings-service';
 
 // v3.1: Simplified timing intelligence (removed complex DB-based timing-intelligence.ts)
 // Timing windows based on proven day-trading patterns
@@ -1250,6 +1251,17 @@ export async function generateQuantIdeas(
       continue; // Skip this idea to maintain balanced distribution
     }
     
+    // 📅 Check earnings calendar (block if earnings within 2 days, unless it's a news catalyst)
+    // Quant-generated ideas are NOT news catalysts by default
+    if (assetType === 'stock' || assetType === 'option') {
+      const isBlocked = await shouldBlockSymbol(data.symbol, false);
+      if (isBlocked) {
+        logger.warn(`📅 [QUANT] Skipped ${data.symbol} - earnings within 2 days`);
+        dataQuality.lowQuality++;
+        continue;
+      }
+    }
+    
     ideas.push(idea);
     
     // Track asset type for distribution
@@ -1367,6 +1379,16 @@ export async function generateQuantIdeas(
         );
         if (duplicate) {
           continue; // Skip this idea, it's too similar to an existing one
+        }
+      }
+
+      // 📅 Check earnings calendar for catalyst ideas (block if earnings within 2 days, unless it's a news catalyst)
+      // Catalyst-based ideas might be news catalysts, but we check conservatively
+      if (symbolData.assetType === 'stock' || symbolData.assetType === 'option') {
+        const isBlocked = await shouldBlockSymbol(catalyst.symbol, false);
+        if (isBlocked) {
+          logger.warn(`📅 [QUANT-CATALYST] Skipped ${catalyst.symbol} - earnings within 2 days`);
+          continue;
         }
       }
 
