@@ -109,6 +109,49 @@ function detectNewsCatalyst(catalyst: string, analysis: string): boolean {
   return false;
 }
 
+// 📊 CONFIDENCE CALCULATION: Calculate confidence score for AI/Hybrid trades
+function calculateAIConfidence(
+  idea: any,
+  validationMetrics: any,
+  isNewsCatalyst: boolean
+): number {
+  let confidence = 50; // Base confidence
+
+  // R:R ratio contribution (0-25 points)
+  // Higher R:R = higher confidence
+  const rrRatio = validationMetrics?.riskRewardRatio || 0;
+  if (rrRatio >= 3.0) confidence += 25;
+  else if (rrRatio >= 2.5) confidence += 20;
+  else if (rrRatio >= 2.0) confidence += 15;
+  else if (rrRatio >= 1.5) confidence += 10;
+  else if (rrRatio >= 1.0) confidence += 5;
+
+  // Asset type contribution (0-15 points)
+  // Crypto = higher (more predictable for quant), penny_stock = lower (higher risk)
+  if (idea.assetType === 'crypto') confidence += 15;
+  else if (idea.assetType === 'stock' && idea.entryPrice >= 10) confidence += 10;
+  else if (idea.assetType === 'stock' && idea.entryPrice >= 5) confidence += 5;
+  else if (idea.assetType === 'penny_stock' || idea.entryPrice < 5) confidence += 0;
+
+  // Catalyst strength contribution (0-10 points)
+  // News catalyst = higher confidence (market-moving events)
+  if (isNewsCatalyst) confidence += 10;
+
+  // Cap at 100
+  return Math.min(100, Math.max(0, confidence));
+}
+
+// 🎯 PROBABILITY BAND MAPPING: Convert confidence score to probability band
+function getProbabilityBand(confidenceScore: number): string {
+  if (confidenceScore >= 95) return 'A+';
+  if (confidenceScore >= 90) return 'A';
+  if (confidenceScore >= 85) return 'B+';
+  if (confidenceScore >= 80) return 'B';
+  if (confidenceScore >= 75) return 'C+';
+  if (confidenceScore >= 70) return 'C';
+  return 'D';
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Apply general rate limiting to all API routes
   app.use('/api/', generalApiLimiter);
@@ -2083,6 +2126,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // AI ideas default to day trades unless they're crypto (which can be position trades)
         const holdingPeriod: 'day' | 'swing' | 'position' = aiIdea.assetType === 'crypto' ? 'position' : 'day';
         
+        // 📊 Calculate confidence score and quality signals
+        const confidenceScore = calculateAIConfidence(aiIdea, validation.metrics, isNewsCatalyst);
+        const qualitySignals = [
+          `catalyst_${isNewsCatalyst ? 'news' : 'standard'}`,
+          `rr_${riskRewardRatio.toFixed(1)}`,
+          `asset_${aiIdea.assetType}`,
+          aiIdea.entryPrice >= 10 ? 'price_strong' : aiIdea.entryPrice >= 5 ? 'price_moderate' : 'price_low'
+        ];
+        const probabilityBand = getProbabilityBand(confidenceScore);
+        const generationTimestamp = new Date().toISOString();
+        
         const tradeIdea = await storage.createTradeIdea({
           symbol: aiIdea.symbol,
           assetType: aiIdea.assetType,
@@ -2096,12 +2150,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           analysis: aiIdea.analysis,
           liquidityWarning: aiIdea.entryPrice < 5,
           sessionContext: aiIdea.sessionContext,
-          timestamp: new Date().toISOString(),
+          timestamp: generationTimestamp,
           expiryDate: aiIdea.expiryDate || null,
           strikePrice: aiIdea.assetType === 'option' ? aiIdea.entryPrice * (aiIdea.direction === 'long' ? 1.02 : 0.98) : null,
           optionType: aiIdea.assetType === 'option' ? (aiIdea.direction === 'long' ? 'call' : 'put') : null,
           source: 'ai',
-          isNewsCatalyst: isNewsCatalyst
+          isNewsCatalyst: isNewsCatalyst,
+          confidenceScore,
+          qualitySignals,
+          probabilityBand,
+          engineVersion: 'ai_v1.0.0',
+          generationTimestamp,
+          dataSourceUsed: 'gemini-2.5-flash'
         });
         
         // 🔥 CRITICAL FIX: Clear stale price cache to force fresh fetch on next validation
@@ -2243,6 +2303,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const holdingPeriod: 'day' | 'swing' | 'position' = hybridIdea.assetType === 'crypto' ? 'position' : 'day';
         
+        // 📰 NEWS CATALYST DETECTION: Check AI-generated catalyst/analysis for news keywords
+        const isNewsCatalyst = detectNewsCatalyst(hybridIdea.catalyst || '', hybridIdea.analysis || '');
+        
+        // 📊 Calculate confidence score and quality signals
+        const confidenceScore = calculateAIConfidence(hybridIdea, validation.metrics, isNewsCatalyst);
+        const qualitySignals = [
+          `catalyst_${isNewsCatalyst ? 'news' : 'standard'}`,
+          `rr_${riskRewardRatio.toFixed(1)}`,
+          `asset_${hybridIdea.assetType}`,
+          hybridIdea.entryPrice >= 10 ? 'price_strong' : hybridIdea.entryPrice >= 5 ? 'price_moderate' : 'price_low',
+          'hybrid_quant_ai' // Unique signal for hybrid trades
+        ];
+        const probabilityBand = getProbabilityBand(confidenceScore);
+        const generationTimestamp = new Date().toISOString();
+        
         const tradeIdea = await storage.createTradeIdea({
           symbol: hybridIdea.symbol,
           assetType: hybridIdea.assetType,
@@ -2256,11 +2331,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           analysis: hybridIdea.analysis,
           liquidityWarning: hybridIdea.entryPrice < 5,
           sessionContext: hybridIdea.sessionContext,
-          timestamp: new Date().toISOString(),
+          timestamp: generationTimestamp,
           expiryDate: hybridIdea.expiryDate || null,
           strikePrice: hybridIdea.assetType === 'option' ? hybridIdea.entryPrice * (hybridIdea.direction === 'long' ? 1.02 : 0.98) : null,
           optionType: hybridIdea.assetType === 'option' ? (hybridIdea.direction === 'long' ? 'call' : 'put') : null,
-          source: 'hybrid' // NEW: Mark as hybrid (quant + AI)
+          source: 'hybrid',
+          isNewsCatalyst: isNewsCatalyst,
+          confidenceScore,
+          qualitySignals,
+          probabilityBand,
+          engineVersion: 'hybrid_v1.0.0',
+          generationTimestamp,
+          dataSourceUsed: 'gemini-2.5-flash'
         });
         savedIdeas.push(tradeIdea);
         metrics.passedCount++;
