@@ -275,7 +275,7 @@ For each trade idea, provide:
 - assetType: "stock", "option", or "crypto"
 - direction: "long" or "short"
 - entryPrice: Current realistic market price
-  * For stocks/crypto: Use current stock price (SPY ~$580, NVDA ~$140, BTC ~$67000, ETH ~$2600)
+  * For stocks/crypto: Use current stock price (SPY ~$580, NVDA ~$140, BTC ~$107000, ETH ~$3600)
   * For options: Use STOCK PRICE (system will fetch real option premium automatically)
 - targetPrice: Price target (MUST be based on asset type and follow direction rules)
   * For stocks/crypto: Stock price target
@@ -292,7 +292,7 @@ CRITICAL PRICE RULES:
 - For LONG stocks/crypto/options: targetPrice > entryPrice > stopLoss (e.g., Entry $580, Target $590, Stop $575)
 - For SHORT stocks/crypto/options: stopLoss > entryPrice > targetPrice (e.g., Entry $580, Target $570, Stop $585)
 - For OPTIONS: Always use STOCK PRICES in your response - the system will automatically fetch real option premiums and convert your stock-price-based targets to premium-based targets (+25% gain, -6.25% stop)
-- Use realistic prices: SPY ~$580, NVDA ~$140, BTC ~$67000, ETH ~$2600, SOL ~$200, AAVE ~$180, UNI ~$12, LINK ~$15
+- Use realistic current market prices (these are approximate - adjust based on current conditions): SPY ~$580, NVDA ~$140, BTC ~$107000, ETH ~$3600, SOL ~$170, AAVE ~$205, UNI ~$5, LINK ~$16
 
 Return valid JSON object with structure: {"ideas": [array of trade ideas]}
 Focus on actionable, research-grade opportunities with sector diversification.`;
