@@ -193,12 +193,42 @@ app.use((req, res, next) => {
             }
           }
           
-          // 🚫 QUARANTINE: Block options trades until pricing logic is audited
+          // 🔧 OPTIONS PRICING FIX: Convert stock prices to option premiums
           if (hybridIdea.assetType === 'option') {
-            logger.warn(`🚫 [HYBRID-CRON] REJECTED ${hybridIdea.symbol} - Options quarantined`);
-            rejectedIdeas.push({ symbol: hybridIdea.symbol, reason: 'Options quarantined pending audit' });
-            metrics.optionsQuarantinedCount++;
-            continue;
+            try {
+              const { findOptimalStrike } = await import('./tradier-api');
+              const stockPrice = hybridIdea.entryPrice; // AI provides stock price, not premium
+              
+              const optimalStrike = await findOptimalStrike(
+                hybridIdea.symbol, 
+                stockPrice,
+                hybridIdea.direction,
+                process.env.TRADIER_API_KEY
+              );
+              
+              if (optimalStrike && optimalStrike.lastPrice) {
+                // Override AI prices with real option premium math
+                const optionPremium = optimalStrike.lastPrice;
+                hybridIdea.entryPrice = optionPremium;
+                hybridIdea.targetPrice = optionPremium * 1.25; // +25% gain
+                hybridIdea.stopLoss = optionPremium * 0.96; // -4.0% stop (buffer under 5% max loss cap)
+                
+                logger.info(`✅ [HYBRID-CRON] ${hybridIdea.symbol} option pricing converted - Stock:$${stockPrice} → Premium:$${optionPremium} (Target:$${hybridIdea.targetPrice.toFixed(2)}, Stop:$${hybridIdea.stopLoss.toFixed(2)})`);
+              } else {
+                // Fallback: estimate premium as ~5% of stock price
+                const estimatedPremium = stockPrice * 0.05;
+                hybridIdea.entryPrice = estimatedPremium;
+                hybridIdea.targetPrice = estimatedPremium * 1.25;
+                hybridIdea.stopLoss = estimatedPremium * 0.96;
+                
+                logger.warn(`⚠️  [HYBRID-CRON] ${hybridIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}`);
+              }
+            } catch (error) {
+              logger.error(`❌ [HYBRID-CRON] ${hybridIdea.symbol} option pricing failed:`, error);
+              rejectedIdeas.push({ symbol: hybridIdea.symbol, reason: 'Failed to fetch option premium' });
+              metrics.optionsQuarantinedCount++;
+              continue;
+            }
           }
           
           // 🛡️ LAYER 1: Structural validation

@@ -2,11 +2,12 @@
 // Detects unusual options activity and generates stock trade ideas
 
 import type { InsertTradeIdea } from "@shared/schema";
-import { getTradierQuote, getTradierOptionsChain } from './tradier-api';
+import { getTradierQuote, getTradierOptionsChain, getTradierHistoryOHLC } from './tradier-api';
 import { validateTradeRisk } from './ai-service';
 import { logger } from './logger';
 import { formatInTimeZone } from 'date-fns-tz';
 import { storage } from './storage';
+import { calculateATR } from './technical-indicators';
 
 // Top 20 high-volume tickers for flow scanning
 const FLOW_SCAN_TICKERS = [
@@ -173,8 +174,71 @@ function analyzeFlowSignals(ticker: string, currentPrice: number, unusualOptions
   };
 }
 
+// Calculate dynamic target based on option Greeks, IV, and ATR
+async function calculateDynamicTarget(
+  ticker: string,
+  currentPrice: number,
+  direction: 'long' | 'short',
+  mostActiveOption: UnusualOption
+): Promise<{ targetMultiplier: number; method: string; explanation: string }> {
+  // Calculate days to expiration (DTE)
+  const expirationDate = new Date(mostActiveOption.expiration);
+  const now = new Date();
+  const daysToExpiry = Math.max(1, Math.ceil((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+
+  // METHOD 1: IV-Based (Preferred for options)
+  // Formula: Expected Move = √(DTE/365) × IV
+  // Target = Expected Move × 50% (conservative)
+  if (mostActiveOption.impliedVol && mostActiveOption.impliedVol > 0) {
+    const ivPercent = mostActiveOption.impliedVol; // Already in decimal form (e.g., 0.50 for 50%)
+    const expectedMove = Math.sqrt(daysToExpiry / 365) * ivPercent;
+    const targetMultiplier = expectedMove * 0.5; // Use 50% of expected move as target
+    
+    // Ensure reasonable bounds (5% to 25%)
+    const boundedMultiplier = Math.max(0.05, Math.min(0.25, targetMultiplier));
+    
+    logger.info(`📊 [FLOW] ${ticker}: IV-based target calculated - IV=${(ivPercent * 100).toFixed(1)}%, DTE=${daysToExpiry}d, Expected Move=${(expectedMove * 100).toFixed(1)}%, Target=${(boundedMultiplier * 100).toFixed(1)}%`);
+    
+    return {
+      targetMultiplier: boundedMultiplier,
+      method: 'IV-based',
+      explanation: `${(boundedMultiplier * 100).toFixed(1)}% target based on ${(ivPercent * 100).toFixed(0)}% IV, ${daysToExpiry}d DTE`
+    };
+  }
+
+  // METHOD 2: ATR-Based (Fallback if no IV available)
+  // Fetch historical OHLC data for ATR calculation
+  const ohlcData = await getTradierHistoryOHLC(ticker, 20);
+  if (ohlcData && ohlcData.highs.length >= 15) {
+    const atr = calculateATR(ohlcData.highs, ohlcData.lows, ohlcData.closes, 14);
+    if (atr > 0) {
+      const atrPercent = atr / currentPrice; // ATR as % of current price
+      const targetMultiplier = atrPercent * 1.5; // Use 1.5x ATR as target
+      
+      // Ensure reasonable bounds (5% to 25%)
+      const boundedMultiplier = Math.max(0.05, Math.min(0.25, targetMultiplier));
+      
+      logger.info(`📊 [FLOW] ${ticker}: ATR-based target calculated - ATR=$${atr.toFixed(2)}, ATR%=${(atrPercent * 100).toFixed(1)}%, Target=${(boundedMultiplier * 100).toFixed(1)}%`);
+      
+      return {
+        targetMultiplier: boundedMultiplier,
+        method: 'ATR-based',
+        explanation: `${(boundedMultiplier * 100).toFixed(1)}% target based on ATR $${atr.toFixed(2)} (${(atrPercent * 100).toFixed(1)}% of price)`
+      };
+    }
+  }
+
+  // METHOD 3: Fallback to conservative 5.25% if no data available
+  logger.info(`📊 [FLOW] ${ticker}: Using fallback 5.25% target (no IV/ATR data available)`);
+  return {
+    targetMultiplier: 0.0525,
+    method: 'fallback',
+    explanation: '5.25% target (fallback - no volatility data available)'
+  };
+}
+
 // Generate trade idea from flow signal
-function generateTradeFromFlow(signal: FlowSignal): InsertTradeIdea | null {
+async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIdea | null> {
   const { ticker, direction, currentPrice, unusualOptions, totalPremium, signalStrength } = signal;
 
   // Find the most active strike (highest premium)
@@ -182,20 +246,25 @@ function generateTradeFromFlow(signal: FlowSignal): InsertTradeIdea | null {
     opt.premium > max.premium ? opt : max
   );
 
-  // Calculate entry, target, and stop using percentage-based targets
-  // R:R ratio: 5.25% reward / 3.5% risk = 1.5:1 (meets minimum requirement)
+  // 🎯 DYNAMIC TARGETS: Calculate based on option Greeks, IV, and volatility
+  const dynamicTarget = await calculateDynamicTarget(ticker, currentPrice, direction, mostActiveOption);
+  const targetMultiplier = dynamicTarget.targetMultiplier;
+  
+  // Calculate stop loss (maintain 1.5:1 R:R minimum)
+  const stopMultiplier = targetMultiplier / 1.5; // Risk is 2/3 of reward
+  
   const entryPrice = currentPrice;
   let targetPrice: number;
   let stopLoss: number;
 
   if (direction === 'long') {
-    // LONG: Entry = current, Target = +5.25% above entry, Stop = -3.5% below entry
-    targetPrice = entryPrice * 1.0525;
-    stopLoss = entryPrice * 0.965;
+    // LONG: Entry = current, Target = dynamic % above, Stop = calculated for 1.5:1 R:R
+    targetPrice = entryPrice * (1 + targetMultiplier);
+    stopLoss = entryPrice * (1 - stopMultiplier);
   } else {
-    // SHORT: Entry = current, Target = -5.25% below entry, Stop = +3.5% above entry
-    targetPrice = entryPrice * 0.9475;
-    stopLoss = entryPrice * 1.035;
+    // SHORT: Entry = current, Target = dynamic % below, Stop = calculated for 1.5:1 R:R
+    targetPrice = entryPrice * (1 - targetMultiplier);
+    stopLoss = entryPrice * (1 + stopMultiplier);
   }
 
   // Calculate R:R ratio
@@ -227,16 +296,22 @@ function generateTradeFromFlow(signal: FlowSignal): InsertTradeIdea | null {
   const entryValidUntil = new Date(now.getTime() + 60 * 60 * 1000).toISOString(); // +1 hour
   const exitBy = new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString(); // +6 hours (day trade)
 
-  // Build catalyst and analysis
+  // Build catalyst and analysis with dynamic target explanation
   const catalyst = `Unusual ${direction === 'long' ? 'CALL' : 'PUT'} Flow: ${unusualOptions.length} contracts, $${(totalPremium / 1000000).toFixed(2)}M premium`;
   
   const topOptions = unusualOptions.slice(0, 3).map(opt => 
     `${opt.optionType.toUpperCase()} $${opt.strike} (${opt.reasons.join(', ')})`
   ).join('; ');
 
-  const analysis = `Smart money targeting ${direction === 'long' ? '+5.25%' : '-5.25%'} move. Most active: ${mostActiveOption.optionType.toUpperCase()} $${mostActiveOption.strike} with ${mostActiveOption.volume} volume and $${(mostActiveOption.premium / 1000).toFixed(0)}k premium. Top unusual options: ${topOptions}. Flow suggests ${direction === 'long' ? 'bullish' : 'bearish'} momentum.`;
+  const targetPercent = (targetMultiplier * 100).toFixed(1);
+  const analysis = `Smart money targeting ${direction === 'long' ? '+' : '-'}${targetPercent}% move (${dynamicTarget.explanation}). Most active: ${mostActiveOption.optionType.toUpperCase()} $${mostActiveOption.strike} with ${mostActiveOption.volume} volume and $${(mostActiveOption.premium / 1000).toFixed(0)}k premium. Top unusual options: ${topOptions}. Flow suggests ${direction === 'long' ? 'bullish' : 'bearish'} momentum.`;
 
   const sessionContext = `${formatInTimeZone(now, 'America/New_York', 'ha zzz')} - Unusual options flow detected in ${ticker}`;
+  
+  // 📊 DETAILED LOGGING: Show dynamic target calculation
+  logger.info(`📊 [FLOW] ${ticker} DYNAMIC TARGET: ${dynamicTarget.method} - Target=${targetPercent}%, Stop=${(stopMultiplier * 100).toFixed(1)}%, R:R=${riskRewardRatio.toFixed(2)}:1`);
+  logger.info(`📊 [FLOW] ${ticker} PRICE LEVELS: Entry=$${entryPrice.toFixed(2)}, Target=$${targetPrice.toFixed(2)} (${direction === 'long' ? '+' : '-'}${targetPercent}%), Stop=$${stopLoss.toFixed(2)}`);
+  logger.info(`📊 [FLOW] ${ticker} METHOD: ${dynamicTarget.explanation}`);
 
   return {
     symbol: ticker,
@@ -262,7 +337,7 @@ function generateTradeFromFlow(signal: FlowSignal): InsertTradeIdea | null {
     ],
     probabilityBand: signalStrength >= 70 ? 'B+' : signalStrength >= 60 ? 'B' : 'C+',
     dataSourceUsed: 'tradier',
-    engineVersion: 'flow_v1.0.0',
+    engineVersion: 'flow_v2.0.0_dynamic_targets',
     generationTimestamp: timestamp,
   };
 }
@@ -317,12 +392,11 @@ export async function scanUnusualOptionsFlow(): Promise<InsertTradeIdea[]> {
         continue;
       }
 
-      // Generate trade idea
-      const tradeIdea = generateTradeFromFlow(signal);
+      // Generate trade idea with dynamic targets
+      const tradeIdea = await generateTradeFromFlow(signal);
       
       if (tradeIdea) {
         tradeIdeas.push(tradeIdea);
-        logger.info(`📊 [FLOW] Generated ${signal.direction.toUpperCase()} trade for ${ticker}: Entry=$${currentPrice}, Target=$${tradeIdea.targetPrice}, Stop=$${tradeIdea.stopLoss}, R:R=${tradeIdea.riskRewardRatio.toFixed(2)}:1`);
       }
 
     } catch (error) {

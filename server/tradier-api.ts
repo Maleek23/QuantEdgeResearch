@@ -199,6 +199,61 @@ export async function getTradierHistory(
   }
 }
 
+// Get historical OHLC data for ATR calculation
+export async function getTradierHistoryOHLC(
+  symbol: string,
+  days: number = 20,
+  apiKey?: string
+): Promise<{ highs: number[]; lows: number[]; closes: number[] } | null> {
+  const key = apiKey || process.env.TRADIER_API_KEY;
+  if (!key) {
+    logger.error('Tradier API key not found');
+    return null;
+  }
+
+  try {
+    const baseUrl = getBaseUrl(key);
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const start = startDate.toISOString().split('T')[0];
+    const end = endDate.toISOString().split('T')[0];
+
+    const response = await fetch(
+      `${baseUrl}/markets/history?symbol=${symbol}&interval=daily&start=${start}&end=${end}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Accept': 'application/json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      logger.error(`Tradier OHLC history error for ${symbol}: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const history: TradierHistoricalDay[] = data.history?.day || [];
+    
+    if (history.length === 0) {
+      return null;
+    }
+
+    // Return OHLC arrays in chronological order
+    return {
+      highs: history.map(day => day.high),
+      lows: history.map(day => day.low),
+      closes: history.map(day => day.close)
+    };
+  } catch (error) {
+    logger.error(`Tradier OHLC history fetch error for ${symbol}:`, error);
+    return null;
+  }
+}
+
 // Get options chain for a symbol
 export async function getTradierOptionsChain(
   symbol: string,
@@ -309,7 +364,7 @@ export async function findOptimalStrike(
   currentPrice: number,
   direction: 'long' | 'short',
   apiKey?: string
-): Promise<{ strike: number; optionType: 'call' | 'put'; delta?: number } | null> {
+): Promise<{ strike: number; optionType: 'call' | 'put'; delta?: number; lastPrice?: number } | null> {
   const options = await getTradierOptionsChain(symbol, undefined, apiKey);
   
   if (options.length === 0) {
@@ -321,7 +376,8 @@ export async function findOptimalStrike(
     return {
       strike,
       optionType: direction === 'long' ? 'call' : 'put',
-      delta: undefined
+      delta: undefined,
+      lastPrice: undefined
     };
   }
 
@@ -352,7 +408,8 @@ export async function findOptimalStrike(
   return {
     strike: bestOption.strike,
     optionType: bestOption.option_type as 'call' | 'put',
-    delta: bestOption.greeks?.delta
+    delta: bestOption.greeks?.delta,
+    lastPrice: bestOption.last || bestOption.bid || bestOption.ask
   };
 }
 

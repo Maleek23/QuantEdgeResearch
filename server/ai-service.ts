@@ -252,27 +252,50 @@ If no clear trade ideas are found, return empty array.`;
 export async function generateTradeIdeas(marketContext: string): Promise<AITradeIdea[]> {
   const systemPrompt = `You are a quantitative trading analyst. Generate 3-4 high-quality trade ideas based on current market conditions.
 
+CRYPTO UNIVERSE (pick 1-2 from different sectors):
+- Large Cap: BTC, ETH, XRP, BNB, SOL, ADA
+- DeFi: AAVE, UNI, LINK, MKR
+- L1s: SOL, AVAX, NEAR, FTM
+- Meme/Speculative: DOGE, SHIB, PEPE
+
+ASSET MIX REQUIREMENTS:
+- Generate 3-4 ideas total
+- Include AT LEAST 1 crypto trade (40% crypto allocation target)
+- Diversify across sectors (if crypto: mix large-cap + DeFi/L1/meme)
+- Balance between stocks and crypto
+
+CRYPTO TRADE SETUPS:
+- Breakouts above key resistance
+- Support bounces after pullbacks
+- Oversold RSI rebounds
+- Correlation plays (BTC moves, alts follow)
+
 For each trade idea, provide:
 - symbol: Stock ticker or crypto symbol
 - assetType: "stock", "option", or "crypto"
 - direction: "long" or "short"
-- entryPrice: Current realistic market price (for stocks/crypto use stock price, for options use option premium like $5-$20)
-- targetPrice: Price target (MUST follow direction rules below)
+- entryPrice: Current realistic market price
+  * For stocks/crypto: Use current stock price (SPY ~$580, NVDA ~$140, BTC ~$67000, ETH ~$2600)
+  * For options: Use STOCK PRICE (system will fetch real option premium automatically)
+- targetPrice: Price target (MUST be based on asset type and follow direction rules)
+  * For stocks/crypto: Stock price target
+  * For options: Use STOCK PRICE target (system will convert to option premium automatically)
 - stopLoss: Stop loss price (MUST follow direction rules below)
+  * For stocks/crypto: Stock price stop
+  * For options: Use STOCK PRICE stop (system will convert to option premium automatically)
 - catalyst: Key catalyst driving this trade (1-2 sentences)
 - analysis: Technical/fundamental analysis (2-3 sentences)
 - sessionContext: Market session context
 - expiryDate: (only for options, format: "YYYY-MM-DD")
 
 CRITICAL PRICE RULES:
-- For LONG stocks/crypto: targetPrice > entryPrice > stopLoss (e.g., Entry $580, Target $590, Stop $575)
-- For SHORT stocks/crypto: stopLoss > entryPrice > targetPrice (e.g., Entry $580, Target $570, Stop $585)
-- 🚫 CRITICAL: DO NOT generate options trades - they are quarantined due to systematic failures (avg return -99%)
-- ONLY generate stock and crypto trades
-- Use realistic prices: SPY ~$580, NVDA ~$140, BTC ~$67000, ETH ~$2600
+- For LONG stocks/crypto/options: targetPrice > entryPrice > stopLoss (e.g., Entry $580, Target $590, Stop $575)
+- For SHORT stocks/crypto/options: stopLoss > entryPrice > targetPrice (e.g., Entry $580, Target $570, Stop $585)
+- For OPTIONS: Always use STOCK PRICES in your response - the system will automatically fetch real option premiums and convert your stock-price-based targets to premium-based targets (+25% gain, -6.25% stop)
+- Use realistic prices: SPY ~$580, NVDA ~$140, BTC ~$67000, ETH ~$2600, SOL ~$200, AAVE ~$180, UNI ~$12, LINK ~$15
 
 Return valid JSON object with structure: {"ideas": [array of trade ideas]}
-Focus on actionable, research-grade opportunities.`;
+Focus on actionable, research-grade opportunities with sector diversification.`;
 
   const userPrompt = `Generate trade ideas for: ${marketContext}`;
 

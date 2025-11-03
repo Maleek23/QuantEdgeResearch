@@ -2079,11 +2079,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
           continue;
         }
         
-        // 🚫 QUARANTINE: Block options trades until pricing logic is audited
+        // 🔧 OPTIONS PRICING FIX: Convert stock prices to option premiums
         if (aiIdea.assetType === 'option') {
-          logger.warn(`🚫 AI: REJECTED ${aiIdea.symbol} - Options quarantined (avg return -99%, audit pending)`);
-          rejectedIdeas.push({ symbol: aiIdea.symbol, reason: 'Options quarantined pending audit' });
-          continue;
+          try {
+            const { findOptimalStrike } = await import('./tradier-api');
+            const stockPrice = aiIdea.entryPrice; // AI provides stock price, not premium
+            
+            const optimalStrike = await findOptimalStrike(
+              aiIdea.symbol, 
+              stockPrice,
+              aiIdea.direction,
+              process.env.TRADIER_API_KEY
+            );
+            
+            if (optimalStrike && optimalStrike.lastPrice) {
+              // Override AI prices with real option premium math
+              const optionPremium = optimalStrike.lastPrice;
+              aiIdea.entryPrice = optionPremium;
+              aiIdea.targetPrice = optionPremium * 1.25; // +25% gain
+              aiIdea.stopLoss = optionPremium * 0.96; // -4.0% stop (buffer under 5% max loss cap)
+              
+              logger.info(`✅ AI: ${aiIdea.symbol} option pricing converted - Stock:$${stockPrice} → Premium:$${optionPremium} (Target:$${aiIdea.targetPrice.toFixed(2)}, Stop:$${aiIdea.stopLoss.toFixed(2)})`);
+            } else {
+              // Fallback: estimate premium as ~5% of stock price
+              const estimatedPremium = stockPrice * 0.05;
+              aiIdea.entryPrice = estimatedPremium;
+              aiIdea.targetPrice = estimatedPremium * 1.25;
+              aiIdea.stopLoss = estimatedPremium * 0.96;
+              
+              logger.warn(`⚠️  AI: ${aiIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}`);
+            }
+          } catch (error) {
+            logger.error(`❌ AI: ${aiIdea.symbol} option pricing failed:`, error);
+            rejectedIdeas.push({ symbol: aiIdea.symbol, reason: 'Failed to fetch option premium' });
+            continue;
+          }
         }
         
         // 📰 NEWS CATALYST DETECTION: Check if user's prompt contains breaking news keywords
@@ -2261,12 +2291,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        // 🚫 QUARANTINE: Block options trades until pricing logic is audited
+        // 🔧 OPTIONS PRICING FIX: Convert stock prices to option premiums
         if (hybridIdea.assetType === 'option') {
-          logger.warn(`🚫 Hybrid: REJECTED ${hybridIdea.symbol} - Options quarantined (avg return -99%, audit pending)`);
-          rejectedIdeas.push({ symbol: hybridIdea.symbol, reason: 'Options quarantined pending audit' });
-          metrics.optionsQuarantinedCount++;
-          continue;
+          try {
+            const { findOptimalStrike } = await import('./tradier-api');
+            const stockPrice = hybridIdea.entryPrice; // AI provides stock price, not premium
+            
+            const optimalStrike = await findOptimalStrike(
+              hybridIdea.symbol, 
+              stockPrice,
+              hybridIdea.direction,
+              process.env.TRADIER_API_KEY
+            );
+            
+            if (optimalStrike && optimalStrike.lastPrice) {
+              // Override AI prices with real option premium math
+              const optionPremium = optimalStrike.lastPrice;
+              hybridIdea.entryPrice = optionPremium;
+              hybridIdea.targetPrice = optionPremium * 1.25; // +25% gain
+              hybridIdea.stopLoss = optionPremium * 0.96; // -4.0% stop (buffer under 5% max loss cap)
+              
+              logger.info(`✅ Hybrid: ${hybridIdea.symbol} option pricing converted - Stock:$${stockPrice} → Premium:$${optionPremium} (Target:$${hybridIdea.targetPrice.toFixed(2)}, Stop:$${hybridIdea.stopLoss.toFixed(2)})`);
+            } else {
+              // Fallback: estimate premium as ~5% of stock price
+              const estimatedPremium = stockPrice * 0.05;
+              hybridIdea.entryPrice = estimatedPremium;
+              hybridIdea.targetPrice = estimatedPremium * 1.25;
+              hybridIdea.stopLoss = estimatedPremium * 0.96;
+              
+              logger.warn(`⚠️  Hybrid: ${hybridIdea.symbol} using estimated premium (~5% of stock) - Premium:$${estimatedPremium.toFixed(2)}`);
+            }
+          } catch (error) {
+            logger.error(`❌ Hybrid: ${hybridIdea.symbol} option pricing failed:`, error);
+            rejectedIdeas.push({ symbol: hybridIdea.symbol, reason: 'Failed to fetch option premium' });
+            metrics.optionsQuarantinedCount++;
+            continue;
+          }
         }
         
         // 🛡️ LAYER 1: Structural validation (prevents logically impossible trades)
