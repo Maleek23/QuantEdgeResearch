@@ -98,12 +98,15 @@ export function validateTradeRisk(idea: AITradeIdea, isNewsCatalyst: boolean = f
   const potentialGainPercent = (potentialGain / entryPrice) * 100;
   const riskRewardRatio = potentialGain / maxLoss;
   
-  // 🚨 GUARDRAIL #1: Maximum 5% loss cap (prevents -197% catastrophic losses)
-  const MAX_LOSS_PERCENT = 5.0;
+  // 🚨 GUARDRAIL #1: Asset-specific maximum loss caps
+  // Options have wider stops due to higher volatility (25-35% is normal for options)
+  // Stocks and crypto use tighter 5% stops
+  const MAX_LOSS_PERCENT = assetType === 'option' ? 35.0 : 5.0;  // 35% for options, 5% for stocks/crypto
+  
   if (maxLossPercent > MAX_LOSS_PERCENT) {
     return {
       isValid: false,
-      reason: `Max loss ${maxLossPercent.toFixed(2)}% exceeds ${MAX_LOSS_PERCENT}% cap (stop too wide). Entry=$${entryPrice}, Stop=$${stopLoss}`,
+      reason: `Max loss ${maxLossPercent.toFixed(2)}% exceeds ${MAX_LOSS_PERCENT}% cap for ${assetType} (stop too wide). Entry=$${entryPrice}, Stop=$${stopLoss}`,
       metrics: { maxLossPercent, riskRewardRatio, potentialGainPercent }
     };
   }

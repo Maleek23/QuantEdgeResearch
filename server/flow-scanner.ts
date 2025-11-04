@@ -1,5 +1,5 @@
-// DIY Unusual Options Flow Scanner
-// Detects unusual options activity and generates stock trade ideas
+// DIY Unusual Options Flow Scanner  
+// Detects unusual options activity and generates OPTIONS trade ideas based on real premiums
 
 import type { InsertTradeIdea } from "@shared/schema";
 import { getTradierQuote, getTradierOptionsChain, getTradierHistoryOHLC } from './tradier-api';
@@ -253,7 +253,12 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   // Calculate stop loss (maintain 1.5:1 R:R minimum)
   const stopMultiplier = targetMultiplier / 1.5; // Risk is 2/3 of reward
   
-  const entryPrice = currentPrice;
+  // 🔧 OPTIONS PRICING FIX: Use OPTION PREMIUM, not stock price
+  // The mostActiveOption already has the last traded premium price
+  const optionPremium = mostActiveOption.lastPrice;  // Option premium from Tradier
+  
+  // Entry/Target/Stop are now based on OPTION PREMIUM, not stock price
+  const entryPrice = optionPremium;
   let targetPrice: number;
   let stopLoss: number;
 
@@ -272,10 +277,14 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   const reward = direction === 'long' ? (targetPrice - entryPrice) : (entryPrice - targetPrice);
   const riskRewardRatio = reward / risk;
 
+  // 🔧 FIX: Generate OPTIONS trades (not stocks) - we're detecting options flow!
+  // Use the most active option's type (call/put) to determine the option contract type
+  const optionType = mostActiveOption.optionType; // 'call' or 'put'
+  
   // Validate trade risk
   const validation = validateTradeRisk({
     symbol: ticker,
-    assetType: 'stock',
+    assetType: 'option',  // ✅ FIXED: Generate options, not stocks
     direction,
     entryPrice,
     targetPrice,
@@ -304,18 +313,18 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   ).join('; ');
 
   const targetPercent = (targetMultiplier * 100).toFixed(1);
-  const analysis = `Smart money targeting ${direction === 'long' ? '+' : '-'}${targetPercent}% move (${dynamicTarget.explanation}). Most active: ${mostActiveOption.optionType.toUpperCase()} $${mostActiveOption.strike} with ${mostActiveOption.volume} volume and $${(mostActiveOption.premium / 1000).toFixed(0)}k premium. Top unusual options: ${topOptions}. Flow suggests ${direction === 'long' ? 'bullish' : 'bearish'} momentum.`;
+  const analysis = `OPTIONS FLOW: Smart money betting on ${direction === 'long' ? '+' : '-'}${targetPercent}% move in option premium (${dynamicTarget.explanation}). Entry: $${entryPrice.toFixed(2)} premium for ${mostActiveOption.optionType.toUpperCase()} $${mostActiveOption.strike} (exp: ${mostActiveOption.expiration}). Most active contract: ${mostActiveOption.volume} volume, $${(mostActiveOption.premium / 1000).toFixed(0)}k premium. Top unusual options: ${topOptions}. Flow suggests ${direction === 'long' ? 'bullish' : 'bearish'} momentum on underlying ${ticker}.`;
 
   const sessionContext = `${formatInTimeZone(now, 'America/New_York', 'ha zzz')} - Unusual options flow detected in ${ticker}`;
   
-  // 📊 DETAILED LOGGING: Show dynamic target calculation
-  logger.info(`📊 [FLOW] ${ticker} DYNAMIC TARGET: ${dynamicTarget.method} - Target=${targetPercent}%, Stop=${(stopMultiplier * 100).toFixed(1)}%, R:R=${riskRewardRatio.toFixed(2)}:1`);
-  logger.info(`📊 [FLOW] ${ticker} PRICE LEVELS: Entry=$${entryPrice.toFixed(2)}, Target=$${targetPrice.toFixed(2)} (${direction === 'long' ? '+' : '-'}${targetPercent}%), Stop=$${stopLoss.toFixed(2)}`);
-  logger.info(`📊 [FLOW] ${ticker} METHOD: ${dynamicTarget.explanation}`);
+  // 📊 DETAILED LOGGING: Show options trade details
+  logger.info(`📊 [FLOW] ${ticker} OPTIONS TRADE: ${optionType.toUpperCase()} $${mostActiveOption.strike} (exp: ${mostActiveOption.expiration})`);
+  logger.info(`📊 [FLOW] ${ticker} PREMIUM LEVELS: Entry=$${entryPrice.toFixed(2)}, Target=$${targetPrice.toFixed(2)} (${direction === 'long' ? '+' : '-'}${targetPercent}%), Stop=$${stopLoss.toFixed(2)}, R:R=${riskRewardRatio.toFixed(2)}:1`);
+  logger.info(`📊 [FLOW] ${ticker} UNDERLYING: Stock @ $${currentPrice.toFixed(2)}, Flow suggests ${direction === 'long' ? 'bullish' : 'bearish'} momentum`);
 
   return {
     symbol: ticker,
-    assetType: 'stock',
+    assetType: 'option',  // ✅ FIXED: Generate options, not stocks
     direction,
     holdingPeriod: 'day',
     entryPrice,
@@ -337,8 +346,12 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
     ],
     probabilityBand: signalStrength >= 70 ? 'B+' : signalStrength >= 60 ? 'B' : 'C+',
     dataSourceUsed: 'tradier',
-    engineVersion: 'flow_v2.0.0_dynamic_targets',
+    engineVersion: 'flow_v2.1.0_options_generation',  // Updated version for options
     generationTimestamp: timestamp,
+    // ✅ OPTIONS-SPECIFIC FIELDS (match schema field names)
+    optionType,  // 'call' or 'put' from most active option
+    strikePrice: mostActiveOption.strike,  // Match schema: strikePrice not strike
+    expiryDate: mostActiveOption.expiration,  // Match schema: expiryDate not expiration
   };
 }
 
