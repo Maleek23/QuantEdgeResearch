@@ -1977,7 +1977,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           direction: idea.direction,
           entryPrice: idea.entryPrice,
           targetPrice: idea.targetPrice,
-          stopLoss: idea.stopLoss
+          stopLoss: idea.stopLoss,
+          // Options-specific fields (required for option validation)
+          strikePrice: idea.strikePrice,
+          expiryDate: idea.expiryDate,
+          optionType: idea.optionType
         }, 'Flow');
         
         if (!structureValid) {

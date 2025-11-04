@@ -13,6 +13,10 @@ export interface TradeValidationInput {
   entryPrice: number;
   targetPrice: number;
   stopLoss: number;
+  // Options-specific fields (required for option validation)
+  strikePrice?: number;
+  expiryDate?: string;
+  optionType?: 'call' | 'put';
 }
 
 export interface ValidationResult {
