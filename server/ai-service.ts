@@ -299,13 +299,81 @@ Focus on actionable, research-grade opportunities with sector diversification.`;
 
   const userPrompt = `Generate trade ideas for: ${marketContext}`;
 
+  // Parse response helper - handles JSON extraction from various provider formats
+  const parseIdeas = (content: string, providerName: string = 'unknown'): AITradeIdea[] => {
+    try {
+      // Try direct JSON parse first
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) {
+        logger.info(`✅ Parsed ${parsed.length} ideas from ${providerName} (direct JSON)`);
+        return parsed;
+      } else if (parsed.ideas && Array.isArray(parsed.ideas)) {
+        logger.info(`✅ Parsed ${parsed.ideas.length} ideas from ${providerName} (ideas array)`);
+        return parsed.ideas;
+      }
+      logger.warn(`⚠️  ${providerName} returned valid JSON but no ideas array`);
+      return [];
+    } catch {
+      // Anthropic/Claude often wraps JSON in code fences or prose - extract it
+      logger.info(`🔧 ${providerName} response not direct JSON, attempting extraction...`);
+      
+      // Try to extract JSON from code fences (```json ... ``` or ``` ... ```)
+      const codeFenceMatch = content.match(/```(?:json)?\s*(\{[\s\S]*?\}|\[[\s\S]*?\])\s*```/);
+      if (codeFenceMatch) {
+        try {
+          const extracted = JSON.parse(codeFenceMatch[1]);
+          if (Array.isArray(extracted)) {
+            logger.info(`✅ Extracted ${extracted.length} ideas from ${providerName} code fence`);
+            return extracted;
+          } else if (extracted.ideas && Array.isArray(extracted.ideas)) {
+            logger.info(`✅ Extracted ${extracted.ideas.length} ideas from ${providerName} code fence`);
+            return extracted.ideas;
+          }
+        } catch (e) {
+          logger.warn(`⚠️  ${providerName} code fence contained invalid JSON`);
+        }
+      }
+      
+      // Try to find first JSON object/array in the text
+      const jsonObjectMatch = content.match(/\{[\s\S]*"ideas"[\s\S]*\[[\s\S]*?\]\s*\}/);
+      const jsonArrayMatch = content.match(/\[[\s\S]*?\]/);
+      
+      if (jsonObjectMatch) {
+        try {
+          const extracted = JSON.parse(jsonObjectMatch[0]);
+          if (extracted.ideas && Array.isArray(extracted.ideas)) {
+            logger.info(`✅ Extracted ${extracted.ideas.length} ideas from ${providerName} text search`);
+            return extracted.ideas;
+          }
+        } catch (e) {
+          logger.warn(`⚠️  ${providerName} text search found invalid JSON object`);
+        }
+      }
+      
+      if (jsonArrayMatch) {
+        try {
+          const extracted = JSON.parse(jsonArrayMatch[0]);
+          if (Array.isArray(extracted)) {
+            logger.info(`✅ Extracted ${extracted.length} ideas from ${providerName} text search`);
+            return extracted;
+          }
+        } catch (e) {
+          logger.warn(`⚠️  ${providerName} text search found invalid JSON array`);
+        }
+      }
+      
+      logger.error(`❌ ${providerName} response could not be parsed as JSON`);
+      return [];
+    }
+  };
+
+  // Try Gemini first (FREE tier - 25 requests/day)
   try {
-    // Use FREE Gemini Flash tier (25 requests/day, commercial use allowed)
     const startTime = Date.now();
-    logger.info("🆓 Using FREE Gemini API tier (25 requests/day)");
+    logger.info("🆓 Trying Gemini (FREE tier - 25 requests/day)...");
     
     const geminiResponse = await getGemini().models.generateContent({
-      model: "gemini-2.5-flash", // Free tier model
+      model: "gemini-2.5-flash",
       config: {
         systemInstruction: systemPrompt,
         responseMimeType: "application/json",
@@ -315,38 +383,84 @@ Focus on actionable, research-grade opportunities with sector diversification.`;
 
     logAPISuccess('Gemini (Free)', 'generateContent', Date.now() - startTime);
 
-    // Parse response
-    const parseIdeas = (content: string): AITradeIdea[] => {
-      try {
-        const parsed = JSON.parse(content);
-        if (Array.isArray(parsed)) {
-          return parsed;
-        } else if (parsed.ideas && Array.isArray(parsed.ideas)) {
-          return parsed.ideas;
-        }
-        return [];
-      } catch {
-        return [];
-      }
-    };
-
     const geminiText = geminiResponse.text || '';
-    const geminiIdeas = parseIdeas(geminiText);
+    const geminiIdeas = parseIdeas(geminiText, 'Gemini');
 
-    logger.info(`🆓 Generated ${geminiIdeas.length} ideas using FREE Gemini tier`);
-
-    return geminiIdeas.slice(0, 10); // Return max 10 ideas
-  } catch (error: any) {
-    logger.error("Gemini AI trade idea generation failed:", error);
-    
-    // Provide helpful error messages
-    if (error?.status === 429) {
-      throw new Error("Free AI limit reached (25/day). Try again tomorrow or upgrade to paid tier.");
-    } else if (error?.status === 401) {
-      throw new Error("AI service unavailable: Invalid API credentials");
+    if (geminiIdeas.length === 0) {
+      throw new Error('Gemini returned zero ideas');
     }
+
+    logger.info(`✅ Generated ${geminiIdeas.length} ideas using Gemini`);
+    return geminiIdeas.slice(0, 10);
+  } catch (geminiError: any) {
+    logger.warn(`Gemini failed (${geminiError?.status || 'unknown'}), trying Anthropic...`);
     
-    throw new Error("Failed to generate trade ideas with free AI");
+    // Try Anthropic as fallback
+    try {
+      const startTime = Date.now();
+      logger.info("💎 Trying Anthropic Claude Sonnet 4...");
+      
+      const anthropicResponse = await getAnthropic().messages.create({
+        model: DEFAULT_ANTHROPIC_MODEL,
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{
+          role: 'user',
+          content: userPrompt
+        }]
+      });
+
+      logAPISuccess('Anthropic', 'messages.create', Date.now() - startTime);
+
+      const anthropicText = anthropicResponse.content[0].type === 'text' 
+        ? anthropicResponse.content[0].text 
+        : '{"ideas":[]}';
+      const anthropicIdeas = parseIdeas(anthropicText, 'Anthropic');
+
+      if (anthropicIdeas.length === 0) {
+        throw new Error('Anthropic returned zero ideas');
+      }
+
+      logger.info(`✅ Generated ${anthropicIdeas.length} ideas using Anthropic`);
+      return anthropicIdeas.slice(0, 10);
+    } catch (anthropicError: any) {
+      logger.warn(`Anthropic failed (${anthropicError?.status || 'unknown'}), trying OpenAI...`);
+      
+      // Try OpenAI as final fallback
+      try {
+        const startTime = Date.now();
+        logger.info("🤖 Trying OpenAI GPT-5...");
+        
+        const openaiResponse = await getOpenAI().chat.completions.create({
+          model: "gpt-5",
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          response_format: { type: "json_object" }
+        });
+
+        logAPISuccess('OpenAI', 'chat.completions.create', Date.now() - startTime);
+
+        const openaiText = openaiResponse.choices[0].message.content || '{"ideas":[]}';
+        const openaiIdeas = parseIdeas(openaiText, 'OpenAI');
+
+        if (openaiIdeas.length === 0) {
+          throw new Error('OpenAI returned zero ideas');
+        }
+
+        logger.info(`✅ Generated ${openaiIdeas.length} ideas using OpenAI`);
+        return openaiIdeas.slice(0, 10);
+      } catch (openaiError: any) {
+        logger.error("All AI providers failed:", {
+          gemini: geminiError?.message,
+          anthropic: anthropicError?.message,
+          openai: openaiError?.message
+        });
+        
+        throw new Error("All AI providers failed. Please try again later.");
+      }
+    }
   }
 }
 
