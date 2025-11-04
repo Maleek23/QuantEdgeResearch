@@ -144,11 +144,17 @@ export function validateTrade(trade: TradeValidationInput): ValidationResult {
 
   // 6. Asset-specific validations
   if (assetType === 'option') {
-    // Based on audit: options have -99.3% avg return - need stricter checks
-    if (!symbol.includes(' ') && !symbol.match(/[CP]\d{8}/)) {
+    // Options can have either:
+    // - Composite symbol: "AAPL C150 2025-11-15" (legacy format)
+    // - OR separate fields: strikePrice + expiryDate + optionType (AI format)
+    const hasCompositeSymbol = symbol.includes(' ') || symbol.match(/[CP]\d{8}/);
+    const hasSeparateFields = 'strikePrice' in trade && 'expiryDate' in trade && 'optionType' in trade;
+    
+    if (!hasCompositeSymbol && !hasSeparateFields) {
       errors.push(
-        `Invalid option symbol format: "${symbol}". ` +
-        `Expected format with strike/expiry (e.g., "AAPL C150 2025-11-15")`
+        `Invalid option format: "${symbol}". ` +
+        `Either provide composite symbol (e.g., "AAPL C150 2025-11-15") ` +
+        `or separate strikePrice/expiryDate/optionType fields`
       );
       if (!severity) severity = 'high';
     }
