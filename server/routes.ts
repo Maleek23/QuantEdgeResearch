@@ -889,16 +889,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Fetch current prices for all trade idea symbols (including underlying stock prices for options)
+      // Fetch current prices for stocks and crypto (NOT options - they use entry/target/stop premiums)
       const stockSymbols = uniqueSymbols.filter(s => {
         const idea = openIdeas.find(i => i.symbol === s);
-        return idea && (idea.assetType === 'stock' || idea.assetType === 'penny_stock' || idea.assetType === 'option');
+        return idea && (idea.assetType === 'stock' || idea.assetType === 'penny_stock');
       });
       
       const cryptoSymbols = uniqueSymbols.filter(s => {
         const idea = openIdeas.find(i => i.symbol === s);
         return idea && idea.assetType === 'crypto';
       });
+      
+      // Options don't get live prices - they use entry/target/stop premium values
+      // Reason: Real-time option premium tracking requires complex Tradier API calls
+      // and options expire quickly (most are 1-2 day trades)
       
       // Build price map using cache-first strategy
       const priceMap = new Map<string, number>();
