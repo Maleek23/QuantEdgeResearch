@@ -499,14 +499,18 @@ app.use((req, res, next) => {
               continue;
             }
             
-            // 🛡️ LAYER 1: Structural validation
+            // 🛡️ LAYER 1: Structural validation (with options fields)
             const structureValid = validateTradeStructure({
               symbol: idea.symbol,
-              assetType: idea.assetType,
-              direction: idea.direction,
+              assetType: idea.assetType as 'stock' | 'option' | 'crypto',
+              direction: idea.direction as 'long' | 'short',
               entryPrice: idea.entryPrice,
               targetPrice: idea.targetPrice,
-              stopLoss: idea.stopLoss
+              stopLoss: idea.stopLoss,
+              // Options-specific fields (required for option validation)
+              strikePrice: idea.strikePrice ?? undefined,
+              expiryDate: idea.expiryDate ?? undefined,
+              optionType: idea.optionType as 'call' | 'put' | undefined
             }, 'Flow-Cron');
             
             if (!structureValid) {
@@ -518,8 +522,8 @@ app.use((req, res, next) => {
             const { validateTradeRisk } = await import('./ai-service');
             const validation = validateTradeRisk({
               symbol: idea.symbol,
-              assetType: idea.assetType,
-              direction: idea.direction,
+              assetType: idea.assetType as 'stock' | 'option' | 'crypto',
+              direction: idea.direction as 'long' | 'short',
               entryPrice: idea.entryPrice,
               targetPrice: idea.targetPrice,
               stopLoss: idea.stopLoss,
