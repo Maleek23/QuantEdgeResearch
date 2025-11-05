@@ -380,37 +380,35 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   </div>
                 )}
 
-                {/* Holding Duration */}
-                {idea.actualHoldingTimeMinutes !== null && idea.actualHoldingTimeMinutes !== undefined && (
+                {/* Holding Duration - Enhanced with seconds precision */}
+                {idea.exitDate && (
                   <div className="p-2 rounded-lg bg-card border border-border/50">
                     <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">Duration</div>
                     <div className="text-xs font-bold" data-testid={`text-duration-${idea.symbol}`}>
                       {(() => {
-                        if (idea.actualHoldingTimeMinutes < 60) {
-                          return `${idea.actualHoldingTimeMinutes} min`;
-                        } else if (idea.actualHoldingTimeMinutes < 1440) {
-                          const hours = Math.floor(idea.actualHoldingTimeMinutes / 60);
-                          const minutes = idea.actualHoldingTimeMinutes % 60;
-                          return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-                        } else {
-                          const days = Math.floor(idea.actualHoldingTimeMinutes / 1440);
-                          const remainingMinutes = idea.actualHoldingTimeMinutes % 1440;
-                          const hours = Math.floor(remainingMinutes / 60);
-                          const minutes = remainingMinutes % 60;
-                          if (minutes > 0) {
-                            return `${days}d ${hours}h ${minutes}m`;
-                          } else if (hours > 0) {
-                            return `${days}d ${hours}h`;
-                          } else {
-                            return `${days}d`;
-                          }
-                        }
+                        // Calculate precise duration from timestamps (includes seconds)
+                        const entryTime = parseISO(idea.timestamp);
+                        const exitTime = parseISO(idea.exitDate);
+                        const totalSeconds = Math.floor((exitTime.getTime() - entryTime.getTime()) / 1000);
+                        
+                        const days = Math.floor(totalSeconds / 86400);
+                        const hours = Math.floor((totalSeconds % 86400) / 3600);
+                        const minutes = Math.floor((totalSeconds % 3600) / 60);
+                        const seconds = totalSeconds % 60;
+                        
+                        const parts = [];
+                        if (days > 0) parts.push(`${days}d`);
+                        if (hours > 0) parts.push(`${hours}h`);
+                        if (minutes > 0) parts.push(`${minutes}m`);
+                        if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+                        
+                        return parts.join(' ');
                       })()}
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
-                      {idea.holdingPeriod === 'day' ? 'Day' : 
-                       idea.holdingPeriod === 'swing' ? 'Swing' : 
-                       'Position'}
+                      {idea.holdingPeriod === 'day' ? 'Day Trade' : 
+                       idea.holdingPeriod === 'swing' ? 'Swing Trade' : 
+                       'Position Trade'}
                     </div>
                   </div>
                 )}
