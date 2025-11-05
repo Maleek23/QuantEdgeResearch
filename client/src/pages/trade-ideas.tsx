@@ -4,7 +4,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TradeIdeaBlock } from "@/components/trade-idea-block";
-import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,8 +28,6 @@ export default function TradeIdeasPage() {
   const [activeAssetType, setActiveAssetType] = useState<"stock" | "penny_stock" | "option" | "crypto" | "all">("all");
   const [activeGrade, setActiveGrade] = useState<"all" | "A" | "B" | "C">("all");
   const [dateRange, setDateRange] = useState<string>('all');
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const { toast } = useToast();
@@ -180,11 +177,6 @@ export default function TradeIdeasPage() {
     }
   });
 
-  const handleDateSelect = (date: Date | undefined) => {
-    setSelectedDate(date);
-    setCalendarOpen(false);
-  };
-
   const handleToggleExpand = (ideaId: string) => {
     setExpandedIdeaId(expandedIdeaId === ideaId ? null : ideaId);
   };
@@ -224,7 +216,7 @@ export default function TradeIdeasPage() {
     }
   })();
 
-  // Filter ideas by search, direction, source, asset type, grade, date, and screener filters
+  // Filter ideas by search, direction, source, asset type, grade, and date range
   const filteredIdeas = tradeIdeas.filter(idea => {
     const matchesSearch = !tradeIdeaSearch || 
       idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase()) ||
@@ -242,14 +234,11 @@ export default function TradeIdeasPage() {
     
     const matchesGrade = activeGrade === "all" || idea.probabilityBand?.startsWith(activeGrade) || false;
     
-    // Date range filtering (primary) - filters by when trade was created/posted
+    // Date range filtering - filters by when trade was created/posted
     const ideaDate = parseISO(idea.timestamp);
     const matchesDateRange = dateRange === 'all' || (!isBefore(ideaDate, rangeStart) || ideaDate.getTime() === rangeStart.getTime());
     
-    // Single date filtering (secondary, only used if calendar date is selected)
-    const matchesDate = !selectedDate || isSameDay(ideaDate, selectedDate);
-    
-    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesDate;
+    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange;
   });
 
   // Helper function to check if an idea is from today (created same trading day)
@@ -284,9 +273,6 @@ export default function TradeIdeasPage() {
     acc[assetType].push(idea);
     return acc;
   }, {} as Record<string, TradeIdea[]>);
-
-  // Get dates with ideas for calendar highlighting
-  const datesWithIdeas = tradeIdeas.map(idea => startOfDay(parseISO(idea.timestamp)));
 
   // Count very fresh ideas (last 2h) - for NEW badge
   const newIdeasCount = filteredIdeas.filter(isVeryFreshIdea).length;
@@ -392,58 +378,19 @@ export default function TradeIdeasPage() {
         </CardContent>
       </Card>
 
-      {/* Weekend Notice Banner - Smart helper instead of duplicate feed */}
+      {/* Weekend Notice Banner */}
       {isWeekend() && (
         <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5" data-testid="weekend-preview-section">
           <CardContent className="py-4">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-3">
-                <CalendarClock className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm font-semibold">Markets open {format(getNextTradingWeekStart(), 'EEEE, MMM d')} at 9:30 AM CT</p>
-                  <p className="text-xs text-muted-foreground">
-                    {tradeIdeas.filter(i => i.outcomeStatus === 'open').length > 0 
-                      ? `${tradeIdeas.filter(i => i.outcomeStatus === 'open').length} ideas ready for next week`
-                      : "Generate crypto ideas (24/7 trading) for immediate opportunities"}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Select value={activeAssetType} onValueChange={(value: any) => setActiveAssetType(value)}>
-                  <SelectTrigger className="w-[160px] h-9" data-testid="select-weekend-asset-filter">
-                    <SelectValue placeholder="Filter by asset" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Assets</SelectItem>
-                    <SelectItem value="stock">Stock Shares</SelectItem>
-                    <SelectItem value="penny_stock">Penny Stocks</SelectItem>
-                    <SelectItem value="option">Stock Options</SelectItem>
-                    <SelectItem value="crypto">Crypto (24/7)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button 
-                  onClick={() => generateQuantIdeas.mutate()}
-                  disabled={generateQuantIdeas.isPending}
-                  size="sm"
-                  className="gap-1.5"
-                  data-testid="button-generate-quant-ideas"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  <span className="hidden sm:inline">{generateQuantIdeas.isPending ? "Generating..." : "Quant"}</span>
-                  <span className="sm:hidden">{generateQuantIdeas.isPending ? "..." : "Q"}</span>
-                </Button>
-                <Button 
-                  onClick={() => generateAIIdeas.mutate()}
-                  disabled={generateAIIdeas.isPending}
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  data-testid="button-generate-ai-ideas"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  <span className="hidden sm:inline">{generateAIIdeas.isPending ? "Generating..." : "AI"}</span>
-                  <span className="sm:hidden">{generateAIIdeas.isPending ? "..." : "A"}</span>
-                </Button>
+            <div className="flex items-center gap-3">
+              <CalendarClock className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-sm font-semibold">Markets open {format(getNextTradingWeekStart(), 'EEEE, MMM d')} at 9:30 AM CT</p>
+                <p className="text-xs text-muted-foreground">
+                  {tradeIdeas.filter(i => i.outcomeStatus === 'open').length > 0 
+                    ? `${tradeIdeas.filter(i => i.outcomeStatus === 'open').length} ideas ready for next week`
+                    : "Use the generation buttons above to create new trade ideas"}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -554,9 +501,9 @@ export default function TradeIdeasPage() {
             <Button variant="outline" size="default" className="gap-2" data-testid="button-filters">
               <SlidersHorizontal className="h-4 w-4" />
               Filters
-              {(activeAssetType !== "all" || activeSource !== "all" || activeGrade !== "all" || activeDirection !== "all" || selectedDate) && (
+              {(activeAssetType !== "all" || activeSource !== "all" || activeGrade !== "all" || activeDirection !== "all") && (
                 <Badge variant="secondary" className="ml-1">
-                  {[activeAssetType !== "all", activeSource !== "all", activeGrade !== "all", activeDirection !== "all", selectedDate].filter(Boolean).length}
+                  {[activeAssetType !== "all", activeSource !== "all", activeGrade !== "all", activeDirection !== "all"].filter(Boolean).length}
                 </Badge>
               )}
             </Button>
@@ -659,45 +606,6 @@ export default function TradeIdeasPage() {
                     Day
                   </Button>
                 </div>
-              </div>
-
-              {/* Date */}
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Date</Label>
-                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start" data-testid="button-calendar">
-                      <CalendarIcon className="h-4 w-4 mr-2" />
-                      {selectedDate ? format(selectedDate, "MMM d, yyyy") : "All Dates"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={handleDateSelect}
-                      modifiers={{ hasIdeas: datesWithIdeas }}
-                      modifiersClassNames={{ hasIdeas: "bg-primary/10 font-bold" }}
-                      data-testid="calendar-filter"
-                    />
-                    {selectedDate && (
-                      <div className="p-2 border-t">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="w-full"
-                          onClick={() => {
-                            setSelectedDate(undefined);
-                            setCalendarOpen(false);
-                          }}
-                          data-testid="button-clear-date"
-                        >
-                          Clear Date
-                        </Button>
-                      </div>
-                    )}
-                  </PopoverContent>
-                </Popover>
               </div>
 
             </div>
@@ -828,38 +736,11 @@ export default function TradeIdeasPage() {
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-lg font-medium text-muted-foreground">No fresh trade ideas</p>
-                <p className="text-sm text-muted-foreground/70 mt-1 mb-4">
+                <p className="text-sm text-muted-foreground/70 mt-1">
                   {tradeIdeas.length === 0 
-                    ? "Generate new ideas to get started" 
+                    ? "Use the generation buttons above to create new ideas" 
                     : "Fresh ideas appear here within 2 hours of generation"}
                 </p>
-                {!isWeekend() && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <Button 
-                      onClick={() => generateQuantIdeas.mutate()}
-                      disabled={generateQuantIdeas.isPending}
-                      size="sm"
-                      className="gap-1.5"
-                      data-testid="button-generate-quant-ideas"
-                    >
-                      <BarChart3 className="h-4 w-4" />
-                      <span className="hidden sm:inline">{generateQuantIdeas.isPending ? "Generating..." : "Quant"}</span>
-                      <span className="sm:hidden">{generateQuantIdeas.isPending ? "..." : "Q"}</span>
-                    </Button>
-                    <Button 
-                      onClick={() => generateAIIdeas.mutate()}
-                      disabled={generateAIIdeas.isPending}
-                      size="sm"
-                      variant="outline"
-                      className="gap-1.5"
-                      data-testid="button-generate-ai-ideas"
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      <span className="hidden sm:inline">{generateAIIdeas.isPending ? "Generating..." : "AI"}</span>
-                      <span className="sm:hidden">{generateAIIdeas.isPending ? "..." : "A"}</span>
-                    </Button>
-                  </div>
-                )}
               </CardContent>
             </Card>
           ) : (
