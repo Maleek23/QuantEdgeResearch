@@ -42,6 +42,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
   const isOpen = isExpanded !== undefined ? isExpanded : localIsOpen;
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [priceUpdated, setPriceUpdated] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
   const prevPriceRef = useRef<number | undefined>(currentPrice);
   const { toast } = useToast();
 
@@ -61,6 +62,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
   useEffect(() => {
     if (currentPrice !== undefined && prevPriceRef.current !== undefined && currentPrice !== prevPriceRef.current) {
       setPriceUpdated(true);
+      setLastUpdateTime(new Date());
       prevPriceRef.current = currentPrice;
       const timer = setTimeout(() => setPriceUpdated(false), 300);
       return () => clearTimeout(timer);
@@ -417,25 +419,34 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
           )}
 
           {/* ===== PRICE DISPLAY SECTION ===== */}
-          <div className="mb-3 p-3 rounded-lg border bg-gradient-to-br from-card via-card to-muted/5">
+          <div className="mb-3 p-4 rounded-lg border-2 bg-gradient-to-br from-card via-card to-muted/5 shadow-sm">
             {currentPrice ? (
-              <div className="space-y-2">
-                {/* Current Price with Change */}
+              <div className="space-y-3">
+                {/* Current Price with Change - ENHANCED */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      CURRENT
-                    </span>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <Activity className={cn("h-3 w-3", priceUpdated && "animate-pulse")} />
+                        LIVE PRICE
+                      </span>
+                      <span className="text-[10px] text-muted-foreground/70 mt-0.5">
+                        Updates every 30s
+                      </span>
+                    </div>
                     <span className={cn(
-                      "text-xs font-bold px-2 py-0.5 rounded-md",
-                      priceChangePercent >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+                      "text-sm font-bold px-2.5 py-1 rounded-md shadow-sm",
+                      priceChangePercent >= 0 
+                        ? "bg-green-500/30 text-green-300 border border-green-500/50" 
+                        : "bg-red-500/30 text-red-300 border border-red-500/50"
                     )}>
-                      {formatPercent(priceChangePercent)}
+                      {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
                     </span>
                   </div>
                   <div className={cn(
-                    "text-2xl font-bold font-mono",
-                    priceUpdated && "price-update"
+                    "text-3xl font-bold font-mono text-foreground transition-all duration-300",
+                    priceUpdated && "price-update scale-105",
+                    priceChangePercent >= 0 ? "text-green-400" : "text-red-400"
                   )} data-testid={`text-current-price-${idea.symbol}`}>
                     {formatCurrency(currentPrice)}
                   </div>

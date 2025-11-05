@@ -1885,8 +1885,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // 🛡️ LAYER 1: Structural validation (prevents logically impossible trades)
         const structureValid = validateTradeStructure({
           symbol: idea.symbol,
-          assetType: idea.assetType,
-          direction: idea.direction,
+          assetType: idea.assetType as 'stock' | 'option' | 'crypto',
+          direction: idea.direction as 'long' | 'short',
           entryPrice: idea.entryPrice,
           targetPrice: idea.targetPrice,
           stopLoss: idea.stopLoss
@@ -1900,8 +1900,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // 🛡️ LAYER 2: Risk guardrails (max 5% loss, min 2:1 R:R, price sanity)
         const validation = validateTradeRisk({
           symbol: idea.symbol,
-          assetType: idea.assetType,
-          direction: idea.direction,
+          assetType: idea.assetType as 'stock' | 'option' | 'crypto',
+          direction: idea.direction as 'long' | 'short',
           entryPrice: idea.entryPrice,
           targetPrice: idea.targetPrice,
           stopLoss: idea.stopLoss,
@@ -1973,15 +1973,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // 🛡️ LAYER 1: Structural validation (prevents logically impossible trades)
         const structureValid = validateTradeStructure({
           symbol: idea.symbol,
-          assetType: idea.assetType,
-          direction: idea.direction,
+          assetType: idea.assetType as 'stock' | 'option' | 'crypto',
+          direction: idea.direction as 'long' | 'short',
           entryPrice: idea.entryPrice,
           targetPrice: idea.targetPrice,
           stopLoss: idea.stopLoss,
           // Options-specific fields (required for option validation)
-          strikePrice: idea.strikePrice,
-          expiryDate: idea.expiryDate,
-          optionType: idea.optionType
+          strikePrice: idea.strikePrice ?? undefined,
+          expiryDate: idea.expiryDate ?? undefined,
+          optionType: idea.optionType as 'call' | 'put' | undefined
         }, 'Flow');
         
         if (!structureValid) {
@@ -1992,8 +1992,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // 🛡️ LAYER 2: Risk guardrails (max 5% loss, min 1.5:1 R:R, price sanity)
         const validation = validateTradeRisk({
           symbol: idea.symbol,
-          assetType: idea.assetType,
-          direction: idea.direction,
+          assetType: idea.assetType as 'stock' | 'option' | 'crypto',
+          direction: idea.direction as 'long' | 'short',
           entryPrice: idea.entryPrice,
           targetPrice: idea.targetPrice,
           stopLoss: idea.stopLoss,
@@ -2820,35 +2820,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Analytics: Backtesting Metrics (with source filtering)
-  app.get("/api/analytics/backtest", async (req, res) => {
-    try {
-      const { BacktestingEngine } = await import('./backtesting');
-      const source = req.query.source as string | undefined;
-      
-      let allIdeas = await storage.getAllTradeIdeas();
-      
-      // Filter by source if specified
-      if (source && source !== 'all') {
-        allIdeas = allIdeas.filter(idea => idea.source === source);
-      }
-      
-      // Calculate comprehensive metrics
-      const metrics = BacktestingEngine.calculateMetrics(allIdeas);
-      const signalPerformance = BacktestingEngine.analyzeSignalPerformance(allIdeas);
-      const calibration = BacktestingEngine.calculateCalibration(allIdeas);
-      
-      res.json({
-        metrics,
-        signalPerformance,
-        calibration,
-        source: source || 'all',
-        timestamp: new Date().toISOString()
-      });
-    } catch (error: any) {
-      console.error("Backtesting error:", error);
-      res.status(500).json({ error: error?.message || "Failed to calculate backtest metrics" });
-    }
-  });
+  // TODO: Re-enable when backtesting module is implemented
+  // app.get("/api/analytics/backtest", async (req, res) => {
+  //   try {
+  //     const { BacktestingEngine } = await import('./backtesting');
+  //     const source = req.query.source as string | undefined;
+  //     
+  //     let allIdeas = await storage.getAllTradeIdeas();
+  //     
+  //     // Filter by source if specified
+  //     if (source && source !== 'all') {
+  //       allIdeas = allIdeas.filter(idea => idea.source === source);
+  //     }
+  //     
+  //     // Calculate comprehensive metrics
+  //     const metrics = BacktestingEngine.calculateMetrics(allIdeas);
+  //     const signalPerformance = BacktestingEngine.analyzeSignalPerformance(allIdeas);
+  //     const calibration = BacktestingEngine.calculateCalibration(allIdeas);
+  //     
+  //     res.json({
+  //       metrics,
+  //       signalPerformance,
+  //       calibration,
+  //       source: source || 'all',
+  //       timestamp: new Date().toISOString()
+  //     });
+  //   } catch (error: any) {
+  //     console.error("Backtesting error:", error);
+  //     res.status(500).json({ error: error?.message || "Failed to calculate backtest metrics" });
+  //   }
+  // });
 
   // Analytics: Rolling Win Rate (time series with source filtering)
   app.get("/api/analytics/rolling-winrate", async (req, res) => {

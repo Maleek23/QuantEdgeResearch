@@ -233,7 +233,7 @@ export async function sendDiscordAlert(alert: {
 }
 
 // Send batch summary to Discord
-export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai' | 'quant' | 'hybrid'): Promise<void> {
+export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai' | 'quant' | 'hybrid' | 'flow' | 'news'): Promise<void> {
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl || ideas.length === 0) {
@@ -243,9 +243,13 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
   try {
     const sourceLabel = source === 'ai' ? '🧠 AI' : 
                        source === 'hybrid' ? '🎯 Hybrid (AI+Quant)' :
+                       source === 'flow' ? '📊 Flow Scanner' :
+                       source === 'news' ? '📰 News Catalyst' :
                        '✨ Quant';
     const color = source === 'ai' ? COLORS.AI :
                  source === 'hybrid' ? COLORS.HYBRID :
+                 source === 'flow' ? 0x9B59B6 : // Purple for flow
+                 source === 'news' ? 0xE67E22 : // Orange for news
                  COLORS.QUANT;
     
     const summary = ideas.map(idea => 
