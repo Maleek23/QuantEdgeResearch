@@ -777,7 +777,7 @@ export default function TradeIdeasPage() {
                             <TradeIdeaBlock
                               key={idea.id}
                               idea={idea}
-                              currentPrice={priceMap[idea.symbol]}
+                              currentPrice={idea.assetType === 'option' ? undefined : priceMap[idea.symbol]}
                               catalysts={catalysts}
                               isExpanded={expandedIdeaId === idea.id}
                               onToggleExpand={() => handleToggleExpand(idea.id)}
@@ -845,7 +845,7 @@ export default function TradeIdeasPage() {
                             <TradeIdeaBlock
                               key={idea.id}
                               idea={idea}
-                              currentPrice={priceMap[idea.symbol]}
+                              currentPrice={idea.assetType === 'option' ? undefined : priceMap[idea.symbol]}
                               catalysts={catalysts}
                               isExpanded={expandedIdeaId === idea.id}
                               onToggleExpand={() => handleToggleExpand(idea.id)}
@@ -879,7 +879,7 @@ export default function TradeIdeasPage() {
                   <TradeIdeaBlock
                     key={idea.id}
                     idea={idea}
-                    currentPrice={priceMap[idea.symbol]}
+                    currentPrice={idea.assetType === 'option' ? undefined : priceMap[idea.symbol]}
                     catalysts={catalysts}
                     isExpanded={expandedIdeaId === idea.id}
                     onToggleExpand={() => handleToggleExpand(idea.id)}
@@ -909,7 +909,7 @@ export default function TradeIdeasPage() {
                   <TradeIdeaBlock
                     key={idea.id}
                     idea={idea}
-                    currentPrice={priceMap[idea.symbol]}
+                    currentPrice={idea.assetType === 'option' ? undefined : priceMap[idea.symbol]}
                     catalysts={catalysts}
                     isExpanded={expandedIdeaId === idea.id}
                     onToggleExpand={() => handleToggleExpand(idea.id)}
@@ -939,7 +939,7 @@ export default function TradeIdeasPage() {
                   <TradeIdeaBlock
                     key={idea.id}
                     idea={idea}
-                    currentPrice={priceMap[idea.symbol]}
+                    currentPrice={idea.assetType === 'option' ? undefined : priceMap[idea.symbol]}
                     catalysts={catalysts}
                     isExpanded={expandedIdeaId === idea.id}
                     onToggleExpand={() => handleToggleExpand(idea.id)}

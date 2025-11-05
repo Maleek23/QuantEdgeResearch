@@ -996,10 +996,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fetch updated ideas after archiving
       const updatedIdeas = await storage.getAllTradeIdeas();
       
-      // Add current prices to response
+      // Add current prices to response (options always get null - they use entry/target/stop premiums)
       const ideasWithPrices = updatedIdeas.map(idea => ({
         ...idea,
-        currentPrice: priceMap.get(idea.symbol) || null,
+        currentPrice: idea.assetType === 'option' ? null : (priceMap.get(idea.symbol) || null),
       }));
       
       res.json(ideasWithPrices);
