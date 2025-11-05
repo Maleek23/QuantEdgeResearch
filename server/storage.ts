@@ -831,26 +831,36 @@ export class MemStorage implements IStorage {
     }
     
     // 🎯 SMART ENGINE VERSION FILTERING
-    // Default behavior (includeAllVersions=false): Filter to v3.0+ only for clean user-facing metrics
+    // Default behavior (includeAllVersions=false): Filter to current-gen engines only
     // ML/Admin mode (includeAllVersions=true): Include ALL versions for training, analysis, and auditing
     if (!filters?.includeAllVersions) {
-      // 🆕 FILTER v3.0+ ONLY: Exclude old v2.x trades with broken signals (MACD, ML, etc)
-      // Old v2.x trades: 131 total (39.4% WR) - polluting metrics with failed MACD/ML signals
-      // v3.0+: Research-backed signals only (RSI2 75-91% WR, VWAP 80%+ WR)
+      // CURRENT-GEN ENGINES (include):
+      // - Quant v3.x (research-backed signals: RSI2, VWAP, Volume Spike)
+      // - Flow Scanner (all versions - options flow detection)
+      // - Hybrid (all versions - AI + Quant fusion)
+      // - AI (all versions - GPT/Claude/Gemini analysis)
+      // - No engineVersion (newly generated, treated as current-gen)
+      // 
+      // LEGACY ENGINES (exclude):
+      // - Quant v2.x and v1.x (broken MACD, ML signals)
       const beforeVersionFilter = allIdeas.length;
       allIdeas = allIdeas.filter(idea => {
-        // Include trades with v3.0.0 or higher
-        if (idea.engineVersion && idea.engineVersion.startsWith('v3.')) {
-          return true;
-        }
-        // Include trades without engineVersion (newly generated AI/Quant trades, treated as v3.0+)
         if (!idea.engineVersion) {
-          return true;
+          return true; // No version = current-gen (newly generated)
         }
-        // Exclude only v2.x and v1.x versions
+        
+        const version = idea.engineVersion.toLowerCase();
+        
+        // Include all current-gen engines
+        if (version.startsWith('v3.')) return true;        // Quant v3.x
+        if (version.startsWith('flow_')) return true;       // Flow Scanner
+        if (version.startsWith('hybrid_')) return true;     // Hybrid
+        if (version.startsWith('ai_')) return true;         // AI
+        
+        // Exclude legacy Quant v1.x and v2.x
         return false;
       });
-      console.log(`[PERF-STATS] Engine filter applied: v3.0+ only → ${beforeVersionFilter} ideas filtered to ${allIdeas.length}`);
+      console.log(`[PERF-STATS] Engine filter: Current-gen only → ${beforeVersionFilter} ideas filtered to ${allIdeas.length}`);
     } else {
       console.log(`[PERF-STATS] All engine versions included (ML/Admin mode) → ${allIdeas.length} total ideas`);
     }
@@ -1460,26 +1470,36 @@ export class DatabaseStorage implements IStorage {
     let allIdeas = allIdeasRaw.filter(idea => !idea.excludeFromTraining);
     
     // 🎯 SMART ENGINE VERSION FILTERING
-    // Default behavior (includeAllVersions=false): Filter to v3.0+ only for clean user-facing metrics
+    // Default behavior (includeAllVersions=false): Filter to current-gen engines only
     // ML/Admin mode (includeAllVersions=true): Include ALL versions for training, analysis, and auditing
     if (!filters?.includeAllVersions) {
-      // 🆕 FILTER v3.0+ ONLY: Exclude old v2.x trades with broken signals (MACD, ML, etc)
-      // Old v2.x trades: 131 total (39.4% WR) - polluting metrics with failed MACD/ML signals
-      // v3.0+: Research-backed signals only (RSI2 75-91% WR, VWAP 80%+ WR)
+      // CURRENT-GEN ENGINES (include):
+      // - Quant v3.x (research-backed signals: RSI2, VWAP, Volume Spike)
+      // - Flow Scanner (all versions - options flow detection)
+      // - Hybrid (all versions - AI + Quant fusion)
+      // - AI (all versions - GPT/Claude/Gemini analysis)
+      // - No engineVersion (newly generated, treated as current-gen)
+      // 
+      // LEGACY ENGINES (exclude):
+      // - Quant v2.x and v1.x (broken MACD, ML signals)
       const beforeVersionFilter = allIdeas.length;
       allIdeas = allIdeas.filter(idea => {
-        // Include trades with v3.0.0 or higher
-        if (idea.engineVersion && idea.engineVersion.startsWith('v3.')) {
-          return true;
-        }
-        // Include trades without engineVersion (newly generated AI/Quant trades, treated as v3.0+)
         if (!idea.engineVersion) {
-          return true;
+          return true; // No version = current-gen (newly generated)
         }
-        // Exclude only v2.x and v1.x versions
+        
+        const version = idea.engineVersion.toLowerCase();
+        
+        // Include all current-gen engines
+        if (version.startsWith('v3.')) return true;        // Quant v3.x
+        if (version.startsWith('flow_')) return true;       // Flow Scanner
+        if (version.startsWith('hybrid_')) return true;     // Hybrid
+        if (version.startsWith('ai_')) return true;         // AI
+        
+        // Exclude legacy Quant v1.x and v2.x
         return false;
       });
-      console.log(`[PERF-STATS] Engine filter applied: v3.0+ only → ${beforeVersionFilter} ideas filtered to ${allIdeas.length}`);
+      console.log(`[PERF-STATS] Engine filter: Current-gen only → ${beforeVersionFilter} ideas filtered to ${allIdeas.length}`);
     } else {
       console.log(`[PERF-STATS] All engine versions included (ML/Admin mode) → ${allIdeas.length} total ideas`);
     }
@@ -1495,8 +1515,9 @@ export class DatabaseStorage implements IStorage {
     const closedGains = closedIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
     const closedHoldingTimes = closedIdeas.filter(i => i.actualHoldingTimeMinutes !== null).map(i => i.actualHoldingTimeMinutes!);
 
-    // Group by source (ALL ideas, not just closed)
-    const bySource = ['ai', 'quant', 'manual'].map(source => {
+    // Group by source (ALL ideas, not just closed) - DYNAMICALLY to include all sources (flow, hybrid, ai, quant, manual)
+    const sourcesSet = new Set(allIdeas.map(i => i.source || 'unknown'));
+    const bySource = Array.from(sourcesSet).map(source => {
       const sourceAllIdeas = allIdeas.filter(i => i.source === source);
       const sourceClosedIdeas = closedIdeas.filter(i => i.source === source);
       const sourceWon = sourceClosedIdeas.filter(i => i.outcomeStatus === 'hit_target');
@@ -1513,10 +1534,11 @@ export class DatabaseStorage implements IStorage {
         winRate: sourceDecided > 0 ? (sourceWon.length / sourceDecided) * 100 : 0,
         avgPercentGain: calculateAvg(sourceGains),
       };
-    });
+    }).sort((a, b) => b.totalIdeas - a.totalIdeas); // Sort by total trades descending
 
-    // Group by asset type (ALL ideas, not just closed)
-    const byAssetType = ['stock', 'option', 'crypto'].map(assetType => {
+    // Group by asset type (ALL ideas, not just closed) - DYNAMICALLY to include all asset types
+    const assetTypesSet = new Set(allIdeas.map(i => i.assetType || 'unknown'));
+    const byAssetType = Array.from(assetTypesSet).map(assetType => {
       const assetAllIdeas = allIdeas.filter(i => i.assetType === assetType);
       const assetClosedIdeas = closedIdeas.filter(i => i.assetType === assetType);
       const assetWon = assetClosedIdeas.filter(i => i.outcomeStatus === 'hit_target');
@@ -1533,7 +1555,7 @@ export class DatabaseStorage implements IStorage {
         winRate: assetDecided > 0 ? (assetWon.length / assetDecided) * 100 : 0,
         avgPercentGain: calculateAvg(assetGains),
       };
-    });
+    }).sort((a, b) => b.totalIdeas - a.totalIdeas); // Sort by total trades descending
 
     // Group by signal type
     const signalMap = new Map<string, TradeIdea[]>();
