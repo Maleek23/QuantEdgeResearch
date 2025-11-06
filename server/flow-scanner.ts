@@ -315,7 +315,7 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   // Calculate R:R ratio
   const risk = direction === 'long' ? (entryPrice - stopLoss) : (stopLoss - entryPrice);
   const reward = direction === 'long' ? (targetPrice - entryPrice) : (entryPrice - targetPrice);
-  const riskRewardRatio = reward / risk;
+  let riskRewardRatio = reward / risk;
 
   // 🔧 FIX: Generate OPTIONS trades (not stocks) - we're detecting options flow!
   // Use the most active option's type (call/put) to determine the option contract type
