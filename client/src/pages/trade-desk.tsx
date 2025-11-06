@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useRoute, useLocation } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -24,6 +25,9 @@ import { RiskDisclosure } from "@/components/risk-disclosure";
 import { TradeDeskModeTabs, MODES, type TradeDeskMode } from "@/components/trade-desk-mode-tabs";
 
 export default function TradeDeskPage() {
+  const [, params] = useRoute("/trade-desk/:mode");
+  const [, setLocation] = useLocation();
+  
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
@@ -32,7 +36,22 @@ export default function TradeDeskPage() {
   const [dateRange, setDateRange] = useState<string>('all');
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
-  const [activeMode, setActiveMode] = useState<TradeDeskMode>('standard');
+  
+  const urlMode = params?.mode as TradeDeskMode | undefined;
+  const validMode = urlMode && MODES.find(m => m.id === urlMode) ? urlMode : 'ai-picks';
+  const [activeMode, setActiveMode] = useState<TradeDeskMode>(validMode);
+  
+  useEffect(() => {
+    if (urlMode && MODES.find(m => m.id === urlMode)) {
+      setActiveMode(urlMode);
+    }
+  }, [urlMode]);
+  
+  const handleModeChange = (newMode: TradeDeskMode) => {
+    setActiveMode(newMode);
+    setLocation(`/trade-desk/${newMode}`);
+  };
+  
   const { toast } = useToast();
 
   const { data: tradeIdeas = [], isLoading: ideasLoading } = useQuery<TradeIdea[]>({
@@ -318,7 +337,7 @@ export default function TradeDeskPage() {
       </div>
 
       {/* Mode Tabs */}
-      <TradeDeskModeTabs mode={activeMode} onModeChange={setActiveMode} />
+      <TradeDeskModeTabs mode={activeMode} onModeChange={handleModeChange} />
 
       {/* Lotto Mode Warning Banner */}
       {activeMode === 'lotto' && (
