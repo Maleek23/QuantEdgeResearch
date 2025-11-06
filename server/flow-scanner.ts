@@ -303,7 +303,20 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   const now = new Date();
   const timestamp = now.toISOString();
   const entryValidUntil = new Date(now.getTime() + 60 * 60 * 1000).toISOString(); // +1 hour
-  const exitBy = new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString(); // +6 hours (day trade)
+  
+  // ✅ FIX: For options, exit_by MUST be BEFORE or ON expiry_date (can't hold past expiration!)
+  const optionExpiryDate = new Date(mostActiveOption.expiration);
+  // Set option expiry to 4:00 PM ET (16:00) on expiry date (when options expire)
+  optionExpiryDate.setHours(16, 0, 0, 0);
+  
+  // Calculate default exit_by (+6 hours from now for day trade)
+  const defaultExitBy = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+  
+  // Use the EARLIER of: (defaultExitBy OR option expiry time)
+  // This ensures we never try to exit AFTER the option has expired
+  const exitBy = (defaultExitBy < optionExpiryDate ? defaultExitBy : optionExpiryDate).toISOString();
+  
+  logger.info(`📊 [FLOW] ${ticker} TIMING: Entry valid until ${formatInTimeZone(new Date(entryValidUntil), 'America/New_York', 'MMM dd h:mm a zzz')}, Exit by ${formatInTimeZone(new Date(exitBy), 'America/New_York', 'MMM dd h:mm a zzz')} (option expires ${formatInTimeZone(optionExpiryDate, 'America/New_York', 'MMM dd h:mm a zzz')})`)
 
   // Build catalyst and analysis with dynamic target explanation
   const catalyst = `Unusual ${direction === 'long' ? 'CALL' : 'PUT'} Flow: ${unusualOptions.length} contracts, $${(totalPremium / 1000000).toFixed(2)}M premium`;

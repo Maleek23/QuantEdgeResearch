@@ -23,6 +23,8 @@ export interface TimingWindowsInput {
   // Optional technical indicators for volatility proxy
   rsiValue?: number;
   volumeRatio?: number;
+  // ✅ Option-specific fields
+  expiryDate?: string; // ISO date string for option expiration
 }
 
 export interface TimingWindowsOutput {
@@ -295,7 +297,27 @@ export function deriveTimingWindows(
   
   // 8. Calculate ISO timestamps
   const entryValidUntil = new Date(baseTimestamp.getTime() + entryWindowMinutes * 60 * 1000).toISOString();
-  const exitBy = new Date(baseTimestamp.getTime() + exitWindowMinutes * 60 * 1000).toISOString();
+  
+  // ✅ FIX: For options, exit_by MUST be BEFORE or ON expiry_date (can't hold past expiration!)
+  let exitBy: string;
+  if (input.assetType === 'option' && input.expiryDate) {
+    const optionExpiryDate = new Date(input.expiryDate);
+    // Set option expiry to 4:00 PM ET (16:00) on expiry date (when options expire)
+    optionExpiryDate.setHours(16, 0, 0, 0);
+    
+    // Calculate default exit_by based on exit window
+    const defaultExitBy = new Date(baseTimestamp.getTime() + exitWindowMinutes * 60 * 1000);
+    
+    // Use the EARLIER of: (defaultExitBy OR option expiry time)
+    // This ensures we never try to exit AFTER the option has expired
+    const actualExitBy = defaultExitBy < optionExpiryDate ? defaultExitBy : optionExpiryDate;
+    exitBy = actualExitBy.toISOString();
+    
+    logger.info(`⏰ [TIMING] ${input.symbol} OPTION: Exit by ${formatInTimeZone(actualExitBy, 'America/New_York', 'MMM dd h:mm a zzz')} (option expires ${formatInTimeZone(optionExpiryDate, 'America/New_York', 'MMM dd h:mm a zzz')})`);
+  } else {
+    // For stocks/crypto, use calculated exit window
+    exitBy = new Date(baseTimestamp.getTime() + exitWindowMinutes * 60 * 1000).toISOString();
+  }
   
   // 9. Calculate trend strength (use provided or estimate from price action)
   const trendStrength = input.trendStrength !== undefined

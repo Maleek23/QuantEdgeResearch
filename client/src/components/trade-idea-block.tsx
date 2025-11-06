@@ -450,63 +450,72 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   </div>
                 </div>
 
+                {/* Option Details Grid - ALWAYS show for options (moved ABOVE Entry/Target/Stop) */}
+                {idea.assetType === 'option' && (
+                  <div className="grid grid-cols-3 gap-3 pt-2 pb-3 border-t border-border/50 bg-accent/10 -mx-4 px-4 rounded-md">
+                    <div>
+                      <div className="text-[11px] text-blue-400 mb-1 uppercase tracking-wider flex items-center gap-1 font-semibold">
+                        <Activity className="h-3.5 w-3.5" />
+                        Type
+                      </div>
+                      <div className={cn(
+                        "text-lg font-bold font-mono uppercase",
+                        idea.optionType === 'call' ? 'text-green-400' : 'text-red-400'
+                      )}>
+                        {idea.optionType || 'N/A'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] text-amber-400 mb-1 uppercase tracking-wider flex items-center gap-1 font-semibold">
+                        <TargetIcon className="h-3.5 w-3.5" />
+                        Strike
+                      </div>
+                      <div className="text-lg font-bold font-mono text-amber-400">
+                        {idea.strikePrice !== null && idea.strikePrice !== undefined 
+                          ? formatCurrency(idea.strikePrice) 
+                          : 'N/A'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] mb-1 uppercase tracking-wider flex items-center gap-1 font-semibold text-purple-400">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        Expiry
+                      </div>
+                      <div className={cn(
+                        "text-lg font-bold font-mono",
+                        idea.expiryDate && new Date(idea.expiryDate).toDateString() === new Date().toDateString()
+                          ? 'text-red-400 animate-pulse' // TODAY - show in red with pulse
+                          : 'text-purple-400'
+                      )}>
+                        {idea.expiryDate ? formatInUserTZ(idea.expiryDate, 'MMM dd') : 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Entry/Target/Stop Grid */}
                 <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/50">
                   <div>
-                    <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">Entry</div>
+                    <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">
+                      {idea.assetType === 'option' ? 'Entry Premium' : 'Entry'}
+                    </div>
                     <div className="text-sm font-semibold font-mono">{formatCurrency(idea.entryPrice)}</div>
                   </div>
                   <div>
                     <div className="text-[10px] text-green-400 mb-0.5 uppercase tracking-wider flex items-center gap-0.5">
                       <TargetIcon className="h-2.5 w-2.5" />
-                      Target
+                      {idea.assetType === 'option' ? 'Target Premium' : 'Target'}
                     </div>
                     <div className="text-sm font-semibold font-mono text-green-400">{formatCurrency(idea.targetPrice)}</div>
                   </div>
                   <div>
                     <div className="text-[10px] text-red-400 mb-0.5 uppercase tracking-wider flex items-center gap-0.5">
                       <Shield className="h-2.5 w-2.5" />
-                      Stop
+                      {idea.assetType === 'option' ? 'Stop Premium' : 'Stop'}
                     </div>
                     <div className="text-sm font-semibold font-mono text-red-400">{formatCurrency(idea.stopLoss)}</div>
                   </div>
                 </div>
-
-                {/* Option Details Grid - Only for Options */}
-                {idea.assetType === 'option' && idea.strikePrice !== null && idea.strikePrice !== undefined && idea.expiryDate && idea.optionType && (
-                  <div className="grid grid-cols-3 gap-2 pt-2 mt-2 border-t border-border/50">
-                    <div>
-                      <div className="text-[10px] text-blue-400 mb-0.5 uppercase tracking-wider flex items-center gap-0.5">
-                        <Activity className="h-2.5 w-2.5" />
-                        Type
-                      </div>
-                      <div className={cn(
-                        "text-sm font-semibold font-mono uppercase",
-                        idea.optionType === 'call' ? 'text-green-400' : 'text-red-400'
-                      )}>
-                        {idea.optionType}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-amber-400 mb-1 uppercase tracking-wide flex items-center gap-1">
-                        <TargetIcon className="h-3 w-3" />
-                        Strike
-                      </div>
-                      <div className="text-lg font-semibold font-mono text-amber-400">
-                        {formatCurrency(idea.strikePrice)}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-purple-400 mb-1 uppercase tracking-wide flex items-center gap-1">
-                        <CalendarDays className="h-3 w-3" />
-                        Expiry
-                      </div>
-                      <div className="text-lg font-semibold font-mono text-purple-400">
-                        {formatInUserTZ(idea.expiryDate, 'MMM dd')}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             ) : (
               <div className="flex items-center gap-3 text-muted-foreground py-2">
