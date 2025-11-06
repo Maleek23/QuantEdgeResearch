@@ -1,6 +1,6 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { LayoutGrid, Activity, TrendingUp, Newspaper, UserPlus } from "lucide-react";
+import { LayoutGrid, Activity, TrendingUp, Newspaper, UserPlus, Zap } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { IdeaSource, AssetType } from "@shared/schema";
 
@@ -45,8 +45,8 @@ export const MODES: ModeMeta[] = [
   },
   {
     id: 'lotto',
-    label: '🎰 Lotto Plays',
-    icon: TrendingUp,
+    label: 'Lotto Plays',
+    icon: Zap,
     description: 'High-risk $20-70 options with 20x potential',
     badge: 'HIGH RISK',
     filters: {

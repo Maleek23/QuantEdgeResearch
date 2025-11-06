@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
 import { formatInUserTZ, formatTimeUntilExpiry } from "@/lib/timezone";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles, Newspaper, HelpCircle, Info, Database, TrendingUpIcon } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles, Newspaper, HelpCircle, Info, Database, TrendingUpIcon, Zap } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { parseISO } from "date-fns";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -268,8 +268,9 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
                 {/* Lotto Play Badge - High-risk far-OTM options with 20x potential */}
                 {idea.isLottoPlay && (
-                  <Badge variant="outline" className="text-xs font-semibold bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/30 animate-pulse">
-                    🎰 LOTTO PLAY (20x potential)
+                  <Badge variant="outline" className="flex items-center gap-1 text-xs font-semibold bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/30 animate-pulse">
+                    <Zap className="h-3 w-3" />
+                    LOTTO PLAY (20x potential)
                   </Badge>
                 )}
 

@@ -56,11 +56,28 @@ function isLottoCandidate(option: UnusualOption): boolean {
   const entryPrice = option.lastPrice;
   const delta = option.greeks?.delta || 0;
   
-  return (
+  // Calculate days to expiration
+  const today = new Date();
+  const expiryDate = new Date(option.expiration);
+  const daysToExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Lotto criteria:
+  // 1. Entry price: $0.20 - $0.70 (cheap weeklies)
+  // 2. Delta: ≤0.30 (far out-of-the-money)
+  // 3. DTE: 0-7 days (weekly expiration only)
+  const meetsLottoCriteria = (
     entryPrice >= LOTTO_ENTRY_MIN &&
     entryPrice <= LOTTO_ENTRY_MAX &&
-    Math.abs(delta) <= LOTTO_DELTA_MAX
+    Math.abs(delta) <= LOTTO_DELTA_MAX &&
+    daysToExpiry >= 0 &&
+    daysToExpiry <= 7  // CRITICAL: Weekly expiration only!
   );
+  
+  if (meetsLottoCriteria) {
+    logger.info(`[FLOW] LOTTO CANDIDATE: ${option.symbol} - Entry=$${entryPrice}, Delta=${delta.toFixed(2)}, DTE=${daysToExpiry} days`);
+  }
+  
+  return meetsLottoCriteria;
 }
 
 // Detect unusual options activity
