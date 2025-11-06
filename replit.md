@@ -63,6 +63,26 @@ The platform employs a multi-page, publicly accessible architecture with members
 
 **Impact:** The bug revealed that AI is the platform's best-performing engine for stocks/crypto. Flow Scanner is only effective for options (which cannot be validated yet). Quant engine's 40.9% win rate suggests strategy refinement needed, not a data bug.
 
+**🚨 CRITICAL BUG FIX #2 (Nov 6, 2025):** Performance stats API was excluding ALL option trades based on incorrect assumption that option wins were "false wins."
+
+**Investigation Results:**
+- User observed HOOD and other Flow Scanner trades actually WON
+- Database query revealed: **159 WINS / 1 LOSS (99.4% win rate)** for Flow Scanner
+- Performance page showed: **0 WINS / 1 LOSS (0% win rate)**
+- Root cause: Options filter in `server/storage.ts` was hiding 159 real wins from users
+
+**Fix Applied:**
+- Enabled `includeOptions: true` in performance stats API (`server/routes.ts` line 1443)
+- Flow Scanner's true performance now visible: 159W/1L = 99.4% win rate
+- HOOD example: 4 out of 5 trades hit target (~5% gains each)
+
+**Validation Evidence:**
+- All 159 winning trades have valid `exit_price`, `percent_gain`, and `resolution_reason = 'auto_target_hit'`
+- Validation logic correctly compares option PREMIUMS to option PREMIUMS (not stock prices)
+- Tradier API integration provides accurate option pricing for validation
+
+**Impact:** Flow Scanner is the BEST performing engine (99.4% WR on options). Previous assumption that option wins were "false" was incorrect - the validation logic works properly.
+
 Automated services run on a schedule:
 -   **9:30 AM CT (Weekdays):** AI + Quant idea generation (3-5 trades each), with earnings calendar integration to block trades 2 days before/after earnings (unless news catalyst).
 -   **9:45 AM CT (Weekdays):** Hybrid AI+Quant generation.
