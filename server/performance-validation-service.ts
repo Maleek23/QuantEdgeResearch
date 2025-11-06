@@ -138,14 +138,19 @@ class PerformanceValidationService {
   /**
    * Fetch current prices for all symbols
    * OPTIMIZED: Deduplicates symbols, batches requests, includes retry logic
+   * 
+   * 🚨 CRITICAL FIX: Skip options validation until proper option pricing is implemented
+   * Previous bug: Was fetching STOCK prices for options, comparing stock prices ($252) 
+   * to option premiums ($89), causing false wins (99.4% Flow Scanner win rate was invalid)
    */
   private async fetchCurrentPrices(ideas: TradeIdea[]): Promise<Map<string, number>> {
     const priceMap = new Map<string, number>();
     
     // OPTIMIZATION: Deduplicate symbols first (avoid redundant API calls)
+    // 🚨 FIX: EXCLUDE options - don't fetch prices for them (would be stock prices, not premiums)
     const uniqueStockSymbols = new Set(
       ideas
-        .filter(i => i.assetType === 'stock' || i.assetType === 'penny_stock' || i.assetType === 'option')
+        .filter(i => i.assetType === 'stock' || i.assetType === 'penny_stock')
         .map(i => i.symbol)
     );
     
@@ -154,9 +159,14 @@ class PerformanceValidationService {
         .filter(i => i.assetType === 'crypto')
         .map(i => i.symbol)
     );
+    
+    const skippedOptionsCount = ideas.filter(i => i.assetType === 'option').length;
 
     const totalUnique = uniqueStockSymbols.size + uniqueCryptoSymbols.size;
     console.log(`  📊 Fetching prices for ${totalUnique} unique symbols (${uniqueStockSymbols.size} stocks, ${uniqueCryptoSymbols.size} crypto)`);
+    if (skippedOptionsCount > 0) {
+      console.log(`  ⚠️  Skipping ${skippedOptionsCount} options (no option pricing implemented yet)`);
+    }
 
     // OPTIMIZATION: Fetch all prices in parallel using Promise.all
     const stockPromises = Array.from(uniqueStockSymbols).map(async (symbol) => ({

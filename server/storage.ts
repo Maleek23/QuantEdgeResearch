@@ -1438,6 +1438,7 @@ export class DatabaseStorage implements IStorage {
     endDate?: string;   // ISO date string (YYYY-MM-DD)
     source?: string;    // 'ai', 'quant', 'manual'
     includeAllVersions?: boolean; // When true, includes v2.x trades for ML/admin analysis (default: false = v3.0+ only)
+    includeOptions?: boolean; // When true, includes options (default: false until proper option pricing implemented)
   }): Promise<PerformanceStats> {
     let allIdeasRaw = await this.getAllTradeIdeas();
     const originalCount = allIdeasRaw.length;
@@ -1502,6 +1503,20 @@ export class DatabaseStorage implements IStorage {
       console.log(`[PERF-STATS] Engine filter: Current-gen only → ${beforeVersionFilter} ideas filtered to ${allIdeas.length}`);
     } else {
       console.log(`[PERF-STATS] All engine versions included (ML/Admin mode) → ${allIdeas.length} total ideas`);
+    }
+    
+    // 🚨 OPTIONS FILTER: Exclude options by default until proper option pricing is implemented
+    // Previous bug: Was comparing STOCK prices ($252) to OPTION premiums ($89), causing false wins
+    // Flow Scanner's 99.4% win rate was entirely from false option wins!
+    if (!filters?.includeOptions) {
+      const beforeOptionsFilter = allIdeas.length;
+      allIdeas = allIdeas.filter(idea => idea.assetType !== 'option');
+      const optionsCount = beforeOptionsFilter - allIdeas.length;
+      if (optionsCount > 0) {
+        console.log(`[PERF-STATS] Options filter: Excluded ${optionsCount} option trades (no proper pricing yet) → ${allIdeas.length} ideas remain`);
+      }
+    } else {
+      console.log(`[PERF-STATS] Options included (includeOptions=true) - WARNING: option win rates may be invalid`);
     }
     
     const openIdeas = allIdeas.filter(i => i.outcomeStatus === 'open');
