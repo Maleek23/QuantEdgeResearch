@@ -237,6 +237,40 @@ export class PerformanceValidator {
     const holdingTimeMs = now.getTime() - createdAt.getTime();
     const holdingTimeMinutes = Math.floor(holdingTimeMs / (1000 * 60));
 
+    // 🚨 CRITICAL CHECK: Has the entry window closed?
+    // If entryValidUntil has passed, mark as expired (missed entry window)
+    if (idea.entryValidUntil) {
+      try {
+        const entryValidUntilDate = this.parseExitByDate(idea.entryValidUntil, createdAt);
+        
+        if (entryValidUntilDate && now > entryValidUntilDate) {
+          const hoursPassedSinceEntry = (now.getTime() - entryValidUntilDate.getTime()) / (1000 * 60 * 60);
+          console.log(`⛔ [VALIDATION] ${idea.symbol} EXPIRED - Entry window closed ${hoursPassedSinceEntry.toFixed(1)}h ago (Valid Until: ${idea.entryValidUntil})`);
+          
+          // Use entry price since we never entered the trade
+          const lastKnownPrice = idea.entryPrice;
+          
+          return {
+            shouldUpdate: true,
+            outcomeStatus: 'expired',
+            exitPrice: lastKnownPrice,
+            percentGain: 0, // Never entered, no gain/loss
+            realizedPnL: 0,
+            resolutionReason: 'missed_entry_window',
+            exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+            actualHoldingTimeMinutes: 0, // Never held the position
+            predictionAccurate: false, // Can't validate if we didn't enter
+            predictionAccuracyPercent: 0,
+            predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+            highestPriceReached: lastKnownPrice,
+            lowestPriceReached: lastKnownPrice,
+          };
+        }
+      } catch (e) {
+        console.warn(`⚠️ [VALIDATION] Error parsing entryValidUntil for ${idea.symbol}:`, e);
+      }
+    }
+
     // Check if exitBy time has passed (holding period deadline)
     // This check doesn't require current price
     if (idea.exitBy) {
