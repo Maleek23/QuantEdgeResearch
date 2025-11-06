@@ -21,6 +21,11 @@ const VOLUME_THRESHOLD = 500; // Absolute volume >500 contracts (since avg_vol=0
 const PREMIUM_THRESHOLD = 50000; // $50k+ premium
 const IV_THRESHOLD = 0.5; // 50%+ implied volatility
 
+// Lotto Mode thresholds - High-risk far-OTM options with 20x potential
+const LOTTO_ENTRY_MIN = 0.20; // $20 minimum (options priced at $0.20+)
+const LOTTO_ENTRY_MAX = 0.70; // $70 maximum (options priced up to $0.70)
+const LOTTO_DELTA_MAX = 0.30; // Far OTM (delta <0.30)
+
 interface UnusualOption {
   symbol: string;
   underlying: string;
@@ -32,6 +37,9 @@ interface UnusualOption {
   lastPrice: number;
   impliedVol: number;
   reasons: string[];
+  greeks?: {
+    delta?: number;
+  };
 }
 
 interface FlowSignal {
@@ -41,6 +49,18 @@ interface FlowSignal {
   unusualOptions: UnusualOption[];
   totalPremium: number;
   signalStrength: number;
+}
+
+// Check if an option qualifies as a Lotto Play (high-risk far-OTM with 20x potential)
+function isLottoCandidate(option: UnusualOption): boolean {
+  const entryPrice = option.lastPrice;
+  const delta = option.greeks?.delta || 0;
+  
+  return (
+    entryPrice >= LOTTO_ENTRY_MIN &&
+    entryPrice <= LOTTO_ENTRY_MAX &&
+    Math.abs(delta) <= LOTTO_DELTA_MAX
+  );
 }
 
 // Detect unusual options activity
@@ -116,7 +136,10 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
           premium,
           lastPrice: option.last,
           impliedVol,
-          reasons
+          reasons,
+          greeks: option.greeks ? {
+            delta: option.greeks.delta
+          } : undefined
         });
 
         logger.info(`📊 [FLOW] UNUSUAL: ${ticker} ${option.option_type.toUpperCase()} $${option.strike} - ${reasons.join(', ')}`);
@@ -335,6 +358,16 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   logger.info(`📊 [FLOW] ${ticker} PREMIUM LEVELS: Entry=$${entryPrice.toFixed(2)}, Target=$${targetPrice.toFixed(2)} (${direction === 'long' ? '+' : '-'}${targetPercent}%), Stop=$${stopLoss.toFixed(2)}, R:R=${riskRewardRatio.toFixed(2)}:1`);
   logger.info(`📊 [FLOW] ${ticker} UNDERLYING: Stock @ $${currentPrice.toFixed(2)}, Flow suggests ${direction === 'long' ? 'bullish' : 'bearish'} momentum`);
 
+  // 🎰 LOTTO MODE DETECTION: Check if this qualifies as a high-risk lotto play
+  const isLotto = isLottoCandidate(mostActiveOption);
+  
+  if (isLotto) {
+    // Override targets for lotto plays - aim for 20x return
+    targetPrice = entryPrice * 20;
+    riskRewardRatio = 20.0;
+    logger.info(`🎰 [FLOW] ${ticker} LOTTO PLAY DETECTED: Entry=$${entryPrice.toFixed(2)}, Delta=${Math.abs(mostActiveOption.greeks?.delta || 0).toFixed(2)}, Target=$${targetPrice.toFixed(2)} (20x potential)`);
+  }
+
   return {
     symbol: ticker,
     assetType: 'option',  // ✅ FIXED: Generate options, not stocks
@@ -365,6 +398,8 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
     optionType,  // 'call' or 'put' from most active option
     strikePrice: mostActiveOption.strike,  // Match schema: strikePrice not strike
     expiryDate: mostActiveOption.expiration,  // Match schema: expiryDate not expiration
+    // 🎰 LOTTO MODE FLAG
+    isLottoPlay: isLotto,
   };
 }
 

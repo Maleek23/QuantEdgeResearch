@@ -9,7 +9,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { Footer } from "@/components/footer";
 import { ScrollParticles } from "@/components/scroll-particles";
 import Landing from "@/pages/landing";
-import TradeIdeasPage from "@/pages/trade-ideas";
+import TradeDeskPage from "@/pages/trade-desk";
 import MarketPage from "@/pages/market";
 import PerformancePage from "@/pages/performance";
 import SettingsPage from "@/pages/settings";
@@ -24,7 +24,8 @@ function Router() {
     <Switch>
       {/* Core Pages */}
       <Route path="/" component={Landing} />
-      <Route path="/trade-ideas" component={TradeIdeasPage} />
+      <Route path="/trade-desk" component={TradeDeskPage} />
+      <Route path="/trade-desk/:mode" component={TradeDeskPage} />
       <Route path="/performance" component={PerformancePage} />
       <Route path="/market" component={MarketPage} />
       <Route path="/settings" component={SettingsPage} />
@@ -37,7 +38,10 @@ function Router() {
       
       {/* Redirects - Consolidated Pages */}
       <Route path="/dashboard">
-        <Redirect to="/trade-ideas" />
+        <Redirect to="/trade-desk" />
+      </Route>
+      <Route path="/trade-ideas">
+        <Redirect to="/trade-desk" />
       </Route>
       <Route path="/insights">
         <Redirect to="/performance" />

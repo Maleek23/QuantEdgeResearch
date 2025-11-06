@@ -266,6 +266,13 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   </Badge>
                 )}
 
+                {/* Lotto Play Badge - High-risk far-OTM options with 20x potential */}
+                {idea.isLottoPlay && (
+                  <Badge variant="outline" className="text-xs font-semibold bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/30 animate-pulse">
+                    🎰 LOTTO PLAY (20x potential)
+                  </Badge>
+                )}
+
                 {/* Earnings Warning Badge - Critical info */}
                 {upcomingEarnings && (
                   <Badge 
@@ -469,6 +476,21 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     <div className="text-sm font-semibold font-mono text-red-400">{formatCurrency(idea.stopLoss)}</div>
                   </div>
                 </div>
+                
+                {/* Lotto Play Potential Gain Display */}
+                {idea.isLottoPlay && (
+                  <div className="mt-3 pt-3 border-t border-amber-500/30 bg-amber-500/5 rounded-lg p-3">
+                    <div className="text-sm text-amber-400 font-semibold flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        🎰 <span>Lotto Potential:</span>
+                      </span>
+                      <span className="text-lg">
+                        {((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(0)}% 
+                        <span className="text-xs ml-1">({(idea.targetPrice / idea.entryPrice).toFixed(0)}x)</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-3 text-muted-foreground py-2">

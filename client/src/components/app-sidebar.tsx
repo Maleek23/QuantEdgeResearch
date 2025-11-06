@@ -1,4 +1,4 @@
-import { TrendingUp, BarChart2, Target, User, Shield, Settings, PanelLeftClose, PanelLeft } from "lucide-react";
+import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sparkles } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -17,18 +17,21 @@ import { Button } from "@/components/ui/button";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 import { cn } from "@/lib/utils";
 
-const tradeEngineItems = [
-  { title: "Trade Ideas", url: "/trade-ideas", icon: TrendingUp },
+const tradingItems = [
+  { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
   { title: "Performance", url: "/performance", icon: Target },
 ];
 
-const marketIntelligenceItems = [
-  { title: "Market", url: "/market", icon: BarChart2 },
+const marketItems = [
+  { title: "Market Intel", url: "/market", icon: BarChart2 },
+];
+
+const toolsItems = [
+  { title: "Research & Tools", url: "/tools", icon: Sparkles },
 ];
 
 const systemItems = [
   { title: "Settings", url: "/settings", icon: Settings },
-  { title: "About", url: "/about", icon: User },
   { title: "Admin", url: "/admin", icon: Shield },
 ];
 
@@ -107,12 +110,12 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent className="gap-0 py-2">
-        {/* Trade Engine Section */}
+        {/* Trading Section */}
         <SidebarGroup className="py-1.5 px-3">
-          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Trade Engine</SidebarGroupLabel>
+          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Trading</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0">
-              {tradeEngineItems.map((item) => (
+              {tradingItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link 
@@ -130,12 +133,35 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Market Intelligence Section */}
+        {/* Market Section */}
         <SidebarGroup className="py-1.5 px-3">
-          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Market Intelligence</SidebarGroupLabel>
+          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Market</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0">
-              {marketIntelligenceItems.map((item) => (
+              {marketItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link 
+                      href={item.url}
+                      className="flex items-center gap-3 h-8"
+                      data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Tools Section */}
+        <SidebarGroup className="py-1.5 px-3">
+          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Tools</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-0">
+              {toolsItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link 

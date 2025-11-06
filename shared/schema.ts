@@ -125,6 +125,9 @@ export const tradeIdeas = pgTable("trade_ideas", {
   
   // News Catalyst Mode - Relaxes R:R validation for breaking news events
   isNewsCatalyst: boolean("is_news_catalyst").default(false), // True for major news events (earnings beat, acquisition, Fed announcements, etc.)
+  
+  // Lotto Mode - High-risk far-OTM options ($20-70 entry) with 20x potential
+  isLottoPlay: boolean("is_lotto_play").default(false), // True for $20-70 options with delta <0.30 (far OTM)
 });
 
 export const insertTradeIdeaSchema = createInsertSchema(tradeIdeas).omit({ id: true });
