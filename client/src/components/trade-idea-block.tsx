@@ -301,7 +301,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
               <div className="grid grid-cols-3 gap-2">
                 {/* Posted Time */}
                 <div className="p-2 rounded-lg bg-card border border-border/50">
-                  <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">Entry Time</div>
+                  <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">Generated</div>
                   <div className="text-xs font-bold" data-testid={`text-posted-time-${idea.symbol}`}>
                     {(() => {
                       const postedDate = new Date(idea.timestamp);
