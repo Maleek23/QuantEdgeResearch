@@ -5,6 +5,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { startWatchlistMonitor } from "./watchlist-monitor";
 import { logger } from "./logger";
 import { validateTradierAPI } from "./tradier-api";
+import { deriveTimingWindows, verifyTimingUniqueness } from "./timing-intelligence";
 
 const app = express();
 
@@ -262,13 +263,29 @@ app.use((req, res, next) => {
           
           const { entryPrice, targetPrice, stopLoss } = hybridIdea;
           const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
-          const holdingPeriod: 'day' | 'swing' | 'position' = hybridIdea.assetType === 'crypto' ? 'position' : 'day';
+          
+          // 📊 Calculate confidence score (simplified for CRON - use base 55 for hybrid)
+          const confidenceScore = 55 + (validation.metrics?.riskRewardRatio ? Math.min(10, validation.metrics.riskRewardRatio * 5) : 0);
+          
+          // 🕐 TIMING INTELLIGENCE: Derive trade-specific timing windows
+          const timingWindows = deriveTimingWindows({
+            symbol: hybridIdea.symbol,
+            assetType: hybridIdea.assetType,
+            direction: hybridIdea.direction,
+            entryPrice,
+            targetPrice,
+            stopLoss,
+            analysis: hybridIdea.analysis,
+            catalyst: hybridIdea.catalyst,
+            confidenceScore,
+            riskRewardRatio,
+          });
           
           const tradeIdea = await storage.createTradeIdea({
             symbol: hybridIdea.symbol,
             assetType: hybridIdea.assetType,
             direction: hybridIdea.direction,
-            holdingPeriod: holdingPeriod,
+            holdingPeriod: timingWindows.holdingPeriodType,
             entryPrice,
             targetPrice,
             stopLoss,
@@ -278,13 +295,32 @@ app.use((req, res, next) => {
             liquidityWarning: hybridIdea.entryPrice < 5,
             sessionContext: hybridIdea.sessionContext,
             timestamp: new Date().toISOString(),
+            entryValidUntil: timingWindows.entryValidUntil,
+            exitBy: timingWindows.exitBy,
             expiryDate: hybridIdea.expiryDate || null,
             strikePrice: hybridIdea.assetType === 'option' ? hybridIdea.entryPrice * (hybridIdea.direction === 'long' ? 1.02 : 0.98) : null,
             optionType: hybridIdea.assetType === 'option' ? (hybridIdea.direction === 'long' ? 'call' : 'put') : null,
-            source: 'hybrid'
+            source: 'hybrid',
+            confidenceScore,
+            volatilityRegime: timingWindows.volatilityRegime,
+            sessionPhase: timingWindows.sessionPhase,
+            trendStrength: timingWindows.trendStrength,
+            entryWindowMinutes: timingWindows.entryWindowMinutes,
+            exitWindowMinutes: timingWindows.exitWindowMinutes,
+            timingConfidence: timingWindows.timingConfidence,
+            targetHitProbability: timingWindows.targetHitProbability,
           });
           savedIdeas.push(tradeIdea);
           metrics.passedCount++;
+        }
+        
+        // 🔍 TIMING VERIFICATION: Ensure timing windows are unique across batch
+        if (savedIdeas.length > 0) {
+          verifyTimingUniqueness(savedIdeas.map((idea: any) => ({
+            symbol: idea.symbol,
+            entryValidUntil: idea.entryValidUntil || '',
+            exitBy: idea.exitBy || ''
+          })));
         }
         
         // 📊 SHADOW MODE: Log detailed metrics breakdown

@@ -7,6 +7,7 @@ import { generateQuantIdeas } from "./quant-ideas-generator";
 import { scanUnusualOptionsFlow } from "./flow-scanner";
 import { generateDiagnosticExport } from "./diagnostic-export";
 import { validateAndLog as validateTradeStructure } from "./trade-validation";
+import { deriveTimingWindows, verifyTimingUniqueness } from "./timing-intelligence";
 import {
   insertMarketDataSchema,
   insertTradeIdeaSchema,
@@ -2014,12 +2015,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         logger.info(`📊 [FLOW] ${idea.symbol} passed validation - Loss:${validation.metrics?.maxLossPercent.toFixed(2)}% R:R:${validation.metrics?.riskRewardRatio.toFixed(2)}:1`);
         
-        const tradeIdea = await storage.createTradeIdea(idea);
+        // 🕐 TIMING INTELLIGENCE: Derive trade-specific timing windows
+        const riskRewardRatio = (idea.targetPrice - idea.entryPrice) / (idea.entryPrice - idea.stopLoss);
+        const confidenceScore = idea.confidenceScore ?? 50; // Use existing or default
+        const timingWindows = deriveTimingWindows({
+          symbol: idea.symbol,
+          assetType: idea.assetType as 'stock' | 'option' | 'crypto',
+          direction: idea.direction as 'long' | 'short',
+          entryPrice: idea.entryPrice,
+          targetPrice: idea.targetPrice,
+          stopLoss: idea.stopLoss,
+          analysis: idea.analysis || '',
+          catalyst: idea.catalyst || '',
+          confidenceScore,
+          riskRewardRatio,
+        });
+        
+        // Add timing windows to the idea
+        const ideaWithTiming = {
+          ...idea,
+          holdingPeriod: timingWindows.holdingPeriodType,
+          entryValidUntil: timingWindows.entryValidUntil,
+          exitBy: timingWindows.exitBy,
+          volatilityRegime: timingWindows.volatilityRegime,
+          sessionPhase: timingWindows.sessionPhase,
+          trendStrength: timingWindows.trendStrength,
+          entryWindowMinutes: timingWindows.entryWindowMinutes,
+          exitWindowMinutes: timingWindows.exitWindowMinutes,
+          timingConfidence: timingWindows.timingConfidence,
+          targetHitProbability: timingWindows.targetHitProbability,
+        };
+        
+        const tradeIdea = await storage.createTradeIdea(ideaWithTiming);
         
         // 🔥 Clear stale price cache to force fresh fetch on next validation
         clearCachedPrice(idea.symbol);
         
         savedIdeas.push(tradeIdea);
+      }
+      
+      // 🔍 TIMING VERIFICATION: Ensure timing windows are unique across batch
+      if (savedIdeas.length > 0) {
+        verifyTimingUniqueness(savedIdeas.map(idea => ({
+          symbol: idea.symbol,
+          entryValidUntil: idea.entryValidUntil || '',
+          exitBy: idea.exitBy || ''
+        })));
       }
       
       // Log rejection summary if any
@@ -2161,9 +2202,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { entryPrice, targetPrice, stopLoss } = aiIdea;
         const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
         
-        // AI ideas default to day trades unless they're crypto (which can be position trades)
-        const holdingPeriod: 'day' | 'swing' | 'position' = aiIdea.assetType === 'crypto' ? 'position' : 'day';
-        
         // 📊 Calculate confidence score and quality signals
         const confidenceScore = calculateAIConfidence(aiIdea, validation.metrics, isNewsCatalyst);
         const qualitySignals = [
@@ -2175,11 +2213,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const probabilityBand = getProbabilityBand(confidenceScore);
         const generationTimestamp = new Date().toISOString();
         
+        // 🕐 TIMING INTELLIGENCE: Derive trade-specific timing windows
+        const timingWindows = deriveTimingWindows({
+          symbol: aiIdea.symbol,
+          assetType: aiIdea.assetType,
+          direction: aiIdea.direction,
+          entryPrice,
+          targetPrice,
+          stopLoss,
+          analysis: aiIdea.analysis,
+          catalyst: aiIdea.catalyst,
+          confidenceScore,
+          riskRewardRatio,
+        });
+        
         const tradeIdea = await storage.createTradeIdea({
           symbol: aiIdea.symbol,
           assetType: aiIdea.assetType,
           direction: aiIdea.direction,
-          holdingPeriod: holdingPeriod,
+          holdingPeriod: timingWindows.holdingPeriodType,
           entryPrice,
           targetPrice,
           stopLoss,
@@ -2189,6 +2241,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           liquidityWarning: aiIdea.entryPrice < 5,
           sessionContext: aiIdea.sessionContext,
           timestamp: generationTimestamp,
+          entryValidUntil: timingWindows.entryValidUntil,
+          exitBy: timingWindows.exitBy,
           expiryDate: aiIdea.expiryDate || null,
           strikePrice: aiIdea.assetType === 'option' ? aiIdea.entryPrice * (aiIdea.direction === 'long' ? 1.02 : 0.98) : null,
           optionType: aiIdea.assetType === 'option' ? (aiIdea.direction === 'long' ? 'call' : 'put') : null,
@@ -2199,7 +2253,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           probabilityBand,
           engineVersion: 'ai_v1.0.0',
           generationTimestamp,
-          dataSourceUsed: 'gemini-2.5-flash'
+          dataSourceUsed: 'gemini-2.5-flash',
+          volatilityRegime: timingWindows.volatilityRegime,
+          sessionPhase: timingWindows.sessionPhase,
+          trendStrength: timingWindows.trendStrength,
+          entryWindowMinutes: timingWindows.entryWindowMinutes,
+          exitWindowMinutes: timingWindows.exitWindowMinutes,
+          timingConfidence: timingWindows.timingConfidence,
+          targetHitProbability: timingWindows.targetHitProbability,
         });
         
         // 🔥 CRITICAL FIX: Clear stale price cache to force fresh fetch on next validation
@@ -2207,6 +2268,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clearCachedPrice(aiIdea.symbol);
         
         savedIdeas.push(tradeIdea);
+      }
+      
+      // 🔍 TIMING VERIFICATION: Ensure timing windows are unique across batch
+      if (savedIdeas.length > 0) {
+        verifyTimingUniqueness(savedIdeas.map(idea => ({
+          symbol: idea.symbol,
+          entryValidUntil: idea.entryValidUntil || '',
+          exitBy: idea.exitBy || ''
+        })));
       }
       
       // Send Discord notification for batch
@@ -2369,8 +2439,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { entryPrice, targetPrice, stopLoss } = hybridIdea;
         const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
         
-        const holdingPeriod: 'day' | 'swing' | 'position' = hybridIdea.assetType === 'crypto' ? 'position' : 'day';
-        
         // 📰 NEWS CATALYST DETECTION: Check AI-generated catalyst/analysis for news keywords
         const isNewsCatalyst = detectNewsCatalyst(hybridIdea.catalyst || '', hybridIdea.analysis || '');
         
@@ -2386,11 +2454,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const probabilityBand = getProbabilityBand(confidenceScore);
         const generationTimestamp = new Date().toISOString();
         
+        // 🕐 TIMING INTELLIGENCE: Derive trade-specific timing windows
+        const timingWindows = deriveTimingWindows({
+          symbol: hybridIdea.symbol,
+          assetType: hybridIdea.assetType,
+          direction: hybridIdea.direction,
+          entryPrice,
+          targetPrice,
+          stopLoss,
+          analysis: hybridIdea.analysis,
+          catalyst: hybridIdea.catalyst,
+          confidenceScore,
+          riskRewardRatio,
+        });
+        
         const tradeIdea = await storage.createTradeIdea({
           symbol: hybridIdea.symbol,
           assetType: hybridIdea.assetType,
           direction: hybridIdea.direction,
-          holdingPeriod: holdingPeriod,
+          holdingPeriod: timingWindows.holdingPeriodType,
           entryPrice,
           targetPrice,
           stopLoss,
@@ -2400,6 +2482,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           liquidityWarning: hybridIdea.entryPrice < 5,
           sessionContext: hybridIdea.sessionContext,
           timestamp: generationTimestamp,
+          entryValidUntil: timingWindows.entryValidUntil,
+          exitBy: timingWindows.exitBy,
           expiryDate: hybridIdea.expiryDate || null,
           strikePrice: hybridIdea.assetType === 'option' ? hybridIdea.entryPrice * (hybridIdea.direction === 'long' ? 1.02 : 0.98) : null,
           optionType: hybridIdea.assetType === 'option' ? (hybridIdea.direction === 'long' ? 'call' : 'put') : null,
@@ -2410,10 +2494,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           probabilityBand,
           engineVersion: 'hybrid_v1.0.0',
           generationTimestamp,
-          dataSourceUsed: 'gemini-2.5-flash'
+          dataSourceUsed: 'gemini-2.5-flash',
+          volatilityRegime: timingWindows.volatilityRegime,
+          sessionPhase: timingWindows.sessionPhase,
+          trendStrength: timingWindows.trendStrength,
+          entryWindowMinutes: timingWindows.entryWindowMinutes,
+          exitWindowMinutes: timingWindows.exitWindowMinutes,
+          timingConfidence: timingWindows.timingConfidence,
+          targetHitProbability: timingWindows.targetHitProbability,
         });
         savedIdeas.push(tradeIdea);
         metrics.passedCount++;
+      }
+      
+      // 🔍 TIMING VERIFICATION: Ensure timing windows are unique across batch
+      if (savedIdeas.length > 0) {
+        verifyTimingUniqueness(savedIdeas.map(idea => ({
+          symbol: idea.symbol,
+          entryValidUntil: idea.entryValidUntil || '',
+          exitBy: idea.exitBy || ''
+        })));
       }
       
       // 📊 SHADOW MODE: Log detailed metrics breakdown
