@@ -450,191 +450,6 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   </div>
                 </div>
 
-                {/* Option Details Grid - ALWAYS show for options (moved ABOVE Entry/Target/Stop) */}
-                {idea.assetType === 'option' && (
-                  <div className="space-y-2 pt-2 pb-3 border-t border-border/50 bg-accent/10 -mx-4 px-4 rounded-md">
-                    {/* Header with Info Button */}
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Activity className="h-3.5 w-3.5" />
-                        Option Contract Details
-                      </div>
-                      
-                      {/* INFO BUTTON - Explains pricing and timing */}
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-6 w-6 hover-elevate"
-                            data-testid="button-option-info"
-                          >
-                            <HelpCircle className="h-4 w-4 text-blue-400" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                              <Info className="h-5 w-5 text-blue-400" />
-                              Understanding Option Pricing & Timing
-                            </DialogTitle>
-                          </DialogHeader>
-                          
-                          <div className="space-y-4 text-sm">
-                            {/* WHERE PRICES COME FROM */}
-                            <div className="p-4 rounded-lg bg-accent/20 border border-border">
-                              <div className="flex items-center gap-2 mb-3">
-                                <Database className="h-4 w-4 text-blue-400" />
-                                <h3 className="font-bold text-blue-400">Where Does the Entry Premium Come From?</h3>
-                              </div>
-                              <div className="space-y-2 text-muted-foreground">
-                                <p className="leading-relaxed">
-                                  The <span className="font-semibold text-foreground">Entry Premium of ${idea.entryPrice.toFixed(2)}</span> comes from <span className="font-semibold text-blue-400">Tradier API's live market data</span> (the <code className="px-1 py-0.5 bg-muted rounded text-xs">lastPrice</code> field).
-                                </p>
-                                <p className="leading-relaxed">
-                                  This is the <span className="font-semibold text-foreground">actual market price</span> traders are paying for this option contract at the time the trade was generated.
-                                </p>
-                                <div className="mt-3 p-3 bg-muted/50 rounded border-l-2 border-amber-500">
-                                  <p className="text-xs font-mono">
-                                    <span className="text-amber-400 font-bold">IMPORTANT:</span> Option premium (${idea.entryPrice.toFixed(2)}) ≠ Stock price ({idea.symbol} stock)
-                                  </p>
-                                  <p className="text-xs mt-1">
-                                    The premium is what you pay to BUY the option contract, NOT the stock's current price.
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* TIMING SEQUENCE EXPLAINED */}
-                            <div className="p-4 rounded-lg bg-accent/20 border border-border">
-                              <div className="flex items-center gap-2 mb-3">
-                                <Clock className="h-4 w-4 text-purple-400" />
-                                <h3 className="font-bold text-purple-400">Understanding the Timing Sequence</h3>
-                              </div>
-                              <div className="space-y-3">
-                                <div className="flex items-start gap-3">
-                                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-400">
-                                    1
-                                  </div>
-                                  <div>
-                                    <p className="font-semibold text-foreground">Trade Generated</p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      {formatInUserTZ(idea.timestamp, 'MMM d, h:mm:ss a')} CST - When the system created this trade idea
-                                    </p>
-                                  </div>
-                                </div>
-                                
-                                <div className="flex items-start gap-3">
-                                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center text-xs font-bold text-amber-400">
-                                    2
-                                  </div>
-                                  <div>
-                                    <p className="font-semibold text-foreground">Entry Window (Can Enter Until)</p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      {idea.entryValidUntil ? formatInUserTZ(idea.entryValidUntil, 'MMM d, h:mm:ss a') : 'N/A'} CST - Deadline to ENTER this trade
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      ⏰ You need to buy the option BEFORE this time
-                                    </p>
-                                  </div>
-                                </div>
-                                
-                                <div className="flex items-start gap-3">
-                                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center text-xs font-bold text-red-400">
-                                    3
-                                  </div>
-                                  <div>
-                                    <p className="font-semibold text-foreground">Exit Deadline (Must Exit By)</p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      {idea.exitBy ? formatInUserTZ(idea.exitBy, 'MMM d, h:mm:ss a') : 'N/A'} CST - Deadline to EXIT this trade
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      ⏰ You need to sell the option BEFORE this time (always before/on option expiry)
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <div className="mt-3 p-3 bg-green-500/10 rounded border-l-2 border-green-500">
-                                  <p className="text-xs font-semibold text-green-400">✓ This sequence makes sense:</p>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    System generates trade → You enter the trade → You exit the trade
-                                  </p>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    Exit deadline is ALWAYS after entry deadline but BEFORE/ON option expiry date.
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* DATA SOURCES */}
-                            <div className="p-4 rounded-lg bg-accent/20 border border-border">
-                              <div className="flex items-center gap-2 mb-3">
-                                <TrendingUpIcon className="h-4 w-4 text-green-400" />
-                                <h3 className="font-bold text-green-400">Data Sources by Asset Type</h3>
-                              </div>
-                              <div className="space-y-2 text-xs">
-                                <div className="flex items-start gap-2">
-                                  <span className="font-semibold text-blue-400 min-w-[80px]">Options:</span>
-                                  <span className="text-muted-foreground">Tradier API (live option chain data with real-time premiums)</span>
-                                </div>
-                                <div className="flex items-start gap-2">
-                                  <span className="font-semibold text-green-400 min-w-[80px]">Stocks:</span>
-                                  <span className="text-muted-foreground">Yahoo Finance (real-time stock quotes)</span>
-                                </div>
-                                <div className="flex items-start gap-2">
-                                  <span className="font-semibold text-amber-400 min-w-[80px]">Crypto:</span>
-                                  <span className="text-muted-foreground">CoinGecko API (real-time cryptocurrency prices)</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-
-                    {/* Option Details Grid */}
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <div className="text-[11px] text-blue-400 mb-1 uppercase tracking-wider flex items-center gap-1 font-semibold">
-                          <Activity className="h-3.5 w-3.5" />
-                          Type
-                        </div>
-                        <div className={cn(
-                          "text-lg font-bold font-mono uppercase",
-                          idea.optionType === 'call' ? 'text-green-400' : 'text-red-400'
-                        )}>
-                          {idea.optionType || 'N/A'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[11px] text-amber-400 mb-1 uppercase tracking-wider flex items-center gap-1 font-semibold">
-                          <TargetIcon className="h-3.5 w-3.5" />
-                          Strike
-                        </div>
-                        <div className="text-lg font-bold font-mono text-amber-400">
-                          {idea.strikePrice !== null && idea.strikePrice !== undefined 
-                            ? formatCurrency(idea.strikePrice) 
-                            : 'N/A'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[11px] mb-1 uppercase tracking-wider flex items-center gap-1 font-semibold text-purple-400">
-                          <CalendarDays className="h-3.5 w-3.5" />
-                          Expiry
-                        </div>
-                        <div className={cn(
-                          "text-lg font-bold font-mono",
-                          idea.expiryDate && new Date(idea.expiryDate).toDateString() === new Date().toDateString()
-                            ? 'text-red-400 animate-pulse' // TODAY - show in red with pulse
-                            : 'text-purple-400'
-                        )}>
-                          {idea.expiryDate ? formatInUserTZ(idea.expiryDate, 'MMM dd') : 'N/A'}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Entry/Target/Stop Grid */}
                 <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/50">
                   <div>
@@ -687,6 +502,193 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
               </div>
             )}
           </div>
+
+          {/* Option Details Grid - ALWAYS show for options (COMPLETELY OUTSIDE Price Display Section) */}
+          {idea.assetType === 'option' && (
+            <div className="mb-3 p-4 rounded-lg border-2 bg-gradient-to-br from-card via-card to-muted/5 shadow-sm">
+              <div className="space-y-2">
+                {/* Header with Info Button */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Activity className="h-3.5 w-3.5" />
+                    Option Contract Details
+                  </div>
+                  
+                  {/* INFO BUTTON - Explains pricing and timing */}
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 hover-elevate"
+                        data-testid="button-option-info"
+                      >
+                        <HelpCircle className="h-4 w-4 text-blue-400" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <Info className="h-5 w-5 text-blue-400" />
+                          Understanding Option Pricing & Timing
+                        </DialogTitle>
+                      </DialogHeader>
+                      
+                      <div className="space-y-4 text-sm">
+                        {/* WHERE PRICES COME FROM */}
+                        <div className="p-4 rounded-lg bg-accent/20 border border-border">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Database className="h-4 w-4 text-blue-400" />
+                            <h3 className="font-bold text-blue-400">Where Does the Entry Premium Come From?</h3>
+                          </div>
+                          <div className="space-y-2 text-muted-foreground">
+                            <p className="leading-relaxed">
+                              The <span className="font-semibold text-foreground">Entry Premium of ${idea.entryPrice.toFixed(2)}</span> comes from <span className="font-semibold text-blue-400">Tradier API's live market data</span> (the <code className="px-1 py-0.5 bg-muted rounded text-xs">lastPrice</code> field).
+                            </p>
+                            <p className="leading-relaxed">
+                              This is the <span className="font-semibold text-foreground">actual market price</span> traders are paying for this option contract at the time the trade was generated.
+                            </p>
+                            <div className="mt-3 p-3 bg-muted/50 rounded border-l-2 border-amber-500">
+                              <p className="text-xs font-mono">
+                                <span className="text-amber-400 font-bold">IMPORTANT:</span> Option premium (${idea.entryPrice.toFixed(2)}) ≠ Stock price ({idea.symbol} stock)
+                              </p>
+                              <p className="text-xs mt-1">
+                                The premium is what you pay to BUY the option contract, NOT the stock's current price.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* TIMING SEQUENCE EXPLAINED */}
+                        <div className="p-4 rounded-lg bg-accent/20 border border-border">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Clock className="h-4 w-4 text-purple-400" />
+                            <h3 className="font-bold text-purple-400">Understanding the Timing Sequence</h3>
+                          </div>
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-400">
+                                1
+                              </div>
+                              <div>
+                                <p className="font-semibold text-foreground">Trade Generated</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {formatInUserTZ(idea.timestamp, 'MMM d, h:mm:ss a')} CST - When the system created this trade idea
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center text-xs font-bold text-amber-400">
+                                2
+                              </div>
+                              <div>
+                                <p className="font-semibold text-foreground">Entry Window (Can Enter Until)</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {idea.entryValidUntil ? formatInUserTZ(idea.entryValidUntil, 'MMM d, h:mm:ss a') : 'N/A'} CST - Deadline to ENTER this trade
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  ⏰ You need to buy the option BEFORE this time
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center text-xs font-bold text-red-400">
+                                3
+                              </div>
+                              <div>
+                                <p className="font-semibold text-foreground">Exit Deadline (Must Exit By)</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {idea.exitBy ? formatInUserTZ(idea.exitBy, 'MMM d, h:mm:ss a') : 'N/A'} CST - Deadline to EXIT this trade
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  ⏰ You need to sell the option BEFORE this time (always before/on option expiry)
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="mt-3 p-3 bg-green-500/10 rounded border-l-2 border-green-500">
+                              <p className="text-xs font-semibold text-green-400">✓ This sequence makes sense:</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                System generates trade → You enter the trade → You exit the trade
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Exit deadline is ALWAYS after entry deadline but BEFORE/ON option expiry date.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* DATA SOURCES */}
+                        <div className="p-4 rounded-lg bg-accent/20 border border-border">
+                          <div className="flex items-center gap-2 mb-3">
+                            <TrendingUpIcon className="h-4 w-4 text-green-400" />
+                            <h3 className="font-bold text-green-400">Data Sources by Asset Type</h3>
+                          </div>
+                          <div className="space-y-2 text-xs">
+                            <div className="flex items-start gap-2">
+                              <span className="font-semibold text-blue-400 min-w-[80px]">Options:</span>
+                              <span className="text-muted-foreground">Tradier API (live option chain data with real-time premiums)</span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <span className="font-semibold text-green-400 min-w-[80px]">Stocks:</span>
+                              <span className="text-muted-foreground">Yahoo Finance (real-time stock quotes)</span>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <span className="font-semibold text-amber-400 min-w-[80px]">Crypto:</span>
+                              <span className="text-muted-foreground">CoinGecko API (real-time cryptocurrency prices)</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                {/* Option Details Grid */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <div className="text-[11px] text-blue-400 mb-1 uppercase tracking-wider flex items-center gap-1 font-semibold">
+                      <Activity className="h-3.5 w-3.5" />
+                      Type
+                    </div>
+                    <div className={cn(
+                      "text-lg font-bold font-mono uppercase",
+                      idea.optionType === 'call' ? 'text-green-400' : 'text-red-400'
+                    )}>
+                      {idea.optionType || 'N/A'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-amber-400 mb-1 uppercase tracking-wider flex items-center gap-1 font-semibold">
+                      <TargetIcon className="h-3.5 w-3.5" />
+                      Strike
+                    </div>
+                    <div className="text-lg font-bold font-mono text-amber-400">
+                      {idea.strikePrice !== null && idea.strikePrice !== undefined 
+                        ? formatCurrency(idea.strikePrice) 
+                        : 'N/A'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] mb-1 uppercase tracking-wider flex items-center gap-1 font-semibold text-purple-400">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      Expiry
+                    </div>
+                    <div className={cn(
+                      "text-lg font-bold font-mono",
+                      idea.expiryDate && new Date(idea.expiryDate).toDateString() === new Date().toDateString()
+                        ? 'text-red-400 animate-pulse' // TODAY - show in red with pulse
+                        : 'text-purple-400'
+                    )}>
+                      {idea.expiryDate ? formatInUserTZ(idea.expiryDate, 'MMM dd') : 'N/A'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Signal Strength Indicators */}
           {idea.qualitySignals && idea.qualitySignals.length > 0 && (
