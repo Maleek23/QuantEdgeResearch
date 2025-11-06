@@ -37,6 +37,28 @@ All generation methods prevent duplicate trades and maintain comprehensive audit
 ### System Design Choices
 The platform employs a multi-page, publicly accessible architecture with membership managed via Discord roles. The system uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) via Drizzle ORM. Access tiers include Free, Premium, and Admin, with a password-protected `/admin` panel. Security features include dual authentication, JWT authentication with HTTP-only cookies, session tokens with expiration, rate limiting, and `requireAdmin`/`requirePremium` middleware.
 
+### Critical Bug Fixes & Performance Data
+**🚨 CRITICAL BUG FIX (Nov 2025):** Performance validation was comparing STOCK prices to OPTION premiums, causing completely invalid win rates. The Flow Scanner's reported 99.4% win rate and Options' 91% win rate were entirely false wins from this bug.
+
+**Fix Applied:**
+- Performance validator now excludes options from price fetching until proper option pricing is implemented
+- Performance stats API now excludes options by default (`includeOptions: false`)
+- Options can be included via `includeOptions: true` parameter, but stats will be invalid until option pricing is fixed
+
+**TRUE Performance Stats (Stocks + Crypto Only):**
+- **Overall:** 234 trades, 53.5% win rate
+- **By Engine:**
+  - AI Engine: 64.1% WR (65 trades) - BEST performer
+  - Hybrid Engine: 52.9% WR (18 trades)
+  - Quant Engine: 40.9% WR (70 trades) - underperforming, needs investigation
+  - Flow Scanner: 0.0% WR (80 trades) - only effective on options (cannot validate yet)
+- **By Asset Type:**
+  - Crypto: 60.0% WR (58 trades)
+  - Stocks: 51.9% WR (170 trades)
+  - Penny Stocks: 33.3% WR (6 trades)
+
+**Impact:** The bug revealed that AI is the platform's best-performing engine for stocks/crypto. Flow Scanner is only effective for options (which cannot be validated yet). Quant engine's 40.9% win rate suggests strategy refinement needed, not a data bug.
+
 Automated services run on a schedule:
 -   **9:30 AM CT (Weekdays):** AI + Quant idea generation (3-5 trades each), with earnings calendar integration to block trades 2 days before/after earnings (unless news catalyst).
 -   **9:45 AM CT (Weekdays):** Hybrid AI+Quant generation.
