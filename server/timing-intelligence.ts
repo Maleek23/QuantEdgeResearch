@@ -314,9 +314,24 @@ export function deriveTimingWindows(
     exitBy = actualExitBy.toISOString();
     
     logger.info(`⏰ [TIMING] ${input.symbol} OPTION: Exit by ${formatInTimeZone(actualExitBy, 'America/New_York', 'MMM dd h:mm a zzz')} (option expires ${formatInTimeZone(optionExpiryDate, 'America/New_York', 'MMM dd h:mm a zzz')})`);
+  } else if (input.assetType === 'stock' || input.assetType === 'penny_stock') {
+    // ✅ FIX: For stocks, exit_by MUST be BEFORE market close (4:00 PM ET)
+    // Stocks CANNOT be traded after regular market hours (4:00 PM ET)
+    const defaultExitBy = new Date(baseTimestamp.getTime() + exitWindowMinutes * 60 * 1000);
+    const marketCloseToday = new Date(baseTimestamp);
+    marketCloseToday.setHours(16, 0, 0, 0); // 4:00 PM ET (assuming server runs in ET timezone)
+    
+    // Use the EARLIER of: (defaultExitBy OR market close)
+    // This ensures we never try to exit AFTER market close
+    const actualExitBy = defaultExitBy < marketCloseToday ? defaultExitBy : marketCloseToday;
+    exitBy = actualExitBy.toISOString();
+    
+    logger.info(`⏰ [TIMING] ${input.symbol} STOCK: Exit by ${formatInTimeZone(actualExitBy, 'America/New_York', 'MMM dd h:mm a zzz')} (market closes at ${formatInTimeZone(marketCloseToday, 'America/New_York', 'h:mm a zzz')})`);
   } else {
-    // For stocks/crypto, use calculated exit window
+    // For crypto, use calculated exit window (crypto trades 24/7)
     exitBy = new Date(baseTimestamp.getTime() + exitWindowMinutes * 60 * 1000).toISOString();
+    
+    logger.info(`⏰ [TIMING] ${input.symbol} CRYPTO: Exit by ${formatInTimeZone(new Date(exitBy), 'America/New_York', 'MMM dd h:mm a zzz')} (24/7 trading)`);
   }
   
   // 9. Calculate trend strength (use provided or estimate from price action)

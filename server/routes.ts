@@ -1437,7 +1437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Cache miss - fetch fresh data with filters
       logger.info(`[PERF-STATS] Cache miss for filters: ${cacheKey} - fetching fresh data`);
       logger.info(`[PERF-STATS] Filter values: startDate=${startDate}, endDate=${endDate}, source=${source}`);
-      const filters = { startDate, endDate, source };
+      const filters = { startDate, endDate, source, includeOptions: true }; // ENABLE OPTIONS - Show real Flow Scanner performance!
       const stats = await storage.getPerformanceStats(filters);
       
       // Update cache for this filter combination

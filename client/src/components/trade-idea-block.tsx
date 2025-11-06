@@ -124,6 +124,89 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
   const upcomingEarnings = getUpcomingEarnings();
 
+  // Helper: Calculate time window duration in human-readable format
+  const getTimeWindowDuration = (start: string, end: string): string => {
+    const startTime = new Date(start);
+    const endTime = new Date(end);
+    const diffMinutes = Math.floor((endTime.getTime() - startTime.getTime()) / 60000);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffDays > 0) return `${diffDays}d window`;
+    if (diffHours > 0) return `${diffHours}h window`;
+    return `${diffMinutes}m window`;
+  };
+
+  // Helper: Get exit context label based on asset type and exit time
+  const getExitContext = (): string => {
+    if (!idea.exitBy) return '';
+    
+    const exitDate = new Date(idea.exitBy);
+    const exitHour = parseInt(formatInTimeZone(exitDate, 'America/New_York', 'H'));
+    const exitMinute = parseInt(formatInTimeZone(exitDate, 'America/New_York', 'm'));
+    const exitMinutesSinceMidnight = exitHour * 60 + exitMinute;
+    const marketClose = 16 * 60; // 4:00 PM ET in minutes
+    
+    if (idea.assetType === 'option' && idea.expiryDate) {
+      const expiryDate = new Date(idea.expiryDate);
+      const isSameDay = exitDate.toDateString() === expiryDate.toDateString();
+      if (isSameDay && exitMinutesSinceMidnight === marketClose) {
+        return ' (Option Expiry)';
+      }
+    }
+    
+    if ((idea.assetType === 'stock' || idea.assetType === 'penny_stock') && exitMinutesSinceMidnight === marketClose) {
+      return ' (Market Close)';
+    }
+    
+    return ''; // Crypto or custom timing
+  };
+
+  // Helper: Get timing status (active, closing-soon, expired)
+  const getTimingStatus = (): { entryStatus: string; exitStatus: string; entryColor: string; exitColor: string } => {
+    const now = new Date();
+    
+    if (idea.outcomeStatus !== 'open') {
+      return { entryStatus: 'closed', exitStatus: 'closed', entryColor: 'text-muted-foreground', exitColor: 'text-muted-foreground' };
+    }
+    
+    // Entry window status
+    let entryStatus = 'expired';
+    let entryColor = 'text-red-400';
+    if (idea.entryValidUntil) {
+      const entryDeadline = new Date(idea.entryValidUntil);
+      const entryMinsRemaining = Math.floor((entryDeadline.getTime() - now.getTime()) / 60000);
+      
+      if (entryMinsRemaining > 30) {
+        entryStatus = 'active';
+        entryColor = 'text-green-400';
+      } else if (entryMinsRemaining > 0) {
+        entryStatus = 'closing-soon';
+        entryColor = 'text-amber-400';
+      }
+    }
+    
+    // Exit window status
+    let exitStatus = 'expired';
+    let exitColor = 'text-red-400';
+    if (idea.exitBy) {
+      const exitDeadline = new Date(idea.exitBy);
+      const exitMinsRemaining = Math.floor((exitDeadline.getTime() - now.getTime()) / 60000);
+      
+      if (exitMinsRemaining > 60) {
+        exitStatus = 'active';
+        exitColor = 'text-green-400';
+      } else if (exitMinsRemaining > 0) {
+        exitStatus = 'closing-soon';
+        exitColor = 'text-amber-400';
+      }
+    }
+    
+    return { entryStatus, exitStatus, entryColor, exitColor };
+  };
+
+  const timingStatus = getTimingStatus();
+
   const handleToggle = (newOpenState: boolean) => {
     if (onToggleExpand) {
       if (newOpenState || isOpen) {
@@ -145,51 +228,21 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
           {/* ===== HEADER SECTION ===== */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">
-              {/* Symbol + Primary Badges */}
+              {/* Symbol + Essential Badges Only */}
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <h3 className="text-xl font-bold font-mono" data-testid={`text-symbol-${idea.symbol}`}>
                   {idea.symbol}
                 </h3>
                 
-                {/* Source Badge */}
-                <Badge 
-                  variant="outline"
-                  className={cn(
-                    "font-semibold border-2 text-xs",
-                    idea.source === 'ai' 
-                      ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/50" 
-                      : idea.source === 'hybrid'
-                      ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/50"
-                      : idea.source === 'news'
-                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/50"
-                      : idea.source === 'flow'
-                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/50"
-                      : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/50"
-                  )}
-                  data-testid={`badge-source-${idea.symbol}`}
-                >
-                  {idea.source === 'ai' ? (
-                    <><Bot className="h-3 w-3 mr-1" />AI ENGINE</>
-                  ) : idea.source === 'hybrid' ? (
-                    <><Sparkles className="h-3 w-3 mr-1" />HYBRID (AI+QUANT)</>
-                  ) : idea.source === 'news' ? (
-                    <><Newspaper className="h-3 w-3 mr-1" />NEWS</>
-                  ) : idea.source === 'flow' ? (
-                    <><Activity className="h-3 w-3 mr-1" />FLOW SCANNER</>
-                  ) : (
-                    <><BarChart3 className="h-3 w-3 mr-1" />QUANT ENGINE</>
-                  )}
-                </Badge>
-                
-                {/* News Catalyst Badge - Shows when trade uses relaxed R:R validation */}
-                {idea.isNewsCatalyst && (
+                {/* Source Badge - Only if Flow Scanner (most distinctive) */}
+                {idea.source === 'flow' && (
                   <Badge 
                     variant="outline"
-                    className="font-semibold border-2 text-xs bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/50"
-                    data-testid={`badge-news-catalyst-${idea.symbol}`}
+                    className="font-semibold border-2 text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/50"
+                    data-testid={`badge-source-${idea.symbol}`}
                   >
-                    <Newspaper className="h-3 w-3 mr-1" />
-                    NEWS CATALYST
+                    <Activity className="h-3 w-3 mr-1" />
+                    FLOW SCANNER
                   </Badge>
                 )}
                 
@@ -206,33 +259,14 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   )}
                 </Badge>
 
-                {/* Holding Period Badge */}
-                <Badge 
-                  variant="outline"
-                  className={cn(
-                    "font-medium text-xs",
-                    idea.holdingPeriod === 'day' && "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
-                    idea.holdingPeriod === 'swing' && "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30",
-                    idea.holdingPeriod === 'position' && "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30",
-                    idea.holdingPeriod === 'week-ending' && "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/30"
-                  )}
-                  data-testid={`badge-holding-${idea.symbol}`}
-                >
-                  {idea.holdingPeriod === 'day' && <><CalendarClock className="h-3 w-3 mr-1" />DAY TRADE</>}
-                  {idea.holdingPeriod === 'swing' && <><CalendarDays className="h-3 w-3 mr-1" />SWING</>}
-                  {idea.holdingPeriod === 'position' && <><Calendar className="h-3 w-3 mr-1" />POSITION</>}
-                  {idea.holdingPeriod === 'week-ending' && <><Clock className="h-3 w-3 mr-1" />WEEK-ENDING</>}
-                </Badge>
+                {/* Asset Type Badge - Only for Options (most critical to distinguish) */}
+                {idea.assetType === 'option' && (
+                  <Badge variant="outline" className="text-xs font-semibold uppercase bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30">
+                    OPTION
+                  </Badge>
+                )}
 
-                {/* Asset Type Badge */}
-                <Badge variant="outline" className="text-xs font-medium uppercase">
-                  {idea.assetType === 'stock' ? 'Stock' : 
-                   idea.assetType === 'penny_stock' ? 'Penny Stock' : 
-                   idea.assetType === 'option' ? 'Option' : 
-                   'Crypto'}
-                </Badge>
-
-                {/* Earnings Warning Badge */}
+                {/* Earnings Warning Badge - Critical info */}
                 {upcomingEarnings && (
                   <Badge 
                     variant="destructive"
@@ -244,19 +278,10 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   </Badge>
                 )}
               </div>
-
-              {/* Metadata Row */}
-              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                <span className="font-medium" data-testid={`text-date-${idea.symbol}`}>
-                  {getFormattedDate()}
-                </span>
-                <span>·</span>
-                <span>{getTimeSincePosted()}</span>
-              </div>
             </div>
 
-            {/* Right Side: Confidence Grade + Expand Button */}
-            <div className="flex items-center gap-4 flex-shrink-0">
+            {/* Right Side: Confidence Grade + Outcome + Expand Button */}
+            <div className="flex items-center gap-3 flex-shrink-0">
               {/* Outcome Badge for closed ideas */}
               {idea.outcomeStatus && idea.outcomeStatus !== 'open' && (
                 <Badge 
@@ -290,61 +315,32 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
             </div>
           </div>
 
-          {/* ===== ENTRY TIME DISPLAY (OPEN TRADES) ===== */}
+          {/* COMPACT TIMING - Single row */}
           {idea.outcomeStatus === 'open' && (
-            <div className="mb-3 p-3 rounded-lg border bg-gradient-to-br from-blue-500/5 via-card to-purple-500/5" data-testid={`entry-info-${idea.symbol}`}>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Clock className="h-3.5 w-3.5 text-blue-400" />
-                <h4 className="text-xs font-semibold text-blue-400 uppercase tracking-wide">Entry/Exit Windows</h4>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-2">
-                {/* Posted Time */}
-                <div className="p-2 rounded-lg bg-card border border-border/50">
-                  <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">Generated</div>
-                  <div className="text-xs font-bold" data-testid={`text-posted-time-${idea.symbol}`}>
-                    {(() => {
-                      const postedDate = new Date(idea.timestamp);
-                      if (!isNaN(postedDate.getTime())) {
-                        return formatInTimeZone(postedDate, 'America/Chicago', 'MMM d, h:mm a');
-                      }
-                      return idea.timestamp;
-                    })()}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">CST</div>
+            <div className="mb-2 px-3 py-2 rounded-lg border bg-card/30 text-xs">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="h-3 w-3 text-blue-400" />
+                  <span className="text-muted-foreground">Generated:</span>
+                  <span className="font-semibold">{formatInUserTZ(idea.timestamp, 'h:mm a')}</span>
                 </div>
-
-                {/* Enter When */}
+                
                 {idea.entryValidUntil && (
-                  <div className="p-2 rounded-lg bg-card border border-border/50">
-                    <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">Valid Until</div>
-                    <div className="text-xs font-bold" data-testid={`text-entry-valid-${idea.symbol}`}>
-                      {(() => {
-                        const entryDate = new Date(idea.entryValidUntil);
-                        if (!isNaN(entryDate.getTime())) {
-                          return formatInTimeZone(entryDate, 'America/Chicago', 'MMM d, h:mm a');
-                        }
-                        return idea.entryValidUntil;
-                      })()}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">CST</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-green-400">●</span>
+                    <span className="text-muted-foreground">Enter by:</span>
+                    <span className="font-semibold">{formatInUserTZ(idea.entryValidUntil, 'h:mm a')}</span>
                   </div>
                 )}
                 
-                {/* Exit By */}
                 {idea.exitBy && (
-                  <div className="p-2 rounded-lg bg-card border border-border/50">
-                    <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">Exit By</div>
-                    <div className="text-xs font-bold" data-testid={`text-exit-by-${idea.symbol}`}>
-                      {(() => {
-                        const exitDate = new Date(idea.exitBy);
-                        if (!isNaN(exitDate.getTime())) {
-                          return formatInTimeZone(exitDate, 'America/Chicago', 'MMM d, h:mm a');
-                        }
-                        return idea.exitBy;
-                      })()}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5">CST</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-amber-400">●</span>
+                    <span className="text-muted-foreground">Exit by:</span>
+                    <span className="font-semibold">{formatInUserTZ(idea.exitBy, 'h:mm a')}</span>
+                    <span className="text-xs text-muted-foreground/70">
+                      ({idea.assetType === 'option' ? 'Option Expiry' : 'Market Close'})
+                    </span>
                   </div>
                 )}
               </div>
@@ -503,13 +499,13 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
             )}
           </div>
 
-          {/* Option Details Grid - ALWAYS show for options (COMPLETELY OUTSIDE Price Display Section) */}
+          {/* Option Details Grid - Prominent display for options */}
           {idea.assetType === 'option' && (
-            <div className="mb-3 p-4 rounded-lg border-2 bg-gradient-to-br from-card via-card to-muted/5 shadow-sm">
+            <div className="mb-3 p-4 rounded-lg border-2 bg-gradient-to-br from-purple-500/5 via-card to-purple-500/5 shadow-sm">
               <div className="space-y-2">
                 {/* Header with Info Button */}
                 <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <div className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
                     <Activity className="h-3.5 w-3.5" />
                     Option Contract Details
                   </div>
@@ -690,13 +686,6 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
             </div>
           )}
 
-          {/* Signal Strength Indicators */}
-          {idea.qualitySignals && idea.qualitySignals.length > 0 && (
-            <div className="mb-4">
-              <SignalStrengthBars signals={idea.qualitySignals} />
-            </div>
-          )}
-
           {/* One-line catalyst preview */}
           <div className="pt-3 border-t">
             <p className="text-sm text-muted-foreground line-clamp-1">{idea.catalyst}</p>
@@ -706,10 +695,27 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
       <CollapsibleContent>
         <div className="border-x border-b rounded-b-lg p-6 bg-card/50 space-y-5" onClick={(e) => e.stopPropagation()}>
+          {/* Signal Strength Indicators - Moved from collapsed view */}
+          {idea.qualitySignals && idea.qualitySignals.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Activity className="h-4 w-4" />
+                Signal Strength
+              </h4>
+              <SignalStrengthBars signals={idea.qualitySignals} />
+            </div>
+          )}
+
           {/* Analysis Summary */}
           <div>
             <h4 className="text-sm font-semibold mb-2">Analysis</h4>
-            <p className="text-sm text-muted-foreground line-clamp-2">{idea.analysis}</p>
+            <p className="text-sm text-muted-foreground">{idea.analysis}</p>
+          </div>
+
+          {/* Full Catalyst Details */}
+          <div>
+            <h4 className="text-sm font-semibold mb-2">Catalyst</h4>
+            <p className="text-sm text-muted-foreground">{idea.catalyst}</p>
           </div>
 
           {/* Real-Time Trading Advice */}
@@ -719,8 +725,8 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
             </div>
           )}
 
-          {/* Quick Stats Grid */}
-          <div className="grid grid-cols-3 gap-4 p-4 rounded-lg bg-background/50 border">
+          {/* Quick Stats Grid - Enhanced with all metadata */}
+          <div className="grid grid-cols-4 gap-4 p-4 rounded-lg bg-background/50 border">
             <div className="text-center">
               <div className="text-xs text-muted-foreground mb-1">Grade</div>
               <div className="text-lg font-bold">{getPerformanceGrade(idea.confidenceScore).grade}</div>
@@ -733,13 +739,24 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   : 'N/A'}
               </div>
             </div>
-            <div className="text-center">
+            <div className="text-center border-r">
               <div className="text-xs text-muted-foreground mb-1">Source</div>
               <div className="text-sm font-semibold">
                 {idea.source === 'ai' ? 'AI' : 
                  idea.source === 'quant' ? 'Quant' : 
-                 idea.source === 'hybrid' ? 'Hybrid' : 
+                 idea.source === 'hybrid' ? 'Hybrid' :
+                 idea.source === 'flow' ? 'Flow' :
+                 idea.source === 'news' ? 'News' :
                  'Manual'}
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-xs text-muted-foreground mb-1">Type</div>
+              <div className="text-sm font-semibold">
+                {idea.holdingPeriod === 'day' ? 'Day Trade' :
+                 idea.holdingPeriod === 'swing' ? 'Swing' :
+                 idea.holdingPeriod === 'position' ? 'Position' :
+                 'Week-Ending'}
               </div>
             </div>
           </div>
