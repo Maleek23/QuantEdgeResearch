@@ -269,9 +269,11 @@ export class PerformanceValidator {
             currentPrice || idea.lowestPriceReached || idea.entryPrice
           );
           
-          const normalizedDirectionForExpired = this.getNormalizedDirection(idea);
+          const directionForExpired = idea.assetType === 'option' 
+            ? idea.direction as 'long' | 'short'
+            : this.getNormalizedDirection(idea);
           const percentGain = this.calculatePercentGain(
-            normalizedDirectionForExpired,
+            directionForExpired,
             idea.entryPrice,
             lastKnownPrice
           );
@@ -333,9 +335,11 @@ export class PerformanceValidator {
         currentPrice || idea.lowestPriceReached || idea.entryPrice
       );
       
-      const normalizedDirectionFor7Days = this.getNormalizedDirection(idea);
+      const directionFor7Days = idea.assetType === 'option' 
+        ? idea.direction as 'long' | 'short'
+        : this.getNormalizedDirection(idea);
       const percentGain = this.calculatePercentGain(
-        normalizedDirectionFor7Days,
+        directionFor7Days,
         idea.entryPrice,
         lastKnownPrice
       );
@@ -382,28 +386,34 @@ export class PerformanceValidator {
       ? Math.min(idea.lowestPriceReached || idea.entryPrice, currentPrice)
       : (idea.lowestPriceReached || idea.entryPrice);
 
-    // CRITICAL: Normalize direction considering both direction field and option type
-    // This ensures we correctly validate options trades
-    // {long call, short put} = bullish (price goes UP)
-    // {long put, short call} = bearish (price goes DOWN)
-    const normalizedDirection = this.getNormalizedDirection(idea);
+    // 🔧 CRITICAL FIX: For OPTIONS, use actual direction (not normalized)
+    // because we're validating PREMIUM prices, not underlying stock movement.
+    // For STOCKS/CRYPTO, use normalized direction for semantic correctness.
+    //
+    // Example: SHORT PUT (direction='short', optionType='put')
+    //   - Normalized: 'long' (bullish on underlying)  
+    //   - Actual: 'short' (you SELL the option, profit when premium DROPS)
+    //   - We need ACTUAL direction to validate premium movement correctly!
+    const directionForValidation = idea.assetType === 'option' 
+      ? idea.direction as 'long' | 'short'
+      : this.getNormalizedDirection(idea);
 
     // 🎯 CRITICAL FIX: Check INTRADAY highs/lows instead of current price
     // This catches targets that were hit intraday but reversed by EOD
     // For LONG trades: Check if highest price reached >= target
     // For SHORT trades: Check if lowest price reached <= target
-    const targetHit = normalizedDirection === 'long'
+    const targetHit = directionForValidation === 'long'
       ? highestPrice >= idea.targetPrice
       : lowestPrice <= idea.targetPrice;
 
     if (targetHit) {
       const percentGain = this.calculatePercentGain(
-        normalizedDirection,
+        directionForValidation,
         idea.entryPrice,
         idea.targetPrice
       );
 
-      console.log(`🎯 [VALIDATION] ${idea.symbol} HIT TARGET intraday (${normalizedDirection.toUpperCase()}: ${normalizedDirection === 'long' ? `high $${highestPrice.toFixed(2)} >= target $${idea.targetPrice}` : `low $${lowestPrice.toFixed(2)} <= target $${idea.targetPrice}`})`);
+      console.log(`🎯 [VALIDATION] ${idea.symbol} HIT TARGET intraday (${directionForValidation.toUpperCase()}: ${directionForValidation === 'long' ? `high $${highestPrice.toFixed(2)} >= target $${idea.targetPrice}` : `low $${lowestPrice.toFixed(2)} <= target $${idea.targetPrice}`})`);
 
       return {
         shouldUpdate: true,
@@ -425,13 +435,13 @@ export class PerformanceValidator {
     // 🎯 CRITICAL FIX: Check INTRADAY highs/lows for stops too
     // For LONG trades: Check if lowest price reached <= stop
     // For SHORT trades: Check if highest price reached >= stop
-    const stopHit = normalizedDirection === 'long'
+    const stopHit = directionForValidation === 'long'
       ? lowestPrice <= idea.stopLoss
       : highestPrice >= idea.stopLoss;
 
     if (stopHit) {
       const percentGain = this.calculatePercentGain(
-        normalizedDirection,
+        directionForValidation,
         idea.entryPrice,
         idea.stopLoss
       );
@@ -451,7 +461,7 @@ export class PerformanceValidator {
         lowestPrice
       );
 
-      console.log(`🛑 [VALIDATION] ${idea.symbol} HIT STOP intraday (${normalizedDirection.toUpperCase()}: ${normalizedDirection === 'long' ? `low $${lowestPrice.toFixed(2)} <= stop $${idea.stopLoss}` : `high $${highestPrice.toFixed(2)} >= stop $${idea.stopLoss}`})`);
+      console.log(`🛑 [VALIDATION] ${idea.symbol} HIT STOP intraday (${directionForValidation.toUpperCase()}: ${directionForValidation === 'long' ? `low $${lowestPrice.toFixed(2)} <= stop $${idea.stopLoss}` : `high $${highestPrice.toFixed(2)} >= stop $${idea.stopLoss}`})`);
 
       return {
         shouldUpdate: true,
