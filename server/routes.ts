@@ -1314,6 +1314,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timestamp: new Date().toISOString(),
           source: 'news',
           isNewsCatalyst: true,
+          expiryDate: aiIdea.expiryDate || null,
+          strikePrice: (aiIdea as any).strikePrice || null,
+          optionType: (aiIdea as any).optionType || null,
+          isLottoPlay: (aiIdea as any).isLottoPlay || false,
         });
         
         logger.info(`✅ [NEWS-TRADE] Created news-driven trade: ${tradeIdea.symbol} ${tradeIdea.direction.toUpperCase()}`);
@@ -1378,6 +1382,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               timestamp: new Date().toISOString(),
               source: 'news',
               isNewsCatalyst: true,
+              expiryDate: aiIdea.expiryDate || null,
+              strikePrice: (aiIdea as any).strikePrice || null,
+              optionType: (aiIdea as any).optionType || null,
+              isLottoPlay: (aiIdea as any).isLottoPlay || false,
             });
             
             // 🔥 Clear stale price cache to force fresh fetch on next validation
@@ -2607,7 +2615,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               expiryDate: idea.expiryDate || null,
               strikePrice: idea.assetType === 'option' ? idea.entryPrice * (idea.direction === 'long' ? 1.02 : 0.98) : null,
               optionType: idea.assetType === 'option' ? (idea.direction === 'long' ? 'call' : 'put') : null,
-              source: 'ai'
+              source: 'ai',
+              isLottoPlay: false // Chat-generated ideas use stock-based pricing, not enriched
             });
             savedIdeas.push(tradeIdea);
           }
@@ -2692,7 +2701,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           expiryDate: idea.expiryDate || null,
           strikePrice: idea.assetType === 'option' ? idea.entryPrice * (idea.direction === 'long' ? 1.02 : 0.98) : null,
           optionType: idea.assetType === 'option' ? (idea.direction === 'long' ? 'call' : 'put') : null,
-          source: 'ai'
+          source: 'ai',
+          isLottoPlay: false // Chat-generated ideas use stock-based pricing, not enriched
         });
         savedIdeas.push(tradeIdea);
       }

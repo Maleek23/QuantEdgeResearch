@@ -8,6 +8,7 @@ import { logger } from './logger';
 import { formatInTimeZone } from 'date-fns-tz';
 import { storage } from './storage';
 import { calculateATR } from './technical-indicators';
+import { isLottoCandidate, calculateLottoTargets } from './lotto-detector';
 
 // Top 20 high-volume tickers for flow scanning
 const FLOW_SCAN_TICKERS = [
@@ -20,11 +21,6 @@ const FLOW_SCAN_TICKERS = [
 const VOLUME_THRESHOLD = 500; // Absolute volume >500 contracts (since avg_vol=0 in sandbox)
 const PREMIUM_THRESHOLD = 50000; // $50k+ premium
 const IV_THRESHOLD = 0.5; // 50%+ implied volatility
-
-// Lotto Mode thresholds - High-risk far-OTM options with 20x potential
-const LOTTO_ENTRY_MIN = 0.20; // $20 minimum (options priced at $0.20+)
-const LOTTO_ENTRY_MAX = 0.70; // $70 maximum (options priced up to $0.70)
-const LOTTO_DELTA_MAX = 0.30; // Far OTM (delta <0.30)
 
 interface UnusualOption {
   symbol: string;
@@ -51,34 +47,7 @@ interface FlowSignal {
   signalStrength: number;
 }
 
-// Check if an option qualifies as a Lotto Play (high-risk far-OTM with 20x potential)
-function isLottoCandidate(option: UnusualOption): boolean {
-  const entryPrice = option.lastPrice;
-  const delta = option.greeks?.delta || 0;
-  
-  // Calculate days to expiration
-  const today = new Date();
-  const expiryDate = new Date(option.expiration);
-  const daysToExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  
-  // Lotto criteria:
-  // 1. Entry price: $0.20 - $0.70 (cheap weeklies)
-  // 2. Delta: ≤0.30 (far out-of-the-money)
-  // 3. DTE: 0-7 days (weekly expiration only)
-  const meetsLottoCriteria = (
-    entryPrice >= LOTTO_ENTRY_MIN &&
-    entryPrice <= LOTTO_ENTRY_MAX &&
-    Math.abs(delta) <= LOTTO_DELTA_MAX &&
-    daysToExpiry >= 0 &&
-    daysToExpiry <= 7  // CRITICAL: Weekly expiration only!
-  );
-  
-  if (meetsLottoCriteria) {
-    logger.info(`[FLOW] LOTTO CANDIDATE: ${option.symbol} - Entry=$${entryPrice}, Delta=${delta.toFixed(2)}, DTE=${daysToExpiry} days`);
-  }
-  
-  return meetsLottoCriteria;
-}
+// NOTE: isLottoCandidate moved to shared lotto-detector.ts for use across all engines
 
 // Detect unusual options activity
 async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
@@ -376,12 +345,18 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   logger.info(`📊 [FLOW] ${ticker} UNDERLYING: Stock @ $${currentPrice.toFixed(2)}, Flow suggests ${direction === 'long' ? 'bullish' : 'bearish'} momentum`);
 
   // 🎰 LOTTO MODE DETECTION: Check if this qualifies as a high-risk lotto play
-  const isLotto = isLottoCandidate(mostActiveOption);
+  const isLotto = isLottoCandidate({
+    lastPrice: mostActiveOption.lastPrice,
+    greeks: mostActiveOption.greeks,
+    expiration: mostActiveOption.expiration,
+    symbol: mostActiveOption.symbol
+  });
   
   if (isLotto) {
     // Override targets for lotto plays - aim for 20x return
-    targetPrice = entryPrice * 20;
-    riskRewardRatio = 20.0;
+    const lottoTargets = calculateLottoTargets(entryPrice, direction);
+    targetPrice = lottoTargets.targetPrice;
+    riskRewardRatio = lottoTargets.riskRewardRatio;
     logger.info(`🎰 [FLOW] ${ticker} LOTTO PLAY DETECTED: Entry=$${entryPrice.toFixed(2)}, Delta=${Math.abs(mostActiveOption.greeks?.delta || 0).toFixed(2)}, Target=$${targetPrice.toFixed(2)} (20x potential)`);
   }
 

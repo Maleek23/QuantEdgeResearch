@@ -15,6 +15,7 @@ import {
 import { discoverHiddenCryptoGems, discoverStockGems, discoverPennyStocks, fetchCryptoPrice, fetchHistoricalPrices } from './market-api';
 import { logger } from './logger';
 import { shouldBlockSymbol } from './earnings-service';
+import { enrichOptionIdea } from './options-enricher';
 
 // v3.1: Simplified timing intelligence (removed complex DB-based timing-intelligence.ts)
 // Timing windows based on proven day-trading patterns
@@ -993,11 +994,18 @@ export async function generateQuantIdeas(
     let assetType = data.assetType;
     
     if (data.assetType === 'stock') {
+      // 🎲 10% probability to convert stock to option (for options enrichment with Tradier data)
+      const shouldMakeOption = Math.random() < 0.10;
+      
       // For stocks, decide between stock shares vs options - prioritize what's furthest from target
       const stockShortfall = targetDistribution.stock - assetTypeCount.stock;
       const optionShortfall = targetDistribution.option - assetTypeCount.option;
       
-      if (stockShortfall > 0 && optionShortfall <= 0) {
+      if (shouldMakeOption) {
+        // 10% probability triggered - force option selection for Tradier enrichment
+        assetType = 'option';
+        logger.info(`  🎲 ${data.symbol}: 10% probability triggered - converting to option`);
+      } else if (stockShortfall > 0 && optionShortfall <= 0) {
         // Only stock shares needed
         assetType = 'stock';
       } else if (optionShortfall > 0 && stockShortfall <= 0) {
@@ -1256,6 +1264,50 @@ export async function generateQuantIdeas(
       mlWeightsVersion: null, // v3.0: Removed ML weights (simple rule-based)
       generationTimestamp: now.toISOString(),
     };
+
+    // 📊 OPTIONS ENRICHMENT: If option trade, fetch real Tradier premium data and check Lotto status
+    let isLottoPlay = false;
+    if (assetType === 'option') {
+      logger.info(`📊 [QUANT-OPTIONS] Enriching ${data.symbol} option with Tradier data...`);
+      
+      // Convert quant idea to AITradeIdea format for enricher
+      const aiIdea = {
+        symbol: idea.symbol,
+        assetType: 'option' as const,
+        direction: idea.direction,
+        entryPrice: idea.entryPrice,
+        targetPrice: idea.targetPrice,
+        stopLoss: idea.stopLoss,
+        catalyst: idea.catalyst,
+        analysis: idea.analysis,
+        sessionContext: idea.sessionContext,
+        expiryDate: idea.expiryDate || undefined
+      };
+      
+      const enrichedOption = await enrichOptionIdea(aiIdea);
+      
+      if (enrichedOption) {
+        // Replace stock-based prices with real option premium prices
+        idea.entryPrice = enrichedOption.entryPrice;
+        idea.targetPrice = enrichedOption.targetPrice;
+        idea.stopLoss = enrichedOption.stopLoss;
+        idea.riskRewardRatio = enrichedOption.riskRewardRatio;
+        idea.strikePrice = enrichedOption.strikePrice;
+        idea.optionType = enrichedOption.optionType;
+        idea.expiryDate = enrichedOption.expiryDate;
+        idea.analysis = enrichedOption.analysis; // Use enriched analysis with option details
+        isLottoPlay = enrichedOption.isLottoPlay;
+        
+        logger.info(`✅ [QUANT-OPTIONS] Enriched ${data.symbol} option${isLottoPlay ? ' (LOTTO PLAY)' : ''} - Premium: $${enrichedOption.entryPrice.toFixed(2)}, Strike: $${enrichedOption.strikePrice}, Type: ${enrichedOption.optionType}`);
+      } else {
+        logger.warn(`🚫 [QUANT-OPTIONS] Failed to enrich ${data.symbol} option - skipping`);
+        dataQuality.lowQuality++;
+        continue; // Skip this option if enrichment fails
+      }
+    }
+    
+    // Add isLottoPlay flag to idea
+    idea = { ...idea, isLottoPlay };
 
     // Check if we should accept this asset type based on distribution
     if (!shouldAcceptAssetType(assetType)) {

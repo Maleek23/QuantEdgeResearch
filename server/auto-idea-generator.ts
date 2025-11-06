@@ -2,6 +2,7 @@ import { logger } from "./logger";
 import { storage } from "./storage";
 import { generateTradeIdeas, validateTradeRisk } from "./ai-service";
 import { shouldBlockSymbol } from "./earnings-service";
+import { enrichOptionIdea } from "./options-enricher";
 
 /**
  * Automated Daily Idea Generation Service
@@ -141,42 +142,62 @@ class AutoIdeaGenerator {
           }
         }
 
+        // 📊 OPTIONS ENRICHMENT: If AI suggested an option, fetch real Tradier data
+        let processedIdea: any = aiIdea;
+        let isLotto = false;
+        
+        if (aiIdea.assetType === 'option') {
+          logger.info(`📊 [AUTO-GEN] Enriching ${aiIdea.symbol} option with Tradier data...`);
+          const enrichedOption = await enrichOptionIdea(aiIdea);
+          
+          if (!enrichedOption) {
+            logger.warn(`🚫 [AUTO-GEN] Failed to enrich ${aiIdea.symbol} option - skipping`);
+            rejectedIdeas.push({ symbol: aiIdea.symbol, reason: 'Failed to fetch real option data' });
+            continue;
+          }
+          
+          processedIdea = enrichedOption;
+          isLotto = enrichedOption.isLottoPlay;
+          logger.info(`✅ [AUTO-GEN] Enriched ${aiIdea.symbol} option${isLotto ? ' (LOTTO PLAY)' : ''}`);
+        }
+
         // 🛡️ CRITICAL: Validate risk guardrails (max 5% loss, min 2:1 R:R, price sanity)
-        const validation = validateTradeRisk(aiIdea);
+        const validation = validateTradeRisk(processedIdea);
 
         if (!validation.isValid) {
-          logger.warn(`🚫 [AUTO-GEN] REJECTED ${aiIdea.symbol} - ${validation.reason}`);
-          rejectedIdeas.push({ symbol: aiIdea.symbol, reason: validation.reason || 'Unknown' });
+          logger.warn(`🚫 [AUTO-GEN] REJECTED ${processedIdea.symbol} - ${validation.reason}`);
+          rejectedIdeas.push({ symbol: processedIdea.symbol, reason: validation.reason || 'Unknown' });
           continue; // Skip this trade - does NOT save to database
         }
 
         // ✅ Trade passes risk validation - log metrics and save
-        logger.info(`✅ [AUTO-GEN] ${aiIdea.symbol} passed validation - Loss:${validation.metrics?.maxLossPercent.toFixed(2)}% R:R:${validation.metrics?.riskRewardRatio.toFixed(2)}:1 Gain:${validation.metrics?.potentialGainPercent.toFixed(2)}%`);
+        logger.info(`✅ [AUTO-GEN] ${processedIdea.symbol} passed validation - Loss:${validation.metrics?.maxLossPercent.toFixed(2)}% R:R:${validation.metrics?.riskRewardRatio.toFixed(2)}:1 Gain:${validation.metrics?.potentialGainPercent.toFixed(2)}%`);
 
-        const { entryPrice, targetPrice, stopLoss } = aiIdea;
+        const { entryPrice, targetPrice, stopLoss } = processedIdea;
         const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
 
         // AI ideas default to day trades unless they're crypto (which can be position trades)
-        const holdingPeriod: 'day' | 'swing' | 'position' = aiIdea.assetType === 'crypto' ? 'position' : 'day';
+        const holdingPeriod: 'day' | 'swing' | 'position' = processedIdea.assetType === 'crypto' ? 'position' : 'day';
 
         const tradeIdea = await storage.createTradeIdea({
-          symbol: aiIdea.symbol,
-          assetType: aiIdea.assetType,
-          direction: aiIdea.direction,
+          symbol: processedIdea.symbol,
+          assetType: processedIdea.assetType,
+          direction: processedIdea.direction,
           holdingPeriod: holdingPeriod,
           entryPrice,
           targetPrice,
           stopLoss,
           riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
-          catalyst: aiIdea.catalyst,
-          analysis: aiIdea.analysis,
-          liquidityWarning: aiIdea.entryPrice < 5,
-          sessionContext: aiIdea.sessionContext,
+          catalyst: processedIdea.catalyst,
+          analysis: processedIdea.analysis,
+          liquidityWarning: processedIdea.entryPrice < 5,
+          sessionContext: processedIdea.sessionContext,
           timestamp: new Date().toISOString(),
-          expiryDate: aiIdea.expiryDate || null,
-          strikePrice: aiIdea.assetType === 'option' ? aiIdea.entryPrice * (aiIdea.direction === 'long' ? 1.02 : 0.98) : null,
-          optionType: aiIdea.assetType === 'option' ? (aiIdea.direction === 'long' ? 'call' : 'put') : null,
-          source: 'ai'
+          expiryDate: processedIdea.expiryDate || null,
+          strikePrice: processedIdea.strikePrice || null,
+          optionType: processedIdea.optionType || null,
+          source: 'ai',
+          isLottoPlay: isLotto
         });
         savedIdeas.push(tradeIdea);
       }

@@ -298,8 +298,8 @@ app.use((req, res, next) => {
             entryValidUntil: timingWindows.entryValidUntil,
             exitBy: timingWindows.exitBy,
             expiryDate: hybridIdea.expiryDate || null,
-            strikePrice: hybridIdea.assetType === 'option' ? hybridIdea.entryPrice * (hybridIdea.direction === 'long' ? 1.02 : 0.98) : null,
-            optionType: hybridIdea.assetType === 'option' ? (hybridIdea.direction === 'long' ? 'call' : 'put') : null,
+            strikePrice: hybridIdea.assetType === 'option' ? (hybridIdea.strikePrice || hybridIdea.entryPrice * (hybridIdea.direction === 'long' ? 1.02 : 0.98)) : null,
+            optionType: hybridIdea.assetType === 'option' ? (hybridIdea.optionType || (hybridIdea.direction === 'long' ? 'call' : 'put')) : null,
             source: 'hybrid',
             confidenceScore,
             volatilityRegime: timingWindows.volatilityRegime,
@@ -309,6 +309,7 @@ app.use((req, res, next) => {
             exitWindowMinutes: timingWindows.exitWindowMinutes,
             timingConfidence: timingWindows.timingConfidence,
             targetHitProbability: timingWindows.targetHitProbability,
+            isLottoPlay: (hybridIdea as any).isLottoPlay || false,
           });
           savedIdeas.push(tradeIdea);
           metrics.passedCount++;
@@ -457,6 +458,10 @@ app.use((req, res, next) => {
               timestamp: new Date().toISOString(),
               source: 'news',
               isNewsCatalyst: true,
+              expiryDate: aiIdea.expiryDate || null,
+              strikePrice: (aiIdea as any).strikePrice || null,
+              optionType: (aiIdea as any).optionType || null,
+              isLottoPlay: (aiIdea as any).isLottoPlay || false,
             });
             
             generatedCount++;

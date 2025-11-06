@@ -6,6 +6,7 @@ import type { TradeIdea, InsertTradeIdea } from "@shared/schema";
 import { logger } from './logger';
 import { logAPIError, logAPISuccess } from './monitoring-service';
 import { validateAndLog } from './trade-validation';
+import { enrichOptionIdea } from './options-enricher';
 
 // The newest Anthropic model is "claude-sonnet-4-20250514"
 const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
@@ -40,7 +41,7 @@ function getGemini(): GoogleGenAI {
   return gemini;
 }
 
-interface AITradeIdea {
+export interface AITradeIdea {
   symbol: string;
   assetType: 'stock' | 'option' | 'crypto';
   direction: 'long' | 'short';
@@ -556,18 +557,24 @@ export async function generateTradeIdeasFromNews(newsArticle: {
   
   logger.info(`📰 [NEWS-AI] Generating trade idea for ${primaryTicker} from news: "${title}"`);
   
+  // 🎲 10% probability to suggest options for news-driven trades with high volatility
+  const shouldMakeOption = Math.random() < 0.10;
+  const assetTypeInstruction = shouldMakeOption 
+    ? `"option" (use options for high-impact news events - these will be enriched with real Tradier data)`
+    : `"stock" (news-driven trades typically focus on stocks)`;
+  
   const systemPrompt = `You are a news-driven quantitative trading analyst. Generate a trade idea based on breaking financial news.
 
 For this trade idea, provide:
 - symbol: The ticker symbol (use the provided primaryTicker)
-- assetType: "stock" (news-driven trades focus on stocks)
+- assetType: ${assetTypeInstruction}
 - direction: "${tradingDirection}" (determined by news sentiment)
 - entryPrice: Current realistic market price for ${primaryTicker} (estimate based on typical price range)
 - targetPrice: Price target based on news impact (MUST follow direction rules below)
 - stopLoss: Stop loss price (MUST follow direction rules below)
 - catalyst: The news headline/summary (1-2 sentences)
 - analysis: Trading rationale based on news event (2-3 sentences explaining why this news justifies the trade)
-- sessionContext: Market conditions and timing
+- sessionContext: Market conditions and timing${shouldMakeOption ? '\n- expiryDate: Expiry date for the option in YYYY-MM-DD format (typically 1-7 days for news-driven options)' : ''}
 
 CRITICAL PRICE RULES:
 - For LONG trades: targetPrice > entryPrice > stopLoss (e.g., Entry $100, Target $105, Stop $97)
@@ -625,6 +632,38 @@ Return valid JSON object with structure: {"idea": {trade idea object}}`;
     
     logger.info(`📰 [NEWS-AI] ✅ Valid news-driven trade: ${idea.symbol} ${idea.direction.toUpperCase()} - Entry: $${idea.entryPrice}, Target: $${idea.targetPrice}, Stop: $${idea.stopLoss}`);
     logger.info(`   → R:R: ${validation.metrics?.riskRewardRatio.toFixed(2)}:1, Risk: ${validation.metrics?.maxLossPercent.toFixed(2)}%, Reward: ${validation.metrics?.potentialGainPercent.toFixed(2)}%`);
+    
+    // 📊 OPTIONS ENRICHMENT: If option trade, fetch real Tradier premium data and check Lotto status
+    if (idea.assetType === 'option') {
+      logger.info(`📊 [NEWS-OPTIONS] Enriching ${idea.symbol} option with Tradier data...`);
+      
+      const enrichedOption = await enrichOptionIdea(idea);
+      
+      if (enrichedOption) {
+        // Replace AI-estimated prices with real option premium prices
+        idea.entryPrice = enrichedOption.entryPrice;
+        idea.targetPrice = enrichedOption.targetPrice;
+        idea.stopLoss = enrichedOption.stopLoss;
+        
+        // Add option-specific fields and Lotto detection
+        (idea as any).strikePrice = enrichedOption.strikePrice;
+        (idea as any).optionType = enrichedOption.optionType;
+        (idea as any).riskRewardRatio = enrichedOption.riskRewardRatio;
+        (idea as any).isLottoPlay = enrichedOption.isLottoPlay;
+        
+        // Update expiry date with actual option expiry
+        idea.expiryDate = enrichedOption.expiryDate;
+        
+        // Enhance analysis with option details
+        idea.analysis = enrichedOption.analysis;
+        
+        logger.info(`✅ [NEWS-OPTIONS] Enriched ${idea.symbol} option${enrichedOption.isLottoPlay ? ' (LOTTO PLAY)' : ''} - Premium: $${enrichedOption.entryPrice.toFixed(2)}, Strike: $${enrichedOption.strikePrice}, Type: ${enrichedOption.optionType}`);
+      } else {
+        logger.warn(`🚫 [NEWS-OPTIONS] Failed to enrich ${idea.symbol} option - returning stock trade instead`);
+        // Fallback to stock if option enrichment fails
+        idea.assetType = 'stock';
+      }
+    }
     
     return idea;
   } catch (error: any) {
@@ -773,7 +812,8 @@ Keep response concise (3-4 sentences total).`;
         const aiContext = geminiResponse.text || quantIdea.analysis;
         
         // Combine quant data with AI intelligence
-        enhancedIdeas.push({
+        // Preserve option fields and isLottoPlay from enriched quant ideas
+        const enhancedIdea: any = {
           symbol: quantIdea.symbol,
           assetType: quantIdea.assetType as 'stock' | 'option' | 'crypto',
           direction: quantIdea.direction as 'long' | 'short',
@@ -784,12 +824,21 @@ Keep response concise (3-4 sentences total).`;
           analysis: `🔬 HYBRID: ${aiContext}`,
           sessionContext: quantIdea.sessionContext || marketContext,
           expiryDate: quantIdea.expiryDate || undefined,
-        });
+        };
+        
+        // Preserve option-specific fields from quant enrichment
+        if (quantIdea.assetType === 'option') {
+          enhancedIdea.strikePrice = quantIdea.strikePrice;
+          enhancedIdea.optionType = quantIdea.optionType;
+          enhancedIdea.isLottoPlay = quantIdea.isLottoPlay || false;
+        }
+        
+        enhancedIdeas.push(enhancedIdea);
         
       } catch (aiError) {
         logger.warn(`AI enhancement failed for ${quantIdea.symbol}, using quant-only data`);
         // Fallback to quant-only idea
-        enhancedIdeas.push({
+        const fallbackIdea: any = {
           symbol: quantIdea.symbol,
           assetType: quantIdea.assetType as 'stock' | 'option' | 'crypto',
           direction: quantIdea.direction as 'long' | 'short',
@@ -800,7 +849,16 @@ Keep response concise (3-4 sentences total).`;
           analysis: quantIdea.analysis || `Quantitative signal: ${quantIdea.source || 'v3.0'}`,
           sessionContext: quantIdea.sessionContext || marketContext,
           expiryDate: quantIdea.expiryDate || undefined,
-        });
+        };
+        
+        // Preserve option-specific fields from quant enrichment
+        if (quantIdea.assetType === 'option') {
+          fallbackIdea.strikePrice = quantIdea.strikePrice;
+          fallbackIdea.optionType = quantIdea.optionType;
+          fallbackIdea.isLottoPlay = quantIdea.isLottoPlay || false;
+        }
+        
+        enhancedIdeas.push(fallbackIdea);
       }
     }
     
