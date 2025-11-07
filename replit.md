@@ -40,6 +40,16 @@ The system includes a Holding Period Classification System, a quick actions dial
 
 A Performance Tracking System validates trade outcomes and tracks win rates, including a Performance-Based Grading System. A Quantitative Timing Intelligence System provides data-backed entry/exit windows.
 
+**Advanced Performance Analytics (Nov 7, 2025):**
+The Performance page features 5 advanced analytics dashboards with contextual engine filtering:
+- **Symbol Performance Leaderboard:** Top 20 winners + worst 10 underperformers with win rates and average gains
+- **Time-of-Day Heatmap:** Hourly win rate analysis (9 AM - 4 PM ET) showing optimal trading hours
+- **Engine Performance Over Time:** 8-week trend chart tracking all 5 engines' weekly win rates
+- **Confidence Score Calibration:** Win rate by confidence bands revealing inverse relationship (lower confidence scores = higher win rates)
+- **Win/Loss Streak Tracker:** Current streak display with historical records and animated streak badges
+
+All analytics use TanStack Query with structured queryKeys for proper cache invalidation, Recharts for visualizations, and Bloomberg-style dark theme. Backend implements 5 new API endpoints with optional engine filtering (`?engine=ai|quant|hybrid|flow|news`). Engine filtering is contextual: Symbol Leaderboard, Time-of-Day, Confidence Calibration, and Streak Tracker support filtering, while Engine Performance Trends displays all engines simultaneously as separate lines.
+
 The quantitative engine (v3.4.0) leverages three academically-proven signals: RSI(2) Mean Reversion with a 200-Day MA Filter, VWAP Institutional Flow, and Volume Spike Early Entry. It incorporates ADX Regime Filtering (ADX ≤30), Signal Confidence Voting, and time-of-day filtering (9:30-11:30 AM ET). Stop losses are widened to 3.5% for stocks and 5% for crypto. Confidence scoring (v3.4.0) is data-driven, recalibrated to match actual performance, and all trades use a standard 2:1 R:R. A Hybrid AI+Quant system combines quantitative signals with AI fundamental analysis.
 
 A critical dual-layer trade validation framework ensures all trade ideas pass through mandatory two-tier validation: Structural Validation and Risk Guardrails (enforcing max 5% loss, min 2:1 R:R, price sanity, volatility filters). Options trades are explicitly blocked pending pricing logic audit.
