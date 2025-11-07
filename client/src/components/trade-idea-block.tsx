@@ -422,37 +422,56 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
           {/* ===== PRICE DISPLAY SECTION ===== */}
           <div className="mb-3 p-4 rounded-lg border-2 bg-gradient-to-br from-card via-card to-muted/5 shadow-sm">
-            {currentPrice ? (
+            {currentPrice || idea.assetType === 'option' ? (
               <div className="space-y-3">
-                {/* Current Price with Change - ENHANCED */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                        <Activity className={cn("h-3 w-3", priceUpdated && "animate-pulse")} />
-                        LIVE PRICE
-                      </span>
-                      <span className="text-[10px] text-muted-foreground/70 mt-0.5">
-                        Updates every 30s
+                {/* Current Price with Change - ENHANCED (or Option Premium Display) */}
+                {idea.assetType === 'option' ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <Activity className="h-3 w-3" />
+                          ENTRY PREMIUM
+                        </span>
+                        <span className="text-[10px] text-muted-foreground/70 mt-0.5">
+                          Live pricing not yet supported
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-3xl font-bold font-mono text-purple-400" data-testid={`text-entry-premium-${idea.symbol}`}>
+                      {formatCurrency(idea.entryPrice)}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <Activity className={cn("h-3 w-3", priceUpdated && "animate-pulse")} />
+                          LIVE PRICE
+                        </span>
+                        <span className="text-[10px] text-muted-foreground/70 mt-0.5">
+                          Updates every 30s
+                        </span>
+                      </div>
+                      <span className={cn(
+                        "text-sm font-bold px-2.5 py-1 rounded-md shadow-sm",
+                        priceChangePercent >= 0 
+                          ? "bg-green-500/30 text-green-300 border border-green-500/50" 
+                          : "bg-red-500/30 text-red-300 border border-red-500/50"
+                      )}>
+                        {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
                       </span>
                     </div>
-                    <span className={cn(
-                      "text-sm font-bold px-2.5 py-1 rounded-md shadow-sm",
-                      priceChangePercent >= 0 
-                        ? "bg-green-500/30 text-green-300 border border-green-500/50" 
-                        : "bg-red-500/30 text-red-300 border border-red-500/50"
-                    )}>
-                      {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
-                    </span>
+                    <div className={cn(
+                      "text-3xl font-bold font-mono text-foreground transition-all duration-300",
+                      priceUpdated && "price-update scale-105",
+                      priceChangePercent >= 0 ? "text-green-400" : "text-red-400"
+                    )} data-testid={`text-current-price-${idea.symbol}`}>
+                      {formatCurrency(currentPrice!)}
+                    </div>
                   </div>
-                  <div className={cn(
-                    "text-3xl font-bold font-mono text-foreground transition-all duration-300",
-                    priceUpdated && "price-update scale-105",
-                    priceChangePercent >= 0 ? "text-green-400" : "text-red-400"
-                  )} data-testid={`text-current-price-${idea.symbol}`}>
-                    {formatCurrency(currentPrice)}
-                  </div>
-                </div>
+                )}
 
                 {/* Entry/Target/Stop Grid */}
                 <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/50">
