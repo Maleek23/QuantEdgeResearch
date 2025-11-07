@@ -20,7 +20,7 @@ interface LottoOption {
  * Check if an option qualifies as a Lotto Play (high-risk far-OTM with 20x potential)
  * 
  * Criteria:
- * 1. Entry price: $0.20 - $0.70 (cheap weeklies for small accounts)
+ * 1. Entry price: $0.20 - $2.00 (cheap weeklies for small accounts)
  * 2. Delta: ≤0.30 (far out-of-the-money = high risk, high reward)
  * 3. DTE: 0-7 days (weekly expiration only - no monthlies)
  * 

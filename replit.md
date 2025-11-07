@@ -23,7 +23,7 @@ The UI features a Bloomberg-style dark theme with deep charcoal backgrounds, gra
 The platform features a clean 6-item sidebar (Trade Desk, Performance, Market Intel, Research & Tools, Settings, Admin) with a hub-and-spoke design. The Trade Desk serves as the central hub with 5 mode tabs for different trading strategies:
 - **Standard Mode:** Conservative plays from AI/Quant/Hybrid engines with R:R ≥2.0 and grades A-B
 - **Flow Scanner Mode:** Institutional options flow (99.4% win rate) with expensive premium plays
-- **Lotto Mode:** High-risk weekly options ($0.20-$0.70 entry, DTE ≤7 days, delta ≤0.30) targeting 20x returns for small account growth - displays risk warnings and Zap icons
+- **Lotto Mode:** High-risk weekly options ($0.20-$2.00 entry, DTE ≤7 days, delta ≤0.30) targeting 20x returns for small account growth - displays risk warnings and Zap icons. Integrated approach: (1) Widened threshold to $2.00 to catch more opportunities, (2) Dedicated Lotto Scanner actively hunts for cheap far-OTM weeklies, (3) All engines flag lotto plays when detected
 - **News Catalyst Mode:** Breaking news-driven trades with relaxed 1.5:1 R:R
 - **Manual Mode:** User-created custom trades
 
@@ -107,7 +107,7 @@ Automated services run on a schedule:
 -   **9:30 AM CT (Weekdays):** AI + Quant idea generation (3-5 trades each), with earnings calendar integration to block trades 2 days before/after earnings (unless news catalyst).
 -   **9:45 AM CT (Weekdays):** Hybrid AI+Quant generation.
 -   **Every 15 min (08:00-20:00 ET):** News Monitor, generating ideas from major market events with sentiment analysis and keyword detection.
--   **Every 15 min (09:30-16:00 ET):** Flow Scanner for unusual options flow on high-volume tickers.
+-   **Every 15 min (09:30-16:00 ET):** Flow Scanner for unusual options flow on high-volume tickers, Lotto Scanner for cheap far-OTM weeklies.
 -   **Every 5 min:** Performance Validation (automatic trade outcome detection) and Watchlist Monitor (price alerts and updates).
 
 ## External Dependencies
