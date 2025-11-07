@@ -608,5 +608,30 @@ app.use((req, res, next) => {
     });
     
     log('📊 Flow Scanner started - scanning unusual options every 15 minutes during market hours (9:30 AM-4:00 PM ET)');
+    
+    // Start automated lotto scanner (every 15 minutes during market hours)
+    const { runLottoScanner } = await import('./lotto-scanner');
+    
+    // Schedule lotto scanning every 15 minutes
+    cron.default.schedule('*/15 * * * *', async () => {
+      try {
+        // Check if market is open (9:30 AM - 4:00 PM ET, Mon-Fri)
+        if (!isMarketHoursForFlow()) {
+          return;
+        }
+        
+        logger.info('🎰 [LOTTO-CRON] Starting automated lotto scan...');
+        
+        // Scan for lotto plays
+        await runLottoScanner();
+        
+        logger.info('🎰 [LOTTO-CRON] Lotto scan complete');
+        
+      } catch (error: any) {
+        logger.error('🎰 [LOTTO-CRON] Lotto scan failed:', error);
+      }
+    });
+    
+    log('🎰 Lotto Scanner started - hunting for cheap far-OTM weeklies every 15 minutes during market hours (9:30 AM-4:00 PM ET)');
   });
 })();

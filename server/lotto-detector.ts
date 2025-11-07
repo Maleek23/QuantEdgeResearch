@@ -5,7 +5,7 @@ import { logger } from './logger';
 
 // Lotto Mode thresholds - High-risk far-OTM options with 20x potential
 const LOTTO_ENTRY_MIN = 0.20; // $20 minimum (options priced at $0.20+)
-const LOTTO_ENTRY_MAX = 0.70; // $70 maximum (options priced up to $0.70)
+const LOTTO_ENTRY_MAX = 2.00; // $200 maximum (widened from $0.70 to catch more opportunities)
 const LOTTO_DELTA_MAX = 0.30; // Far OTM (delta <0.30)
 const LOTTO_MAX_DTE = 7; // Weekly expiration only (0-7 days)
 
