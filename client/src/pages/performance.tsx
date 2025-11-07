@@ -24,6 +24,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ValidationResultsDialog } from "@/components/validation-results-dialog";
+import SymbolLeaderboard from "@/components/symbol-leaderboard";
+import TimeOfDayHeatmap from "@/components/time-of-day-heatmap";
+import EngineTrendsChart from "@/components/engine-trends-chart";
+import ConfidenceCalibration from "@/components/confidence-calibration";
+import StreakTracker from "@/components/streak-tracker";
 
 interface PerformanceStats {
   overall: {
@@ -77,6 +82,7 @@ interface PerformanceStats {
 
 export default function PerformancePage() {
   const [dateRange, setDateRange] = useState<string>('all');
+  const [selectedEngine, setSelectedEngine] = useState<string>('all');
   const [isValidating, setIsValidating] = useState(false);
   const [validationResults, setValidationResults] = useState<any[]>([]);
   const [showValidationDialog, setShowValidationDialog] = useState(false);
@@ -278,6 +284,24 @@ export default function PerformancePage() {
                   <SelectItem value="3m">Last 3 Months</SelectItem>
                   <SelectItem value="1y">Last Year</SelectItem>
                   <SelectItem value="all">All Time</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Filter className="w-5 h-5 text-muted-foreground" />
+              <span className="text-sm font-semibold">Filter by Engine:</span>
+              <Select value={selectedEngine} onValueChange={setSelectedEngine}>
+                <SelectTrigger className="w-40" data-testid="select-engine-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Engines</SelectItem>
+                  <SelectItem value="ai">AI</SelectItem>
+                  <SelectItem value="quant">Quant</SelectItem>
+                  <SelectItem value="hybrid">Hybrid</SelectItem>
+                  <SelectItem value="flow">Flow Scanner</SelectItem>
+                  <SelectItem value="news">News</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -520,6 +544,41 @@ export default function PerformancePage() {
             </div>
           </CardContent>
         </Card>
+
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Current Performance Streak</h2>
+          <StreakTracker selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+        </div>
+        
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Engine Performance Trends</h2>
+          <p className="text-sm text-muted-foreground mb-4">Weekly win rates for all engines over the last 8 weeks</p>
+          <EngineTrendsChart />
+        </div>
+        
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Symbol Performance Leaderboard</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            {selectedEngine === 'all' ? 'All engines' : `${selectedEngine.toUpperCase()} engine`} - Top/worst performing symbols
+          </p>
+          <SymbolLeaderboard selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+        </div>
+        
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Time-of-Day Performance</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Win rate by hour (9 AM - 4 PM ET) {selectedEngine !== 'all' && `for ${selectedEngine.toUpperCase()} engine`}
+          </p>
+          <TimeOfDayHeatmap selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+        </div>
+        
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Confidence Score Calibration</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Actual win rates by confidence score band {selectedEngine !== 'all' && `for ${selectedEngine.toUpperCase()} engine`}
+          </p>
+          <ConfidenceCalibration selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+        </div>
 
         {stats.bySource.length > 0 && (
           <Card data-testid="card-performance-by-source">

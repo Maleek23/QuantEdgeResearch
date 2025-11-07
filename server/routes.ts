@@ -8,6 +8,7 @@ import { scanUnusualOptionsFlow } from "./flow-scanner";
 import { generateDiagnosticExport } from "./diagnostic-export";
 import { validateAndLog as validateTradeStructure } from "./trade-validation";
 import { deriveTimingWindows, verifyTimingUniqueness } from "./timing-intelligence";
+import { formatInTimeZone } from "date-fns-tz";
 import {
   insertMarketDataSchema,
   insertTradeIdeaSchema,
@@ -31,6 +32,49 @@ import { requireAdmin, generateAdminToken } from "./auth";
 interface PriceCacheEntry {
   price: number;
   timestamp: number;
+}
+
+// Advanced Performance Analytics Types
+interface SymbolLeaderboardEntry {
+  symbol: string;
+  total_trades: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+  avg_gain_on_wins: number;
+  avg_loss_on_losses: number;
+}
+
+interface TimeOfDayHeatmapEntry {
+  hour: number;
+  trades_count: number;
+  wins: number;
+  losses: number;
+  win_rate: number;
+}
+
+interface EngineTrendEntry {
+  engine: string;
+  week: string;
+  trades: number;
+  wins: number;
+  win_rate: number;
+}
+
+interface ConfidenceCalibrationEntry {
+  confidence_band: string;
+  trades: number;
+  wins: number;
+  win_rate: number;
+}
+
+interface StreakData {
+  current_streak: {
+    type: 'win' | 'loss';
+    count: number;
+  };
+  longest_win_streak: number;
+  longest_loss_streak: number;
 }
 
 const priceCache = new Map<string, PriceCacheEntry>();
@@ -1507,6 +1551,425 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Export error:", error);
       res.status(500).json({ error: "Failed to export data" });
+    }
+  });
+
+  // Advanced Performance Analytics Endpoints
+
+  // 1. Symbol Leaderboard - Top/Bottom performing symbols
+  app.get("/api/performance/symbol-leaderboard", async (req, res) => {
+    try {
+      const engine = req.query.engine as string | undefined;
+      
+      // Get all trade ideas
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Filter: only auto-resolved trades + optional engine filter
+      let filteredIdeas = allIdeas.filter(idea => 
+        idea.resolutionReason === 'auto_target_hit' || 
+        idea.resolutionReason === 'auto_stop_hit'
+      );
+      
+      if (engine) {
+        filteredIdeas = filteredIdeas.filter(idea => idea.source === engine);
+      }
+      
+      // Group by symbol
+      const symbolStats = new Map<string, {
+        symbol: string;
+        trades: typeof filteredIdeas;
+        wins: number;
+        losses: number;
+      }>();
+      
+      filteredIdeas.forEach(idea => {
+        if (!symbolStats.has(idea.symbol)) {
+          symbolStats.set(idea.symbol, {
+            symbol: idea.symbol,
+            trades: [],
+            wins: 0,
+            losses: 0,
+          });
+        }
+        
+        const stats = symbolStats.get(idea.symbol)!;
+        stats.trades.push(idea);
+        
+        if (idea.resolutionReason === 'auto_target_hit') {
+          stats.wins++;
+        } else if (idea.resolutionReason === 'auto_stop_hit') {
+          stats.losses++;
+        }
+      });
+      
+      // Calculate metrics for each symbol (min 3 trades)
+      const leaderboard: SymbolLeaderboardEntry[] = [];
+      
+      symbolStats.forEach(stats => {
+        if (stats.trades.length < 3) return;
+        
+        const totalTrades = stats.trades.length;
+        const winRate = totalTrades > 0 ? (stats.wins / totalTrades) * 100 : 0;
+        
+        // Calculate avg gain on wins
+        const winningTrades = stats.trades.filter(t => t.resolutionReason === 'auto_target_hit');
+        const avgGainOnWins = winningTrades.length > 0
+          ? winningTrades.reduce((sum, t) => sum + (t.percentGain || 0), 0) / winningTrades.length
+          : 0;
+        
+        // Calculate avg loss on losses
+        const losingTrades = stats.trades.filter(t => t.resolutionReason === 'auto_stop_hit');
+        const avgLossOnLosses = losingTrades.length > 0
+          ? losingTrades.reduce((sum, t) => sum + (t.percentGain || 0), 0) / losingTrades.length
+          : 0;
+        
+        leaderboard.push({
+          symbol: stats.symbol,
+          total_trades: totalTrades,
+          wins: stats.wins,
+          losses: stats.losses,
+          win_rate: Math.round(winRate * 10) / 10,
+          avg_gain_on_wins: Math.round(avgGainOnWins * 10) / 10,
+          avg_loss_on_losses: Math.round(avgLossOnLosses * 10) / 10,
+        });
+      });
+      
+      // Sort by win_rate DESC, then by total_trades DESC
+      leaderboard.sort((a, b) => {
+        if (b.win_rate !== a.win_rate) {
+          return b.win_rate - a.win_rate;
+        }
+        return b.total_trades - a.total_trades;
+      });
+      
+      // Get top 20 winners and bottom 10 losers
+      const topWinners = leaderboard.slice(0, 20);
+      const bottomLosers = leaderboard.slice(-10).reverse();
+      
+      res.json({
+        topWinners,
+        bottomLosers,
+      });
+    } catch (error) {
+      logger.error("Symbol leaderboard error:", error);
+      res.status(500).json({ error: "Failed to fetch symbol leaderboard" });
+    }
+  });
+
+  // 2. Time of Day Heatmap - Win rate by hour (9 AM - 4 PM ET)
+  app.get("/api/performance/time-of-day-heatmap", async (req, res) => {
+    try {
+      const engine = req.query.engine as string | undefined;
+      
+      // Get all trade ideas
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Filter: only auto-resolved trades + optional engine filter
+      let filteredIdeas = allIdeas.filter(idea => 
+        idea.resolutionReason === 'auto_target_hit' || 
+        idea.resolutionReason === 'auto_stop_hit'
+      );
+      
+      if (engine) {
+        filteredIdeas = filteredIdeas.filter(idea => idea.source === engine);
+      }
+      
+      // Group by hour (ET timezone)
+      const hourlyStats = new Map<number, {
+        hour: number;
+        trades: typeof filteredIdeas;
+        wins: number;
+        losses: number;
+      }>();
+      
+      // Initialize hours 9-16 (9 AM - 4 PM ET)
+      for (let hour = 9; hour <= 16; hour++) {
+        hourlyStats.set(hour, {
+          hour,
+          trades: [],
+          wins: 0,
+          losses: 0,
+        });
+      }
+      
+      filteredIdeas.forEach(idea => {
+        try {
+          // Convert timestamp to ET timezone and extract hour
+          const etHour = parseInt(formatInTimeZone(new Date(idea.timestamp), 'America/New_York', 'H'));
+          
+          // Only include market hours (9 AM - 4 PM)
+          if (etHour >= 9 && etHour <= 16) {
+            const stats = hourlyStats.get(etHour)!;
+            stats.trades.push(idea);
+            
+            if (idea.resolutionReason === 'auto_target_hit') {
+              stats.wins++;
+            } else if (idea.resolutionReason === 'auto_stop_hit') {
+              stats.losses++;
+            }
+          }
+        } catch (error) {
+          logger.error(`Failed to parse timestamp for idea ${idea.id}:`, error);
+        }
+      });
+      
+      // Calculate win rates
+      const heatmap: TimeOfDayHeatmapEntry[] = [];
+      
+      hourlyStats.forEach(stats => {
+        const totalTrades = stats.trades.length;
+        const winRate = totalTrades > 0 ? (stats.wins / totalTrades) * 100 : 0;
+        
+        heatmap.push({
+          hour: stats.hour,
+          trades_count: totalTrades,
+          wins: stats.wins,
+          losses: stats.losses,
+          win_rate: Math.round(winRate * 10) / 10,
+        });
+      });
+      
+      // Sort by hour
+      heatmap.sort((a, b) => a.hour - b.hour);
+      
+      res.json(heatmap);
+    } catch (error) {
+      logger.error("Time-of-day heatmap error:", error);
+      res.status(500).json({ error: "Failed to fetch time-of-day heatmap" });
+    }
+  });
+
+  // 3. Engine Trends - Weekly performance for each engine over last 8 weeks
+  app.get("/api/performance/engine-trends", async (req, res) => {
+    try {
+      // Get all trade ideas
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Filter: only auto-resolved trades
+      const filteredIdeas = allIdeas.filter(idea => 
+        idea.resolutionReason === 'auto_target_hit' || 
+        idea.resolutionReason === 'auto_stop_hit'
+      );
+      
+      // Get date 8 weeks ago
+      const eightWeeksAgo = new Date();
+      eightWeeksAgo.setDate(eightWeeksAgo.getDate() - (8 * 7));
+      
+      // Filter to last 8 weeks only
+      const recentIdeas = filteredIdeas.filter(idea => {
+        const ideaDate = new Date(idea.timestamp);
+        return ideaDate >= eightWeeksAgo;
+      });
+      
+      // Group by engine and week
+      const engineWeekStats = new Map<string, {
+        engine: string;
+        week: string;
+        trades: typeof recentIdeas;
+        wins: number;
+      }>();
+      
+      recentIdeas.forEach(idea => {
+        const engine = idea.source || 'unknown';
+        
+        // Get start of week (Monday) in ET timezone
+        const ideaDate = new Date(idea.timestamp);
+        const dayOfWeek = ideaDate.getDay();
+        const diff = ideaDate.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust when day is Sunday
+        const weekStart = new Date(ideaDate.setDate(diff));
+        weekStart.setHours(0, 0, 0, 0);
+        const weekKey = weekStart.toISOString().split('T')[0]; // YYYY-MM-DD format
+        
+        const key = `${engine}_${weekKey}`;
+        
+        if (!engineWeekStats.has(key)) {
+          engineWeekStats.set(key, {
+            engine,
+            week: weekKey,
+            trades: [],
+            wins: 0,
+          });
+        }
+        
+        const stats = engineWeekStats.get(key)!;
+        stats.trades.push(idea);
+        
+        if (idea.resolutionReason === 'auto_target_hit') {
+          stats.wins++;
+        }
+      });
+      
+      // Calculate metrics
+      const trends: EngineTrendEntry[] = [];
+      
+      engineWeekStats.forEach(stats => {
+        const totalTrades = stats.trades.length;
+        const winRate = totalTrades > 0 ? (stats.wins / totalTrades) * 100 : 0;
+        
+        trends.push({
+          engine: stats.engine,
+          week: stats.week,
+          trades: totalTrades,
+          wins: stats.wins,
+          win_rate: Math.round(winRate * 10) / 10,
+        });
+      });
+      
+      // Sort by week DESC (most recent first)
+      trends.sort((a, b) => b.week.localeCompare(a.week));
+      
+      res.json(trends);
+    } catch (error) {
+      logger.error("Engine trends error:", error);
+      res.status(500).json({ error: "Failed to fetch engine trends" });
+    }
+  });
+
+  // 4. Confidence Calibration - Win rate by confidence score band
+  app.get("/api/performance/confidence-calibration", async (req, res) => {
+    try {
+      const engine = req.query.engine as string | undefined;
+      
+      // Get all trade ideas
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Filter: only auto-resolved trades + optional engine filter
+      let filteredIdeas = allIdeas.filter(idea => 
+        idea.resolutionReason === 'auto_target_hit' || 
+        idea.resolutionReason === 'auto_stop_hit'
+      );
+      
+      if (engine) {
+        filteredIdeas = filteredIdeas.filter(idea => idea.source === engine);
+      }
+      
+      // Group by confidence band
+      const confidenceBands = ['90-100', '80-89', '70-79', '60-69', '<60'];
+      const bandStats = new Map<string, {
+        band: string;
+        trades: typeof filteredIdeas;
+        wins: number;
+      }>();
+      
+      confidenceBands.forEach(band => {
+        bandStats.set(band, {
+          band,
+          trades: [],
+          wins: 0,
+        });
+      });
+      
+      filteredIdeas.forEach(idea => {
+        const confidence = idea.confidenceScore || 0;
+        
+        let band: string;
+        if (confidence >= 90) band = '90-100';
+        else if (confidence >= 80) band = '80-89';
+        else if (confidence >= 70) band = '70-79';
+        else if (confidence >= 60) band = '60-69';
+        else band = '<60';
+        
+        const stats = bandStats.get(band)!;
+        stats.trades.push(idea);
+        
+        if (idea.resolutionReason === 'auto_target_hit') {
+          stats.wins++;
+        }
+      });
+      
+      // Calculate win rates
+      const calibration: ConfidenceCalibrationEntry[] = [];
+      
+      bandStats.forEach(stats => {
+        const totalTrades = stats.trades.length;
+        const winRate = totalTrades > 0 ? (stats.wins / totalTrades) * 100 : 0;
+        
+        calibration.push({
+          confidence_band: stats.band,
+          trades: totalTrades,
+          wins: stats.wins,
+          win_rate: Math.round(winRate * 10) / 10,
+        });
+      });
+      
+      // Return in order from highest to lowest confidence
+      res.json(calibration);
+    } catch (error) {
+      logger.error("Confidence calibration error:", error);
+      res.status(500).json({ error: "Failed to fetch confidence calibration" });
+    }
+  });
+
+  // 5. Streaks - Current streak and historical streaks
+  app.get("/api/performance/streaks", async (req, res) => {
+    try {
+      const engine = req.query.engine as string | undefined;
+      
+      // Get all trade ideas
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Filter: only auto-resolved trades + optional engine filter
+      let filteredIdeas = allIdeas.filter(idea => 
+        idea.resolutionReason === 'auto_target_hit' || 
+        idea.resolutionReason === 'auto_stop_hit'
+      );
+      
+      if (engine) {
+        filteredIdeas = filteredIdeas.filter(idea => idea.source === engine);
+      }
+      
+      // Sort by timestamp ascending (oldest first)
+      filteredIdeas.sort((a, b) => {
+        return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+      });
+      
+      // Calculate streaks
+      let currentStreak = { type: 'win' as 'win' | 'loss', count: 0 };
+      let longestWinStreak = 0;
+      let longestLossStreak = 0;
+      let tempWinStreak = 0;
+      let tempLossStreak = 0;
+      
+      filteredIdeas.forEach((idea, index) => {
+        const isWin = idea.resolutionReason === 'auto_target_hit';
+        
+        if (isWin) {
+          tempWinStreak++;
+          tempLossStreak = 0;
+          
+          if (tempWinStreak > longestWinStreak) {
+            longestWinStreak = tempWinStreak;
+          }
+        } else {
+          tempLossStreak++;
+          tempWinStreak = 0;
+          
+          if (tempLossStreak > longestLossStreak) {
+            longestLossStreak = tempLossStreak;
+          }
+        }
+        
+        // Update current streak (last trade determines current streak)
+        if (index === filteredIdeas.length - 1) {
+          if (tempWinStreak > 0) {
+            currentStreak = { type: 'win', count: tempWinStreak };
+          } else {
+            currentStreak = { type: 'loss', count: tempLossStreak };
+          }
+        }
+      });
+      
+      const streaks = {
+        currentStreak: currentStreak.count,
+        currentStreakType: currentStreak.type,
+        longestWinStreak: longestWinStreak,
+        longestLossStreak: longestLossStreak,
+      };
+      
+      res.json(streaks);
+    } catch (error) {
+      logger.error("Streaks error:", error);
+      res.status(500).json({ error: "Failed to fetch streaks" });
     }
   });
 
