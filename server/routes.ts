@@ -37,12 +37,12 @@ interface PriceCacheEntry {
 // Advanced Performance Analytics Types
 interface SymbolLeaderboardEntry {
   symbol: string;
-  total_trades: number;
+  trades: number;
   wins: number;
   losses: number;
-  win_rate: number;
-  avg_gain_on_wins: number;
-  avg_loss_on_losses: number;
+  winRate: number;
+  avgGain: number;
+  avgLoss: number;
 }
 
 interface TimeOfDayHeatmapEntry {
@@ -1625,30 +1625,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         leaderboard.push({
           symbol: stats.symbol,
-          total_trades: totalTrades,
+          trades: totalTrades,
           wins: stats.wins,
           losses: stats.losses,
-          win_rate: Math.round(winRate * 10) / 10,
-          avg_gain_on_wins: Math.round(avgGainOnWins * 10) / 10,
-          avg_loss_on_losses: Math.round(avgLossOnLosses * 10) / 10,
+          winRate: Math.round(winRate * 10) / 10,
+          avgGain: Math.round(avgGainOnWins * 10) / 10,
+          avgLoss: Math.round(avgLossOnLosses * 10) / 10,
         });
       });
       
-      // Sort by win_rate DESC, then by total_trades DESC
+      // Sort by winRate DESC, then by trades DESC
       leaderboard.sort((a, b) => {
-        if (b.win_rate !== a.win_rate) {
-          return b.win_rate - a.win_rate;
+        if (b.winRate !== a.winRate) {
+          return b.winRate - a.winRate;
         }
-        return b.total_trades - a.total_trades;
+        return b.trades - a.trades;
       });
       
       // Get top 20 winners and bottom 10 losers
-      const topWinners = leaderboard.slice(0, 20);
-      const bottomLosers = leaderboard.slice(-10).reverse();
+      const topPerformers = leaderboard.slice(0, 20);
+      const underperformers = leaderboard.slice(-10).reverse();
       
       res.json({
-        topWinners,
-        bottomLosers,
+        topPerformers,
+        underperformers,
       });
     } catch (error) {
       logger.error("Symbol leaderboard error:", error);
