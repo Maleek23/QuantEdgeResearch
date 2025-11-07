@@ -271,6 +271,69 @@ export class PerformanceValidator {
       }
     }
 
+    // 🚨 CRITICAL CHECK: Has the option expired?
+    // Options use expiryDate field instead of exitBy
+    if (idea.assetType === 'option' && idea.expiryDate) {
+      try {
+        const expiryDate = new Date(idea.expiryDate);
+        
+        if (!isNaN(expiryDate.getTime()) && now > expiryDate) {
+          const hoursPastExpiry = (now.getTime() - expiryDate.getTime()) / (1000 * 60 * 60);
+          console.log(`⛔ [VALIDATION] ${idea.symbol} OPTION EXPIRED ${hoursPastExpiry.toFixed(1)}h ago (Expiry: ${idea.expiryDate})`);
+          
+          // Use last known price (entry price for options since we can't fetch historical option premiums)
+          const lastKnownPrice = currentPrice ?? idea.entryPrice;
+          
+          const highestPrice = Math.max(
+            idea.highestPriceReached || idea.entryPrice,
+            currentPrice || idea.highestPriceReached || idea.entryPrice
+          );
+          const lowestPrice = Math.min(
+            idea.lowestPriceReached || idea.entryPrice,
+            currentPrice || idea.lowestPriceReached || idea.entryPrice
+          );
+          
+          const percentGain = this.calculatePercentGain(
+            idea.direction as 'long' | 'short',
+            idea.entryPrice,
+            lastKnownPrice
+          );
+          
+          const predictionAccurate = this.checkPredictionAccuracy(
+            idea,
+            lastKnownPrice,
+            highestPrice,
+            lowestPrice
+          );
+          
+          const predictionAccuracyPercent = this.calculatePredictionAccuracyPercent(
+            idea,
+            lastKnownPrice,
+            highestPrice,
+            lowestPrice
+          );
+          
+          return {
+            shouldUpdate: true,
+            outcomeStatus: 'expired',
+            exitPrice: lastKnownPrice,
+            percentGain,
+            realizedPnL: 0,
+            resolutionReason: 'auto_expired',
+            exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+            actualHoldingTimeMinutes: holdingTimeMinutes,
+            predictionAccurate,
+            predictionAccuracyPercent,
+            predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+            highestPriceReached: highestPrice,
+            lowestPriceReached: lowestPrice,
+          };
+        }
+      } catch (e) {
+        console.warn(`⚠️ [VALIDATION] Error parsing expiryDate for ${idea.symbol}:`, e);
+      }
+    }
+
     // Check if exitBy time has passed (holding period deadline)
     // This check doesn't require current price
     if (idea.exitBy) {

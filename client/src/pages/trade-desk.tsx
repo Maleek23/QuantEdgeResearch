@@ -868,9 +868,41 @@ export default function TradeDeskPage() {
               </CardContent>
             </Card>
           ) : (
-            <Accordion type="single" collapsible className="space-y-4" defaultValue={Object.entries(groupedIdeas).filter(([, ideas]) => ideas.some(i => i.outcomeStatus === 'open'))[0]?.[0]}>
+            <Accordion type="single" collapsible className="space-y-4" defaultValue={Object.entries(groupedIdeas).filter(([, ideas]) => ideas.some(i => {
+              if (i.outcomeStatus !== 'open') return false;
+              const now = new Date();
+              if (i.exitBy) {
+                try {
+                  const exitByDate = new Date(i.exitBy);
+                  if (!isNaN(exitByDate.getTime()) && now > exitByDate) return false;
+                } catch (e) {}
+              }
+              if (i.assetType === 'option' && i.expiryDate) {
+                try {
+                  const expiryDate = new Date(i.expiryDate);
+                  if (!isNaN(expiryDate.getTime()) && now > expiryDate) return false;
+                } catch (e) {}
+              }
+              return true;
+            }))[0]?.[0]}>
               {Object.entries(groupedIdeas)
-                .filter(([, ideas]) => ideas.some(i => i.outcomeStatus === 'open'))
+                .filter(([, ideas]) => ideas.some(i => {
+                  if (i.outcomeStatus !== 'open') return false;
+                  const now = new Date();
+                  if (i.exitBy) {
+                    try {
+                      const exitByDate = new Date(i.exitBy);
+                      if (!isNaN(exitByDate.getTime()) && now > exitByDate) return false;
+                    } catch (e) {}
+                  }
+                  if (i.assetType === 'option' && i.expiryDate) {
+                    try {
+                      const expiryDate = new Date(i.expiryDate);
+                      if (!isNaN(expiryDate.getTime()) && now > expiryDate) return false;
+                    } catch (e) {}
+                  }
+                  return true;
+                }))
                 .sort(([a], [b]) => {
                   const order = { 'stock': 0, 'penny_stock': 1, 'option': 2, 'crypto': 3 };
                   return (order[a as keyof typeof order] || 0) - (order[b as keyof typeof order] || 0);
@@ -890,13 +922,64 @@ export default function TradeDeskPage() {
                         <div className="flex items-center gap-3">
                           <span className="font-semibold">{label}</span>
                           <Badge variant="outline" data-testid={`badge-count-${assetType}`}>
-                            {ideas.filter(i => i.outcomeStatus === 'open').length} ideas
+                            {ideas.filter(i => {
+                              // Primary check
+                              if (i.outcomeStatus !== 'open') return false;
+                              
+                              // Defensive expiry check
+                              const now = new Date();
+                              if (i.exitBy) {
+                                try {
+                                  const exitByDate = new Date(i.exitBy);
+                                  if (!isNaN(exitByDate.getTime()) && now > exitByDate) return false;
+                                } catch (e) {}
+                              }
+                              if (i.assetType === 'option' && i.expiryDate) {
+                                try {
+                                  const expiryDate = new Date(i.expiryDate);
+                                  if (!isNaN(expiryDate.getTime()) && now > expiryDate) return false;
+                                } catch (e) {}
+                              }
+                              return true;
+                            }).length} ideas
                           </Badge>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}`}>
                         {ideas
-                          .filter(i => i.outcomeStatus === 'open')
+                          .filter(i => {
+                            // Primary check: outcomeStatus must be 'open'
+                            if (i.outcomeStatus !== 'open') return false;
+                            
+                            // Defensive check: Exclude expired trades that backend missed
+                            const now = new Date();
+                            
+                            // Check exitBy deadline (stocks/crypto)
+                            if (i.exitBy) {
+                              try {
+                                const exitByDate = new Date(i.exitBy);
+                                if (!isNaN(exitByDate.getTime()) && now > exitByDate) {
+                                  return false; // Exit deadline passed
+                                }
+                              } catch (e) {
+                                // Invalid date, continue
+                              }
+                            }
+                            
+                            // Check expiryDate (options)
+                            if (i.assetType === 'option' && i.expiryDate) {
+                              try {
+                                const expiryDate = new Date(i.expiryDate);
+                                if (!isNaN(expiryDate.getTime()) && now > expiryDate) {
+                                  return false; // Option expired
+                                }
+                              } catch (e) {
+                                // Invalid date, continue
+                              }
+                            }
+                            
+                            return true; // Still active
+                          })
                           .map(idea => (
                             <TradeIdeaBlock
                               key={idea.id}
