@@ -720,7 +720,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                         ? 'text-red-400 animate-pulse' // TODAY - show in red with pulse
                         : 'text-purple-400'
                     )}>
-                      {idea.expiryDate ? formatInUserTZ(idea.expiryDate, 'MMM dd') : 'N/A'}
+                      {idea.expiryDate ? formatInUserTZ(idea.expiryDate, 'MMM dd, yyyy') : 'N/A'}
                     </div>
                   </div>
                 </div>
