@@ -29,6 +29,9 @@ The platform features a clean 6-item sidebar (Trade Desk, Performance, Market In
 
 Each mode auto-applies filtering criteria and supports deep linking (e.g., `/trade-desk/lotto`). Trade cards are designed for compact display with mode-specific badges (Zap icons for Lotto, no emoji per UI policy). Market catalyst feeds include pagination and filters. The Performance page offers a simplified single-page view of key metrics.
 
+**Multi-Expiration Options Coverage & Dynamic Badge Counts (Nov 10, 2025):**
+The platform now generates options trades across all DTE buckets (0-7d, 8-14d, 15-60d, 61-270d, 270d+) using the multi-expiration fetcher. Expiry filter chips display dynamic trade counts (e.g., "0-7d (12)") that update in real-time based on active filters (asset type, grade, symbol search). Count calculation order: mode filter → asset/grade/symbol filters → calculate expiry counts → apply expiry filter → display. This provides instant visibility into trade distribution across time horizons while respecting all active filters.
+
 ### Technical Implementations & Feature Specifications
 The frontend is built with React/TypeScript, Tailwind CSS, Shadcn UI, TanStack Query, Wouter, and date-fns-tz. The backend uses Express.js with TypeScript, a PostgreSQL database (Neon) with Drizzle ORM, and Zod validation. Key features include a collapsible sidebar, symbol search with real-time pricing, a metrics-focused dashboard, a unified trade ideas feed (Quant and AI generated), and a conversational QuantAI Bot with multi-provider fallback and chat history. A quality scoring system incorporates confidence scores and probability bands.
 
