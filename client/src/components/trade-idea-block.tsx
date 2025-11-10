@@ -771,7 +771,19 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
           <div className="grid grid-cols-4 gap-4 p-4 rounded-lg bg-background/50 border">
             <div className="text-center">
               <div className="text-xs text-muted-foreground mb-1">Grade</div>
-              <div className="text-lg font-bold">{getPerformanceGrade(idea.confidenceScore).grade}</div>
+              {idea.isLottoPlay ? (
+                <Badge 
+                  variant="outline" 
+                  className="text-xs font-bold bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/30"
+                  data-testid={`text-grade-lotto-${idea.symbol}`}
+                >
+                  LOTTO
+                </Badge>
+              ) : (
+                <div className="text-lg font-bold" data-testid={`text-grade-${idea.symbol}`}>
+                  {getPerformanceGrade(idea.confidenceScore).grade}
+                </div>
+              )}
             </div>
             <div className="text-center border-x">
               <div className="text-xs text-muted-foreground mb-1">R:R Ratio</div>
