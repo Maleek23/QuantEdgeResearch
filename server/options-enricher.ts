@@ -1,7 +1,7 @@
 // Options Enrichment Utility
 // Converts AI stock-price-based option ideas into real option trades with Tradier pricing
 
-import { getTradierQuote, getTradierOptionsChain } from './tradier-api';
+import { getTradierQuote, getTradierOptionsChainsByDTE } from './tradier-api';
 import { isLottoCandidate, calculateLottoTargets } from './lotto-detector';
 import { logger } from './logger';
 import type { AITradeIdea } from './ai-service';
@@ -50,12 +50,14 @@ export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOpt
     const stockPrice = quote.last;
     logger.info(`[OPTIONS-ENRICH] ${aiIdea.symbol} stock price: $${stockPrice.toFixed(2)}`);
 
-    // 2. Fetch options chain
-    const optionsChain = await getTradierOptionsChain(aiIdea.symbol);
+    // 2. Fetch options chain across all expirations (multi-expiration coverage)
+    const optionsChain = await getTradierOptionsChainsByDTE(aiIdea.symbol);
     if (optionsChain.length === 0) {
       logger.warn(`[OPTIONS-ENRICH] No options chain available for ${aiIdea.symbol}`);
       return null;
     }
+    
+    logger.info(`[OPTIONS-ENRICH] Fetched ${optionsChain.length} options across multiple expirations for ${aiIdea.symbol}`);
 
     // 3. Determine option type based on AI's direction
     const optionType: 'call' | 'put' = aiIdea.direction === 'long' ? 'call' : 'put';

@@ -299,11 +299,43 @@ export default function TradeDeskPage() {
   // Get current mode metadata for display
   const currentMode = MODES.find(m => m.id === activeMode);
 
-  // Apply filters to trade ideas
-  const filterAndSortIdeas = (ideas: TradeIdea[]) => {
+  // Helper: Apply non-expiry filters (asset type, grade, symbol)
+  const applyNonExpiryFilters = (ideas: TradeIdea[]) => {
     let filtered = [...ideas];
 
-    // 1. Expiry filter
+    // 1. Asset type filter
+    if (assetTypeFilter !== 'all') {
+      filtered = filtered.filter(idea => idea.assetType === assetTypeFilter);
+    }
+
+    // 2. Grade filter
+    if (gradeFilter !== 'all') {
+      filtered = filtered.filter(idea => {
+        if (gradeFilter === 'LOTTO') return idea.isLottoPlay;
+        
+        const grade = getPerformanceGrade(idea.confidenceScore).grade;
+        if (gradeFilter === 'A') return grade === 'A+' || grade === 'A';
+        if (gradeFilter === 'B') return grade === 'B+' || grade === 'B';
+        if (gradeFilter === 'C') return grade === 'C+' || grade === 'C';
+        if (gradeFilter === 'D') return grade === 'D';
+        return true;
+      });
+    }
+
+    // 3. Symbol search
+    if (symbolSearch) {
+      filtered = filtered.filter(idea => idea.symbol.toUpperCase().includes(symbolSearch));
+    }
+
+    return filtered;
+  };
+
+  // Apply all filters and sorting to trade ideas
+  const filterAndSortIdeas = (ideas: TradeIdea[]) => {
+    // First apply non-expiry filters
+    let filtered = applyNonExpiryFilters(ideas);
+
+    // Then apply expiry filter
     if (expiryFilter !== 'all') {
       const now = new Date();
       filtered = filtered.filter(idea => {
@@ -323,31 +355,7 @@ export default function TradeDeskPage() {
       });
     }
 
-    // 2. Asset type filter
-    if (assetTypeFilter !== 'all') {
-      filtered = filtered.filter(idea => idea.assetType === assetTypeFilter);
-    }
-
-    // 3. Grade filter
-    if (gradeFilter !== 'all') {
-      filtered = filtered.filter(idea => {
-        if (gradeFilter === 'LOTTO') return idea.isLottoPlay;
-        
-        const grade = getPerformanceGrade(idea.confidenceScore).grade;
-        if (gradeFilter === 'A') return grade === 'A+' || grade === 'A';
-        if (gradeFilter === 'B') return grade === 'B+' || grade === 'B';
-        if (gradeFilter === 'C') return grade === 'C+' || grade === 'C';
-        if (gradeFilter === 'D') return grade === 'D';
-        return true;
-      });
-    }
-
-    // 4. Symbol search
-    if (symbolSearch) {
-      filtered = filtered.filter(idea => idea.symbol.toUpperCase().includes(symbolSearch));
-    }
-
-    // 5. Sort
+    // Finally sort
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'timestamp':
@@ -368,8 +376,36 @@ export default function TradeDeskPage() {
     return filtered;
   };
 
-  // Apply the new filter system to existing filtered ideas
+  // Apply all filters
   const filteredAndSortedIdeas = filterAndSortIdeas(filteredIdeas);
+
+  // Calculate trade counts for each expiry bucket (AFTER non-expiry filters, BEFORE expiry filter)
+  const calculateExpiryCounts = () => {
+    const now = new Date();
+    // Start with ideas after non-expiry filters (asset type, grade, symbol)
+    const baseIdeas = applyNonExpiryFilters(filteredIdeas);
+    const counts = { '7d': 0, '14d': 0, '30d': 0, '90d': 0, 'leaps': 0, 'all': baseIdeas.length };
+    
+    baseIdeas.forEach(idea => {
+      if (!idea.expiryDate && !idea.exitBy) {
+        // Non-option trades count towards 'all' only
+        return;
+      }
+      
+      const expiryDate = new Date(idea.expiryDate || idea.exitBy!);
+      const daysToExp = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysToExp >= 0 && daysToExp <= 7) counts['7d']++;
+      else if (daysToExp > 7 && daysToExp <= 14) counts['14d']++;
+      else if (daysToExp > 14 && daysToExp <= 60) counts['30d']++;
+      else if (daysToExp > 60 && daysToExp <= 270) counts['90d']++;
+      else if (daysToExp > 270) counts['leaps']++;
+    });
+    
+    return counts;
+  };
+
+  const expiryCounts = calculateExpiryCounts();
 
   // Compute derived values from filtered and sorted ideas
   const topPicks = filteredAndSortedIdeas
@@ -431,18 +467,21 @@ export default function TradeDeskPage() {
                   { value: '90d', label: '61-270d' },
                   { value: 'leaps', label: '270d+' },
                   { value: 'all', label: 'All' }
-                ].map(chip => (
-                  <Button
-                    key={chip.value}
-                    variant={expiryFilter === chip.value ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-7 px-3 text-xs font-semibold"
-                    onClick={() => setExpiryFilter(chip.value)}
-                    data-testid={`filter-expiry-${chip.value}`}
-                  >
-                    {chip.label}
-                  </Button>
-                ))}
+                ].map(chip => {
+                  const count = expiryCounts[chip.value as keyof typeof expiryCounts] || 0;
+                  return (
+                    <Button
+                      key={chip.value}
+                      variant={expiryFilter === chip.value ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-7 px-3 text-xs font-semibold"
+                      onClick={() => setExpiryFilter(chip.value)}
+                      data-testid={`filter-expiry-${chip.value}`}
+                    >
+                      {chip.label} {count > 0 && <span className="ml-1 opacity-70">({count})</span>}
+                    </Button>
+                  );
+                })}
               </div>
             </div>
 
