@@ -2,7 +2,7 @@
 // Detects unusual options activity and generates OPTIONS trade ideas based on real premiums
 
 import type { InsertTradeIdea } from "@shared/schema";
-import { getTradierQuote, getTradierOptionsChain, getTradierHistoryOHLC } from './tradier-api';
+import { getTradierQuote, getTradierOptionsChain, getTradierOptionsChainsByDTE, getTradierHistoryOHLC } from './tradier-api';
 import { validateTradeRisk } from './ai-service';
 import { logger } from './logger';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -55,7 +55,7 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
     logger.info(`📊 [FLOW] Scanning options for ${ticker}...`);
     
     // Get options chain
-    const options = await getTradierOptionsChain(ticker);
+    const options = await getTradierOptionsChainsByDTE(ticker);
     
     if (options.length === 0) {
       logger.info(`📊 [FLOW] No options data available for ${ticker}`);

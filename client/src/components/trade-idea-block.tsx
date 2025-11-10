@@ -224,7 +224,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
       className="group"
     >
       <CollapsibleTrigger className="w-full" data-testid={`block-trade-idea-${idea.symbol}`}>
-        <div className="p-4 border rounded-lg bg-card hover-elevate transition-all block">
+        <div className="p-4 border rounded-lg bg-card hover-elevate transition-all block min-h-[200px] flex flex-col">
           {/* ===== HEADER SECTION ===== */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 min-w-0">

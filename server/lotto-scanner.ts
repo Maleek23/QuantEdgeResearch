@@ -2,7 +2,7 @@
 // Actively hunts for cheap far-OTM weekly options with 20x return potential
 
 import type { InsertTradeIdea } from "@shared/schema";
-import { getTradierQuote, getTradierOptionsChain } from './tradier-api';
+import { getTradierQuote, getTradierOptionsChain, getTradierOptionsChainsByDTE } from './tradier-api';
 import { logger } from './logger';
 import { formatInTimeZone } from 'date-fns-tz';
 import { storage } from './storage';
@@ -34,17 +34,27 @@ async function scanForLottoPlays(ticker: string): Promise<LottoCandidate[]> {
   try {
     logger.info(`🎰 [LOTTO] Scanning for lotto plays in ${ticker}...`);
     
-    // Get options chain
-    const options = await getTradierOptionsChain(ticker);
+    // Get options chain across multiple expirations
+    const allOptions = await getTradierOptionsChainsByDTE(ticker);
     
-    if (options.length === 0) {
+    if (allOptions.length === 0) {
       logger.info(`🎰 [LOTTO] No options data for ${ticker}`);
       return [];
     }
 
+    // Filter for ≤14 days (lotto plays are near-term)
+    const today = new Date();
+    const options = allOptions.filter(opt => {
+      if (!opt.expiration_date) return false;
+      const expiryDate = new Date(opt.expiration_date);
+      const daysToExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      return daysToExpiry <= 14;
+    });
+
+    logger.info(`🎰 [LOTTO] ${ticker}: Filtered to ${options.length} options with ≤14 days DTE (from ${allOptions.length} total)`);
+
     const thresholds = getLottoThresholds();
     const lottoCandidates: LottoCandidate[] = [];
-    const today = new Date();
 
     for (const option of options) {
       // Skip if missing critical data

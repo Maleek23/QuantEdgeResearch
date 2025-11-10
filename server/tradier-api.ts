@@ -318,6 +318,105 @@ export async function getTradierOptionsChain(
   }
 }
 
+// Get options across multiple expiration buckets (weeklies, monthlies, quarterlies, LEAPS)
+export async function getTradierOptionsChainsByDTE(
+  symbol: string,
+  apiKey?: string
+): Promise<TradierOption[]> {
+  const key = apiKey || process.env.TRADIER_API_KEY;
+  if (!key) {
+    logger.error('Tradier API key not found');
+    return [];
+  }
+
+  try {
+    const baseUrl = getBaseUrl(key);
+    
+    // 1. Get all available expirations
+    const expResponse = await fetch(`${baseUrl}/markets/options/expirations?symbol=${symbol}`, {
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!expResponse.ok) {
+      logger.error(`Tradier expirations error for ${symbol}: ${expResponse.status}`);
+      return [];
+    }
+
+    const expData = await expResponse.json();
+    const allExpirations: string[] = expData.expirations?.date || [];
+    
+    if (allExpirations.length === 0) {
+      logger.info(`No expirations found for ${symbol}`);
+      return [];
+    }
+
+    // 2. Bucket expirations by DTE ranges
+    const now = new Date();
+    const buckets = {
+      frontWeek: { min: 0, max: 7, expirations: [] as string[] },    // 0-7 days (includes today/tomorrow, critical for lotto plays)
+      weekly: { min: 7, max: 14, expirations: [] as string[] },      // 7-14 days
+      monthly: { min: 30, max: 60, expirations: [] as string[] },    // 30-60 days
+      quarterly: { min: 90, max: 270, expirations: [] as string[] }, // 90-270 days (3-9 months)
+      leaps: { min: 270, max: 540, expirations: [] as string[] },    // 270-540 days (9-18 months)
+    };
+
+    for (const expDate of allExpirations) {
+      const daysToExp = Math.ceil((new Date(expDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysToExp >= buckets.frontWeek.min && daysToExp <= buckets.frontWeek.max) {
+        buckets.frontWeek.expirations.push(expDate);
+      } else if (daysToExp >= buckets.weekly.min && daysToExp <= buckets.weekly.max) {
+        buckets.weekly.expirations.push(expDate);
+      } else if (daysToExp >= buckets.monthly.min && daysToExp <= buckets.monthly.max) {
+        buckets.monthly.expirations.push(expDate);
+      } else if (daysToExp >= buckets.quarterly.min && daysToExp <= buckets.quarterly.max) {
+        buckets.quarterly.expirations.push(expDate);
+      } else if (daysToExp >= buckets.leaps.min && daysToExp <= buckets.leaps.max) {
+        buckets.leaps.expirations.push(expDate);
+      }
+    }
+
+    // 3. Select one representative expiration per bucket (nearest in each range)
+    // CRITICAL: Always include nearest expiration (for lotto/flow scanners) + longer-dated options
+    const selectedExpirations: string[] = [];
+    
+    // Always add nearest expiration first (safety measure for 0DTE/1DTE plays)
+    if (allExpirations.length > 0) {
+      selectedExpirations.push(allExpirations[0]);
+    }
+    
+    // Add one per bucket (skip frontWeek since nearest is already added)
+    if (buckets.weekly.expirations.length > 0 && !selectedExpirations.includes(buckets.weekly.expirations[0])) {
+      selectedExpirations.push(buckets.weekly.expirations[0]);
+    }
+    if (buckets.monthly.expirations.length > 0) selectedExpirations.push(buckets.monthly.expirations[0]);
+    if (buckets.quarterly.expirations.length > 0) selectedExpirations.push(buckets.quarterly.expirations[0]);
+    if (buckets.leaps.expirations.length > 0) selectedExpirations.push(buckets.leaps.expirations[0]);
+
+    logger.info(`📅 [OPTIONS] ${symbol}: Found expirations across ${selectedExpirations.length} buckets - ${selectedExpirations.join(', ')}`);
+
+    // 4. Fetch options for each selected expiration (parallelized with rate limiting)
+    const optionsPromises = selectedExpirations.map(async (exp, index) => {
+      // Basic rate limiting: stagger requests by 100ms each
+      await new Promise(resolve => setTimeout(resolve, index * 100));
+      return getTradierOptionsChain(symbol, exp, apiKey);
+    });
+
+    const optionsArrays = await Promise.all(optionsPromises);
+    const allOptions = optionsArrays.flat();
+
+    logger.info(`📅 [OPTIONS] ${symbol}: Retrieved ${allOptions.length} total option contracts across ${selectedExpirations.length} expiration dates`);
+    
+    return allOptions;
+  } catch (error) {
+    logger.error(`Tradier multi-expiration fetch error for ${symbol}:`, error);
+    return [];
+  }
+}
+
 // Get market status
 export async function getTradierMarketStatus(apiKey?: string): Promise<{
   state: 'premarket' | 'open' | 'postmarket' | 'closed';
