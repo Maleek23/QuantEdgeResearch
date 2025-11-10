@@ -23,6 +23,7 @@ import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, 
 import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
 import { TradeDeskModeTabs, MODES, type TradeDeskMode } from "@/components/trade-desk-mode-tabs";
+import { getPerformanceGrade } from "@/lib/performance-grade";
 
 export default function TradeDeskPage() {
   const [, params] = useRoute("/trade-desk/:mode");
@@ -36,6 +37,13 @@ export default function TradeDeskPage() {
   const [dateRange, setDateRange] = useState<string>('all');
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  
+  // Filter state for new filter toolbar
+  const [expiryFilter, setExpiryFilter] = useState<string>('all'); // Default to all (was causing confusion)
+  const [assetTypeFilter, setAssetTypeFilter] = useState<string>('all');
+  const [gradeFilter, setGradeFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('timestamp'); // timestamp, expiry, confidence, rr
+  const [symbolSearch, setSymbolSearch] = useState<string>('');
   
   const urlMode = params?.mode as TradeDeskMode | undefined;
   const validMode = urlMode && MODES.find(m => m.id === urlMode) ? urlMode : 'ai-picks';
@@ -288,25 +296,94 @@ export default function TradeDeskPage() {
     return ideaDate >= cutoffTime && idea.outcomeStatus === 'open';
   };
 
-  const sortedIdeas = [...filteredIdeas].sort((a, b) => {
-    return calculatePriorityScore(b) - calculatePriorityScore(a);
-  });
+  // Get current mode metadata for display
+  const currentMode = MODES.find(m => m.id === activeMode);
 
-  const topPicks = sortedIdeas
+  // Apply filters to trade ideas
+  const filterAndSortIdeas = (ideas: TradeIdea[]) => {
+    let filtered = [...ideas];
+
+    // 1. Expiry filter
+    if (expiryFilter !== 'all') {
+      const now = new Date();
+      filtered = filtered.filter(idea => {
+        if (!idea.expiryDate && !idea.exitBy) return true; // Include non-option trades
+        
+        const expiryDate = new Date(idea.expiryDate || idea.exitBy!);
+        const daysToExp = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        
+        switch (expiryFilter) {
+          case '7d': return daysToExp >= 0 && daysToExp <= 7; // 0-7 days (includes 0DTE)
+          case '14d': return daysToExp > 7 && daysToExp <= 14; // 8-14 days (non-overlapping)
+          case '30d': return daysToExp > 14 && daysToExp <= 60; // 15-60 days (monthly range)
+          case '90d': return daysToExp > 60 && daysToExp <= 270; // 61-270 days (quarterly)
+          case 'leaps': return daysToExp > 270; // 270+ days (LEAPS)
+          default: return true;
+        }
+      });
+    }
+
+    // 2. Asset type filter
+    if (assetTypeFilter !== 'all') {
+      filtered = filtered.filter(idea => idea.assetType === assetTypeFilter);
+    }
+
+    // 3. Grade filter
+    if (gradeFilter !== 'all') {
+      filtered = filtered.filter(idea => {
+        if (gradeFilter === 'LOTTO') return idea.isLottoPlay;
+        
+        const grade = getPerformanceGrade(idea.confidenceScore).grade;
+        if (gradeFilter === 'A') return grade === 'A+' || grade === 'A';
+        if (gradeFilter === 'B') return grade === 'B+' || grade === 'B';
+        if (gradeFilter === 'C') return grade === 'C+' || grade === 'C';
+        if (gradeFilter === 'D') return grade === 'D';
+        return true;
+      });
+    }
+
+    // 4. Symbol search
+    if (symbolSearch) {
+      filtered = filtered.filter(idea => idea.symbol.toUpperCase().includes(symbolSearch));
+    }
+
+    // 5. Sort
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'timestamp':
+          return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        case 'expiry':
+          const aExp = new Date(a.expiryDate || a.exitBy || a.timestamp).getTime();
+          const bExp = new Date(b.expiryDate || b.exitBy || b.timestamp).getTime();
+          return aExp - bExp;
+        case 'confidence':
+          return b.confidenceScore - a.confidenceScore;
+        case 'rr':
+          return b.riskRewardRatio - a.riskRewardRatio;
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  };
+
+  // Apply the new filter system to existing filtered ideas
+  const filteredAndSortedIdeas = filterAndSortIdeas(filteredIdeas);
+
+  // Compute derived values from filtered and sorted ideas
+  const topPicks = filteredAndSortedIdeas
     .filter(idea => isTodayIdea(idea))
     .slice(0, 5);
 
-  const groupedIdeas = sortedIdeas.reduce((acc, idea) => {
+  const groupedIdeas = filteredAndSortedIdeas.reduce((acc, idea) => {
     const assetType = idea.assetType;
     if (!acc[assetType]) acc[assetType] = [];
     acc[assetType].push(idea);
     return acc;
   }, {} as Record<string, TradeIdea[]>);
 
-  const newIdeasCount = filteredIdeas.filter(isVeryFreshIdea).length;
-
-  // Get current mode metadata for display
-  const currentMode = MODES.find(m => m.id === activeMode);
+  const newIdeasCount = filteredAndSortedIdeas.filter(isVeryFreshIdea).length;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -338,6 +415,127 @@ export default function TradeDeskPage() {
 
       {/* Mode Tabs */}
       <TradeDeskModeTabs mode={activeMode} onModeChange={handleModeChange} />
+
+      {/* Filter Toolbar - Compact two-tier design */}
+      <div className="border-b bg-card/30 backdrop-blur-sm">
+        <div className="px-6 py-3">
+          <div className="flex items-center justify-between gap-4">
+            {/* Left: Quick Expiry Chips */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-semibold mr-2">EXPIRY:</span>
+              <div className="flex gap-1.5">
+                {[
+                  { value: '7d', label: '0-7d' },
+                  { value: '14d', label: '8-14d' },
+                  { value: '30d', label: '15-60d' },
+                  { value: '90d', label: '61-270d' },
+                  { value: 'leaps', label: '270d+' },
+                  { value: 'all', label: 'All' }
+                ].map(chip => (
+                  <Button
+                    key={chip.value}
+                    variant={expiryFilter === chip.value ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-7 px-3 text-xs font-semibold"
+                    onClick={() => setExpiryFilter(chip.value)}
+                    data-testid={`filter-expiry-${chip.value}`}
+                  >
+                    {chip.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: Advanced Dropdowns + Symbol Search */}
+            <div className="flex items-center gap-2">
+              {/* Asset Type Dropdown */}
+              <Select value={assetTypeFilter} onValueChange={setAssetTypeFilter}>
+                <SelectTrigger className="h-7 w-[130px] text-xs" data-testid="filter-asset-type">
+                  <SelectValue placeholder="Asset Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Assets</SelectItem>
+                  <SelectItem value="option">Options</SelectItem>
+                  <SelectItem value="stock">Stocks</SelectItem>
+                  <SelectItem value="crypto">Crypto</SelectItem>
+                  <SelectItem value="penny_stock">Penny Stocks</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Grade Filter Dropdown */}
+              <Select value={gradeFilter} onValueChange={setGradeFilter}>
+                <SelectTrigger className="h-7 w-[120px] text-xs" data-testid="filter-grade">
+                  <SelectValue placeholder="Grade" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Grades</SelectItem>
+                  <SelectItem value="A">A+ / A</SelectItem>
+                  <SelectItem value="B">B+ / B</SelectItem>
+                  <SelectItem value="C">C+ / C</SelectItem>
+                  <SelectItem value="D">D</SelectItem>
+                  <SelectItem value="LOTTO">LOTTO</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Sort By Dropdown */}
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="h-7 w-[140px] text-xs" data-testid="filter-sort">
+                  <SelectValue placeholder="Sort By" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="timestamp">Newest First</SelectItem>
+                  <SelectItem value="expiry">Expiry (Nearest)</SelectItem>
+                  <SelectItem value="confidence">Confidence (High)</SelectItem>
+                  <SelectItem value="rr">R:R Ratio (Best)</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Symbol Search */}
+              <Input
+                type="text"
+                placeholder="Search symbol..."
+                value={symbolSearch}
+                onChange={(e) => setSymbolSearch(e.target.value.toUpperCase())}
+                className="h-7 w-[140px] text-xs"
+                data-testid="filter-symbol-search"
+              />
+
+              {/* Clear Filters Button */}
+              {(expiryFilter !== 'all' || assetTypeFilter !== 'all' || gradeFilter !== 'all' || sortBy !== 'timestamp' || symbolSearch !== '') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => {
+                    setExpiryFilter('all');
+                    setAssetTypeFilter('all');
+                    setGradeFilter('all');
+                    setSortBy('timestamp');
+                    setSymbolSearch('');
+                  }}
+                  data-testid="button-clear-filters"
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Active Filter Badge */}
+          {(expiryFilter !== 'all' || assetTypeFilter !== 'all' || gradeFilter !== 'all' || symbolSearch !== '') && (
+            <div className="mt-2 flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                {[
+                  expiryFilter !== 'all' && `Expiry: ${expiryFilter}`,
+                  assetTypeFilter !== 'all' && `Type: ${assetTypeFilter}`,
+                  gradeFilter !== 'all' && `Grade: ${gradeFilter}`,
+                  symbolSearch && `Symbol: ${symbolSearch}`
+                ].filter(Boolean).join(' • ')}
+              </Badge>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Lotto Mode Warning Banner */}
       {activeMode === 'lotto' && (
@@ -413,7 +611,7 @@ export default function TradeDeskPage() {
             )}
 
             <Badge variant="outline" className="badge-shimmer px-3 py-1.5 font-semibold">
-              {filteredIdeas.length} trade{filteredIdeas.length !== 1 ? 's' : ''}
+              {filteredAndSortedIdeas.length} trade{filteredAndSortedIdeas.length !== 1 ? 's' : ''}
             </Badge>
           </div>
 
@@ -430,7 +628,7 @@ export default function TradeDeskPage() {
                     {dateRange === '3m' && 'in the last 3 months'}
                     {dateRange === '1y' && 'in the last year'}
                   </span>
-                  ({filteredIdeas.filter(i => i.outcomeStatus === 'open').length} active, {filteredIdeas.filter(i => i.outcomeStatus === 'hit_target').length} winners)
+                  ({filteredAndSortedIdeas.filter(i => i.outcomeStatus === 'open').length} active, {filteredAndSortedIdeas.filter(i => i.outcomeStatus === 'hit_target').length} winners)
                 </span>
               </div>
             </div>
@@ -736,45 +934,45 @@ export default function TradeDeskPage() {
           <TabsTrigger value="fresh" data-testid="tab-fresh-ideas" className="gap-1.5">
             <span className="hidden sm:inline">FRESH</span>
             <span className="sm:hidden">NEW</span>
-            {filteredIdeas.filter(isVeryFreshIdea).length > 0 && (
+            {filteredAndSortedIdeas.filter(isVeryFreshIdea).length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5">
-                {filteredIdeas.filter(isVeryFreshIdea).length}
+                {filteredAndSortedIdeas.filter(isVeryFreshIdea).length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="active" data-testid="tab-active-ideas" className="gap-1.5">
             <span className="hidden sm:inline">ACTIVE</span>
             <span className="sm:hidden">ALL</span>
-            {filteredIdeas.filter(i => i.outcomeStatus === 'open').length > 0 && (
+            {filteredAndSortedIdeas.filter(i => i.outcomeStatus === 'open').length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5">
-                {filteredIdeas.filter(i => i.outcomeStatus === 'open').length}
+                {filteredAndSortedIdeas.filter(i => i.outcomeStatus === 'open').length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="winners" data-testid="tab-winners-ideas" className="gap-1.5">
             <span className="hidden sm:inline">WINNERS</span>
             <span className="sm:hidden">WIN</span>
-            {filteredIdeas.filter(i => i.outcomeStatus === 'hit_target').length > 0 && (
+            {filteredAndSortedIdeas.filter(i => i.outcomeStatus === 'hit_target').length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 bg-green-500/20 text-green-500 border-green-500/30">
-                {filteredIdeas.filter(i => i.outcomeStatus === 'hit_target').length}
+                {filteredAndSortedIdeas.filter(i => i.outcomeStatus === 'hit_target').length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="losers" data-testid="tab-losers-ideas" className="gap-1.5">
             <span className="hidden sm:inline">LOSERS</span>
             <span className="sm:hidden">LOSS</span>
-            {filteredIdeas.filter(i => i.outcomeStatus === 'hit_stop').length > 0 && (
+            {filteredAndSortedIdeas.filter(i => i.outcomeStatus === 'hit_stop').length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 bg-red-500/20 text-red-500 border-red-500/30">
-                {filteredIdeas.filter(i => i.outcomeStatus === 'hit_stop').length}
+                {filteredAndSortedIdeas.filter(i => i.outcomeStatus === 'hit_stop').length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="expired" data-testid="tab-expired-ideas" className="gap-1.5">
             <span className="hidden sm:inline">EXPIRED</span>
             <span className="sm:hidden">EXP</span>
-            {filteredIdeas.filter(i => i.outcomeStatus === 'expired').length > 0 && (
+            {filteredAndSortedIdeas.filter(i => i.outcomeStatus === 'expired').length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1.5 bg-amber-500/20 text-amber-500 border-amber-500/30">
-                {filteredIdeas.filter(i => i.outcomeStatus === 'expired').length}
+                {filteredAndSortedIdeas.filter(i => i.outcomeStatus === 'expired').length}
               </Badge>
             )}
           </TabsTrigger>
@@ -787,7 +985,7 @@ export default function TradeDeskPage() {
                 <Skeleton key={i} className="h-32 w-full" data-testid={`skeleton-idea-${i}`} />
               ))}
             </div>
-          ) : filteredIdeas.filter(isVeryFreshIdea).length === 0 ? (
+          ) : filteredAndSortedIdeas.filter(isVeryFreshIdea).length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
@@ -855,7 +1053,7 @@ export default function TradeDeskPage() {
                 <Skeleton key={i} className="h-32 w-full" data-testid={`skeleton-idea-${i}`} />
               ))}
             </div>
-          ) : filteredIdeas.filter(i => i.outcomeStatus === 'open').length === 0 ? (
+          ) : filteredAndSortedIdeas.filter(i => i.outcomeStatus === 'open').length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <TrendingUp className="h-12 w-12 text-muted-foreground mb-4" />
@@ -1000,7 +1198,7 @@ export default function TradeDeskPage() {
         </TabsContent>
 
         <TabsContent value="winners" className="space-y-4">
-          {filteredIdeas.filter(i => i.outcomeStatus === 'hit_target').length === 0 ? (
+          {filteredAndSortedIdeas.filter(i => i.outcomeStatus === 'hit_target').length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <CheckCircle className="h-12 w-12 text-green-500/50 mb-4" />
@@ -1012,7 +1210,7 @@ export default function TradeDeskPage() {
             </Card>
           ) : (
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}>
-              {filteredIdeas
+              {filteredAndSortedIdeas
                 .filter(i => i.outcomeStatus === 'hit_target')
                 .map(idea => (
                   <TradeIdeaBlock
@@ -1030,7 +1228,7 @@ export default function TradeDeskPage() {
         </TabsContent>
 
         <TabsContent value="losers" className="space-y-4">
-          {filteredIdeas.filter(i => i.outcomeStatus === 'hit_stop').length === 0 ? (
+          {filteredAndSortedIdeas.filter(i => i.outcomeStatus === 'hit_stop').length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <XCircle className="h-12 w-12 text-red-500/50 mb-4" />
@@ -1042,7 +1240,7 @@ export default function TradeDeskPage() {
             </Card>
           ) : (
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}>
-              {filteredIdeas
+              {filteredAndSortedIdeas
                 .filter(i => i.outcomeStatus === 'hit_stop')
                 .map(idea => (
                   <TradeIdeaBlock
@@ -1060,7 +1258,7 @@ export default function TradeDeskPage() {
         </TabsContent>
 
         <TabsContent value="expired" className="space-y-4">
-          {filteredIdeas.filter(i => i.outcomeStatus === 'expired').length === 0 ? (
+          {filteredAndSortedIdeas.filter(i => i.outcomeStatus === 'expired').length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Clock className="h-12 w-12 text-amber-500/50 mb-4" />
@@ -1072,7 +1270,7 @@ export default function TradeDeskPage() {
             </Card>
           ) : (
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}>
-              {filteredIdeas
+              {filteredAndSortedIdeas
                 .filter(i => i.outcomeStatus === 'expired')
                 .map(idea => (
                   <TradeIdeaBlock
