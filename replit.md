@@ -1,7 +1,7 @@
 # QuantEdge Research - Trading Platform
 
 ## Overview
-QuantEdge Research is a professional quantitative trading research platform focused on identifying day-trading opportunities in US equities, options, and crypto markets. Its core purpose is to deliver educational, research-grade trade ideas, robust risk management, and real-time market analysis. The platform emphasizes strong risk controls, clear educational disclaimers, and presents information through a professional dark-themed UI optimized for rapid data scanning. It integrates real historical data, features adaptive learning, and manages membership through Discord roles, with the web platform serving as a public dashboard. The ambition is to provide a comprehensive, data-driven solution for quantitative trading research.
+QuantEdge Research is a professional quantitative trading research platform for day-trading opportunities in US equities, options, and crypto markets. Its purpose is to deliver educational, research-grade trade ideas, robust risk management, and real-time market analysis. The platform emphasizes strong risk controls, educational disclaimers, and a professional dark-themed UI optimized for rapid data scanning. It integrates real historical data, features adaptive learning, and manages membership through Discord roles, with the web platform serving as a public dashboard. The ambition is to provide a comprehensive, data-driven solution for quantitative trading research.
 
 ## User Preferences
 All timestamps should be displayed in America/Chicago timezone with market session context.
@@ -17,100 +17,34 @@ No personalized financial advice should be offered; it is for research purposes 
 ## System Architecture
 
 ### UI/UX Decisions
-The UI features a Bloomberg-style dark theme with deep charcoal backgrounds, gradients, shadows, and glassmorphism. A consistent color palette uses green for bullish, red for bearish, amber for neutral/warning, and blue for primary actions. Typography uses Inter for UI and JetBrains Mono for financial data. Custom CSS provides enhanced styling, including enhanced cards, sticky-header tables, responsive grids, loading skeletons, pulsing "FRESH" badges, smart notifications, and optimistic UI updates. Features like glowing verification badges, real-time price displays, detailed analysis modals, and full mobile responsiveness are included. An intelligent advisory system offers real-time trading advice with dynamic R:R analysis and P/L tracking. Toast notifications provide user feedback, and contextual button placement optimizes the UI. Advanced 3D Visual Analytics, including a Holographic Trading Floor, 3D Correlation Matrix Cube, and a 3D Brain Neural Network, are implemented using React Three Fiber and Three.js. A canvas-based scroll particle effect system provides dynamic visual feedback.
+The UI features a Bloomberg-style dark theme with deep charcoal backgrounds, gradients, shadows, and glassmorphism. A consistent color palette uses green for bullish, red for bearish, amber for neutral/warning, and blue for primary actions. Typography uses Inter for UI and JetBrains Mono for financial data. Custom CSS provides enhanced styling for cards, tables, grids, loading states, notifications, and optimistic UI updates. Features include real-time price displays, detailed analysis modals, mobile responsiveness, and an intelligent advisory system with dynamic R:R analysis. Advanced 3D Visual Analytics (Holographic Trading Floor, 3D Correlation Matrix Cube, 3D Brain Neural Network) are implemented using React Three Fiber and Three.js.
 
-**Trade Desk Hub-and-Spoke Navigation (Nov 6, 2025):**
-The platform features a clean 6-item sidebar (Trade Desk, Performance, Market Intel, Research & Tools, Settings, Admin) with a hub-and-spoke design. The Trade Desk serves as the central hub with 5 mode tabs for different trading strategies:
-- **Standard Mode:** Conservative plays from AI/Quant/Hybrid engines with R:R ≥2.0 and grades A-B
-- **Flow Scanner Mode:** Institutional options flow scanner (validation pending - options pricing being fixed)
-- **Lotto Mode:** High-risk weekly options ($0.20-$2.00 entry, DTE ≤7 days, delta ≤0.30) targeting 20x returns for small account growth - displays risk warnings and Zap icons. Integrated approach: (1) Widened threshold to $2.00 to catch more opportunities, (2) Dedicated Lotto Scanner actively hunts for cheap far-OTM weeklies, (3) All engines flag lotto plays when detected
-- **News Catalyst Mode:** Breaking news-driven trades with relaxed 1.5:1 R:R
-- **Manual Mode:** User-created custom trades
+The platform uses a 6-item sidebar (Trade Desk, Performance, Market Intel, Research & Tools, Settings, Admin) with a hub-and-spoke design. The Trade Desk has 5 mode tabs for different strategies: Standard, Flow Scanner, Lotto, News Catalyst, and Manual. Each mode auto-applies filtering criteria. Trade cards are compact with mode-specific badges. The Performance page provides a single-page view of key metrics.
 
-Each mode auto-applies filtering criteria and supports deep linking (e.g., `/trade-desk/lotto`). Trade cards are designed for compact display with mode-specific badges (Zap icons for Lotto, no emoji per UI policy). Market catalyst feeds include pagination and filters. The Performance page offers a simplified single-page view of key metrics.
-
-**Multi-Expiration Options Coverage & Dynamic Badge Counts (Nov 10, 2025):**
-The platform now generates options trades across all DTE buckets (0-7d, 8-14d, 15-60d, 61-270d, 270d+) using the multi-expiration fetcher. Expiry filter chips display dynamic trade counts (e.g., "0-7d (12)") that update in real-time based on active filters (asset type, grade, symbol search). Count calculation order: mode filter → asset/grade/symbol filters → calculate expiry counts → apply expiry filter → display. This provides instant visibility into trade distribution across time horizons while respecting all active filters.
+The platform now supports multi-expiration options across various DTE buckets. Expiry filter chips display dynamic trade counts that update in real-time based on active filters (asset type, grade, symbol search). The system uses calendar-day normalization for expiry dates and includes an "Expired" bucket. The "All" count includes all trades (options + stocks + crypto), while specific buckets count only options.
 
 ### Technical Implementations & Feature Specifications
-The frontend is built with React/TypeScript, Tailwind CSS, Shadcn UI, TanStack Query, Wouter, and date-fns-tz. The backend uses Express.js with TypeScript, a PostgreSQL database (Neon) with Drizzle ORM, and Zod validation. Key features include a collapsible sidebar, symbol search with real-time pricing, a metrics-focused dashboard, a unified trade ideas feed (Quant and AI generated), and a conversational QuantAI Bot with multi-provider fallback and chat history. A quality scoring system incorporates confidence scores and probability bands.
+The frontend uses React/TypeScript, Tailwind CSS, Shadcn UI, TanStack Query, Wouter, and date-fns-tz. The backend uses Express.js with TypeScript, a PostgreSQL database (Neon) with Drizzle ORM, and Zod validation. Key features include a collapsible sidebar, symbol search, a metrics-focused dashboard, a unified trade ideas feed (Quant and AI generated), and a conversational QuantAI Bot with multi-provider fallback and chat history. A quality scoring system incorporates confidence scores and probability bands.
 
-The system includes a Holding Period Classification System, a quick actions dialog for trade idea creation (AI-powered, Quantitative rules-based, Manual), market catalyst tracking, a Weekend Preview Banner, and watchlist management with crypto analysis and real-time price alerts. The QuantAI Bot can auto-save structured trade ideas. An AI-free Quantitative Idea Generator balances asset distribution with real-time entry prices, with penny stock support. A Comprehensive User Settings System allows platform personalization. Options trades feature a prominent details grid showing Type, Strike Price, and Expiration Date, with a comprehensive info modal (❔ button) that explains:
-- **Where Entry Premium Comes From:** Tradier API's live market data (`lastPrice` field) - the actual market price traders are paying for the option contract
-- **Timing Sequence Explained:** Generated (when system created trade) → Entry Window (deadline to enter) → Exit Deadline (must exit by) - always before/on option expiry
-- **Option Premium vs Stock Price:** Entry premium is what you pay to BUY the option contract, NOT the stock's current price
-- **Data Sources by Asset Type:** Options (Tradier), Stocks (Yahoo Finance), Crypto (CoinGecko)
+The system includes a Holding Period Classification System, a quick actions dialog for trade idea creation (AI, Quantitative, Manual), market catalyst tracking, a Weekend Preview Banner, and watchlist management with crypto analysis and real-time price alerts. The QuantAI Bot can auto-save structured trade ideas. An AI-free Quantitative Idea Generator balances asset distribution with real-time entry prices. A Comprehensive User Settings System allows platform personalization. Options trades feature a prominent details grid with Type, Strike Price, and Expiration Date, and an info modal explaining entry premium source, timing sequence, option premium vs. stock price, and data sources by asset type.
 
-A Performance Tracking System validates trade outcomes and tracks win rates, including a Performance-Based Grading System. A Quantitative Timing Intelligence System provides data-backed entry/exit windows.
+A Performance Tracking System validates trade outcomes and tracks win rates, including a Performance-Based Grading System. A Quantitative Timing Intelligence System provides data-backed entry/exit windows. The Performance page offers 5 advanced analytics dashboards: Symbol Performance Leaderboard, Time-of-Day Heatmap, Engine Performance Over Time, Confidence Score Calibration, and Win/Loss Streak Tracker. These use TanStack Query with structured queryKeys and Recharts for visualizations.
 
-**Advanced Performance Analytics (Nov 7, 2025):**
-The Performance page features 5 advanced analytics dashboards with contextual engine filtering:
-- **Symbol Performance Leaderboard:** Top 20 winners + worst 10 underperformers with win rates and average gains
-- **Time-of-Day Heatmap:** Hourly win rate analysis (9 AM - 4 PM ET) showing optimal trading hours
-- **Engine Performance Over Time:** 8-week trend chart tracking all 5 engines' weekly win rates
-- **Confidence Score Calibration:** Win rate by confidence bands revealing inverse relationship (lower confidence scores = higher win rates)
-- **Win/Loss Streak Tracker:** Current streak display with historical records and animated streak badges
+The quantitative engine (v3.4.0) leverages RSI(2) Mean Reversion with a 200-Day MA Filter, VWAP Institutional Flow, Volume Spike Early Entry, ADX Regime Filtering, Signal Confidence Voting, and time-of-day filtering. Stop losses are widened to 3.5% for stocks and 5% for crypto. Confidence scoring (v3.4.0) is data-driven, and all trades use a standard 2:1 R:R. A Hybrid AI+Quant system combines quantitative signals with AI fundamental analysis.
 
-All analytics use TanStack Query with structured queryKeys for proper cache invalidation, Recharts for visualizations, and Bloomberg-style dark theme. Backend implements 5 new API endpoints with optional engine filtering (`?engine=ai|quant|hybrid|flow|news`). Engine filtering is contextual: Symbol Leaderboard, Time-of-Day, Confidence Calibration, and Streak Tracker support filtering, while Engine Performance Trends displays all engines simultaneously as separate lines.
-
-The quantitative engine (v3.4.0) leverages three academically-proven signals: RSI(2) Mean Reversion with a 200-Day MA Filter, VWAP Institutional Flow, and Volume Spike Early Entry. It incorporates ADX Regime Filtering (ADX ≤30), Signal Confidence Voting, and time-of-day filtering (9:30-11:30 AM ET). Stop losses are widened to 3.5% for stocks and 5% for crypto. Confidence scoring (v3.4.0) is data-driven, recalibrated to match actual performance, and all trades use a standard 2:1 R:R. A Hybrid AI+Quant system combines quantitative signals with AI fundamental analysis.
-
-A critical dual-layer trade validation framework ensures all trade ideas pass through mandatory two-tier validation: Structural Validation and Risk Guardrails (enforcing max 5% loss, min 2:1 R:R, price sanity, volatility filters). Options trades are explicitly blocked pending pricing logic audit.
-
-News Catalyst Mode enables trade generation during major market events by relaxing the R:R minimum to 1.5:1 when breaking news keywords are detected in the user's prompt. These trades are marked with `isNewsCatalyst: true` and display an amber "NEWS CATALYST" badge.
-
-All generation methods prevent duplicate trades and maintain comprehensive audit trails. The platform implements a two-tier data filtering system: a User-Facing Mode displays only v3.0+ trades, while an ML/Admin Mode includes all historical trades for analysis.
-
-### System Design Choices
-The platform employs a multi-page, publicly accessible architecture with membership managed via Discord roles. The system uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) via Drizzle ORM. Access tiers include Free, Premium, and Admin, with a password-protected `/admin` panel. Security features include dual authentication, JWT authentication with HTTP-only cookies, session tokens with expiration, rate limiting, and `requireAdmin`/`requirePremium` middleware.
-
-### Critical Bug Fixes & Performance Data
-**🚨 CRITICAL DATA BUG FIXED (Nov 11, 2025):** Performance stats were reading from **in-memory seed data (66 trades)** instead of the **PostgreSQL database (779 trades)**, causing completely wrong statistics across the entire platform.
-
-**Root Cause:**
-- `getPerformanceStats()` in `server/storage.ts` was reading from MemStorage instead of DatabaseStorage
-- Engine version filtering excluded 500+ NULL/legacy trades from calculations
-- Cache key bug: `includeOptions` parameter wasn't in cache key, causing wrong cached results
-- Performance validator comparing STOCK prices to OPTION premiums (broken options validation)
-
-**Fixes Applied (Nov 11, 2025):**
-1. **Database Migration:** All performance queries now read from PostgreSQL database via DatabaseStorage
-2. **Engine Version Filtering Relaxed:** Includes NULL/legacy versions by default, restoring 500+ valid trades
-3. **Cache Key Fixed:** Now includes `includeOptions` parameter to prevent cache collisions
-4. **Options Excluded by Default:** Performance stats defaults to `includeOptions=false` until option pricing is fixed
-5. **User can pass `?includeOptions=true`** to see all 779 trades (but option win rates are invalid)
-
-**ACCURATE Performance Stats (Nov 11, 2025 - Stocks + Crypto Only):**
-- **Database:** 779 total trades (499 options, 280 stocks/crypto)
-- **Performance Stats (default):** 280 trades analyzed (options excluded until pricing fixed)
-- **Overall Win Rate:** 46.5% (73 wins, 84 losses, 123 pending validation)
-- **By Engine:**
-  - **AI Engine:** 60.87% WR (42W/27L) - **BEST PERFORMER!**
-  - **Hybrid Engine:** 45.45% WR (10W/12L)
-  - **Quant Engine:** 32.81% WR (21W/43L) - needs strategy refinement
-  - **Flow Scanner:** 0% WR (0W/1L on stocks) - designed for options only, cannot validate yet
-- **By Asset Type:**
-  - **Crypto:** High performer on AI engine
-  - **Stocks:** Primary asset class, performance varies by engine
-
-**Options Validation Status:**
-- **499 option trades excluded** from performance stats (63% of database)
-- **Options validation is BROKEN:** Compares stock prices ($252) to option premiums ($89), causing invalid wins
-- **Flow Scanner's 99.4% WR claim was FALSE:** Result of pricing bug comparing wrong data types
-- **Fix Required:** Implement proper option premium fetching in `performance-validator.ts`
-
-**Data Integrity:**
-- **415 expired trades** in database (53% of 779) need validation pass to update outcomes
-- All performance queries verified reading from PostgreSQL database
-- Cache correctly separates option-inclusive vs option-exclusive requests
-- Two-tier filtering: User-Facing Mode (v3.0+ trades) vs ML/Admin Mode (all historical trades)
+A critical dual-layer trade validation framework ensures all trade ideas pass through Structural Validation and Risk Guardrails (max 5% loss, min 2:1 R:R, price sanity, volatility filters). News Catalyst Mode enables trade generation during major market events by relaxing the R:R minimum to 1.5:1 when keywords are detected. All generation methods prevent duplicate trades and maintain comprehensive audit trails. The platform implements a two-tier data filtering system: User-Facing Mode (v3.0+ trades) and ML/Admin Mode (all historical trades).
 
 Automated services run on a schedule:
--   **9:30 AM CT (Weekdays):** AI + Quant idea generation (3-5 trades each), with earnings calendar integration to block trades 2 days before/after earnings (unless news catalyst).
+-   **9:30 AM CT (Weekdays):** AI + Quant idea generation (3-5 trades each), with earnings calendar integration.
 -   **9:45 AM CT (Weekdays):** Hybrid AI+Quant generation.
--   **Every 15 min (08:00-20:00 ET):** News Monitor, generating ideas from major market events with sentiment analysis and keyword detection.
--   **Every 15 min (09:30-16:00 ET):** Flow Scanner for unusual options flow on high-volume tickers, Lotto Scanner for cheap far-OTM weeklies.
--   **Every 5 min:** Performance Validation (automatic trade outcome detection) and Watchlist Monitor (price alerts and updates).
+-   **Every 15 min (08:00-20:00 ET):** News Monitor.
+-   **Every 15 min (09:30-16:00 ET):** Flow Scanner for unusual options flow, Lotto Scanner for cheap far-OTM weeklies.
+-   **Every 5 min:** Performance Validation and Watchlist Monitor.
+
+### System Design Choices
+The platform employs a multi-page, publicly accessible architecture with membership managed via Discord roles. It uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) via Drizzle ORM. Access tiers include Free, Premium, and Admin, with a password-protected `/admin` panel. Security features include dual authentication, JWT authentication with HTTP-only cookies, session tokens with expiration, rate limiting, and `requireAdmin`/`requirePremium` middleware.
+
+Performance stats were updated to correctly read from the PostgreSQL database, and options are excluded by default until pricing logic is fixed. The system defaults to analyzing 280 trades (stocks/crypto only), with an overall win rate of 46.5%. The AI Engine shows the best performance at 60.87% WR.
 
 ## External Dependencies
 
