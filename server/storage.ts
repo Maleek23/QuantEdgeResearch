@@ -1469,45 +1469,41 @@ export class DatabaseStorage implements IStorage {
     // PERFORMANCE STATS: Exclude buggy/test trades (exclude_from_training=true)
     // These are legacy trades with known issues (e.g., inverted option directions)
     let allIdeas = allIdeasRaw.filter(idea => !idea.excludeFromTraining);
+    console.log(`[PERF-STATS] After excluding buggy trades: ${allIdeas.length} ideas`);
     
-    // 🎯 SMART ENGINE VERSION FILTERING
-    // Default behavior (includeAllVersions=false): Filter to current-gen engines only
-    // ML/Admin mode (includeAllVersions=true): Include ALL versions for training, analysis, and auditing
-    if (!filters?.includeAllVersions) {
-      // CURRENT-GEN ENGINES (include):
-      // - Quant v3.x (research-backed signals: RSI2, VWAP, Volume Spike)
-      // - Flow Scanner (all versions - options flow detection)
-      // - Hybrid (all versions - AI + Quant fusion)
-      // - AI (all versions - GPT/Claude/Gemini analysis)
-      // - No engineVersion (newly generated, treated as current-gen)
-      // 
-      // LEGACY ENGINES (exclude):
-      // - Quant v2.x and v1.x (broken MACD, ML signals)
+    // 🎯 ENGINE VERSION FILTERING - RELAXED (Nov 11, 2025)
+    // Previous issue: Excluded 500+ valid trades with NULL/legacy engineVersion
+    // Fix: Default-include all trades to restore accurate performance stats
+    // 
+    // Only filter when explicitly requested via includeAllVersions parameter
+    if (filters?.includeAllVersions === false) {
+      // Explicitly requested to exclude legacy versions (rare case)
       const beforeVersionFilter = allIdeas.length;
       allIdeas = allIdeas.filter(idea => {
-        if (!idea.engineVersion) {
-          return true; // No version = current-gen (newly generated)
-        }
+        if (!idea.engineVersion) return true; // NULL version = include
         
         const version = idea.engineVersion.toLowerCase();
         
-        // Include all current-gen engines
-        if (version.startsWith('v3.')) return true;        // Quant v3.x
-        if (version.startsWith('flow_')) return true;       // Flow Scanner
-        if (version.startsWith('hybrid_')) return true;     // Hybrid
-        if (version.startsWith('ai_')) return true;         // AI
+        // Include current-gen engines
+        if (version.startsWith('v3.')) return true;
+        if (version.startsWith('flow_')) return true;
+        if (version.startsWith('hybrid_')) return true;
+        if (version.startsWith('ai_')) return true;
+        if (version.startsWith('lotto_')) return true;
+        if (version.startsWith('news_')) return true;
         
-        // Exclude legacy Quant v1.x and v2.x
-        return false;
+        return false; // Exclude other versions
       });
-      console.log(`[PERF-STATS] Engine filter: Current-gen only → ${beforeVersionFilter} ideas filtered to ${allIdeas.length}`);
+      console.log(`[PERF-STATS] Engine filter: Explicit legacy exclusion → ${beforeVersionFilter} filtered to ${allIdeas.length}`);
     } else {
-      console.log(`[PERF-STATS] All engine versions included (ML/Admin mode) → ${allIdeas.length} total ideas`);
+      // Default: Include all versions (NULL, legacy, current-gen)
+      console.log(`[PERF-STATS] Engine filter: Relaxed (all versions included) → ${allIdeas.length} ideas`);
     }
     
     // 🚨 OPTIONS FILTER: Exclude options by default until proper option pricing is implemented
     // Previous bug: Was comparing STOCK prices ($252) to OPTION premiums ($89), causing false wins
     // Flow Scanner's 99.4% win rate was entirely from false option wins!
+    // Fix: Keep options disabled until premium fetching/normalization is fixed
     if (!filters?.includeOptions) {
       const beforeOptionsFilter = allIdeas.length;
       allIdeas = allIdeas.filter(idea => idea.assetType !== 'option');

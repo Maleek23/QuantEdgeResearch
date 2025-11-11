@@ -1475,9 +1475,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const startDate = req.query.startDate as string | undefined;
       const endDate = req.query.endDate as string | undefined;
       const source = req.query.source as string | undefined;
+      const includeOptions = req.query.includeOptions === 'true';
       
-      // Create cache key based on filters
-      const cacheKey = `${startDate || 'all'}_${endDate || 'all'}_${source || 'all'}`;
+      // Create cache key based on ALL filters (including includeOptions)
+      const cacheKey = `${startDate || 'all'}_${endDate || 'all'}_${source || 'all'}_${includeOptions ? 'with-options' : 'no-options'}`;
       
       // Check cache
       const cached = performanceStatsCache.get(cacheKey);
@@ -1488,8 +1489,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Cache miss - fetch fresh data with filters
       logger.info(`[PERF-STATS] Cache miss for filters: ${cacheKey} - fetching fresh data`);
-      logger.info(`[PERF-STATS] Filter values: startDate=${startDate}, endDate=${endDate}, source=${source}`);
-      const filters = { startDate, endDate, source, includeOptions: true }; // ENABLE OPTIONS - Show real Flow Scanner performance!
+      logger.info(`[PERF-STATS] Filter values: startDate=${startDate}, endDate=${endDate}, source=${source}, includeOptions=${includeOptions}`);
+      
+      const filters = { startDate, endDate, source, includeOptions };
       const stats = await storage.getPerformanceStats(filters);
       
       // Update cache for this filter combination
