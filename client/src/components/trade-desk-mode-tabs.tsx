@@ -44,10 +44,10 @@ export const MODES: ModeMeta[] = [
     id: 'flow',
     label: 'Flow Scanner',
     icon: Activity,
-    description: 'Institutional option flow (99.4% WR)',
-    tooltip: 'Institutional options flow detection with 99.4% accuracy rate',
-    badge: '99.4% WR',
-    isHighRisk: true,
+    description: 'Institutional options flow scanner (validation pending)',
+    tooltip: 'Scans for unusual institutional options activity - win rate validation pending until option pricing is fixed',
+    badge: 'PENDING',
+    isHighRisk: false,
     filters: {
       source: ['flow'],
     }

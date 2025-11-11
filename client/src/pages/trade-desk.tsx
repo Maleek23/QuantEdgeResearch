@@ -337,15 +337,21 @@ export default function TradeDeskPage() {
 
     // Then apply expiry filter
     if (expiryFilter !== 'all') {
-      const now = new Date();
+      const today = startOfDay(new Date());
       filtered = filtered.filter(idea => {
-        if (!idea.expiryDate && !idea.exitBy) return true; // Include non-option trades
+        // Non-option trades (stocks/crypto) don't have expiry dates
+        // When filtering by specific expiry bucket, exclude them
+        if (!idea.expiryDate && !idea.exitBy) {
+          return false; // Hide stocks/crypto when filtering by expiry buckets
+        }
         
-        const expiryDate = new Date(idea.expiryDate || idea.exitBy!);
-        const daysToExp = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const expiry = startOfDay(new Date(idea.expiryDate || idea.exitBy!));
+        const daysToExp = Math.floor((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         
+        // Apply specific expiry filter
         switch (expiryFilter) {
-          case '7d': return daysToExp >= 0 && daysToExp <= 7; // 0-7 days (includes 0DTE)
+          case 'expired': return daysToExp < 0; // Expired (yesterday or earlier)
+          case '7d': return daysToExp >= 0 && daysToExp <= 7; // 0-7 days (includes today)
           case '14d': return daysToExp > 7 && daysToExp <= 14; // 8-14 days (non-overlapping)
           case '30d': return daysToExp > 14 && daysToExp <= 60; // 15-60 days (monthly range)
           case '90d': return daysToExp > 60 && daysToExp <= 270; // 61-270 days (quarterly)
@@ -381,21 +387,24 @@ export default function TradeDeskPage() {
 
   // Calculate trade counts for each expiry bucket (AFTER non-expiry filters, BEFORE expiry filter)
   const calculateExpiryCounts = () => {
-    const now = new Date();
+    const today = startOfDay(new Date());
     // Start with ideas after non-expiry filters (asset type, grade, symbol)
     const baseIdeas = applyNonExpiryFilters(filteredIdeas);
-    const counts = { '7d': 0, '14d': 0, '30d': 0, '90d': 0, 'leaps': 0, 'all': baseIdeas.length };
+    const counts = { '7d': 0, '14d': 0, '30d': 0, '90d': 0, 'leaps': 0, 'expired': 0, 'all': baseIdeas.length };
     
     baseIdeas.forEach(idea => {
+      // Non-option trades (stocks/crypto) count towards 'all' but not expiry buckets
       if (!idea.expiryDate && !idea.exitBy) {
-        // Non-option trades count towards 'all' only
         return;
       }
       
-      const expiryDate = new Date(idea.expiryDate || idea.exitBy!);
-      const daysToExp = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const expiry = startOfDay(new Date(idea.expiryDate || idea.exitBy!));
+      // Use calendar days (start of day) to avoid time-of-day issues
+      // This keeps same-day expirations in 0-7d bucket until midnight
+      const daysToExp = Math.floor((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       
-      if (daysToExp >= 0 && daysToExp <= 7) counts['7d']++;
+      if (daysToExp < 0) counts['expired']++; // Truly expired (yesterday or earlier)
+      else if (daysToExp >= 0 && daysToExp <= 7) counts['7d']++; // 0-7 days (includes today)
       else if (daysToExp > 7 && daysToExp <= 14) counts['14d']++;
       else if (daysToExp > 14 && daysToExp <= 60) counts['30d']++;
       else if (daysToExp > 60 && daysToExp <= 270) counts['90d']++;
@@ -459,20 +468,21 @@ export default function TradeDeskPage() {
             {/* Left: Quick Expiry Chips */}
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground font-semibold mr-2">EXPIRY:</span>
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5 flex-wrap">
                 {[
+                  { value: 'all', label: 'All' },
                   { value: '7d', label: '0-7d' },
                   { value: '14d', label: '8-14d' },
                   { value: '30d', label: '15-60d' },
                   { value: '90d', label: '61-270d' },
                   { value: 'leaps', label: '270d+' },
-                  { value: 'all', label: 'All' }
+                  { value: 'expired', label: 'Expired', variant: 'destructive' as const }
                 ].map(chip => {
                   const count = expiryCounts[chip.value as keyof typeof expiryCounts] || 0;
                   return (
                     <Button
                       key={chip.value}
-                      variant={expiryFilter === chip.value ? 'default' : 'outline'}
+                      variant={expiryFilter === chip.value ? (chip.variant || 'default') : 'outline'}
                       size="sm"
                       className="h-7 px-3 text-xs font-semibold"
                       onClick={() => setExpiryFilter(chip.value)}
