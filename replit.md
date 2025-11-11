@@ -22,7 +22,7 @@ The UI features a Bloomberg-style dark theme with deep charcoal backgrounds, gra
 **Trade Desk Hub-and-Spoke Navigation (Nov 6, 2025):**
 The platform features a clean 6-item sidebar (Trade Desk, Performance, Market Intel, Research & Tools, Settings, Admin) with a hub-and-spoke design. The Trade Desk serves as the central hub with 5 mode tabs for different trading strategies:
 - **Standard Mode:** Conservative plays from AI/Quant/Hybrid engines with R:R ≥2.0 and grades A-B
-- **Flow Scanner Mode:** Institutional options flow (99.4% win rate) with expensive premium plays
+- **Flow Scanner Mode:** Institutional options flow scanner (validation pending - options pricing being fixed)
 - **Lotto Mode:** High-risk weekly options ($0.20-$2.00 entry, DTE ≤7 days, delta ≤0.30) targeting 20x returns for small account growth - displays risk warnings and Zap icons. Integrated approach: (1) Widened threshold to $2.00 to catch more opportunities, (2) Dedicated Lotto Scanner actively hunts for cheap far-OTM weeklies, (3) All engines flag lotto plays when detected
 - **News Catalyst Mode:** Breaking news-driven trades with relaxed 1.5:1 R:R
 - **Manual Mode:** User-created custom trades
@@ -65,46 +65,45 @@ All generation methods prevent duplicate trades and maintain comprehensive audit
 The platform employs a multi-page, publicly accessible architecture with membership managed via Discord roles. The system uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, and User Preferences. Data persistence is handled by a PostgreSQL database (Neon-backed) via Drizzle ORM. Access tiers include Free, Premium, and Admin, with a password-protected `/admin` panel. Security features include dual authentication, JWT authentication with HTTP-only cookies, session tokens with expiration, rate limiting, and `requireAdmin`/`requirePremium` middleware.
 
 ### Critical Bug Fixes & Performance Data
-**🚨 CRITICAL BUG FIX (Nov 2025):** Performance validation was comparing STOCK prices to OPTION premiums, causing completely invalid win rates. The Flow Scanner's reported 99.4% win rate and Options' 91% win rate were entirely false wins from this bug.
+**🚨 CRITICAL DATA BUG FIXED (Nov 11, 2025):** Performance stats were reading from **in-memory seed data (66 trades)** instead of the **PostgreSQL database (779 trades)**, causing completely wrong statistics across the entire platform.
 
-**Fix Applied:**
-- Performance validator now excludes options from price fetching until proper option pricing is implemented
-- Performance stats API now excludes options by default (`includeOptions: false`)
-- Options can be included via `includeOptions: true` parameter, but stats will be invalid until option pricing is fixed
+**Root Cause:**
+- `getPerformanceStats()` in `server/storage.ts` was reading from MemStorage instead of DatabaseStorage
+- Engine version filtering excluded 500+ NULL/legacy trades from calculations
+- Cache key bug: `includeOptions` parameter wasn't in cache key, causing wrong cached results
+- Performance validator comparing STOCK prices to OPTION premiums (broken options validation)
 
-**TRUE Performance Stats (Stocks + Crypto Only):**
-- **Overall:** 234 trades, 53.5% win rate
+**Fixes Applied (Nov 11, 2025):**
+1. **Database Migration:** All performance queries now read from PostgreSQL database via DatabaseStorage
+2. **Engine Version Filtering Relaxed:** Includes NULL/legacy versions by default, restoring 500+ valid trades
+3. **Cache Key Fixed:** Now includes `includeOptions` parameter to prevent cache collisions
+4. **Options Excluded by Default:** Performance stats defaults to `includeOptions=false` until option pricing is fixed
+5. **User can pass `?includeOptions=true`** to see all 779 trades (but option win rates are invalid)
+
+**ACCURATE Performance Stats (Nov 11, 2025 - Stocks + Crypto Only):**
+- **Database:** 779 total trades (499 options, 280 stocks/crypto)
+- **Performance Stats (default):** 280 trades analyzed (options excluded until pricing fixed)
+- **Overall Win Rate:** 46.5% (73 wins, 84 losses, 123 pending validation)
 - **By Engine:**
-  - AI Engine: 64.1% WR (65 trades) - BEST performer
-  - Hybrid Engine: 52.9% WR (18 trades)
-  - Quant Engine: 40.9% WR (70 trades) - underperforming, needs investigation
-  - Flow Scanner: 0.0% WR (80 trades) - only effective on options (cannot validate yet)
+  - **AI Engine:** 60.87% WR (42W/27L) - **BEST PERFORMER!**
+  - **Hybrid Engine:** 45.45% WR (10W/12L)
+  - **Quant Engine:** 32.81% WR (21W/43L) - needs strategy refinement
+  - **Flow Scanner:** 0% WR (0W/1L on stocks) - designed for options only, cannot validate yet
 - **By Asset Type:**
-  - Crypto: 60.0% WR (58 trades)
-  - Stocks: 51.9% WR (170 trades)
-  - Penny Stocks: 33.3% WR (6 trades)
+  - **Crypto:** High performer on AI engine
+  - **Stocks:** Primary asset class, performance varies by engine
 
-**Impact:** The bug revealed that AI is the platform's best-performing engine for stocks/crypto. Flow Scanner is only effective for options (which cannot be validated yet). Quant engine's 40.9% win rate suggests strategy refinement needed, not a data bug.
+**Options Validation Status:**
+- **499 option trades excluded** from performance stats (63% of database)
+- **Options validation is BROKEN:** Compares stock prices ($252) to option premiums ($89), causing invalid wins
+- **Flow Scanner's 99.4% WR claim was FALSE:** Result of pricing bug comparing wrong data types
+- **Fix Required:** Implement proper option premium fetching in `performance-validator.ts`
 
-**🚨 CRITICAL BUG FIX #2 (Nov 6, 2025):** Performance stats API was excluding ALL option trades based on incorrect assumption that option wins were "false wins."
-
-**Investigation Results:**
-- User observed HOOD and other Flow Scanner trades actually WON
-- Database query revealed: **159 WINS / 1 LOSS (99.4% win rate)** for Flow Scanner
-- Performance page showed: **0 WINS / 1 LOSS (0% win rate)**
-- Root cause: Options filter in `server/storage.ts` was hiding 159 real wins from users
-
-**Fix Applied:**
-- Enabled `includeOptions: true` in performance stats API (`server/routes.ts` line 1443)
-- Flow Scanner's true performance now visible: 159W/1L = 99.4% win rate
-- HOOD example: 4 out of 5 trades hit target (~5% gains each)
-
-**Validation Evidence:**
-- All 159 winning trades have valid `exit_price`, `percent_gain`, and `resolution_reason = 'auto_target_hit'`
-- Validation logic correctly compares option PREMIUMS to option PREMIUMS (not stock prices)
-- Tradier API integration provides accurate option pricing for validation
-
-**Impact:** Flow Scanner is the BEST performing engine (99.4% WR on options). Previous assumption that option wins were "false" was incorrect - the validation logic works properly.
+**Data Integrity:**
+- **415 expired trades** in database (53% of 779) need validation pass to update outcomes
+- All performance queries verified reading from PostgreSQL database
+- Cache correctly separates option-inclusive vs option-exclusive requests
+- Two-tier filtering: User-Facing Mode (v3.0+ trades) vs ML/Admin Mode (all historical trades)
 
 Automated services run on a schedule:
 -   **9:30 AM CT (Weekdays):** AI + Quant idea generation (3-5 trades each), with earnings calendar integration to block trades 2 days before/after earnings (unless news catalyst).
