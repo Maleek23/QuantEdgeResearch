@@ -44,6 +44,15 @@ The quantitative engine (v3.4.0) leverages RSI(2) Mean Reversion with a 200-Day 
 
 A critical dual-layer trade validation framework ensures all trade ideas pass through Structural Validation and Risk Guardrails (max 5% loss, min 2:1 R:R, price sanity, volatility filters). News Catalyst Mode enables trade generation during major market events by relaxing the R:R minimum to 1.5:1 when keywords are detected. All generation methods prevent duplicate trades and maintain comprehensive audit trails. The platform implements a two-tier data filtering system: User-Facing Mode (v3.0+ trades) and ML/Admin Mode (all historical trades).
 
+**Futures Trading Implementation (Nov 12, 2025):**
+The platform now supports CME futures trading for NQ (E-mini Nasdaq-100) and GC (Gold) contracts:
+- **Database Schema:** Added `futuresContracts` table with contract specifications (multiplier, tick size, margin requirements, expiration dates). Trade ideas extended with futures-specific fields (contractCode, rootSymbol, multiplier, tickSize, initialMargin, maintenanceMargin).
+- **Data Service:** Mock pricing service (NQ ~$21k, GC ~$2.65k) with 30-second caching, ready for Databento API integration when key is provided. API endpoints for contract lookup and batch pricing.
+- **Quant Engine:** Adapted RSI/VWAP/volume signals for futures with tick-based targets (NQ: $5 per tick, GC: $10 per tick). Enforces R:R ≥ 2.0 for leveraged products. Auto-selects front-month contracts.
+- **Performance Validation:** Futures P&L calculated as (exitPrice - entryPrice) * multiplier * direction with tick-size rounding. Handles contract expiration as forced exit. Tracks margin utilization.
+- **UI:** Dedicated "Futures (CME)" accordion section displaying contract month, expiration countdown, multiplier specs, tick values, and margin requirements. Asset type filters include 'future'.
+- **Contract Management:** 9 contracts seeded (4 NQ quarterly: Mar/Jun/Sep/Dec, 5 GC monthly: Apr/Jun/Aug/Oct/Dec) with front-month tracking and rollover metadata.
+
 Automated services run on a schedule:
 -   **9:30 AM CT (Weekdays):** AI + Quant idea generation (3-5 trades each), with earnings calendar integration.
 -   **9:45 AM CT (Weekdays):** Hybrid AI+Quant generation.
@@ -63,6 +72,7 @@ Performance stats were updated to correctly read from the PostgreSQL database, a
 -   **Yahoo Finance:** Stocks (real-time quotes, discovery via screener, historical data).
 -   **Alpha Vantage API:** Breaking news (NEWS_SENTIMENT endpoint), fallback for stock historical data, earnings calendar.
 -   **Tradier API:** Options data (chains, delta targeting, live pricing).
+-   **Databento API:** Futures data (NQ E-mini Nasdaq-100, GC Gold futures - real-time pricing, contract specifications, CME data).
 
 ### AI Providers
 -   **OpenAI API:** For GPT-5 integration.

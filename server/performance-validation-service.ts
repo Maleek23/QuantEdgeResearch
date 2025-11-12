@@ -86,8 +86,39 @@ class PerformanceValidationService {
       // Fetch current prices for all symbols
       const priceMap = await this.fetchCurrentPrices(openIdeas);
       
-      // Validate each idea
-      const validationResults = PerformanceValidator.validateBatch(openIdeas, priceMap);
+      // 🔧 BUG FIX: Fetch futures contracts to avoid circular dependency in validator
+      // Collect unique contract codes from futures ideas
+      const futuresContractCodes = new Set(
+        openIdeas
+          .filter(i => i.assetType === 'future' && i.futuresContractCode)
+          .map(i => i.futuresContractCode!)
+      );
+      
+      // Fetch all needed contracts in parallel
+      const contractsMap = new Map();
+      if (futuresContractCodes.size > 0) {
+        console.log(`  📊 Fetching ${futuresContractCodes.size} futures contracts...`);
+        const contractPromises = Array.from(futuresContractCodes).map(async code => {
+          try {
+            const contract = await storage.getFuturesContract(code);
+            return { code, contract };
+          } catch (error) {
+            console.warn(`  ⚠️  Failed to fetch contract ${code}:`, error);
+            return { code, contract: null };
+          }
+        });
+        
+        const contractResults = await Promise.all(contractPromises);
+        for (const { code, contract } of contractResults) {
+          if (contract) {
+            contractsMap.set(code, contract);
+          }
+        }
+        console.log(`  ✓ Fetched ${contractsMap.size}/${futuresContractCodes.size} contracts successfully`);
+      }
+      
+      // Validate each idea with contract metadata
+      const validationResults = PerformanceValidator.validateBatch(openIdeas, priceMap, contractsMap);
 
       // Update database for ideas that need updating
       for (const [ideaId, result] of Array.from(validationResults.entries())) {

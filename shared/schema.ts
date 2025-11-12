@@ -77,6 +77,8 @@ export const tradeIdeas = pgTable("trade_ideas", {
   futuresRootSymbol: text("futures_root_symbol"), // 'NQ', 'GC'
   futuresMultiplier: real("futures_multiplier"), // $20 for NQ, $100 for GC
   futuresTickSize: real("futures_tick_size"), // 0.25 for NQ, 0.10 for GC
+  futuresInitialMargin: real("futures_initial_margin"), // Required margin to open position (from contract)
+  futuresMaintenanceMargin: real("futures_maintenance_margin"), // Minimum margin to hold position (from contract)
   
   source: text("source").notNull().$type<IdeaSource>().default('quant'), // 'ai' | 'quant'
   confidenceScore: real("confidence_score").notNull().default(0), // 0-100 quality score

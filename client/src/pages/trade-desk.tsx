@@ -887,6 +887,7 @@ export default function TradeDeskPage() {
                     <SelectItem value="stock">Stock Shares</SelectItem>
                     <SelectItem value="penny_stock">Penny Stocks</SelectItem>
                     <SelectItem value="option">Stock Options</SelectItem>
+                    <SelectItem value="future">Futures (CME)</SelectItem>
                     <SelectItem value="crypto">Crypto</SelectItem>
                   </SelectContent>
                 </Select>
@@ -1075,29 +1076,9 @@ export default function TradeDeskPage() {
                   ? "Start generating quantitative trade ideas using the buttons in the toolbar above. Each engine uses different strategies to find opportunities."
                   : "No ideas match your current filters. Try adjusting the filters above or generate new ideas."}
               </p>
-              <div className="flex items-center gap-3 flex-wrap justify-center">
-                <Button 
-                  onClick={() => generateQuantIdeas.mutate()}
-                  disabled={generateQuantIdeas.isPending}
-                  size="default"
-                  className="gap-2"
-                  data-testid="button-generate-quant-empty"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  {generateQuantIdeas.isPending ? "Generating..." : "Generate Quant Ideas"}
-                </Button>
-                <Button 
-                  onClick={() => generateAIIdeas.mutate()}
-                  disabled={generateAIIdeas.isPending}
-                  variant="outline"
-                  size="default"
-                  className="gap-2"
-                  data-testid="button-generate-ai-empty"
-                >
-                  <Bot className="h-4 w-4" />
-                  {generateAIIdeas.isPending ? "Generating..." : "Generate AI Ideas"}
-                </Button>
-              </div>
+              <p className="text-sm text-muted-foreground text-center">
+                Use the generation buttons in the toolbar above to create trade ideas
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -1105,14 +1086,15 @@ export default function TradeDeskPage() {
           <Accordion type="single" collapsible className="space-y-4" defaultValue={Object.entries(groupedIdeas)[0]?.[0]}>
             {Object.entries(groupedIdeas)
               .sort(([a], [b]) => {
-                const order = { 'stock': 0, 'penny_stock': 1, 'option': 2, 'crypto': 3 };
+                const order = { 'stock': 0, 'penny_stock': 1, 'option': 2, 'future': 3, 'crypto': 4 };
                 return (order[a as keyof typeof order] || 0) - (order[b as keyof typeof order] || 0);
               })
               .map(([assetType, ideas]) => {
                 const assetTypeLabels = {
                   'stock': 'Stock Shares',
                   'penny_stock': 'Penny Stocks',
-                  'option': 'Stock Options', 
+                  'option': 'Stock Options',
+                  'future': 'Futures (CME)',
                   'crypto': 'Crypto'
                 };
                 const label = assetTypeLabels[assetType as keyof typeof assetTypeLabels] || assetType;

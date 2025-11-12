@@ -1,4 +1,4 @@
-import { TradeIdea } from "@shared/schema";
+import { TradeIdea, FuturesContract } from "@shared/schema";
 import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 
@@ -222,8 +222,9 @@ export class PerformanceValidator {
    * Validates a trade idea against current market price
    * Determines if it hit target, hit stop, or expired
    * Note: currentPrice can be null/undefined for expiry checks when market is closed
+   * @param futuresContract Optional futures contract metadata (avoids circular dependency)
    */
-  static validateTradeIdea(idea: TradeIdea, currentPrice?: number | null): ValidationResult {
+  static validateTradeIdea(idea: TradeIdea, currentPrice?: number | null, futuresContract?: FuturesContract | null): ValidationResult {
     // Skip if already closed
     if (idea.outcomeStatus !== 'open') {
       return { shouldUpdate: false };
@@ -268,6 +269,103 @@ export class PerformanceValidator {
         }
       } catch (e) {
         console.warn(`⚠️ [VALIDATION] Error parsing entryValidUntil for ${idea.symbol}:`, e);
+      }
+    }
+
+    // 🚨 CRITICAL CHECK: Has the futures contract expired?
+    // Futures use futuresContractCode and check against contract expiration
+    // BUG FIX: Use passed contract parameter instead of dynamic import (avoids circular dependency)
+    if (idea.assetType === 'future' && idea.futuresContractCode) {
+      // 🔧 BUG FIX: Validate contract metadata exists - don't use hardcoded defaults
+      if (!futuresContract) {
+        console.error(`❌ [VALIDATION ERROR] ${idea.symbol}: Missing futures contract metadata for ${idea.futuresContractCode}. Cannot validate without contract data. Skipping validation.`);
+        return { shouldUpdate: false };
+      }
+      
+      if (!futuresContract.initialMargin || futuresContract.initialMargin <= 0) {
+        console.error(`❌ [VALIDATION ERROR] ${idea.symbol}: Invalid or missing initialMargin for contract ${idea.futuresContractCode}. Cannot calculate margin return. Skipping validation.`);
+        return { shouldUpdate: false };
+      }
+      
+      try {
+        const expiryDate = new Date(futuresContract.expirationDate);
+        
+        if (!isNaN(expiryDate.getTime()) && now > expiryDate) {
+          const hoursPastExpiry = (now.getTime() - expiryDate.getTime()) / (1000 * 60 * 60);
+          console.log(`⛔ [VALIDATION] ${idea.symbol} FUTURES CONTRACT EXPIRED ${hoursPastExpiry.toFixed(1)}h ago (Contract: ${idea.futuresContractCode}, Expiry: ${futuresContract.expirationDate})`);
+          
+          // Use last known price (entry price for futures since we can't fetch historical prices yet)
+          const lastKnownPrice = currentPrice ?? idea.entryPrice;
+          
+          const highestPrice = Math.max(
+            idea.highestPriceReached || idea.entryPrice,
+            currentPrice || idea.highestPriceReached || idea.entryPrice
+          );
+          const lowestPrice = Math.min(
+            idea.lowestPriceReached || idea.entryPrice,
+            currentPrice || idea.lowestPriceReached || idea.entryPrice
+          );
+          
+          const percentGain = this.calculatePercentGain(
+            idea.direction as 'long' | 'short',
+            idea.entryPrice,
+            lastKnownPrice
+          );
+          
+          // 🔧 BUG FIX: Calculate futures P&L correctly (multiply by multiplier ONCE, not twice)
+          // Old broken formula: pnl = (price delta * multiplier) / (tick * multiplier) * (tick * multiplier)
+          // New correct formula: Round price delta to tick size FIRST, then multiply by multiplier ONCE
+          const directionSign = idea.direction === 'long' ? 1 : -1;
+          const priceDelta = (lastKnownPrice - idea.entryPrice) * directionSign;
+          const tickSize = idea.futuresTickSize || 0.25;
+          const multiplier = idea.futuresMultiplier || 1;
+          
+          // 🔧 DIRECTION-AWARE ROUNDING: Conservative rounding to prevent sign flip
+          // For LONG trades: use Math.floor (rounds down, conservative)
+          // For SHORT trades: use Math.ceil (rounds up towards zero, conservative)
+          const ticksAway = priceDelta / tickSize;
+          const tickRounded = (idea.direction === 'long' ? Math.floor(ticksAway) : Math.ceil(ticksAway)) * tickSize;
+          
+          // Multiply by contract multiplier exactly ONCE
+          const realizedPnL = tickRounded * multiplier;
+          
+          // Calculate margin return
+          const marginReturn = futuresContract.initialMargin > 0 ? (realizedPnL / futuresContract.initialMargin) * 100 : 0;
+          
+          const predictionAccurate = this.checkPredictionAccuracy(
+            idea,
+            lastKnownPrice,
+            highestPrice,
+            lowestPrice
+          );
+          
+          const predictionAccuracyPercent = this.calculatePredictionAccuracyPercent(
+            idea,
+            lastKnownPrice,
+            highestPrice,
+            lowestPrice
+          );
+          
+          console.log(`💰 [FUTURES-PNL] ${idea.symbol} ${idea.futuresContractCode}: P&L ${realizedPnL >= 0 ? '+' : ''}$${realizedPnL.toFixed(2)} (${marginReturn.toFixed(1)}% return on margin)`);
+          
+          return {
+            shouldUpdate: true,
+            outcomeStatus: 'expired',
+            exitPrice: lastKnownPrice,
+            percentGain,
+            realizedPnL,
+            resolutionReason: 'auto_expired',
+            exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+            actualHoldingTimeMinutes: holdingTimeMinutes,
+            predictionAccurate,
+            predictionAccuracyPercent,
+            predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+            highestPriceReached: highestPrice,
+            lowestPriceReached: lowestPrice,
+          };
+        }
+      } catch (e) {
+        console.warn(`⚠️ [VALIDATION] Error checking futures contract expiration for ${idea.symbol}:`, e);
       }
     }
 
@@ -510,6 +608,27 @@ export class PerformanceValidator {
         idea.targetPrice
       );
 
+      // Calculate futures P&L if applicable
+      let realizedPnL = 0;
+      if (idea.assetType === 'future' && idea.futuresMultiplier && idea.futuresTickSize) {
+        // 🔧 BUG FIX: Calculate futures P&L correctly (multiply by multiplier ONCE, not twice)
+        const directionSign = idea.direction === 'long' ? 1 : -1;
+        const priceDelta = (idea.targetPrice - idea.entryPrice) * directionSign;
+        const tickSize = idea.futuresTickSize;
+        const multiplier = idea.futuresMultiplier;
+        
+        // 🔧 DIRECTION-AWARE ROUNDING: Conservative rounding to prevent sign flip
+        // For LONG trades: use Math.floor (rounds down, conservative)
+        // For SHORT trades: use Math.ceil (rounds up towards zero, conservative)
+        const ticksAway = priceDelta / tickSize;
+        const tickRounded = (idea.direction === 'long' ? Math.floor(ticksAway) : Math.ceil(ticksAway)) * tickSize;
+        
+        // Multiply by contract multiplier exactly ONCE
+        realizedPnL = tickRounded * multiplier;
+        
+        console.log(`💰 [FUTURES-PNL] ${idea.symbol} target hit: P&L ${realizedPnL >= 0 ? '+' : ''}$${realizedPnL.toFixed(2)}`);
+      }
+
       console.log(`🎯 [VALIDATION] ${idea.symbol} HIT TARGET intraday (${directionForValidation.toUpperCase()}: ${directionForValidation === 'long' ? `high $${highestPrice.toFixed(2)} >= target $${idea.targetPrice}` : `low $${lowestPrice.toFixed(2)} <= target $${idea.targetPrice}`})`);
 
       return {
@@ -517,7 +636,7 @@ export class PerformanceValidator {
         outcomeStatus: 'hit_target',
         exitPrice: idea.targetPrice,
         percentGain,
-        realizedPnL: 0, // Will be calculated when user enters position size
+        realizedPnL,
         resolutionReason: 'auto_target_hit',
         exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
         actualHoldingTimeMinutes: holdingTimeMinutes,
@@ -543,6 +662,27 @@ export class PerformanceValidator {
         idea.stopLoss
       );
       
+      // Calculate futures P&L if applicable
+      let realizedPnL = 0;
+      if (idea.assetType === 'future' && idea.futuresMultiplier && idea.futuresTickSize) {
+        // 🔧 BUG FIX: Calculate futures P&L correctly (multiply by multiplier ONCE, not twice)
+        const directionSign = idea.direction === 'long' ? 1 : -1;
+        const priceDelta = (idea.stopLoss - idea.entryPrice) * directionSign;
+        const tickSize = idea.futuresTickSize;
+        const multiplier = idea.futuresMultiplier;
+        
+        // 🔧 DIRECTION-AWARE ROUNDING: Conservative rounding to prevent sign flip
+        // For LONG trades: use Math.floor (rounds down, conservative)
+        // For SHORT trades: use Math.ceil (rounds up towards zero, conservative)
+        const ticksAway = priceDelta / tickSize;
+        const tickRounded = (idea.direction === 'long' ? Math.floor(ticksAway) : Math.ceil(ticksAway)) * tickSize;
+        
+        // Multiply by contract multiplier exactly ONCE
+        realizedPnL = tickRounded * multiplier;
+        
+        console.log(`💰 [FUTURES-PNL] ${idea.symbol} stop hit: P&L ${realizedPnL >= 0 ? '+' : ''}$${realizedPnL.toFixed(2)}`);
+      }
+      
       // Even if stop hit, check if prediction moved in right direction before reversing
       const predictionAccurate = this.checkPredictionAccuracy(
         idea,
@@ -565,7 +705,7 @@ export class PerformanceValidator {
         outcomeStatus: 'hit_stop',
         exitPrice: idea.stopLoss,
         percentGain,
-        realizedPnL: 0,
+        realizedPnL,
         resolutionReason: 'auto_stop_hit',
         exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
         actualHoldingTimeMinutes: holdingTimeMinutes,
@@ -669,10 +809,12 @@ export class PerformanceValidator {
   /**
    * Batch validate multiple trade ideas
    * Note: Validates ALL ideas, even without prices (for expiry checks)
+   * @param contractsMap Optional map of futures contracts by contract code (avoids circular dependency)
    */
   static validateBatch(
     ideas: TradeIdea[],
-    priceMap: Map<string, number>
+    priceMap: Map<string, number>,
+    contractsMap?: Map<string, FuturesContract>
   ): Map<string, ValidationResult> {
     const results = new Map<string, ValidationResult>();
 
@@ -680,7 +822,12 @@ export class PerformanceValidator {
       // Get price if available, otherwise undefined (expiry checks don't need price)
       const currentPrice = priceMap.get(idea.symbol);
       
-      const result = this.validateTradeIdea(idea, currentPrice);
+      // Get futures contract if applicable
+      const futuresContract = idea.futuresContractCode && contractsMap 
+        ? contractsMap.get(idea.futuresContractCode)
+        : undefined;
+      
+      const result = this.validateTradeIdea(idea, currentPrice, futuresContract);
       if (result.shouldUpdate) {
         results.set(idea.id, result);
       }

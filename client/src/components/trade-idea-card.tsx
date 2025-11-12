@@ -110,6 +110,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                 {idea.assetType === 'option' ? 'Option' : 
                  idea.assetType === 'stock' ? 'Stock' : 
                  idea.assetType === 'penny_stock' ? 'Penny Stock' :
+                 idea.assetType === 'future' ? 'Future' :
                  'Crypto'}
               </Badge>
               {idea.assetType === 'option' && idea.strikePrice && idea.optionType && (
@@ -118,6 +119,12 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                   idea.optionType === 'call' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
                 )}>
                   ${idea.strikePrice} {idea.optionType.toUpperCase()}
+                </Badge>
+              )}
+              {idea.assetType === 'future' && idea.futuresContractCode && (
+                <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/50 text-xs font-semibold gap-1" data-testid={`text-futures-contract-${idea.futuresContractCode}`}>
+                  <BarChart3 className="h-3 w-3" />
+                  {idea.futuresContractCode}
                 </Badge>
               )}
             </div>
@@ -282,6 +289,43 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
         </div>
 
         <Separator />
+
+        {idea.assetType === 'future' && (
+          <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-500/30">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground uppercase font-semibold">Contract Specs</div>
+                <div className="space-y-1">
+                  {idea.futuresMultiplier && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Multiplier:</span>
+                      <span className="font-mono font-bold">${idea.futuresMultiplier}/point</span>
+                    </div>
+                  )}
+                  {idea.futuresTickSize && idea.futuresMultiplier && (
+                    <div className="flex items-center justify-between text-sm" data-testid={`text-futures-tick-${idea.symbol}`}>
+                      <span className="text-muted-foreground">Tick:</span>
+                      <span className="font-mono font-bold">{idea.futuresTickSize} = ${(idea.futuresTickSize * idea.futuresMultiplier).toFixed(0)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground uppercase font-semibold">Margin</div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-sm" data-testid={`text-futures-margin-${idea.id}`}>
+                    <span className="text-muted-foreground">Initial:</span>
+                    <span className="font-mono font-bold">
+                      {idea.futuresInitialMargin 
+                        ? `$${idea.futuresInitialMargin.toLocaleString()}` 
+                        : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-3">

@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { generateTradeIdeas, chatWithQuantAI, validateTradeRisk } from "./ai-service";
 import { generateQuantIdeas } from "./quant-ideas-generator";
+import { generateFuturesIdeas } from "./quantitative-engine";
 import { scanUnusualOptionsFlow } from "./flow-scanner";
 import { generateDiagnosticExport } from "./diagnostic-export";
 import { validateAndLog as validateTradeStructure } from "./trade-validation";
@@ -2723,6 +2724,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Quant idea generation error:", error);
       res.status(500).json({ error: error?.message || "Failed to generate quantitative trade ideas" });
+    }
+  });
+
+  // Futures Idea Generator (Premium only)
+  app.post("/api/quant/generate-futures", quantGenerationLimiter, async (req, res) => {
+    try {
+      logger.info('🔮 [FUTURES] Manual futures generation triggered');
+      
+      // Generate futures ideas (NQ and GC)
+      const futuresIdeas = await generateFuturesIdeas();
+      
+      // Save ideas to storage
+      const savedIdeas = [];
+      const rejectedIdeas: Array<{symbol: string, reason: string}> = [];
+      
+      for (const idea of futuresIdeas) {
+        // Futures don't need structural validation like stocks/options
+        // They have fixed specs from CME
+        
+        const tradeIdea = await storage.createTradeIdea(idea);
+        
+        // Clear stale price cache to force fresh fetch on next validation
+        clearCachedPrice(idea.symbol);
+        
+        savedIdeas.push(tradeIdea);
+      }
+      
+      // Send Discord notification for batch
+      if (savedIdeas.length > 0) {
+        const { sendBatchSummaryToDiscord } = await import("./discord-service");
+        sendBatchSummaryToDiscord(savedIdeas, 'quant').catch(err => 
+          console.error('Discord notification failed:', err)
+        );
+      }
+      
+      // Return helpful message when no new ideas are available
+      if (savedIdeas.length === 0) {
+        res.json({ 
+          success: true, 
+          ideas: [], 
+          count: 0,
+          message: "No new futures ideas at this time. Wait for market movements or price changes to generate fresh opportunities."
+        });
+      } else {
+        res.json({ success: true, ideas: savedIdeas, count: savedIdeas.length });
+      }
+    } catch (error: any) {
+      logger.error('🔮 [FUTURES] Generation error:', error);
+      res.status(500).json({ error: error?.message || "Failed to generate futures trade ideas" });
     }
   });
 
