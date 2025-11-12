@@ -29,7 +29,7 @@ export type User = typeof users.$inferSelect;
 export type MarketSession = 'pre-market' | 'rth' | 'after-hours' | 'closed';
 
 // Asset Types
-export type AssetType = 'stock' | 'penny_stock' | 'option' | 'crypto';
+export type AssetType = 'stock' | 'penny_stock' | 'option' | 'crypto' | 'future';
 
 // Performance Tracking Outcome Types
 export type OutcomeStatus = 'open' | 'hit_target' | 'hit_stop' | 'manual_exit' | 'expired';
@@ -71,6 +71,13 @@ export const tradeIdeas = pgTable("trade_ideas", {
   expiryDate: text("expiry_date"), // For options
   strikePrice: real("strike_price"), // For options
   optionType: text("option_type"), // 'call' | 'put' for options
+  
+  // Futures Fields
+  futuresContractCode: text("futures_contract_code"), // e.g., 'NQH25' for NQ March 2025
+  futuresRootSymbol: text("futures_root_symbol"), // 'NQ', 'GC'
+  futuresMultiplier: real("futures_multiplier"), // $20 for NQ, $100 for GC
+  futuresTickSize: real("futures_tick_size"), // 0.25 for NQ, 0.10 for GC
+  
   source: text("source").notNull().$type<IdeaSource>().default('quant'), // 'ai' | 'quant'
   confidenceScore: real("confidence_score").notNull().default(0), // 0-100 quality score
   qualitySignals: text("quality_signals").array(), // Array of signal names that fired
@@ -239,6 +246,37 @@ export const optionsData = pgTable("options_data", {
 export const insertOptionsDataSchema = createInsertSchema(optionsData).omit({ id: true });
 export type InsertOptionsData = z.infer<typeof insertOptionsDataSchema>;
 export type OptionsData = typeof optionsData.$inferSelect;
+
+// Futures Contracts - CME specifications
+export const futuresContracts = pgTable("futures_contracts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  rootSymbol: text("root_symbol").notNull(), // 'NQ', 'GC'
+  contractCode: text("contract_code").notNull().unique(), // 'NQH25' (NQ March 2025), 'GCJ25' (GC April 2025)
+  exchange: text("exchange").notNull(), // 'CME', 'COMEX'
+  expirationDate: text("expiration_date").notNull(), // ISO date when contract expires
+  
+  // Contract Specifications
+  multiplier: real("multiplier").notNull(), // NQ=$20/point, GC=$100/oz
+  tickSize: real("tick_size").notNull(), // Minimum price increment (NQ=0.25, GC=0.10)
+  tickValue: real("tick_value").notNull(), // Dollar value of 1 tick (NQ=$5, GC=$10)
+  
+  // Margin Requirements
+  initialMargin: real("initial_margin").notNull(), // Required margin to open position
+  maintenanceMargin: real("maintenance_margin").notNull(), // Minimum margin to hold position
+  
+  // Contract Status
+  isFrontMonth: boolean("is_front_month").default(false), // Is this the active front month contract?
+  rollDate: text("roll_date"), // When to roll to next contract
+  
+  // Metadata
+  description: text("description"), // 'E-mini Nasdaq-100 Futures', 'Gold Futures'
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertFuturesContractSchema = createInsertSchema(futuresContracts).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertFuturesContract = z.infer<typeof insertFuturesContractSchema>;
+export type FuturesContract = typeof futuresContracts.$inferSelect;
 
 // Watchlist
 export const watchlist = pgTable("watchlist", {
