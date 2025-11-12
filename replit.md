@@ -19,6 +19,16 @@ No personalized financial advice should be offered; it is for research purposes 
 ### UI/UX Decisions
 The UI features a Bloomberg-style dark theme with deep charcoal backgrounds, gradients, shadows, and glassmorphism. A consistent color palette uses green for bullish, red for bearish, amber for neutral/warning, and blue for primary actions. Typography uses Inter for UI and JetBrains Mono for financial data. Custom CSS provides enhanced styling for cards, tables, grids, loading states, notifications, and optimistic UI updates. Features include real-time price displays, detailed analysis modals, mobile responsiveness, and an intelligent advisory system with dynamic R:R analysis. Advanced 3D Visual Analytics (Holographic Trading Floor, 3D Correlation Matrix Cube, 3D Brain Neural Network) are implemented using React Three Fiber and Three.js.
 
+**Trade Desk UI Redesign (Nov 12, 2025):**
+Comprehensive UI/UX improvements for better readability and reduced visual clutter:
+- **Signal Pulse Stats Card:** Always-visible KPI dashboard showing 5 key metrics (FRESH, ACTIVE, WINNERS, LOSERS, EXPIRED) with color-coded tiles, icons, and counts
+- **Consolidated Filter Toolbar:** Two-row organized controls merging expiry chips, dropdowns, search, and generation buttons into single ribbon
+- **Simplified Mode Context:** Removed large gradient mode description card in favor of lighter contextual cues
+- **Prominent Generation Buttons:** Color-keyed action buttons (Quant/AI/Hybrid/News/Flow) with clear loading states
+- **Enhanced Empty States:** Improved messaging with actionable CTAs
+- **Reduced Clutter:** Removed redundant card wrappers, borders, and tabbed navigation system
+- **Professional Hierarchy:** Bloomberg-terminal-style stack with metrics strip, controls ribbon, and data feed following professional trading platform patterns
+
 The platform uses a 6-item sidebar (Trade Desk, Performance, Market Intel, Research & Tools, Settings, Admin) with a hub-and-spoke design. The Trade Desk has 5 mode tabs for different strategies: Standard, Flow Scanner, Lotto, News Catalyst, and Manual. Each mode auto-applies filtering criteria. Trade cards are compact with mode-specific badges. The Performance page provides a single-page view of key metrics.
 
 The platform now supports multi-expiration options across various DTE buckets. Expiry filter chips display dynamic trade counts that update in real-time based on active filters (asset type, grade, symbol search). The system uses calendar-day normalization for expiry dates and includes an "Expired" bucket. The "All" count includes all trades (options + stocks + crypto), while specific buckets count only options.
