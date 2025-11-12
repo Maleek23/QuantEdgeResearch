@@ -2359,6 +2359,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Futures Contracts Routes
+  app.get("/api/futures/contracts", async (_req, res) => {
+    try {
+      // Get all NQ and GC contracts
+      const nqContracts = await storage.getFuturesContractsByRoot('NQ');
+      const gcContracts = await storage.getFuturesContractsByRoot('GC');
+      const allContracts = [...nqContracts, ...gcContracts];
+      
+      logger.info(`[FUTURES-API] Fetched ${allContracts.length} futures contracts (${nqContracts.length} NQ, ${gcContracts.length} GC)`);
+      res.json(allContracts);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/futures/contracts' });
+      res.status(500).json({ error: "Failed to fetch futures contracts" });
+    }
+  });
+
+  app.get("/api/futures/contracts/:rootSymbol", async (req, res) => {
+    try {
+      const rootSymbol = req.params.rootSymbol.toUpperCase();
+      
+      if (rootSymbol !== 'NQ' && rootSymbol !== 'GC') {
+        return res.status(400).json({ error: "Invalid root symbol. Must be NQ or GC" });
+      }
+      
+      const contracts = await storage.getFuturesContractsByRoot(rootSymbol);
+      logger.info(`[FUTURES-API] Fetched ${contracts.length} contracts for ${rootSymbol}`);
+      res.json(contracts);
+    } catch (error) {
+      logError(error as Error, { context: `GET /api/futures/contracts/${req.params.rootSymbol}` });
+      res.status(500).json({ error: "Failed to fetch futures contracts" });
+    }
+  });
+
+  app.get("/api/futures/price/:contractCode", async (req, res) => {
+    try {
+      const contractCode = req.params.contractCode.toUpperCase();
+      
+      // Import futures data service (dynamic to avoid circular deps)
+      const { getFuturesPrice } = await import("./futures-data-service");
+      
+      const price = await getFuturesPrice(contractCode);
+      logger.info(`[FUTURES-API] Fetched price for ${contractCode}: $${price}`);
+      res.json({ contractCode, price });
+    } catch (error) {
+      logError(error as Error, { context: `GET /api/futures/price/${req.params.contractCode}` });
+      
+      if ((error as Error).message.includes('not found')) {
+        return res.status(404).json({ error: (error as Error).message });
+      }
+      
+      res.status(500).json({ error: "Failed to fetch futures price" });
+    }
+  });
+
+  app.get("/api/futures/prices", async (req, res) => {
+    try {
+      const codesParam = req.query.codes as string;
+      
+      if (!codesParam) {
+        return res.status(400).json({ error: "Missing 'codes' query parameter. Example: ?codes=NQH25,GCJ25" });
+      }
+      
+      const contractCodes = codesParam.split(',').map(code => code.trim().toUpperCase());
+      
+      // Import futures data service (dynamic to avoid circular deps)
+      const { getFuturesPrices } = await import("./futures-data-service");
+      
+      const pricesMap = await getFuturesPrices(contractCodes);
+      
+      // Convert Map to object for JSON response
+      const pricesObj: Record<string, number> = {};
+      pricesMap.forEach((price, contractCode) => {
+        pricesObj[contractCode] = price;
+      });
+      
+      logger.info(`[FUTURES-API] Fetched ${pricesMap.size} prices for contracts: ${contractCodes.join(', ')}`);
+      res.json(pricesObj);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/futures/prices' });
+      res.status(500).json({ error: "Failed to fetch futures prices" });
+    }
+  });
+
   // User Preferences Routes
   app.get("/api/preferences", async (_req, res) => {
     try {

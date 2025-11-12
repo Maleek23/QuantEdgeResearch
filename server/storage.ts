@@ -18,6 +18,7 @@ import type {
   OutcomeStatus,
   User,
   UpsertUser,
+  FuturesContract,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, desc, sql as drizzleSql } from "drizzle-orm";
@@ -30,6 +31,7 @@ import {
   userPreferences as userPreferencesTable,
   modelCards as modelCardsTable,
   users,
+  futuresContracts,
 } from "@shared/schema";
 
 export interface ChatMessage {
@@ -147,6 +149,12 @@ export interface IStorage {
   updateModelCard(engineVersion: string, updates: Partial<ModelCard>): Promise<ModelCard | undefined>;
   getActiveModelCard(): Promise<ModelCard | undefined>;
 
+  // Futures Contracts
+  getFuturesContract(contractCode: string): Promise<FuturesContract | null>;
+  getFuturesContractsByRoot(rootSymbol: string): Promise<FuturesContract[]>;
+  getActiveFuturesContract(rootSymbol: string): Promise<FuturesContract | null>;
+  updateFuturesContract(contractCode: string, updates: Partial<FuturesContract>): Promise<FuturesContract>;
+
   // Chat Messages
   getChatHistory(): Promise<ChatMessage[]>;
   addChatMessage(message: Omit<ChatMessage, 'id' | 'timestamp'>): Promise<ChatMessage>;
@@ -162,6 +170,7 @@ export class MemStorage implements IStorage {
   private userPreferences: UserPreferences | null;
   private chatHistory: Map<string, ChatMessage>;
   private users: Map<string, User>;
+  private futuresContracts: Map<string, FuturesContract>;
 
   constructor() {
     this.marketData = new Map();
@@ -172,6 +181,7 @@ export class MemStorage implements IStorage {
     this.userPreferences = null;
     this.chatHistory = new Map();
     this.users = new Map();
+    this.futuresContracts = new Map();
     this.seedData();
   }
 
@@ -1220,6 +1230,32 @@ export class MemStorage implements IStorage {
     this.chatHistory.clear();
   }
 
+  // Futures Contracts Methods
+  async getFuturesContract(contractCode: string): Promise<FuturesContract | null> {
+    return this.futuresContracts.get(contractCode) || null;
+  }
+
+  async getFuturesContractsByRoot(rootSymbol: string): Promise<FuturesContract[]> {
+    return Array.from(this.futuresContracts.values()).filter(
+      contract => contract.rootSymbol === rootSymbol
+    );
+  }
+
+  async getActiveFuturesContract(rootSymbol: string): Promise<FuturesContract | null> {
+    const contracts = await this.getFuturesContractsByRoot(rootSymbol);
+    return contracts.find(contract => contract.isFrontMonth) || null;
+  }
+
+  async updateFuturesContract(contractCode: string, updates: Partial<FuturesContract>): Promise<FuturesContract> {
+    const contract = this.futuresContracts.get(contractCode);
+    if (!contract) {
+      throw new Error(`Futures contract not found: ${contractCode}`);
+    }
+    const updated = { ...contract, ...updates };
+    this.futuresContracts.set(contractCode, updated);
+    return updated;
+  }
+
   // 🔐 Model Cards Methods (Stub - not persisted in MemStorage)
   async getAllModelCards(): Promise<ModelCard[]> {
     return [];
@@ -1928,6 +1964,45 @@ export class DatabaseStorage implements IStorage {
 
   async clearChatHistory(): Promise<void> {
     this.chatHistory.clear();
+  }
+
+  // Futures Contracts Methods
+  async getFuturesContract(contractCode: string): Promise<FuturesContract | null> {
+    const [contract] = await db.select()
+      .from(futuresContracts)
+      .where(eq(futuresContracts.contractCode, contractCode));
+    return contract || null;
+  }
+
+  async getFuturesContractsByRoot(rootSymbol: string): Promise<FuturesContract[]> {
+    return await db.select()
+      .from(futuresContracts)
+      .where(eq(futuresContracts.rootSymbol, rootSymbol));
+  }
+
+  async getActiveFuturesContract(rootSymbol: string): Promise<FuturesContract | null> {
+    const [contract] = await db.select()
+      .from(futuresContracts)
+      .where(
+        and(
+          eq(futuresContracts.rootSymbol, rootSymbol),
+          eq(futuresContracts.isFrontMonth, true)
+        )
+      );
+    return contract || null;
+  }
+
+  async updateFuturesContract(contractCode: string, updates: Partial<FuturesContract>): Promise<FuturesContract> {
+    const [updated] = await db.update(futuresContracts)
+      .set(updates)
+      .where(eq(futuresContracts.contractCode, contractCode))
+      .returning();
+    
+    if (!updated) {
+      throw new Error(`Futures contract not found: ${contractCode}`);
+    }
+    
+    return updated;
   }
 
   // 🔐 Model Cards Methods (Governance & Auditability)
