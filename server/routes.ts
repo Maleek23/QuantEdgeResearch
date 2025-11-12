@@ -661,6 +661,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 🔧 FIX BAD HOLDING PERIODS: Scan and fix incorrect holding period classifications
+  app.post("/api/admin/maintenance/fix-holding-periods", requireAdmin, async (_req, res) => {
+    try {
+      const { classifyHoldingPeriodByDuration } = await import('./timing-intelligence');
+      
+      const allIdeas = await storage.getAllTradeIdeas();
+      const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open' && i.exitDate);
+      
+      const fixedTrades: any[] = [];
+      const errorTrades: any[] = [];
+      
+      for (const idea of closedIdeas) {
+        if (!idea.exitDate) continue;
+        
+        try {
+          // Calculate correct holding period
+          const correctHoldingPeriod = classifyHoldingPeriodByDuration(
+            idea.timestamp,
+            idea.exitDate
+          );
+          
+          // Check if it needs fixing
+          if (idea.holdingPeriod !== correctHoldingPeriod) {
+            // Fix it
+            const updated = await storage.updateTradeIdeaPerformance(idea.id, {
+              holdingPeriod: correctHoldingPeriod
+            });
+            
+            if (updated) {
+              fixedTrades.push({
+                id: idea.id,
+                symbol: idea.symbol,
+                oldHoldingPeriod: idea.holdingPeriod,
+                newHoldingPeriod: correctHoldingPeriod,
+                timestamp: idea.timestamp,
+                exitDate: idea.exitDate,
+                durationMinutes: idea.actualHoldingTimeMinutes
+              });
+              
+              logger.info(`🔧 [FIX] Fixed ${idea.symbol} (${idea.id}): ${idea.holdingPeriod} → ${correctHoldingPeriod}`);
+            }
+          }
+        } catch (error) {
+          errorTrades.push({
+            id: idea.id,
+            symbol: idea.symbol,
+            timestamp: idea.timestamp,
+            exitDate: idea.exitDate,
+            error: error instanceof Error ? error.message : String(error)
+          });
+          
+          logger.error(`❌ [FIX-ERROR] Failed to fix ${idea.symbol} (${idea.id}):`, error);
+        }
+      }
+      
+      res.json({
+        success: true,
+        scanned: closedIdeas.length,
+        fixed: fixedTrades.length,
+        errors: errorTrades.length,
+        fixedTrades,
+        errorTrades,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'fix holding periods' });
+      res.status(500).json({ error: "Failed to fix holding periods" });
+    }
+  });
+  
+  // 🗑️ DELETE BAD TRADE: Delete specific trade by ID (for TSLY bad data)
+  app.delete("/api/admin/maintenance/trade/:id", requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteTradeIdea(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Trade idea not found" });
+      }
+      
+      logger.info(`🗑️ [DELETE] Admin deleted bad trade: ${id}`);
+      
+      res.json({ 
+        success: true, 
+        message: `Trade ${id} deleted successfully`,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'delete bad trade' });
+      res.status(500).json({ error: "Failed to delete trade" });
+    }
+  });
+
   app.post("/api/admin/maintenance/cleanup", requireAdmin, async (req, res) => {
     try {
       const { daysOld = 30 } = req.body;
@@ -1069,6 +1162,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validated = insertTradeIdeaSchema.parse(req.body);
       
+      // ⏰ CRITICAL: Validate timestamp consistency (REQUIRED FIX #1)
+      // Ensure exit_date > timestamp and entry_valid_until > timestamp
+      const timestampDate = new Date(validated.timestamp);
+      
+      // Validate entry_valid_until (if provided) is AFTER timestamp
+      if (validated.entryValidUntil) {
+        const entryValidUntilDate = new Date(validated.entryValidUntil);
+        if (entryValidUntilDate <= timestampDate) {
+          return res.status(400).json({ 
+            error: "Invalid timestamps: entry_valid_until must be AFTER timestamp",
+            details: {
+              timestamp: validated.timestamp,
+              entryValidUntil: validated.entryValidUntil,
+              issue: `Entry window (${validated.entryValidUntil}) cannot close before or at trade creation time (${validated.timestamp})`
+            }
+          });
+        }
+      }
+      
+      // Validate exit_by (if provided) is AFTER entry_valid_until (if provided) OR timestamp
+      if (validated.exitBy) {
+        const exitByDate = new Date(validated.exitBy);
+        
+        // exit_by must be after timestamp
+        if (exitByDate <= timestampDate) {
+          return res.status(400).json({ 
+            error: "Invalid timestamps: exit_by must be AFTER timestamp",
+            details: {
+              timestamp: validated.timestamp,
+              exitBy: validated.exitBy,
+              issue: `Exit deadline (${validated.exitBy}) cannot be before or at trade creation time (${validated.timestamp})`
+            }
+          });
+        }
+        
+        // If entry_valid_until is provided, exit_by must be after it
+        if (validated.entryValidUntil) {
+          const entryValidUntilDate = new Date(validated.entryValidUntil);
+          if (exitByDate <= entryValidUntilDate) {
+            return res.status(400).json({ 
+              error: "Invalid timestamps: exit_by must be AFTER entry_valid_until",
+              details: {
+                entryValidUntil: validated.entryValidUntil,
+                exitBy: validated.exitBy,
+                issue: `Exit deadline (${validated.exitBy}) cannot be before or at entry window close (${validated.entryValidUntil})`
+              }
+            });
+          }
+        }
+      }
+      
+      // Validate exit_date (if provided) is AFTER timestamp
+      if (validated.exitDate) {
+        const exitDateObj = new Date(validated.exitDate);
+        if (exitDateObj <= timestampDate) {
+          return res.status(400).json({ 
+            error: "Invalid timestamps: exit_date must be AFTER timestamp",
+            details: {
+              timestamp: validated.timestamp,
+              exitDate: validated.exitDate,
+              issue: `Exit date (${validated.exitDate}) cannot be before or at trade creation time (${validated.timestamp}). This is logically impossible.`
+            }
+          });
+        }
+      }
+      
       // CRITICAL: Validate direction/target/option type alignment
       const { PerformanceValidator } = await import("./performance-validator");
       const correction = PerformanceValidator.validateAndCorrectTrade({
@@ -1117,6 +1276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const idea = await storage.createTradeIdea(validated);
+      logger.info(`✅ [TRADE-ENTRY] Manual trade created: ${validated.symbol} (${validated.assetType}) - all timestamps validated`);
       res.status(201).json(idea);
     } catch (error) {
       res.status(400).json({ error: "Invalid trade idea" });
@@ -1138,6 +1298,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/trade-ideas/:id/performance", async (req, res) => {
     try {
       const performanceUpdate = req.body;
+      
+      // 📊 REQUIRED FIX #3: Auto-classify holding period when trade is closed
+      // If exitDate is being set, calculate and validate holding period classification
+      if (performanceUpdate.exitDate) {
+        // Get the original trade to access timestamp
+        const originalTrade = await storage.getTradeIdeaById(req.params.id);
+        
+        if (!originalTrade) {
+          return res.status(404).json({ error: "Trade idea not found" });
+        }
+        
+        // Validate that exit_date is AFTER timestamp
+        const timestampDate = new Date(originalTrade.timestamp);
+        const exitDateObj = new Date(performanceUpdate.exitDate);
+        
+        if (exitDateObj <= timestampDate) {
+          return res.status(400).json({ 
+            error: "Invalid timestamps: exit_date must be AFTER timestamp",
+            details: {
+              timestamp: originalTrade.timestamp,
+              exitDate: performanceUpdate.exitDate,
+              issue: `Exit date (${performanceUpdate.exitDate}) cannot be before or at trade creation time (${originalTrade.timestamp}). This is logically impossible.`
+            }
+          });
+        }
+        
+        // Auto-calculate correct holding period based on actual duration
+        const { classifyHoldingPeriodByDuration } = await import('./timing-intelligence');
+        
+        try {
+          const correctHoldingPeriod = classifyHoldingPeriodByDuration(
+            originalTrade.timestamp,
+            performanceUpdate.exitDate
+          );
+          
+          // Override any manually-set holding period with the correct classification
+          performanceUpdate.holdingPeriod = correctHoldingPeriod;
+          
+          logger.info(`📊 [HOLDING-PERIOD] Auto-classified ${originalTrade.symbol} as "${correctHoldingPeriod}" based on actual duration`);
+        } catch (error) {
+          logger.error(`❌ [HOLDING-PERIOD] Failed to classify holding period for ${originalTrade.symbol}:`, error);
+          return res.status(400).json({ 
+            error: "Invalid duration for holding period classification",
+            details: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+      
       const updated = await storage.updateTradeIdeaPerformance(req.params.id, performanceUpdate);
       if (!updated) {
         return res.status(404).json({ error: "Trade idea not found" });

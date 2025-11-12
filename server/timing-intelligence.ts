@@ -380,6 +380,47 @@ export function deriveTimingWindows(
   };
 }
 
+// 📊 HOLDING PERIOD CLASSIFICATION: Classify based on actual duration
+// REQUIRED FIX #2: Calculate holding period from actual entry to exit times
+export function classifyHoldingPeriodByDuration(
+  entryTimestamp: string | Date,
+  exitTimestamp: string | Date
+): 'day' | 'swing' | 'position' {
+  const entryTime = new Date(entryTimestamp);
+  const exitTime = new Date(exitTimestamp);
+  
+  // Calculate duration in milliseconds
+  const durationMs = exitTime.getTime() - entryTime.getTime();
+  
+  // Validate that exit is after entry
+  if (durationMs <= 0) {
+    logger.error(`❌ [HOLDING-PERIOD] Invalid duration: exit (${exitTimestamp}) is before or equal to entry (${entryTimestamp})`);
+    throw new Error(`Invalid duration: exit time must be after entry time. Entry: ${entryTimestamp}, Exit: ${exitTimestamp}`);
+  }
+  
+  // Convert to hours
+  const durationHours = durationMs / (1000 * 60 * 60);
+  
+  // Classify based on thresholds:
+  // - < 6 hours = 'day'
+  // - 6 hours to 5 days (120 hours) = 'swing'
+  // - 5+ days (120+ hours) = 'position'
+  
+  let classification: 'day' | 'swing' | 'position';
+  
+  if (durationHours < 6) {
+    classification = 'day';
+  } else if (durationHours < 120) { // 5 days * 24 hours = 120 hours
+    classification = 'swing';
+  } else {
+    classification = 'position';
+  }
+  
+  logger.info(`📊 [HOLDING-PERIOD] Classified as "${classification}" (${durationHours.toFixed(2)} hours = ${(durationHours / 24).toFixed(2)} days)`);
+  
+  return classification;
+}
+
 // 🔍 BATCH VERIFICATION: Ensure timing windows are unique within batch
 export function verifyTimingUniqueness(
   trades: Array<{ symbol: string; entryValidUntil: string; exitBy: string; timingReason?: string }>
