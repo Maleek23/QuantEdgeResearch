@@ -42,8 +42,12 @@ export default function TradeDeskPage() {
   const [expiryFilter, setExpiryFilter] = useState<string>('all'); // Default to all (was causing confusion)
   const [assetTypeFilter, setAssetTypeFilter] = useState<string>('all');
   const [gradeFilter, setGradeFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('active'); // TASK 1: Status filter (default to active)
   const [sortBy, setSortBy] = useState<string>('timestamp'); // timestamp, expiry, confidence, rr
   const [symbolSearch, setSymbolSearch] = useState<string>('');
+  
+  // TASK 2: Pagination state
+  const [visibleCount, setVisibleCount] = useState(50);
   
   const urlMode = params?.mode as TradeDeskMode | undefined;
   const validMode = urlMode && MODES.find(m => m.id === urlMode) ? urlMode : 'ai-picks';
@@ -59,6 +63,11 @@ export default function TradeDeskPage() {
     setActiveMode(newMode);
     setLocation(`/trade-desk/${newMode}`);
   };
+  
+  // TASK 2: Reset pagination when filters change
+  useEffect(() => {
+    setVisibleCount(50);
+  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, activeGrade, activeMode]);
   
   const { toast } = useToast();
 
@@ -299,7 +308,7 @@ export default function TradeDeskPage() {
   // Get current mode metadata for display
   const currentMode = MODES.find(m => m.id === activeMode);
 
-  // Helper: Apply non-expiry filters (asset type, grade, symbol)
+  // Helper: Apply non-expiry filters (asset type, grade, symbol, status)
   const applyNonExpiryFilters = (ideas: TradeIdea[]) => {
     let filtered = [...ideas];
 
@@ -325,6 +334,19 @@ export default function TradeDeskPage() {
     // 3. Symbol search
     if (symbolSearch) {
       filtered = filtered.filter(idea => idea.symbol.toUpperCase().includes(symbolSearch));
+    }
+
+    // 4. TASK 1: Status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(idea => {
+        switch (statusFilter) {
+          case 'active': return idea.outcomeStatus === 'open';
+          case 'won': return idea.outcomeStatus === 'hit_target';
+          case 'lost': return idea.outcomeStatus === 'hit_stop';
+          case 'expired': return idea.outcomeStatus === 'expired';
+          default: return true;
+        }
+      });
     }
 
     return filtered;
@@ -385,6 +407,9 @@ export default function TradeDeskPage() {
   // Apply all filters
   const filteredAndSortedIdeas = filterAndSortIdeas(filteredIdeas);
 
+  // TASK 2: Paginate the filtered and sorted ideas
+  const paginatedIdeas = filteredAndSortedIdeas.slice(0, visibleCount);
+
   // Calculate trade counts for each expiry bucket (AFTER non-expiry filters, BEFORE expiry filter)
   const calculateExpiryCounts = () => {
     const today = startOfDay(new Date());
@@ -421,7 +446,8 @@ export default function TradeDeskPage() {
     .filter(idea => isTodayIdea(idea))
     .slice(0, 5);
 
-  const groupedIdeas = filteredAndSortedIdeas.reduce((acc, idea) => {
+  // TASK 2: Use paginated ideas for grouping
+  const groupedIdeas = paginatedIdeas.reduce((acc, idea) => {
     const assetType = idea.assetType;
     if (!acc[assetType]) acc[assetType] = [];
     acc[assetType].push(idea);
@@ -429,6 +455,20 @@ export default function TradeDeskPage() {
   }, {} as Record<string, TradeIdea[]>);
 
   const newIdeasCount = filteredAndSortedIdeas.filter(isVeryFreshIdea).length;
+
+  // TASK 3: Calculate summary stats for each group
+  const calculateGroupStats = (ideas: TradeIdea[]) => {
+    const closedTrades = ideas.filter(i => i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'hit_stop');
+    const wins = ideas.filter(i => i.outcomeStatus === 'hit_target').length;
+    const winRate = closedTrades.length > 0 ? (wins / closedTrades.length) * 100 : 0;
+    
+    const netPL = ideas.reduce((sum, i) => sum + (i.realizedPnL || 0), 0);
+    
+    const rrValues = ideas.map(i => i.riskRewardRatio).filter(rr => rr != null && rr > 0);
+    const avgRR = rrValues.length > 0 ? rrValues.reduce((sum, rr) => sum + rr, 0) / rrValues.length : 0;
+    
+    return { winRate, netPL, avgRR, closedTrades: closedTrades.length };
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -640,6 +680,20 @@ export default function TradeDeskPage() {
                 </SelectContent>
               </Select>
 
+              {/* TASK 1: Status Filter Dropdown */}
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-7 w-[120px] text-xs" data-testid="filter-status">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="won">Winners</SelectItem>
+                  <SelectItem value="lost">Losers</SelectItem>
+                  <SelectItem value="expired">Expired</SelectItem>
+                </SelectContent>
+              </Select>
+
               {/* Sort By Dropdown */}
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="h-7 w-[140px] text-xs" data-testid="filter-sort">
@@ -679,7 +733,7 @@ export default function TradeDeskPage() {
               />
 
               {/* Clear Filters Button */}
-              {(expiryFilter !== 'all' || assetTypeFilter !== 'all' || gradeFilter !== 'all' || sortBy !== 'timestamp' || symbolSearch !== '' || dateRange !== 'all') && (
+              {(expiryFilter !== 'all' || assetTypeFilter !== 'all' || gradeFilter !== 'all' || statusFilter !== 'active' || sortBy !== 'timestamp' || symbolSearch !== '' || dateRange !== 'all') && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -688,6 +742,7 @@ export default function TradeDeskPage() {
                     setExpiryFilter('all');
                     setAssetTypeFilter('all');
                     setGradeFilter('all');
+                    setStatusFilter('active');
                     setSortBy('timestamp');
                     setSymbolSearch('');
                     setDateRange('all');
@@ -765,10 +820,11 @@ export default function TradeDeskPage() {
           </div>
 
           {/* Active Filter Badge */}
-          {(expiryFilter !== 'all' || assetTypeFilter !== 'all' || gradeFilter !== 'all' || symbolSearch !== '' || dateRange !== 'all') && (
+          {(expiryFilter !== 'all' || assetTypeFilter !== 'all' || gradeFilter !== 'all' || statusFilter !== 'active' || symbolSearch !== '' || dateRange !== 'all') && (
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-xs">
                 {[
+                  statusFilter !== 'active' && `Status: ${statusFilter}`,
                   expiryFilter !== 'all' && `Expiry: ${expiryFilter}`,
                   assetTypeFilter !== 'all' && `Type: ${assetTypeFilter}`,
                   gradeFilter !== 'all' && `Grade: ${gradeFilter}`,
@@ -1064,20 +1120,32 @@ export default function TradeDeskPage() {
             ))}
           </div>
         ) : filteredAndSortedIdeas.length === 0 ? (
-          /* PHASE 6: Enhanced Empty State */
+          /* TASK 4: Enhanced Empty State with Status Filter Info */
           <Card className="border-dashed border-2">
             <CardContent className="flex flex-col items-center justify-center py-20">
               <div className="rounded-full bg-primary/5 p-6 mb-6">
                 <BarChart3 className="h-16 w-16 text-primary/50" />
               </div>
-              <h3 className="text-2xl font-bold mb-2">No Trade Ideas Yet</h3>
-              <p className="text-muted-foreground text-center max-w-md mb-8">
+              <h3 className="text-2xl font-bold mb-2">No Trade Ideas Found</h3>
+              <p className="text-muted-foreground text-center max-w-md mb-4">
                 {tradeIdeas.length === 0 
                   ? "Start generating quantitative trade ideas using the buttons in the toolbar above. Each engine uses different strategies to find opportunities."
-                  : "No ideas match your current filters. Try adjusting the filters above or generate new ideas."}
+                  : statusFilter === 'active'
+                    ? "No active trade ideas match your filters. Try showing all statuses or adjusting other filters."
+                    : "No ideas match your current filters. Try adjusting the filters above or generate new ideas."}
               </p>
+              {statusFilter !== 'all' && tradeIdeas.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => setStatusFilter('all')}
+                  className="mb-4"
+                  data-testid="button-show-all-statuses"
+                >
+                  Show All Statuses
+                </Button>
+              )}
               <p className="text-sm text-muted-foreground text-center">
-                Use the generation buttons in the toolbar above to create trade ideas
+                {statusFilter === 'active' && "Tip: By default, only ACTIVE trades are shown to reduce clutter"}
               </p>
             </CardContent>
           </Card>
@@ -1099,14 +1167,36 @@ export default function TradeDeskPage() {
                 };
                 const label = assetTypeLabels[assetType as keyof typeof assetTypeLabels] || assetType;
                 
+                // TASK 3: Calculate summary stats for this group
+                const stats = calculateGroupStats(ideas);
+                
                 return (
                   <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
                     <AccordionTrigger className="px-4 hover:no-underline" data-testid={`accordion-asset-${assetType}`}>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <span className="font-semibold">{label}</span>
                         <Badge variant="outline" data-testid={`badge-count-${assetType}`}>
                           {ideas.length} idea{ideas.length !== 1 ? 's' : ''}
                         </Badge>
+                        {/* TASK 3: Summary Stats Badges */}
+                        {stats.closedTrades > 0 && (
+                          <Badge variant="secondary" className="text-xs font-mono">
+                            {stats.winRate.toFixed(1)}% WR
+                          </Badge>
+                        )}
+                        {stats.netPL !== 0 && (
+                          <Badge 
+                            variant={stats.netPL > 0 ? "default" : "destructive"} 
+                            className="text-xs font-mono"
+                          >
+                            {stats.netPL > 0 ? '+' : ''}${stats.netPL.toFixed(0)} P&L
+                          </Badge>
+                        )}
+                        {stats.avgRR > 0 && (
+                          <Badge variant="outline" className="text-xs font-mono">
+                            {stats.avgRR.toFixed(1)}x R:R
+                          </Badge>
+                        )}
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}`}>
@@ -1126,6 +1216,24 @@ export default function TradeDeskPage() {
                 );
               })}
           </Accordion>
+        )}
+
+        {/* TASK 2: Load More Button */}
+        {filteredAndSortedIdeas.length > 0 && visibleCount < filteredAndSortedIdeas.length && (
+          <div className="flex justify-center pt-6">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setVisibleCount(prev => prev + 50)}
+              className="gap-2"
+              data-testid="button-load-more"
+            >
+              Load More
+              <Badge variant="secondary" className="ml-1">
+                {Math.min(50, filteredAndSortedIdeas.length - visibleCount)} more
+              </Badge>
+            </Button>
+          </div>
         )}
       </div>
     </div>
