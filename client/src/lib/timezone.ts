@@ -9,6 +9,9 @@ export const USER_TIMEZONE = 'America/Chicago';
  */
 export function formatInUserTZ(date: Date | string, formatStr: string = "MMM d, h:mm a"): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
+  if (!dateObj || isNaN(dateObj.getTime())) {
+    return 'Invalid date';
+  }
   return formatInTimeZone(dateObj, USER_TIMEZONE, formatStr);
 }
 
@@ -17,6 +20,9 @@ export function formatInUserTZ(date: Date | string, formatStr: string = "MMM d, 
  */
 export function formatRelativeTime(date: Date | string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
+  if (!dateObj || isNaN(dateObj.getTime())) {
+    return 'Invalid date';
+  }
   const now = new Date();
   const diffMs = dateObj.getTime() - now.getTime();
   const diffHours = diffMs / (1000 * 60 * 60);
@@ -48,6 +54,13 @@ export function formatTimeUntilExpiry(exitBy: Date | string): {
   hoursRemaining: number;
 } {
   const exitByDate = typeof exitBy === 'string' ? new Date(exitBy) : exitBy;
+  if (!exitByDate || isNaN(exitByDate.getTime())) {
+    return {
+      formatted: 'Invalid date',
+      isExpired: true,
+      hoursRemaining: 0
+    };
+  }
   const now = new Date();
   const diffMs = exitByDate.getTime() - now.getTime();
   const hoursRemaining = diffMs / (1000 * 60 * 60);

@@ -19,15 +19,19 @@ No personalized financial advice should be offered; it is for research purposes 
 ### UI/UX Decisions
 The UI features a Bloomberg-style dark theme with deep charcoal backgrounds, gradients, shadows, and glassmorphism. A consistent color palette uses green for bullish, red for bearish, amber for neutral/warning, and blue for primary actions. Typography uses Inter for UI and JetBrains Mono for financial data. Custom CSS provides enhanced styling for cards, tables, grids, loading states, notifications, and optimistic UI updates. Features include real-time price displays, detailed analysis modals, mobile responsiveness, and an intelligent advisory system with dynamic R:R analysis. Advanced 3D Visual Analytics (Holographic Trading Floor, 3D Correlation Matrix Cube, 3D Brain Neural Network) are implemented using React Three Fiber and Three.js.
 
-**Trade Desk UI Redesign (Nov 12, 2025):**
+**Trade Desk UI Redesign (Nov 12-13, 2025):**
 Comprehensive UI/UX improvements for better readability and reduced visual clutter:
 - **Signal Pulse Stats Card:** Always-visible KPI dashboard showing 5 key metrics (FRESH, ACTIVE, WINNERS, LOSERS, EXPIRED) with color-coded tiles, icons, and counts
 - **Consolidated Filter Toolbar:** Two-row organized controls merging expiry chips, dropdowns, search, and generation buttons into single ribbon
+- **Status Filter with Smart Defaults:** New status filter (ACTIVE/WON/LOST/EXPIRED/ALL) defaults to showing only ACTIVE trades, reducing initial display from 614 to ~10-50 trades
+- **Pagination System:** Load More functionality showing 50 trades at a time to prevent overwhelming displays, with automatic reset on filter changes
+- **Summary Statistics:** Accordion headers display real-time win rate, net P&L, and average R:R for each asset type group
 - **Simplified Mode Context:** Removed large gradient mode description card in favor of lighter contextual cues
 - **Prominent Generation Buttons:** Color-keyed action buttons (Quant/AI/Hybrid/News/Flow) with clear loading states
-- **Enhanced Empty States:** Improved messaging with actionable CTAs
+- **Enhanced Empty States:** Improved messaging with actionable CTAs and "Show All Statuses" quick action
 - **Reduced Clutter:** Removed redundant card wrappers, borders, and tabbed navigation system
 - **Professional Hierarchy:** Bloomberg-terminal-style stack with metrics strip, controls ribbon, and data feed following professional trading platform patterns
+- **Date Validation:** All timezone formatting functions now gracefully handle invalid dates to prevent crashes
 
 The platform uses a 6-item sidebar (Trade Desk, Performance, Market Intel, Research & Tools, Settings, Admin) with a hub-and-spoke design. The Trade Desk has 5 mode tabs for different strategies: Standard, Flow Scanner, Lotto, News Catalyst, and Manual. Each mode auto-applies filtering criteria. Trade cards are compact with mode-specific badges. The Performance page provides a single-page view of key metrics.
 
