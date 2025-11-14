@@ -24,6 +24,7 @@ import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
 import { TradeDeskModeTabs, MODES, type TradeDeskMode } from "@/components/trade-desk-mode-tabs";
 import { getPerformanceGrade } from "@/lib/performance-grade";
+import { ClosedTradesTable } from "@/components/closed-trades-table";
 
 export default function TradeDeskPage() {
   const [, params] = useRoute("/trade-desk/:mode");
@@ -435,8 +436,15 @@ export default function TradeDeskPage() {
   // Apply all filters
   const filteredAndSortedIdeas = filterAndSortIdeas(filteredIdeas);
 
-  // TASK 2: Paginate the filtered and sorted ideas
-  const paginatedIdeas = filteredAndSortedIdeas.slice(0, visibleCount);
+  // DUAL-SECTION: Split into active and closed trades
+  const activeIdeas = filteredAndSortedIdeas.filter(idea => normalizeStatus(idea.outcomeStatus) === 'open');
+  const closedIdeas = filteredAndSortedIdeas.filter(idea => {
+    const status = normalizeStatus(idea.outcomeStatus);
+    return status === 'hit_target' || status === 'hit_stop' || status === 'expired';
+  });
+
+  // TASK 2: Paginate ONLY the active ideas
+  const paginatedActiveIdeas = activeIdeas.slice(0, visibleCount);
 
   // Calculate trade counts for each expiry bucket (AFTER non-expiry filters, BEFORE expiry filter)
   const calculateExpiryCounts = () => {
@@ -474,8 +482,8 @@ export default function TradeDeskPage() {
     .filter(idea => isTodayIdea(idea))
     .slice(0, 5);
 
-  // TASK 2: Use paginated ideas for grouping
-  const groupedIdeas = paginatedIdeas.reduce((acc, idea) => {
+  // TASK 2: Use paginated active ideas for grouping (active trades only)
+  const groupedIdeas = paginatedActiveIdeas.reduce((acc, idea) => {
     const assetType = idea.assetType;
     if (!acc[assetType]) acc[assetType] = [];
     acc[assetType].push(idea);
@@ -1122,28 +1130,7 @@ export default function TradeDeskPage() {
       )}
 
       {/* PHASE 6: All Trade Ideas - Unified View (Replaces Tabbed Content) */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold">All Trade Ideas</h3>
-            <Badge variant="outline">
-              {filteredAndSortedIdeas.length} total
-            </Badge>
-          </div>
-          {expandedIdeaId && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleCollapseAll}
-              className="gap-1.5"
-              data-testid="button-collapse-all"
-            >
-              <X className="h-4 w-4" />
-              Collapse All
-            </Button>
-          )}
-        </div>
-
+      <div className="space-y-8">
         {/* Loading State */}
         {ideasLoading ? (
           <div className="space-y-4">
@@ -1152,7 +1139,7 @@ export default function TradeDeskPage() {
             ))}
           </div>
         ) : filteredAndSortedIdeas.length === 0 ? (
-          /* TASK 4: Enhanced Empty State with Status Filter Info */
+          /* Enhanced Empty State */
           <Card className="border-dashed border-2">
             <CardContent className="flex flex-col items-center justify-center py-20">
               <div className="rounded-full bg-primary/5 p-6 mb-6">
@@ -1182,90 +1169,133 @@ export default function TradeDeskPage() {
             </CardContent>
           </Card>
         ) : (
-          /* All Ideas Display */
-          <Accordion type="single" collapsible className="space-y-4" defaultValue={Object.entries(groupedIdeas)[0]?.[0]}>
-            {Object.entries(groupedIdeas)
-              .sort(([a], [b]) => {
-                const order = { 'stock': 0, 'penny_stock': 1, 'option': 2, 'future': 3, 'crypto': 4 };
-                return (order[a as keyof typeof order] || 0) - (order[b as keyof typeof order] || 0);
-              })
-              .map(([assetType, ideas]) => {
-                const assetTypeLabels = {
-                  'stock': 'Stock Shares',
-                  'penny_stock': 'Penny Stocks',
-                  'option': 'Stock Options',
-                  'future': 'Futures (CME)',
-                  'crypto': 'Crypto'
-                };
-                const label = assetTypeLabels[assetType as keyof typeof assetTypeLabels] || assetType;
-                
-                // TASK 3: Calculate summary stats for this group
-                const stats = calculateGroupStats(ideas);
-                
-                return (
-                  <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
-                    <AccordionTrigger className="px-4 hover:no-underline" data-testid={`accordion-asset-${assetType}`}>
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <span className="font-semibold">{label}</span>
-                        <Badge variant="outline" data-testid={`badge-count-${assetType}`}>
-                          {ideas.length} idea{ideas.length !== 1 ? 's' : ''}
-                        </Badge>
-                        {/* TASK 3: Summary Stats Badges */}
-                        {stats.closedTrades > 0 && (
-                          <Badge variant="secondary" className="text-xs font-mono">
-                            {stats.winRate.toFixed(1)}% WR
-                          </Badge>
-                        )}
-                        {stats.netPL !== 0 && (
-                          <Badge 
-                            variant={stats.netPL > 0 ? "default" : "destructive"} 
-                            className="text-xs font-mono"
-                          >
-                            {stats.netPL > 0 ? '+' : ''}${stats.netPL.toFixed(0)} P&L
-                          </Badge>
-                        )}
-                        {stats.avgRR > 0 && (
-                          <Badge variant="outline" className="text-xs font-mono">
-                            {stats.avgRR.toFixed(1)}x R:R
-                          </Badge>
-                        )}
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}`}>
-                      {ideas.map(idea => (
-                        <TradeIdeaBlock
-                          key={idea.id}
-                          idea={idea}
-                          currentPrice={idea.assetType === 'option' ? undefined : priceMap[idea.symbol]}
-                          catalysts={catalysts}
-                          isExpanded={expandedIdeaId === idea.id}
-                          onToggleExpand={() => handleToggleExpand(idea.id)}
-                          data-testid={`idea-card-${idea.id}`}
-                        />
-                      ))}
-                    </AccordionContent>
-                  </AccordionItem>
-                );
-              })}
-          </Accordion>
-        )}
+          <>
+            {/* SECTION 1: Active Trades */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold">Active Trades</h3>
+                  <Badge variant="default" className="bg-blue-500/20 text-blue-500 border-blue-500/30">
+                    {activeIdeas.length} open
+                  </Badge>
+                </div>
+                {expandedIdeaId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCollapseAll}
+                    className="gap-1.5"
+                    data-testid="button-collapse-all"
+                  >
+                    <X className="h-4 w-4" />
+                    Collapse All
+                  </Button>
+                )}
+              </div>
 
-        {/* TASK 2: Load More Button */}
-        {filteredAndSortedIdeas.length > 0 && visibleCount < filteredAndSortedIdeas.length && (
-          <div className="flex justify-center pt-6">
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => setVisibleCount(prev => prev + 50)}
-              className="gap-2"
-              data-testid="button-load-more"
-            >
-              Load More
-              <Badge variant="secondary" className="ml-1">
-                {Math.min(50, filteredAndSortedIdeas.length - visibleCount)} more
-              </Badge>
-            </Button>
-          </div>
+              {activeIdeas.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <Activity className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                    <p className="text-muted-foreground text-sm">No active trades match your filters</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Accordion type="single" collapsible className="space-y-4" defaultValue={Object.entries(groupedIdeas)[0]?.[0]}>
+                  {Object.entries(groupedIdeas)
+                    .sort(([a], [b]) => {
+                      const order = { 'stock': 0, 'penny_stock': 1, 'option': 2, 'future': 3, 'crypto': 4 };
+                      return (order[a as keyof typeof order] || 0) - (order[b as keyof typeof order] || 0);
+                    })
+                    .map(([assetType, ideas]) => {
+                      const assetTypeLabels = {
+                        'stock': 'Stock Shares',
+                        'penny_stock': 'Penny Stocks',
+                        'option': 'Stock Options',
+                        'future': 'Futures (CME)',
+                        'crypto': 'Crypto'
+                      };
+                      const label = assetTypeLabels[assetType as keyof typeof assetTypeLabels] || assetType;
+                      
+                      const stats = calculateGroupStats(ideas);
+                      
+                      return (
+                        <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
+                          <AccordionTrigger className="px-4 hover:no-underline" data-testid={`accordion-asset-${assetType}`}>
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <span className="font-semibold">{label}</span>
+                              <Badge variant="outline" data-testid={`badge-count-${assetType}`}>
+                                {ideas.length} idea{ideas.length !== 1 ? 's' : ''}
+                              </Badge>
+                              {stats.avgRR > 0 && (
+                                <Badge variant="outline" className="text-xs font-mono">
+                                  {stats.avgRR.toFixed(1)}x R:R
+                                </Badge>
+                              )}
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}`}>
+                            {ideas.map(idea => (
+                              <TradeIdeaBlock
+                                key={idea.id}
+                                idea={idea}
+                                currentPrice={idea.assetType === 'option' ? undefined : priceMap[idea.symbol]}
+                                catalysts={catalysts}
+                                isExpanded={expandedIdeaId === idea.id}
+                                onToggleExpand={() => handleToggleExpand(idea.id)}
+                                data-testid={`idea-card-${idea.id}`}
+                              />
+                            ))}
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                </Accordion>
+              )}
+
+              {/* Load More Button for Active Trades */}
+              {activeIdeas.length > 0 && visibleCount < activeIdeas.length && (
+                <div className="flex justify-center pt-4">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => setVisibleCount(prev => prev + 50)}
+                    className="gap-2"
+                    data-testid="button-load-more"
+                  >
+                    Load More Active
+                    <Badge variant="secondary" className="ml-1">
+                      {Math.min(50, activeIdeas.length - visibleCount)} more
+                    </Badge>
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* SECTION 2: Closed Trades */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold">Closed Trades</h3>
+                  <Badge variant="outline">
+                    {closedIdeas.length} total
+                  </Badge>
+                  {closedIdeas.length > 0 && (
+                    <>
+                      <Badge variant="default" className="bg-green-500/20 text-green-500 border-green-500/30 text-xs">
+                        {closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target').length} wins
+                      </Badge>
+                      <Badge variant="destructive" className="bg-red-500/20 text-red-500 border-red-500/30 text-xs">
+                        {closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_stop').length} losses
+                      </Badge>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <ClosedTradesTable rows={closedIdeas} />
+            </div>
+          </>
         )}
       </div>
     </div>
