@@ -42,8 +42,8 @@ export default function TradeDeskPage() {
   const [expiryFilter, setExpiryFilter] = useState<string>('all'); // Default to all (was causing confusion)
   const [assetTypeFilter, setAssetTypeFilter] = useState<string>('all');
   const [gradeFilter, setGradeFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('active'); // TASK 1: Status filter (default to active)
-  const [sortBy, setSortBy] = useState<string>('timestamp'); // timestamp, expiry, confidence, rr
+  const [statusFilter, setStatusFilter] = useState<string>('all'); // Show all trades by default
+  const [sortBy, setSortBy] = useState<string>('priority'); // priority, timestamp, expiry, confidence, rr
   const [symbolSearch, setSymbolSearch] = useState<string>('');
   
   // TASK 2: Pagination state
@@ -386,6 +386,25 @@ export default function TradeDeskPage() {
     // Finally sort
     filtered.sort((a, b) => {
       switch (sortBy) {
+        case 'priority': {
+          // Priority-based sorting: Fresh → Active → Closed/Expired
+          const getPriorityRank = (idea: TradeIdea): number => {
+            if (isVeryFreshIdea(idea)) return 0; // Fresh trades (last 2h, open)
+            if (idea.outcomeStatus === 'open') return 1; // Active trades (open)
+            return 2; // Closed/Expired trades
+          };
+          
+          const aRank = getPriorityRank(a);
+          const bRank = getPriorityRank(b);
+          
+          // Sort by rank first
+          if (aRank !== bRank) {
+            return aRank - bRank;
+          }
+          
+          // Within same rank, sort by timestamp (newest first)
+          return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        }
         case 'timestamp':
           return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
         case 'expiry':
@@ -700,6 +719,7 @@ export default function TradeDeskPage() {
                   <SelectValue placeholder="Sort By" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="priority">Priority (Smart)</SelectItem>
                   <SelectItem value="timestamp">Newest First</SelectItem>
                   <SelectItem value="expiry">Expiry (Nearest)</SelectItem>
                   <SelectItem value="confidence">Confidence (High)</SelectItem>
@@ -733,7 +753,7 @@ export default function TradeDeskPage() {
               />
 
               {/* Clear Filters Button */}
-              {(expiryFilter !== 'all' || assetTypeFilter !== 'all' || gradeFilter !== 'all' || statusFilter !== 'active' || sortBy !== 'timestamp' || symbolSearch !== '' || dateRange !== 'all') && (
+              {(expiryFilter !== 'all' || assetTypeFilter !== 'all' || gradeFilter !== 'all' || statusFilter !== 'all' || sortBy !== 'priority' || symbolSearch !== '' || dateRange !== 'all') && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -742,8 +762,8 @@ export default function TradeDeskPage() {
                     setExpiryFilter('all');
                     setAssetTypeFilter('all');
                     setGradeFilter('all');
-                    setStatusFilter('active');
-                    setSortBy('timestamp');
+                    setStatusFilter('all');
+                    setSortBy('priority');
                     setSymbolSearch('');
                     setDateRange('all');
                   }}
