@@ -293,16 +293,21 @@ export default function TradeDeskPage() {
     return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange;
   });
 
+  // Helper to normalize outcomeStatus (trim whitespace + lowercase)
+  const normalizeStatus = (status: string | null | undefined): string => {
+    return (status || '').trim().toLowerCase();
+  };
+
   const isTodayIdea = (idea: TradeIdea) => {
     const ideaDate = parseISO(idea.timestamp);
     const today = new Date();
-    return isSameDay(ideaDate, today) && idea.outcomeStatus?.toLowerCase() === 'open';
+    return isSameDay(ideaDate, today) && normalizeStatus(idea.outcomeStatus) === 'open';
   };
   
   const isVeryFreshIdea = (idea: TradeIdea) => {
     const ideaDate = parseISO(idea.timestamp);
     const cutoffTime = subHours(new Date(), 2);
-    return ideaDate >= cutoffTime && idea.outcomeStatus?.toLowerCase() === 'open';
+    return ideaDate >= cutoffTime && normalizeStatus(idea.outcomeStatus) === 'open';
   };
 
   // Get current mode metadata for display
@@ -336,10 +341,10 @@ export default function TradeDeskPage() {
       filtered = filtered.filter(idea => idea.symbol.toUpperCase().includes(symbolSearch));
     }
 
-    // 4. TASK 1: Status filter (case-insensitive)
+    // 4. TASK 1: Status filter (normalized: trim + lowercase)
     if (statusFilter !== 'all') {
       filtered = filtered.filter(idea => {
-        const status = idea.outcomeStatus?.toLowerCase();
+        const status = normalizeStatus(idea.outcomeStatus);
         switch (statusFilter) {
           case 'active': return status === 'open';
           case 'won': return status === 'hit_target';
@@ -390,8 +395,8 @@ export default function TradeDeskPage() {
         case 'priority': {
           // Priority-based sorting: Fresh → Active → Closed/Expired
           const getPriorityRank = (idea: TradeIdea): number => {
-            // Normalize outcomeStatus to lowercase for case-insensitive comparison
-            const status = idea.outcomeStatus?.toLowerCase();
+            // Normalize outcomeStatus (trim whitespace + lowercase)
+            const status = normalizeStatus(idea.outcomeStatus);
             
             if (isVeryFreshIdea(idea)) return 0; // Fresh trades (last 2h, open)
             if (status === 'open') return 1; // Active trades (open)
@@ -479,13 +484,13 @@ export default function TradeDeskPage() {
 
   const newIdeasCount = filteredAndSortedIdeas.filter(isVeryFreshIdea).length;
 
-  // TASK 3: Calculate summary stats for each group (case-insensitive)
+  // TASK 3: Calculate summary stats for each group (normalized status)
   const calculateGroupStats = (ideas: TradeIdea[]) => {
     const closedTrades = ideas.filter(i => {
-      const status = i.outcomeStatus?.toLowerCase();
+      const status = normalizeStatus(i.outcomeStatus);
       return status === 'hit_target' || status === 'hit_stop';
     });
-    const wins = ideas.filter(i => i.outcomeStatus?.toLowerCase() === 'hit_target').length;
+    const wins = ideas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target').length;
     const winRate = closedTrades.length > 0 ? (wins / closedTrades.length) * 100 : 0;
     
     const netPL = ideas.reduce((sum, i) => sum + (i.realizedPnL || 0), 0);
@@ -563,7 +568,7 @@ export default function TradeDeskPage() {
             <div 
               className="flex flex-col items-center justify-center p-4 rounded-lg border bg-card/50 hover-elevate cursor-pointer transition-all"
               onClick={() => {
-                const activeIdeas = filteredAndSortedIdeas.filter(i => i.outcomeStatus?.toLowerCase() === 'open');
+                const activeIdeas = filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'open');
                 if (activeIdeas.length > 0) {
                   handleToggleExpand(activeIdeas[0].id);
                 }
@@ -572,7 +577,7 @@ export default function TradeDeskPage() {
             >
               <Activity className="h-8 w-8 text-blue-500 mb-2" />
               <div className="text-3xl font-bold text-blue-500">
-                {filteredAndSortedIdeas.filter(i => i.outcomeStatus?.toLowerCase() === 'open').length}
+                {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'open').length}
               </div>
               <div className="text-xs text-muted-foreground font-semibold mt-1">ACTIVE</div>
               <div className="text-[10px] text-muted-foreground/70 mt-0.5">Open positions</div>
@@ -582,7 +587,7 @@ export default function TradeDeskPage() {
             <div 
               className="flex flex-col items-center justify-center p-4 rounded-lg border bg-card/50 hover-elevate cursor-pointer transition-all"
               onClick={() => {
-                const winners = filteredAndSortedIdeas.filter(i => i.outcomeStatus?.toLowerCase() === 'hit_target');
+                const winners = filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target');
                 if (winners.length > 0) {
                   handleToggleExpand(winners[0].id);
                 }
@@ -591,7 +596,7 @@ export default function TradeDeskPage() {
             >
               <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
               <div className="text-3xl font-bold text-green-500">
-                {filteredAndSortedIdeas.filter(i => i.outcomeStatus?.toLowerCase() === 'hit_target').length}
+                {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target').length}
               </div>
               <div className="text-xs text-muted-foreground font-semibold mt-1">WINNERS</div>
               <div className="text-[10px] text-muted-foreground/70 mt-0.5">Hit target</div>
@@ -601,7 +606,7 @@ export default function TradeDeskPage() {
             <div 
               className="flex flex-col items-center justify-center p-4 rounded-lg border bg-card/50 hover-elevate cursor-pointer transition-all"
               onClick={() => {
-                const losers = filteredAndSortedIdeas.filter(i => i.outcomeStatus?.toLowerCase() === 'hit_stop');
+                const losers = filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_stop');
                 if (losers.length > 0) {
                   handleToggleExpand(losers[0].id);
                 }
@@ -610,7 +615,7 @@ export default function TradeDeskPage() {
             >
               <XCircle className="h-8 w-8 text-red-500 mb-2" />
               <div className="text-3xl font-bold text-red-500">
-                {filteredAndSortedIdeas.filter(i => i.outcomeStatus?.toLowerCase() === 'hit_stop').length}
+                {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_stop').length}
               </div>
               <div className="text-xs text-muted-foreground font-semibold mt-1">LOSERS</div>
               <div className="text-[10px] text-muted-foreground/70 mt-0.5">Hit stop</div>
@@ -620,7 +625,7 @@ export default function TradeDeskPage() {
             <div 
               className="flex flex-col items-center justify-center p-4 rounded-lg border bg-card/50 hover-elevate cursor-pointer transition-all"
               onClick={() => {
-                const expired = filteredAndSortedIdeas.filter(i => i.outcomeStatus?.toLowerCase() === 'expired');
+                const expired = filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'expired');
                 if (expired.length > 0) {
                   handleToggleExpand(expired[0].id);
                 }
@@ -629,7 +634,7 @@ export default function TradeDeskPage() {
             >
               <Clock className="h-8 w-8 text-amber-500 mb-2" />
               <div className="text-3xl font-bold text-amber-500">
-                {filteredAndSortedIdeas.filter(i => i.outcomeStatus?.toLowerCase() === 'expired').length}
+                {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'expired').length}
               </div>
               <div className="text-xs text-muted-foreground font-semibold mt-1">EXPIRED</div>
               <div className="text-[10px] text-muted-foreground/70 mt-0.5">Time ran out</div>
@@ -887,8 +892,8 @@ export default function TradeDeskPage() {
           <AlertTitle className="text-sm">Markets Closed - Weekend Preview</AlertTitle>
           <AlertDescription className="text-xs">
             Markets open {format(getNextTradingWeekStart(), 'EEEE, MMM d')} at 9:30 AM CT.
-            {filteredAndSortedIdeas.filter(i => i.outcomeStatus?.toLowerCase() === 'open').length > 0 
-              ? ` ${filteredAndSortedIdeas.filter(i => i.outcomeStatus?.toLowerCase() === 'open').length} ideas ready for next week.`
+            {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'open').length > 0 
+              ? ` ${filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'open').length} ideas ready for next week.`
               : " Use the generation buttons above to create new trade ideas."}
           </AlertDescription>
         </Alert>
