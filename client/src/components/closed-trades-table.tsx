@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, ExternalLink } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
+import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, ExternalLink, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import type { TradeIdea } from "@shared/schema";
 import { cn } from "@/lib/utils";
@@ -133,16 +134,30 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
           {selectedTrade && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <span className="font-bold text-xl">{selectedTrade.symbol}</span>
-                  <Badge variant={selectedTrade.direction === "long" ? "default" : "destructive"}>
-                    {selectedTrade.direction.toUpperCase()}
-                  </Badge>
-                  {getStatusBadge(selectedTrade.outcomeStatus)}
-                </DialogTitle>
-                <DialogDescription className="text-sm">
-                  {selectedTrade.catalyst || 'No catalyst provided'}
-                </DialogDescription>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <DialogTitle className="flex items-center gap-2">
+                      <span className="font-bold text-xl">{selectedTrade.symbol}</span>
+                      <Badge variant={selectedTrade.direction === "long" ? "default" : "destructive"}>
+                        {selectedTrade.direction.toUpperCase()}
+                      </Badge>
+                      {getStatusBadge(selectedTrade.outcomeStatus)}
+                    </DialogTitle>
+                    <DialogDescription className="text-sm mt-2">
+                      {selectedTrade.catalyst || 'No catalyst provided'}
+                    </DialogDescription>
+                  </div>
+                  <DialogClose asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6" 
+                      data-testid="button-close-dialog"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </DialogClose>
+                </div>
               </DialogHeader>
               
               <div className="space-y-4">

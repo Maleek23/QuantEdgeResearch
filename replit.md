@@ -19,7 +19,7 @@ No personalized financial advice should be offered; it is for research purposes 
 ### UI/UX Decisions
 The UI features a Bloomberg-style dark theme with deep charcoal backgrounds, gradients, shadows, and glassmorphism. A consistent color palette uses green for bullish, red for bearish, amber for neutral/warning, and blue for primary actions. Typography uses Inter for UI and JetBrains Mono for financial data. Custom CSS provides enhanced styling for cards, tables, grids, loading states, notifications, and optimistic UI updates. Features include real-time price displays, detailed analysis modals, mobile responsiveness, and an intelligent advisory system with dynamic R:R analysis. Advanced 3D Visual Analytics (Holographic Trading Floor, 3D Correlation Matrix Cube, 3D Brain Neural Network) are implemented using React Three Fiber and Three.js.
 
-**Trade Desk UI Redesign (Nov 12-13, 2025):**
+**Trade Desk UI Redesign (Nov 12-14, 2025):**
 Comprehensive UI/UX improvements for better readability and reduced visual clutter:
 - **Signal Pulse Stats Card:** Always-visible KPI dashboard showing 5 key metrics (FRESH, ACTIVE, WINNERS, LOSERS, EXPIRED) with color-coded tiles, icons, and counts
 - **Consolidated Filter Toolbar:** Two-row organized controls merging expiry chips, dropdowns, search, and generation buttons into single ribbon
@@ -32,6 +32,7 @@ Comprehensive UI/UX improvements for better readability and reduced visual clutt
 - **Reduced Clutter:** Removed redundant card wrappers, borders, and tabbed navigation system
 - **Professional Hierarchy:** Bloomberg-terminal-style stack with metrics strip, controls ribbon, and data feed following professional trading platform patterns
 - **Date Validation:** All timezone formatting functions now gracefully handle invalid dates to prevent crashes
+- **Dual-Section Layout (Nov 14):** Trade Desk now separates active trades (card view with accordion grouping) from closed trades (compact table view), reducing visual clutter and improving information density. Closed Trades Table features 8 sortable columns (Symbol, Type, Direction, Entry, Exit, P&L %, Status, Exit Date) with Bloomberg terminal aesthetic (dense rows, alternating backgrounds, monospace numbers, color-coded P&L/status). Click any table row to open detail dialog showing complete trade metadata including analysis/thesis, catalyst, price targets, performance metrics, confidence score with grade narrative (e.g., "Strong signals (60% expected WR)"), and exit information. Table uses memoized sorting for performance and supports dark mode throughout.
 
 The platform uses a 6-item sidebar (Trade Desk, Performance, Market Intel, Research & Tools, Settings, Admin) with a hub-and-spoke design. The Trade Desk has 5 mode tabs for different strategies: Standard, Flow Scanner, Lotto, News Catalyst, and Manual. Each mode auto-applies filtering criteria. Trade cards are compact with mode-specific badges. The Performance page provides a single-page view of key metrics.
 
