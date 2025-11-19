@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Upload, Image as ImageIcon, TrendingUp, TrendingDown, DollarSign, AlertTriangle, Brain, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Upload, Image as ImageIcon, TrendingUp, DollarSign, AlertTriangle, Brain, Loader2, ExternalLink, CheckCircle2, Sparkles } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface ChartAnalysisResult {
@@ -32,7 +33,57 @@ export default function ChartAnalysis() {
   const [timeframe, setTimeframe] = useState("1D");
   const [additionalContext, setAdditionalContext] = useState("");
   const [analysisResult, setAnalysisResult] = useState<ChartAnalysisResult | null>(null);
+  const [savedTradeIdeaId, setSavedTradeIdeaId] = useState<string | null>(null);
+  const [isPromoted, setIsPromoted] = useState(false);
   const { toast } = useToast();
+
+  // Mutation to save analysis as draft trade idea
+  const saveDraftMutation = useMutation({
+    mutationFn: async (data: { symbol: string; analysis: ChartAnalysisResult }) => {
+      const response = await apiRequest('POST', '/api/trade-ideas/from-chart', {
+        symbol: data.symbol,
+        analysis: data.analysis,
+        chartImageUrl: undefined, // Optional - not persisting images yet
+      });
+      return await response.json();
+    },
+    onSuccess: (data: any) => {
+      setSavedTradeIdeaId(data.id);
+      toast({
+        title: "Saved as Draft",
+        description: "Analysis saved as draft trade idea. You can view it in Trade Desk.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Save",
+        description: error.message || "Could not save analysis as trade idea.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation to promote draft to published
+  const promoteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest('PATCH', `/api/trade-ideas/${id}/promote`);
+      return await response.json();
+    },
+    onSuccess: () => {
+      setIsPromoted(true);
+      toast({
+        title: "Promoted to Published",
+        description: "Trade idea is now published and visible in Trade Desk.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to Promote",
+        description: error.message || "Could not promote trade idea.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const analysisMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -54,6 +105,11 @@ export default function ChartAnalysis() {
         title: "Analysis Complete",
         description: "Your chart has been analyzed successfully.",
       });
+
+      // Auto-save as draft trade idea if symbol is provided
+      if (symbol) {
+        saveDraftMutation.mutate({ symbol, analysis: data });
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -95,6 +151,15 @@ export default function ChartAnalysis() {
       return;
     }
 
+    if (!symbol) {
+      toast({
+        title: "Symbol Required",
+        description: "Please enter a symbol to save the analysis as a trade idea.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const formData = new FormData();
     formData.append('chart', selectedFile);
     formData.append('symbol', symbol);
@@ -111,6 +176,13 @@ export default function ChartAnalysis() {
     setTimeframe("1D");
     setAdditionalContext("");
     setAnalysisResult(null);
+    setSavedTradeIdeaId(null);
+  };
+
+  const handlePromote = () => {
+    if (savedTradeIdeaId) {
+      promoteMutation.mutate(savedTradeIdeaId);
+    }
   };
 
   return (
@@ -173,7 +245,7 @@ export default function ChartAnalysis() {
 
             {/* Symbol Input */}
             <div className="space-y-2">
-              <Label htmlFor="symbol">Symbol (Optional)</Label>
+              <Label htmlFor="symbol">Symbol <span className="text-destructive">*</span></Label>
               <Input
                 id="symbol"
                 placeholder="e.g., AAPL, BTC/USD"
@@ -181,6 +253,7 @@ export default function ChartAnalysis() {
                 onChange={(e) => setSymbol(e.target.value.toUpperCase())}
                 data-testid="input-symbol"
               />
+              <p className="text-xs text-muted-foreground">Required to save analysis as trade idea</p>
             </div>
 
             {/* Timeframe Input */}
@@ -212,14 +285,14 @@ export default function ChartAnalysis() {
             <div className="flex gap-2">
               <Button
                 onClick={handleSubmit}
-                disabled={!selectedFile || analysisMutation.isPending}
+                disabled={!selectedFile || analysisMutation.isPending || saveDraftMutation.isPending}
                 className="flex-1"
                 data-testid="button-analyze-chart"
               >
-                {analysisMutation.isPending ? (
+                {analysisMutation.isPending || saveDraftMutation.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Analyzing...
+                    {analysisMutation.isPending ? "Analyzing..." : "Saving..."}
                   </>
                 ) : (
                   <>
@@ -248,19 +321,29 @@ export default function ChartAnalysis() {
               {/* Summary Card */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>Analysis Results</span>
-                    <Badge variant={
-                      analysisResult.sentiment === "bullish" ? "default" : 
-                      analysisResult.sentiment === "bearish" ? "destructive" : 
-                      "secondary"
-                    }>
-                      {analysisResult.sentiment.toUpperCase()}
-                    </Badge>
-                  </CardTitle>
-                  <CardDescription>
-                    {symbol && `${symbol} • `}{analysisResult.timeframe} • {analysisResult.confidence}% Confidence
-                  </CardDescription>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2 flex-wrap">
+                        <span>Analysis Results</span>
+                        <Badge variant={
+                          analysisResult.sentiment === "bullish" ? "default" : 
+                          analysisResult.sentiment === "bearish" ? "destructive" : 
+                          "secondary"
+                        }>
+                          {analysisResult.sentiment.toUpperCase()}
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription>
+                        {symbol && `${symbol} • `}{analysisResult.timeframe} • {analysisResult.confidence}% Confidence
+                      </CardDescription>
+                    </div>
+                    {savedTradeIdeaId && (
+                      <Badge variant={isPromoted ? "default" : "outline"} className="gap-1" data-testid="badge-saved-draft">
+                        <CheckCircle2 className="h-3 w-3" />
+                        {isPromoted ? "Published" : "Saved as Draft"}
+                      </Badge>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Key Metrics */}
@@ -298,6 +381,42 @@ export default function ChartAnalysis() {
                       {analysisResult.analysis}
                     </p>
                   </div>
+
+                  {/* Action Buttons - Only show if saved */}
+                  {savedTradeIdeaId && (
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        asChild
+                        variant="default"
+                        className="flex-1"
+                        data-testid="button-view-trade-desk"
+                      >
+                        <Link href="/trade-desk">
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          View in Trade Desk
+                        </Link>
+                      </Button>
+                      <Button
+                        onClick={handlePromote}
+                        disabled={promoteMutation.isPending || isPromoted}
+                        variant="outline"
+                        className="flex-1"
+                        data-testid="button-promote-published"
+                      >
+                        {promoteMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Promoting...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Promote to Published
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
