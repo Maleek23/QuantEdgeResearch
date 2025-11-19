@@ -8,6 +8,41 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+      // Polyfill for Vite dev-banner plugin (prevents error overlay)
+      window.__replit_error_suppressed = false;
+      
+      // Suppress the specific Vite plugin error before it shows
+      const originalError = console.error;
+      console.error = function(...args) {
+        const msg = args.join(' ');
+        if (msg.includes("Cannot read properties of undefined (reading 'replit')")) {
+          window.__replit_error_suppressed = true;
+          return; // Silently ignore
+        }
+        originalError.apply(console, args);
+      };
+      
+      // Global error handler
+      window.addEventListener('error', function(e) {
+        if (e.error && e.error.message && e.error.message.includes("Cannot read properties of undefined (reading 'replit')")) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          window.__replit_error_suppressed = true;
+          return false;
+        }
+      }, true);
+      
+      // Unhandled rejection handler
+      window.addEventListener('unhandledrejection', function(e) {
+        if (e.reason && e.reason.message && e.reason.message.includes("Cannot read properties of undefined (reading 'replit')")) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          window.__replit_error_suppressed = true;
+          return false;
+        }
+      }, true);
+    </script>
   </head>
   <body>
     <div id="root"></div>
