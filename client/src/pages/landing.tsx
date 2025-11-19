@@ -139,26 +139,20 @@ export default function Landing() {
   const steps = [
     {
       number: 1,
-      title: "Connect Market Data",
-      description: "Live prices stream from stocks, options, and crypto markets with 30-second refresh intervals.",
+      title: "Browse Trade Ideas",
+      description: "One unified feed of opportunities from AI and Quantitative engines. Filter by asset type, status, or quality grade.",
       icon: Activity
     },
     {
       number: 2,
-      title: "Generate Ideas",
-      description: "Choose AI-powered analysis or quantitative signals. Platform creates opportunities with complete risk parameters.",
-      icon: Sparkles
-    },
-    {
-      number: 3,
-      title: "Analyze Trades",
-      description: "Review entry/target/stop levels, confidence scores, quality signals, and explainability features for each idea.",
+      title: "Review Trade Details",
+      description: "See entry price, target, stop-loss, risk/reward ratio, confidence score, and complete analysis for each opportunity.",
       icon: Brain
     },
     {
-      number: 4,
-      title: "Track Performance",
-      description: "Record outcomes, monitor active positions, and refine your strategy based on historical performance data.",
+      number: 3,
+      title: "Track Your Results",
+      description: "Monitor win rates, analyze performance by engine type, and refine your strategy with real outcome data.",
       icon: TrendingUp
     }
   ];
@@ -460,7 +454,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* How It Works - Premium Timeline */}
+      {/* How It Works - Simple 3-Step Visual Flow */}
       <section className="border-t aurora-bg py-12 md:py-16">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
@@ -468,23 +462,37 @@ export default function Landing() {
               How It Works
             </h2>
             <p className="text-base text-muted-foreground max-w-2xl mx-auto">
-              From market data to trade execution in four simple steps
+              From discovering opportunities to tracking results in three simple steps
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12">
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {steps.map((step) => {
               const Icon = step.icon;
               return (
                 <div key={step.number} className="text-center relative" data-testid={`step-${step.number}`}>
-                  <div className="relative mb-8 inline-block">
-                    <div className="h-24 w-24 rounded-3xl glass-intense flex items-center justify-center text-3xl font-bold mx-auto neon-cyan-glow">
-                      {step.number}
-                    </div>
-                    <div className="absolute -top-3 -right-3 h-12 w-12 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center spotlight">
-                      <Icon className="h-6 w-6 text-white" />
+                  {/* Screenshot-Style Mockup Frame */}
+                  <div className="glass-card rounded-2xl p-6 mb-6 border-2 border-primary/20">
+                    <div className="aspect-[4/3] rounded-lg bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center relative overflow-hidden">
+                      {/* Decorative "UI Elements" */}
+                      <div className="absolute top-3 left-3 right-3 flex gap-1.5">
+                        <div className="h-1.5 w-1.5 rounded-full bg-muted" />
+                        <div className="h-1.5 w-1.5 rounded-full bg-muted" />
+                        <div className="h-1.5 w-1.5 rounded-full bg-muted" />
+                      </div>
+                      
+                      {/* Step Icon - Centered */}
+                      <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center spotlight">
+                        <Icon className="h-10 w-10 text-primary" />
+                      </div>
+
+                      {/* Step Number Badge */}
+                      <div className="absolute bottom-3 right-3 h-10 w-10 rounded-xl glass-intense flex items-center justify-center text-xl font-bold neon-cyan-glow">
+                        {step.number}
+                      </div>
                     </div>
                   </div>
+
                   <h3 className="text-xl font-bold mb-3 text-display">{step.title}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">{step.description}</p>
                 </div>
