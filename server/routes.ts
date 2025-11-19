@@ -721,8 +721,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Check if it needs fixing
           if (idea.holdingPeriod !== correctHoldingPeriod) {
-            // Fix it
-            const updated = await storage.updateTradeIdeaPerformance(idea.id, {
+            // Fix it - holdingPeriod is read-only in performance updates, so use full update
+            const updated = await storage.updateTradeIdea(idea.id, {
               holdingPeriod: correctHoldingPeriod
             });
             
@@ -3698,10 +3698,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create draft trade idea
       const tradeIdea = await storage.createTradeIdea({
-        userId: req.user?.claims?.sub,
+        userId: (req.user as any)?.claims?.sub,
         symbol: validated.symbol,
         assetType,
         direction,
+        holdingPeriod: 'day', // Default to day trading for chart analysis
         entryPrice: analysis.entryPoint,
         targetPrice: analysis.targetPrice,
         stopLoss: analysis.stopLoss,
@@ -3737,7 +3738,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Check if user owns this trade idea
-      if (idea.userId && idea.userId !== req.user?.claims?.sub) {
+      if (idea.userId && idea.userId !== (req.user as any)?.claims?.sub) {
         return res.status(403).json({ error: "Unauthorized to modify this trade idea" });
       }
       
