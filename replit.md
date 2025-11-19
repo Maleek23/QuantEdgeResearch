@@ -5,7 +5,7 @@ QuantEdge Research is a professional quantitative trading research platform desi
 
 ## User Preferences
 All timestamps should be displayed in America/Chicago timezone with market session context.
-The UI should be a professional dark-themed interface optimized for rapid data scanning.
+The UI features both dark and light theme modes with a toggle button for user preference.
 Educational disclaimers must be emphasized (not financial advice).
 Clear and precise risk/reward calculations and position sizing tools are required.
 The platform should highlight fresh, actionable trade ideas immediately upon opening.

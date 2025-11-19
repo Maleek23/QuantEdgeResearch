@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Footer } from "@/components/footer";
@@ -175,7 +176,10 @@ function App() {
                     <SidebarTrigger data-testid="button-mobile-menu" className="lg:hidden" />
                     <h1 className="text-lg font-semibold lg:hidden">QuantEdge</h1>
                   </div>
-                  <AuthButtons />
+                  <div className="flex items-center gap-2">
+                    <ThemeToggle />
+                    <AuthButtons />
+                  </div>
                 </header>
                 <div className="flex-1 overflow-auto flex flex-col">
                   <main className="flex-1">

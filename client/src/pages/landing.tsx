@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Footer } from "@/components/footer";
 import { ParticleBackground } from "@/components/particle-background";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   Accordion,
   AccordionContent,
@@ -169,6 +170,11 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Top Header with Theme Toggle */}
+      <header className="fixed top-0 right-0 z-50 p-4">
+        <ThemeToggle />
+      </header>
+      
       {/* Cinematic Hero Section with Aurora Background */}
       <section className="relative overflow-hidden border-b aurora-hero">
         <ParticleBackground />
