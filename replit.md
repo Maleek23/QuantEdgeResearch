@@ -42,8 +42,14 @@ A critical dual-layer trade validation framework ensures all trade ideas pass th
 
 The platform now supports CME futures trading (NQ, GC) with dedicated database schema, data services, adapted quant engine logic (tick-based targets, R:R ≥ 2.0), performance validation, and UI integration. Automated services run on a schedule for idea generation, news monitoring, flow scanning, and performance validation.
 
+**Chart Analysis & Draft Trade Workflow (Nov 2025):**
+Users can upload chart screenshots for AI-powered technical analysis. Chart analysis results automatically save as draft trade ideas (source="chart_analysis") with full validation. Draft trades display with visual distinction (badge + muted styling) and can be promoted to published status. Trade Desk features source-aware filtering with horizontal tabs (All, AI, Quant, Hybrid, Chart, Flow, News, Manual, Lotto) showing live counts, plus status toggle (All/Published/Draft). Tab counts dynamically respect active status filter.
+
 ### System Design Choices
 The platform employs a multi-page architecture with user authentication via Replit Auth (OpenID Connect). Users can login/signup with Google, GitHub, X, Apple, or email/password. User sessions persist in PostgreSQL with 7-day TTL. The platform uses a RESTful API design. Data models cover Market Data, Trade Ideas, Options Data, Catalysts, Watchlist, User Data, and User Preferences. Data persistence is handled by a PostgreSQL database (provisioned via Replit) with Drizzle ORM. Access tiers include Free, Premium, and Admin, with a password-protected `/admin` panel using separate JWT authentication. Security features include OpenID Connect authentication, PostgreSQL session storage (connect-pg-simple), JWT authentication for admin panel with HTTP-only cookies, session tokens with expiration, rate limiting, and `requireAdmin`/`requirePremium` middleware. Performance statistics are read from the PostgreSQL database. The Trade Desk UI has been simplified for trader use with reduced visual clutter (3 key metrics instead of 5, consolidated 1-row filter toolbar, compact trade cards).
+
+**Known Issues:**
+- Vite dev-banner plugin occasionally shows a browser error overlay (`Cannot read properties of undefined (reading 'replit')`). This is cosmetic only - the application continues to function normally. Users can dismiss by clicking outside or pressing Esc. The vite.config.ts file cannot be modified to remove this plugin.
 
 ## External Dependencies
 
