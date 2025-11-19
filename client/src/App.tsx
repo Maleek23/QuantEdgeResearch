@@ -17,6 +17,10 @@ import AdminPanel from "@/pages/admin";
 import About from "@/pages/about";
 import PrivacyPolicy from "@/pages/privacy-policy";
 import TermsOfService from "@/pages/terms-of-service";
+import SuccessStories from "@/pages/success-stories";
+import ChartDatabase from "@/pages/chart-database";
+import Academy from "@/pages/academy";
+import Blog from "@/pages/blog";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -28,6 +32,14 @@ function Router() {
       <Route path="/trade-desk/:mode" component={TradeDeskPage} />
       <Route path="/performance" component={PerformancePage} />
       <Route path="/market" component={MarketPage} />
+      
+      {/* Research & Community Pages */}
+      <Route path="/chart-database" component={ChartDatabase} />
+      <Route path="/success-stories" component={SuccessStories} />
+      <Route path="/academy" component={Academy} />
+      <Route path="/blog" component={Blog} />
+      
+      {/* System Pages */}
       <Route path="/settings" component={SettingsPage} />
       <Route path="/admin" component={AdminPanel} />
       <Route path="/about" component={About} />

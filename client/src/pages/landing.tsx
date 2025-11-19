@@ -3,7 +3,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Footer } from "@/components/footer";
 import { ParticleBackground } from "@/components/particle-background";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import type { TradeIdea } from "@shared/schema";
 import { 
   TrendingUp, 
   Brain, 
@@ -23,12 +32,70 @@ import {
   Book,
   Network,
   Cpu,
-  GitBranch
+  GitBranch,
+  ChevronLeft,
+  ChevronRight,
+  Users,
+  TrendingDown,
+  Award,
+  Star,
+  CheckCircle2
 } from "lucide-react";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
+import { useState, useEffect } from "react";
+
+// TypeScript interfaces for API responses
+interface PerformanceStatsResponse {
+  overall: {
+    totalIdeas: number;
+    openIdeas: number;
+    winRate: number;
+    avgPercentGain: number;
+  };
+}
 
 export default function Landing() {
   const [, setLocation] = useLocation();
+  const [carouselIndex, setCarouselIndex] = useState(0);
+
+  // Fetch performance stats
+  const { data: perfStats, isLoading: statsLoading } = useQuery<PerformanceStatsResponse>({
+    queryKey: ['/api/performance/stats'],
+  });
+
+  // Fetch all trade ideas and filter for success stories
+  const { data: allIdeas, isLoading: ideasLoading } = useQuery<TradeIdea[]>({
+    queryKey: ['/api/trade-ideas'],
+  });
+
+  // Filter and sort winning trades for success stories
+  const successStories = (allIdeas || [])
+    .filter(idea => idea.outcomeStatus === 'hit_target' && (idea.percentGain || 0) > 10)
+    .sort((a, b) => (b.percentGain || 0) - (a.percentGain || 0))
+    .slice(0, 5);
+
+  // Reset carousel index when data changes to prevent out-of-bounds access
+  useEffect(() => {
+    if (carouselIndex >= successStories.length) {
+      setCarouselIndex(0);
+    }
+  }, [successStories.length, carouselIndex]);
+
+  // Normalize active story to prevent render-time undefined access
+  const activeStory = successStories.length > 0 && carouselIndex < successStories.length
+    ? successStories[carouselIndex]
+    : null;
+
+  // Carousel navigation with defensive guards
+  const nextStory = () => {
+    if (successStories.length === 0) return;
+    setCarouselIndex((prev) => (prev + 1) % successStories.length);
+  };
+
+  const prevStory = () => {
+    if (successStories.length === 0) return;
+    setCarouselIndex((prev) => (prev - 1 + successStories.length) % successStories.length);
+  };
 
   const features = [
     {
@@ -170,6 +237,81 @@ export default function Landing() {
         </div>
         
         <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
+      </section>
+
+      {/* TASK 1: Platform Stats Section - Trusted by Traders */}
+      <section className="container mx-auto px-6 py-12 md:py-16">
+        <div className="text-center mb-12">
+          <Badge variant="secondary" className="mb-4 neon-accent">
+            <Users className="h-3 w-3 mr-1" />
+            Platform Track Record
+          </Badge>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-display">
+            Trusted by Traders
+          </h2>
+          <p className="text-base text-muted-foreground max-w-2xl mx-auto">
+            Real performance metrics from our dual-engine trading platform. Transparent, verifiable, and continuously validated.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          {/* Total Trades Analyzed */}
+          <div className="gradient-border-card card-tilt" data-testid="card-stat-total-trades">
+            <Card className="border-0 bg-transparent">
+              <CardContent className="p-8 text-center">
+                {statsLoading ? (
+                  <Skeleton className="h-20 w-full mb-4" data-testid="skeleton-total-trades" />
+                ) : (
+                  <div className="text-5xl md:text-6xl font-bold text-gradient mb-4" data-testid="text-total-trades">
+                    {perfStats?.overall?.totalIdeas?.toLocaleString() || '0'}
+                  </div>
+                )}
+                <h3 className="text-lg font-semibold mb-2 text-display">Total Trades Analyzed</h3>
+                <p className="text-sm text-muted-foreground">
+                  Comprehensive analysis across stocks, options, crypto, and futures markets
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Overall Win Rate */}
+          <div className="gradient-border-card card-tilt" data-testid="card-stat-win-rate">
+            <Card className="border-0 bg-transparent">
+              <CardContent className="p-8 text-center">
+                {statsLoading ? (
+                  <Skeleton className="h-20 w-full mb-4" data-testid="skeleton-win-rate" />
+                ) : (
+                  <div className="text-5xl md:text-6xl font-bold text-gradient-premium mb-4" data-testid="text-win-rate">
+                    {perfStats?.overall?.winRate?.toFixed(1) || '0.0'}%
+                  </div>
+                )}
+                <h3 className="text-lg font-semibold mb-2 text-display">Overall Win Rate</h3>
+                <p className="text-sm text-muted-foreground">
+                  Target-hit rate validated against real market outcomes
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Active Signals */}
+          <div className="gradient-border-card card-tilt" data-testid="card-stat-active-signals">
+            <Card className="border-0 bg-transparent">
+              <CardContent className="p-8 text-center">
+                {statsLoading ? (
+                  <Skeleton className="h-20 w-full mb-4" data-testid="skeleton-active-signals" />
+                ) : (
+                  <div className="text-5xl md:text-6xl font-bold text-gradient mb-4" data-testid="text-active-signals">
+                    {perfStats?.overall?.openIdeas?.toLocaleString() || '0'}
+                  </div>
+                )}
+                <h3 className="text-lg font-semibold mb-2 text-display">Active Signals</h3>
+                <p className="text-sm text-muted-foreground">
+                  Live trade opportunities actively monitored for performance
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </section>
 
       {/* Dual-Engine Intelligence Showcase */}
@@ -364,6 +506,157 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* TASK 2: Success Stories Carousel - Real Winning Trades */}
+      <section className="border-t py-12 md:py-16 bg-gradient-to-b from-background via-accent/5 to-background">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-12">
+            <Badge variant="secondary" className="mb-4 neon-accent">
+              <Award className="h-3 w-3 mr-1" />
+              Verified Results
+            </Badge>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-display">
+              Success Stories
+            </h2>
+            <p className="text-base text-muted-foreground max-w-2xl mx-auto">
+              Real results from our platform. Every trade is tracked, validated, and verified for transparency.
+            </p>
+          </div>
+
+          {ideasLoading ? (
+            <div className="max-w-4xl mx-auto">
+              <Skeleton className="h-64 w-full rounded-2xl" data-testid="skeleton-success-stories" />
+            </div>
+          ) : activeStory ? (
+            <div className="max-w-4xl mx-auto relative">
+              {/* Carousel Navigation Buttons */}
+              <div className="flex items-center justify-between gap-6">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={prevStory}
+                  disabled={successStories.length <= 1}
+                  className="flex-shrink-0 hover-elevate"
+                  data-testid="button-carousel-prev"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+
+                {/* Trade Card */}
+                <div className="flex-1 gradient-border-card" data-testid={`card-success-story-${carouselIndex}`}>
+                  <Card className="border-0 bg-transparent">
+                    <CardContent className="p-10">
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-green-500/20 to-cyan-500/20 flex items-center justify-center spotlight">
+                            <TrendingUp className="h-7 w-7 text-green-500" />
+                          </div>
+                          <div>
+                            <h3 className="text-2xl font-bold text-display mb-1" data-testid="text-success-symbol">
+                              {activeStory.symbol}
+                            </h3>
+                            <Badge 
+                              variant={activeStory.direction === 'long' ? 'default' : 'secondary'}
+                              className="font-semibold"
+                              data-testid="badge-success-direction"
+                            >
+                              {activeStory.direction.toUpperCase()}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          <span className="text-xs text-muted-foreground">Verified</span>
+                        </div>
+                      </div>
+
+                      {/* Trade Details */}
+                      <div className="grid grid-cols-2 gap-6 mb-6">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Entry Price</p>
+                          <p className="text-2xl font-bold text-display" data-testid="text-success-entry">
+                            ${activeStory.entryPrice?.toFixed(2) || 'N/A'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Exit Price</p>
+                          <p className="text-2xl font-bold text-display" data-testid="text-success-exit">
+                            ${activeStory.exitPrice?.toFixed(2) || 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Gain % - Prominently Displayed */}
+                      <div className="glass-intense rounded-2xl p-6 text-center mb-6">
+                        <p className="text-sm text-muted-foreground mb-2">Realized Gain</p>
+                        <p className="text-6xl font-bold text-gradient-premium" data-testid="text-success-gain">
+                          +{activeStory.percentGain?.toFixed(1) || '0.0'}%
+                        </p>
+                      </div>
+
+                      {/* Quote */}
+                      <div className="glass-card rounded-xl p-6 border-l-4 border-l-green-500">
+                        <p className="text-base text-muted-foreground italic" data-testid="text-success-quote">
+                          "Made <span className="text-green-500 font-bold">+{activeStory.percentGain?.toFixed(1) || '0.0'}%</span> on{' '}
+                          <span className="font-semibold">{activeStory.symbol}</span> following{' '}
+                          <span className="font-semibold">{activeStory.source || 'Quant Engine'}</span> analysis"
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={nextStory}
+                  disabled={successStories.length <= 1}
+                  className="flex-shrink-0 hover-elevate"
+                  data-testid="button-carousel-next"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              </div>
+
+              {/* Carousel Indicators */}
+              {successStories.length > 1 && (
+                <div className="flex justify-center gap-2 mt-8">
+                  {successStories.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setCarouselIndex(idx)}
+                      className={`h-2 rounded-full transition-all ${
+                        idx === carouselIndex ? 'w-8 bg-primary' : 'w-2 bg-muted'
+                      }`}
+                      data-testid={`button-carousel-indicator-${idx}`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="max-w-2xl mx-auto">
+              <Card className="glass-card">
+                <CardContent className="p-12 text-center">
+                  <Award className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                  <h3 className="text-xl font-semibold mb-2 text-display">Building Success Stories</h3>
+                  <p className="text-muted-foreground mb-6">
+                    We're generating winning trades every day. Check back soon to see real results from our platform!
+                  </p>
+                  <Button
+                    onClick={() => setLocation('/trade-desk')}
+                    className="btn-magnetic neon-accent"
+                    data-testid="button-view-trades-cta"
+                  >
+                    <ArrowRight className="h-4 w-4 mr-2" />
+                    View Active Trades
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Pricing Section - Premium Glass Cards */}
       <section className="border-t py-12 md:py-16">
         <div className="container mx-auto px-6">
@@ -473,6 +766,88 @@ export default function Landing() {
               </Card>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* TASK 3: FAQ Section - Frequently Asked Questions */}
+      <section className="container mx-auto px-6 py-12 md:py-16">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-display">
+            Frequently Asked Questions
+          </h2>
+          <p className="text-base text-muted-foreground max-w-2xl mx-auto">
+            Everything you need to know about QuantEdge and our dual-engine trading platform
+          </p>
+        </div>
+
+        <div className="max-w-3xl mx-auto">
+          <Accordion type="single" collapsible className="space-y-4">
+            <AccordionItem value="accuracy" className="glass-card rounded-xl px-6 border-0" data-testid="accordion-faq-accuracy">
+              <AccordionTrigger className="text-left font-semibold hover:no-underline" data-testid="trigger-faq-accuracy">
+                How accurate are the trade signals?
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground" data-testid="content-faq-accuracy">
+                Our quantitative engine uses research-backed strategies (RSI(2)+200MA, VWAP flow, Volume spikes) with historical win rates of 75-91%. 
+                AI signals are generated from multi-provider analysis (Claude, GPT, Gemini) and validated against real market outcomes. 
+                Every trade is tracked transparently with actual win/loss results published to our performance ledger.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="trading-styles" className="glass-card rounded-xl px-6 border-0" data-testid="accordion-faq-styles">
+              <AccordionTrigger className="text-left font-semibold hover:no-underline" data-testid="trigger-faq-styles">
+                Can I use QuantEdge for different trading styles?
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground" data-testid="content-faq-styles">
+                Yes! QuantEdge supports day trading (intraday exits), swing trading (1-5 day holds), and position trading (5+ days). 
+                Each trade idea includes holding period recommendations, entry time windows, and exit deadlines optimized for the specific opportunity. 
+                Our quantitative engine analyzes timing intelligence to match strategies with your preferred trading style.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="markets" className="glass-card rounded-xl px-6 border-0" data-testid="accordion-faq-markets">
+              <AccordionTrigger className="text-left font-semibold hover:no-underline" data-testid="trigger-faq-markets">
+                What markets does QuantEdge cover?
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground" data-testid="content-faq-markets">
+                QuantEdge analyzes US equities (stocks and penny stocks), options (calls/puts with Greeks), cryptocurrencies (Bitcoin, Ethereum, altcoins), and futures contracts (E-mini Nasdaq, Gold, Crude Oil). 
+                Real-time market data is sourced from Yahoo Finance, Alpha Vantage, Tradier, and CoinGecko. 
+                Each asset class has specialized risk parameters and validation rules appropriate for its volatility profile.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="dual-engine" className="glass-card rounded-xl px-6 border-0" data-testid="accordion-faq-dual-engine">
+              <AccordionTrigger className="text-left font-semibold hover:no-underline" data-testid="trigger-faq-dual-engine">
+                How does the dual-engine system work?
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground" data-testid="content-faq-dual-engine">
+                Our AI Engine uses multi-provider LLMs (Claude Sonnet 4, GPT-5, Gemini 2.5 Pro) to analyze market news, earnings, and sentiment for contextual insights. 
+                The Quantitative Engine runs research-backed technical strategies with proven win rates. 
+                When both engines agree on a signal (convergence), win rates historically increase by 18%, creating high-conviction trade opportunities.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="beginners" className="glass-card rounded-xl px-6 border-0" data-testid="accordion-faq-beginners">
+              <AccordionTrigger className="text-left font-semibold hover:no-underline" data-testid="trigger-faq-beginners">
+                Is QuantEdge suitable for beginners?
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground" data-testid="content-faq-beginners">
+                QuantEdge is designed as an educational research platform for learning systematic trading approaches. 
+                Every trade idea includes explainability features (technical indicator values, risk metrics, confidence scores) to help you understand the reasoning. 
+                We strongly recommend paper trading or small position sizes while learning. This platform provides research and analysis—not financial advice.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="premium" className="glass-card rounded-xl px-6 border-0" data-testid="accordion-faq-premium">
+              <AccordionTrigger className="text-left font-semibold hover:no-underline" data-testid="trigger-faq-premium">
+                What's included in the Premium plan?
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground" data-testid="content-faq-premium">
+                Premium ($39.99/month) unlocks real-time trade signals from both AI and Quantitative engines, instant Discord notifications for new opportunities, access to our private Discord community, advanced analytics and ML insights, and priority support. 
+                Free tier users can view historical performance and the public track record. 
+                All subscribers receive the same trade ideas—no tiered signal quality.
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </section>
 

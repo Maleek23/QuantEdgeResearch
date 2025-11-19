@@ -1,4 +1,4 @@
-import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sparkles } from "lucide-react";
+import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sparkles, Database, Award, GraduationCap, Newspaper } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -26,8 +26,14 @@ const marketItems = [
   { title: "Market Intel", url: "/market", icon: BarChart2 },
 ];
 
-const toolsItems = [
-  { title: "Research & Tools", url: "/tools", icon: Sparkles },
+const researchItems = [
+  { title: "Chart Database", url: "/chart-database", icon: Database },
+  { title: "Academy", url: "/academy", icon: GraduationCap },
+  { title: "Blog", url: "/blog", icon: Newspaper },
+];
+
+const communityItems = [
+  { title: "Success Stories", url: "/success-stories", icon: Award },
 ];
 
 const systemItems = [
@@ -156,12 +162,35 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Tools Section */}
+        {/* Research Section */}
         <SidebarGroup className="py-1.5 px-3">
-          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Tools</SidebarGroupLabel>
+          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Research</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0">
-              {toolsItems.map((item) => (
+              {researchItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link 
+                      href={item.url}
+                      className="flex items-center gap-3 h-8"
+                      data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Community Section */}
+        <SidebarGroup className="py-1.5 px-3">
+          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Community</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-0">
+              {communityItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link 
