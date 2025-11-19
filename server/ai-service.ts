@@ -870,3 +870,137 @@ Keep response concise (3-4 sentences total).`;
     throw new Error("Failed to generate hybrid AI + Quant ideas");
   }
 }
+
+export interface ChartAnalysisResult {
+  patterns: string[];
+  supportLevels: number[];
+  resistanceLevels: number[];
+  entryPoint: number;
+  targetPrice: number;
+  stopLoss: number;
+  riskRewardRatio: number;
+  sentiment: "bullish" | "bearish" | "neutral";
+  analysis: string;
+  confidence: number;
+  timeframe: string;
+}
+
+export async function analyzeChartImage(
+  imageBuffer: Buffer,
+  symbol?: string,
+  timeframe?: string,
+  additionalContext?: string
+): Promise<ChartAnalysisResult> {
+  logger.info(`📊 Analyzing chart image${symbol ? ` for ${symbol}` : ''}`);
+  
+  const base64Image = imageBuffer.toString('base64');
+  const contextInfo = additionalContext ? `\n\nAdditional context: ${additionalContext}` : '';
+  
+  const systemPrompt = `You are an expert technical analyst specializing in chart pattern recognition and trade setup identification.
+
+Analyze the provided trading chart image and provide a comprehensive technical analysis including:
+
+1. **Chart Patterns**: Identify any visible patterns (head and shoulders, triangles, flags, double tops/bottoms, wedges, channels, etc.)
+2. **Support & Resistance**: Identify key support and resistance levels based on price action
+3. **Trade Setup**: Provide precise entry point, target price, and stop loss levels
+4. **Sentiment**: Overall market sentiment (bullish, bearish, or neutral)
+5. **Risk/Reward**: Calculate the risk-reward ratio
+6. **Confidence**: Your confidence level in this analysis (0-100)
+7. **Analysis**: Detailed explanation of your findings and reasoning
+
+Return your analysis in this EXACT JSON format:
+{
+  "patterns": ["pattern1", "pattern2"],
+  "supportLevels": [price1, price2],
+  "resistanceLevels": [price1, price2],
+  "entryPoint": number,
+  "targetPrice": number,
+  "stopLoss": number,
+  "riskRewardRatio": number,
+  "sentiment": "bullish" | "bearish" | "neutral",
+  "analysis": "detailed analysis text",
+  "confidence": number (0-100),
+  "timeframe": "detected timeframe or ${timeframe || 'unknown'}"
+}
+
+Focus on actionable, precise levels that a trader can use immediately.${contextInfo}`;
+
+  const userPrompt = symbol 
+    ? `Analyze this trading chart for ${symbol}${timeframe ? ` on ${timeframe} timeframe` : ''}. Provide precise technical analysis with entry/exit points.`
+    : `Analyze this trading chart and provide precise technical analysis with entry/exit points.`;
+
+  // Try Gemini first (supports vision and has free tier)
+  try {
+    logger.info("📊 Using Gemini for chart analysis");
+    
+    const geminiResponse = await getGemini().models.generateContent({
+      model: "gemini-2.5-flash",
+      config: {
+        systemInstruction: systemPrompt,
+      },
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: userPrompt },
+            { 
+              inlineData: {
+                mimeType: "image/png",
+                data: base64Image
+              }
+            }
+          ]
+        }
+      ]
+    });
+
+    const content = geminiResponse.text || '{}';
+    const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+    const parsed = JSON.parse(jsonStr) as ChartAnalysisResult;
+    
+    logger.info("✅ Gemini chart analysis complete");
+    return parsed;
+    
+  } catch (geminiError: any) {
+    logger.info("Gemini chart analysis failed, trying OpenAI...", geminiError);
+    
+    // Fallback to OpenAI (GPT-4o or GPT-5 with vision)
+    try {
+      const openaiResponse = await getOpenAI().chat.completions.create({
+        model: "gpt-4o", // GPT-4o has vision capabilities
+        messages: [
+          { role: "system", content: systemPrompt },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: userPrompt },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:image/png;base64,${base64Image}`
+                }
+              }
+            ]
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_completion_tokens: 1500,
+      });
+
+      const content = openaiResponse.choices[0].message.content || '{}';
+      const parsed = JSON.parse(content) as ChartAnalysisResult;
+      
+      logger.info("✅ OpenAI chart analysis complete");
+      return parsed;
+      
+    } catch (openaiError: any) {
+      logger.error("All AI providers failed for chart analysis:", {
+        gemini: geminiError?.message,
+        openai: openaiError?.message
+      });
+      
+      throw new Error("Chart analysis failed. Please try again later.");
+    }
+  }
+}

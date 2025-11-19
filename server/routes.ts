@@ -10,6 +10,7 @@ import { generateDiagnosticExport } from "./diagnostic-export";
 import { validateAndLog as validateTradeStructure } from "./trade-validation";
 import { deriveTimingWindows, verifyTimingUniqueness } from "./timing-intelligence";
 import { formatInTimeZone } from "date-fns-tz";
+import multer from "multer";
 import {
   insertMarketDataSchema,
   insertTradeIdeaSchema,
@@ -29,6 +30,21 @@ import {
 } from "./rate-limiter";
 import { requireAdmin, generateAdminToken, verifyAdminToken } from "./auth";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+
+// Configure multer for file uploads (memory storage)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max
+  },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  },
+});
 
 // In-memory price cache with 5-minute TTL
 interface PriceCacheEntry {
@@ -3537,6 +3553,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Parse chat idea error:", error);
       res.status(500).json({ error: error?.message || "Failed to parse trade ideas" });
+    }
+  });
+
+  // Chart Analysis Route - AI-powered technical analysis from uploaded charts
+  app.post("/api/chart-analysis", isAuthenticated, upload.single('chart'), aiGenerationLimiter, async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No chart image provided" });
+      }
+
+      // Validate file type more strictly
+      // NOTE: For production, consider adding magic number sniffing or image parsing (sharp/image-size)
+      // to verify actual image content and prevent spoofed file types. Current validation (extension + MIME)
+      // combined with authentication and rate limiting is acceptable for beta with trusted users.
+      const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+      const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      const fileExtension = req.file.originalname.toLowerCase().match(/\.[^.]+$/)?.[0] || '';
+      
+      if (!allowedExtensions.includes(fileExtension) || !allowedMimeTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({ 
+          error: "Invalid file type. Only JPG, PNG, GIF, and WebP images are allowed." 
+        });
+      }
+
+      // Validate file size (already checked by multer, but double-check)
+      if (req.file.size > 10 * 1024 * 1024) {
+        return res.status(400).json({ 
+          error: "File too large. Maximum size is 10MB." 
+        });
+      }
+
+      const schema = z.object({
+        symbol: z.string().optional(),
+        timeframe: z.string().optional(),
+        context: z.string().optional(),
+      });
+      const { symbol, timeframe, context } = schema.parse(req.body);
+      
+      logger.info(`📊 Chart analysis request${symbol ? ` for ${symbol}` : ''}`);
+      
+      // Analyze chart using AI vision
+      const { analyzeChartImage } = await import("./ai-service");
+      const analysis = await analyzeChartImage(
+        req.file.buffer,
+        symbol,
+        timeframe,
+        context
+      );
+      
+      logger.info(`✅ Chart analysis complete${symbol ? ` for ${symbol}` : ''} - ${analysis.sentiment} sentiment`);
+      
+      res.json(analysis);
+    } catch (error: any) {
+      logger.error("Chart analysis error:", error);
+      res.status(500).json({ 
+        error: error?.message || "Failed to analyze chart. Please try again."
+      });
     }
   });
 
