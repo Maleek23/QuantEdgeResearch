@@ -1750,6 +1750,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Engine Performance Breakdown - Compare AI vs Quant vs Hybrid vs Flow
+  app.get("/api/performance/engine-breakdown", async (_req, res) => {
+    try {
+      const filters = { includeOptions: false }; // Exclude options for now
+      
+      // Fetch stats for each engine type
+      const [aiStats, quantStats, hybridStats, flowStats] = await Promise.all([
+        storage.getPerformanceStats({ ...filters, source: 'ai' }),
+        storage.getPerformanceStats({ ...filters, source: 'quant' }),
+        storage.getPerformanceStats({ ...filters, source: 'hybrid' }),
+        storage.getPerformanceStats({ ...filters, source: 'flow' }),
+      ]);
+      
+      res.json({
+        ai: {
+          totalIdeas: aiStats.overall.totalIdeas,
+          closedIdeas: aiStats.overall.closedIdeas,
+          winRate: aiStats.overall.winRate,
+          avgPercentGain: aiStats.overall.avgPercentGain,
+        },
+        quant: {
+          totalIdeas: quantStats.overall.totalIdeas,
+          closedIdeas: quantStats.overall.closedIdeas,
+          winRate: quantStats.overall.winRate,
+          avgPercentGain: quantStats.overall.avgPercentGain,
+        },
+        hybrid: {
+          totalIdeas: hybridStats.overall.totalIdeas,
+          closedIdeas: hybridStats.overall.closedIdeas,
+          winRate: hybridStats.overall.winRate,
+          avgPercentGain: hybridStats.overall.avgPercentGain,
+        },
+        flow: {
+          totalIdeas: flowStats.overall.totalIdeas,
+          closedIdeas: flowStats.overall.closedIdeas,
+          winRate: flowStats.overall.winRate,
+          avgPercentGain: flowStats.overall.avgPercentGain,
+        },
+      });
+    } catch (error) {
+      console.error("Engine breakdown error:", error);
+      res.status(500).json({ error: "Failed to fetch engine breakdown" });
+    }
+  });
+
   app.get("/api/performance/export", async (_req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();

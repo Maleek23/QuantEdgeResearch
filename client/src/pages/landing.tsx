@@ -4,6 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { Footer } from "@/components/footer";
 import { ParticleBackground } from "@/components/particle-background";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SignalStrengthGauge } from "@/components/signal-strength-gauge";
+import { EnginePerformanceChart } from "@/components/engine-performance-chart";
+import { TradeTrajectory3D } from "@/components/trade-trajectory-3d";
 import {
   Accordion,
   AccordionContent,
@@ -180,19 +183,29 @@ export default function Landing() {
         <ParticleBackground />
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
         
-        <div className="container relative mx-auto px-6 py-16 md:py-24 text-center">
-          <Badge variant="secondary" className="mb-8 badge-shimmer neon-accent transition-spring">
-            <Zap className="h-3 w-3 mr-1" />
-            Dual-Engine Architecture: AI + Quantitative
-          </Badge>
+        <div className="container relative mx-auto px-6 py-16 md:py-24">
+          <div className="text-center mb-8">
+            <Badge variant="secondary" className="mb-8 badge-shimmer neon-accent transition-spring">
+              <Zap className="h-3 w-3 mr-1" />
+              Dual-Engine Architecture: AI + Quantitative
+            </Badge>
+          </div>
           
-          {/* QuantEdge Logo */}
-          <div className="flex items-center justify-center mb-2 animate-fade-up">
-            <img 
-              src={quantEdgeLogoUrl} 
-              alt="QuantEdge" 
-              className="h-48 w-48 md:h-60 md:w-60 object-contain drop-shadow-2xl"
-            />
+          {/* Logo + Signal Strength Gauge */}
+          <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12 mb-8">
+            {/* QuantEdge Logo */}
+            <div className="animate-fade-up">
+              <img 
+                src={quantEdgeLogoUrl} 
+                alt="QuantEdge" 
+                className="h-48 w-48 md:h-60 md:w-60 object-contain drop-shadow-2xl"
+              />
+            </div>
+            
+            {/* Live Signal Strength Gauge */}
+            <div className="animate-fade-up animate-delay-100">
+              <SignalStrengthGauge />
+            </div>
           </div>
           
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6 leading-relaxed animate-fade-up animate-delay-100">
@@ -321,6 +334,22 @@ export default function Landing() {
               </CardContent>
             </Card>
           </div>
+        </div>
+      </section>
+
+      {/* DUAL-ENGINE PERFORMANCE COMPARISON */}
+      <section className="bg-muted/30 border-y">
+        <div className="container mx-auto px-6 py-12 md:py-16">
+          <div className="max-w-4xl mx-auto">
+            <EnginePerformanceChart />
+          </div>
+        </div>
+      </section>
+
+      {/* 3D TRADE TRAJECTORY VISUALIZATION */}
+      <section className="container mx-auto px-6 py-12 md:py-16">
+        <div className="max-w-5xl mx-auto">
+          <TradeTrajectory3D />
         </div>
       </section>
 
