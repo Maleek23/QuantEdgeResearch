@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useRoute, useLocation } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TradeIdeaBlock } from "@/components/trade-idea-block";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,14 +22,10 @@ import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X
 import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, subYears, isAfter, isBefore } from "date-fns";
 import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
-import { TradeDeskModeTabs, MODES, type TradeDeskMode } from "@/components/trade-desk-mode-tabs";
 import { getPerformanceGrade } from "@/lib/performance-grade";
 import { ClosedTradesTable } from "@/components/closed-trades-table";
 
 export default function TradeDeskPage() {
-  const [, params] = useRoute("/trade-desk/:mode");
-  const [, setLocation] = useLocation();
-  
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
@@ -40,35 +36,20 @@ export default function TradeDeskPage() {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   
   // Filter state for new filter toolbar
-  const [expiryFilter, setExpiryFilter] = useState<string>('all'); // Default to all (was causing confusion)
+  const [expiryFilter, setExpiryFilter] = useState<string>('all');
   const [assetTypeFilter, setAssetTypeFilter] = useState<string>('all');
   const [gradeFilter, setGradeFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all'); // Show all trades by default
-  const [sortBy, setSortBy] = useState<string>('priority'); // priority, timestamp, expiry, confidence, rr
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('priority');
   const [symbolSearch, setSymbolSearch] = useState<string>('');
   
-  // TASK 2: Pagination state
+  // Pagination state
   const [visibleCount, setVisibleCount] = useState(50);
   
-  const urlMode = params?.mode as TradeDeskMode | undefined;
-  const validMode = urlMode && MODES.find(m => m.id === urlMode) ? urlMode : 'ai-picks';
-  const [activeMode, setActiveMode] = useState<TradeDeskMode>(validMode);
-  
-  useEffect(() => {
-    if (urlMode && MODES.find(m => m.id === urlMode)) {
-      setActiveMode(urlMode);
-    }
-  }, [urlMode]);
-  
-  const handleModeChange = (newMode: TradeDeskMode) => {
-    setActiveMode(newMode);
-    setLocation(`/trade-desk/${newMode}`);
-  };
-  
-  // TASK 2: Reset pagination when filters change
+  // Reset pagination when filters change
   useEffect(() => {
     setVisibleCount(50);
-  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, activeGrade, activeMode]);
+  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, activeGrade]);
   
   const { toast } = useToast();
 
@@ -243,10 +224,7 @@ export default function TradeDeskPage() {
     }
   })();
 
-  // Get mode-specific filters
-  const modeFilters = MODES.find(m => m.id === activeMode)?.filters || {};
-
-  // Filter ideas by search, direction, source, asset type, grade, date range, AND mode
+  // Filter ideas by search, direction, source, asset type, grade, and date range
   const filteredIdeas = tradeIdeas.filter(idea => {
     const matchesSearch = !tradeIdeaSearch || 
       idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase()) ||
@@ -263,33 +241,6 @@ export default function TradeDeskPage() {
     
     const ideaDate = parseISO(idea.timestamp);
     const matchesDateRange = dateRange === 'all' || (!isBefore(ideaDate, rangeStart) || ideaDate.getTime() === rangeStart.getTime());
-    
-    // Apply mode-specific filters
-    if (modeFilters.source && !modeFilters.source.includes(idea.source)) {
-      return false;
-    }
-    
-    if (modeFilters.assetType && !modeFilters.assetType.includes(idea.assetType)) {
-      return false;
-    }
-    
-    if (modeFilters.priceRange) {
-      const { min, max } = modeFilters.priceRange;
-      if (idea.entryPrice < min || idea.entryPrice > max) {
-        return false;
-      }
-    }
-    
-    if (modeFilters.rrMin && idea.riskRewardRatio < modeFilters.rrMin) {
-      return false;
-    }
-    
-    if (modeFilters.grades) {
-      const grade = idea.probabilityBand?.charAt(0);
-      if (!grade || !modeFilters.grades.includes(grade)) {
-        return false;
-      }
-    }
     
     return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange;
   });
@@ -310,9 +261,6 @@ export default function TradeDeskPage() {
     const cutoffTime = subHours(new Date(), 2);
     return ideaDate >= cutoffTime && normalizeStatus(idea.outcomeStatus) === 'open';
   };
-
-  // Get current mode metadata for display
-  const currentMode = MODES.find(m => m.id === activeMode);
 
   // Helper: Apply non-expiry filters (asset type, grade, symbol, status)
   const applyNonExpiryFilters = (ideas: TradeIdea[]) => {
@@ -523,7 +471,7 @@ export default function TradeDeskPage() {
               </span>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Multi-mode trading strategy platform
+              Unified feed showing all trade ideas from AI, Quant, Hybrid, Flow, and News engines
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -536,9 +484,6 @@ export default function TradeDeskPage() {
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </div>
-
-      {/* Mode Tabs */}
-      <TradeDeskModeTabs mode={activeMode} onModeChange={handleModeChange} />
 
       {/* PHASE 1: Signal Pulse Stats Overview - Replaces Tabbed Content */}
       <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background">
@@ -795,68 +740,72 @@ export default function TradeDeskPage() {
               )}
             </div>
 
-            {/* Right: PHASE 5 - Enhanced Generation Buttons */}
-            <div className="flex items-center gap-1.5 border rounded-md p-1 bg-card/50">
-              <Button 
-                onClick={() => generateQuantIdeas.mutate()}
-                disabled={generateQuantIdeas.isPending}
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1.5 px-3"
-                data-testid="button-generate-quant-permanent"
-              >
-                <BarChart3 className="h-3.5 w-3.5" />
-                {generateQuantIdeas.isPending ? <span className="text-xs">...</span> : <span className="text-xs font-semibold">Quant</span>}
-              </Button>
-              <Separator orientation="vertical" className="h-5" />
-              <Button 
-                onClick={() => generateAIIdeas.mutate()}
-                disabled={generateAIIdeas.isPending}
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1.5 px-3"
-                data-testid="button-generate-ai-permanent"
-              >
-                <Bot className="h-3.5 w-3.5" />
-                {generateAIIdeas.isPending ? <span className="text-xs">...</span> : <span className="text-xs font-semibold">AI</span>}
-              </Button>
-              <Separator orientation="vertical" className="h-5" />
-              <Button 
-                onClick={() => generateHybridIdeas.mutate()}
-                disabled={generateHybridIdeas.isPending}
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1.5 px-3"
-                data-testid="button-generate-hybrid-permanent"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                {generateHybridIdeas.isPending ? <span className="text-xs">...</span> : <span className="text-xs font-semibold">Hybrid</span>}
-              </Button>
-              <Separator orientation="vertical" className="h-5" />
-              <Button 
-                onClick={() => generateNewsIdeas.mutate()}
-                disabled={generateNewsIdeas.isPending}
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1.5 px-3"
-                data-testid="button-generate-news-permanent"
-              >
-                <Newspaper className="h-3.5 w-3.5" />
-                {generateNewsIdeas.isPending ? <span className="text-xs">...</span> : <span className="text-xs font-semibold">News</span>}
-              </Button>
-              <Separator orientation="vertical" className="h-5" />
-              <Button 
-                onClick={() => generateFlowIdeas.mutate()}
-                disabled={generateFlowIdeas.isPending}
-                size="sm"
-                variant="ghost"
-                className="h-7 gap-1.5 px-3"
-                data-testid="button-generate-flow-permanent"
-              >
-                <Activity className="h-3.5 w-3.5" />
-                {generateFlowIdeas.isPending ? <span className="text-xs">...</span> : <span className="text-xs font-semibold">Flow</span>}
-              </Button>
-            </div>
+            {/* Right: Generate Ideas Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="default"
+                  size="sm"
+                  className="h-7 gap-1.5 px-3"
+                  data-testid="button-generate-ideas"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span className="text-xs font-semibold">Generate Ideas</span>
+                  <ChevronDown className="h-3 w-3 ml-0.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={() => generateAIIdeas.mutate()}
+                  disabled={generateAIIdeas.isPending}
+                  data-testid="menu-generate-ai"
+                >
+                  <Bot className="h-4 w-4 mr-2" />
+                  AI Analysis
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => generateQuantIdeas.mutate()}
+                  disabled={generateQuantIdeas.isPending}
+                  data-testid="menu-generate-quant"
+                >
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Quant Signals
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => generateHybridIdeas.mutate()}
+                  disabled={generateHybridIdeas.isPending}
+                  data-testid="menu-generate-hybrid"
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Hybrid AI+Quant
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => generateNewsIdeas.mutate()}
+                  disabled={generateNewsIdeas.isPending}
+                  data-testid="menu-generate-news"
+                >
+                  <Newspaper className="h-4 w-4 mr-2" />
+                  News Catalyst
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => generateFlowIdeas.mutate()}
+                  disabled={generateFlowIdeas.isPending}
+                  data-testid="menu-generate-flow"
+                >
+                  <Activity className="h-4 w-4 mr-2" />
+                  Flow Scanner
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  disabled
+                  data-testid="menu-manual-entry"
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Manual Entry
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Active Filter Badge */}
@@ -876,19 +825,6 @@ export default function TradeDeskPage() {
           )}
         </div>
       </div>
-
-      {/* PHASE 3: Lotto Mode Warning Banner - Keep this conditional alert */}
-      {activeMode === 'lotto' && (
-        <Alert variant="destructive" className="bg-amber-500/10 border-amber-500/50">
-          <AlertTriangle className="h-4 w-4 text-amber-500" />
-          <AlertTitle className="text-amber-500">High Risk - Lotto Plays</AlertTitle>
-          <AlertDescription className="text-amber-500/90">
-            These are speculative far-OTM options ($20-70 entry). Most will expire worthless, 
-            but successful plays can return 20x. Only risk what you can afford to lose.
-            Recommended: 1-2% of account per play.
-          </AlertDescription>
-        </Alert>
-      )}
 
       {/* Risk Disclosure */}
       <RiskDisclosure variant="compact" engineVersion="v2.2.0" />

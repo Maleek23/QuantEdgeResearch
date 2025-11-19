@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
 import { formatInUserTZ, formatTimeUntilExpiry } from "@/lib/timezone";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles, Newspaper, HelpCircle, Info, Database, TrendingUpIcon, Zap } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles, Newspaper, HelpCircle, Info, Database, TrendingUpIcon, Zap, UserPlus } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { parseISO } from "date-fns";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -207,6 +207,65 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
   const timingStatus = getTimingStatus();
 
+  // Helper: Map IdeaSource to badge configuration
+  const getSourceBadgeConfig = (source: string, isLotto: boolean) => {
+    // Lotto takes precedence (it's a special high-risk category)
+    if (isLotto) {
+      return {
+        label: 'LOTTO',
+        icon: Zap,
+        className: 'bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/50'
+      };
+    }
+    
+    switch (source) {
+      case 'ai':
+        return {
+          label: 'AI',
+          icon: Bot,
+          className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/50'
+        };
+      case 'quant':
+        return {
+          label: 'QUANT',
+          icon: BarChart3,
+          className: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/50'
+        };
+      case 'hybrid':
+        return {
+          label: 'HYBRID',
+          icon: Sparkles,
+          className: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/50'
+        };
+      case 'flow':
+        return {
+          label: 'FLOW',
+          icon: Activity,
+          className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/50'
+        };
+      case 'news':
+        return {
+          label: 'NEWS',
+          icon: Newspaper,
+          className: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/50'
+        };
+      case 'manual':
+        return {
+          label: 'MANUAL',
+          icon: UserPlus,
+          className: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/50'
+        };
+      default:
+        return {
+          label: source.toUpperCase(),
+          icon: Database,
+          className: 'bg-muted/50 text-muted-foreground border-border'
+        };
+    }
+  };
+
+  const sourceBadge = getSourceBadgeConfig(idea.source, idea.isLottoPlay || false);
+
   const handleToggle = (newOpenState: boolean) => {
     if (onToggleExpand) {
       if (newOpenState || isOpen) {
@@ -234,17 +293,15 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   {idea.symbol}
                 </h3>
                 
-                {/* Source Badge - Only if Flow Scanner (most distinctive) */}
-                {idea.source === 'flow' && (
-                  <Badge 
-                    variant="outline"
-                    className="font-semibold border-2 text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/50"
-                    data-testid={`badge-source-${idea.symbol}`}
-                  >
-                    <Activity className="h-3 w-3 mr-1" />
-                    FLOW SCANNER
-                  </Badge>
-                )}
+                {/* Source Badge - Always visible */}
+                <Badge 
+                  variant="outline"
+                  className={cn("font-semibold border text-xs", sourceBadge.className)}
+                  data-testid={`badge-source-${idea.symbol}`}
+                >
+                  <sourceBadge.icon className="h-3 w-3 mr-1" />
+                  {sourceBadge.label}
+                </Badge>
                 
                 {/* Direction Badge */}
                 <Badge 

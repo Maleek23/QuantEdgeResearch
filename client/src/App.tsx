@@ -29,7 +29,6 @@ function Router() {
       {/* Core Pages */}
       <Route path="/" component={Landing} />
       <Route path="/trade-desk" component={TradeDeskPage} />
-      <Route path="/trade-desk/:mode" component={TradeDeskPage} />
       <Route path="/performance" component={PerformancePage} />
       <Route path="/market" component={MarketPage} />
       
