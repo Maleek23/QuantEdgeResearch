@@ -1,9 +1,10 @@
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, useState, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Html } from "@react-three/drei";
 import { useQuery } from "@tanstack/react-query";
 import type { TradeIdea } from "@shared/schema";
 import * as THREE from "three";
+import { AlertCircle } from "lucide-react";
 
 interface TradePoint {
   id: string;
@@ -133,6 +134,22 @@ export function TradeTrajectory3D() {
     queryKey: ['/api/trade-ideas'],
   });
 
+  const [webglSupported, setWebglSupported] = useState(true);
+  const [canvasError, setCanvasError] = useState(false);
+
+  // Check WebGL support on mount
+  useEffect(() => {
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (!gl) {
+        setWebglSupported(false);
+      }
+    } catch (e) {
+      setWebglSupported(false);
+    }
+  }, []);
+
   // Transform trade ideas into 3D points
   const trades: TradePoint[] = useMemo(() => {
     if (!allIdeas) return [];
@@ -169,6 +186,47 @@ export function TradeTrajectory3D() {
     );
   }
 
+  // WebGL not supported fallback
+  if (!webglSupported || canvasError) {
+    return (
+      <div className="space-y-4" data-testid="trade-trajectory-3d">
+        <div className="text-center">
+          <h3 className="text-lg font-semibold mb-1">3D Trade Trajectory</h3>
+          <p className="text-sm text-muted-foreground">
+            Interactive visualization of {trades.length} validated trades
+          </p>
+        </div>
+
+        <div className="h-96 bg-muted/20 rounded-lg border border-border overflow-hidden flex items-center justify-center">
+          <div className="text-center p-8">
+            <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground mb-2">
+              3D visualization requires WebGL support
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Your browser or environment doesn't support WebGL. Please try a modern browser with hardware acceleration enabled.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex justify-center gap-6 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-green-500" />
+            <span className="text-muted-foreground">Winners: {trades.filter(t => t.status === 'winner').length}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-red-500" />
+            <span className="text-muted-foreground">Losers: {trades.filter(t => t.status === 'loser').length}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-blue-500" />
+            <span className="text-muted-foreground">Active: {trades.filter(t => t.status === 'active').length}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4" data-testid="trade-trajectory-3d">
       {/* Header */}
@@ -179,9 +237,19 @@ export function TradeTrajectory3D() {
         </p>
       </div>
 
-      {/* 3D Canvas */}
+      {/* 3D Canvas with error boundary */}
       <div className="h-96 bg-muted/20 rounded-lg border border-border overflow-hidden">
-        <Canvas camera={{ position: [8, 8, 8], fov: 50 }}>
+        <Canvas 
+          camera={{ position: [8, 8, 8], fov: 50 }}
+          onCreated={({ gl }) => {
+            // WebGL context successfully created
+            console.log('WebGL context created successfully');
+          }}
+          onError={(error) => {
+            console.error('Canvas error:', error);
+            setCanvasError(true);
+          }}
+        >
           <Scene trades={trades} />
         </Canvas>
       </div>
