@@ -27,7 +27,7 @@ import {
   marketDataLimiter,
   adminLimiter
 } from "./rate-limiter";
-import { requireAdmin, generateAdminToken } from "./auth";
+import { requireAdmin, generateAdminToken, verifyAdminToken } from "./auth";
 
 // In-memory price cache with 5-minute TTL
 interface PriceCacheEntry {
@@ -207,6 +207,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Redirect to Discord invite link (will be updated with actual Discord link)
     const discordInviteUrl = process.env.DISCORD_INVITE_URL || "https://discord.gg/quantedge";
     res.redirect(discordInviteUrl);
+  });
+
+  // Logout endpoint - clears admin session
+  app.get("/api/logout", (req: Request, res: Response) => {
+    try {
+      res.clearCookie('admin_token');
+      logger.info('User logged out', { ip: req.ip });
+      res.redirect('/');
+    } catch (error) {
+      logError(error as Error, { context: 'logout' });
+      res.redirect('/');
+    }
+  });
+
+  // Get current user endpoint - returns admin user data if authenticated
+  app.get("/api/auth/user", (req: Request, res: Response) => {
+    try {
+      const token = req.cookies?.admin_token;
+      
+      if (!token) {
+        return res.status(200).json(null);
+      }
+      
+      const decoded = verifyAdminToken(token);
+      
+      if (!decoded || !decoded.isAdmin) {
+        return res.status(200).json(null);
+      }
+      
+      // Return admin user object
+      res.json({
+        id: 'admin',
+        role: 'admin',
+        isAdmin: true,
+        email: 'admin@quantedge.com'
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'auth/user' });
+      res.status(200).json(null);
+    }
   });
 
   // Admin Authentication Routes with JWT

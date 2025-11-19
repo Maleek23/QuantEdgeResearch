@@ -1,4 +1,4 @@
-import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sparkles, Database, Award, GraduationCap, Newspaper } from "lucide-react";
+import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sparkles, Database, Award, GraduationCap, Newspaper, Sun, Moon } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -14,6 +14,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/components/theme-provider";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 import { cn } from "@/lib/utils";
 
@@ -79,8 +81,28 @@ function SidebarToggleButton() {
   );
 }
 
+function ThemeToggleButton() {
+  const { theme, setTheme } = useTheme();
+  const { state } = useSidebar();
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+      data-testid="button-theme-toggle-sidebar"
+      className="shrink-0"
+    >
+      <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+      <span className="sr-only">Toggle theme</span>
+    </Button>
+  );
+}
+
 export function AppSidebar() {
   const [location] = useLocation();
+  const { user, isAuthenticated } = useAuth();
 
   return (
     <Sidebar collapsible="icon">
@@ -190,27 +212,39 @@ export function AppSidebar() {
           <SidebarGroupLabel className="mb-0.5 px-0 text-xs">System</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0">
-              {systemItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location === item.url}>
-                    <Link 
-                      href={item.url}
-                      className="flex items-center gap-3 h-8"
-                      data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {systemItems.map((item) => {
+                // Hide Admin link unless user has admin role
+                if (item.title === "Admin" && !(user as any)?.isAdmin) {
+                  return null;
+                }
+                
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={location === item.url}>
+                      <Link 
+                        href={item.url}
+                        className="flex items-center gap-3 h-8"
+                        data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border/50 p-2 mt-auto">
-        <SidebarToggleButton />
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <SidebarToggleButton />
+          </div>
+          <ThemeToggleButton />
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

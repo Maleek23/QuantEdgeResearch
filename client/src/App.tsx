@@ -8,6 +8,9 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Footer } from "@/components/footer";
 import { ScrollParticles } from "@/components/scroll-particles";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { LogOut, LogIn } from "lucide-react";
 import Landing from "@/pages/landing";
 import TradeDeskPage from "@/pages/trade-desk";
 import MarketPage from "@/pages/market";
@@ -81,6 +84,55 @@ function Router() {
   );
 }
 
+function AuthButtons() {
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (isAuthenticated) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground hidden sm:inline">
+          {(user as any)?.email || 'User'}
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => window.location.href = '/api/logout'}
+          data-testid="button-logout"
+        >
+          <LogOut className="h-4 w-4" />
+          <span className="hidden sm:inline ml-2">Logout</span>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => window.location.href = '/api/login'}
+        data-testid="button-login"
+      >
+        <LogIn className="h-4 w-4" />
+        <span className="hidden sm:inline ml-2">Login</span>
+      </Button>
+      <Button
+        size="sm"
+        onClick={() => window.location.href = '/api/login'}
+        data-testid="button-signup"
+        className="hidden sm:inline-flex"
+      >
+        Sign Up
+      </Button>
+    </div>
+  );
+}
+
 function App() {
   const [location] = useLocation();
   
@@ -115,10 +167,13 @@ function App() {
             <div className="flex h-screen w-full">
               <AppSidebar />
               <div className="flex flex-col flex-1 overflow-hidden">
-                {/* Mobile header with hamburger menu */}
-                <header className="flex lg:hidden items-center gap-2 p-4 border-b bg-background">
-                  <SidebarTrigger data-testid="button-mobile-menu" />
-                  <h1 className="text-lg font-semibold">QuantEdge</h1>
+                {/* Header with auth buttons */}
+                <header className="flex items-center justify-between gap-2 p-4 border-b bg-background">
+                  <div className="flex items-center gap-2">
+                    <SidebarTrigger data-testid="button-mobile-menu" className="lg:hidden" />
+                    <h1 className="text-lg font-semibold lg:hidden">QuantEdge</h1>
+                  </div>
+                  <AuthButtons />
                 </header>
                 <div className="flex-1 overflow-auto flex flex-col">
                   <main className="flex-1">
