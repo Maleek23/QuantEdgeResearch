@@ -485,159 +485,88 @@ export default function TradeDeskPage() {
         <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </div>
 
-      {/* PHASE 1: Signal Pulse Stats Overview - Replaces Tabbed Content */}
-      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">Signal Pulse</CardTitle>
-            <Badge variant="outline" className="ml-auto text-xs">
-              {filteredAndSortedIdeas.length} total
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {/* Fresh Ideas Tile */}
-            <div 
-              className="flex flex-col items-center justify-center p-4 rounded-lg border bg-card/50 hover-elevate cursor-pointer transition-all"
-              onClick={() => {
-                const freshIdeas = filteredAndSortedIdeas.filter(isVeryFreshIdea);
-                if (freshIdeas.length > 0) {
-                  handleToggleExpand(freshIdeas[0].id);
-                }
-              }}
-              data-testid="stats-fresh-tile"
-            >
-              <Sparkles className="h-8 w-8 text-primary mb-2" />
-              <div className="text-3xl font-bold text-primary">
-                {filteredAndSortedIdeas.filter(isVeryFreshIdea).length}
+      {/* Simplified Signal Pulse Stats - 3 Key Metrics */}
+      <div className="flex items-center gap-3">
+        {/* Active Trades */}
+        <Card className="flex-1 hover-elevate cursor-pointer transition-all" onClick={() => {
+          const activeIdeas = filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'open');
+          if (activeIdeas.length > 0) {
+            handleToggleExpand(activeIdeas[0].id);
+          }
+        }} data-testid="stats-active-tile">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-muted-foreground font-medium">Active</div>
+                <div className="text-2xl font-bold text-blue-500 mt-1">
+                  {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'open').length}
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground font-semibold mt-1">FRESH</div>
-              <div className="text-[10px] text-muted-foreground/70 mt-0.5">Last 2 hours</div>
+              <Activity className="h-8 w-8 text-blue-500/30" />
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Active Ideas Tile */}
-            <div 
-              className="flex flex-col items-center justify-center p-4 rounded-lg border bg-card/50 hover-elevate cursor-pointer transition-all"
-              onClick={() => {
-                const activeIdeas = filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'open');
-                if (activeIdeas.length > 0) {
-                  handleToggleExpand(activeIdeas[0].id);
-                }
-              }}
-              data-testid="stats-active-tile"
-            >
-              <Activity className="h-8 w-8 text-blue-500 mb-2" />
-              <div className="text-3xl font-bold text-blue-500">
-                {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'open').length}
+        {/* Winners */}
+        <Card className="flex-1 hover-elevate cursor-pointer transition-all" onClick={() => {
+          const winners = filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target');
+          if (winners.length > 0) {
+            handleToggleExpand(winners[0].id);
+          }
+        }} data-testid="stats-winners-tile">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-muted-foreground font-medium">Winners</div>
+                <div className="text-2xl font-bold text-green-500 mt-1">
+                  {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target').length}
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground font-semibold mt-1">ACTIVE</div>
-              <div className="text-[10px] text-muted-foreground/70 mt-0.5">Open positions</div>
+              <CheckCircle className="h-8 w-8 text-green-500/30" />
             </div>
+          </CardContent>
+        </Card>
 
-            {/* Winners Tile */}
-            <div 
-              className="flex flex-col items-center justify-center p-4 rounded-lg border bg-card/50 hover-elevate cursor-pointer transition-all"
-              onClick={() => {
-                const winners = filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target');
-                if (winners.length > 0) {
-                  handleToggleExpand(winners[0].id);
-                }
-              }}
-              data-testid="stats-winners-tile"
-            >
-              <CheckCircle className="h-8 w-8 text-green-500 mb-2" />
-              <div className="text-3xl font-bold text-green-500">
-                {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target').length}
+        {/* Losers */}
+        <Card className="flex-1 hover-elevate cursor-pointer transition-all" onClick={() => {
+          const losers = filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_stop');
+          if (losers.length > 0) {
+            handleToggleExpand(losers[0].id);
+          }
+        }} data-testid="stats-losers-tile">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-muted-foreground font-medium">Losers</div>
+                <div className="text-2xl font-bold text-red-500 mt-1">
+                  {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_stop').length}
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground font-semibold mt-1">WINNERS</div>
-              <div className="text-[10px] text-muted-foreground/70 mt-0.5">Hit target</div>
+              <XCircle className="h-8 w-8 text-red-500/30" />
             </div>
+          </CardContent>
+        </Card>
+      </div>
 
-            {/* Losers Tile */}
-            <div 
-              className="flex flex-col items-center justify-center p-4 rounded-lg border bg-card/50 hover-elevate cursor-pointer transition-all"
-              onClick={() => {
-                const losers = filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_stop');
-                if (losers.length > 0) {
-                  handleToggleExpand(losers[0].id);
-                }
-              }}
-              data-testid="stats-losers-tile"
-            >
-              <XCircle className="h-8 w-8 text-red-500 mb-2" />
-              <div className="text-3xl font-bold text-red-500">
-                {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_stop').length}
-              </div>
-              <div className="text-xs text-muted-foreground font-semibold mt-1">LOSERS</div>
-              <div className="text-[10px] text-muted-foreground/70 mt-0.5">Hit stop</div>
-            </div>
-
-            {/* Expired Tile */}
-            <div 
-              className="flex flex-col items-center justify-center p-4 rounded-lg border bg-card/50 hover-elevate cursor-pointer transition-all"
-              onClick={() => {
-                const expired = filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'expired');
-                if (expired.length > 0) {
-                  handleToggleExpand(expired[0].id);
-                }
-              }}
-              data-testid="stats-expired-tile"
-            >
-              <Clock className="h-8 w-8 text-amber-500 mb-2" />
-              <div className="text-3xl font-bold text-amber-500">
-                {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'expired').length}
-              </div>
-              <div className="text-xs text-muted-foreground font-semibold mt-1">EXPIRED</div>
-              <div className="text-[10px] text-muted-foreground/70 mt-0.5">Time ran out</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* PHASE 2 & 4: Enhanced Filter Toolbar with Date Range */}
-      <div className="border-b bg-card/30 backdrop-blur-sm">
-        <div className="px-6 py-3 space-y-3">
-          {/* Row 1: Expiry Chips */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-muted-foreground font-semibold mr-2">EXPIRY:</span>
-            <div className="flex gap-1.5 flex-wrap">
-              {[
-                { value: 'all', label: 'All' },
-                { value: '7d', label: '0-7d' },
-                { value: '14d', label: '8-14d' },
-                { value: '30d', label: '15-60d' },
-                { value: '90d', label: '61-270d' },
-                { value: 'leaps', label: '270d+' },
-                { value: 'expired', label: 'Expired', variant: 'destructive' as const }
-              ].map(chip => {
-                const count = expiryCounts[chip.value as keyof typeof expiryCounts] || 0;
-                return (
-                  <Button
-                    key={chip.value}
-                    variant={expiryFilter === chip.value ? (chip.variant || 'default') : 'outline'}
-                    size="sm"
-                    className="h-7 px-3 text-xs font-semibold"
-                    onClick={() => setExpiryFilter(chip.value)}
-                    data-testid={`filter-expiry-${chip.value}`}
-                  >
-                    {chip.label} {count > 0 && <span className="ml-1 opacity-70">({count})</span>}
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-
-          <Separator className="opacity-50" />
-
-          {/* Row 2: Filters, Date Range, and Generation Buttons */}
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            {/* Left: Filters */}
+      {/* Simplified Single-Row Filter Toolbar */}
+      <Card className="bg-card/50">
+        <CardContent className="p-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            {/* Left: Essential Filters */}
             <div className="flex items-center gap-2 flex-wrap">
+              {/* Symbol Search - Most Important */}
+              <Input
+                type="text"
+                placeholder="Search symbol..."
+                value={symbolSearch}
+                onChange={(e) => setSymbolSearch(e.target.value.toUpperCase())}
+                className="h-8 w-[150px] text-sm"
+                data-testid="filter-symbol-search"
+              />
+
               {/* Asset Type Dropdown */}
               <Select value={assetTypeFilter} onValueChange={setAssetTypeFilter}>
-                <SelectTrigger className="h-7 w-[130px] text-xs" data-testid="filter-asset-type">
+                <SelectTrigger className="h-8 w-[130px] text-sm" data-testid="filter-asset-type">
                   <SelectValue placeholder="Asset Type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -649,28 +578,13 @@ export default function TradeDeskPage() {
                 </SelectContent>
               </Select>
 
-              {/* Grade Filter Dropdown */}
-              <Select value={gradeFilter} onValueChange={setGradeFilter}>
-                <SelectTrigger className="h-7 w-[120px] text-xs" data-testid="filter-grade">
-                  <SelectValue placeholder="Grade" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Grades</SelectItem>
-                  <SelectItem value="A">A+ / A</SelectItem>
-                  <SelectItem value="B">B+ / B</SelectItem>
-                  <SelectItem value="C">C+ / C</SelectItem>
-                  <SelectItem value="D">D</SelectItem>
-                  <SelectItem value="LOTTO">LOTTO</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* TASK 1: Status Filter Dropdown */}
+              {/* Status Filter Dropdown */}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-7 w-[120px] text-xs" data-testid="filter-status">
+                <SelectTrigger className="h-8 w-[110px] text-sm" data-testid="filter-status">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="won">Winners</SelectItem>
                   <SelectItem value="lost">Losers</SelectItem>
@@ -678,55 +592,43 @@ export default function TradeDeskPage() {
                 </SelectContent>
               </Select>
 
-              {/* Sort By Dropdown */}
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="h-7 w-[140px] text-xs" data-testid="filter-sort">
-                  <SelectValue placeholder="Sort By" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="priority">Priority (Smart)</SelectItem>
-                  <SelectItem value="timestamp">Newest First</SelectItem>
-                  <SelectItem value="expiry">Expiry (Nearest)</SelectItem>
-                  <SelectItem value="confidence">Confidence (High)</SelectItem>
-                  <SelectItem value="rr">R:R Ratio (Best)</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Date Range Dropdown - Integrated from old card */}
+              {/* Date Range Dropdown */}
               <Select value={dateRange} onValueChange={setDateRange}>
-                <SelectTrigger className="h-7 w-[130px] text-xs" data-testid="select-date-range-ideas">
-                  <SelectValue placeholder="Posted" />
+                <SelectTrigger className="h-8 w-[120px] text-sm" data-testid="select-date-range-ideas">
+                  <SelectValue placeholder="Date Range" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="today">Today Only</SelectItem>
-                  <SelectItem value="7d">Last 7 Days</SelectItem>
-                  <SelectItem value="30d">Last 30 Days</SelectItem>
-                  <SelectItem value="3m">Last 3 Months</SelectItem>
-                  <SelectItem value="1y">Last Year</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="7d">7 Days</SelectItem>
+                  <SelectItem value="30d">30 Days</SelectItem>
+                  <SelectItem value="3m">3 Months</SelectItem>
+                  <SelectItem value="1y">1 Year</SelectItem>
                   <SelectItem value="all">All Time</SelectItem>
                 </SelectContent>
               </Select>
 
-              {/* Symbol Search */}
-              <Input
-                type="text"
-                placeholder="Search symbol..."
-                value={symbolSearch}
-                onChange={(e) => setSymbolSearch(e.target.value.toUpperCase())}
-                className="h-7 w-[140px] text-xs"
-                data-testid="filter-symbol-search"
-              />
+              {/* Sort By Dropdown */}
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="h-8 w-[130px] text-sm" data-testid="filter-sort">
+                  <SelectValue placeholder="Sort By" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="priority">Priority</SelectItem>
+                  <SelectItem value="timestamp">Newest</SelectItem>
+                  <SelectItem value="expiry">Expiry</SelectItem>
+                  <SelectItem value="confidence">Confidence</SelectItem>
+                  <SelectItem value="rr">R:R Ratio</SelectItem>
+                </SelectContent>
+              </Select>
 
               {/* Clear Filters Button */}
-              {(expiryFilter !== 'all' || assetTypeFilter !== 'all' || gradeFilter !== 'all' || statusFilter !== 'all' || sortBy !== 'priority' || symbolSearch !== '' || dateRange !== 'all') && (
+              {(assetTypeFilter !== 'all' || statusFilter !== 'all' || sortBy !== 'priority' || symbolSearch !== '' || dateRange !== 'all') && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-xs"
+                  className="h-8 px-3 text-sm"
                   onClick={() => {
-                    setExpiryFilter('all');
                     setAssetTypeFilter('all');
-                    setGradeFilter('all');
                     setStatusFilter('all');
                     setSortBy('priority');
                     setSymbolSearch('');
@@ -740,53 +642,28 @@ export default function TradeDeskPage() {
               )}
             </div>
 
-            {/* Right: Generate Ideas Dropdown */}
+            {/* Right: Simplified Generate Ideas Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="default"
                   size="sm"
-                  className="h-7 gap-1.5 px-3"
+                  className="h-8 gap-2 px-3"
                   data-testid="button-generate-ideas"
                 >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span className="text-xs font-semibold">Generate Ideas</span>
-                  <ChevronDown className="h-3 w-3 ml-0.5" />
+                  <Sparkles className="h-4 w-4" />
+                  <span className="text-sm font-semibold">Generate</span>
+                  <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem
-                  onClick={() => generateAIIdeas.mutate()}
-                  disabled={generateAIIdeas.isPending}
-                  data-testid="menu-generate-ai"
-                >
-                  <Bot className="h-4 w-4 mr-2" />
-                  AI Analysis
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => generateQuantIdeas.mutate()}
-                  disabled={generateQuantIdeas.isPending}
-                  data-testid="menu-generate-quant"
-                >
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Quant Signals
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end" className="w-44">
                 <DropdownMenuItem
                   onClick={() => generateHybridIdeas.mutate()}
                   disabled={generateHybridIdeas.isPending}
                   data-testid="menu-generate-hybrid"
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
-                  Hybrid AI+Quant
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => generateNewsIdeas.mutate()}
-                  disabled={generateNewsIdeas.isPending}
-                  data-testid="menu-generate-news"
-                >
-                  <Newspaper className="h-4 w-4 mr-2" />
-                  News Catalyst
+                  AI + Quant
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => generateFlowIdeas.mutate()}
@@ -796,7 +673,6 @@ export default function TradeDeskPage() {
                   <Activity className="h-4 w-4 mr-2" />
                   Flow Scanner
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   disabled
                   data-testid="menu-manual-entry"
@@ -807,24 +683,8 @@ export default function TradeDeskPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-
-          {/* Active Filter Badge */}
-          {(expiryFilter !== 'all' || assetTypeFilter !== 'all' || gradeFilter !== 'all' || statusFilter !== 'active' || symbolSearch !== '' || dateRange !== 'all') && (
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                {[
-                  statusFilter !== 'active' && `Status: ${statusFilter}`,
-                  expiryFilter !== 'all' && `Expiry: ${expiryFilter}`,
-                  assetTypeFilter !== 'all' && `Type: ${assetTypeFilter}`,
-                  gradeFilter !== 'all' && `Grade: ${gradeFilter}`,
-                  symbolSearch && `Symbol: ${symbolSearch}`,
-                  dateRange !== 'all' && `Posted: ${dateRange}`
-                ].filter(Boolean).join(' • ')}
-              </Badge>
-            </div>
-          )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Risk Disclosure */}
       <RiskDisclosure variant="compact" engineVersion="v2.2.0" />

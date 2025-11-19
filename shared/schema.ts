@@ -1,20 +1,39 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, real, integer, boolean, timestamp, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, real, integer, boolean, timestamp, index, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Subscription Tier Type
 export type SubscriptionTier = 'free' | 'premium' | 'admin';
 
-// Simplified user tracking for Discord community members
-// Discord OAuth will be implemented later - for now this is manual tier tracking
+// Session storage table (Required for Replit Auth)
+// Reference: blueprint:javascript_log_in_with_replit
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// User storage table (Replit Auth + Discord integration)
+// Reference: blueprint:javascript_log_in_with_replit
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  discordUserId: varchar("discord_user_id").unique(), // From Discord
-  discordUsername: varchar("discord_username"), // From Discord
-  email: varchar("email"), // Optional - may not have
   
-  // Subscription tier tracking (managed manually via Discord roles for now)
+  // Replit Auth fields (from OpenID Connect claims)
+  email: varchar("email").unique(), // From Replit Auth email scope
+  firstName: varchar("first_name"), // From Replit Auth profile scope
+  lastName: varchar("last_name"), // From Replit Auth profile scope
+  profileImageUrl: varchar("profile_image_url"), // From Replit Auth profile scope
+  
+  // Discord fields (optional - for Discord community integration)
+  discordUserId: varchar("discord_user_id"), // From Discord
+  discordUsername: varchar("discord_username"), // From Discord
+  
+  // Subscription tier tracking
   subscriptionTier: text("subscription_tier").$type<SubscriptionTier>().notNull().default('free'),
   subscriptionStatus: varchar("subscription_status").default('active'), // 'active', 'canceled', 'past_due'
   

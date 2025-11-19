@@ -283,51 +283,51 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
       className="group"
     >
       <CollapsibleTrigger className="w-full" data-testid={`block-trade-idea-${idea.symbol}`}>
-        <div className="p-4 border rounded-lg bg-card hover-elevate transition-all block min-h-[200px] flex flex-col">
+        <div className="p-3 border rounded-lg bg-card hover-elevate transition-all block min-h-[160px] flex flex-col">
           {/* ===== HEADER SECTION ===== */}
-          <div className="flex items-start justify-between mb-3">
+          <div className="flex items-start justify-between mb-2">
             <div className="flex-1 min-w-0">
               {/* Symbol + Essential Badges Only */}
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <h3 className="text-xl font-bold font-mono" data-testid={`text-symbol-${idea.symbol}`}>
+              <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                <h3 className="text-lg font-bold font-mono" data-testid={`text-symbol-${idea.symbol}`}>
                   {idea.symbol}
                 </h3>
                 
                 {/* Source Badge - Always visible */}
                 <Badge 
                   variant="outline"
-                  className={cn("font-semibold border text-xs", sourceBadge.className)}
+                  className={cn("font-semibold border text-[11px] h-5", sourceBadge.className)}
                   data-testid={`badge-source-${idea.symbol}`}
                 >
-                  <sourceBadge.icon className="h-3 w-3 mr-1" />
+                  <sourceBadge.icon className="h-2.5 w-2.5 mr-1" />
                   {sourceBadge.label}
                 </Badge>
                 
                 {/* Direction Badge */}
                 <Badge 
                   variant={isLong ? "default" : "destructive"}
-                  className="font-semibold text-xs"
+                  className="font-semibold text-[11px] h-5"
                   data-testid={`badge-direction-${idea.symbol}`}
                 >
                   {isLong ? (
-                    <><ArrowUpRight className="h-3 w-3 mr-1" />LONG</>
+                    <><ArrowUpRight className="h-2.5 w-2.5 mr-1" />LONG</>
                   ) : (
-                    <><ArrowDownRight className="h-3 w-3 mr-1" />SHORT</>
+                    <><ArrowDownRight className="h-2.5 w-2.5 mr-1" />SHORT</>
                   )}
                 </Badge>
 
-                {/* Asset Type Badge - Only for Options (most critical to distinguish) */}
+                {/* Asset Type Badge - Only for Options */}
                 {idea.assetType === 'option' && (
-                  <Badge variant="outline" className="text-xs font-semibold uppercase bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30">
+                  <Badge variant="outline" className="text-[11px] h-5 font-semibold uppercase bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30">
                     OPTION
                   </Badge>
                 )}
 
-                {/* Lotto Play Badge - High-risk far-OTM options with 20x potential */}
+                {/* Lotto Play Badge - Critical info */}
                 {idea.isLottoPlay && (
-                  <Badge variant="outline" className="flex items-center gap-1 text-xs font-semibold bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/30 animate-pulse">
-                    <Zap className="h-3 w-3" />
-                    LOTTO PLAY (20x potential)
+                  <Badge variant="outline" className="flex items-center gap-1 text-[11px] h-5 font-semibold bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/30 animate-pulse">
+                    <Zap className="h-2.5 w-2.5" />
+                    LOTTO
                   </Badge>
                 )}
 
@@ -335,18 +335,18 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 {upcomingEarnings && (
                   <Badge 
                     variant="destructive"
-                    className="font-semibold animate-pulse text-xs"
+                    className="font-semibold animate-pulse text-[11px] h-5"
                     data-testid={`badge-earnings-${idea.symbol}`}
                   >
-                    <Calendar className="h-3 w-3 mr-1" />
-                    EARNINGS {new Date(upcomingEarnings.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    <Calendar className="h-2.5 w-2.5 mr-1" />
+                    EARNINGS
                   </Badge>
                 )}
               </div>
             </div>
 
             {/* Right Side: Confidence Grade + Outcome + Expand Button */}
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {/* Outcome Badge for closed ideas */}
               {idea.outcomeStatus && idea.outcomeStatus !== 'open' && (
                 <Badge 
@@ -355,11 +355,11 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     idea.outcomeStatus === 'hit_stop' ? 'destructive' : 
                     'secondary'
                   }
-                  className="font-semibold text-xs"
+                  className="font-semibold text-[11px] h-5"
                   data-testid={`badge-outcome-${idea.symbol}`}
                 >
-                  {idea.outcomeStatus === 'hit_target' ? 'HIT TARGET' :
-                   idea.outcomeStatus === 'hit_stop' ? 'HIT STOP' :
+                  {idea.outcomeStatus === 'hit_target' ? 'WON' :
+                   idea.outcomeStatus === 'hit_stop' ? 'LOST' :
                    idea.outcomeStatus === 'expired' ? 'EXPIRED' :
                    'CLOSED'}
                 </Badge>
@@ -367,13 +367,13 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
               
               <ConfidenceCircle 
                 score={idea.confidenceScore} 
-                size="lg" 
+                size="md" 
                 showLabel={false}
               />
               
               <ChevronDown 
                 className={cn(
-                  "h-5 w-5 text-muted-foreground transition-transform",
+                  "h-4 w-4 text-muted-foreground transition-transform",
                   isOpen && "rotate-180"
                 )}
               />
@@ -382,30 +382,27 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
           {/* COMPACT TIMING - Single row */}
           {idea.outcomeStatus === 'open' && (
-            <div className="mb-2 px-3 py-2 rounded-lg border bg-card/30 text-xs">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-1.5">
-                  <Clock className="h-3 w-3 text-blue-400" />
-                  <span className="text-muted-foreground">Generated:</span>
+            <div className="mb-2 px-2 py-1.5 rounded border bg-card/30 text-[11px]">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-1">
+                  <Clock className="h-2.5 w-2.5 text-blue-400" />
+                  <span className="text-muted-foreground">Posted:</span>
                   <span className="font-semibold">{formatInUserTZ(idea.timestamp, 'h:mm a')}</span>
                 </div>
                 
                 {idea.entryValidUntil && (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <span className="text-green-400">●</span>
-                    <span className="text-muted-foreground">Enter by:</span>
+                    <span className="text-muted-foreground">Enter:</span>
                     <span className="font-semibold">{formatInUserTZ(idea.entryValidUntil, 'h:mm a')}</span>
                   </div>
                 )}
                 
                 {idea.exitBy && (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <span className="text-amber-400">●</span>
-                    <span className="text-muted-foreground">Exit by:</span>
+                    <span className="text-muted-foreground">Exit:</span>
                     <span className="font-semibold">{formatInUserTZ(idea.exitBy, 'h:mm a')}</span>
-                    <span className="text-xs text-muted-foreground/70">
-                      ({idea.assetType === 'option' ? 'Option Expiry' : 'Market Close'})
-                    </span>
                   </div>
                 )}
               </div>

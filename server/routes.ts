@@ -28,6 +28,7 @@ import {
   adminLimiter
 } from "./rate-limiter";
 import { requireAdmin, generateAdminToken, verifyAdminToken } from "./auth";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 
 // In-memory price cache with 5-minute TTL
 interface PriceCacheEntry {
@@ -202,47 +203,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apply general rate limiting to all API routes
   app.use('/api/', generalApiLimiter);
   
-  // Discord redirect for login/signup (managed via Discord community)
-  app.get("/api/login", (_req: Request, res: Response) => {
-    // Redirect to Discord invite link (will be updated with actual Discord link)
-    const discordInviteUrl = process.env.DISCORD_INVITE_URL || "https://discord.gg/quantedge";
-    res.redirect(discordInviteUrl);
-  });
+  // Setup Replit Auth (registers /api/login, /api/logout, /api/callback routes)
+  // Reference: blueprint:javascript_log_in_with_replit
+  await setupAuth(app);
 
-  // Logout endpoint - clears admin session
-  app.get("/api/logout", (req: Request, res: Response) => {
+  // Get current user endpoint - returns authenticated user from Replit Auth
+  // Reference: blueprint:javascript_log_in_with_replit
+  app.get("/api/auth/user", isAuthenticated, async (req: any, res: Response) => {
     try {
-      res.clearCookie('admin_token');
-      logger.info('User logged out', { ip: req.ip });
-      res.redirect('/');
-    } catch (error) {
-      logError(error as Error, { context: 'logout' });
-      res.redirect('/');
-    }
-  });
-
-  // Get current user endpoint - returns admin user data if authenticated
-  app.get("/api/auth/user", (req: Request, res: Response) => {
-    try {
-      const token = req.cookies?.admin_token;
-      
-      if (!token) {
+      const userId = req.user?.claims?.sub;
+      if (!userId) {
         return res.status(200).json(null);
       }
       
-      const decoded = verifyAdminToken(token);
-      
-      if (!decoded || !decoded.isAdmin) {
+      const user = await storage.getUser(userId);
+      if (!user) {
+        logger.warn('User not found in database', { userId });
         return res.status(200).json(null);
       }
       
-      // Return admin user object
-      res.json({
-        id: 'admin',
-        role: 'admin',
-        isAdmin: true,
-        email: 'admin@quantedge.com'
-      });
+      res.json(user);
     } catch (error) {
       logError(error as Error, { context: 'auth/user' });
       res.status(200).json(null);
