@@ -46,40 +46,17 @@ function SidebarHeaderContent() {
   const isCollapsed = state === "collapsed";
 
   return (
-    <SidebarMenuButton asChild className="h-auto items-center px-3 py-4">
-      <Link href="/" data-testid="nav-home" className="relative">
-        {/* Single persistent structure - no conditional branches */}
-        <div className={cn(
-          "flex w-full relative transition-all duration-300",
-          isCollapsed ? "flex-col items-center gap-3" : "flex-row items-center"
-        )}>
-          {/* Logo - transitions between horizontal and vertical layouts */}
-          <div className={cn(
-            "relative transition-all duration-300 ease-out rounded-lg",
-            isCollapsed ? "p-3" : "p-0"
-          )}
-          style={{
-            background: isCollapsed ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
-            boxShadow: isCollapsed ? '0 0 20px rgba(59, 130, 246, 0.15), inset 0 0 12px rgba(59, 130, 246, 0.05)' : 'none',
-          }}
-          >
-            <img 
-              src={quantEdgeLogoUrl} 
-              alt="QuantEdge" 
-              className={cn(
-                "object-contain transition-all duration-300",
-                isCollapsed ? "h-20 w-20" : "h-24 w-24"
-              )}
-              style={{
-                filter: isCollapsed ? 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.5))' : 'none',
-                opacity: isCollapsed ? 0.95 : 1
-              }}
-            />
-          </div>
-          
+    <div className="px-3 py-4">
+      <Link href="/" data-testid="nav-home" className="flex items-center justify-center">
+        <div className="shrink-0 size-12 flex items-center justify-center">
+          <img 
+            src={quantEdgeLogoUrl} 
+            alt="QuantEdge" 
+            className="object-contain h-full w-full"
+          />
         </div>
       </Link>
-    </SidebarMenuButton>
+    </div>
   );
 }
 
