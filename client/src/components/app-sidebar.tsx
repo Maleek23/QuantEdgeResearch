@@ -1,5 +1,5 @@
 import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sparkles, Database, Award, GraduationCap, Newspaper, Sun, Moon } from "lucide-react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import {
   Sidebar,
   SidebarContent,
@@ -45,11 +45,16 @@ const systemItems = [
 
 function SidebarHeaderContent() {
   const { state } = useSidebar();
+  const [, setLocation] = useLocation();
   const isCollapsed = state === "collapsed";
 
   return (
     <div className="px-3 py-4">
-      <Link href="/" data-testid="nav-home" className="flex items-center justify-center">
+      <button 
+        onClick={() => setLocation("/")} 
+        data-testid="nav-home" 
+        className="flex items-center justify-center w-full cursor-pointer"
+      >
         <div className="shrink-0 size-12 flex items-center justify-center">
           <img 
             src={quantEdgeLogoUrl} 
@@ -57,7 +62,7 @@ function SidebarHeaderContent() {
             className="object-contain h-full w-full"
           />
         </div>
-      </Link>
+      </button>
     </div>
   );
 }
@@ -101,8 +106,12 @@ function ThemeToggleButton() {
 }
 
 export function AppSidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user, isAuthenticated } = useAuth();
+
+  const handleNavigation = (url: string) => {
+    setLocation(url);
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -122,15 +131,13 @@ export function AppSidebar() {
             <SidebarMenu className="gap-0">
               {tradingItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location === item.url}>
-                    <Link 
-                      href={item.url}
-                      className="flex items-center gap-3 h-8"
-                      data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
+                  <SidebarMenuButton 
+                    isActive={location === item.url}
+                    onClick={() => handleNavigation(item.url)}
+                    data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -145,15 +152,13 @@ export function AppSidebar() {
             <SidebarMenu className="gap-0">
               {marketItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location === item.url}>
-                    <Link 
-                      href={item.url}
-                      className="flex items-center gap-3 h-8"
-                      data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
+                  <SidebarMenuButton 
+                    isActive={location === item.url}
+                    onClick={() => handleNavigation(item.url)}
+                    data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -168,15 +173,13 @@ export function AppSidebar() {
             <SidebarMenu className="gap-0">
               {researchItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location === item.url}>
-                    <Link 
-                      href={item.url}
-                      className="flex items-center gap-3 h-8"
-                      data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
+                  <SidebarMenuButton 
+                    isActive={location === item.url}
+                    onClick={() => handleNavigation(item.url)}
+                    data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -191,15 +194,13 @@ export function AppSidebar() {
             <SidebarMenu className="gap-0">
               {communityItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location === item.url}>
-                    <Link 
-                      href={item.url}
-                      className="flex items-center gap-3 h-8"
-                      data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
+                  <SidebarMenuButton 
+                    isActive={location === item.url}
+                    onClick={() => handleNavigation(item.url)}
+                    data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -220,15 +221,13 @@ export function AppSidebar() {
                 
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={location === item.url}>
-                      <Link 
-                        href={item.url}
-                        className="flex items-center gap-3 h-8"
-                        data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
-                      >
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
+                    <SidebarMenuButton 
+                      isActive={location === item.url}
+                      onClick={() => handleNavigation(item.url)}
+                      data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
