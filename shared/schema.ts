@@ -99,7 +99,10 @@ export const tradeIdeas = pgTable("trade_ideas", {
   futuresInitialMargin: real("futures_initial_margin"), // Required margin to open position (from contract)
   futuresMaintenanceMargin: real("futures_maintenance_margin"), // Minimum margin to hold position (from contract)
   
-  source: text("source").notNull().$type<IdeaSource>().default('quant'), // 'ai' | 'quant'
+  source: text("source").notNull().$type<IdeaSource>().default('quant'), // 'ai' | 'quant' | 'chart_analysis'
+  status: text("status").$type<TradeIdeaStatus>().notNull().default('published'), // 'draft' | 'published' | 'archived'
+  chartImageUrl: text("chart_image_url"), // URL/path to uploaded chart image (for chart_analysis source)
+  chartAnalysisJson: jsonb("chart_analysis_json"), // Full AI analysis result (for chart_analysis source)
   confidenceScore: real("confidence_score").notNull().default(0), // 0-100 quality score
   qualitySignals: text("quality_signals").array(), // Array of signal names that fired
   probabilityBand: text("probability_band").notNull().default('C'), // 'A+' (95+), 'A' (90+), 'B+' (85+), 'B' (80+), 'C+' (75+), 'C' (70+), 'D' (<70)
@@ -168,7 +171,10 @@ export type TradeIdea = typeof tradeIdeas.$inferSelect & {
 export type DataSource = 'seed' | 'live';
 
 // Idea Source Type
-export type IdeaSource = 'ai' | 'quant' | 'hybrid' | 'manual' | 'news' | 'flow';
+export type IdeaSource = 'ai' | 'quant' | 'hybrid' | 'manual' | 'news' | 'flow' | 'chart_analysis';
+
+// Trade Idea Status Type
+export type TradeIdeaStatus = 'draft' | 'published' | 'archived';
 
 // Hidden Gem Discovery Criteria
 export interface HiddenGemCriteria {
