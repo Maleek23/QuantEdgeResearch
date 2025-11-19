@@ -3658,6 +3658,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Convert chart analysis to draft trade idea
+  app.post("/api/trade-ideas/from-chart", isAuthenticated, async (req, res) => {
+    try {
+      const schema = z.object({
+        symbol: z.string().min(1, "Symbol is required"),
+        analysis: z.object({
+          patterns: z.array(z.string()),
+          supportLevels: z.array(z.number()),
+          resistanceLevels: z.array(z.number()),
+          entryPoint: z.number(),
+          targetPrice: z.number(),
+          stopLoss: z.number(),
+          riskRewardRatio: z.number(),
+          sentiment: z.enum(["bullish", "bearish", "neutral"]),
+          analysis: z.string(),
+          confidence: z.number(),
+          timeframe: z.string(),
+        }),
+        chartImageUrl: z.string().optional(),
+      });
+      
+      const parseResult = schema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid request data", 
+          details: parseResult.error.errors 
+        });
+      }
+      
+      const validated = parseResult.data;
+      const analysis = validated.analysis;
+      
+      // Determine direction from sentiment
+      const direction = analysis.sentiment === 'bearish' ? 'short' : 'long';
+      
+      // Determine asset type (assume stock for now, could be enhanced)
+      const assetType = 'stock';
+      
+      // Create draft trade idea
+      const tradeIdea = await storage.createTradeIdea({
+        userId: req.user?.claims?.sub,
+        symbol: validated.symbol,
+        assetType,
+        direction,
+        entryPrice: analysis.entryPoint,
+        targetPrice: analysis.targetPrice,
+        stopLoss: analysis.stopLoss,
+        riskRewardRatio: analysis.riskRewardRatio,
+        catalyst: `Chart Pattern: ${analysis.patterns.join(', ') || 'Technical Analysis'}`,
+        analysis: analysis.analysis,
+        sessionContext: `Chart analysis - ${analysis.timeframe}`,
+        timestamp: new Date().toISOString(),
+        source: 'chart_analysis',
+        status: 'draft',
+        confidenceScore: analysis.confidence,
+        chartImageUrl: validated.chartImageUrl,
+        chartAnalysisJson: analysis,
+      });
+      
+      logger.info(`📊 Chart analysis saved as draft trade idea: ${tradeIdea.id} for ${validated.symbol}`);
+      res.json(tradeIdea);
+    } catch (error: any) {
+      logger.error("Failed to create trade idea from chart:", error);
+      res.status(500).json({ 
+        error: error?.message || "Failed to save chart analysis as trade idea" 
+      });
+    }
+  });
+
+  // Promote draft trade idea to published
+  app.patch("/api/trade-ideas/:id/promote", isAuthenticated, async (req, res) => {
+    try {
+      const idea = await storage.getTradeIdeaById(req.params.id);
+      
+      if (!idea) {
+        return res.status(404).json({ error: "Trade idea not found" });
+      }
+      
+      // Check if user owns this trade idea
+      if (idea.userId && idea.userId !== req.user?.claims?.sub) {
+        return res.status(403).json({ error: "Unauthorized to modify this trade idea" });
+      }
+      
+      // Update status to published
+      const updated = await storage.updateTradeIdea(req.params.id, {
+        status: 'published',
+      });
+      
+      logger.info(`📊 Trade idea promoted to published: ${req.params.id}`);
+      res.json(updated);
+    } catch (error: any) {
+      logger.error("Failed to promote trade idea:", error);
+      res.status(500).json({ 
+        error: error?.message || "Failed to promote trade idea" 
+      });
+    }
+  });
+
   // Signal Intelligence & ML Routes
   app.get("/api/ml/signal-intelligence", async (_req, res) => {
     try {
