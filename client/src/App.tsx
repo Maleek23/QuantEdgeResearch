@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { LogOut, LogIn } from "lucide-react";
 import Landing from "@/pages/landing";
 import TradeDeskPage from "@/pages/trade-desk";
+import ChartAnalysis from "@/pages/chart-analysis";
 import MarketPage from "@/pages/market";
 import PerformancePage from "@/pages/performance";
 import SettingsPage from "@/pages/settings";
@@ -32,6 +33,7 @@ function Router() {
       {/* Core Pages */}
       <Route path="/" component={Landing} />
       <Route path="/trade-desk" component={TradeDeskPage} />
+      <Route path="/chart-analysis" component={ChartAnalysis} />
       <Route path="/performance" component={PerformancePage} />
       <Route path="/market" component={MarketPage} />
       

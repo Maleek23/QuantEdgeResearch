@@ -1,4 +1,4 @@
-import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sparkles, Database, Award, GraduationCap, Newspaper, Sun, Moon } from "lucide-react";
+import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sparkles, Database, Award, GraduationCap, Newspaper, Sun, Moon, Upload } from "lucide-react";
 import { useLocation } from "wouter";
 import {
   Sidebar,
@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 
 const tradingItems = [
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
+  { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
   { title: "Performance", url: "/performance", icon: Target },
 ];
 
