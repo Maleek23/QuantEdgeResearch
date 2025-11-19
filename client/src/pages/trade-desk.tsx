@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -15,10 +15,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, IdeaSource, MarketData, Catalyst } from "@shared/schema";
-import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock, Info, Activity, Newspaper, Bot, AlertTriangle } from "lucide-react";
+import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock, Info, Activity, Newspaper, Bot, AlertTriangle, FileText, Eye } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, subYears, isAfter, isBefore } from "date-fns";
 import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
@@ -35,6 +37,10 @@ export default function TradeDeskPage() {
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   
+  // NEW: Source tabs and status view state
+  const [sourceTab, setSourceTab] = useState<IdeaSource | "all">("all");
+  const [statusView, setStatusView] = useState<'all' | 'published' | 'draft'>('published');
+  
   // Filter state for new filter toolbar
   const [expiryFilter, setExpiryFilter] = useState<string>('all');
   const [assetTypeFilter, setAssetTypeFilter] = useState<string>('all');
@@ -49,7 +55,7 @@ export default function TradeDeskPage() {
   // Reset pagination when filters change
   useEffect(() => {
     setVisibleCount(50);
-  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, activeGrade]);
+  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, activeGrade, sourceTab, statusView]);
   
   const { toast } = useToast();
 
@@ -81,6 +87,56 @@ export default function TradeDeskPage() {
       priceMap[data.symbol] = data.currentPrice;
     }
   });
+
+  // Memoized count helpers for source tabs and status
+  const sourceCounts = useMemo(() => {
+    // First filter by statusView
+    const statusFiltered = tradeIdeas.filter(idea => {
+      const ideaStatus = idea.status || 'published';
+      if (statusView === 'all') return true;
+      return ideaStatus === statusView;
+    });
+    
+    const counts: Record<string, number> = {
+      all: statusFiltered.length,
+      ai: 0,
+      quant: 0,
+      hybrid: 0,
+      chart_analysis: 0,
+      flow: 0,
+      news: 0,
+      manual: 0,
+    };
+    
+    statusFiltered.forEach(idea => {
+      const source = idea.source || 'quant';
+      if (counts[source] !== undefined) {
+        counts[source]++;
+      }
+    });
+    
+    return counts;
+  }, [tradeIdeas, statusView]);
+
+  const statusCounts = useMemo(() => {
+    const counts = {
+      all: tradeIdeas.length,
+      published: 0,
+      draft: 0,
+    };
+    
+    tradeIdeas.forEach(idea => {
+      // Treat missing status field as 'published' for backward compatibility
+      const status = idea.status || 'published';
+      if (status === 'published') {
+        counts.published++;
+      } else if (status === 'draft') {
+        counts.draft++;
+      }
+    });
+    
+    return counts;
+  }, [tradeIdeas]);
 
   const generateQuantIdeas = useMutation({
     mutationFn: async () => {
@@ -224,7 +280,7 @@ export default function TradeDeskPage() {
     }
   })();
 
-  // Filter ideas by search, direction, source, asset type, grade, and date range
+  // Filter ideas by search, direction, source, asset type, grade, date range, sourceTab, and statusView
   const filteredIdeas = tradeIdeas.filter(idea => {
     const matchesSearch = !tradeIdeaSearch || 
       idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase()) ||
@@ -242,7 +298,14 @@ export default function TradeDeskPage() {
     const ideaDate = parseISO(idea.timestamp);
     const matchesDateRange = dateRange === 'all' || (!isBefore(ideaDate, rangeStart) || ideaDate.getTime() === rangeStart.getTime());
     
-    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange;
+    // NEW: Filter by source tab
+    const matchesSourceTab = sourceTab === "all" || idea.source === sourceTab;
+    
+    // NEW: Filter by status view (treat missing status as 'published' for backward compatibility)
+    const ideaStatus = idea.status || 'published';
+    const matchesStatusView = statusView === 'all' || ideaStatus === statusView;
+    
+    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesSourceTab && matchesStatusView;
   });
 
   // Helper to normalize outcomeStatus (trim whitespace + lowercase)
@@ -547,6 +610,84 @@ export default function TradeDeskPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* NEW: Two-Layer Filter Header */}
+      {/* Layer 1 - Source Tabs */}
+      <Card className="bg-card/50">
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex-1 overflow-hidden">
+              <ScrollArea className="w-full">
+                <Tabs value={sourceTab} onValueChange={(value) => setSourceTab(value as IdeaSource | "all")} className="w-full">
+                  <TabsList className="inline-flex h-10 items-center justify-start w-full md:w-auto gap-1">
+                    <TabsTrigger value="all" className="gap-2" data-testid="tab-source-all">
+                      All
+                      <Badge variant="secondary" className="text-xs">{sourceCounts.all}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="ai" className="gap-2" data-testid="tab-source-ai">
+                      <Bot className="h-3 w-3" />
+                      AI
+                      <Badge variant="secondary" className="text-xs">{sourceCounts.ai}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="quant" className="gap-2" data-testid="tab-source-quant">
+                      <BarChart3 className="h-3 w-3" />
+                      Quant
+                      <Badge variant="secondary" className="text-xs">{sourceCounts.quant}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="hybrid" className="gap-2" data-testid="tab-source-hybrid">
+                      <Sparkles className="h-3 w-3" />
+                      Hybrid
+                      <Badge variant="secondary" className="text-xs">{sourceCounts.hybrid}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="chart_analysis" className="gap-2" data-testid="tab-source-chart_analysis">
+                      <TrendingUp className="h-3 w-3" />
+                      Chart
+                      <Badge variant="secondary" className="text-xs">{sourceCounts.chart_analysis}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="flow" className="gap-2" data-testid="tab-source-flow">
+                      <Activity className="h-3 w-3" />
+                      Flow
+                      <Badge variant="secondary" className="text-xs">{sourceCounts.flow}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="news" className="gap-2" data-testid="tab-source-news">
+                      <Newspaper className="h-3 w-3" />
+                      News
+                      <Badge variant="secondary" className="text-xs">{sourceCounts.news}</Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="manual" className="gap-2" data-testid="tab-source-manual">
+                      <UserPlus className="h-3 w-3" />
+                      Manual
+                      <Badge variant="secondary" className="text-xs">{sourceCounts.manual}</Badge>
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </ScrollArea>
+            </div>
+
+            {/* Layer 2 - Status Toggle */}
+            <div className="flex items-center gap-2">
+              <Label className="text-sm text-muted-foreground whitespace-nowrap">Status:</Label>
+              <ToggleGroup type="single" value={statusView} onValueChange={(value) => value && setStatusView(value as 'all' | 'published' | 'draft')} className="border rounded-md">
+                <ToggleGroupItem value="all" className="gap-2" data-testid="toggle-status-all">
+                  <Eye className="h-3 w-3" />
+                  All
+                  <Badge variant="secondary" className="text-xs">{statusCounts.all}</Badge>
+                </ToggleGroupItem>
+                <ToggleGroupItem value="published" className="gap-2" data-testid="toggle-status-published">
+                  <CheckCircle className="h-3 w-3" />
+                  Published
+                  <Badge variant="secondary" className="text-xs">{statusCounts.published}</Badge>
+                </ToggleGroupItem>
+                <ToggleGroupItem value="draft" className="gap-2" data-testid="toggle-status-draft">
+                  <FileText className="h-3 w-3" />
+                  Draft
+                  <Badge variant="secondary" className="text-xs">{statusCounts.draft}</Badge>
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Simplified Single-Row Filter Toolbar */}
       <Card className="bg-card/50">

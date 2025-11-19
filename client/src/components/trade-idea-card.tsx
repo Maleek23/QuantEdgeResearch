@@ -38,13 +38,22 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
   const isToday = ideaDate.toDateString() === today.toDateString();
   const isRecent = (today.getTime() - ideaDate.getTime()) < 24 * 60 * 60 * 1000; // Within 24 hours
 
+  // Check if this is a draft trade (treat missing status as 'published' for backward compatibility)
+  const isDraft = idea.status === 'draft';
+
   // Calculate dynamic signal if current price is available
   const dynamicSignal: TradeSignal | null = currentPrice
     ? calculateDynamicSignal(currentPrice, idea.entryPrice, idea.targetPrice, idea.stopLoss, idea.direction as 'long' | 'short')
     : null;
 
   return (
-    <Card className="hover-elevate transition-all" data-testid={`card-trade-idea-${idea.symbol}`}>
+    <Card 
+      className={cn(
+        "hover-elevate transition-all",
+        isDraft && "border-muted/50 bg-muted/20"
+      )} 
+      data-testid={`card-trade-idea-${idea.symbol}`}
+    >
       <CardHeader className="space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
@@ -52,6 +61,11 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
               <CardTitle className="text-xl font-bold font-mono" data-testid={`text-trade-symbol-${idea.symbol}`}>
                 {idea.symbol}
               </CardTitle>
+              {isDraft && (
+                <Badge variant="secondary" className="bg-muted text-muted-foreground font-semibold text-xs" data-testid={`badge-draft-${idea.symbol}`}>
+                  DRAFT
+                </Badge>
+              )}
               {isRecent && (
                 <Badge variant="default" className="bg-primary text-primary-foreground font-bold text-xs animate-pulse" data-testid={`badge-fresh-${idea.symbol}`}>
                   FRESH
