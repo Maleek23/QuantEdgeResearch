@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { TradeIdea } from "@shared/schema";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   TrendingUp, 
   Brain, 
@@ -39,7 +40,9 @@ import {
   TrendingDown,
   Award,
   Star,
-  CheckCircle2
+  CheckCircle2,
+  Upload,
+  LogIn
 } from "lucide-react";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 import { useState, useEffect } from "react";
@@ -57,6 +60,7 @@ interface PerformanceStatsResponse {
 export default function Landing() {
   const [, setLocation] = useLocation();
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   // Fetch performance stats
   const { data: perfStats, isLoading: statsLoading } = useQuery<PerformanceStatsResponse>({
@@ -98,6 +102,12 @@ export default function Landing() {
   };
 
   const features = [
+    {
+      icon: Upload,
+      title: "Chart Pattern Recognition",
+      description: "Upload any trading chart and get instant AI analysis with pattern detection, support/resistance levels, and precise entry/exit points based on proven technical indicators.",
+      color: "text-indigo-500"
+    },
     {
       icon: Brain,
       title: "AI-Powered Analysis",
@@ -185,23 +195,35 @@ export default function Landing() {
           </p>
 
           <div className="flex flex-wrap gap-3 justify-center mb-8 animate-fade-up animate-delay-200">
-            <Button 
-              onClick={() => setLocation('/dashboard')}
-              data-testid="button-enter-platform"
-              className="btn-magnetic neon-accent"
-            >
-              <ArrowRight className="h-4 w-4 mr-2" />
-              Enter Platform
-            </Button>
-            <Button 
-              variant="outline"
-              onClick={() => setLocation('/learn-more')}
-              data-testid="button-learn-more"
-              className="btn-magnetic glass-card"
-            >
-              <Book className="h-4 w-4 mr-2" />
-              Learn More
-            </Button>
+            {isAuthenticated ? (
+              <Button 
+                onClick={() => setLocation('/trade-desk')}
+                data-testid="button-enter-platform"
+                className="btn-magnetic neon-accent"
+              >
+                <ArrowRight className="h-4 w-4 mr-2" />
+                Enter Platform
+              </Button>
+            ) : (
+              <>
+                <Button 
+                  onClick={() => window.location.href = '/api/login'}
+                  data-testid="button-signup-hero"
+                  className="btn-magnetic neon-accent"
+                >
+                  Get Started Free
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => window.location.href = '/api/login'}
+                  data-testid="button-login-hero"
+                  className="btn-magnetic glass-card"
+                >
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Login
+                </Button>
+              </>
+            )}
             <Button 
               variant="outline"
               onClick={() => window.location.href = 'https://discord.gg/quantedge'}
