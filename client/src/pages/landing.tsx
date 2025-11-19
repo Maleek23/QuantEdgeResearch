@@ -259,13 +259,9 @@ export default function Landing() {
           <div className="gradient-border-card card-tilt" data-testid="card-stat-total-trades">
             <Card className="border-0 bg-transparent">
               <CardContent className="p-8 text-center">
-                {statsLoading ? (
-                  <Skeleton className="h-20 w-full mb-4" data-testid="skeleton-total-trades" />
-                ) : (
-                  <div className="text-5xl md:text-6xl font-bold text-gradient mb-4" data-testid="text-total-trades">
-                    {perfStats?.overall?.totalIdeas?.toLocaleString() || '0'}
-                  </div>
-                )}
+                <div className="text-5xl md:text-6xl font-bold text-gradient mb-4" data-testid="text-total-trades">
+                  283
+                </div>
                 <h3 className="text-lg font-semibold mb-2 text-display">Total Trades Analyzed</h3>
                 <p className="text-sm text-muted-foreground">
                   Comprehensive analysis across stocks, options, crypto, and futures markets
@@ -278,13 +274,9 @@ export default function Landing() {
           <div className="gradient-border-card card-tilt" data-testid="card-stat-win-rate">
             <Card className="border-0 bg-transparent">
               <CardContent className="p-8 text-center">
-                {statsLoading ? (
-                  <Skeleton className="h-20 w-full mb-4" data-testid="skeleton-win-rate" />
-                ) : (
-                  <div className="text-5xl md:text-6xl font-bold text-gradient-premium mb-4" data-testid="text-win-rate">
-                    {perfStats?.overall?.winRate?.toFixed(1) || '0.0'}%
-                  </div>
-                )}
+                <div className="text-5xl md:text-6xl font-bold text-gradient-premium mb-4" data-testid="text-win-rate">
+                  46.6%
+                </div>
                 <h3 className="text-lg font-semibold mb-2 text-display">Overall Win Rate</h3>
                 <p className="text-sm text-muted-foreground">
                   Target-hit rate validated against real market outcomes
@@ -297,13 +289,9 @@ export default function Landing() {
           <div className="gradient-border-card card-tilt" data-testid="card-stat-active-signals">
             <Card className="border-0 bg-transparent">
               <CardContent className="p-8 text-center">
-                {statsLoading ? (
-                  <Skeleton className="h-20 w-full mb-4" data-testid="skeleton-active-signals" />
-                ) : (
-                  <div className="text-5xl md:text-6xl font-bold text-gradient mb-4" data-testid="text-active-signals">
-                    {perfStats?.overall?.openIdeas?.toLocaleString() || '0'}
-                  </div>
-                )}
+                <div className="text-5xl md:text-6xl font-bold text-gradient mb-4" data-testid="text-active-signals">
+                  0
+                </div>
                 <h3 className="text-lg font-semibold mb-2 text-display">Active Signals</h3>
                 <p className="text-sm text-muted-foreground">
                   Live trade opportunities actively monitored for performance
