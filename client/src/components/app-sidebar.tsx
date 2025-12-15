@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/theme-provider";
-import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
+import { QuantEdgeLogo } from "@/components/quantedge-logo";
 import { cn } from "@/lib/utils";
 
 const tradingItems = [
@@ -51,13 +51,10 @@ function SidebarHeaderContent() {
         data-testid="nav-home" 
         className="flex items-center justify-center w-full cursor-pointer"
       >
-        <div className="shrink-0 size-12 flex items-center justify-center">
-          <img 
-            src={quantEdgeLogoUrl} 
-            alt="QuantEdge" 
-            className="object-contain h-full w-full"
-          />
-        </div>
+        <QuantEdgeLogo 
+          collapsed={isCollapsed} 
+          size={isCollapsed ? "md" : "md"}
+        />
       </button>
     </div>
   );
