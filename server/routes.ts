@@ -3722,7 +3722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Chart Analysis Route - AI-powered technical analysis from uploaded charts
-  app.post("/api/chart-analysis", isAuthenticated, upload.single('chart'), aiGenerationLimiter, async (req, res) => {
+  app.post("/api/chart-analysis", upload.single('chart'), aiGenerationLimiter, async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No chart image provided" });
@@ -3779,7 +3779,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Convert chart analysis to draft trade idea
-  app.post("/api/trade-ideas/from-chart", isAuthenticated, async (req, res) => {
+  app.post("/api/trade-ideas/from-chart", async (req, res) => {
     try {
       const schema = z.object({
         symbol: z.string().min(1, "Symbol is required"),
@@ -3849,7 +3849,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Promote draft trade idea to published
-  app.patch("/api/trade-ideas/:id/promote", isAuthenticated, async (req, res) => {
+  app.patch("/api/trade-ideas/:id/promote", async (req, res) => {
     try {
       const idea = await storage.getTradeIdeaById(req.params.id);
       
