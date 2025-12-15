@@ -51,6 +51,15 @@ The platform employs a multi-page architecture with user authentication via Repl
 **Configuration Notes:**
 - Vite HMR error overlay has been disabled in vite.config.ts (`server.hmr.overlay: false`) to prevent cosmetic dev-banner plugin errors from disrupting the user experience.
 
+**Performance Optimization (Dec 2025):**
+Tiered caching strategy balancing speed vs data freshness for day-trading:
+- **Critical trading data** (trade-ideas, market-data): 30s refetch + 15s staleTime (~45s max staleness)
+- **Admin monitoring** (alerts, alert-summary): 15s refetch + 10s staleTime (rapid incident response)
+- **System metrics** (api-metrics, system-health, signal-gauge): 30s refetch + 15s staleTime
+- **Secondary analytics** (catalysts): 1hr refetch + 30min staleTime (slow-changing data)
+- **Server caching**: 60s price cache TTL, 5min engine-breakdown/performance-stats cache
+- End-to-end latency target: <60s for all trading decisions
+
 ## External Dependencies
 
 ### Data Sources
