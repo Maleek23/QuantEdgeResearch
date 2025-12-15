@@ -218,7 +218,7 @@ export default function Landing() {
             ) : (
               <>
                 <Button 
-                  onClick={() => window.location.href = '/api/login'}
+                  onClick={() => setLocation('/signup')}
                   data-testid="button-signup-hero"
                   className="btn-magnetic neon-accent"
                 >
@@ -226,7 +226,7 @@ export default function Landing() {
                 </Button>
                 <Button 
                   variant="outline"
-                  onClick={() => window.location.href = '/api/login'}
+                  onClick={() => setLocation('/login')}
                   data-testid="button-login-hero"
                   className="btn-magnetic glass-card"
                 >
@@ -752,7 +752,7 @@ export default function Landing() {
                   <Button 
                     variant="outline" 
                     className="w-full btn-magnetic glass-card"
-                    onClick={() => window.location.href = '/api/login'}
+                    onClick={() => setLocation('/signup')}
                     data-testid="button-pricing-free"
                   >
                     Sign Up Free
@@ -806,7 +806,7 @@ export default function Landing() {
                   
                   <Button 
                     className="w-full btn-magnetic neon-accent"
-                    onClick={() => window.location.href = '/api/login'}
+                    onClick={() => setLocation('/signup')}
                     data-testid="button-pricing-premium"
                   >
                     <Sparkles className="h-4 w-4 mr-2" />

@@ -27,12 +27,16 @@ import ChartDatabase from "@/pages/chart-database";
 import Academy from "@/pages/academy";
 import Blog from "@/pages/blog";
 import NotFound from "@/pages/not-found";
+import Login from "@/pages/login";
+import Signup from "@/pages/signup";
 
 function Router() {
   return (
     <Switch>
       {/* Core Pages */}
       <Route path="/" component={Landing} />
+      <Route path="/login" component={Login} />
+      <Route path="/signup" component={Signup} />
       <Route path="/trade-desk" component={TradeDeskPage} />
       <Route path="/chart-analysis" component={ChartAnalysis} />
       <Route path="/performance" component={PerformancePage} />
@@ -88,7 +92,8 @@ function Router() {
 }
 
 function AuthButtons() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, logout } = useAuth();
+  const [, setLocation] = useLocation();
 
   if (isLoading) {
     return null;
@@ -103,7 +108,10 @@ function AuthButtons() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => window.location.href = '/api/logout'}
+          onClick={() => {
+            logout();
+            setLocation('/');
+          }}
           data-testid="button-logout"
         >
           <LogOut className="h-4 w-4" />
@@ -118,7 +126,7 @@ function AuthButtons() {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => window.location.href = '/api/login'}
+        onClick={() => setLocation('/login')}
         data-testid="button-login"
       >
         <LogIn className="h-4 w-4" />
@@ -126,7 +134,7 @@ function AuthButtons() {
       </Button>
       <Button
         size="sm"
-        onClick={() => window.location.href = '/api/login'}
+        onClick={() => setLocation('/signup')}
         data-testid="button-signup"
         className="hidden sm:inline-flex"
       >
@@ -145,7 +153,7 @@ function App() {
   };
 
   // Show public landing pages without sidebar (admin page handles its own layout)
-  const publicPages = ['/', '/admin', '/privacy', '/terms'];
+  const publicPages = ['/', '/admin', '/privacy', '/terms', '/login', '/signup'];
   if (publicPages.includes(location)) {
     return (
       <QueryClientProvider client={queryClient}>

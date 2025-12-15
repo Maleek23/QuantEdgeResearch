@@ -29,7 +29,17 @@ import {
   adminLimiter
 } from "./rate-limiter";
 import { requireAdmin, generateAdminToken, verifyAdminToken } from "./auth";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { getSession } from "./replitAuth";
+import { createUser, authenticateUser, sanitizeUser } from "./userAuth";
+
+// Session-based authentication middleware
+function isAuthenticated(req: any, res: any, next: any) {
+  const userId = req.session?.userId;
+  if (!userId) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  next();
+}
 
 // Configure multer for file uploads (memory storage)
 const upload = multer({
@@ -219,15 +229,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apply general rate limiting to all API routes
   app.use('/api/', generalApiLimiter);
   
-  // Setup Replit Auth (registers /api/login, /api/logout, /api/callback routes)
-  // Reference: blueprint:javascript_log_in_with_replit
-  await setupAuth(app);
+  // Setup session middleware for traditional email/password auth
+  app.use(getSession());
 
-  // Get current user endpoint - returns authenticated user from Replit Auth
-  // Reference: blueprint:javascript_log_in_with_replit
-  app.get("/api/auth/user", isAuthenticated, async (req: any, res: Response) => {
+  // Authentication Routes - Email/Password Auth
+  
+  // Signup - Create new user account
+  app.post("/api/auth/signup", async (req: Request, res: Response) => {
     try {
-      const userId = req.user?.claims?.sub;
+      const { email, password, firstName, lastName } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+      }
+      
+      if (password.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+      
+      const user = await createUser(email, password, firstName, lastName);
+      
+      if (!user) {
+        return res.status(409).json({ error: "An account with this email already exists" });
+      }
+      
+      // Store userId in session
+      (req.session as any).userId = user.id;
+      
+      logger.info('User signed up', { userId: user.id, email });
+      res.json({ user });
+    } catch (error) {
+      logError(error as Error, { context: 'auth/signup' });
+      res.status(500).json({ error: "Failed to create account" });
+    }
+  });
+
+  // Login - Authenticate existing user
+  app.post("/api/auth/login", async (req: Request, res: Response) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
+      }
+      
+      const user = await authenticateUser(email, password);
+      
+      if (!user) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+      
+      // Store userId in session
+      (req.session as any).userId = user.id;
+      
+      logger.info('User logged in', { userId: user.id, email });
+      res.json({ user });
+    } catch (error) {
+      logError(error as Error, { context: 'auth/login' });
+      res.status(500).json({ error: "Failed to log in" });
+    }
+  });
+
+  // Logout - Destroy session
+  app.post("/api/auth/logout", (req: Request, res: Response) => {
+    try {
+      req.session.destroy((err) => {
+        if (err) {
+          logError(err, { context: 'auth/logout' });
+          return res.status(500).json({ error: "Failed to log out" });
+        }
+        res.clearCookie('connect.sid');
+        logger.info('User logged out');
+        res.json({ success: true });
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'auth/logout' });
+      res.status(500).json({ error: "Failed to log out" });
+    }
+  });
+
+  // Get current user - Returns logged in user from session
+  app.get("/api/auth/me", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
       if (!userId) {
         return res.status(200).json(null);
       }
@@ -238,7 +322,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(200).json(null);
       }
       
-      res.json(user);
+      res.json(sanitizeUser(user));
+    } catch (error) {
+      logError(error as Error, { context: 'auth/me' });
+      res.status(200).json(null);
+    }
+  });
+
+  // Legacy endpoint for backwards compatibility
+  app.get("/api/auth/user", async (req: Request, res: Response) => {
+    try {
+      const userId = (req.session as any)?.userId;
+      if (!userId) {
+        return res.status(200).json(null);
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(200).json(null);
+      }
+      
+      res.json(sanitizeUser(user));
     } catch (error) {
       logError(error as Error, { context: 'auth/user' });
       res.status(200).json(null);

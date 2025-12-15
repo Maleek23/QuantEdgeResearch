@@ -18,20 +18,20 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User storage table (Replit Auth + Discord integration)
-// Reference: blueprint:javascript_log_in_with_replit
+// User storage table (Local auth with password)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   
-  // Replit Auth fields (from OpenID Connect claims)
-  email: varchar("email").unique(), // From Replit Auth email scope
-  firstName: varchar("first_name"), // From Replit Auth profile scope
-  lastName: varchar("last_name"), // From Replit Auth profile scope
-  profileImageUrl: varchar("profile_image_url"), // From Replit Auth profile scope
+  // Auth fields
+  email: varchar("email").unique().notNull(),
+  passwordHash: varchar("password_hash"), // bcrypt hashed password
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
   
   // Discord fields (optional - for Discord community integration)
-  discordUserId: varchar("discord_user_id"), // From Discord
-  discordUsername: varchar("discord_username"), // From Discord
+  discordUserId: varchar("discord_user_id"),
+  discordUsername: varchar("discord_username"),
   
   // Subscription tier tracking
   subscriptionTier: text("subscription_tier").$type<SubscriptionTier>().notNull().default('free'),
