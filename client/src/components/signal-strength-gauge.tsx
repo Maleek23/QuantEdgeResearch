@@ -4,7 +4,8 @@ import { Activity } from "lucide-react";
 export function SignalStrengthGauge() {
   const { data: perfStats, isLoading } = useQuery<any>({
     queryKey: ['/api/performance/stats'],
-    refetchInterval: 30000, // Refresh every 30 seconds for "live" feel
+    refetchInterval: 30000, // 30s for signal gauge
+    staleTime: 15000, // Fresh for 15s
   });
 
   // Calculate current market opportunity score (0-100)

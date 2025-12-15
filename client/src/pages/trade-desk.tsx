@@ -61,18 +61,20 @@ export default function TradeDeskPage() {
 
   const { data: tradeIdeas = [], isLoading: ideasLoading } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
-    refetchInterval: 30000,
-    staleTime: 0,
+    refetchInterval: 30000, // 30s for live trading data
+    staleTime: 15000, // Fresh for 15s to prevent duplicate fetches on navigation
   });
 
   const { data: marketData = [] } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
-    refetchInterval: 30000,
+    refetchInterval: 30000, // 30s for live market data
+    staleTime: 15000,
   });
 
   const { data: catalysts = [] } = useQuery<Catalyst[]>({
     queryKey: ['/api/catalysts'],
     refetchInterval: 3600000,
+    staleTime: 1800000, // 30 min stale time for catalysts (slow-changing data)
   });
 
   const priceMap = tradeIdeas.reduce((acc, idea) => {

@@ -1854,9 +1854,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Engine Performance Breakdown cache (5-minute TTL)
+  let engineBreakdownCache: { data: any; timestamp: number } | null = null;
+  const ENGINE_BREAKDOWN_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  
   // Engine Performance Breakdown - Compare AI vs Quant vs Hybrid vs Flow
   app.get("/api/performance/engine-breakdown", async (_req, res) => {
     try {
+      const now = Date.now();
+      
+      // Check cache
+      if (engineBreakdownCache && (now - engineBreakdownCache.timestamp) < ENGINE_BREAKDOWN_CACHE_TTL) {
+        return res.json(engineBreakdownCache.data);
+      }
+      
       const filters = { includeOptions: false }; // Exclude options for now
       
       // Fetch stats for each engine type
@@ -1867,7 +1878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.getPerformanceStats({ ...filters, source: 'flow' }),
       ]);
       
-      res.json({
+      const data = {
         ai: {
           totalIdeas: aiStats.overall.totalIdeas,
           closedIdeas: aiStats.overall.closedIdeas,
@@ -1892,7 +1903,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           winRate: flowStats.overall.winRate,
           avgPercentGain: flowStats.overall.avgPercentGain,
         },
-      });
+      };
+      
+      // Update cache
+      engineBreakdownCache = { data, timestamp: now };
+      
+      res.json(data);
     } catch (error) {
       console.error("Engine breakdown error:", error);
       res.status(500).json({ error: "Failed to fetch engine breakdown" });

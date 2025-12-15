@@ -91,7 +91,8 @@ export default function AdminPanel() {
   const { data: systemHealth } = useQuery({
     queryKey: ['/api/admin/system-health'],
     enabled: authStep === 'authenticated' && !!adminPassword,
-    refetchInterval: 30000, // Refresh every 30s
+    refetchInterval: 30000, // 30s for system health
+    staleTime: 15000,
     queryFn: async () => {
       const res = await fetch('/api/admin/system-health', {
         headers: { 'x-admin-password': adminPassword }
@@ -116,7 +117,8 @@ export default function AdminPanel() {
   const { data: alerts } = useQuery({
     queryKey: ['/api/admin/alerts'],
     enabled: authStep === 'authenticated' && !!adminPassword,
-    refetchInterval: 15000, // Refresh every 15s
+    refetchInterval: 15000, // 15s for alerts (critical)
+    staleTime: 10000,
     queryFn: async () => {
       const res = await fetch('/api/admin/alerts', {
         headers: { 'x-admin-password': adminPassword }
@@ -129,7 +131,8 @@ export default function AdminPanel() {
   const { data: alertSummary } = useQuery({
     queryKey: ['/api/admin/alerts/summary'],
     enabled: authStep === 'authenticated' && !!adminPassword,
-    refetchInterval: 15000,
+    refetchInterval: 15000, // 15s for alerts
+    staleTime: 10000,
     queryFn: async () => {
       const res = await fetch('/api/admin/alerts/summary', {
         headers: { 'x-admin-password': adminPassword }
@@ -142,7 +145,8 @@ export default function AdminPanel() {
   const { data: apiMetrics } = useQuery({
     queryKey: ['/api/admin/api-metrics'],
     enabled: authStep === 'authenticated' && !!adminPassword,
-    refetchInterval: 30000,
+    refetchInterval: 30000, // 30s for metrics
+    staleTime: 15000,
     queryFn: async () => {
       const res = await fetch('/api/admin/api-metrics', {
         headers: { 'x-admin-password': adminPassword }
