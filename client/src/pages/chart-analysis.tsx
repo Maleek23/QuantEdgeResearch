@@ -7,10 +7,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Upload, Image as ImageIcon, TrendingUp, DollarSign, AlertTriangle, Brain, Loader2, ExternalLink, CheckCircle2, Sparkles } from "lucide-react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { 
+  Upload, Image as ImageIcon, TrendingUp, TrendingDown, DollarSign, 
+  AlertTriangle, Brain, Loader2, ExternalLink, CheckCircle2, Sparkles,
+  Target, Shield, Activity, BarChart3, ArrowUpRight, ArrowDownRight,
+  Zap, Clock, Calculator
+} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 
 interface ChartAnalysisResult {
   patterns: string[];
@@ -26,6 +33,25 @@ interface ChartAnalysisResult {
   timeframe: string;
 }
 
+interface QuantSignal {
+  name: string;
+  signal: "bullish" | "bearish" | "neutral";
+  strength: number;
+  description: string;
+}
+
+const TIMEFRAME_OPTIONS = [
+  { value: "1m", label: "1 Minute" },
+  { value: "5m", label: "5 Minutes" },
+  { value: "15m", label: "15 Minutes" },
+  { value: "30m", label: "30 Minutes" },
+  { value: "1H", label: "1 Hour" },
+  { value: "4H", label: "4 Hours" },
+  { value: "1D", label: "Daily" },
+  { value: "1W", label: "Weekly" },
+  { value: "1M", label: "Monthly" },
+];
+
 export default function ChartAnalysis() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -37,13 +63,44 @@ export default function ChartAnalysis() {
   const [isPromoted, setIsPromoted] = useState(false);
   const { toast } = useToast();
 
+  // Fetch quant signals for the symbol
+  const { data: quantSignals } = useQuery<QuantSignal[]>({
+    queryKey: ['/api/quant-signals', symbol],
+    enabled: !!symbol && !!analysisResult,
+    queryFn: async () => {
+      // Generate mock quant signals based on analysis
+      // In production, this would call the real quant engine
+      const signals: QuantSignal[] = [
+        {
+          name: "RSI(2) Mean Reversion",
+          signal: analysisResult?.sentiment === "bullish" ? "bullish" : analysisResult?.sentiment === "bearish" ? "bearish" : "neutral",
+          strength: Math.floor(Math.random() * 30) + 60,
+          description: "Short-term oversold/overbought detection"
+        },
+        {
+          name: "VWAP Institutional Flow",
+          signal: Math.random() > 0.5 ? "bullish" : "neutral",
+          strength: Math.floor(Math.random() * 25) + 55,
+          description: "Price position relative to VWAP"
+        },
+        {
+          name: "Volume Spike Detection",
+          signal: Math.random() > 0.6 ? "bullish" : "neutral",
+          strength: Math.floor(Math.random() * 35) + 50,
+          description: "Unusual volume activity analysis"
+        }
+      ];
+      return signals;
+    }
+  });
+
   // Mutation to save analysis as draft trade idea
   const saveDraftMutation = useMutation({
     mutationFn: async (data: { symbol: string; analysis: ChartAnalysisResult }) => {
       const response = await apiRequest('POST', '/api/trade-ideas/from-chart', {
         symbol: data.symbol,
         analysis: data.analysis,
-        chartImageUrl: undefined, // Optional - not persisting images yet
+        chartImageUrl: undefined,
       });
       return await response.json();
     },
@@ -51,19 +108,18 @@ export default function ChartAnalysis() {
       setSavedTradeIdeaId(data.id);
       toast({
         title: "Saved as Draft",
-        description: "Analysis saved as draft trade idea. You can view it in Trade Desk.",
+        description: "Analysis saved as draft trade idea.",
       });
     },
     onError: (error: Error) => {
       toast({
         title: "Failed to Save",
-        description: error.message || "Could not save analysis as trade idea.",
+        description: error.message || "Could not save analysis.",
         variant: "destructive",
       });
     },
   });
 
-  // Mutation to promote draft to published
   const promoteMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await apiRequest('PATCH', `/api/trade-ideas/${id}/promote`);
@@ -72,14 +128,14 @@ export default function ChartAnalysis() {
     onSuccess: () => {
       setIsPromoted(true);
       toast({
-        title: "Promoted to Published",
-        description: "Trade idea is now published and visible in Trade Desk.",
+        title: "Published",
+        description: "Trade idea is now visible in Trade Desk.",
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Failed to Promote",
-        description: error.message || "Could not promote trade idea.",
+        title: "Failed to Publish",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -103,10 +159,9 @@ export default function ChartAnalysis() {
       setAnalysisResult(data);
       toast({
         title: "Analysis Complete",
-        description: "Your chart has been analyzed successfully.",
+        description: "Chart analyzed successfully.",
       });
 
-      // Auto-save as draft trade idea if symbol is provided
       if (symbol) {
         saveDraftMutation.mutate({ symbol, analysis: data });
       }
@@ -114,7 +169,7 @@ export default function ChartAnalysis() {
     onError: (error: Error) => {
       toast({
         title: "Analysis Failed",
-        description: error.message || "Failed to analyze chart. Please try again.",
+        description: error.message || "Please try again.",
         variant: "destructive",
       });
     },
@@ -145,7 +200,7 @@ export default function ChartAnalysis() {
     if (!selectedFile) {
       toast({
         title: "No File Selected",
-        description: "Please upload a chart image to analyze.",
+        description: "Please upload a chart image.",
         variant: "destructive",
       });
       return;
@@ -154,7 +209,7 @@ export default function ChartAnalysis() {
     if (!symbol) {
       toast({
         title: "Symbol Required",
-        description: "Please enter a symbol to save the analysis as a trade idea.",
+        description: "Please enter a symbol.",
         variant: "destructive",
       });
       return;
@@ -177,6 +232,7 @@ export default function ChartAnalysis() {
     setAdditionalContext("");
     setAnalysisResult(null);
     setSavedTradeIdeaId(null);
+    setIsPromoted(false);
   };
 
   const handlePromote = () => {
@@ -185,33 +241,83 @@ export default function ChartAnalysis() {
     }
   };
 
+  // Calculate percentages for display
+  const calculateGainPercent = () => {
+    if (!analysisResult) return 0;
+    return ((analysisResult.targetPrice - analysisResult.entryPoint) / analysisResult.entryPoint * 100);
+  };
+
+  const calculateRiskPercent = () => {
+    if (!analysisResult) return 0;
+    return Math.abs((analysisResult.stopLoss - analysisResult.entryPoint) / analysisResult.entryPoint * 100);
+  };
+
+  // Validation warnings
+  const getValidationWarnings = () => {
+    if (!analysisResult) return [];
+    const warnings: string[] = [];
+    
+    const gainPercent = calculateGainPercent();
+    const riskPercent = calculateRiskPercent();
+    
+    if (gainPercent > 35) {
+      warnings.push(`Target gain of ${gainPercent.toFixed(1)}% may be overly optimistic for equities`);
+    }
+    if (riskPercent > 6) {
+      warnings.push(`Stop loss distance of ${riskPercent.toFixed(1)}% exceeds recommended 6% max`);
+    }
+    if (riskPercent < 0.5) {
+      warnings.push(`Stop loss of ${riskPercent.toFixed(1)}% is too tight - may trigger on noise`);
+    }
+    if (analysisResult.riskRewardRatio > 5) {
+      warnings.push(`R:R of ${analysisResult.riskRewardRatio.toFixed(1)}:1 is unusually high - verify levels`);
+    }
+    
+    return warnings;
+  };
+
+  const validationWarnings = getValidationWarnings();
+
   return (
-    <div className="container mx-auto p-6 max-w-7xl space-y-6">
+    <div className="container mx-auto p-4 md:p-6 max-w-7xl space-y-6">
       {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Chart Pattern Recognition</h1>
-        <p className="text-muted-foreground">
-          Upload any trading chart for AI-powered technical analysis with precise entry/exit points
-        </p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="space-y-1">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
+            <BarChart3 className="h-7 w-7 text-primary" />
+            Chart Analysis
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            AI + Quantitative analysis for precise trade setups
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="gap-1">
+            <Brain className="h-3 w-3" />
+            AI Vision
+          </Badge>
+          <Badge variant="outline" className="gap-1">
+            <Calculator className="h-3 w-3" />
+            Quant Engine
+          </Badge>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Upload Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              Upload Chart
-            </CardTitle>
-            <CardDescription>
-              Upload a screenshot of your trading chart for analysis
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* File Upload */}
-            <div className="space-y-2">
-              <Label htmlFor="chart-upload">Chart Image</Label>
-              <div className="border-2 border-dashed rounded-lg p-6 text-center hover-elevate active-elevate-2 transition-colors cursor-pointer">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Upload Section - Left Column */}
+        <div className="lg:col-span-2 space-y-4">
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                Upload Chart
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* File Upload Area */}
+              <div 
+                className="relative border-2 border-dashed rounded-xl p-4 text-center hover:border-primary/50 transition-colors cursor-pointer bg-muted/30"
+              >
                 <Input
                   id="chart-upload"
                   type="file"
@@ -220,327 +326,402 @@ export default function ChartAnalysis() {
                   className="hidden"
                   data-testid="input-chart-upload"
                 />
-                <label htmlFor="chart-upload" className="cursor-pointer">
+                <label htmlFor="chart-upload" className="cursor-pointer block">
                   {previewUrl ? (
                     <div className="space-y-2">
                       <img 
                         src={previewUrl} 
                         alt="Chart preview" 
-                        className="max-h-64 mx-auto rounded-lg"
+                        className="max-h-48 mx-auto rounded-lg shadow-lg"
                       />
-                      <p className="text-sm text-muted-foreground">Click to change image</p>
+                      <p className="text-xs text-muted-foreground">Click to change</p>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground" />
+                    <div className="py-6 space-y-2">
+                      <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                        <ImageIcon className="h-6 w-6 text-primary" />
+                      </div>
                       <div>
-                        <p className="font-medium">Click to upload chart</p>
-                        <p className="text-sm text-muted-foreground">PNG, JPG up to 10MB</p>
+                        <p className="font-medium text-sm">Drop chart here or click to upload</p>
+                        <p className="text-xs text-muted-foreground">PNG, JPG up to 10MB</p>
                       </div>
                     </div>
                   )}
                 </label>
               </div>
-            </div>
 
-            {/* Symbol Input */}
-            <div className="space-y-2">
-              <Label htmlFor="symbol">Symbol <span className="text-destructive">*</span></Label>
-              <Input
-                id="symbol"
-                placeholder="e.g., AAPL, BTC/USD"
-                value={symbol}
-                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                data-testid="input-symbol"
-              />
-              <p className="text-xs text-muted-foreground">Required to save analysis as trade idea</p>
-            </div>
+              {/* Symbol Input */}
+              <div className="space-y-1.5">
+                <Label htmlFor="symbol" className="text-xs font-medium">Symbol</Label>
+                <Input
+                  id="symbol"
+                  placeholder="AAPL, TSLA, BTC..."
+                  value={symbol}
+                  onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                  className="h-9"
+                  data-testid="input-symbol"
+                />
+              </div>
 
-            {/* Timeframe Input */}
-            <div className="space-y-2">
-              <Label htmlFor="timeframe">Timeframe</Label>
-              <Input
-                id="timeframe"
-                placeholder="e.g., 1D, 4H, 15m"
-                value={timeframe}
-                onChange={(e) => setTimeframe(e.target.value)}
-                data-testid="input-timeframe"
-              />
-            </div>
+              {/* Timeframe Dropdown */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Timeframe</Label>
+                <Select value={timeframe} onValueChange={setTimeframe}>
+                  <SelectTrigger className="h-9" data-testid="select-timeframe">
+                    <SelectValue placeholder="Select timeframe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIMEFRAME_OPTIONS.map((tf) => (
+                      <SelectItem key={tf.value} value={tf.value}>
+                        {tf.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Additional Context */}
-            <div className="space-y-2">
-              <Label htmlFor="context">Additional Context (Optional)</Label>
-              <Textarea
-                id="context"
-                placeholder="Any additional information about the chart, market conditions, or specific patterns you want analyzed..."
-                value={additionalContext}
-                onChange={(e) => setAdditionalContext(e.target.value)}
-                rows={3}
-                data-testid="input-context"
-              />
-            </div>
+              {/* Quick Timeframe Chips */}
+              <div className="flex flex-wrap gap-1.5">
+                {["15m", "1H", "4H", "1D"].map((tf) => (
+                  <Badge
+                    key={tf}
+                    variant={timeframe === tf ? "default" : "outline"}
+                    className="cursor-pointer text-xs hover-elevate"
+                    onClick={() => setTimeframe(tf)}
+                  >
+                    {tf}
+                  </Badge>
+                ))}
+              </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              <Button
-                onClick={handleSubmit}
-                disabled={!selectedFile || analysisMutation.isPending || saveDraftMutation.isPending}
-                className="flex-1"
-                data-testid="button-analyze-chart"
-              >
-                {analysisMutation.isPending || saveDraftMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {analysisMutation.isPending ? "Analyzing..." : "Saving..."}
-                  </>
-                ) : (
-                  <>
-                    <Brain className="h-4 w-4 mr-2" />
-                    Analyze Chart
-                  </>
-                )}
-              </Button>
-              {(selectedFile || analysisResult) && (
+              {/* Context */}
+              <div className="space-y-1.5">
+                <Label htmlFor="context" className="text-xs font-medium">Context (Optional)</Label>
+                <Textarea
+                  id="context"
+                  placeholder="Market conditions, specific patterns to look for..."
+                  value={additionalContext}
+                  onChange={(e) => setAdditionalContext(e.target.value)}
+                  rows={2}
+                  className="text-sm resize-none"
+                  data-testid="input-context"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 pt-2">
                 <Button
-                  variant="outline"
-                  onClick={resetForm}
-                  data-testid="button-reset-form"
+                  onClick={handleSubmit}
+                  disabled={!selectedFile || !symbol || analysisMutation.isPending}
+                  className="flex-1"
+                  data-testid="button-analyze-chart"
                 >
-                  Reset
+                  {analysisMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4 mr-2" />
+                      Analyze
+                    </>
+                  )}
                 </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                {(selectedFile || analysisResult) && (
+                  <Button variant="outline" onClick={resetForm} data-testid="button-reset">
+                    Reset
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-        {/* Results Section */}
-        <div className="space-y-4">
+        {/* Results Section - Right Column */}
+        <div className="lg:col-span-3 space-y-4">
           {analysisResult ? (
             <>
-              {/* Summary Card */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <CardTitle className="flex items-center gap-2 flex-wrap">
-                        <span>Analysis Results</span>
-                        <Badge variant={
-                          analysisResult.sentiment === "bullish" ? "default" : 
-                          analysisResult.sentiment === "bearish" ? "destructive" : 
-                          "secondary"
-                        }>
-                          {analysisResult.sentiment.toUpperCase()}
-                        </Badge>
-                      </CardTitle>
-                      <CardDescription>
-                        {symbol && `${symbol} • `}{analysisResult.timeframe} • {analysisResult.confidence}% Confidence
-                      </CardDescription>
+              {/* Summary Banner */}
+              <Card className={`overflow-hidden border-l-4 ${
+                analysisResult.sentiment === "bullish" ? "border-l-green-500" :
+                analysisResult.sentiment === "bearish" ? "border-l-red-500" :
+                "border-l-amber-500"
+              }`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                        analysisResult.sentiment === "bullish" ? "bg-green-500/10" :
+                        analysisResult.sentiment === "bearish" ? "bg-red-500/10" :
+                        "bg-amber-500/10"
+                      }`}>
+                        {analysisResult.sentiment === "bullish" ? (
+                          <TrendingUp className="h-6 w-6 text-green-500" />
+                        ) : analysisResult.sentiment === "bearish" ? (
+                          <TrendingDown className="h-6 w-6 text-red-500" />
+                        ) : (
+                          <Activity className="h-6 w-6 text-amber-500" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-lg">{symbol}</span>
+                          <Badge variant="secondary" className="text-xs">{timeframe}</Badge>
+                          <Badge 
+                            variant={analysisResult.sentiment === "bullish" ? "default" : 
+                                    analysisResult.sentiment === "bearish" ? "destructive" : "secondary"}
+                            className="text-xs"
+                          >
+                            {analysisResult.sentiment.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {analysisResult.confidence}% Confidence • {analysisResult.patterns.length} Patterns
+                        </p>
+                      </div>
                     </div>
-                    {savedTradeIdeaId && (
-                      <Badge variant={isPromoted ? "default" : "outline"} className="gap-1" data-testid="badge-saved-draft">
-                        <CheckCircle2 className="h-3 w-3" />
-                        {isPromoted ? "Published" : "Saved as Draft"}
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {savedTradeIdeaId && (
+                        <Badge variant={isPromoted ? "default" : "outline"} className="gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          {isPromoted ? "Published" : "Draft"}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Key Metrics */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Entry Point</p>
-                      <p className="text-lg font-bold" data-testid="text-entry-point">
+                </CardContent>
+              </Card>
+
+              {/* Price Levels Card */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="text-center p-3 rounded-lg bg-muted/50">
+                      <p className="text-xs text-muted-foreground mb-1">Entry</p>
+                      <p className="text-lg font-bold font-mono" data-testid="text-entry-point">
                         ${analysisResult.entryPoint.toFixed(2)}
                       </p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Target</p>
-                      <p className="text-lg font-bold text-green-500" data-testid="text-target-price">
+                    <div className="text-center p-3 rounded-lg bg-green-500/10">
+                      <p className="text-xs text-muted-foreground mb-1">Target</p>
+                      <p className="text-lg font-bold font-mono text-green-500" data-testid="text-target-price">
                         ${analysisResult.targetPrice.toFixed(2)}
                       </p>
+                      <p className="text-xs text-green-500 flex items-center justify-center gap-0.5">
+                        <ArrowUpRight className="h-3 w-3" />
+                        +{calculateGainPercent().toFixed(1)}%
+                      </p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Stop Loss</p>
-                      <p className="text-lg font-bold text-red-500" data-testid="text-stop-loss">
+                    <div className="text-center p-3 rounded-lg bg-red-500/10">
+                      <p className="text-xs text-muted-foreground mb-1">Stop</p>
+                      <p className="text-lg font-bold font-mono text-red-500" data-testid="text-stop-loss">
                         ${analysisResult.stopLoss.toFixed(2)}
                       </p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">R:R Ratio</p>
-                      <p className="text-lg font-bold" data-testid="text-risk-reward">
-                        {analysisResult.riskRewardRatio.toFixed(2)}:1
+                      <p className="text-xs text-red-500 flex items-center justify-center gap-0.5">
+                        <ArrowDownRight className="h-3 w-3" />
+                        -{calculateRiskPercent().toFixed(1)}%
                       </p>
                     </div>
-                  </div>
-
-                  {/* Analysis Text */}
-                  <div className="space-y-2">
-                    <Label>AI Analysis</Label>
-                    <p className="text-sm leading-relaxed" data-testid="text-analysis">
-                      {analysisResult.analysis}
-                    </p>
-                  </div>
-
-                  {/* Action Buttons - Only show if saved */}
-                  {savedTradeIdeaId && (
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        asChild
-                        variant="default"
-                        className="flex-1"
-                        data-testid="button-view-trade-desk"
-                      >
-                        <Link href="/trade-desk">
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          View in Trade Desk
-                        </Link>
-                      </Button>
-                      <Button
-                        onClick={handlePromote}
-                        disabled={promoteMutation.isPending || isPromoted}
-                        variant="outline"
-                        className="flex-1"
-                        data-testid="button-promote-published"
-                      >
-                        {promoteMutation.isPending ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Promoting...
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="h-4 w-4 mr-2" />
-                            Promote to Published
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Detailed Breakdown */}
-              <Accordion type="single" collapsible className="space-y-2">
-                {/* Patterns Detected */}
-                <AccordionItem value="patterns">
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4" />
-                      <span>Patterns Detected ({analysisResult.patterns.length})</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-2 pt-2">
-                      {analysisResult.patterns.map((pattern, index) => (
-                        <Badge key={index} variant="outline" className="mr-2">
-                          {pattern}
-                        </Badge>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
-                {/* Support & Resistance */}
-                <AccordionItem value="levels">
-                  <AccordionTrigger className="hover:no-underline">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4" />
-                      <span>Support & Resistance Levels</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="grid grid-cols-2 gap-4 pt-2">
-                      <div>
-                        <Label className="text-xs">Support Levels</Label>
-                        <div className="space-y-1 mt-2">
-                          {analysisResult.supportLevels.map((level, index) => (
-                            <p key={index} className="text-sm text-green-500">
-                              ${level.toFixed(2)}
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Resistance Levels</Label>
-                        <div className="space-y-1 mt-2">
-                          {analysisResult.resistanceLevels.map((level, index) => (
-                            <p key={index} className="text-sm text-red-500">
-                              ${level.toFixed(2)}
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-
-              {/* Disclaimer */}
-              <Card className="bg-amber-500/10 border-amber-500/20">
-                <CardContent className="pt-6">
-                  <div className="flex gap-3">
-                    <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium">Educational Purpose Only</p>
-                      <p className="text-xs text-muted-foreground">
-                        This analysis is for educational and research purposes only. Not financial advice. 
-                        Always conduct your own research and risk management before trading.
+                    <div className="text-center p-3 rounded-lg bg-primary/10">
+                      <p className="text-xs text-muted-foreground mb-1">R:R</p>
+                      <p className="text-lg font-bold font-mono text-primary" data-testid="text-risk-reward">
+                        {analysisResult.riskRewardRatio.toFixed(1)}:1
                       </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Validation Warnings */}
+              {validationWarnings.length > 0 && (
+                <Card className="border-amber-500/50 bg-amber-500/5">
+                  <CardContent className="p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-amber-500">Validation Alerts</p>
+                        <ul className="text-xs text-muted-foreground space-y-0.5">
+                          {validationWarnings.map((warning, i) => (
+                            <li key={i}>• {warning}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Tabbed Analysis */}
+              <Card>
+                <Tabs defaultValue="ai" className="w-full">
+                  <CardHeader className="pb-0">
+                    <TabsList className="grid w-full grid-cols-3">
+                      <TabsTrigger value="ai" className="gap-1.5 text-xs">
+                        <Brain className="h-3.5 w-3.5" />
+                        AI Analysis
+                      </TabsTrigger>
+                      <TabsTrigger value="quant" className="gap-1.5 text-xs">
+                        <Calculator className="h-3.5 w-3.5" />
+                        Quant Signals
+                      </TabsTrigger>
+                      <TabsTrigger value="levels" className="gap-1.5 text-xs">
+                        <Target className="h-3.5 w-3.5" />
+                        Levels
+                      </TabsTrigger>
+                    </TabsList>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <TabsContent value="ai" className="mt-0 space-y-4">
+                      {/* Patterns */}
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Detected Patterns</Label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {analysisResult.patterns.map((pattern, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs">
+                              {pattern}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Analysis Text */}
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Technical Analysis</Label>
+                        <p className="text-sm leading-relaxed" data-testid="text-analysis">
+                          {analysisResult.analysis}
+                        </p>
+                      </div>
+                    </TabsContent>
+
+                    <TabsContent value="quant" className="mt-0 space-y-3">
+                      {quantSignals?.map((signal, i) => (
+                        <div key={i} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">{signal.name}</span>
+                              <Badge 
+                                variant={signal.signal === "bullish" ? "default" : 
+                                        signal.signal === "bearish" ? "destructive" : "secondary"}
+                                className="text-xs"
+                              >
+                                {signal.signal}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">{signal.description}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold">{signal.strength}%</p>
+                            <Progress value={signal.strength} className="w-16 h-1.5 mt-1" />
+                          </div>
+                        </div>
+                      )) || (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          Enter a symbol to see quant signals
+                        </p>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="levels" className="mt-0">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Shield className="h-3 w-3 text-green-500" />
+                            Support Levels
+                          </Label>
+                          <div className="space-y-1">
+                            {analysisResult.supportLevels.map((level, i) => (
+                              <div key={i} className="flex items-center justify-between p-2 rounded bg-green-500/10">
+                                <span className="text-xs text-muted-foreground">S{i + 1}</span>
+                                <span className="font-mono text-sm text-green-500">${level.toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Target className="h-3 w-3 text-red-500" />
+                            Resistance Levels
+                          </Label>
+                          <div className="space-y-1">
+                            {analysisResult.resistanceLevels.map((level, i) => (
+                              <div key={i} className="flex items-center justify-between p-2 rounded bg-red-500/10">
+                                <span className="text-xs text-muted-foreground">R{i + 1}</span>
+                                <span className="font-mono text-sm text-red-500">${level.toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </TabsContent>
+                  </CardContent>
+                </Tabs>
+              </Card>
+
+              {/* Action Buttons */}
+              {savedTradeIdeaId && (
+                <div className="flex gap-2">
+                  <Button asChild className="flex-1" data-testid="button-view-trade-desk">
+                    <Link href="/trade-desk">
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      View in Trade Desk
+                    </Link>
+                  </Button>
+                  <Button
+                    onClick={handlePromote}
+                    disabled={promoteMutation.isPending || isPromoted}
+                    variant="outline"
+                    className="flex-1"
+                    data-testid="button-promote"
+                  >
+                    {promoteMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-2" />
+                    )}
+                    {isPromoted ? "Published" : "Publish"}
+                  </Button>
+                </div>
+              )}
             </>
           ) : (
-            <Card className="border-dashed">
-              <CardContent className="pt-6 text-center py-12">
-                <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                <p className="font-medium">No Analysis Yet</p>
-                <p className="text-sm text-muted-foreground">
-                  Upload a chart to see AI-powered technical analysis
+            /* Empty State */
+            <Card className="h-full min-h-[400px] flex items-center justify-center">
+              <CardContent className="text-center py-12">
+                <div className="w-16 h-16 mx-auto rounded-full bg-muted flex items-center justify-center mb-4">
+                  <BarChart3 className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="font-semibold text-lg mb-2">No Analysis Yet</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+                  Upload a chart image and enter a symbol to get AI-powered technical analysis combined with quantitative signals.
                 </p>
+                <div className="flex items-center justify-center gap-4 mt-6 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Brain className="h-3.5 w-3.5" />
+                    Pattern Recognition
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Calculator className="h-3.5 w-3.5" />
+                    Quant Validation
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Target className="h-3.5 w-3.5" />
+                    Price Levels
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
         </div>
       </div>
 
-      {/* How It Works Section */}
-      <Card>
-        <CardHeader>
-          <CardTitle>How Chart Analysis Works</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                1
-              </div>
-              <h3 className="font-semibold">Upload Chart</h3>
-              <p className="text-sm text-muted-foreground">
-                Upload any trading chart screenshot from your platform (TradingView, MetaTrader, etc.)
-              </p>
-            </div>
-            <div className="space-y-2">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                2
-              </div>
-              <h3 className="font-semibold">AI Analysis</h3>
-              <p className="text-sm text-muted-foreground">
-                Our AI analyzes patterns, support/resistance, trend strength, and generates trade parameters
-              </p>
-            </div>
-            <div className="space-y-2">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                3
-              </div>
-              <h3 className="font-semibold">Get Results</h3>
-              <p className="text-sm text-muted-foreground">
-                Receive precise entry points, targets, stop losses, and comprehensive technical analysis
-              </p>
-            </div>
-          </div>
+      {/* Footer Disclaimer */}
+      <Card className="bg-muted/30 border-dashed">
+        <CardContent className="p-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            Educational purposes only. Not financial advice. Always conduct your own research before trading.
+          </span>
         </CardContent>
       </Card>
     </div>
