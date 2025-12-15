@@ -1,10 +1,34 @@
-import { useRef, useMemo, useState, useEffect } from "react";
+import { useRef, useMemo, useState, useEffect, Component, type ReactNode } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Html } from "@react-three/drei";
 import { useQuery } from "@tanstack/react-query";
 import type { TradeIdea } from "@shared/schema";
 import * as THREE from "three";
 import { AlertCircle } from "lucide-react";
+
+// Error Boundary to catch React Three Fiber crashes
+class Canvas3DErrorBoundary extends Component<{ children: ReactNode; onError: () => void }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode; onError: () => void }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error('3D Canvas Error:', error);
+    this.props.onError();
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return null;
+    }
+    return this.props.children;
+  }
+}
 
 interface TradePoint {
   id: string;
@@ -239,19 +263,16 @@ export function TradeTrajectory3D() {
 
       {/* 3D Canvas with error boundary */}
       <div className="h-96 bg-muted/20 rounded-lg border border-border overflow-hidden">
-        <Canvas 
-          camera={{ position: [8, 8, 8], fov: 50 }}
-          onCreated={({ gl }) => {
-            // WebGL context successfully created
-            console.log('WebGL context created successfully');
-          }}
-          onError={(error) => {
-            console.error('Canvas error:', error);
-            setCanvasError(true);
-          }}
-        >
-          <Scene trades={trades} />
-        </Canvas>
+        <Canvas3DErrorBoundary onError={() => setCanvasError(true)}>
+          <Canvas 
+            camera={{ position: [8, 8, 8], fov: 50 }}
+            onCreated={({ gl }) => {
+              console.log('WebGL context created successfully');
+            }}
+          >
+            <Scene trades={trades} />
+          </Canvas>
+        </Canvas3DErrorBoundary>
       </div>
 
       {/* Legend */}
