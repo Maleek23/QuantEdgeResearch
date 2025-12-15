@@ -4,9 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Footer } from "@/components/footer";
 import { ParticleBackground } from "@/components/particle-background";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { SignalStrengthGauge } from "@/components/signal-strength-gauge";
 import { EnginePerformanceChart } from "@/components/engine-performance-chart";
-import { TradeTrajectory3D } from "@/components/trade-trajectory-3d";
 import {
   Accordion,
   AccordionContent,
@@ -191,20 +189,14 @@ export default function Landing() {
             </Badge>
           </div>
           
-          {/* Logo + Signal Strength Gauge */}
-          <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12 mb-8">
-            {/* QuantEdge Logo */}
+          {/* QuantEdge Logo */}
+          <div className="flex flex-col items-center justify-center mb-8">
             <div className="animate-fade-up">
               <img 
                 src={quantEdgeLogoUrl} 
                 alt="QuantEdge" 
                 className="h-48 w-48 md:h-60 md:w-60 object-contain drop-shadow-2xl"
               />
-            </div>
-            
-            {/* Live Signal Strength Gauge */}
-            <div className="animate-fade-up animate-delay-100">
-              <SignalStrengthGauge />
             </div>
           </div>
           
@@ -294,12 +286,16 @@ export default function Landing() {
           <div className="gradient-border-card card-tilt" data-testid="card-stat-total-trades">
             <Card className="border-0 bg-transparent">
               <CardContent className="p-8 text-center">
-                <div className="text-5xl md:text-6xl font-bold text-gradient mb-4" data-testid="text-total-trades">
-                  283
-                </div>
-                <h3 className="text-lg font-semibold mb-2 text-display">Total Trades Analyzed</h3>
+                {statsLoading ? (
+                  <Skeleton className="h-16 w-24 mx-auto mb-4" />
+                ) : (
+                  <div className="text-5xl md:text-6xl font-bold text-gradient mb-4" data-testid="text-total-trades">
+                    {perfStats?.overall?.totalIdeas || 0}
+                  </div>
+                )}
+                <h3 className="text-lg font-semibold mb-2 text-display">Trade Ideas Generated</h3>
                 <p className="text-sm text-muted-foreground">
-                  Comprehensive analysis across stocks, options, crypto, and futures markets
+                  AI and quantitative signals across stocks, options, and crypto
                 </p>
               </CardContent>
             </Card>
@@ -309,12 +305,16 @@ export default function Landing() {
           <div className="gradient-border-card card-tilt" data-testid="card-stat-win-rate">
             <Card className="border-0 bg-transparent">
               <CardContent className="p-8 text-center">
-                <div className="text-5xl md:text-6xl font-bold text-gradient-premium mb-4" data-testid="text-win-rate">
-                  46.6%
-                </div>
-                <h3 className="text-lg font-semibold mb-2 text-display">Overall Win Rate</h3>
+                {statsLoading ? (
+                  <Skeleton className="h-16 w-24 mx-auto mb-4" />
+                ) : (
+                  <div className="text-5xl md:text-6xl font-bold text-gradient-premium mb-4" data-testid="text-win-rate">
+                    {(perfStats?.overall?.winRate || 0).toFixed(1)}%
+                  </div>
+                )}
+                <h3 className="text-lg font-semibold mb-2 text-display">Win Rate</h3>
                 <p className="text-sm text-muted-foreground">
-                  Target-hit rate validated against real market outcomes
+                  Ideas that hit their target price vs stop loss
                 </p>
               </CardContent>
             </Card>
@@ -324,12 +324,16 @@ export default function Landing() {
           <div className="gradient-border-card card-tilt" data-testid="card-stat-active-signals">
             <Card className="border-0 bg-transparent">
               <CardContent className="p-8 text-center">
-                <div className="text-5xl md:text-6xl font-bold text-gradient mb-4" data-testid="text-active-signals">
-                  0
-                </div>
-                <h3 className="text-lg font-semibold mb-2 text-display">Active Signals</h3>
+                {statsLoading ? (
+                  <Skeleton className="h-16 w-24 mx-auto mb-4" />
+                ) : (
+                  <div className="text-5xl md:text-6xl font-bold text-gradient mb-4" data-testid="text-active-signals">
+                    {perfStats?.overall?.openIdeas || 0}
+                  </div>
+                )}
+                <h3 className="text-lg font-semibold mb-2 text-display">Open Positions</h3>
                 <p className="text-sm text-muted-foreground">
-                  Live trade opportunities actively monitored for performance
+                  Active trade ideas being monitored for outcomes
                 </p>
               </CardContent>
             </Card>
@@ -346,12 +350,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* 3D TRADE TRAJECTORY VISUALIZATION */}
-      <section className="container mx-auto px-6 py-12 md:py-16">
-        <div className="max-w-5xl mx-auto">
-          <TradeTrajectory3D />
-        </div>
-      </section>
 
       {/* Dual-Engine Intelligence Showcase */}
       <section className="border-b py-16 md:py-20 bg-gradient-to-b from-background via-primary/5 to-background">
