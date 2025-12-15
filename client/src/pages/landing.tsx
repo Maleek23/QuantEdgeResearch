@@ -206,35 +206,14 @@ export default function Landing() {
           </p>
 
           <div className="flex flex-wrap gap-3 justify-center mb-8 animate-fade-up animate-delay-200">
-            {isAuthenticated ? (
-              <Button 
-                onClick={() => setLocation('/trade-desk')}
-                data-testid="button-enter-platform"
-                className="btn-magnetic neon-accent"
-              >
-                <ArrowRight className="h-4 w-4 mr-2" />
-                Enter Platform
-              </Button>
-            ) : (
-              <>
-                <Button 
-                  onClick={() => setLocation('/signup')}
-                  data-testid="button-signup-hero"
-                  className="btn-magnetic neon-accent"
-                >
-                  Get Started Free
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => setLocation('/login')}
-                  data-testid="button-login-hero"
-                  className="btn-magnetic glass-card"
-                >
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Login
-                </Button>
-              </>
-            )}
+            <Button 
+              onClick={() => setLocation('/trade-desk')}
+              data-testid="button-enter-platform"
+              className="btn-magnetic neon-accent"
+            >
+              <ArrowRight className="h-4 w-4 mr-2" />
+              Enter Platform
+            </Button>
             <Button 
               variant="outline"
               onClick={() => window.location.href = 'https://discord.gg/quantedge'}
