@@ -62,6 +62,7 @@ function Router() {
       <Route path="/trade-ideas">
         <Redirect to="/trade-desk" />
       </Route>
+      <Route path="/generate-ideas" component={TradeDeskPage} />
       <Route path="/insights">
         <Redirect to="/performance" />
       </Route>
@@ -71,9 +72,7 @@ function Router() {
       <Route path="/signals">
         <Redirect to="/performance" />
       </Route>
-      <Route path="/watchlist">
-        <Redirect to="/market" />
-      </Route>
+      <Route path="/watchlist" component={MarketPage} />
       
       {/* Redirects - Removed Pages */}
       <Route path="/learn-more">

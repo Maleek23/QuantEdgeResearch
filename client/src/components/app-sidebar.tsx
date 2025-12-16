@@ -21,12 +21,12 @@ import { cn } from "@/lib/utils";
 
 const tradingItems = [
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
-  { title: "Generate Ideas", url: "/trade-desk", icon: Sparkles },
+  { title: "Generate Ideas", url: "/generate-ideas", icon: Sparkles },
 ];
 
 const marketItems = [
   { title: "Overview", url: "/market", icon: BarChart2 },
-  { title: "Watchlist", url: "/market", icon: Eye },
+  { title: "Watchlist", url: "/watchlist", icon: Eye },
 ];
 
 const researchItems = [
