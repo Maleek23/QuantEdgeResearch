@@ -93,7 +93,7 @@ function App() {
   const [location] = useLocation();
   
   const style = {
-    "--sidebar-width": "13rem",
+    "--sidebar-width": "14rem",
     "--sidebar-width-icon": "3rem",
   };
 
