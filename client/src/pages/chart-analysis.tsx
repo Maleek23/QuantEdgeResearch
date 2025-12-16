@@ -366,9 +366,15 @@ export default function ChartAnalysis() {
                 />
               </div>
 
-              {/* Timeframe Dropdown */}
+              {/* Chart Timeframe Dropdown */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Timeframe</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-xs font-medium">Chart Timeframe</Label>
+                  <Clock className="h-3 w-3 text-muted-foreground" />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  What time period does each candle/bar represent on your chart?
+                </p>
                 <Select value={timeframe} onValueChange={setTimeframe}>
                   <SelectTrigger className="h-9" data-testid="select-timeframe">
                     <SelectValue placeholder="Select timeframe" />
@@ -385,15 +391,20 @@ export default function ChartAnalysis() {
 
               {/* Quick Timeframe Chips */}
               <div className="flex flex-wrap gap-1.5">
-                {["15m", "1H", "4H", "1D"].map((tf) => (
+                {[
+                  { value: "15m", label: "15 Min" },
+                  { value: "1H", label: "1 Hour" },
+                  { value: "4H", label: "4 Hour" },
+                  { value: "1D", label: "Daily" }
+                ].map((tf) => (
                   <Badge
-                    key={tf}
-                    variant={timeframe === tf ? "default" : "outline"}
+                    key={tf.value}
+                    variant={timeframe === tf.value ? "default" : "outline"}
                     className="cursor-pointer text-xs hover-elevate"
-                    onClick={() => setTimeframe(tf)}
-                    data-testid={`chip-timeframe-${tf.toLowerCase()}`}
+                    onClick={() => setTimeframe(tf.value)}
+                    data-testid={`chip-timeframe-${tf.value.toLowerCase()}`}
                   >
-                    {tf}
+                    {tf.label}
                   </Badge>
                 ))}
               </div>
