@@ -13,11 +13,219 @@ import {
   Upload, Image as ImageIcon, TrendingUp, TrendingDown, DollarSign, 
   AlertTriangle, Brain, Loader2, ExternalLink, CheckCircle2, Sparkles,
   Target, Shield, Activity, BarChart3, ArrowUpRight, ArrowDownRight,
-  Zap, Clock, Calculator
+  Zap, Clock, Calculator, Gauge
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+
+function ConfidenceGauge({ value, sentiment }: { value: number; sentiment: "bullish" | "bearish" | "neutral" }) {
+  const color = sentiment === "bullish" ? "#22c55e" : sentiment === "bearish" ? "#ef4444" : "#f59e0b";
+  const percentage = value / 100;
+  const angle = -90 + (percentage * 180);
+  
+  return (
+    <div className="relative w-32 h-20 mx-auto" data-testid="gauge-confidence">
+      <svg viewBox="0 0 100 60" className="w-full h-full" role="img" aria-label={`Confidence gauge at ${value}%`}>
+        <path
+          d="M 10 50 A 40 40 0 0 1 90 50"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="8"
+          className="text-muted/30"
+          strokeLinecap="round"
+        />
+        <path
+          d="M 10 50 A 40 40 0 0 1 90 50"
+          fill="none"
+          stroke={color}
+          strokeWidth="8"
+          strokeDasharray={`${percentage * 126} 126`}
+          strokeLinecap="round"
+          className="transition-all duration-500"
+        />
+        <line
+          x1="50"
+          y1="50"
+          x2="50"
+          y2="20"
+          stroke={color}
+          strokeWidth="3"
+          strokeLinecap="round"
+          transform={`rotate(${angle} 50 50)`}
+          className="transition-all duration-500"
+        />
+        <circle cx="50" cy="50" r="4" fill={color} />
+      </svg>
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center">
+        <span className="text-xl font-bold" style={{ color }} data-testid="text-confidence-value">{value}%</span>
+      </div>
+    </div>
+  );
+}
+
+function PriceRangeBar({ entry, target, stop, sentiment }: { 
+  entry: number; 
+  target: number; 
+  stop: number; 
+  sentiment: "bullish" | "bearish" | "neutral";
+}) {
+  const isBullish = sentiment === "bullish";
+  const min = Math.min(stop, entry, target) * 0.995;
+  const max = Math.max(stop, entry, target) * 1.005;
+  const range = max - min || 1;
+  
+  const stopPos = ((stop - min) / range) * 100;
+  const entryPos = ((entry - min) / range) * 100;
+  const targetPos = ((target - min) / range) * 100;
+  
+  return (
+    <div className="space-y-2" data-testid="visual-price-range">
+      <div className="relative h-8 bg-muted/30 rounded-lg overflow-hidden" role="img" aria-label="Price range visualization">
+        <div 
+          className="absolute top-0 bottom-0 bg-gradient-to-r from-red-500/30 to-transparent"
+          style={{ left: 0, width: `${stopPos}%` }}
+        />
+        <div 
+          className={`absolute top-0 bottom-0 ${isBullish ? 'bg-gradient-to-r from-transparent to-green-500/30' : 'bg-gradient-to-l from-transparent to-red-500/30'}`}
+          style={{ 
+            left: isBullish ? `${entryPos}%` : `${targetPos}%`, 
+            width: `${Math.abs(targetPos - entryPos)}%` 
+          }}
+        />
+        <div 
+          className="absolute top-0 bottom-0 w-0.5 bg-red-500"
+          style={{ left: `${stopPos}%` }}
+        />
+        <div 
+          className="absolute top-0 bottom-0 w-1 bg-primary"
+          style={{ left: `${entryPos}%` }}
+        />
+        <div 
+          className="absolute top-0 bottom-0 w-0.5 bg-green-500"
+          style={{ left: `${targetPos}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-xs">
+        <span className="text-red-500" data-testid="text-range-stop">Stop ${stop.toFixed(2)}</span>
+        <span className="text-primary font-medium" data-testid="text-range-entry">Entry ${entry.toFixed(2)}</span>
+        <span className="text-green-500" data-testid="text-range-target">Target ${target.toFixed(2)}</span>
+      </div>
+    </div>
+  );
+}
+
+function TrendArrow({ sentiment, confidence, gainPercent }: { 
+  sentiment: "bullish" | "bearish" | "neutral"; 
+  confidence: number;
+  gainPercent: number;
+}) {
+  const isBullish = sentiment === "bullish";
+  const isBearish = sentiment === "bearish";
+  const color = isBullish ? "#22c55e" : isBearish ? "#ef4444" : "#f59e0b";
+  
+  return (
+    <div className="relative h-24 flex items-center justify-center" data-testid="visual-trend-arrow">
+      <svg viewBox="0 0 120 80" className="w-full h-full max-w-[200px]" role="img" aria-label={`${sentiment} trend prediction`}>
+        {isBullish && (
+          <>
+            <path
+              d="M 20 60 Q 50 50 80 30 L 100 25"
+              fill="none"
+              stroke={color}
+              strokeWidth="3"
+              strokeLinecap="round"
+              className="opacity-80"
+            />
+            <polygon
+              points="100,15 110,25 100,35 100,28 95,25 100,22"
+              fill={color}
+            />
+            <circle cx="20" cy="60" r="4" fill={color} className="opacity-60" />
+          </>
+        )}
+        {isBearish && (
+          <>
+            <path
+              d="M 20 25 Q 50 35 80 55 L 100 60"
+              fill="none"
+              stroke={color}
+              strokeWidth="3"
+              strokeLinecap="round"
+              className="opacity-80"
+            />
+            <polygon
+              points="100,50 110,60 100,70 100,63 95,60 100,57"
+              fill={color}
+            />
+            <circle cx="20" cy="25" r="4" fill={color} className="opacity-60" />
+          </>
+        )}
+        {!isBullish && !isBearish && (
+          <>
+            <path
+              d="M 20 40 Q 50 35 80 42 L 100 40"
+              fill="none"
+              stroke={color}
+              strokeWidth="3"
+              strokeLinecap="round"
+              className="opacity-80"
+            />
+            <polygon
+              points="100,32 110,40 100,48 100,43 95,40 100,37"
+              fill={color}
+            />
+            <circle cx="20" cy="40" r="4" fill={color} className="opacity-60" />
+          </>
+        )}
+      </svg>
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 text-right">
+        <span className="text-lg font-bold" style={{ color }} data-testid="text-expected-move">
+          {isBullish ? "+" : isBearish ? "-" : "±"}{Math.abs(gainPercent).toFixed(1)}%
+        </span>
+        <p className="text-xs text-muted-foreground">Expected</p>
+      </div>
+    </div>
+  );
+}
+
+function SignalMeter({ signals }: { signals: Array<{ signal: string; strength: number }> }) {
+  const bullishStrength = signals
+    .filter(s => s.signal === "bullish")
+    .reduce((sum, s) => sum + s.strength, 0);
+  const bearishStrength = signals
+    .filter(s => s.signal === "bearish")
+    .reduce((sum, s) => sum + s.strength, 0);
+  const total = bullishStrength + bearishStrength || 1;
+  const bullishPercent = (bullishStrength / total) * 100;
+  
+  return (
+    <div className="space-y-2" data-testid="visual-signal-meter">
+      <div className="flex justify-between text-xs">
+        <span className="text-red-500 font-medium">Bears</span>
+        <span className="text-muted-foreground">Signal Balance</span>
+        <span className="text-green-500 font-medium">Bulls</span>
+      </div>
+      <div className="relative h-4 bg-muted/30 rounded-full overflow-hidden flex" role="img" aria-label={`Signal balance: ${bullishPercent.toFixed(0)}% bullish`}>
+        <div 
+          className="h-full bg-gradient-to-r from-red-500 to-red-400 transition-all duration-500"
+          style={{ width: `${100 - bullishPercent}%` }}
+        />
+        <div 
+          className="h-full bg-gradient-to-r from-green-400 to-green-500 transition-all duration-500"
+          style={{ width: `${bullishPercent}%` }}
+        />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-0.5 h-full bg-background" />
+        </div>
+      </div>
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span data-testid="text-bearish-percent">{(100 - bullishPercent).toFixed(0)}%</span>
+        <span data-testid="text-bullish-percent">{bullishPercent.toFixed(0)}%</span>
+      </div>
+    </div>
+  );
+}
 
 interface ChartAnalysisResult {
   patterns: string[];
@@ -588,6 +796,46 @@ export default function ChartAnalysis() {
                   </CardHeader>
                   <CardContent className="pt-4">
                     <TabsContent value="ai" className="mt-0 space-y-4">
+                      {/* Visual Graphics Row */}
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Predicted Trend */}
+                        <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
+                          <Label className="text-xs text-muted-foreground mb-2 block">Predicted Trend</Label>
+                          <TrendArrow 
+                            sentiment={analysisResult.sentiment} 
+                            confidence={analysisResult.confidence}
+                            gainPercent={calculateGainPercent()}
+                          />
+                        </div>
+                        
+                        {/* Confidence Gauge */}
+                        <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
+                          <Label className="text-xs text-muted-foreground mb-2 block text-center">AI Confidence</Label>
+                          <ConfidenceGauge 
+                            value={analysisResult.confidence} 
+                            sentiment={analysisResult.sentiment}
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Signal Balance Meter */}
+                      {quantSignals && quantSignals.length > 0 && (
+                        <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
+                          <SignalMeter signals={quantSignals} />
+                        </div>
+                      )}
+                      
+                      {/* Price Range Visualization */}
+                      <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
+                        <Label className="text-xs text-muted-foreground mb-3 block">Price Target Range</Label>
+                        <PriceRangeBar 
+                          entry={analysisResult.entryPoint}
+                          target={analysisResult.targetPrice}
+                          stop={analysisResult.stopLoss}
+                          sentiment={analysisResult.sentiment}
+                        />
+                      </div>
+                      
                       {/* Patterns */}
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Detected Patterns</Label>
