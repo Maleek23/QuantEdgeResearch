@@ -523,493 +523,100 @@ export default function TradeDeskPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header with Aurora Hero */}
-      <div className="relative overflow-hidden border-b aurora-hero rounded-xl -mx-6 px-6 pb-6 mb-8">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
-        <div className="relative flex items-center justify-between gap-4 pt-6">
-          <div>
-            <div className="flex items-baseline gap-3 flex-wrap">
-              <h1 className="text-3xl font-bold tracking-tight text-gradient-premium" data-testid="text-page-title">Trade Desk</h1>
-              <span className="text-sm font-medium text-muted-foreground hidden md:inline" data-testid="text-current-date">
-                {format(new Date(), 'EEEE, MMM d')}
-              </span>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              Unified feed showing all trade ideas from AI, Quant, Hybrid, Flow, and News engines
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {newIdeasCount > 0 && (
-              <Badge variant="default" className="animate-pulse neon-accent badge-shimmer" data-testid="badge-new-ideas">
-                {newIdeasCount} NEW
-              </Badge>
-            )}
-          </div>
+    <div className="container mx-auto p-6 space-y-4">
+      {/* Clean Minimal Header */}
+      <div className="flex items-center justify-between gap-4 pb-2">
+        <div>
+          <h1 className="text-2xl font-semibold" data-testid="text-page-title">Trade Desk</h1>
+          <p className="text-sm text-muted-foreground">
+            {format(new Date(), 'EEEE, MMM d')} · {activeIdeas.length} active ideas
+          </p>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="default"
+              size="default"
+              className="gap-2"
+              data-testid="button-generate-ideas"
+            >
+              <Sparkles className="h-4 w-4" />
+              Generate
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem
+              onClick={() => generateHybridIdeas.mutate()}
+              disabled={generateHybridIdeas.isPending}
+              data-testid="menu-generate-hybrid"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              AI + Quant
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => generateFlowIdeas.mutate()}
+              disabled={generateFlowIdeas.isPending}
+              data-testid="menu-generate-flow"
+            >
+              <Activity className="h-4 w-4 mr-2" />
+              Flow Scanner
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {/* Simplified Signal Pulse Stats - 3 Key Metrics */}
+      {/* Simple Search + Filter Bar */}
       <div className="flex items-center gap-3">
-        {/* Active Trades */}
-        <Card className="flex-1 hover-elevate cursor-pointer transition-all" onClick={() => {
-          const activeIdeas = filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'open');
-          if (activeIdeas.length > 0) {
-            handleToggleExpand(activeIdeas[0].id);
-          }
-        }} data-testid="stats-active-tile">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-muted-foreground font-medium">Active</div>
-                <div className="text-2xl font-bold text-blue-500 mt-1">
-                  {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'open').length}
-                </div>
-              </div>
-              <Activity className="h-8 w-8 text-blue-500/30" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Winners */}
-        <Card className="flex-1 hover-elevate cursor-pointer transition-all" onClick={() => {
-          const winners = filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target');
-          if (winners.length > 0) {
-            handleToggleExpand(winners[0].id);
-          }
-        }} data-testid="stats-winners-tile">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-muted-foreground font-medium">Winners</div>
-                <div className="text-2xl font-bold text-green-500 mt-1">
-                  {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target').length}
-                </div>
-              </div>
-              <CheckCircle className="h-8 w-8 text-green-500/30" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Losers */}
-        <Card className="flex-1 hover-elevate cursor-pointer transition-all" onClick={() => {
-          const losers = filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_stop');
-          if (losers.length > 0) {
-            handleToggleExpand(losers[0].id);
-          }
-        }} data-testid="stats-losers-tile">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm text-muted-foreground font-medium">Losers</div>
-                <div className="text-2xl font-bold text-red-500 mt-1">
-                  {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_stop').length}
-                </div>
-              </div>
-              <XCircle className="h-8 w-8 text-red-500/30" />
-            </div>
-          </CardContent>
-        </Card>
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Search symbols..."
+            value={symbolSearch}
+            onChange={(e) => setSymbolSearch(e.target.value.toUpperCase())}
+            className="pl-10"
+            data-testid="filter-symbol-search"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[130px]" data-testid="filter-status">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="won">Winners</SelectItem>
+            <SelectItem value="lost">Losers</SelectItem>
+          </SelectContent>
+        </Select>
+        {(symbolSearch || statusFilter !== 'all') && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              setSymbolSearch('');
+              setStatusFilter('all');
+            }}
+            data-testid="button-clear-filters"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
-      {/* NEW: Two-Layer Filter Header */}
-      {/* Layer 1 - Source Tabs */}
-      <Card className="bg-card/50">
-        <CardContent className="p-4">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex-1 overflow-hidden">
-              <ScrollArea className="w-full">
-                <Tabs value={sourceTab} onValueChange={(value) => setSourceTab(value as IdeaSource | "all")} className="w-full">
-                  <TabsList className="inline-flex h-10 items-center justify-start w-full md:w-auto gap-1">
-                    <TabsTrigger value="all" className="gap-2" data-testid="tab-source-all">
-                      All
-                      <Badge variant="secondary" className="text-xs">{sourceCounts.all}</Badge>
-                    </TabsTrigger>
-                    <TabsTrigger value="ai" className="gap-2" data-testid="tab-source-ai">
-                      <Bot className="h-3 w-3" />
-                      AI
-                      <Badge variant="secondary" className="text-xs">{sourceCounts.ai}</Badge>
-                    </TabsTrigger>
-                    <TabsTrigger value="quant" className="gap-2" data-testid="tab-source-quant">
-                      <BarChart3 className="h-3 w-3" />
-                      Quant
-                      <Badge variant="secondary" className="text-xs">{sourceCounts.quant}</Badge>
-                    </TabsTrigger>
-                    <TabsTrigger value="hybrid" className="gap-2" data-testid="tab-source-hybrid">
-                      <Sparkles className="h-3 w-3" />
-                      Hybrid
-                      <Badge variant="secondary" className="text-xs">{sourceCounts.hybrid}</Badge>
-                    </TabsTrigger>
-                    <TabsTrigger value="chart_analysis" className="gap-2" data-testid="tab-source-chart_analysis">
-                      <TrendingUp className="h-3 w-3" />
-                      Chart
-                      <Badge variant="secondary" className="text-xs">{sourceCounts.chart_analysis}</Badge>
-                    </TabsTrigger>
-                    <TabsTrigger value="flow" className="gap-2" data-testid="tab-source-flow">
-                      <Activity className="h-3 w-3" />
-                      Flow
-                      <Badge variant="secondary" className="text-xs">{sourceCounts.flow}</Badge>
-                    </TabsTrigger>
-                    <TabsTrigger value="news" className="gap-2" data-testid="tab-source-news">
-                      <Newspaper className="h-3 w-3" />
-                      News
-                      <Badge variant="secondary" className="text-xs">{sourceCounts.news}</Badge>
-                    </TabsTrigger>
-                    <TabsTrigger value="manual" className="gap-2" data-testid="tab-source-manual">
-                      <UserPlus className="h-3 w-3" />
-                      Manual
-                      <Badge variant="secondary" className="text-xs">{sourceCounts.manual}</Badge>
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </ScrollArea>
-            </div>
-
-            {/* Layer 2 - Status Toggle */}
-            <div className="flex items-center gap-2">
-              <Label className="text-sm text-muted-foreground whitespace-nowrap">Status:</Label>
-              <ToggleGroup type="single" value={statusView} onValueChange={(value) => value && setStatusView(value as 'all' | 'published' | 'draft')} className="border rounded-md">
-                <ToggleGroupItem value="all" className="gap-2" data-testid="toggle-status-all">
-                  <Eye className="h-3 w-3" />
-                  All
-                  <Badge variant="secondary" className="text-xs">{statusCounts.all}</Badge>
-                </ToggleGroupItem>
-                <ToggleGroupItem value="published" className="gap-2" data-testid="toggle-status-published">
-                  <CheckCircle className="h-3 w-3" />
-                  Published
-                  <Badge variant="secondary" className="text-xs">{statusCounts.published}</Badge>
-                </ToggleGroupItem>
-                <ToggleGroupItem value="draft" className="gap-2" data-testid="toggle-status-draft">
-                  <FileText className="h-3 w-3" />
-                  Draft
-                  <Badge variant="secondary" className="text-xs">{statusCounts.draft}</Badge>
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Simplified Single-Row Filter Toolbar */}
-      <Card className="bg-card/50">
-        <CardContent className="p-3">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            {/* Left: Essential Filters */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Symbol Search - Most Important */}
-              <Input
-                type="text"
-                placeholder="Search symbol..."
-                value={symbolSearch}
-                onChange={(e) => setSymbolSearch(e.target.value.toUpperCase())}
-                className="h-8 w-[150px] text-sm"
-                data-testid="filter-symbol-search"
-              />
-
-              {/* Asset Type Dropdown */}
-              <Select value={assetTypeFilter} onValueChange={setAssetTypeFilter}>
-                <SelectTrigger className="h-8 w-[130px] text-sm" data-testid="filter-asset-type">
-                  <SelectValue placeholder="Asset Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Assets</SelectItem>
-                  <SelectItem value="option">Options</SelectItem>
-                  <SelectItem value="stock">Stocks</SelectItem>
-                  <SelectItem value="crypto">Crypto</SelectItem>
-                  <SelectItem value="penny_stock">Penny Stocks</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Status Filter Dropdown */}
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-8 w-[110px] text-sm" data-testid="filter-status">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="won">Winners</SelectItem>
-                  <SelectItem value="lost">Losers</SelectItem>
-                  <SelectItem value="expired">Expired</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Date Range Dropdown */}
-              <Select value={dateRange} onValueChange={setDateRange}>
-                <SelectTrigger className="h-8 w-[120px] text-sm" data-testid="select-date-range-ideas">
-                  <SelectValue placeholder="Date Range" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="7d">7 Days</SelectItem>
-                  <SelectItem value="30d">30 Days</SelectItem>
-                  <SelectItem value="3m">3 Months</SelectItem>
-                  <SelectItem value="1y">1 Year</SelectItem>
-                  <SelectItem value="all">All Time</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Sort By Dropdown */}
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="h-8 w-[130px] text-sm" data-testid="filter-sort">
-                  <SelectValue placeholder="Sort By" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="priority">Priority</SelectItem>
-                  <SelectItem value="timestamp">Newest</SelectItem>
-                  <SelectItem value="expiry">Expiry</SelectItem>
-                  <SelectItem value="confidence">Confidence</SelectItem>
-                  <SelectItem value="rr">R:R Ratio</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Clear Filters Button */}
-              {(assetTypeFilter !== 'all' || statusFilter !== 'all' || sortBy !== 'priority' || symbolSearch !== '' || dateRange !== 'all') && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-3 text-sm"
-                  onClick={() => {
-                    setAssetTypeFilter('all');
-                    setStatusFilter('all');
-                    setSortBy('priority');
-                    setSymbolSearch('');
-                    setDateRange('all');
-                  }}
-                  data-testid="button-clear-filters"
-                >
-                  <X className="h-3 w-3 mr-1" />
-                  Clear
-                </Button>
-              )}
-            </div>
-
-            {/* Right: Simplified Generate Ideas Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="default"
-                  size="sm"
-                  className="h-8 gap-2 px-3"
-                  data-testid="button-generate-ideas"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  <span className="text-sm font-semibold">Generate</span>
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem
-                  onClick={() => generateHybridIdeas.mutate()}
-                  disabled={generateHybridIdeas.isPending}
-                  data-testid="menu-generate-hybrid"
-                >
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  AI + Quant
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => generateFlowIdeas.mutate()}
-                  disabled={generateFlowIdeas.isPending}
-                  data-testid="menu-generate-flow"
-                >
-                  <Activity className="h-4 w-4 mr-2" />
-                  Flow Scanner
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled
-                  data-testid="menu-manual-entry"
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Manual Entry
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Risk Disclosure */}
-      <RiskDisclosure variant="compact" engineVersion="v2.2.0" />
-
-      {/* PHASE 4: Weekend Notice - Merged into content area */}
+      {/* Weekend Notice - Only when relevant */}
       {isWeekend() && (
-        <Alert className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5" data-testid="weekend-preview-section">
-          <CalendarClock className="h-4 w-4 text-primary" />
-          <AlertTitle className="text-sm">Markets Closed - Weekend Preview</AlertTitle>
-          <AlertDescription className="text-xs">
-            Markets open {format(getNextTradingWeekStart(), 'EEEE, MMM d')} at 9:30 AM CT.
-            {filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'open').length > 0 
-              ? ` ${filteredAndSortedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'open').length} ideas ready for next week.`
-              : " Use the generation buttons above to create new trade ideas."}
+        <Alert className="border-muted" data-testid="weekend-preview-section">
+          <Clock className="h-4 w-4" />
+          <AlertDescription className="text-sm">
+            Markets open {format(getNextTradingWeekStart(), 'EEEE, MMM d')} at 9:30 AM CT
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Advanced Search and View Controls */}
-      <div className="flex items-center gap-3 flex-wrap">
-        {/* Search */}
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="Search symbols or catalysts..."
-            value={tradeIdeaSearch}
-            onChange={(e) => setTradeIdeaSearch(e.target.value)}
-            className="pl-10 pr-10"
-            data-testid="input-search-ideas"
-          />
-          {tradeIdeaSearch && (
-            <button
-              type="button"
-              onClick={() => setTradeIdeaSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              data-testid="button-clear-search"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-
-        {/* View Mode Toggle */}
-        <div className="flex items-center gap-1 border rounded-md p-1">
-          <Button
-            variant={viewMode === "list" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("list")}
-            className="h-8 px-3"
-            data-testid="button-view-list"
-          >
-            <List className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={viewMode === "grid" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setViewMode("grid")}
-            className="h-8 px-3"
-            data-testid="button-view-grid"
-          >
-            <LayoutGrid className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Legacy Filters Popover - Keep for backward compatibility */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="default" className="gap-2" data-testid="button-filters">
-              <SlidersHorizontal className="h-4 w-4" />
-              More Filters
-              {(activeAssetType !== "all" || activeSource !== "all" || activeGrade !== "all" || activeDirection !== "all") && (
-                <Badge variant="secondary" className="ml-1">
-                  {[activeAssetType !== "all", activeSource !== "all", activeGrade !== "all", activeDirection !== "all"].filter(Boolean).length}
-                </Badge>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-96" align="end">
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-semibold mb-3">Advanced Filters</h4>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Asset Type</Label>
-                <Select value={activeAssetType} onValueChange={(value: any) => setActiveAssetType(value)}>
-                  <SelectTrigger data-testid="select-asset-type-popover">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Asset Types</SelectItem>
-                    <SelectItem value="stock">Stock Shares</SelectItem>
-                    <SelectItem value="penny_stock">Penny Stocks</SelectItem>
-                    <SelectItem value="option">Stock Options</SelectItem>
-                    <SelectItem value="future">Futures (CME)</SelectItem>
-                    <SelectItem value="crypto">Crypto</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Source</Label>
-                <Select value={activeSource} onValueChange={(value: any) => setActiveSource(value)}>
-                  <SelectTrigger data-testid="select-source">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sources</SelectItem>
-                    <SelectItem value="ai">AI Generated</SelectItem>
-                    <SelectItem value="quant">Quantitative</SelectItem>
-                    <SelectItem value="manual">Manual Entry</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Quality Grade</Label>
-                <Select value={activeGrade} onValueChange={(value: any) => setActiveGrade(value)}>
-                  <SelectTrigger data-testid="select-grade">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Grades</SelectItem>
-                    <SelectItem value="A">Grade A (High Confidence)</SelectItem>
-                    <SelectItem value="B">Grade B (Medium Confidence)</SelectItem>
-                    <SelectItem value="C">Grade C (Lower Confidence)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Direction</Label>
-                <div className="flex gap-2">
-                  <Button
-                    variant={activeDirection === "all" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setActiveDirection("all")}
-                    className="flex-1"
-                    data-testid="filter-all"
-                  >
-                    All
-                  </Button>
-                  <Button
-                    variant={activeDirection === "long" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setActiveDirection("long")}
-                    className="flex-1"
-                    data-testid="filter-long"
-                  >
-                    Long
-                  </Button>
-                  <Button
-                    variant={activeDirection === "short" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setActiveDirection("short")}
-                    className="flex-1"
-                    data-testid="filter-short"
-                  >
-                    Short
-                  </Button>
-                  <Button
-                    variant={activeDirection === "day_trade" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setActiveDirection("day_trade")}
-                    className="flex-1"
-                    data-testid="filter-daytrade"
-                  >
-                    Day
-                  </Button>
-                </div>
-              </div>
-
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      {/* Top Picks Today */}
+      {/* Top Picks Today - Simplified */}
       {topPicks.length > 0 && (
-        <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-accent/5" data-testid="top-picks-section">
+        <Card className="border-muted" data-testid="top-picks-section">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
