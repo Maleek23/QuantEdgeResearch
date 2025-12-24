@@ -3795,12 +3795,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (currentPrice && analysis.entryPoint) {
             const discrepancy = Math.abs(analysis.entryPoint - currentPrice) / currentPrice * 100;
             
-            if (discrepancy > 10) {
-              // Chart is significantly outdated
-              priceDiscrepancyWarning = `⚠️ Chart appears outdated! Current ${symbol} price is $${currentPrice.toFixed(2)}, but chart shows $${analysis.entryPoint.toFixed(2)} (${discrepancy.toFixed(0)}% difference). Consider using a more recent chart.`;
+            // Only warn for EXTREME discrepancies (>50%) - likely a very old chart
+            // Smaller discrepancies are normal (breakout entries, support/resistance levels)
+            if (discrepancy > 50) {
+              priceDiscrepancyWarning = `Current ${symbol} price is $${currentPrice.toFixed(2)} - the suggested entry of $${analysis.entryPoint.toFixed(2)} is ${discrepancy.toFixed(0)}% away. This may be a breakout/breakdown level, or the chart might be from an older time period.`;
               
-              // Calculate adjusted levels based on current price
-              // Preserve the same percentage distances for target and stop
+              // Calculate adjusted levels based on current price as alternative
               const originalRisk = (analysis.entryPoint - analysis.stopLoss) / analysis.entryPoint;
               const originalReward = (analysis.targetPrice - analysis.entryPoint) / analysis.entryPoint;
               
@@ -3808,7 +3808,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               adjustedStop = currentPrice * (1 - originalRisk);
               adjustedTarget = currentPrice * (1 + originalReward);
               
-              logger.warn(`⚠️ Chart analysis for ${symbol} has ${discrepancy.toFixed(0)}% price discrepancy. Chart entry: $${analysis.entryPoint.toFixed(2)}, Current: $${currentPrice.toFixed(2)}`);
+              logger.info(`📊 Chart analysis for ${symbol}: entry $${analysis.entryPoint.toFixed(2)} is ${discrepancy.toFixed(0)}% from current $${currentPrice.toFixed(2)} (may be breakout level)`);
             }
           }
         } catch (priceError: any) {

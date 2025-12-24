@@ -725,20 +725,20 @@ export default function ChartAnalysis() {
                 </CardContent>
               </Card>
 
-              {/* CRITICAL: Price Discrepancy Warning */}
+              {/* Price Context Info (only for extreme discrepancies) */}
               {analysisResult.priceDiscrepancyWarning && (
-                <Card className="border-red-500/50 bg-red-500/10">
+                <Card className="border-amber-500/50 bg-amber-500/10">
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                      <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
                       <div className="space-y-2 flex-1">
-                        <p className="text-sm font-semibold text-red-500">Outdated Chart Detected</p>
+                        <p className="text-sm font-semibold text-amber-500">Price Context</p>
                         <p className="text-sm text-muted-foreground">
                           {analysisResult.priceDiscrepancyWarning}
                         </p>
                         {analysisResult.adjustedLevels && (
                           <div className="mt-3 p-3 rounded-lg bg-background/50">
-                            <p className="text-xs font-medium mb-2">Adjusted Levels (based on current price):</p>
+                            <p className="text-xs font-medium mb-2">Alternative: If entering at current price:</p>
                             <div className="grid grid-cols-3 gap-2 text-center">
                               <div>
                                 <p className="text-xs text-muted-foreground">Entry</p>
@@ -770,11 +770,8 @@ export default function ChartAnalysis() {
               )}
 
               {/* Price Levels Card */}
-              <Card className={analysisResult.priceDiscrepancyWarning ? "opacity-60" : ""}>
+              <Card>
                 <CardContent className="p-4">
-                  {analysisResult.priceDiscrepancyWarning && (
-                    <p className="text-xs text-muted-foreground mb-2 text-center">(From chart - may be outdated)</p>
-                  )}
                   <div className="grid grid-cols-4 gap-3">
                     <div className="text-center p-3 rounded-lg bg-muted/50">
                       <p className="text-xs text-muted-foreground mb-1">Entry</p>
