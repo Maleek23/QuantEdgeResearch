@@ -267,7 +267,13 @@ export default function Landing() {
               <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary/10 border border-primary/20">
                 <TrendingUp className="h-5 w-5 text-green-500" />
                 <span className="text-lg font-semibold">
-                  {statsLoading ? '...' : `${(perfStats?.overall?.winRate || 75).toFixed(0)}%`} Historical Win Rate
+                  {statsLoading ? (
+                    <Skeleton className="h-5 w-16 inline-block" />
+                  ) : perfStats?.overall?.winRate ? (
+                    `${perfStats.overall.winRate.toFixed(0)}% Historical Win Rate`
+                  ) : (
+                    "Tracked Win Rate"
+                  )}
                 </span>
               </div>
             </div>
@@ -295,37 +301,33 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Trusted by Professional Traders */}
+      {/* Platform Stats */}
       <section className="border-y bg-muted/30 py-12">
         <div className="container mx-auto px-6">
-          <p className="text-center text-sm text-muted-foreground mb-8" data-testid="text-trusted-by">
-            Trusted by professional traders using data from
-          </p>
-          
-          {/* Logo Placeholders */}
-          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12 mb-10 opacity-60">
-            <span className="text-lg font-semibold text-muted-foreground">TradingView</span>
-            <span className="text-lg font-semibold text-muted-foreground">Bloomberg</span>
-            <span className="text-lg font-semibold text-muted-foreground">Yahoo Finance</span>
-            <span className="text-lg font-semibold text-muted-foreground">CNBC</span>
-            <span className="text-lg font-semibold text-muted-foreground">CoinGecko</span>
-          </div>
-
-          {/* Stats Bar */}
-          <div className="grid grid-cols-3 gap-4 max-w-3xl mx-auto">
-            <div className="text-center" data-testid="stat-active-traders">
-              <div className="text-2xl md:text-3xl font-bold text-primary mb-1">50K+</div>
-              <div className="text-xs md:text-sm text-muted-foreground">Active Traders</div>
-            </div>
+          <div className="grid grid-cols-2 gap-8 max-w-2xl mx-auto">
             <div className="text-center" data-testid="stat-charts-analyzed">
               <div className="text-2xl md:text-3xl font-bold text-primary mb-1">
-                {statsLoading ? '...' : `${((perfStats?.overall?.totalIdeas || 1000) / 1000).toFixed(0)}K+`}
+                {statsLoading ? (
+                  <Skeleton className="h-8 w-16 mx-auto" />
+                ) : perfStats?.overall?.totalIdeas ? (
+                  `${perfStats.overall.totalIdeas.toLocaleString()}+`
+                ) : (
+                  "—"
+                )}
               </div>
-              <div className="text-xs md:text-sm text-muted-foreground">Charts Analyzed</div>
+              <div className="text-xs md:text-sm text-muted-foreground">Trade Ideas Generated</div>
             </div>
-            <div className="text-center" data-testid="stat-satisfaction">
-              <div className="text-2xl md:text-3xl font-bold text-primary mb-1">97%</div>
-              <div className="text-xs md:text-sm text-muted-foreground">Satisfaction</div>
+            <div className="text-center" data-testid="stat-win-rate">
+              <div className="text-2xl md:text-3xl font-bold text-primary mb-1">
+                {statsLoading ? (
+                  <Skeleton className="h-8 w-16 mx-auto" />
+                ) : perfStats?.overall?.winRate ? (
+                  `${perfStats.overall.winRate.toFixed(0)}%`
+                ) : (
+                  "—"
+                )}
+              </div>
+              <div className="text-xs md:text-sm text-muted-foreground">Win Rate</div>
             </div>
           </div>
         </div>
@@ -411,6 +413,95 @@ export default function Landing() {
                 </Card>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* How Our Signals Are Generated */}
+      <section className="py-16 md:py-24" id="transparency">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-12">
+            <Badge variant="secondary" className="mb-4">
+              <Target className="h-3 w-3 mr-1" />
+              Transparency
+            </Badge>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              How Our Signals Are Generated
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Our dual-engine approach combines proven quantitative methods with AI-powered analysis
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            <Card data-testid="card-transparency-quant">
+              <CardContent className="p-6">
+                <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center mb-4">
+                  <Calculator className="h-6 w-6 text-blue-500" />
+                </div>
+                <h3 className="text-lg font-semibold mb-3">Quantitative Engine</h3>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                    RSI(2) mean reversion with 200-day MA filter
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                    VWAP institutional flow analysis
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                    Volume spike detection
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-transparency-ai">
+              <CardContent className="p-6">
+                <div className="h-12 w-12 rounded-xl bg-purple-500/10 flex items-center justify-center mb-4">
+                  <Brain className="h-6 w-6 text-purple-500" />
+                </div>
+                <h3 className="text-lg font-semibold mb-3">AI Analysis</h3>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                    Multi-provider LLMs (Claude, GPT, Gemini)
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                    Market context and sentiment analysis
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                    Fundamentals and news integration
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <Card data-testid="card-transparency-risk">
+              <CardContent className="p-6">
+                <div className="h-12 w-12 rounded-xl bg-green-500/10 flex items-center justify-center mb-4">
+                  <Shield className="h-6 w-6 text-green-500" />
+                </div>
+                <h3 className="text-lg font-semibold mb-3">Risk Controls</h3>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                    Entry price with precise levels
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                    Target and stop-loss on every trade
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                    Risk/reward ratio calculation
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
