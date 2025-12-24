@@ -136,7 +136,7 @@ function clearCachedPrice(symbol: string): void {
 // Premium subscription middleware
 function requirePremium(req: Request, res: Response, next: Function) {
   // For now, allow all requests (no auth implemented yet)
-  // When Discord OAuth is added, check: req.user?.subscriptionTier === 'premium' || 'admin'
+  // When Discord OAuth is added, check: req.user?.subscriptionTier in ['advanced', 'pro', 'admin']
   next();
 }
 
@@ -434,7 +434,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         totalUsers: allUsers.length,
-        premiumUsers: allUsers.filter(u => u.subscriptionTier === 'premium' || u.subscriptionTier === 'admin').length,
+        premiumUsers: allUsers.filter(u => u.subscriptionTier === 'advanced' || u.subscriptionTier === 'pro' || u.subscriptionTier === 'admin').length,
         totalIdeas: allIdeas.length,
         activeIdeas: allIdeas.filter(i => i.outcomeStatus === 'open').length,
         closedIdeas: closedIdeas.length,
@@ -717,7 +717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { subscriptionTier, subscriptionStatus } = req.body;
       
       // Validate subscription tier
-      if (subscriptionTier && !['free', 'premium', 'admin'].includes(subscriptionTier)) {
+      if (subscriptionTier && !['free', 'advanced', 'pro', 'admin'].includes(subscriptionTier)) {
         return res.status(400).json({ error: "Invalid subscription tier" });
       }
       

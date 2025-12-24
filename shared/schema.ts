@@ -3,8 +3,8 @@ import { pgTable, text, varchar, real, integer, boolean, timestamp, index, jsonb
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Subscription Tier Type
-export type SubscriptionTier = 'free' | 'premium' | 'admin';
+// Subscription Tier Type - 3 tiers for monetization
+export type SubscriptionTier = 'free' | 'advanced' | 'pro' | 'admin';
 
 // Session storage table (Required for Replit Auth)
 // Reference: blueprint:javascript_log_in_with_replit

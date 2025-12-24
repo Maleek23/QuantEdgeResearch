@@ -10,6 +10,8 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { Footer } from "@/components/footer";
 import { ScrollParticles } from "@/components/scroll-particles";
 import Landing from "@/pages/landing";
+import Login from "@/pages/login";
+import Signup from "@/pages/signup";
 import HomePage from "@/pages/home";
 import TradeDeskPage from "@/pages/trade-desk";
 import ChartAnalysis from "@/pages/chart-analysis";
@@ -32,12 +34,8 @@ function Router() {
       {/* Core Pages */}
       <Route path="/" component={Landing} />
       <Route path="/home" component={HomePage} />
-      <Route path="/login">
-        <Redirect to="/home" />
-      </Route>
-      <Route path="/signup">
-        <Redirect to="/home" />
-      </Route>
+      <Route path="/login" component={Login} />
+      <Route path="/signup" component={Signup} />
       <Route path="/trade-desk" component={TradeDeskPage} />
       <Route path="/chart-analysis" component={ChartAnalysis} />
       <Route path="/performance" component={PerformancePage} />
@@ -101,7 +99,7 @@ function App() {
   };
 
   // Show public landing pages without sidebar (admin page handles its own layout)
-  const publicPages = ['/', '/admin', '/privacy', '/terms'];
+  const publicPages = ['/', '/login', '/signup', '/admin', '/privacy', '/terms'];
   if (publicPages.includes(location)) {
     return (
       <QueryClientProvider client={queryClient}>
