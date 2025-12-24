@@ -699,32 +699,44 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-10 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {/* Free Tier */}
             <div className="gradient-border-card card-tilt" data-testid="card-pricing-free">
-              <Card className="border-0 bg-transparent">
-                <CardContent className="p-10">
-                  <div className="mb-8">
-                    <h3 className="text-3xl font-bold mb-3 text-display">Free</h3>
-                    <div className="flex items-baseline gap-2 mb-4">
-                      <span className="text-6xl font-bold text-gradient">$0</span>
-                      <span className="text-lg text-muted-foreground">/month</span>
+              <Card className="border-0 bg-transparent h-full">
+                <CardContent className="p-8 flex flex-col h-full">
+                  <div className="mb-6">
+                    <h3 className="text-2xl font-bold mb-2 text-display">Free</h3>
+                    <div className="flex items-baseline gap-2 mb-3">
+                      <span className="text-5xl font-bold text-gradient">$0</span>
+                      <span className="text-muted-foreground">/month</span>
                     </div>
-                    <p className="text-muted-foreground">Access to public performance ledger and basic features</p>
+                    <p className="text-sm text-muted-foreground">Preview the platform before committing</p>
                   </div>
                   
-                  <ul className="space-y-4 mb-10">
-                    <li className="flex items-start gap-3">
-                      <Check className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span>View public performance track record</span>
+                  <ul className="space-y-3 mb-8 flex-1">
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">View 5 trade ideas per day</span>
                     </li>
-                    <li className="flex items-start gap-3">
-                      <Check className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span>Historical trade ideas archive</span>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Public performance ledger</span>
                     </li>
-                    <li className="flex items-start gap-3">
-                      <Check className="h-6 w-6 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span>Basic market data</span>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">7-day performance history</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Basic market data</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0 opacity-40" />
+                      <span className="text-sm text-muted-foreground">No chart analysis</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0 opacity-40" />
+                      <span className="text-sm text-muted-foreground">No AI generation</span>
                     </li>
                   </ul>
                   
@@ -740,57 +752,109 @@ export default function Landing() {
               </Card>
             </div>
 
-            {/* Premium Tier */}
-            <div className="relative gradient-border-card card-tilt" data-testid="card-pricing-premium">
+            {/* Advanced Tier */}
+            <div className="relative gradient-border-card card-tilt" data-testid="card-pricing-advanced">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
                 <Badge className="badge-shimmer neon-accent px-4 py-2 text-sm">Most Popular</Badge>
               </div>
-              <Card className="border-0 bg-transparent">
-                <CardContent className="p-10">
-                  <div className="mb-8">
-                    <h3 className="text-3xl font-bold mb-3 text-display">Premium</h3>
-                    <div className="flex items-baseline gap-2 mb-4">
-                      <span className="text-6xl font-bold text-gradient-premium">$39.99</span>
-                      <span className="text-lg text-muted-foreground">/month</span>
+              <Card className="border-0 bg-transparent h-full">
+                <CardContent className="p-8 flex flex-col h-full">
+                  <div className="mb-6">
+                    <h3 className="text-2xl font-bold mb-2 text-display">Advanced</h3>
+                    <div className="flex items-baseline gap-2 mb-3">
+                      <span className="text-5xl font-bold text-gradient-premium">$29</span>
+                      <span className="text-muted-foreground">/month</span>
                     </div>
-                    <p className="text-muted-foreground">Full access to live signals, analytics, and Discord community</p>
+                    <p className="text-sm text-muted-foreground">Full platform access with daily limits</p>
                   </div>
                   
-                  <ul className="space-y-4 mb-10">
-                    <li className="flex items-start gap-3">
-                      <Check className="h-6 w-6 text-cyan-500 mt-0.5 flex-shrink-0" />
-                      <span className="font-medium">Everything in Free</span>
+                  <ul className="space-y-3 mb-8 flex-1">
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-cyan-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm font-medium">Everything in Free</span>
                     </li>
-                    <li className="flex items-start gap-3">
-                      <Check className="h-6 w-6 text-cyan-500 mt-0.5 flex-shrink-0" />
-                      <span>Real-time trade signals</span>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-cyan-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Unlimited trade ideas</span>
                     </li>
-                    <li className="flex items-start gap-3">
-                      <Check className="h-6 w-6 text-cyan-500 mt-0.5 flex-shrink-0" />
-                      <span>AI + Quantitative dual-engine</span>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-cyan-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">5 chart analyses per day</span>
                     </li>
-                    <li className="flex items-start gap-3">
-                      <Check className="h-6 w-6 text-cyan-500 mt-0.5 flex-shrink-0" />
-                      <span>Discord community access</span>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-cyan-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">10 AI generations per day</span>
                     </li>
-                    <li className="flex items-start gap-3">
-                      <Check className="h-6 w-6 text-cyan-500 mt-0.5 flex-shrink-0" />
-                      <span>Instant Discord notifications</span>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-cyan-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Full performance history</span>
                     </li>
-                    <li className="flex items-start gap-3">
-                      <Check className="h-6 w-6 text-cyan-500 mt-0.5 flex-shrink-0" />
-                      <span>Advanced analytics & ML insights</span>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-cyan-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Discord Advanced role</span>
                     </li>
                   </ul>
                   
                   <Button 
                     className="w-full btn-magnetic neon-accent"
                     onClick={() => setLocation('/signup')}
-                    data-testid="button-pricing-premium"
+                    data-testid="button-pricing-advanced"
                   >
                     <Sparkles className="h-4 w-4 mr-2" />
-                    Start Premium
-                    <ArrowRight className="h-5 w-5 ml-2" />
+                    Get Advanced
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Pro Tier */}
+            <div className="gradient-border-card card-tilt" data-testid="card-pricing-pro">
+              <Card className="border-0 bg-transparent h-full">
+                <CardContent className="p-8 flex flex-col h-full">
+                  <div className="mb-6">
+                    <h3 className="text-2xl font-bold mb-2 text-display">Pro</h3>
+                    <div className="flex items-baseline gap-2 mb-3">
+                      <span className="text-5xl font-bold text-gradient">$49</span>
+                      <span className="text-muted-foreground">/month</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Unlimited everything for power traders</p>
+                  </div>
+                  
+                  <ul className="space-y-3 mb-8 flex-1">
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm font-medium">Everything in Advanced</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Unlimited chart analysis</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Unlimited AI generation</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Priority support</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Discord Pro Trader role</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm">Early access to new features</span>
+                    </li>
+                  </ul>
+                  
+                  <Button 
+                    variant="outline"
+                    className="w-full btn-magnetic glass-card"
+                    onClick={() => setLocation('/signup')}
+                    data-testid="button-pricing-pro"
+                  >
+                    <Zap className="h-4 w-4 mr-2" />
+                    Go Pro
                   </Button>
                 </CardContent>
               </Card>
@@ -869,12 +933,13 @@ export default function Landing() {
 
             <AccordionItem value="premium" className="glass-card rounded-xl px-6 border-0" data-testid="accordion-faq-premium">
               <AccordionTrigger className="text-left font-semibold hover:no-underline" data-testid="trigger-faq-premium">
-                What's included in the Premium plan?
+                What's the difference between the plans?
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground" data-testid="content-faq-premium">
-                Premium ($39.99/month) unlocks real-time trade signals from both AI and Quantitative engines, instant Discord notifications for new opportunities, access to our private Discord community, advanced analytics and ML insights, and priority support. 
-                Free tier users can view historical performance and the public track record. 
-                All subscribers receive the same trade ideas—no tiered signal quality.
+                <strong>Free</strong> lets you preview the platform with limited views (5 ideas/day) and 7-day history. 
+                <strong>Advanced</strong> ($29/mo) unlocks unlimited trade ideas, chart analysis (5/day), AI generation (10/day), and Discord Advanced role. 
+                <strong>Pro</strong> ($49/mo) removes all limits with unlimited chart analysis, unlimited AI generation, priority support, and Discord Pro Trader role. 
+                All subscribers receive the same quality trade ideas—no tiered signal quality.
               </AccordionContent>
             </AccordionItem>
           </Accordion>
