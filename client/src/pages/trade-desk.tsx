@@ -532,7 +532,17 @@ export default function TradeDeskPage() {
             {format(new Date(), 'EEEE, MMM d')} · {activeIdeas.length} active ideas
           </p>
         </div>
-        <DropdownMenu>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] })}
+            title="Refresh trade ideas"
+            data-testid="button-refresh-ideas"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button 
               variant="default"
@@ -564,6 +574,7 @@ export default function TradeDeskPage() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
 
       {/* Simple Search + Filter Bar */}
