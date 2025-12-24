@@ -10,6 +10,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { Footer } from "@/components/footer";
 import { ScrollParticles } from "@/components/scroll-particles";
 import Landing from "@/pages/landing";
+import HomePage from "@/pages/home";
 import TradeDeskPage from "@/pages/trade-desk";
 import ChartAnalysis from "@/pages/chart-analysis";
 import MarketPage from "@/pages/market";
@@ -30,11 +31,12 @@ function Router() {
     <Switch>
       {/* Core Pages */}
       <Route path="/" component={Landing} />
+      <Route path="/home" component={HomePage} />
       <Route path="/login">
-        <Redirect to="/trade-desk" />
+        <Redirect to="/home" />
       </Route>
       <Route path="/signup">
-        <Redirect to="/trade-desk" />
+        <Redirect to="/home" />
       </Route>
       <Route path="/trade-desk" component={TradeDeskPage} />
       <Route path="/chart-analysis" component={ChartAnalysis} />

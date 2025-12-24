@@ -625,68 +625,7 @@ export default function TradeDeskPage() {
         </Alert>
       )}
 
-      {/* Top Picks Today - Simplified */}
-      {topPicks.length > 0 && (
-        <Card className="border-muted" data-testid="top-picks-section">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <TrendingUpIcon className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg">Top Picks Today</CardTitle>
-                <Badge variant="default" className="ml-1">
-                  {topPicks.length}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Best quality + R:R + probability
-              </p>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3 pt-0">
-            {topPicks.map((idea, index) => (
-              <div
-                key={idea.id}
-                className="flex items-center justify-between gap-4 p-3 rounded-lg border bg-card hover-elevate active-elevate-2 cursor-pointer"
-                onClick={() => handleToggleExpand(idea.id)}
-                data-testid={`top-pick-${index + 1}`}
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary font-bold text-sm">
-                    {index + 1}
-                  </div>
-                  <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-base">{idea.symbol}</span>
-                      <Badge variant={idea.direction === "long" ? "default" : "destructive"} className="text-xs">
-                        {idea.direction === "long" ? "LONG" : "SHORT"}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs">
-                        {idea.holdingPeriod.toUpperCase()}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">{idea.catalyst}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right hidden sm:block">
-                    <Badge 
-                      variant={idea.probabilityBand?.startsWith('A') ? 'default' : idea.probabilityBand?.startsWith('B') ? 'secondary' : 'outline'}
-                      className="font-bold"
-                    >
-                      {idea.probabilityBand}
-                    </Badge>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      R:R {idea.riskRewardRatio?.toFixed(1)} • Score: {idea.confidenceScore?.toFixed(0)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* PHASE 6: All Trade Ideas - Unified View (Replaces Tabbed Content) */}
+      {/* All Trade Ideas */}
       <div className="space-y-8">
         {/* Loading State */}
         {ideasLoading ? (

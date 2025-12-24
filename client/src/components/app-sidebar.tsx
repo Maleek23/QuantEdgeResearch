@@ -1,4 +1,4 @@
-import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sun, Moon, Upload, Eye, Sparkles, BookOpen } from "lucide-react";
+import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sun, Moon, Upload, BookOpen, Home } from "lucide-react";
 import { useLocation } from "wouter";
 import {
   Sidebar,
@@ -19,20 +19,17 @@ import { useTheme } from "@/components/theme-provider";
 import { QuantEdgeLogo } from "@/components/quantedge-logo";
 import { cn } from "@/lib/utils";
 
-const tradingItems = [
+// Simplified navigation - just the essentials
+const mainItems = [
+  { title: "Home", url: "/home", icon: Home },
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
-  { title: "Generate Ideas", url: "/generate-ideas", icon: Sparkles },
-];
-
-const marketItems = [
-  { title: "Overview", url: "/market", icon: BarChart2 },
-  { title: "Watchlist", url: "/watchlist", icon: Eye },
-];
-
-const researchItems = [
-  { title: "Performance", url: "/performance", icon: Target },
-  { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
   { title: "Trading Rules", url: "/trading-rules", icon: BookOpen },
+];
+
+const moreItems = [
+  { title: "Performance", url: "/performance", icon: Target },
+  { title: "Market", url: "/market", icon: BarChart2 },
+  { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
 ];
 
 const systemItems = [
@@ -48,8 +45,8 @@ function SidebarHeaderContent() {
   return (
     <div className="px-3 py-4">
       <button 
-        onClick={() => setLocation("/")} 
-        data-testid="nav-home" 
+        onClick={() => setLocation("/home")} 
+        data-testid="nav-logo" 
         className="flex items-center justify-center w-full cursor-pointer"
       >
         <QuantEdgeLogo 
@@ -118,12 +115,11 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent className="gap-0 py-2">
-        {/* Trading Section */}
+        {/* Main Section - Core navigation */}
         <SidebarGroup className="py-1.5 px-3">
-          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Trading</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0">
-              {tradingItems.map((item) => (
+              {mainItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     isActive={location === item.url}
@@ -139,33 +135,12 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Market Section */}
+        {/* More Section - Additional tools */}
         <SidebarGroup className="py-1.5 px-3">
-          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Market</SidebarGroupLabel>
+          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">More</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0">
-              {marketItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    isActive={location === item.url}
-                    onClick={() => handleNavigation(item.url)}
-                    data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Research Section */}
-        <SidebarGroup className="py-1.5 px-3">
-          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">Research</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-0">
-              {researchItems.map((item) => (
+              {moreItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     isActive={location === item.url}
@@ -187,11 +162,9 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu className="gap-0">
               {systemItems.map((item) => {
-                // Hide Admin link unless user has admin role
                 if (item.title === "Admin" && !(user as any)?.isAdmin) {
                   return null;
                 }
-                
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton 
