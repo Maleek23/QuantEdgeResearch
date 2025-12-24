@@ -725,18 +725,41 @@ export default function TradeDeskPage() {
                     {activeIdeas.length} open
                   </Badge>
                 </div>
-                {expandedIdeaId && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleCollapseAll}
-                    className="gap-1.5"
-                    data-testid="button-collapse-all"
-                  >
-                    <X className="h-4 w-4" />
-                    Collapse All
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {/* View Mode Toggle */}
+                  <div className="flex items-center border rounded-md p-0.5">
+                    <Button
+                      variant={viewMode === "list" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("list")}
+                      className="h-7 px-2"
+                      data-testid="button-view-list"
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === "grid" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("grid")}
+                      className="h-7 px-2"
+                      data-testid="button-view-grid"
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {expandedIdeaId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCollapseAll}
+                      className="gap-1.5"
+                      data-testid="button-collapse-all"
+                    >
+                      <X className="h-4 w-4" />
+                      Collapse
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {activeIdeas.length === 0 ? (
@@ -780,7 +803,7 @@ export default function TradeDeskPage() {
                               )}
                             </div>
                           </AccordionTrigger>
-                          <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}`}>
+                          <AccordionContent className={`px-4 pb-4 ${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3' : 'space-y-3'}`}>
                             {ideas.map(idea => (
                               <TradeIdeaBlock
                                 key={idea.id}
