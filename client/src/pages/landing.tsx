@@ -235,12 +235,20 @@ export default function Landing() {
         
         <div className="container relative mx-auto px-6">
           <div className="max-w-4xl mx-auto text-center">
-            {/* Small Logo */}
+            {/* Dual Engine Badge */}
+            <div className="flex justify-center mb-6">
+              <Badge variant="secondary" className="px-4 py-2 text-sm" data-testid="badge-dual-engine">
+                <Zap className="h-4 w-4 mr-2 text-amber-500" />
+                Dual-Engine Architecture: AI + Quantitative
+              </Badge>
+            </div>
+
+            {/* Logo */}
             <div className="flex justify-center mb-8">
               <img 
                 src={quantEdgeLogoUrl} 
                 alt="QuantEdge" 
-                className="h-20 w-20 object-contain"
+                className="h-36 w-36 md:h-44 md:w-44 object-contain drop-shadow-xl"
               />
             </div>
 
@@ -250,21 +258,10 @@ export default function Landing() {
             </h1>
 
             {/* Subheadline */}
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8" data-testid="text-hero-subheadline">
-              Upload your chart and get instant AI analysis with precise entry/exit points based on proven patterns.
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10" data-testid="text-hero-subheadline">
+              Professional-grade trade ideas powered by quantitative signals and multi-provider AI analysis. 
+              Real market data, transparent risk management, proven strategies.
             </p>
-
-            {/* Stats Badges */}
-            <div className="flex flex-wrap justify-center gap-4 mb-10">
-              <Badge variant="secondary" className="px-4 py-2 text-sm" data-testid="badge-accuracy">
-                <Target className="h-4 w-4 mr-2 text-green-500" />
-                {statsLoading ? '...' : `${(perfStats?.overall?.winRate || 97).toFixed(0)}% Pattern Accuracy`}
-              </Badge>
-              <Badge variant="secondary" className="px-4 py-2 text-sm" data-testid="badge-speed">
-                <Clock className="h-4 w-4 mr-2 text-blue-500" />
-                8sec Analysis Speed
-              </Badge>
-            </div>
 
             {/* CTA Buttons */}
             <div className="flex flex-wrap justify-center gap-4">
