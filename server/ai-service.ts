@@ -889,24 +889,32 @@ export async function analyzeChartImage(
   imageBuffer: Buffer,
   symbol?: string,
   timeframe?: string,
-  additionalContext?: string
+  additionalContext?: string,
+  currentPrice?: number | null
 ): Promise<ChartAnalysisResult> {
-  logger.info(`📊 Analyzing chart image${symbol ? ` for ${symbol}` : ''}`);
+  logger.info(`📊 Analyzing chart image${symbol ? ` for ${symbol}` : ''}${currentPrice ? ` (current price: $${currentPrice})` : ''}`);
   
   const base64Image = imageBuffer.toString('base64');
   const contextInfo = additionalContext ? `\n\nAdditional context: ${additionalContext}` : '';
+  const priceContext = currentPrice ? `\n\n**CRITICAL - CURRENT MARKET PRICE**: The current live price of ${symbol || 'this asset'} is $${currentPrice.toFixed(2)}. Your entry, target, and stop levels MUST be within a reasonable range of this price (typically within 20%). If the chart shows very different price levels, the chart may be zoomed out or showing historical data - in that case, base your trade levels on the CURRENT price of $${currentPrice.toFixed(2)}, not old prices visible in the chart.` : '';
   
   const systemPrompt = `You are an expert technical analyst specializing in chart pattern recognition and trade setup identification.
 
+**CRITICAL FIRST STEP**: Before analyzing patterns, you MUST:
+1. Look at the Y-axis (price axis) on the chart to understand the ACTUAL price scale
+2. Identify where the CURRENT/LATEST price bar is on the chart
+3. Read the actual dollar values from the chart's price axis
+
 Analyze the provided trading chart image and provide a comprehensive technical analysis including:
 
-1. **Chart Patterns**: Identify any visible patterns (head and shoulders, triangles, flags, double tops/bottoms, wedges, channels, etc.)
-2. **Support & Resistance**: Identify key support and resistance levels based on price action
-3. **Trade Setup**: Provide precise entry point, target price, and stop loss levels
-4. **Sentiment**: Overall market sentiment (bullish, bearish, or neutral)
-5. **Risk/Reward**: Calculate the risk-reward ratio
-6. **Confidence**: Your confidence level in this analysis (0-100)
-7. **Analysis**: Detailed explanation of your findings and reasoning
+1. **Price Scale Reading**: First, identify the price range visible on the Y-axis (e.g., "$8.50 to $12.00")
+2. **Chart Patterns**: Identify any visible patterns (head and shoulders, triangles, flags, double tops/bottoms, wedges, channels, etc.)
+3. **Support & Resistance**: Identify key support and resistance levels BY READING THE ACTUAL PRICE AXIS
+4. **Trade Setup**: Provide precise entry point, target price, and stop loss levels - these MUST match the price scale visible on the chart
+5. **Sentiment**: Overall market sentiment (bullish, bearish, or neutral)
+6. **Risk/Reward**: Calculate the risk-reward ratio
+7. **Confidence**: Your confidence level in this analysis (0-100)
+8. **Analysis**: Detailed explanation of your findings and reasoning${priceContext}
 
 Return your analysis in this EXACT JSON format:
 {
@@ -923,7 +931,7 @@ Return your analysis in this EXACT JSON format:
   "timeframe": "detected timeframe or ${timeframe || 'unknown'}"
 }
 
-Focus on actionable, precise levels that a trader can use immediately.${contextInfo}`;
+**IMPORTANT**: All price levels (entry, target, stop, support, resistance) must be realistic values that you can actually SEE on the chart's Y-axis. Do not guess or hallucinate prices.${contextInfo}`;
 
   const userPrompt = symbol 
     ? `Analyze this trading chart for ${symbol}${timeframe ? ` on ${timeframe} timeframe` : ''}. Provide precise technical analysis with entry/exit points.`

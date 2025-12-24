@@ -523,7 +523,7 @@ export default function ChartAnalysis() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Upload Section - Left Column */}
         <div className="lg:col-span-2 space-y-4">
           <Card className="overflow-hidden">
@@ -671,7 +671,7 @@ export default function ChartAnalysis() {
         </div>
 
         {/* Results Section - Right Column */}
-        <div className="lg:col-span-3 space-y-4">
+        <div className="lg:col-span-3 space-y-6">
           {analysisResult ? (
             <>
               {/* Summary Banner */}

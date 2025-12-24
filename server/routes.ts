@@ -3758,28 +3758,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       logger.info(`📊 Chart analysis request${symbol ? ` for ${symbol}` : ''}`);
       
-      // Analyze chart using AI vision
-      const { analyzeChartImage } = await import("./ai-service");
-      const analysis = await analyzeChartImage(
-        req.file.buffer,
-        symbol,
-        timeframe,
-        context
-      );
-      
-      logger.info(`✅ Chart analysis complete${symbol ? ` for ${symbol}` : ''} - ${analysis.sentiment} sentiment`);
-      
-      // CRITICAL: Validate AI analysis against current market price
-      // AI reads price levels from the CHART IMAGE, which may be outdated
+      // FIRST: Fetch current price to provide to AI for sanity checking
       let currentPrice: number | null = null;
-      let priceDiscrepancyWarning: string | null = null;
-      let adjustedEntry: number | null = null;
-      let adjustedTarget: number | null = null;
-      let adjustedStop: number | null = null;
-      
       if (symbol) {
         try {
-          // Fetch current price using existing market API
           const isCrypto = ['BTC', 'ETH', 'SOL', 'DOGE', 'XRP', 'ADA', 'AVAX', 'LINK', 'DOT', 'MATIC'].some(
             crypto => symbol.toUpperCase().includes(crypto)
           );
@@ -3791,28 +3773,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const stockData = await fetchStockPrice(symbol);
             currentPrice = stockData?.currentPrice || null;
           }
-          
-          if (currentPrice && analysis.entryPoint) {
-            const discrepancy = Math.abs(analysis.entryPoint - currentPrice) / currentPrice * 100;
-            
-            // Only warn for EXTREME discrepancies (>50%) - likely a very old chart
-            // Smaller discrepancies are normal (breakout entries, support/resistance levels)
-            if (discrepancy > 50) {
-              priceDiscrepancyWarning = `Current ${symbol} price is $${currentPrice.toFixed(2)} - the suggested entry of $${analysis.entryPoint.toFixed(2)} is ${discrepancy.toFixed(0)}% away. This may be a breakout/breakdown level, or the chart might be from an older time period.`;
-              
-              // Calculate adjusted levels based on current price as alternative
-              const originalRisk = (analysis.entryPoint - analysis.stopLoss) / analysis.entryPoint;
-              const originalReward = (analysis.targetPrice - analysis.entryPoint) / analysis.entryPoint;
-              
-              adjustedEntry = currentPrice;
-              adjustedStop = currentPrice * (1 - originalRisk);
-              adjustedTarget = currentPrice * (1 + originalReward);
-              
-              logger.info(`📊 Chart analysis for ${symbol}: entry $${analysis.entryPoint.toFixed(2)} is ${discrepancy.toFixed(0)}% from current $${currentPrice.toFixed(2)} (may be breakout level)`);
-            }
-          }
+          logger.info(`📊 Fetched current ${symbol} price: $${currentPrice} for AI context`);
         } catch (priceError: any) {
-          logger.warn(`Could not fetch current price for ${symbol} to validate chart analysis:`, priceError?.message);
+          logger.warn(`Could not fetch current price for ${symbol} before analysis:`, priceError?.message);
+        }
+      }
+      
+      // Analyze chart using AI vision - NOW WITH CURRENT PRICE FOR SANITY CHECK
+      const { analyzeChartImage } = await import("./ai-service");
+      const analysis = await analyzeChartImage(
+        req.file.buffer,
+        symbol,
+        timeframe,
+        context,
+        currentPrice  // Pass current price to AI for validation
+      );
+      
+      logger.info(`✅ Chart analysis complete${symbol ? ` for ${symbol}` : ''} - ${analysis.sentiment} sentiment`);
+      
+      // Validate AI analysis against current market price (already fetched above)
+      let priceDiscrepancyWarning: string | null = null;
+      let adjustedEntry: number | null = null;
+      let adjustedTarget: number | null = null;
+      let adjustedStop: number | null = null;
+      
+      if (currentPrice && analysis.entryPoint) {
+        const discrepancy = Math.abs(analysis.entryPoint - currentPrice) / currentPrice * 100;
+        
+        // Only warn for EXTREME discrepancies (>50%) - likely AI still hallucinating despite prompt
+        if (discrepancy > 50) {
+          priceDiscrepancyWarning = `Current ${symbol} price is $${currentPrice.toFixed(2)} - the suggested entry of $${analysis.entryPoint.toFixed(2)} is ${discrepancy.toFixed(0)}% away. This may be a breakout/breakdown level, or the chart might be from an older time period.`;
+          
+          // Calculate adjusted levels based on current price as alternative
+          const originalRisk = (analysis.entryPoint - analysis.stopLoss) / analysis.entryPoint;
+          const originalReward = (analysis.targetPrice - analysis.entryPoint) / analysis.entryPoint;
+          
+          adjustedEntry = currentPrice;
+          adjustedStop = currentPrice * (1 - originalRisk);
+          adjustedTarget = currentPrice * (1 + originalReward);
+          
+          logger.info(`📊 Chart analysis for ${symbol}: entry $${analysis.entryPoint.toFixed(2)} is ${discrepancy.toFixed(0)}% from current $${currentPrice.toFixed(2)} (may be breakout level)`);
         }
       }
       
