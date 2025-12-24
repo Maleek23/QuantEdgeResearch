@@ -254,12 +254,12 @@ export default function Landing() {
 
             {/* Headline */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight" data-testid="text-hero-headline">
-              Trade with <span className="text-primary">AI precision</span>,<br className="hidden sm:block" /> not gut feelings.
+              Two engines. <span className="text-primary">One edge.</span>
             </h1>
 
             {/* Subheadline */}
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6" data-testid="text-hero-subheadline">
-              Quantitative signals meet multi-provider AI. Entry points, exits, and risk levels—backed by data.
+              Quantitative signals and AI analysis working together. Stocks, options, crypto—every trade idea comes with entry, exit, and risk levels.
             </p>
 
             {/* Win Rate Stat */}
