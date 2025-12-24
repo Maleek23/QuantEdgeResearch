@@ -3769,7 +3769,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       logger.info(`✅ Chart analysis complete${symbol ? ` for ${symbol}` : ''} - ${analysis.sentiment} sentiment`);
       
-      res.json(analysis);
+      // CRITICAL: Validate AI analysis against current market price
+      // AI reads price levels from the CHART IMAGE, which may be outdated
+      let currentPrice: number | null = null;
+      let priceDiscrepancyWarning: string | null = null;
+      let adjustedEntry: number | null = null;
+      let adjustedTarget: number | null = null;
+      let adjustedStop: number | null = null;
+      
+      if (symbol) {
+        try {
+          // Fetch current price using existing market API
+          const isCrypto = ['BTC', 'ETH', 'SOL', 'DOGE', 'XRP', 'ADA', 'AVAX', 'LINK', 'DOT', 'MATIC'].some(
+            crypto => symbol.toUpperCase().includes(crypto)
+          );
+          
+          if (isCrypto) {
+            const cryptoData = await fetchCryptoPrice(symbol);
+            currentPrice = cryptoData?.currentPrice || null;
+          } else {
+            const stockData = await fetchStockPrice(symbol);
+            currentPrice = stockData?.currentPrice || null;
+          }
+          
+          if (currentPrice && analysis.entryPoint) {
+            const discrepancy = Math.abs(analysis.entryPoint - currentPrice) / currentPrice * 100;
+            
+            if (discrepancy > 10) {
+              // Chart is significantly outdated
+              priceDiscrepancyWarning = `⚠️ Chart appears outdated! Current ${symbol} price is $${currentPrice.toFixed(2)}, but chart shows $${analysis.entryPoint.toFixed(2)} (${discrepancy.toFixed(0)}% difference). Consider using a more recent chart.`;
+              
+              // Calculate adjusted levels based on current price
+              // Preserve the same percentage distances for target and stop
+              const originalRisk = (analysis.entryPoint - analysis.stopLoss) / analysis.entryPoint;
+              const originalReward = (analysis.targetPrice - analysis.entryPoint) / analysis.entryPoint;
+              
+              adjustedEntry = currentPrice;
+              adjustedStop = currentPrice * (1 - originalRisk);
+              adjustedTarget = currentPrice * (1 + originalReward);
+              
+              logger.warn(`⚠️ Chart analysis for ${symbol} has ${discrepancy.toFixed(0)}% price discrepancy. Chart entry: $${analysis.entryPoint.toFixed(2)}, Current: $${currentPrice.toFixed(2)}`);
+            }
+          }
+        } catch (priceError: any) {
+          logger.warn(`Could not fetch current price for ${symbol} to validate chart analysis:`, priceError?.message);
+        }
+      }
+      
+      res.json({
+        ...analysis,
+        currentPrice,
+        priceDiscrepancyWarning,
+        adjustedLevels: adjustedEntry ? {
+          entry: adjustedEntry,
+          target: adjustedTarget,
+          stop: adjustedStop,
+          riskRewardRatio: analysis.riskRewardRatio, // Preserve original R:R
+        } : null,
+      });
     } catch (error: any) {
       logger.error("Chart analysis error:", error);
       res.status(500).json({ 

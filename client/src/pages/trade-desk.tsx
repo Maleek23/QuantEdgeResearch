@@ -25,7 +25,6 @@ import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, 
 import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
 import { getPerformanceGrade } from "@/lib/performance-grade";
-import { ClosedTradesTable } from "@/components/closed-trades-table";
 
 export default function TradeDeskPage() {
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
@@ -829,29 +828,31 @@ export default function TradeDeskPage() {
               )}
             </div>
 
-            {/* SECTION 2: Closed Trades */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-semibold">Closed Trades</h3>
-                  <Badge variant="outline">
-                    {closedIdeas.length} total
-                  </Badge>
-                  {closedIdeas.length > 0 && (
-                    <>
-                      <Badge variant="default" className="bg-green-500/20 text-green-500 border-green-500/30 text-xs">
+            {/* SECTION 2: Closed Trades Summary (simplified - full analysis on Performance page) */}
+            {closedIdeas.length > 0 && (
+              <Card className="mt-4">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-muted-foreground">Recent Performance:</span>
+                      <Badge variant="default" className="bg-green-500/20 text-green-500 border-green-500/30">
                         {closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target').length} wins
                       </Badge>
-                      <Badge variant="destructive" className="bg-red-500/20 text-red-500 border-red-500/30 text-xs">
+                      <Badge variant="destructive" className="bg-red-500/20 text-red-500 border-red-500/30">
                         {closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_stop').length} losses
                       </Badge>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <ClosedTradesTable rows={closedIdeas} />
-            </div>
+                      <span className="text-xs text-muted-foreground">({closedIdeas.length} closed)</span>
+                    </div>
+                    <Button variant="outline" size="sm" asChild className="gap-1.5" data-testid="link-view-performance">
+                      <a href="/performance">
+                        <BarChart3 className="h-4 w-4" />
+                        View Performance
+                      </a>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </div>
