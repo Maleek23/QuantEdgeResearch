@@ -1547,6 +1547,17 @@ export class DatabaseStorage implements IStorage {
       if (optionsCount > 0) {
         console.log(`[PERF-STATS] Options filter: Excluded ${optionsCount} option trades (no proper pricing yet) → ${allIdeas.length} ideas remain`);
       }
+      
+      // 🚨 ALSO exclude 'flow' and 'lotto' sources - they're almost entirely options
+      // Flow Scanner: 965/1127 expired (unvalidatable options), 99.4% "win rate" is fake
+      // Lotto Scanner: 341/341 expired (all far-OTM options)
+      // These inflate stats artificially - exclude from public display
+      const beforeSourceFilter = allIdeas.length;
+      allIdeas = allIdeas.filter(idea => idea.source !== 'flow' && idea.source !== 'lotto');
+      const flowLottoCount = beforeSourceFilter - allIdeas.length;
+      if (flowLottoCount > 0) {
+        console.log(`[PERF-STATS] Source filter: Excluded ${flowLottoCount} flow/lotto trades (unvalidatable options) → ${allIdeas.length} ideas remain`);
+      }
     } else {
       console.log(`[PERF-STATS] Options included (includeOptions=true) - WARNING: option win rates may be invalid`);
     }

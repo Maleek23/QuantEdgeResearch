@@ -41,6 +41,15 @@ import {
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 import { useState, useEffect } from "react";
 
+interface AssetTypeStats {
+  assetType: string;
+  totalIdeas: number;
+  wonIdeas: number;
+  lostIdeas: number;
+  winRate: number;
+  avgPercentGain: number;
+}
+
 interface PerformanceStatsResponse {
   overall: {
     totalIdeas: number;
@@ -48,6 +57,7 @@ interface PerformanceStatsResponse {
     winRate: number;
     avgPercentGain: number;
   };
+  byAssetType?: AssetTypeStats[];
 }
 
 export default function Landing() {
@@ -262,17 +272,17 @@ export default function Landing() {
               Quantitative signals and AI analysis working together. Stocks, options, crypto—every trade idea comes with entry, exit, and risk levels.
             </p>
 
-            {/* Win Rate Stat */}
+            {/* Validated Stats */}
             <div className="flex justify-center mb-10">
               <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary/10 border border-primary/20">
                 <TrendingUp className="h-5 w-5 text-green-500" />
                 <span className="text-lg font-semibold">
                   {statsLoading ? (
-                    <Skeleton className="h-5 w-16 inline-block" />
-                  ) : perfStats?.overall?.winRate ? (
-                    `${perfStats.overall.winRate.toFixed(0)}% Historical Win Rate`
+                    <Skeleton className="h-5 w-24 inline-block" />
+                  ) : perfStats?.overall?.totalIdeas ? (
+                    `${perfStats.overall.totalIdeas.toLocaleString()}+ Validated Trades`
                   ) : (
-                    "Tracked Win Rate"
+                    "Real Performance Data"
                   )}
                 </span>
               </div>
@@ -304,8 +314,8 @@ export default function Landing() {
       {/* Platform Stats */}
       <section className="border-y bg-muted/30 py-12">
         <div className="container mx-auto px-6">
-          <div className="grid grid-cols-2 gap-8 max-w-2xl mx-auto">
-            <div className="text-center" data-testid="stat-charts-analyzed">
+          <div className="grid grid-cols-3 gap-6 max-w-3xl mx-auto">
+            <div className="text-center" data-testid="stat-total-ideas">
               <div className="text-2xl md:text-3xl font-bold text-primary mb-1">
                 {statsLoading ? (
                   <Skeleton className="h-8 w-16 mx-auto" />
@@ -315,21 +325,34 @@ export default function Landing() {
                   "—"
                 )}
               </div>
-              <div className="text-xs md:text-sm text-muted-foreground">Trade Ideas Generated</div>
+              <div className="text-xs md:text-sm text-muted-foreground">Trade Ideas</div>
             </div>
-            <div className="text-center" data-testid="stat-win-rate">
-              <div className="text-2xl md:text-3xl font-bold text-primary mb-1">
+            <div className="text-center" data-testid="stat-stock-win-rate">
+              <div className="text-2xl md:text-3xl font-bold text-green-500 mb-1">
                 {statsLoading ? (
                   <Skeleton className="h-8 w-16 mx-auto" />
-                ) : perfStats?.overall?.winRate ? (
-                  `${perfStats.overall.winRate.toFixed(0)}%`
-                ) : (
-                  "—"
-                )}
+                ) : (() => {
+                  const stockStats = perfStats?.byAssetType?.find(a => a.assetType === 'stock');
+                  return stockStats?.winRate ? `${stockStats.winRate.toFixed(0)}%` : "—";
+                })()}
               </div>
-              <div className="text-xs md:text-sm text-muted-foreground">Win Rate</div>
+              <div className="text-xs md:text-sm text-muted-foreground">Stocks Win Rate</div>
+            </div>
+            <div className="text-center" data-testid="stat-crypto-win-rate">
+              <div className="text-2xl md:text-3xl font-bold text-amber-500 mb-1">
+                {statsLoading ? (
+                  <Skeleton className="h-8 w-16 mx-auto" />
+                ) : (() => {
+                  const cryptoStats = perfStats?.byAssetType?.find(a => a.assetType === 'crypto');
+                  return cryptoStats?.winRate ? `${cryptoStats.winRate.toFixed(0)}%` : "—";
+                })()}
+              </div>
+              <div className="text-xs md:text-sm text-muted-foreground">Crypto Win Rate</div>
             </div>
           </div>
+          <p className="text-center text-xs text-muted-foreground mt-4">
+            Based on validated trades with confirmed outcomes (excludes options pending proper pricing)
+          </p>
         </div>
       </section>
 
