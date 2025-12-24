@@ -21,13 +21,21 @@ The UI features a Bloomberg-style dark theme with deep charcoal backgrounds, gra
 
 Recent UI/UX improvements focus on readability and reduced visual clutter, including an always-visible KPI dashboard (`Signal Pulse Stats Card`), a consolidated filter toolbar, a pagination system for trade listings, and accordion headers for summary statistics. The Trade Desk now features a dual-section layout separating active trades (card view) from closed trades (compact table view) for improved information density. A public-facing redesign (Tradvio-inspired) enhances the landing page with platform value propositions, "How It Works" workflow, Success Stories, Chart Database, Academy, and Blog sections. The Trade Desk has been simplified to a single unified feed displaying all trade ideas, with clear source badges (AI, Quant, Hybrid, Flow, News, Manual, Chart, Lotto) and horizontal source filter tabs with live counts. Draft trades are visually distinguished with badges and muted styling, with status filtering (All/Published/Draft) and promote-to-published workflow.
 
-**Sidebar Navigation Reorganization (Nov 2025):**
-The platform uses a streamlined 4-section sidebar for improved organization:
-- **Trading**: Trade Desk, Generate Ideas (both link to /trade-desk where idea generation occurs)
-- **Market**: Overview (renamed from Market Intel), Watchlist (both link to /market)
-- **Research**: Performance, Chart Analysis (moved from Trading section for better logical grouping)
-- **System**: Settings, Admin (conditional on user role)
-Removed sections: Community (Success Stories), Chart Database, Academy, Blog. Trade cards display persistent source badges for transparency. Multi-expiration options across various DTE buckets are supported, and expiry filter chips dynamically update trade counts.
+**Simplified Navigation (Dec 2025):**
+The platform now features a cleaner, less overwhelming navigation structure:
+- **Main Section** (no label): Home, Trade Desk, Trading Rules - core daily workflow
+- **More Section**: Performance, Market, Chart Analysis - additional tools
+- **System Section**: Settings, Admin (conditional on user role)
+
+**Home Page (/home):**
+A new daily "game plan" page serves as the main landing experience for authenticated users:
+- Greeting with current date
+- Weekly goal progress tracker (targeting $200/week)
+- Today's Top 3 trade ideas (sorted by confidence)
+- Quick risk reminder alert
+- Quick action cards for Trade Desk and Trading Rules
+
+The Trade Desk has been further simplified by removing the duplicate "Top Picks" section (now on Home page). Focus is on browsing/filtering all trade ideas with minimal controls (search + status filter + generate button).
 
 ### Technical Implementations & Feature Specifications
 The frontend uses React/TypeScript, Tailwind CSS, Shadcn UI, TanStack Query, Wouter, and date-fns-tz. The backend uses Express.js with TypeScript, a PostgreSQL database (Neon) with Drizzle ORM, and Zod validation. Key features include a collapsible sidebar, symbol search, a metrics-focused dashboard, a unified trade ideas feed (Quant and AI generated), and a conversational QuantAI Bot with multi-provider fallback and chat history. A quality scoring system incorporates confidence scores and probability bands.
