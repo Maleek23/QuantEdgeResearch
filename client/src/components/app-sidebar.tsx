@@ -1,4 +1,4 @@
-import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sun, Moon, Upload, Eye, Sparkles } from "lucide-react";
+import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sun, Moon, Upload, Eye, Sparkles, BookOpen } from "lucide-react";
 import { useLocation } from "wouter";
 import {
   Sidebar,
@@ -32,6 +32,7 @@ const marketItems = [
 const researchItems = [
   { title: "Performance", url: "/performance", icon: Target },
   { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
+  { title: "Trading Rules", url: "/trading-rules", icon: BookOpen },
 ];
 
 const systemItems = [

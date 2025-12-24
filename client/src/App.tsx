@@ -23,6 +23,7 @@ import SuccessStories from "@/pages/success-stories";
 import ChartDatabase from "@/pages/chart-database";
 import Academy from "@/pages/academy";
 import Blog from "@/pages/blog";
+import TradingRules from "@/pages/trading-rules";
 import NotFound from "@/pages/not-found";
 function Router() {
   return (
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/market" component={MarketPage} />
       
       {/* Research & Community Pages */}
+      <Route path="/trading-rules" component={TradingRules} />
       <Route path="/chart-database" component={ChartDatabase} />
       <Route path="/success-stories" component={SuccessStories} />
       <Route path="/academy" component={Academy} />
