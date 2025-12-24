@@ -156,7 +156,7 @@ export default function HomePage() {
               data-testid="button-generate-ideas"
             >
               <Sparkles className="h-4 w-4 mr-2" />
-              {generateHybridIdeas.isPending ? 'Generating...' : 'Generate Ideas'}
+              {generateHybridIdeas.isPending ? 'Generating...' : 'Smart Picks'}
             </Button>
           )}
         </div>
@@ -167,7 +167,7 @@ export default function HomePage() {
               <Clock className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
               <p className="text-muted-foreground mb-2">No fresh ideas yet today</p>
               <p className="text-xs text-muted-foreground">
-                Click "Generate Ideas" or check back after market open
+                Click "Smart Picks" or check back after market open
               </p>
             </CardContent>
           </Card>

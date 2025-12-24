@@ -555,15 +555,52 @@ export default function TradeDeskPage() {
               <ChevronDown className="h-3 w-3" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuContent align="end" className="w-52">
+            {/* Recommended - Best for most users */}
             <DropdownMenuItem
               onClick={() => generateHybridIdeas.mutate()}
               disabled={generateHybridIdeas.isPending}
               data-testid="menu-generate-hybrid"
+              className="font-medium"
             >
-              <Sparkles className="h-4 w-4 mr-2" />
-              AI + Quant
+              <Sparkles className="h-4 w-4 mr-2 text-primary" />
+              Smart Picks
+              <Badge variant="secondary" className="ml-auto text-[10px] px-1.5">Best</Badge>
             </DropdownMenuItem>
+            
+            <DropdownMenuSeparator />
+            
+            {/* Individual Engines */}
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">By Strategy</div>
+            <DropdownMenuItem
+              onClick={() => generateQuantIdeas.mutate()}
+              disabled={generateQuantIdeas.isPending}
+              data-testid="menu-generate-quant"
+            >
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Quant Signals
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => generateAIIdeas.mutate()}
+              disabled={generateAIIdeas.isPending}
+              data-testid="menu-generate-ai"
+            >
+              <Bot className="h-4 w-4 mr-2" />
+              AI Analysis
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => generateNewsIdeas.mutate()}
+              disabled={generateNewsIdeas.isPending}
+              data-testid="menu-generate-news"
+            >
+              <Newspaper className="h-4 w-4 mr-2" />
+              Breaking News
+            </DropdownMenuItem>
+            
+            <DropdownMenuSeparator />
+            
+            {/* Options Focused */}
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">Options</div>
             <DropdownMenuItem
               onClick={() => generateFlowIdeas.mutate()}
               disabled={generateFlowIdeas.isPending}
@@ -571,6 +608,7 @@ export default function TradeDeskPage() {
             >
               <Activity className="h-4 w-4 mr-2" />
               Flow Scanner
+              <span className="ml-auto text-[10px] text-muted-foreground">+ Lotto</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
