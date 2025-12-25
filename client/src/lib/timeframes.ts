@@ -19,11 +19,37 @@ export const TIMEFRAME_DESCRIPTIONS: Record<TimeframeBucket, string> = {
   next_month: 'Monthly+ positions and LEAPS',
 };
 
+function classifyByDays(days: number): TimeframeBucket {
+  if (days < 0) return 'today_tomorrow';
+  if (days <= 1) return 'today_tomorrow';
+  if (days <= 5) return 'few_days';
+  if (days <= 14) return 'next_week';
+  return 'next_month';
+}
+
 export function classifyTimeframe(idea: TradeIdea): TimeframeBucket {
   const now = new Date();
   const today = startOfDay(now);
   
   const holdingPeriod = idea.holdingPeriod || 'day';
+  
+  if (idea.exitBy) {
+    try {
+      const exitDate = parseISO(idea.exitBy);
+      const daysUntilExit = differenceInDays(exitDate, today);
+      return classifyByDays(daysUntilExit);
+    } catch {
+    }
+  }
+  
+  if (idea.expiryDate) {
+    try {
+      const expiryDate = parseISO(idea.expiryDate);
+      const daysUntilExpiry = differenceInDays(expiryDate, today);
+      return classifyByDays(daysUntilExpiry);
+    } catch {
+    }
+  }
   
   if (holdingPeriod === 'day') {
     return 'today_tomorrow';
@@ -38,59 +64,7 @@ export function classifyTimeframe(idea: TradeIdea): TimeframeBucket {
   }
   
   if (holdingPeriod === 'position') {
-    if (idea.exitBy) {
-      try {
-        const exitDate = parseISO(idea.exitBy);
-        const daysUntilExit = differenceInDays(exitDate, today);
-        
-        if (daysUntilExit <= 1) return 'today_tomorrow';
-        if (daysUntilExit <= 5) return 'few_days';
-        if (daysUntilExit <= 14) return 'next_week';
-        return 'next_month';
-      } catch {
-      }
-    }
-    
-    if (idea.expiryDate) {
-      try {
-        const expiryDate = parseISO(idea.expiryDate);
-        const daysUntilExpiry = differenceInDays(expiryDate, today);
-        
-        if (daysUntilExpiry <= 1) return 'today_tomorrow';
-        if (daysUntilExpiry <= 5) return 'few_days';
-        if (daysUntilExpiry <= 14) return 'next_week';
-        return 'next_month';
-      } catch {
-      }
-    }
-    
     return 'next_month';
-  }
-  
-  if (idea.expiryDate) {
-    try {
-      const expiryDate = parseISO(idea.expiryDate);
-      const daysUntilExpiry = differenceInDays(expiryDate, today);
-      
-      if (daysUntilExpiry <= 1) return 'today_tomorrow';
-      if (daysUntilExpiry <= 5) return 'few_days';
-      if (daysUntilExpiry <= 14) return 'next_week';
-      return 'next_month';
-    } catch {
-    }
-  }
-  
-  if (idea.exitBy) {
-    try {
-      const exitDate = parseISO(idea.exitBy);
-      const daysUntilExit = differenceInDays(exitDate, today);
-      
-      if (daysUntilExit <= 1) return 'today_tomorrow';
-      if (daysUntilExit <= 5) return 'few_days';
-      if (daysUntilExit <= 14) return 'next_week';
-      return 'next_month';
-    } catch {
-    }
   }
   
   return 'few_days';

@@ -146,17 +146,6 @@ export default function TradeDeskPage() {
     return counts;
   }, [tradeIdeas]);
 
-  // Timeframe counts - for the temporal tabs
-  const timeframeCounts = useMemo(() => {
-    // Only count published ideas that match current statusView
-    const statusFiltered = tradeIdeas.filter(idea => {
-      const ideaStatus = idea.status || 'published';
-      if (statusView === 'all') return true;
-      return ideaStatus === statusView;
-    });
-    return getTimeframeCounts(statusFiltered);
-  }, [tradeIdeas, statusView]);
-
   const generateQuantIdeas = useMutation({
     mutationFn: async () => {
       return await apiRequest('POST', '/api/quant/generate-ideas', {});
@@ -326,6 +315,12 @@ export default function TradeDeskPage() {
     
     return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesSourceTab && matchesStatusView;
   });
+
+  // Timeframe counts - computed from filteredIdeas (after all other filters except timeframe)
+  // This ensures counts stay in sync with the actual visible ideas
+  const timeframeCounts = useMemo(() => {
+    return getTimeframeCounts(filteredIdeas);
+  }, [filteredIdeas]);
 
   // Helper to normalize outcomeStatus (trim whitespace + lowercase)
   const normalizeStatus = (status: string | null | undefined): string => {
@@ -633,6 +628,32 @@ export default function TradeDeskPage() {
           </DropdownMenuContent>
         </DropdownMenu>
         </div>
+      </div>
+
+      {/* Timeframe Tabs - Organize plays by trading horizon */}
+      <div className="flex items-center gap-1 overflow-x-auto pb-1">
+        {(['all', 'today_tomorrow', 'few_days', 'next_week', 'next_month'] as TimeframeBucket[]).map((timeframe) => (
+          <Button
+            key={timeframe}
+            variant={activeTimeframe === timeframe ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveTimeframe(timeframe)}
+            className={cn(
+              "gap-1.5 whitespace-nowrap",
+              activeTimeframe === timeframe && "shadow-sm"
+            )}
+            data-testid={`tab-timeframe-${timeframe}`}
+          >
+            {timeframe === 'today_tomorrow' && <CalendarClock className="h-3.5 w-3.5" />}
+            {TIMEFRAME_LABELS[timeframe]}
+            <Badge 
+              variant={activeTimeframe === timeframe ? "secondary" : "outline"} 
+              className="ml-0.5 px-1.5 py-0 text-[10px] font-medium"
+            >
+              {timeframeCounts[timeframe]}
+            </Badge>
+          </Button>
+        ))}
       </div>
 
       {/* Simple Search + Filter Bar */}
