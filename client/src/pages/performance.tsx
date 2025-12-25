@@ -29,6 +29,7 @@ import TimeOfDayHeatmap from "@/components/time-of-day-heatmap";
 import EngineTrendsChart from "@/components/engine-trends-chart";
 import ConfidenceCalibration from "@/components/confidence-calibration";
 import StreakTracker from "@/components/streak-tracker";
+import { TierGate } from "@/components/tier-gate";
 
 interface PerformanceStats {
   overall: {
@@ -545,40 +546,44 @@ export default function PerformancePage() {
           </CardContent>
         </Card>
 
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Current Performance Streak</h2>
-          <StreakTracker selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
-        </div>
-        
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Engine Performance Trends</h2>
-          <p className="text-sm text-muted-foreground mb-4">Weekly win rates for all engines over the last 8 weeks</p>
-          <EngineTrendsChart />
-        </div>
-        
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Symbol Performance Leaderboard</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            {selectedEngine === 'all' ? 'All engines' : `${selectedEngine.toUpperCase()} engine`} - Top/worst performing symbols
-          </p>
-          <SymbolLeaderboard selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
-        </div>
-        
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Time-of-Day Performance</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Win rate by hour (9 AM - 4 PM ET) {selectedEngine !== 'all' && `for ${selectedEngine.toUpperCase()} engine`}
-          </p>
-          <TimeOfDayHeatmap selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
-        </div>
-        
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Confidence Score Calibration</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Actual win rates by confidence score band {selectedEngine !== 'all' && `for ${selectedEngine.toUpperCase()} engine`}
-          </p>
-          <ConfidenceCalibration selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
-        </div>
+        <TierGate feature="performance" blur>
+          <div className="space-y-6" data-testid="section-advanced-analytics">
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Current Performance Streak</h2>
+              <StreakTracker selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+            </div>
+            
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Engine Performance Trends</h2>
+              <p className="text-sm text-muted-foreground mb-4">Weekly win rates for all engines over the last 8 weeks</p>
+              <EngineTrendsChart />
+            </div>
+            
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Symbol Performance Leaderboard</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                {selectedEngine === 'all' ? 'All engines' : `${selectedEngine.toUpperCase()} engine`} - Top/worst performing symbols
+              </p>
+              <SymbolLeaderboard selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+            </div>
+            
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Time-of-Day Performance</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Win rate by hour (9 AM - 4 PM ET) {selectedEngine !== 'all' && `for ${selectedEngine.toUpperCase()} engine`}
+              </p>
+              <TimeOfDayHeatmap selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+            </div>
+            
+            <div>
+              <h2 className="text-xl font-semibold mb-4">Confidence Score Calibration</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Actual win rates by confidence score band {selectedEngine !== 'all' && `for ${selectedEngine.toUpperCase()} engine`}
+              </p>
+              <ConfidenceCalibration selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+            </div>
+          </div>
+        </TierGate>
 
         {stats.bySource.length > 0 && (
           <Card data-testid="card-performance-by-source">

@@ -32,6 +32,7 @@ import { requireAdmin, generateAdminToken, verifyAdminToken } from "./auth";
 import { getSession, setupAuth } from "./replitAuth";
 import { setupGoogleAuth } from "./googleAuth";
 import { createUser, authenticateUser, sanitizeUser } from "./userAuth";
+import { getTierLimits } from "./tierConfig";
 
 // Session-based authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -371,6 +372,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(200).json(null);
     }
   });
+
+  // Get current user's tier information
+  app.get("/api/user/tier", async (req: any, res: Response) => {
+    try {
+      // Check email/password session first
+      let userId = req.session?.userId;
+      
+      // Check Replit Auth (Google login) if no session userId
+      if (!userId && req.user) {
+        const replitUser = req.user as any;
+        userId = replitUser.claims?.sub;
+      }
+      
+      if (!userId) {
+        return res.json({
+          tier: 'free',
+          limits: normalizeLimits(getTierLimits('free')),
+          usage: { tradeIdeas: 0, chartAnalysis: 0 }
+        });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.json({
+          tier: 'free',
+          limits: normalizeLimits(getTierLimits('free')),
+          usage: { tradeIdeas: 0, chartAnalysis: 0 }
+        });
+      }
+      
+      const tier = (user.subscriptionTier as 'free' | 'advanced' | 'pro') || 'free';
+      const limits = normalizeLimits(getTierLimits(tier));
+      const usage = await storage.getDailyUsage(userId);
+      
+      res.json({
+        tier,
+        limits,
+        usage: {
+          tradeIdeas: usage?.tradeIdeasGenerated || 0,
+          chartAnalysis: usage?.chartAnalysisUsed || 0
+        },
+        isAdmin: process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'user/tier' });
+      res.status(500).json({ error: "Failed to get tier info" });
+    }
+  });
+  
+  // Helper function to normalize Infinity to -1 for JSON serialization
+  function normalizeLimits(limits: ReturnType<typeof getTierLimits>) {
+    return {
+      ...limits,
+      ideasPerDay: limits.ideasPerDay === Infinity ? -1 : limits.ideasPerDay,
+      aiChatMessagesPerDay: limits.aiChatMessagesPerDay === Infinity ? -1 : limits.aiChatMessagesPerDay,
+      chartAnalysisPerDay: limits.chartAnalysisPerDay === Infinity ? -1 : limits.chartAnalysisPerDay,
+      watchlistItems: limits.watchlistItems === Infinity ? -1 : limits.watchlistItems,
+    };
+  }
 
   // Admin Authentication Routes with JWT
   app.post("/api/admin/verify-code", adminLimiter, (req, res) => {

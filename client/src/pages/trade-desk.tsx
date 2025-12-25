@@ -25,8 +25,11 @@ import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, 
 import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
 import { getPerformanceGrade } from "@/lib/performance-grade";
+import { UsageBadge } from "@/components/tier-gate";
+import { useTier } from "@/hooks/useTier";
 
 export default function TradeDeskPage() {
+  const { canGenerateTradeIdea } = useTier();
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
@@ -541,12 +544,14 @@ export default function TradeDeskPage() {
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
+          <UsageBadge className="mr-1" data-testid="badge-usage-remaining" />
           <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button 
               variant="default"
               size="default"
               className="gap-2"
+              disabled={!canGenerateTradeIdea()}
               data-testid="button-generate-ideas"
             >
               <Sparkles className="h-4 w-4" />

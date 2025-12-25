@@ -18,6 +18,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import { TierGate } from "@/components/tier-gate";
 
 function ConfidenceGauge({ value, sentiment }: { value: number; sentiment: "bullish" | "bearish" | "neutral" }) {
   const color = sentiment === "bullish" ? "#22c55e" : sentiment === "bearish" ? "#ef4444" : "#f59e0b";
@@ -499,7 +500,8 @@ export default function ChartAnalysis() {
   const validationWarnings = getValidationWarnings();
 
   return (
-    <div className="container mx-auto p-4 md:p-6 max-w-7xl space-y-6">
+    <TierGate feature="chart-analysis">
+    <div className="container mx-auto p-4 md:p-6 max-w-7xl space-y-6" data-testid="page-chart-analysis">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="space-y-1">
@@ -1041,5 +1043,6 @@ export default function ChartAnalysis() {
         </CardContent>
       </Card>
     </div>
+    </TierGate>
   );
 }
