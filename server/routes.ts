@@ -2672,6 +2672,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Watch Suggestions - Stocks to watch based on multiple catalyst reasons
+  app.get("/api/watch-suggestions", async (_req, res) => {
+    try {
+      const { generateWatchSuggestions } = await import('./watch-suggestions');
+      const suggestions = await generateWatchSuggestions();
+      res.json(suggestions);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/watch-suggestions' });
+      res.status(500).json({ error: "Failed to generate watch suggestions" });
+    }
+  });
+
   // Options Data Routes
   app.get("/api/options/:symbol", async (req, res) => {
     try {
