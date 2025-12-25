@@ -92,8 +92,12 @@ async function scanForLottoPlays(ticker: string): Promise<LottoCandidate[]> {
     const lottoCandidates: LottoCandidate[] = [];
 
     for (const option of options) {
+      // 🔒 PRICING FIX: Use bid/ask mid-price for accurate premiums (last price can be stale)
+      const hasBidAsk = option.bid && option.bid > 0 && option.ask && option.ask > 0;
+      const midPrice = hasBidAsk ? (option.bid + option.ask) / 2 : option.last;
+      
       // Skip if missing critical data
-      if (!option.last || option.last <= 0 || !option.greeks?.delta || !option.expiration_date) {
+      if (!midPrice || midPrice <= 0 || !option.greeks?.delta || !option.expiration_date) {
         continue;
       }
 
@@ -101,9 +105,9 @@ async function scanForLottoPlays(ticker: string): Promise<LottoCandidate[]> {
       const expiryDate = new Date(option.expiration_date);
       const daysToExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-      // Check if meets lotto criteria
+      // Check if meets lotto criteria (use mid-price for accurate assessment)
       const meetsLotto = isLottoCandidate({
-        lastPrice: option.last,
+        lastPrice: midPrice,
         greeks: option.greeks,
         expiration: option.expiration_date,
         symbol: option.symbol
@@ -111,7 +115,7 @@ async function scanForLottoPlays(ticker: string): Promise<LottoCandidate[]> {
 
       if (meetsLotto) {
         const reasons: string[] = [];
-        reasons.push(`$${option.last.toFixed(2)} entry`);
+        reasons.push(`$${midPrice.toFixed(2)} entry`);
         reasons.push(`Δ ${Math.abs(option.greeks.delta).toFixed(2)}`);
         reasons.push(`${daysToExpiry}d DTE`);
         
@@ -121,14 +125,14 @@ async function scanForLottoPlays(ticker: string): Promise<LottoCandidate[]> {
           optionType: option.option_type as 'call' | 'put',
           strike: option.strike,
           expiration: option.expiration_date,
-          lastPrice: option.last,
+          lastPrice: midPrice, // Use mid-price for accurate entry
           delta: option.greeks.delta,
           daysToExpiry,
           volume: option.volume || 0,
           reasons
         });
 
-        logger.info(`🎰 [LOTTO] ✅ FOUND: ${ticker} ${option.option_type.toUpperCase()} $${option.strike} - ${reasons.join(', ')}`);
+        logger.info(`🎰 [LOTTO] ✅ FOUND: ${ticker} ${option.option_type.toUpperCase()} $${option.strike} @ $${midPrice.toFixed(2)} - ${reasons.join(', ')}`);
       }
     }
 

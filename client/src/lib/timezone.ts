@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 
 // User's timezone (from user preference or default to CST)
@@ -13,6 +13,26 @@ export function formatInUserTZ(date: Date | string, formatStr: string = "MMM d, 
     return 'Invalid date';
   }
   return formatInTimeZone(dateObj, USER_TIMEZONE, formatStr);
+}
+
+/**
+ * Format a date-only string (YYYY-MM-DD) without timezone conversion.
+ * This is critical for options expiry dates which should display exactly as stored.
+ * Using regular Date parsing would shift "2025-12-26" to "Dec 25" in CST timezone.
+ */
+export function formatDateOnly(dateStr: string | null | undefined, formatStr: string = "MMM dd, yyyy"): string {
+  if (!dateStr) return 'N/A';
+  
+  // Parse as local date by adding time component to prevent UTC interpretation
+  // For YYYY-MM-DD format, append T12:00:00 to parse as noon local time
+  const normalizedDate = dateStr.includes('T') ? dateStr : `${dateStr}T12:00:00`;
+  const dateObj = parseISO(normalizedDate);
+  
+  if (!dateObj || isNaN(dateObj.getTime())) {
+    return 'Invalid date';
+  }
+  
+  return format(dateObj, formatStr);
 }
 
 /**

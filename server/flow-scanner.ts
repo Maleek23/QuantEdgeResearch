@@ -163,7 +163,11 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
       if (!option.average_volume) missingAvgVolume++;
       if (!option.last || option.last <= 0) missingLast++;
       
-      if (!option.volume || !option.last || option.last <= 0) {
+      // 🔒 PRICING FIX: Use bid/ask mid-price for accurate premiums (last price can be stale when market closed)
+      const hasBidAsk = option.bid && option.bid > 0 && option.ask && option.ask > 0;
+      const midPrice = hasBidAsk ? (option.bid + option.ask) / 2 : option.last;
+      
+      if (!option.volume || !midPrice || midPrice <= 0) {
         skippedCount++;
         continue;
       }
@@ -174,7 +178,7 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
         continue;
       }
 
-      const premium = option.volume * option.last * 100; // Contract size = 100
+      const premium = option.volume * midPrice * 100; // Contract size = 100, using mid-price
       const impliedVol = option.greeks?.mid_iv || option.greeks?.bid_iv || 0;
 
       const reasons: string[] = [];
@@ -207,7 +211,7 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
           expiration: option.expiration_date,
           volume: option.volume,
           premium,
-          lastPrice: option.last,
+          lastPrice: midPrice, // Use mid-price for accurate entry
           impliedVol,
           reasons,
           greeks: option.greeks ? {
@@ -215,7 +219,7 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
           } : undefined
         });
 
-        logger.info(`📊 [FLOW] UNUSUAL: ${ticker} ${option.option_type.toUpperCase()} $${option.strike} - ${reasons.join(', ')}`);
+        logger.info(`📊 [FLOW] UNUSUAL: ${ticker} ${option.option_type.toUpperCase()} $${option.strike} @ $${midPrice.toFixed(2)} - ${reasons.join(', ')}`);
       }
     }
 

@@ -81,13 +81,18 @@ export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOpt
     
     // 4. Filter options by type and find good candidates
     // 🔒 VALIDATION: Also filter out options with invalid expiration dates (weekends, holidays)
-    const optionsByType = optionsChain.filter(opt => 
-      opt.option_type === optionType && 
-      opt.last > 0 &&
-      opt.volume > 0 &&
-      opt.expiration_date && 
-      isValidTradingDay(opt.expiration_date)
-    );
+    // 🔒 PRICING FIX: Use bid/ask mid-price for accurate premiums
+    const optionsByType = optionsChain.filter(opt => {
+      // Calculate mid-price for validation
+      const hasBidAsk = opt.bid && opt.bid > 0 && opt.ask && opt.ask > 0;
+      const midPrice = hasBidAsk ? (opt.bid + opt.ask) / 2 : opt.last;
+      
+      return opt.option_type === optionType && 
+        midPrice > 0 &&
+        opt.volume > 0 &&
+        opt.expiration_date && 
+        isValidTradingDay(opt.expiration_date);
+    });
 
     if (optionsByType.length === 0) {
       logger.warn(`[OPTIONS-ENRICH] No ${optionType}s with volume for ${aiIdea.symbol}`);
@@ -108,7 +113,9 @@ export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOpt
 
     // Pick the most liquid option (highest volume)
     const selectedOption = goodOptions[0];
-    const entryPremium = selectedOption.last;
+    // 🔒 PRICING FIX: Use bid/ask mid-price for accurate entry premium
+    const hasBidAsk = selectedOption.bid && selectedOption.bid > 0 && selectedOption.ask && selectedOption.ask > 0;
+    const entryPremium = hasBidAsk ? (selectedOption.bid + selectedOption.ask) / 2 : selectedOption.last;
     const strikePrice = selectedOption.strike;
     const expiryDate = selectedOption.expiration_date;
     const delta = selectedOption.greeks?.delta || 0;

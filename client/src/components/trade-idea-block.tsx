@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
-import { formatInUserTZ, formatTimeUntilExpiry } from "@/lib/timezone";
+import { formatInUserTZ, formatTimeUntilExpiry, formatDateOnly } from "@/lib/timezone";
 import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles, Newspaper, HelpCircle, Info, Database, TrendingUpIcon, Zap, UserPlus } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { parseISO } from "date-fns";
@@ -770,11 +770,12 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     </div>
                     <div className={cn(
                       "text-lg font-bold font-mono",
-                      idea.expiryDate && new Date(idea.expiryDate).toDateString() === new Date().toDateString()
+                      // Check if expiry is today (compare date strings to avoid timezone issues)
+                      idea.expiryDate && idea.expiryDate.split('T')[0] === new Date().toISOString().split('T')[0]
                         ? 'text-red-400 animate-pulse' // TODAY - show in red with pulse
                         : 'text-purple-400'
                     )}>
-                      {idea.expiryDate ? formatInUserTZ(idea.expiryDate, 'MMM dd, yyyy') : 'N/A'}
+                      {formatDateOnly(idea.expiryDate)}
                     </div>
                   </div>
                 </div>

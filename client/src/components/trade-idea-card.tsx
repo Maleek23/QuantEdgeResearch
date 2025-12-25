@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency, formatPercent, formatCTTime, cn, calculateDynamicSignal, type TradeSignal } from "@/lib/utils";
+import { formatDateOnly } from "@/lib/timezone";
 import type { TradeIdea } from "@shared/schema";
 import { AlertTriangle, TrendingUp, TrendingDown, Target, Shield, DollarSign, Info, Star, ExternalLink, Bot, BarChart3, Sparkles, Newspaper, Activity } from "lucide-react";
 
@@ -368,7 +369,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
             {idea.expiryDate && (
               <div className="space-y-1 text-right">
                 <div className="text-xs text-muted-foreground">Expiry</div>
-                <div className="text-sm font-mono font-medium">{idea.expiryDate}</div>
+                <div className="text-sm font-mono font-medium">{formatDateOnly(idea.expiryDate)}</div>
               </div>
             )}
           </div>
