@@ -34,22 +34,22 @@ export default function TradeIdeasPage() {
 
   const { data: tradeIdeas = [], isLoading: ideasLoading } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
-    refetchInterval: 30000, // 30s for live trading data
-    staleTime: 15000, // Fresh for 15s to prevent duplicate fetches
+    refetchInterval: 60000, // 60s for trading data (prices included in response)
+    staleTime: 30000, // Fresh for 30s - reduces duplicate fetches
   });
 
   // Fetch market data for real-time prices
   const { data: marketData = [] } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
-    refetchInterval: 30000, // 30s for live market data
-    staleTime: 15000,
+    refetchInterval: 60000, // 60s for market data
+    staleTime: 30000,
   });
 
   // Fetch catalysts for earnings warnings
   const { data: catalysts = [] } = useQuery<Catalyst[]>({
     queryKey: ['/api/catalysts'],
     refetchInterval: 3600000,
-    staleTime: 1800000, // 30 min for catalysts
+    staleTime: 3600000, // 1 hour for catalysts (slow-changing)
   });
 
   // Create a map of symbol to current price from trade ideas (already includes live prices from backend)

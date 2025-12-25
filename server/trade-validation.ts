@@ -162,6 +162,24 @@ export function validateTrade(trade: TradeValidationInput): ValidationResult {
       );
       if (!severity) severity = 'high';
     }
+    
+    // Smart option premium validation using available data
+    // Deep ITM options CAN have high premiums (intrinsic value), so we use a heuristic:
+    // If entry premium is > 10x strike, it's almost certainly stock price, not option premium
+    // Even the deepest ITM options (stock at 10x strike) rarely exceed 10x premium-to-strike ratio
+    if (trade.strikePrice && trade.strikePrice > 0) {
+      const strike = trade.strikePrice;
+      const entryRatio = entryPrice / strike;
+      
+      // If entry premium is > 10x strike, this is definitely stock price (e.g., META $5 strike with $645 "premium")
+      if (entryRatio > 10) {
+        errors.push(
+          `Invalid option premium: Entry ($${entryPrice.toFixed(2)}) is ${entryRatio.toFixed(0)}x the strike price ($${strike}). ` +
+          `This appears to be the stock price, not the option premium.`
+        );
+        if (!severity) severity = 'critical';
+      }
+    }
   }
 
   // 7. Check for penny stock risks (< $1)

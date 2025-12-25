@@ -21,8 +21,8 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
 
   const { data: marketData = [] } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
-    refetchInterval: 30000,
-    staleTime: 15000,
+    refetchInterval: 60000, // 60s refresh (shares cache with Trade Desk)
+    staleTime: 30000,
   });
 
   const priceMap = marketData.reduce((acc, data) => {

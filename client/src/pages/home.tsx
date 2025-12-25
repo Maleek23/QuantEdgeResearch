@@ -29,8 +29,8 @@ export default function HomePage() {
 
   const { data: tradeIdeas = [], isLoading } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
-    refetchInterval: 30000,
-    staleTime: 15000,
+    refetchInterval: 60000, // 60s for home page (shares cache with Trade Desk)
+    staleTime: 30000,
   });
 
   const generateHybridIdeas = useMutation({

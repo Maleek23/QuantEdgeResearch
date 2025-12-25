@@ -55,8 +55,8 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
       return response.json();
     },
     enabled: idea.outcomeStatus === 'open' && idea.assetType !== 'option', // Skip options
-    staleTime: 60000, // Cache for 1 minute
-    refetchInterval: 300000, // Refresh every 5 minutes
+    staleTime: 300000, // Cache for 5 minutes
+    refetchInterval: 600000, // Refresh every 10 minutes (sparklines don't need frequent updates)
   });
 
   useEffect(() => {
