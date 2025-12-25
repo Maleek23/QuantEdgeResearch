@@ -428,6 +428,20 @@ export const insertModelCardSchema = createInsertSchema(modelCards).omit({ id: t
 export type InsertModelCard = z.infer<typeof insertModelCardSchema>;
 export type ModelCard = typeof modelCards.$inferSelect;
 
+// Daily usage tracking for tier limits
+export const dailyUsage = pgTable("daily_usage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD format
+  ideasViewed: integer("ideas_viewed").notNull().default(0),
+  aiChatMessages: integer("ai_chat_messages").notNull().default(0),
+  chartAnalyses: integer("chart_analyses").notNull().default(0),
+});
+
+export const insertDailyUsageSchema = createInsertSchema(dailyUsage).omit({ id: true });
+export type InsertDailyUsage = z.infer<typeof insertDailyUsageSchema>;
+export type DailyUsage = typeof dailyUsage.$inferSelect;
+
 // Position Calculation Interface (not stored, just for calculations)
 export interface PositionCalculation {
   symbol: string;
