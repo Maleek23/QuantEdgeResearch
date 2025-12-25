@@ -10,7 +10,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { UserPlus, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { UserPlus, ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
+import { SiGoogle } from "react-icons/si";
+import { Separator } from "@/components/ui/separator";
 import { Link } from "wouter";
 
 const signupSchema = z.object({
@@ -87,7 +89,28 @@ export default function Signup() {
             Enter your details to get started with QuantEdge
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Google Sign Up */}
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => window.location.href = '/api/login'}
+            data-testid="button-google-signup"
+          >
+            <SiGoogle className="mr-2 h-4 w-4" />
+            Continue with Google
+          </Button>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <Separator className="w-full" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Or continue with email</span>
+            </div>
+          </div>
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
