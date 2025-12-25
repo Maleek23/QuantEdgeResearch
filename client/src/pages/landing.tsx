@@ -63,6 +63,7 @@ interface PerformanceStatsResponse {
 export default function Landing() {
   const [, setLocation] = useLocation();
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const { isAuthenticated } = useAuth();
 
   const { data: perfStats, isLoading: statsLoading } = useQuery<PerformanceStatsResponse>({
@@ -668,9 +669,37 @@ export default function Landing() {
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               Choose Your Plan
             </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
               Start free and upgrade as you grow
             </p>
+            
+            {/* Billing Toggle */}
+            <div className="flex items-center justify-center gap-4" data-testid="billing-toggle">
+              <span className={`text-sm font-medium ${billingPeriod === 'monthly' ? 'text-foreground' : 'text-muted-foreground'}`}>
+                Monthly
+              </span>
+              <button
+                onClick={() => setBillingPeriod(billingPeriod === 'monthly' ? 'yearly' : 'monthly')}
+                className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${
+                  billingPeriod === 'yearly' ? 'bg-primary' : 'bg-muted'
+                }`}
+                data-testid="button-billing-toggle"
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${
+                    billingPeriod === 'yearly' ? 'translate-x-8' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-medium ${billingPeriod === 'yearly' ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  Yearly
+                </span>
+                <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-500 border-green-500/20">
+                  Save 17%
+                </Badge>
+              </div>
+            </div>
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
@@ -693,11 +722,15 @@ export default function Landing() {
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Delayed market data (15min)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
                     <span className="text-sm">7-day performance history</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Basic market data</span>
+                    <span className="text-sm">Stocks & crypto only</span>
                   </li>
                 </ul>
                 
@@ -721,10 +754,15 @@ export default function Landing() {
                 <div className="mb-6">
                   <h3 className="text-xl font-bold mb-2">Advanced</h3>
                   <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-4xl font-bold text-primary">$29</span>
+                    <span className="text-4xl font-bold text-primary">
+                      ${billingPeriod === 'monthly' ? '39' : '33'}
+                    </span>
                     <span className="text-muted-foreground">/month</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">Full platform access</p>
+                  {billingPeriod === 'yearly' && (
+                    <p className="text-xs text-green-500">Billed $390/year (save $78)</p>
+                  )}
+                  <p className="text-sm text-muted-foreground">Full stock & crypto access</p>
                 </div>
                 
                 <ul className="space-y-3 mb-8 flex-1">
@@ -738,15 +776,23 @@ export default function Landing() {
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">5 chart analyses per day</span>
+                    <span className="text-sm">Real-time market data</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">10 AI generations per day</span>
+                    <span className="text-sm">10 chart analyses per day</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">25 AI generations per day</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
                     <span className="text-sm">Full performance history</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Discord alerts</span>
                   </li>
                 </ul>
                 
@@ -762,21 +808,35 @@ export default function Landing() {
             </Card>
 
             {/* Pro Tier */}
-            <Card data-testid="card-pricing-pro">
+            <Card className="relative" data-testid="card-pricing-pro">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border-amber-500/20">
+                  Full Access
+                </Badge>
+              </div>
               <CardContent className="p-8 flex flex-col h-full">
                 <div className="mb-6">
                   <h3 className="text-xl font-bold mb-2">Pro</h3>
                   <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-4xl font-bold">$49</span>
+                    <span className="text-4xl font-bold">
+                      ${billingPeriod === 'monthly' ? '79' : '66'}
+                    </span>
                     <span className="text-muted-foreground">/month</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">Unlimited everything</p>
+                  {billingPeriod === 'yearly' && (
+                    <p className="text-xs text-green-500">Billed $790/year (save $158)</p>
+                  )}
+                  <p className="text-sm text-muted-foreground">All assets + premium features</p>
                 </div>
                 
                 <ul className="space-y-3 mb-8 flex-1">
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
                     <span className="text-sm font-medium">Everything in Advanced</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Options & futures coverage</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
@@ -788,11 +848,15 @@ export default function Landing() {
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Priority support</span>
+                    <span className="text-sm">Priority Discord channel</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Early access to features</span>
+                    <span className="text-sm">API access & data export</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm">Priority support</span>
                   </li>
                 </ul>
                 
