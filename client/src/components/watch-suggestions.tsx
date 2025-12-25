@@ -14,15 +14,17 @@ import {
   Newspaper,
   Calendar,
   Activity,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles
 } from "lucide-react";
 
 interface WatchReason {
-  type: 'earnings' | 'news' | 'flow' | 'technical' | 'ai_pick' | 'quant_signal' | 'momentum' | 'volatility';
+  type: 'earnings' | 'news' | 'flow' | 'technical' | 'ai_pick' | 'quant_signal' | 'momentum' | 'volatility' | 'hybrid' | 'lotto';
   label: string;
   description: string;
   impact: 'high' | 'medium' | 'low';
   timestamp?: string;
+  count?: number;
 }
 
 interface WatchSuggestion {
@@ -46,6 +48,8 @@ const reasonIcons: Record<WatchReason['type'], typeof Eye> = {
   quant_signal: Zap,
   momentum: TrendingUp,
   volatility: AlertTriangle,
+  hybrid: Sparkles,
+  lotto: Flame,
 };
 
 const priorityColors: Record<WatchSuggestion['priority'], string> = {

@@ -3,11 +3,12 @@ import { logger } from './logger';
 import type { TradeIdea, Catalyst } from '@shared/schema';
 
 export interface WatchReason {
-  type: 'earnings' | 'news' | 'flow' | 'technical' | 'ai_pick' | 'quant_signal' | 'momentum' | 'volatility';
+  type: 'earnings' | 'news' | 'flow' | 'technical' | 'ai_pick' | 'quant_signal' | 'momentum' | 'volatility' | 'hybrid' | 'lotto';
   label: string;
   description: string;
   impact: 'high' | 'medium' | 'low';
   timestamp?: string;
+  count?: number;
 }
 
 export interface WatchSuggestion {
@@ -22,9 +23,23 @@ export interface WatchSuggestion {
   generatedAt: string;
 }
 
+interface ReasonAggregator {
+  [type: string]: {
+    count: number;
+    bestConfidence: number;
+    latestTimestamp: string;
+    source: string;
+  };
+}
+
 export async function generateWatchSuggestions(): Promise<WatchSuggestion[]> {
   const now = new Date();
-  const suggestions = new Map<string, WatchSuggestion>();
+  const symbolData = new Map<string, {
+    assetType: string;
+    reasonTypes: ReasonAggregator;
+    direction?: 'bullish' | 'bearish';
+    currentPrice?: number;
+  }>();
   
   try {
     const [tradeIdeas, catalysts] = await Promise.all([
@@ -35,61 +50,55 @@ export async function generateWatchSuggestions(): Promise<WatchSuggestion[]> {
     const recentIdeas = tradeIdeas.filter((idea: TradeIdea) => {
       const ideaTime = new Date(idea.timestamp || '');
       const hoursSinceCreated = (now.getTime() - ideaTime.getTime()) / (1000 * 60 * 60);
-      return hoursSinceCreated < 72 && idea.outcomeStatus === 'open';
+      return hoursSinceCreated < 72;
     });
     
     for (const idea of recentIdeas) {
       if (!idea.symbol) continue;
       
-      const existing = suggestions.get(idea.symbol) || createEmptySuggestion(idea.symbol, idea.assetType);
+      const data = symbolData.get(idea.symbol) || {
+        assetType: idea.assetType,
+        reasonTypes: {},
+        direction: undefined,
+        currentPrice: undefined,
+      };
+      
       const confidence = idea.confidenceScore || 0;
+      let reasonType: string | null = null;
       
       if (idea.source === 'ai' && confidence >= 70) {
-        existing.reasons.push({
-          type: 'ai_pick',
-          label: 'AI Pick',
-          description: `AI engine selected with ${Math.round(confidence)}% confidence`,
-          impact: confidence >= 85 ? 'high' : 'medium',
-          timestamp: idea.timestamp,
-        });
+        reasonType = 'ai_pick';
+      } else if (idea.source === 'quant' && confidence >= 65) {
+        reasonType = 'quant_signal';
+      } else if (idea.source === 'hybrid' && confidence >= 65) {
+        reasonType = 'hybrid';
+      } else if (idea.source === 'flow') {
+        reasonType = 'flow';
+      } else if (idea.source === 'lotto') {
+        reasonType = 'lotto';
+      } else if (idea.source === 'news') {
+        reasonType = 'news';
       }
       
-      if (idea.source === 'quant' && confidence >= 65) {
-        existing.reasons.push({
-          type: 'quant_signal',
-          label: 'Quant Signal',
-          description: `Quantitative engine signal (${Math.round(confidence)}% confidence)`,
-          impact: confidence >= 80 ? 'high' : 'medium',
-          timestamp: idea.timestamp,
-        });
-      }
-      
-      if (idea.source === 'flow' || idea.source === 'lotto') {
-        existing.reasons.push({
-          type: 'flow',
-          label: 'Unusual Flow',
-          description: idea.source === 'lotto' ? 'Lotto-style options activity detected' : 'Unusual options flow detected',
-          impact: 'medium',
-          timestamp: idea.timestamp,
-        });
-      }
-      
-      if (idea.source === 'news') {
-        existing.reasons.push({
-          type: 'news',
-          label: 'Breaking News',
-          description: 'News catalyst detected',
-          impact: 'high',
-          timestamp: idea.timestamp,
-        });
+      if (reasonType) {
+        const existing = data.reasonTypes[reasonType];
+        if (!existing || confidence > existing.bestConfidence) {
+          data.reasonTypes[reasonType] = {
+            count: (existing?.count || 0) + 1,
+            bestConfidence: Math.max(confidence, existing?.bestConfidence || 0),
+            latestTimestamp: idea.timestamp,
+            source: idea.source,
+          };
+        } else {
+          data.reasonTypes[reasonType].count++;
+        }
       }
       
       if (idea.direction) {
-        existing.direction = idea.direction === 'long' ? 'bullish' : 'bearish';
+        data.direction = idea.direction === 'long' ? 'bullish' : 'bearish';
       }
-      
-      existing.currentPrice = idea.entryPrice || undefined;
-      suggestions.set(idea.symbol, existing);
+      data.currentPrice = idea.entryPrice || data.currentPrice;
+      symbolData.set(idea.symbol, data);
     }
     
     const recentCatalysts = catalysts.filter((cat: Catalyst) => {
@@ -101,47 +110,60 @@ export async function generateWatchSuggestions(): Promise<WatchSuggestion[]> {
     for (const catalyst of recentCatalysts) {
       if (!catalyst.symbol) continue;
       
-      const existing = suggestions.get(catalyst.symbol) || createEmptySuggestion(catalyst.symbol, 'stock');
+      const data = symbolData.get(catalyst.symbol) || {
+        assetType: 'stock',
+        reasonTypes: {},
+        direction: undefined,
+        currentPrice: undefined,
+      };
       
-      if (catalyst.eventType === 'earnings') {
-        existing.reasons.push({
-          type: 'earnings',
-          label: 'Earnings',
-          description: catalyst.title,
-          impact: catalyst.impact as 'high' | 'medium' | 'low',
-          timestamp: catalyst.timestamp,
-        });
-      } else {
-        existing.reasons.push({
-          type: 'news',
-          label: catalyst.eventType.charAt(0).toUpperCase() + catalyst.eventType.slice(1),
-          description: catalyst.title,
-          impact: catalyst.impact as 'high' | 'medium' | 'low',
-          timestamp: catalyst.timestamp,
-        });
-      }
+      const reasonType = catalyst.eventType === 'earnings' ? 'earnings' : 'news';
+      const existing = data.reasonTypes[reasonType];
       
-      suggestions.set(catalyst.symbol, existing);
+      data.reasonTypes[reasonType] = {
+        count: (existing?.count || 0) + 1,
+        bestConfidence: 0,
+        latestTimestamp: catalyst.timestamp,
+        source: catalyst.eventType,
+      };
+      
+      symbolData.set(catalyst.symbol, data);
     }
     
-    const result = Array.from(suggestions.values())
-      .map(s => ({
-        ...s,
-        reasonCount: s.reasons.length,
-        priority: calculatePriority(s.reasons),
-        generatedAt: now.toISOString(),
-      }))
-      .filter(s => s.reasonCount >= 2)
-      .sort((a, b) => {
-        const priorityOrder = { hot: 0, warm: 1, watch: 2 };
-        if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-          return priorityOrder[a.priority] - priorityOrder[b.priority];
-        }
-        return b.reasonCount - a.reasonCount;
-      })
-      .slice(0, 15);
+    const suggestions: WatchSuggestion[] = [];
     
-    logger.info(`📡 [WATCH] Generated ${result.length} watch suggestions from ${suggestions.size} symbols`);
+    symbolData.forEach((data, symbol) => {
+      const reasons: WatchReason[] = [];
+      
+      for (const [type, info] of Object.entries(data.reasonTypes)) {
+        const reason = buildReason(type, info as { count: number; bestConfidence: number; latestTimestamp: string; source: string });
+        if (reason) reasons.push(reason);
+      }
+      
+      if (reasons.length >= 2) {
+        suggestions.push({
+          symbol,
+          assetType: data.assetType as 'stock' | 'crypto' | 'option',
+          currentPrice: data.currentPrice,
+          reasons,
+          reasonCount: reasons.length,
+          priority: calculatePriority(reasons),
+          direction: data.direction,
+          generatedAt: now.toISOString(),
+        });
+      }
+    });
+    
+    suggestions.sort((a, b) => {
+      const priorityOrder = { hot: 0, warm: 1, watch: 2 };
+      if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+      }
+      return b.reasonCount - a.reasonCount;
+    });
+    
+    const result = suggestions.slice(0, 15);
+    logger.info(`📡 [WATCH] Generated ${result.length} watch suggestions from ${symbolData.size} symbols`);
     return result;
     
   } catch (error) {
@@ -150,15 +172,70 @@ export async function generateWatchSuggestions(): Promise<WatchSuggestion[]> {
   }
 }
 
-function createEmptySuggestion(symbol: string, assetType: string): WatchSuggestion {
-  return {
-    symbol,
-    assetType: assetType as 'stock' | 'crypto' | 'option',
-    reasons: [],
-    reasonCount: 0,
-    priority: 'watch',
-    generatedAt: new Date().toISOString(),
-  };
+function buildReason(type: string, info: { count: number; bestConfidence: number; latestTimestamp: string; source: string }): WatchReason | null {
+  const conf = Math.round(info.bestConfidence);
+  
+  switch (type) {
+    case 'ai_pick':
+      return {
+        type: 'ai_pick',
+        label: 'AI Pick',
+        description: `AI engine (${conf}% conf)`,
+        impact: info.bestConfidence >= 85 ? 'high' : 'medium',
+        timestamp: info.latestTimestamp,
+      };
+    case 'quant_signal':
+      return {
+        type: 'quant_signal',
+        label: 'Quant Signal',
+        description: `Quant engine (${conf}% conf)`,
+        impact: info.bestConfidence >= 80 ? 'high' : 'medium',
+        timestamp: info.latestTimestamp,
+      };
+    case 'hybrid':
+      return {
+        type: 'hybrid',
+        label: 'Hybrid',
+        description: `AI+Quant combo (${conf}% conf)`,
+        impact: 'high',
+        timestamp: info.latestTimestamp,
+      };
+    case 'flow':
+      return {
+        type: 'flow',
+        label: info.count > 1 ? `Flow (${info.count}x)` : 'Flow',
+        description: 'Unusual options activity',
+        impact: info.count >= 3 ? 'high' : 'medium',
+        timestamp: info.latestTimestamp,
+        count: info.count,
+      };
+    case 'lotto':
+      return {
+        type: 'lotto',
+        label: 'Lotto',
+        description: 'Cheap far-OTM options',
+        impact: 'low',
+        timestamp: info.latestTimestamp,
+      };
+    case 'news':
+      return {
+        type: 'news',
+        label: 'News',
+        description: 'Breaking catalyst',
+        impact: 'high',
+        timestamp: info.latestTimestamp,
+      };
+    case 'earnings':
+      return {
+        type: 'earnings',
+        label: 'Earnings',
+        description: 'Upcoming/recent earnings',
+        impact: 'high',
+        timestamp: info.latestTimestamp,
+      };
+    default:
+      return null;
+  }
 }
 
 function calculatePriority(reasons: WatchReason[]): 'hot' | 'warm' | 'watch' {
