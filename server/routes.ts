@@ -29,7 +29,7 @@ import {
   adminLimiter
 } from "./rate-limiter";
 import { requireAdmin, generateAdminToken, verifyAdminToken } from "./auth";
-import { getSession } from "./replitAuth";
+import { getSession, setupAuth } from "./replitAuth";
 import { createUser, authenticateUser, sanitizeUser } from "./userAuth";
 
 // Session-based authentication middleware
@@ -231,6 +231,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup session middleware for traditional email/password auth
   app.use(getSession());
+  
+  // Setup Replit Auth (Google OAuth) - registers /api/login, /api/callback, /api/logout
+  await setupAuth(app);
 
   // Authentication Routes - Email/Password Auth
   

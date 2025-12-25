@@ -80,16 +80,17 @@ export default function Login() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Google Login */}
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => window.location.href = '/api/login'}
-            data-testid="button-google-login"
-          >
-            <SiGoogle className="mr-2 h-4 w-4" />
-            Continue with Google
-          </Button>
+          <a href="/api/login" className="w-full">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              data-testid="button-google-login"
+            >
+              <SiGoogle className="mr-2 h-4 w-4" />
+              Continue with Google
+            </Button>
+          </a>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
