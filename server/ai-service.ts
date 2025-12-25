@@ -252,8 +252,37 @@ If no clear trade ideas are found, return empty array.`;
   }
 }
 
+// Helper to fetch current market prices for AI prompt context
+async function fetchCurrentPricesForPrompt(): Promise<string> {
+  const { fetchStockPrice, fetchCryptoPrice } = await import('./market-api');
+  
+  const pricePromises = [
+    fetchStockPrice('SPY').then(d => d ? `SPY: $${d.currentPrice.toFixed(2)}` : null),
+    fetchStockPrice('NVDA').then(d => d ? `NVDA: $${d.currentPrice.toFixed(2)}` : null),
+    fetchStockPrice('AAPL').then(d => d ? `AAPL: $${d.currentPrice.toFixed(2)}` : null),
+    fetchStockPrice('TSLA').then(d => d ? `TSLA: $${d.currentPrice.toFixed(2)}` : null),
+    fetchCryptoPrice('BTC').then(d => d ? `BTC: $${d.currentPrice.toFixed(0)}` : null),
+    fetchCryptoPrice('ETH').then(d => d ? `ETH: $${d.currentPrice.toFixed(0)}` : null),
+    fetchCryptoPrice('SOL').then(d => d ? `SOL: $${d.currentPrice.toFixed(2)}` : null),
+  ];
+  
+  const results = await Promise.all(pricePromises);
+  const validPrices = results.filter(Boolean);
+  
+  if (validPrices.length === 0) {
+    logger.warn('⚠️ Could not fetch any live prices for AI prompt');
+    return 'Live prices unavailable - use your best estimate based on recent market knowledge';
+  }
+  
+  return validPrices.join(', ');
+}
+
 // Generate trade ideas using FREE Gemini tier (25 requests/day)
 export async function generateTradeIdeas(marketContext: string): Promise<AITradeIdea[]> {
+  // Fetch LIVE prices to include in prompt (prevents outdated hardcoded prices)
+  const livePrices = await fetchCurrentPricesForPrompt();
+  logger.info(`📊 [AI-GEN] Fetched live prices for prompt: ${livePrices}`);
+  
   const systemPrompt = `You are a quantitative trading analyst. Generate 3-4 high-quality trade ideas based on current market conditions.
 
 CRYPTO UNIVERSE (pick 1-2 from different sectors):
@@ -278,25 +307,23 @@ For each trade idea, provide:
 - symbol: Stock ticker or crypto symbol
 - assetType: "stock", "option", or "crypto"
 - direction: "long" or "short"
-- entryPrice: Current realistic market price
-  * For stocks/crypto: Use current stock price (SPY ~$580, NVDA ~$140, BTC ~$107000, ETH ~$3600)
-  * For options: Use STOCK PRICE (system will fetch real option premium automatically)
-- targetPrice: Price target (MUST be based on asset type and follow direction rules)
-  * For stocks/crypto: Stock price target
-  * For options: Use STOCK PRICE target (system will convert to option premium automatically)
+- entryPrice: MUST use current market prices provided below
+- targetPrice: Price target (MUST follow direction rules)
 - stopLoss: Stop loss price (MUST follow direction rules below)
-  * For stocks/crypto: Stock price stop
-  * For options: Use STOCK PRICE stop (system will convert to option premium automatically)
 - catalyst: Key catalyst driving this trade (1-2 sentences)
 - analysis: Technical/fundamental analysis (2-3 sentences)
 - sessionContext: Market session context
 - expiryDate: (only for options, format: "YYYY-MM-DD")
 
+**LIVE MARKET PRICES (use these as entry prices):**
+${livePrices}
+
 CRITICAL PRICE RULES:
-- For LONG stocks/crypto/options: targetPrice > entryPrice > stopLoss (e.g., Entry $580, Target $590, Stop $575)
-- For SHORT stocks/crypto/options: stopLoss > entryPrice > targetPrice (e.g., Entry $580, Target $570, Stop $585)
-- For OPTIONS: Always use STOCK PRICES in your response - the system will automatically fetch real option premiums and convert your stock-price-based targets to premium-based targets (+25% gain, -6.25% stop)
-- Use realistic current market prices (these are approximate - adjust based on current conditions): SPY ~$580, NVDA ~$140, BTC ~$107000, ETH ~$3600, SOL ~$170, AAVE ~$205, UNI ~$5, LINK ~$16
+- For LONG trades: targetPrice > entryPrice > stopLoss
+- For SHORT trades: stopLoss > entryPrice > targetPrice
+- Entry prices MUST match the live prices above (or be very close)
+- Target: 1-3% from entry for day trades, 3-8% for swing trades
+- Stop: 1-3.5% from entry
 
 Return valid JSON object with structure: {"ideas": [array of trade ideas]}
 Focus on actionable, research-grade opportunities with sector diversification.`;
