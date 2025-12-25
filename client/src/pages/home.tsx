@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { WatchSuggestions } from "@/components/watch-suggestions";
 import type { TradeIdea } from "@shared/schema";
 import { Link } from "wouter";
 import { 
@@ -224,6 +225,9 @@ export default function HomePage() {
           </Link>
         )}
       </div>
+
+      {/* Watch Out For - Stocks with multiple catalyst reasons */}
+      <WatchSuggestions />
 
       {/* Quick Risk Reminder */}
       <Alert data-testid="alert-risk-reminder">
