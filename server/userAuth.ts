@@ -80,7 +80,10 @@ export async function authenticateUser(
   }
 }
 
-export function sanitizeUser(user: User): Omit<User, 'passwordHash'> {
+export function sanitizeUser(user: User): Omit<User, 'passwordHash'> & { isAdmin: boolean } {
   const { passwordHash: _, ...sanitized } = user;
-  return sanitized as Omit<User, 'passwordHash'>;
+  return {
+    ...sanitized,
+    isAdmin: user.subscriptionTier === 'admin',
+  } as Omit<User, 'passwordHash'> & { isAdmin: boolean };
 }
