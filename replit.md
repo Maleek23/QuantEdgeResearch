@@ -44,7 +44,16 @@ The system includes a Holding Period Classification System, a quick actions dial
 
 A Performance Tracking System validates trade outcomes and tracks win rates, including a Performance-Based Grading System. A Quantitative Timing Intelligence System provides data-backed entry/exit windows. The Performance page offers 5 advanced analytics dashboards: Symbol Performance Leaderboard, Time-of-Day Heatmap, Engine Performance Over Time, Confidence Score Calibration, and Win/Loss Streak Tracker, using TanStack Query and Recharts.
 
-The quantitative engine (v3.4.0) leverages RSI(2) Mean Reversion with a 200-Day MA Filter, VWAP Institutional Flow, Volume Spike Early Entry, ADX Regime Filtering, Signal Confidence Voting, and time-of-day filtering. Stop losses are set at 3.5% for stocks and 5% for crypto, with a standard 2:1 R:R. A Hybrid AI+Quant system combines quantitative signals with AI fundamental analysis.
+The quantitative engine (v3.6.0) leverages RSI(2) Mean Reversion with a 200-Day MA Filter, VWAP Institutional Flow, Volume Spike Early Entry, ADX Regime Filtering, Signal Confidence Voting, time-of-day filtering, and **chart pattern pre-validation**. Stop losses are set at 3.5% for stocks and 5% for crypto, with a standard 2:1 R:R. A Hybrid AI+Quant system combines quantitative signals with AI fundamental analysis.
+
+**Chart Analysis Pre-Validation (v3.6.0 - Dec 2025):**
+All trade ideas are now pre-validated against chart patterns and support/resistance levels before being suggested:
+- **Pattern Recognition**: Detects 7 chart patterns - Head & Shoulders, Double Top/Bottom, Bull Flags, Ascending/Descending Triangles, Wedges, and Channels
+- **Support/Resistance Detection**: Identifies key levels using swing highs/lows, moving averages (SMA20/50/200), and round numbers
+- **Trade Adjustment**: Targets adjust to pattern price targets; stops adjust to nearest support levels
+- **Conflict Rejection**: Ideas conflicting with strong bearish/bullish patterns are rejected (e.g., LONG during H&S formation)
+- **Confidence Boost**: +5 confidence when chart pattern confirms the setup
+- **Data Quality Tracking**: Chart rejections tracked separately in data quality report
 
 A critical dual-layer trade validation framework ensures all trade ideas pass through Structural Validation and Risk Guardrails (max 5% loss, min 2:1 R:R, price sanity, volatility filters). News Catalyst Mode relaxes the R:R minimum to 1.5:1 when keywords are detected. All generation methods prevent duplicate trades and maintain comprehensive audit trails. The platform implements a two-tier data filtering system: User-Facing Mode (v3.0+ trades) and ML/Admin Mode (all historical trades).
 
