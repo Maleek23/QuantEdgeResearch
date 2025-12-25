@@ -404,14 +404,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const tier = (user.subscriptionTier as 'free' | 'advanced' | 'pro') || 'free';
       const limits = normalizeLimits(getTierLimits(tier));
-      const usage = await storage.getDailyUsage(userId);
+      const today = new Date().toISOString().split('T')[0];
+      const usage = await storage.getDailyUsage(userId, today);
       
       res.json({
         tier,
         limits,
         usage: {
-          tradeIdeas: usage?.tradeIdeasGenerated || 0,
-          chartAnalysis: usage?.chartAnalysisUsed || 0
+          tradeIdeas: usage?.ideasViewed || 0,
+          chartAnalysis: usage?.chartAnalyses || 0
         },
         isAdmin: process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL
       });
