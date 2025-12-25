@@ -199,12 +199,12 @@ export async function getTradierHistory(
   }
 }
 
-// Get historical OHLC data for ATR calculation
+// Get historical OHLC data for ATR calculation and chart analysis
 export async function getTradierHistoryOHLC(
   symbol: string,
   days: number = 20,
   apiKey?: string
-): Promise<{ highs: number[]; lows: number[]; closes: number[] } | null> {
+): Promise<{ opens: number[]; highs: number[]; lows: number[]; closes: number[]; dates: string[] } | null> {
   const key = apiKey || process.env.TRADIER_API_KEY;
   if (!key) {
     logger.error('Tradier API key not found');
@@ -242,11 +242,13 @@ export async function getTradierHistoryOHLC(
       return null;
     }
 
-    // Return OHLC arrays in chronological order
+    // Return OHLC arrays in chronological order (including opens and dates for chart analysis)
     return {
+      opens: history.map(day => day.open),
       highs: history.map(day => day.high),
       lows: history.map(day => day.low),
-      closes: history.map(day => day.close)
+      closes: history.map(day => day.close),
+      dates: history.map(day => day.date)
     };
   } catch (error) {
     logger.error(`Tradier OHLC history fetch error for ${symbol}:`, error);
