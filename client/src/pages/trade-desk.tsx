@@ -27,6 +27,7 @@ import { RiskDisclosure } from "@/components/risk-disclosure";
 import { getPerformanceGrade } from "@/lib/performance-grade";
 import { UsageBadge } from "@/components/tier-gate";
 import { useTier } from "@/hooks/useTier";
+import { type TimeframeBucket, TIMEFRAME_LABELS, filterByTimeframe, getTimeframeCounts } from "@/lib/timeframes";
 
 export default function TradeDeskPage() {
   const { canGenerateTradeIdea } = useTier();
@@ -43,6 +44,9 @@ export default function TradeDeskPage() {
   const [sourceTab, setSourceTab] = useState<IdeaSource | "all">("all");
   const [statusView, setStatusView] = useState<'all' | 'published' | 'draft'>('published');
   
+  // Timeframe tabs for temporal filtering
+  const [activeTimeframe, setActiveTimeframe] = useState<TimeframeBucket>('all');
+  
   // Filter state for new filter toolbar
   const [expiryFilter, setExpiryFilter] = useState<string>('all');
   const [assetTypeFilter, setAssetTypeFilter] = useState<string>('all');
@@ -57,7 +61,7 @@ export default function TradeDeskPage() {
   // Reset pagination when filters change
   useEffect(() => {
     setVisibleCount(50);
-  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, activeGrade, sourceTab, statusView]);
+  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, activeGrade, sourceTab, statusView, activeTimeframe]);
   
   const { toast } = useToast();
 
@@ -141,6 +145,17 @@ export default function TradeDeskPage() {
     
     return counts;
   }, [tradeIdeas]);
+
+  // Timeframe counts - for the temporal tabs
+  const timeframeCounts = useMemo(() => {
+    // Only count published ideas that match current statusView
+    const statusFiltered = tradeIdeas.filter(idea => {
+      const ideaStatus = idea.status || 'published';
+      if (statusView === 'all') return true;
+      return ideaStatus === statusView;
+    });
+    return getTimeframeCounts(statusFiltered);
+  }, [tradeIdeas, statusView]);
 
   const generateQuantIdeas = useMutation({
     mutationFn: async () => {
@@ -448,8 +463,9 @@ export default function TradeDeskPage() {
     return filtered;
   };
 
-  // Apply all filters
-  const filteredAndSortedIdeas = filterAndSortIdeas(filteredIdeas);
+  // Apply timeframe filtering first, then all other filters
+  const timeframeFilteredIdeas = filterByTimeframe(filteredIdeas, activeTimeframe);
+  const filteredAndSortedIdeas = filterAndSortIdeas(timeframeFilteredIdeas);
 
   // DUAL-SECTION: Split into active and closed trades
   const activeIdeas = filteredAndSortedIdeas.filter(idea => normalizeStatus(idea.outcomeStatus) === 'open');
