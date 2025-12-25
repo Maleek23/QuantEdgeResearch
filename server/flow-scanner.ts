@@ -10,6 +10,85 @@ import { storage } from './storage';
 import { calculateATR } from './technical-indicators';
 import { isLottoCandidate, calculateLottoTargets } from './lotto-detector';
 
+// US Market Holidays 2025-2026 (options don't expire on holidays)
+const MARKET_HOLIDAYS = new Set([
+  // 2025
+  '2025-01-01', // New Year's Day
+  '2025-01-20', // MLK Day
+  '2025-02-17', // Presidents Day
+  '2025-04-18', // Good Friday
+  '2025-05-26', // Memorial Day
+  '2025-06-19', // Juneteenth
+  '2025-07-04', // Independence Day
+  '2025-09-01', // Labor Day
+  '2025-11-27', // Thanksgiving
+  '2025-12-25', // Christmas
+  // 2026
+  '2026-01-01', // New Year's Day
+  '2026-01-19', // MLK Day
+  '2026-02-16', // Presidents Day
+  '2026-04-03', // Good Friday
+  '2026-05-25', // Memorial Day
+  '2026-06-19', // Juneteenth
+  '2026-07-03', // Independence Day (observed)
+  '2026-09-07', // Labor Day
+  '2026-11-26', // Thanksgiving
+  '2026-12-25', // Christmas
+]);
+
+// Validate if a date is a valid trading day (not weekend or holiday)
+function isValidTradingDay(dateStr: string): boolean {
+  const date = new Date(dateStr + 'T12:00:00Z'); // Parse as noon UTC to avoid timezone issues
+  const day = date.getUTCDay();
+  
+  // Check for weekend (0 = Sunday, 6 = Saturday)
+  if (day === 0 || day === 6) {
+    return false;
+  }
+  
+  // Check for holidays
+  if (MARKET_HOLIDAYS.has(dateStr)) {
+    return false;
+  }
+  
+  return true;
+}
+
+// Check if market is currently open (9:30 AM - 4:00 PM ET, weekdays, non-holidays)
+function isMarketOpen(): { isOpen: boolean; reason: string } {
+  const now = new Date();
+  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = etTime.getDay();
+  const hour = etTime.getHours();
+  const minute = etTime.getMinutes();
+  const timeInMinutes = hour * 60 + minute;
+  const dateStr = etTime.toISOString().split('T')[0];
+  
+  // Check weekend
+  if (day === 0 || day === 6) {
+    return { isOpen: false, reason: 'Weekend - market closed' };
+  }
+  
+  // Check holiday
+  if (MARKET_HOLIDAYS.has(dateStr)) {
+    return { isOpen: false, reason: `Holiday (${dateStr}) - market closed` };
+  }
+  
+  // Check time (9:30 AM = 570 minutes, 4:00 PM = 960 minutes)
+  const marketOpen = 9 * 60 + 30; // 9:30 AM
+  const marketClose = 16 * 60; // 4:00 PM
+  
+  if (timeInMinutes < marketOpen) {
+    return { isOpen: false, reason: 'Pre-market - market not yet open' };
+  }
+  
+  if (timeInMinutes >= marketClose) {
+    return { isOpen: false, reason: 'After-hours - market closed' };
+  }
+  
+  return { isOpen: true, reason: 'Market is open' };
+}
+
 // Top 20 high-volume tickers for flow scanning
 const FLOW_SCAN_TICKERS = [
   'SPY', 'QQQ', 'AAPL', 'NVDA', 'TSLA', 'MSFT', 'AMZN', 'META', 'GOOGL', 'AMD',
@@ -76,6 +155,8 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
     let missingAvgVolume = 0;
     let missingLast = 0;
 
+    let invalidExpirationCount = 0;
+    
     for (const option of options) {
       // Skip if missing critical data (NOTE: average_volume is 0 in Tradier Sandbox, so we don't check it)
       if (!option.volume) missingVolume++;
@@ -84,6 +165,12 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
       
       if (!option.volume || !option.last || option.last <= 0) {
         skippedCount++;
+        continue;
+      }
+      
+      // 🔒 VALIDATION: Skip options with invalid expiration dates (weekends, holidays)
+      if (option.expiration_date && !isValidTradingDay(option.expiration_date)) {
+        invalidExpirationCount++;
         continue;
       }
 
@@ -398,6 +485,13 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
 // Main flow scanner function
 export async function scanUnusualOptionsFlow(): Promise<InsertTradeIdea[]> {
   logger.info(`📊 [FLOW] Starting unusual options flow scan on ${FLOW_SCAN_TICKERS.length} tickers...`);
+  
+  // 🔒 MARKET HOURS CHECK: Only scan when market is open (data is stale otherwise)
+  const marketStatus = isMarketOpen();
+  if (!marketStatus.isOpen) {
+    logger.info(`📊 [FLOW] Skipping scan - ${marketStatus.reason}. Data would be stale.`);
+    return [];
+  }
   
   // 🚫 DEDUPLICATION: Get existing open symbols to avoid duplicate trades
   const allIdeas = await storage.getAllTradeIdeas();

@@ -8,6 +8,39 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { storage } from './storage';
 import { isLottoCandidate, calculateLottoTargets, getLottoThresholds } from './lotto-detector';
 
+// US Market Holidays 2025-2026 (options don't expire on holidays)
+const MARKET_HOLIDAYS = new Set([
+  '2025-01-01', '2025-01-20', '2025-02-17', '2025-04-18', '2025-05-26',
+  '2025-06-19', '2025-07-04', '2025-09-01', '2025-11-27', '2025-12-25',
+  '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25',
+  '2026-06-19', '2026-07-03', '2026-09-07', '2026-11-26', '2026-12-25',
+]);
+
+// Validate expiration date is a valid trading day
+function isValidTradingDay(dateStr: string): boolean {
+  const date = new Date(dateStr + 'T12:00:00Z');
+  const day = date.getUTCDay();
+  if (day === 0 || day === 6) return false; // Weekend
+  if (MARKET_HOLIDAYS.has(dateStr)) return false; // Holiday
+  return true;
+}
+
+// Check if market is open
+function isMarketOpen(): { isOpen: boolean; reason: string } {
+  const now = new Date();
+  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = etTime.getDay();
+  const hour = etTime.getHours();
+  const minute = etTime.getMinutes();
+  const timeInMinutes = hour * 60 + minute;
+  const dateStr = etTime.toISOString().split('T')[0];
+  
+  if (day === 0 || day === 6) return { isOpen: false, reason: 'Weekend' };
+  if (MARKET_HOLIDAYS.has(dateStr)) return { isOpen: false, reason: `Holiday (${dateStr})` };
+  if (timeInMinutes < 570 || timeInMinutes >= 960) return { isOpen: false, reason: 'Outside market hours' };
+  return { isOpen: true, reason: 'Market open' };
+}
+
 // High-volatility tickers perfect for lotto plays
 const LOTTO_SCAN_TICKERS = [
   'TSLA', 'NVDA', 'AMD', 'MARA', 'RIOT', 'COIN', 'PLTR', 'SOFI', 'HOOD',
@@ -42,10 +75,12 @@ async function scanForLottoPlays(ticker: string): Promise<LottoCandidate[]> {
       return [];
     }
 
-    // Filter for ≤14 days (lotto plays are near-term)
+    // Filter for ≤14 days (lotto plays are near-term) AND valid trading days
     const today = new Date();
     const options = allOptions.filter(opt => {
       if (!opt.expiration_date) return false;
+      // 🔒 VALIDATION: Skip options with invalid expiration dates (weekends, holidays)
+      if (!isValidTradingDay(opt.expiration_date)) return false;
       const expiryDate = new Date(opt.expiration_date);
       const daysToExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       return daysToExpiry <= 14;
@@ -189,6 +224,14 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
 export async function runLottoScanner(): Promise<void> {
   try {
     logger.info(`🎰 [LOTTO] ========== LOTTO SCANNER STARTED ==========`);
+    
+    // 🔒 MARKET HOURS CHECK: Only scan when market is open
+    const marketStatus = isMarketOpen();
+    if (!marketStatus.isOpen) {
+      logger.info(`🎰 [LOTTO] Skipping scan - ${marketStatus.reason}. Data would be stale.`);
+      return;
+    }
+    
     const startTime = Date.now();
 
     const allCandidates: LottoCandidate[] = [];
