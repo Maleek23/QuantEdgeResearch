@@ -16,6 +16,7 @@ import { discoverHiddenCryptoGems, discoverStockGems, discoverPennyStocks, fetch
 import { logger } from './logger';
 import { shouldBlockSymbol } from './earnings-service';
 import { enrichOptionIdea } from './options-enricher';
+import { validateTradeWithChart, analyzeChart } from './chart-analysis';
 
 // v3.1: Simplified timing intelligence (removed complex DB-based timing-intelligence.ts)
 // Timing windows based on proven day-trading patterns
@@ -126,8 +127,9 @@ async function calculateTimingWindows(
 }
 
 // 🔐 MODEL GOVERNANCE: Engine version for audit trail
-export const QUANT_ENGINE_VERSION = "v3.5.0"; // Updated Oct 30, 2025: TRIPLE-FILTER UPGRADE - Added 50-day MA filter + Tightened ADX threshold to boost win rate from 39.1% to 60%+ target
+export const QUANT_ENGINE_VERSION = "v3.6.0"; // Updated Dec 25, 2025: CHART ANALYSIS UPGRADE - Added pattern recognition + S/R levels + pre-validation for all trade ideas
 export const ENGINE_CHANGELOG = {
+  "v3.6.0": "CHART ANALYSIS UPGRADE: Pre-validates all trade ideas with chart pattern recognition (head & shoulders, double top/bottom, flags, triangles, wedges, channels) and support/resistance levels (swing highs/lows, MAs, round numbers). Adjusts targets to pattern targets, stops to support levels. Rejects ideas that conflict with chart patterns (e.g., LONG signal during bearish H&S). Boosts confidence +5 when chart confirms setup.",
   "v3.5.0": "TRIPLE-FILTER UPGRADE: Three critical improvements to boost win rate from 39.1% to 60%+: (1) Added 50-day MA filter - prevents false LONG signals in downtrends and SHORT signals in uptrends (price must be above 50-day MA for LONG, below for SHORT), (2) Tightened ADX threshold from ≤30 to ≤25 - reduces choppy market trades that fail, (3) Signal consensus already optimized (2+ signals required). All filters are academically-proven: 50-day MA + 200-day MA + ADX≤25 create robust multi-timeframe trend alignment.",
   "v3.4.0": "CONFIDENCE RECALIBRATION: Diagnostic audit exposed inverted confidence system - high scores (90-100%) = 15.6% WR, low scores (<60%) = 63% WR. ROOT CAUSE: R:R bonuses were INVERSE predictors ('Excellent R:R 3:1+' = 5.1% WR worst signal). FIX: (1) Removed ALL bonuses (R:R, volume), (2) Lowered base scores from 90-95 to 50-65 matching actual 30-60% WR, (3) Simplified scoring - fewer signals = better performance.",
   "v3.3.0": "TIME-OF-DAY FIX: Restricted generation to 9:30-11:30 AM ET ONLY. Diagnostic audit revealed morning trades: 75-80% WR, afternoon trades: 16-46% WR. v3.2.0 extended window killed performance. This single change should restore 60%+ WR based on historical data.",
@@ -865,7 +867,8 @@ export async function generateQuantIdeas(
     noHistoricalData: 0,
     noSignal: 0,
     lowQuality: 0,
-    quotaFull: 0
+    quotaFull: 0,
+    chartRejected: 0
   };
 
   // Analyze each market data point
@@ -1326,6 +1329,68 @@ export async function generateQuantIdeas(
       }
     }
     
+    // 📈 CHART ANALYSIS VALIDATION: Validate trade with chart patterns and S/R levels
+    // This is a critical pre-validation step that ensures ideas align with chart technicals
+    const chartAssetType = assetType === 'option' ? 'stock' : assetType; // Use underlying for options
+    const chartValidation = await validateTradeWithChart(
+      data.symbol,
+      chartAssetType,
+      idea.direction as 'long' | 'short',
+      idea.entryPrice,
+      idea.targetPrice,
+      idea.stopLoss
+    );
+    
+    if (chartValidation.chartAnalysis) {
+      const analysis = chartValidation.chartAnalysis;
+      
+      // Log chart analysis results
+      logger.info(`📈 [CHART] ${data.symbol}: Trend=${analysis.trendDirection}, Patterns=${analysis.patterns.length}, Support=${analysis.keyLevels.nearestSupport?.toFixed(2) || 'N/A'}, Resistance=${analysis.keyLevels.nearestResistance?.toFixed(2) || 'N/A'}`);
+      
+      // Apply adjusted levels if chart analysis suggests better targets
+      if (chartValidation.adjustedTarget && chartValidation.adjustedTarget !== idea.targetPrice) {
+        const oldTarget = idea.targetPrice;
+        idea.targetPrice = chartValidation.adjustedTarget;
+        logger.info(`📈 [CHART] ${data.symbol}: Target adjusted $${oldTarget.toFixed(2)} → $${idea.targetPrice.toFixed(2)} (chart pattern target)`);
+      }
+      
+      if (chartValidation.adjustedStop && chartValidation.adjustedStop !== idea.stopLoss) {
+        const oldStop = idea.stopLoss;
+        idea.stopLoss = chartValidation.adjustedStop;
+        logger.info(`📈 [CHART] ${data.symbol}: Stop adjusted $${oldStop.toFixed(2)} → $${idea.stopLoss.toFixed(2)} (support level)`);
+      }
+      
+      // Recalculate R:R after adjustments
+      const entryPrice = idea.entryPrice;
+      const targetPrice = idea.targetPrice;
+      const stopLoss = idea.stopLoss;
+      const risk = Math.abs(entryPrice - stopLoss);
+      const reward = Math.abs(targetPrice - entryPrice);
+      idea.riskRewardRatio = risk > 0 ? Number((reward / risk).toFixed(2)) : 2;
+      
+      // Enhance analysis with chart insights
+      const patternInfo = analysis.patterns.length > 0 
+        ? ` Chart patterns: ${analysis.patterns.map(p => `${p.name} (${p.confidence.toFixed(0)}%)`).join(', ')}.`
+        : '';
+      const srInfo = analysis.keyLevels.nearestSupport 
+        ? ` Key support at $${analysis.keyLevels.nearestSupport.toFixed(2)}, resistance at $${analysis.keyLevels.nearestResistance?.toFixed(2) || 'N/A'}.`
+        : '';
+      
+      idea.analysis = idea.analysis + patternInfo + srInfo;
+      
+      // Boost or reduce confidence based on chart validation
+      if (chartValidation.isValid && analysis.validation.confidence > 60) {
+        idea.confidenceScore = Math.min(100, (idea.confidenceScore || 50) + 5);
+        logger.info(`📈 [CHART] ${data.symbol}: Confidence boosted +5 (chart confirms setup)`);
+      } else if (!chartValidation.isValid) {
+        logger.warn(`📈 [CHART] ${data.symbol}: Chart validation FAILED - ${chartValidation.validationNotes.filter(n => n.includes('REJECTED')).join(', ')}`);
+        dataQuality.chartRejected++;
+        continue; // Skip this idea if chart analysis rejects it
+      }
+    } else {
+      logger.info(`📈 [CHART] ${data.symbol}: No chart data available - proceeding with technical indicators only`);
+    }
+    
     ideas.push(idea);
     
     // Track asset type for distribution
@@ -1343,6 +1408,7 @@ export async function generateQuantIdeas(
   logger.info(`   ❌ No historical data: ${dataQuality.noHistoricalData}`);
   logger.info(`   ❌ No signal detected: ${dataQuality.noSignal}`);
   logger.info(`   ❌ Low quality (filters): ${dataQuality.lowQuality}`);
+  logger.info(`   📈 Chart rejected: ${dataQuality.chartRejected}`);
   logger.info(`   ⛔ Quota full (rejected): ${dataQuality.quotaFull}`);
   logger.info(`   ✅ Ideas generated: ${ideas.length}`);
   
