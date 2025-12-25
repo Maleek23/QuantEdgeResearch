@@ -317,10 +317,14 @@ export default function TradeDeskPage() {
     return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesSourceTab && matchesStatusView;
   });
 
-  // Timeframe counts - computed from filteredIdeas (after all other filters except timeframe)
-  // This ensures counts stay in sync with the actual visible ideas
+  // Timeframe counts - computed from ACTIVE ideas only (outcomeStatus === 'open')
+  // This ensures tabs show actionable plays, not old historical data
   const timeframeCounts = useMemo(() => {
-    return getTimeframeCounts(filteredIdeas);
+    const activeOnly = filteredIdeas.filter(idea => {
+      const status = (idea.outcomeStatus || '').trim().toLowerCase();
+      return status === 'open' || status === '';
+    });
+    return getTimeframeCounts(activeOnly);
   }, [filteredIdeas]);
 
   // Helper to normalize outcomeStatus (trim whitespace + lowercase)
@@ -459,8 +463,19 @@ export default function TradeDeskPage() {
     return filtered;
   };
 
-  // Apply timeframe filtering first, then all other filters
-  const timeframeFilteredIdeas = filterByTimeframe(filteredIdeas, activeTimeframe);
+  // Apply timeframe filtering - only to active trades when a specific timeframe is selected
+  const timeframeFilteredIdeas = useMemo(() => {
+    if (activeTimeframe === 'all') {
+      return filteredIdeas;
+    }
+    // When filtering by timeframe, only include active (open) trades
+    const activeOnly = filteredIdeas.filter(idea => {
+      const status = normalizeStatus(idea.outcomeStatus);
+      return status === 'open' || status === '';
+    });
+    return filterByTimeframe(activeOnly, activeTimeframe);
+  }, [filteredIdeas, activeTimeframe]);
+  
   const filteredAndSortedIdeas = filterAndSortIdeas(timeframeFilteredIdeas);
 
   // DUAL-SECTION: Split into active and closed trades
