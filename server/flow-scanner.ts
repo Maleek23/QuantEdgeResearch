@@ -157,17 +157,23 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
 
     let invalidExpirationCount = 0;
     
+    let noBidAskCount = 0;
+    
     for (const option of options) {
       // Skip if missing critical data (NOTE: average_volume is 0 in Tradier Sandbox, so we don't check it)
       if (!option.volume) missingVolume++;
       if (!option.average_volume) missingAvgVolume++;
       if (!option.last || option.last <= 0) missingLast++;
       
-      // 🔒 PRICING FIX: Use bid/ask mid-price for accurate premiums (last price can be stale when market closed)
+      // 🔒 STRICT PRICING: REQUIRE bid/ask for accurate premiums - don't use stale 'last' price
       const hasBidAsk = option.bid && option.bid > 0 && option.ask && option.ask > 0;
-      const midPrice = hasBidAsk ? (option.bid + option.ask) / 2 : option.last;
+      if (!hasBidAsk) {
+        noBidAskCount++;
+        continue; // Skip options without live bid/ask (market likely closed)
+      }
+      const midPrice = (option.bid + option.ask) / 2;
       
-      if (!option.volume || !midPrice || midPrice <= 0) {
+      if (!option.volume || midPrice <= 0) {
         skippedCount++;
         continue;
       }
@@ -223,7 +229,7 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
       }
     }
 
-    logger.info(`📊 [FLOW] ${ticker}: Analyzed ${options.length} contracts, skipped ${skippedCount} (missing: vol=${missingVolume}, avg_vol=${missingAvgVolume}, last=${missingLast}), found ${unusualOptions.length} unusual`);
+    logger.info(`📊 [FLOW] ${ticker}: Analyzed ${options.length} contracts, skipped ${skippedCount} (no bid/ask=${noBidAskCount}, missing vol=${missingVolume}), found ${unusualOptions.length} unusual`);
     return unusualOptions;
   } catch (error) {
     logger.error(`📊 [FLOW] Error scanning ${ticker}:`, error);

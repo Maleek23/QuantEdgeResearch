@@ -91,13 +91,19 @@ async function scanForLottoPlays(ticker: string): Promise<LottoCandidate[]> {
     const thresholds = getLottoThresholds();
     const lottoCandidates: LottoCandidate[] = [];
 
+    let noBidAskCount = 0;
+    
     for (const option of options) {
-      // 🔒 PRICING FIX: Use bid/ask mid-price for accurate premiums (last price can be stale)
+      // 🔒 STRICT PRICING: REQUIRE bid/ask for accurate premiums - don't use stale 'last' price
       const hasBidAsk = option.bid && option.bid > 0 && option.ask && option.ask > 0;
-      const midPrice = hasBidAsk ? (option.bid + option.ask) / 2 : option.last;
+      if (!hasBidAsk) {
+        noBidAskCount++;
+        continue; // Skip options without live bid/ask (market likely closed)
+      }
+      const midPrice = (option.bid + option.ask) / 2;
       
       // Skip if missing critical data
-      if (!midPrice || midPrice <= 0 || !option.greeks?.delta || !option.expiration_date) {
+      if (midPrice <= 0 || !option.greeks?.delta || !option.expiration_date) {
         continue;
       }
 
@@ -136,6 +142,9 @@ async function scanForLottoPlays(ticker: string): Promise<LottoCandidate[]> {
       }
     }
 
+    if (noBidAskCount > 0) {
+      logger.info(`🎰 [LOTTO] ${ticker}: Skipped ${noBidAskCount} options without bid/ask (market closed?)`);
+    }
     logger.info(`🎰 [LOTTO] ${ticker}: Found ${lottoCandidates.length} lotto candidates`);
     return lottoCandidates;
   } catch (error) {

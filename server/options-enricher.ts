@@ -80,12 +80,14 @@ export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOpt
     const optionType: 'call' | 'put' = aiIdea.direction === 'long' ? 'call' : 'put';
     
     // 4. Filter options by type and find good candidates
+    // 🔒 STRICT PRICING: REQUIRE bid/ask for accurate premiums - don't use stale 'last' price
     // 🔒 VALIDATION: Also filter out options with invalid expiration dates (weekends, holidays)
-    // 🔒 PRICING FIX: Use bid/ask mid-price for accurate premiums
     const optionsByType = optionsChain.filter(opt => {
-      // Calculate mid-price for validation
+      // REQUIRE bid/ask for accurate pricing
       const hasBidAsk = opt.bid && opt.bid > 0 && opt.ask && opt.ask > 0;
-      const midPrice = hasBidAsk ? (opt.bid + opt.ask) / 2 : opt.last;
+      if (!hasBidAsk) return false; // Skip options without live bid/ask
+      
+      const midPrice = (opt.bid + opt.ask) / 2;
       
       return opt.option_type === optionType && 
         midPrice > 0 &&
