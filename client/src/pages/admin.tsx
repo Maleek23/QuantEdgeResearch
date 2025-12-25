@@ -756,9 +756,13 @@ export default function AdminPanel() {
 
         {/* Tabbed Admin Tools */}
         <Card className="glass-card">
-          <Tabs defaultValue="system" className="w-full">
+          <Tabs defaultValue="users" className="w-full">
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-6">
+              <TabsList className="grid w-full grid-cols-7">
+                <TabsTrigger value="users" data-testid="tab-users">
+                  <Users className="h-4 w-4 mr-2" />
+                  Users
+                </TabsTrigger>
                 <TabsTrigger value="system" data-testid="tab-system-health">
                   <Activity className="h-4 w-4 mr-2" />
                   System Health
@@ -785,6 +789,159 @@ export default function AdminPanel() {
                 </TabsTrigger>
               </TabsList>
             </CardHeader>
+
+            {/* Users Management Tab */}
+            <TabsContent value="users">
+              <CardContent className="space-y-6">
+                {/* User Stats Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-lg bg-blue-500/5 border border-blue-500/20">
+                    <div className="text-2xl font-bold text-blue-500">
+                      {(users as any[])?.length || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Total Users</div>
+                  </div>
+                  <div className="p-4 rounded-lg bg-green-500/5 border border-green-500/20">
+                    <div className="text-2xl font-bold text-green-500">
+                      {(users as any[])?.filter((u: any) => u.subscriptionTier === 'free').length || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Free Tier</div>
+                  </div>
+                  <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                    <div className="text-2xl font-bold text-primary">
+                      {(users as any[])?.filter((u: any) => u.subscriptionTier === 'advanced').length || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Advanced</div>
+                  </div>
+                  <div className="p-4 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                    <div className="text-2xl font-bold text-amber-500">
+                      {(users as any[])?.filter((u: any) => u.subscriptionTier === 'pro').length || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Pro</div>
+                  </div>
+                </div>
+
+                {/* Users Table */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    All Users ({(users as any[])?.length || 0})
+                  </h3>
+                  <div className="rounded-lg border overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-medium">User</th>
+                          <th className="px-4 py-3 text-left font-medium">Email</th>
+                          <th className="px-4 py-3 text-left font-medium">Tier</th>
+                          <th className="px-4 py-3 text-left font-medium">Status</th>
+                          <th className="px-4 py-3 text-left font-medium">Joined</th>
+                          <th className="px-4 py-3 text-left font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {(users as any[])?.map((user: any) => (
+                          <tr key={user.id} className="hover:bg-muted/30" data-testid={`row-user-${user.id}`}>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                {user.profileImageUrl ? (
+                                  <img src={user.profileImageUrl} alt="" className="h-8 w-8 rounded-full" />
+                                ) : (
+                                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
+                                    {(user.firstName?.[0] || user.email[0]).toUpperCase()}
+                                  </div>
+                                )}
+                                <span className="font-medium">
+                                  {user.firstName && user.lastName 
+                                    ? `${user.firstName} ${user.lastName}` 
+                                    : user.firstName || 'Unknown'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
+                            <td className="px-4 py-3">
+                              <Badge 
+                                variant={user.subscriptionTier === 'pro' ? 'default' : 
+                                        user.subscriptionTier === 'advanced' ? 'secondary' : 'outline'}
+                                className={user.subscriptionTier === 'pro' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : ''}
+                              >
+                                {user.subscriptionTier}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge variant={user.subscriptionStatus === 'active' ? 'default' : 'destructive'}>
+                                {user.subscriptionStatus || 'active'}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3 text-muted-foreground">
+                              {new Date(user.createdAt).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <select
+                                  className="text-xs px-2 py-1 rounded border bg-background"
+                                  value={user.subscriptionTier}
+                                  onChange={async (e) => {
+                                    try {
+                                      await fetch(`/api/admin/users/${user.id}`, {
+                                        method: 'PATCH',
+                                        headers: { 
+                                          'Content-Type': 'application/json',
+                                          'x-admin-password': adminPassword 
+                                        },
+                                        body: JSON.stringify({ subscriptionTier: e.target.value })
+                                      });
+                                      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+                                      toast({ title: 'User tier updated' });
+                                    } catch {
+                                      toast({ title: 'Failed to update user', variant: 'destructive' });
+                                    }
+                                  }}
+                                  data-testid={`select-tier-${user.id}`}
+                                >
+                                  <option value="free">Free</option>
+                                  <option value="advanced">Advanced</option>
+                                  <option value="pro">Pro</option>
+                                  <option value="admin">Admin</option>
+                                </select>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-destructive hover:text-destructive"
+                                  onClick={async () => {
+                                    if (!confirm(`Delete user ${user.email}? This cannot be undone.`)) return;
+                                    try {
+                                      await fetch(`/api/admin/users/${user.id}`, {
+                                        method: 'DELETE',
+                                        headers: { 'x-admin-password': adminPassword }
+                                      });
+                                      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+                                      toast({ title: 'User deleted' });
+                                    } catch {
+                                      toast({ title: 'Failed to delete user', variant: 'destructive' });
+                                    }
+                                  }}
+                                  data-testid={`button-delete-${user.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        )) || (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                              <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                              <p>No users yet</p>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </CardContent>
+            </TabsContent>
 
             {/* System Health Tab */}
             <TabsContent value="system">
