@@ -1165,10 +1165,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Trade Ideas Routes
-  app.get("/api/trade-ideas", async (_req, res) => {
+  app.get("/api/trade-ideas", async (req: any, res) => {
     try {
-      // Auto-archive ideas that hit target, stop, or are stale
-      const ideas = await storage.getAllTradeIdeas();
+      // Get user from session
+      const userId = req.session?.userId;
+      const adminEmail = process.env.ADMIN_EMAIL || "";
+      
+      // Check if current user is admin (owner)
+      let isAdmin = false;
+      if (userId) {
+        const user = await storage.getUser(userId);
+        isAdmin = adminEmail !== "" && user?.email === adminEmail;
+      }
+      
+      // Admin sees all ideas, regular users only see their own
+      const ideas = isAdmin 
+        ? await storage.getAllTradeIdeas()
+        : userId 
+          ? await storage.getTradeIdeasByUser(userId)
+          : [];
       const marketData = await storage.getAllMarketData();
       const now = new Date();
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -1295,8 +1310,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // and the manual /api/performance/validate endpoint.
       // We should NOT validate trades in the GET endpoint to avoid incorrect validations.
       
-      // Fetch updated ideas after archiving
-      const updatedIdeas = await storage.getAllTradeIdeas();
+      // Re-fetch ideas with user filtering after archiving
+      const updatedIdeas = isAdmin 
+        ? await storage.getAllTradeIdeas()
+        : userId 
+          ? await storage.getTradeIdeasByUser(userId)
+          : [];
       
       // Add current prices to response (options always get null - they use entry/target/stop premiums)
       const ideasWithPrices = updatedIdeas.map(idea => ({
@@ -1322,9 +1341,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/trade-ideas", async (req, res) => {
+  app.post("/api/trade-ideas", async (req: any, res) => {
     try {
       const validated = insertTradeIdeaSchema.parse(req.body);
+      
+      // Add userId from session if not provided
+      const userId = req.session?.userId;
+      if (userId && !validated.userId) {
+        validated.userId = userId;
+      }
       
       // ⏰ CRITICAL: Validate timestamp consistency (REQUIRED FIX #1)
       // Ensure exit_date > timestamp and entry_valid_until > timestamp
@@ -2515,19 +2540,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Watchlist Routes
-  app.get("/api/watchlist", async (_req, res) => {
+  app.get("/api/watchlist", async (req: any, res) => {
     try {
-      const watchlist = await storage.getAllWatchlist();
+      const userId = req.session?.userId;
+      const adminEmail = process.env.ADMIN_EMAIL || "";
+      
+      // Check if current user is admin
+      let isAdmin = false;
+      if (userId) {
+        const user = await storage.getUser(userId);
+        isAdmin = adminEmail !== "" && user?.email === adminEmail;
+      }
+      
+      // Admin sees all, users see their own
+      const watchlist = isAdmin 
+        ? await storage.getAllWatchlist()
+        : userId 
+          ? await storage.getWatchlistByUser(userId)
+          : [];
       res.json(watchlist);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch watchlist" });
     }
   });
 
-  app.post("/api/watchlist", async (req, res) => {
+  app.post("/api/watchlist", async (req: any, res) => {
     try {
       console.log("POST /api/watchlist - Request body:", JSON.stringify(req.body));
       const validated = insertWatchlistSchema.parse(req.body);
+      
+      // Add userId from session if not provided
+      const userId = req.session?.userId;
+      if (userId && !validated.userId) {
+        validated.userId = userId;
+      }
+      
       console.log("POST /api/watchlist - Validated:", JSON.stringify(validated));
       const item = await storage.addToWatchlist(validated);
       res.status(201).json(item);

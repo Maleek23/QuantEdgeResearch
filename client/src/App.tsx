@@ -30,6 +30,7 @@ import ChartDatabase from "@/pages/chart-database";
 import Academy from "@/pages/academy";
 import Blog from "@/pages/blog";
 import TradingRules from "@/pages/trading-rules";
+import Pricing from "@/pages/pricing";
 import NotFound from "@/pages/not-found";
 function Router() {
   return (
@@ -53,6 +54,7 @@ function Router() {
       
       {/* System Pages */}
       <Route path="/settings" component={SettingsPage} />
+      <Route path="/pricing" component={Pricing} />
       <Route path="/admin" component={AdminPanel} />
       <Route path="/about" component={About} />
       

@@ -1,4 +1,4 @@
-import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sun, Moon, Upload, BookOpen, Home } from "lucide-react";
+import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sun, Moon, Upload, BookOpen, Home, CreditCard } from "lucide-react";
 import { useLocation } from "wouter";
 import {
   Sidebar,
@@ -33,6 +33,7 @@ const moreItems = [
 ];
 
 const systemItems = [
+  { title: "Pricing", url: "/pricing", icon: CreditCard },
   { title: "Settings", url: "/settings", icon: Settings },
   { title: "Admin", url: "/admin", icon: Shield },
 ];

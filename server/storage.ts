@@ -19,6 +19,8 @@ import type {
   User,
   UpsertUser,
   FuturesContract,
+  DailyUsage,
+  InsertDailyUsage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, desc, sql as drizzleSql } from "drizzle-orm";
@@ -32,6 +34,7 @@ import {
   modelCards as modelCardsTable,
   users,
   futuresContracts,
+  dailyUsage as dailyUsageTable,
 } from "@shared/schema";
 
 export interface ChatMessage {
@@ -159,6 +162,13 @@ export interface IStorage {
   getChatHistory(): Promise<ChatMessage[]>;
   addChatMessage(message: Omit<ChatMessage, 'id' | 'timestamp'>): Promise<ChatMessage>;
   clearChatHistory(): Promise<void>;
+  
+  // Daily Usage Tracking
+  getDailyUsage(userId: string, date: string): Promise<DailyUsage | null>;
+  incrementDailyUsage(userId: string, field: 'ideasViewed' | 'aiChatMessages' | 'chartAnalyses'): Promise<DailyUsage>;
+  
+  // User-filtered Trade Ideas
+  getTradeIdeasByUser(userId: string): Promise<TradeIdea[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -2045,6 +2055,50 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(modelCardsTable.createdAt))
       .limit(1);
     return card || undefined;
+  }
+
+  // Daily Usage Tracking Methods
+  async getDailyUsage(userId: string, date: string): Promise<DailyUsage | null> {
+    const [usage] = await db.select().from(dailyUsageTable)
+      .where(and(
+        eq(dailyUsageTable.userId, userId),
+        eq(dailyUsageTable.date, date)
+      ));
+    return usage || null;
+  }
+
+  async incrementDailyUsage(userId: string, field: 'ideasViewed' | 'aiChatMessages' | 'chartAnalyses'): Promise<DailyUsage> {
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // Try to get existing record
+    let existing = await this.getDailyUsage(userId, today);
+    
+    if (!existing) {
+      // Create new record for today
+      const [created] = await db.insert(dailyUsageTable).values({
+        userId,
+        date: today,
+        ideasViewed: field === 'ideasViewed' ? 1 : 0,
+        aiChatMessages: field === 'aiChatMessages' ? 1 : 0,
+        chartAnalyses: field === 'chartAnalyses' ? 1 : 0,
+      }).returning();
+      return created;
+    }
+    
+    // Increment the specified field
+    const increment = { [field]: (existing[field] || 0) + 1 };
+    const [updated] = await db.update(dailyUsageTable)
+      .set(increment)
+      .where(eq(dailyUsageTable.id, existing.id))
+      .returning();
+    return updated;
+  }
+
+  // User-filtered Trade Ideas
+  async getTradeIdeasByUser(userId: string): Promise<TradeIdea[]> {
+    return await db.select().from(tradeIdeas)
+      .where(eq(tradeIdeas.userId, userId))
+      .orderBy(desc(tradeIdeas.timestamp));
   }
 }
 
