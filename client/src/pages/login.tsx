@@ -79,8 +79,8 @@ export default function Login() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Google Login */}
-          <a href="/api/login" className="w-full">
+          {/* Direct Google Login */}
+          <a href="/api/auth/google" className="w-full">
             <Button
               type="button"
               variant="outline"

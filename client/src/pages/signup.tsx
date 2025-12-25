@@ -90,8 +90,8 @@ export default function Signup() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Google Sign Up */}
-          <a href="/api/login" className="w-full">
+          {/* Direct Google Sign Up */}
+          <a href="/api/auth/google" className="w-full">
             <Button
               type="button"
               variant="outline"
