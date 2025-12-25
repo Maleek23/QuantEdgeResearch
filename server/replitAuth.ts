@@ -116,20 +116,42 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
-    ensureStrategy(req.hostname);
-    logger.info('Login initiated', { ip: req.ip, hostname: req.hostname });
-    passport.authenticate(`replitauth:${req.hostname}`, {
+    // Use REPLIT_DEV_DOMAIN for correct callback URL in development
+    const domain = process.env.REPLIT_DEV_DOMAIN || req.hostname;
+    ensureStrategy(domain);
+    logger.info('Login initiated', { 
+      ip: req.ip, 
+      hostname: req.hostname, 
+      domain,
+      replitDevDomain: process.env.REPLIT_DEV_DOMAIN 
+    });
+    passport.authenticate(`replitauth:${domain}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
     })(req, res, next);
   });
 
   app.get("/api/callback", (req, res, next) => {
-    logger.info('Callback received', { ip: req.ip, hostname: req.hostname, query: req.query });
-    ensureStrategy(req.hostname);
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/trade-desk",
-      failureRedirect: "/signup",
+    const domain = process.env.REPLIT_DEV_DOMAIN || req.hostname;
+    logger.info('Callback received', { ip: req.ip, hostname: req.hostname, domain, query: req.query });
+    ensureStrategy(domain);
+    passport.authenticate(`replitauth:${domain}`, (err: any, user: any, info: any) => {
+      if (err) {
+        logger.error('OAuth callback error', { error: err.message, stack: err.stack });
+        return res.redirect('/signup?error=auth_failed');
+      }
+      if (!user) {
+        logger.warn('OAuth callback: no user returned', { info });
+        return res.redirect('/signup?error=no_user');
+      }
+      req.logIn(user, (loginErr) => {
+        if (loginErr) {
+          logger.error('OAuth login error', { error: loginErr.message });
+          return res.redirect('/signup?error=login_failed');
+        }
+        logger.info('OAuth login successful', { userId: user.claims?.sub });
+        return res.redirect('/trade-desk');
+      });
     })(req, res, next);
   });
 
