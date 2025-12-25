@@ -128,8 +128,8 @@ export async function setupAuth(app: Express) {
     logger.info('Callback received', { ip: req.ip, hostname: req.hostname, query: req.query });
     ensureStrategy(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
+      successReturnToOrRedirect: "/trade-desk",
+      failureRedirect: "/signup",
     })(req, res, next);
   });
 

@@ -308,10 +308,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get current user - Returns logged in user from session
+  // Get current user - Returns logged in user from session OR Replit Auth
   app.get("/api/auth/me", async (req: Request, res: Response) => {
     try {
-      const userId = (req.session as any)?.userId;
+      // Check email/password session first
+      let userId = (req.session as any)?.userId;
+      
+      // Check Replit Auth (Google login) if no session userId
+      if (!userId && req.user) {
+        const replitUser = req.user as any;
+        userId = replitUser.claims?.sub;
+      }
+      
       if (!userId) {
         return res.status(200).json(null);
       }
@@ -332,7 +340,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Legacy endpoint for backwards compatibility
   app.get("/api/auth/user", async (req: Request, res: Response) => {
     try {
-      const userId = (req.session as any)?.userId;
+      // Check email/password session first
+      let userId = (req.session as any)?.userId;
+      
+      // Check Replit Auth (Google login) if no session userId
+      if (!userId && req.user) {
+        const replitUser = req.user as any;
+        userId = replitUser.claims?.sub;
+      }
+      
       if (!userId) {
         return res.status(200).json(null);
       }
