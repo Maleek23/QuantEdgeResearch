@@ -59,6 +59,21 @@ The platform employs a multi-page architecture with user authentication via Repl
 **Configuration Notes:**
 - Vite HMR error overlay has been disabled in vite.config.ts (`server.hmr.overlay: false`) to prevent cosmetic dev-banner plugin errors from disrupting the user experience.
 
+**Subscription Tier System (Dec 2025):**
+Three-tier subscription model with usage-based gating:
+- **Free ($0/mo)**: 3 ideas/day, 1 chart analysis/day, basic features only
+- **Advanced ($39/mo or $349/yr)**: 15 ideas/day, 10 chart analysis/day, AI engine access, performance analytics, data export
+- **Pro ($79/mo or $699/yr)**: Unlimited ideas, unlimited chart analysis, all features including flow scanner, advanced analytics, priority support
+
+Implementation:
+- `server/tierConfig.ts`: Defines limits for each tier
+- `dailyUsage` table tracks daily usage per user
+- `/api/user/tier` endpoint returns tier info, limits, and usage
+- Frontend `useTier` hook provides tier-aware access control
+- `TierGate` component locks/blurs premium features for lower tiers
+- Admin users (ADMIN_EMAIL env var) have unlimited access to all features
+- Trade ideas and watchlist are user-scoped (admin sees all data)
+
 **Performance Optimization (Dec 2025):**
 Tiered caching strategy balancing speed vs data freshness for day-trading:
 - **Critical trading data** (trade-ideas, market-data): 30s refetch + 15s staleTime (~45s max staleness)
