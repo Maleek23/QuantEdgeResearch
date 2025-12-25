@@ -24,6 +24,7 @@ import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X
 import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, subYears, isAfter, isBefore } from "date-fns";
 import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
+import { WatchlistSpotlight } from "@/components/watchlist-spotlight";
 import { getPerformanceGrade } from "@/lib/performance-grade";
 import { UsageBadge } from "@/components/tier-gate";
 import { useTier } from "@/hooks/useTier";
@@ -703,6 +704,9 @@ export default function TradeDeskPage() {
           </AlertDescription>
         </Alert>
       )}
+
+      {/* Watchlist Spotlight - "Watch Out For These" */}
+      <WatchlistSpotlight maxItems={5} />
 
       {/* All Trade Ideas */}
       <div className="space-y-8">
