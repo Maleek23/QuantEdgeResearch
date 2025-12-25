@@ -80,10 +80,16 @@ export async function authenticateUser(
   }
 }
 
+// Owner email - the only account with admin access (set via ADMIN_EMAIL env var)
+export function getOwnerEmail(): string {
+  return process.env.ADMIN_EMAIL || "";
+}
+
 export function sanitizeUser(user: User): Omit<User, 'passwordHash'> & { isAdmin: boolean } {
   const { passwordHash: _, ...sanitized } = user;
+  const ownerEmail = getOwnerEmail();
   return {
     ...sanitized,
-    isAdmin: user.subscriptionTier === 'admin',
+    isAdmin: ownerEmail !== "" && user.email === ownerEmail,
   } as Omit<User, 'passwordHash'> & { isAdmin: boolean };
 }

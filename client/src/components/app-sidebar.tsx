@@ -162,6 +162,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu className="gap-0">
               {systemItems.map((item) => {
+                // Only show Admin link to the owner account (set via ADMIN_EMAIL env var on backend)
                 if (item.title === "Admin" && !(user as any)?.isAdmin) {
                   return null;
                 }
