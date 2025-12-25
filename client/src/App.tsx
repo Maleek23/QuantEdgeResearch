@@ -7,6 +7,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { LogOut, User } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { ScrollParticles } from "@/components/scroll-particles";
 import Landing from "@/pages/landing";
@@ -90,6 +93,48 @@ function Router() {
   );
 }
 
+function AuthHeader() {
+  const { user, logout, isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
+  
+  const handleLogout = () => {
+    logout();
+    setLocation("/");
+  };
+  
+  const userData = user as { email?: string; firstName?: string } | null;
+  
+  return (
+    <header className="flex items-center justify-between gap-2 p-4 border-b bg-background">
+      <div className="flex items-center gap-2">
+        <SidebarTrigger data-testid="button-mobile-menu" className="lg:hidden" />
+        <h1 className="text-lg font-semibold lg:hidden">QuantEdge</h1>
+      </div>
+      <div className="flex items-center gap-2">
+        {isAuthenticated && userData && (
+          <>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <User className="h-4 w-4" />
+              <span className="hidden sm:inline">{userData.email || userData.firstName || 'User'}</span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleLogout}
+              data-testid="button-logout"
+              className="gap-1"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </Button>
+          </>
+        )}
+        <ThemeToggle />
+      </div>
+    </header>
+  );
+}
+
 function App() {
   const [location] = useLocation();
   
@@ -124,16 +169,7 @@ function App() {
             <div className="flex h-screen w-full">
               <AppSidebar />
               <div className="flex flex-col flex-1 overflow-hidden">
-                {/* Header with auth buttons */}
-                <header className="flex items-center justify-between gap-2 p-4 border-b bg-background">
-                  <div className="flex items-center gap-2">
-                    <SidebarTrigger data-testid="button-mobile-menu" className="lg:hidden" />
-                    <h1 className="text-lg font-semibold lg:hidden">QuantEdge</h1>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <ThemeToggle />
-                  </div>
-                </header>
+                <AuthHeader />
                 <div className="flex-1 overflow-auto flex flex-col">
                   <main className="flex-1">
                     <Router />
