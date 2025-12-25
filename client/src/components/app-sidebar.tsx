@@ -1,4 +1,4 @@
-import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sun, Moon, Upload, BookOpen, Home, CreditCard } from "lucide-react";
+import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sun, Moon, Upload, BookOpen, Home, CreditCard, ExternalLink, User } from "lucide-react";
 import { useLocation } from "wouter";
 import {
   Sidebar,
@@ -186,6 +186,33 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border/50 p-2 mt-auto">
+        {/* User Account Display */}
+        {isAuthenticated && user && (
+          <div className="flex items-center gap-2 px-2 py-1.5 mb-2 rounded-md bg-sidebar-accent/30 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+            <User className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
+              <span className="text-xs font-medium truncate" data-testid="text-user-name">
+                {String((user as any)?.firstName || (user as any)?.email?.split('@')[0] || 'User')}
+              </span>
+              <span className="text-[10px] text-muted-foreground truncate" data-testid="text-user-email">
+                {String((user as any)?.email || '')}
+              </span>
+            </div>
+          </div>
+        )}
+        
+        {/* Back to Landing Page Link */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleNavigation("/")}
+          className="w-full justify-start gap-2 mb-2 text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:justify-center"
+          data-testid="nav-landing-page"
+        >
+          <ExternalLink className="h-4 w-4" />
+          <span className="group-data-[collapsible=icon]:hidden">Back to Site</span>
+        </Button>
+        
         <div className="flex items-center gap-2">
           <div className="flex-1">
             <SidebarToggleButton />
