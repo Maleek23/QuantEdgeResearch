@@ -37,29 +37,30 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
                      idea.source === 'hybrid' ? '🎯 Hybrid (AI+Quant)' :
                      '📝 Manual';
   
-  // Asset type with clear labeling - for options show TYPE STRIKE EXPIRY
-  let assetLabel: string;
-  if (idea.assetType === 'option') {
-    const optionType = idea.optionType?.toUpperCase() || 'OPTION';
-    const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
-    const expiry = idea.expiryDate || '';
-    // Format: "CALL $150 01/17" all on one line
-    assetLabel = `🎯 ${optionType} ${strike} ${expiry}`.trim();
-  } else if (idea.assetType === 'crypto') {
-    assetLabel = '₿ Crypto';
-  } else {
-    assetLabel = '📈 Shares';
-  }
-  
   // Direction indicator
   const directionEmoji = isLong ? '🟢' : '🔴';
   
   // Calculate potential gain
   const potentialGain = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(2);
   
+  // Asset type emoji for title
+  const assetEmoji = idea.assetType === 'option' ? '🎯' : idea.assetType === 'crypto' ? '₿' : '📈';
+  
+  // Build description - for options, put type/strike/expiry on STANDALONE LINE first
+  let description = sourceBadge;
+  if (idea.assetType === 'option') {
+    // STANDALONE LINE: CALL $150 01/17
+    const optionLine = `${(idea.optionType || 'OPTION').toUpperCase()}${idea.strikePrice ? ` $${idea.strikePrice}` : ''}${idea.expiryDate ? ` ${idea.expiryDate}` : ''}`;
+    description = `**${optionLine}**\n\n${sourceBadge}`;
+  } else if (idea.assetType === 'crypto') {
+    description = `**Crypto**\n\n${sourceBadge}`;
+  } else {
+    description = `**Shares**\n\n${sourceBadge}`;
+  }
+  
   const embed: DiscordEmbed = {
-    title: `${directionEmoji} ${idea.symbol} - ${idea.direction.toUpperCase()} ${assetLabel}`,
-    description: `${sourceBadge}`,
+    title: `${directionEmoji} ${idea.symbol} - ${idea.direction.toUpperCase()} ${assetEmoji}`,
+    description,
     color,
     fields: [
       {
@@ -199,28 +200,23 @@ export async function sendDiscordAlert(alert: {
                   alert.alertType === 'stop' ? 0xff0000 : // Red for stop
                   0x0099ff; // Blue for target
     
-    // Format asset type label clearly
-    let assetLabel: string;
-    let optionDetails = '';
-    if (alert.assetType === 'option' && alert.optionType) {
-      // For options: show TYPE STRIKE EXPIRY on one line
-      const typeStr = alert.optionType.toUpperCase();
-      const strikeStr = alert.strike ? `$${alert.strike}` : '';
-      const expiryStr = alert.expiry || '';
-      optionDetails = `${typeStr} ${strikeStr} ${expiryStr}`.trim();
-      assetLabel = `🎯 ${optionDetails}`;
-    } else if (alert.assetType === 'crypto') {
-      assetLabel = '₿ Crypto';
-    } else {
-      assetLabel = '📈 Shares';
-    }
-    
     // Format prices appropriately (fewer decimals for stocks)
     const priceDecimals = alert.assetType === 'crypto' && alert.currentPrice < 1 ? 6 : 2;
     
+    // Build description - for options, put type/strike/expiry on its own line first
+    let description = `**${alertTitle}**`;
+    if (alert.assetType === 'option' && alert.optionType) {
+      // STANDALONE LINE: CALL $150 01/17
+      const optionLine = `${alert.optionType.toUpperCase()}${alert.strike ? ` $${alert.strike}` : ''}${alert.expiry ? ` ${alert.expiry}` : ''}`;
+      description = `**${optionLine}**\n\n${alertTitle}`;
+    }
+    
+    // Simple asset emoji for title
+    const assetEmoji = alert.assetType === 'option' ? '🎯' : alert.assetType === 'crypto' ? '₿' : '📈';
+    
     const embed: DiscordEmbed = {
-      title: `${alertEmoji} ${alert.symbol} ${assetLabel}`,
-      description: `**${alertTitle}**`,
+      title: `${alertEmoji} ${alert.symbol} ${assetEmoji}`,
+      description,
       color,
       fields: [
         {
@@ -245,8 +241,11 @@ export async function sendDiscordAlert(alert: {
       }
     };
     
-    // Add notes if present and not just default text
-    if (alert.notes && !alert.notes.includes('symbol search') && alert.notes !== 'Watchlist alert triggered') {
+    // Only add notes if meaningful (skip default/auto-generated notes)
+    if (alert.notes && 
+        !alert.notes.includes('symbol search') && 
+        !alert.notes.includes('Watchlist alert') &&
+        alert.notes.length > 5) {
       embed.fields.push({
         name: '📝 Notes',
         value: alert.notes.substring(0, 100),
@@ -255,7 +254,7 @@ export async function sendDiscordAlert(alert: {
     }
     
     const message: DiscordMessage = {
-      content: `${alertEmoji} **WATCHLIST: ${alert.symbol}** ${assetLabel}`,
+      content: `${alertEmoji} **${alert.symbol}** ${alert.assetType === 'option' && alert.optionType ? `${alert.optionType.toUpperCase()}${alert.strike ? ` $${alert.strike}` : ''}${alert.expiry ? ` ${alert.expiry}` : ''}` : alert.assetType === 'crypto' ? 'Crypto' : 'Shares'}`,
       embeds: [embed]
     };
     
