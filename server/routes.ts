@@ -18,6 +18,7 @@ import {
   insertWatchlistSchema,
   insertOptionsDataSchema,
   insertUserPreferencesSchema,
+  insertActiveTradeSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { logger, logError } from "./logger";
@@ -1603,6 +1604,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Failed to update performance" });
+    }
+  });
+
+  // ===========================================
+  // Active Trades (Live Position Tracking) API
+  // ===========================================
+
+  // Get all active trades for current user
+  app.get("/api/active-trades", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      const trades = await storage.getActiveTrades(userId);
+      res.json(trades);
+    } catch (error) {
+      logger.error("Failed to get active trades:", error);
+      res.status(500).json({ error: "Failed to fetch active trades" });
+    }
+  });
+
+  // Get a single active trade by ID
+  app.get("/api/active-trades/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const trade = await storage.getActiveTradeById(req.params.id);
+      if (!trade) {
+        return res.status(404).json({ error: "Trade not found" });
+      }
+      // Verify ownership
+      if (trade.userId !== req.session?.userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      res.json(trade);
+    } catch (error) {
+      logger.error("Failed to get active trade:", error);
+      res.status(500).json({ error: "Failed to fetch trade" });
+    }
+  });
+
+  // Create a new active trade
+  app.post("/api/active-trades", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const validated = insertActiveTradeSchema.parse({
+        ...req.body,
+        userId,
+        entryTime: req.body.entryTime || new Date().toISOString(),
+        status: 'open',
+      });
+
+      const trade = await storage.createActiveTrade(validated);
+      logger.info(`📈 [LIVE-TRADE] New position opened: ${trade.symbol} ${trade.optionType || trade.assetType} @ $${trade.entryPrice}`);
+      res.status(201).json(trade);
+    } catch (error) {
+      logger.error("Failed to create active trade:", error);
+      res.status(400).json({ error: "Failed to create trade", details: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  // Update an active trade (e.g., update notes, target, stop)
+  app.patch("/api/active-trades/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const trade = await storage.getActiveTradeById(req.params.id);
+      if (!trade) {
+        return res.status(404).json({ error: "Trade not found" });
+      }
+      if (trade.userId !== req.session?.userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const updated = await storage.updateActiveTrade(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      logger.error("Failed to update active trade:", error);
+      res.status(500).json({ error: "Failed to update trade" });
+    }
+  });
+
+  // Close an active trade
+  app.post("/api/active-trades/:id/close", isAuthenticated, async (req: any, res) => {
+    try {
+      const trade = await storage.getActiveTradeById(req.params.id);
+      if (!trade) {
+        return res.status(404).json({ error: "Trade not found" });
+      }
+      if (trade.userId !== req.session?.userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const { exitPrice } = req.body;
+      if (typeof exitPrice !== 'number' || exitPrice <= 0) {
+        return res.status(400).json({ error: "Valid exit price required" });
+      }
+
+      const closed = await storage.closeActiveTrade(req.params.id, exitPrice);
+      logger.info(`📉 [LIVE-TRADE] Position closed: ${trade.symbol} @ $${exitPrice} (P&L: $${closed?.realizedPnL?.toFixed(2)})`);
+      res.json(closed);
+    } catch (error) {
+      logger.error("Failed to close active trade:", error);
+      res.status(500).json({ error: "Failed to close trade" });
+    }
+  });
+
+  // Delete an active trade (only drafts or mistakes)
+  app.delete("/api/active-trades/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const trade = await storage.getActiveTradeById(req.params.id);
+      if (!trade) {
+        return res.status(404).json({ error: "Trade not found" });
+      }
+      if (trade.userId !== req.session?.userId) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      await storage.deleteActiveTrade(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      logger.error("Failed to delete active trade:", error);
+      res.status(500).json({ error: "Failed to delete trade" });
     }
   });
 

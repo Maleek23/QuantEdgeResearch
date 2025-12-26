@@ -21,6 +21,9 @@ import type {
   FuturesContract,
   DailyUsage,
   InsertDailyUsage,
+  ActiveTrade,
+  InsertActiveTrade,
+  ActiveTradeStatus,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, desc, sql as drizzleSql } from "drizzle-orm";
@@ -35,6 +38,7 @@ import {
   users,
   futuresContracts,
   dailyUsage as dailyUsageTable,
+  activeTrades as activeTradesTable,
 } from "@shared/schema";
 
 export interface ChatMessage {
@@ -169,6 +173,14 @@ export interface IStorage {
   
   // User-filtered Trade Ideas
   getTradeIdeasByUser(userId: string): Promise<TradeIdea[]>;
+  
+  // Active Trades (Live Position Tracking)
+  getActiveTrades(userId: string): Promise<ActiveTrade[]>;
+  getActiveTradeById(id: string): Promise<ActiveTrade | undefined>;
+  createActiveTrade(trade: InsertActiveTrade): Promise<ActiveTrade>;
+  updateActiveTrade(id: string, updates: Partial<ActiveTrade>): Promise<ActiveTrade | undefined>;
+  closeActiveTrade(id: string, exitPrice: number): Promise<ActiveTrade | undefined>;
+  deleteActiveTrade(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -1286,6 +1298,45 @@ export class MemStorage implements IStorage {
   async getActiveModelCard(): Promise<ModelCard | undefined> {
     return undefined;
   }
+
+  // Daily Usage Tracking (stub - not persisted in MemStorage)
+  async getDailyUsage(_userId: string, _date: string): Promise<DailyUsage | null> {
+    return null;
+  }
+
+  async incrementDailyUsage(_userId: string, _field: 'ideasViewed' | 'aiChatMessages' | 'chartAnalyses'): Promise<DailyUsage> {
+    throw new Error("Daily Usage not supported in MemStorage");
+  }
+
+  // User-filtered Trade Ideas (stub)
+  async getTradeIdeasByUser(_userId: string): Promise<TradeIdea[]> {
+    return Array.from(this.tradeIdeas.values());
+  }
+
+  // Active Trades (stub - not persisted in MemStorage)
+  async getActiveTrades(_userId: string): Promise<ActiveTrade[]> {
+    return [];
+  }
+
+  async getActiveTradeById(_id: string): Promise<ActiveTrade | undefined> {
+    return undefined;
+  }
+
+  async createActiveTrade(_trade: InsertActiveTrade): Promise<ActiveTrade> {
+    throw new Error("Active Trades not supported in MemStorage");
+  }
+
+  async updateActiveTrade(_id: string, _updates: Partial<ActiveTrade>): Promise<ActiveTrade | undefined> {
+    return undefined;
+  }
+
+  async closeActiveTrade(_id: string, _exitPrice: number): Promise<ActiveTrade | undefined> {
+    return undefined;
+  }
+
+  async deleteActiveTrade(_id: string): Promise<boolean> {
+    return false;
+  }
 }
 
 // Database Storage Implementation (from javascript_database blueprint)
@@ -2099,6 +2150,59 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(tradeIdeas)
       .where(eq(tradeIdeas.userId, userId))
       .orderBy(desc(tradeIdeas.timestamp));
+  }
+
+  // Active Trades (Live Position Tracking)
+  async getActiveTrades(userId: string): Promise<ActiveTrade[]> {
+    return await db.select().from(activeTradesTable)
+      .where(eq(activeTradesTable.userId, userId))
+      .orderBy(desc(activeTradesTable.createdAt));
+  }
+
+  async getActiveTradeById(id: string): Promise<ActiveTrade | undefined> {
+    const [trade] = await db.select().from(activeTradesTable)
+      .where(eq(activeTradesTable.id, id));
+    return trade || undefined;
+  }
+
+  async createActiveTrade(trade: InsertActiveTrade): Promise<ActiveTrade> {
+    const [created] = await db.insert(activeTradesTable).values(trade).returning();
+    return created;
+  }
+
+  async updateActiveTrade(id: string, updates: Partial<ActiveTrade>): Promise<ActiveTrade | undefined> {
+    const [updated] = await db.update(activeTradesTable)
+      .set(updates)
+      .where(eq(activeTradesTable.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async closeActiveTrade(id: string, exitPrice: number): Promise<ActiveTrade | undefined> {
+    const trade = await this.getActiveTradeById(id);
+    if (!trade) return undefined;
+
+    const now = new Date().toISOString();
+    const realizedPnL = (exitPrice - trade.entryPrice) * trade.quantity * (trade.direction === 'short' ? -1 : 1) * 100; // Options are 100x
+    const realizedPnLPercent = ((exitPrice - trade.entryPrice) / trade.entryPrice) * 100 * (trade.direction === 'short' ? -1 : 1);
+
+    const [updated] = await db.update(activeTradesTable)
+      .set({
+        status: 'closed' as ActiveTradeStatus,
+        exitPrice,
+        exitTime: now,
+        realizedPnL,
+        realizedPnLPercent,
+      })
+      .where(eq(activeTradesTable.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteActiveTrade(id: string): Promise<boolean> {
+    const result = await db.delete(activeTradesTable)
+      .where(eq(activeTradesTable.id, id));
+    return true;
   }
 }
 
