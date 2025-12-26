@@ -11,79 +11,90 @@
   }
 }
 
-/* LIGHT MODE */
+/* LIGHT MODE - Clean Professional Trading Theme */
 :root {
-  --button-outline: rgba(0,0,0, .10);
-  --badge-outline: rgba(0,0,0, .05);
+  --button-outline: rgba(0,0,0, .08);
+  --badge-outline: rgba(0,0,0, .06);
 
   /* Automatic computation of border around primary / danger buttons */
   --opaque-button-border-intensity: -8; /* In terms of percentages */
 
   /* Backgrounds applied on top of other backgrounds when hovered/active */
-  --elevate-1: rgba(0,0,0, .03);
+  --elevate-1: rgba(0,0,0, .04);
   --elevate-2: rgba(0,0,0, .08);
 
-  --background: 45 100% 96.86%;
+  /* Clean off-white background */
+  --background: 220 14% 96%;
 
-  --foreground: 38.18 53.23% 24.31%;
+  /* Dark blue-gray text for readability */
+  --foreground: 220 15% 15%;
 
-  --border: 44.21 26.76% 86.08%;
+  /* Subtle cool gray borders */
+  --border: 220 13% 88%;
 
-  --card: 47.14 87.5% 96.86%;
+  /* Pure white cards for contrast */
+  --card: 0 0% 100%;
 
-  --card-foreground: 210 25% 7.8431%;
+  --card-foreground: 220 15% 12%;
 
-  --card-border: 220 8% 92%;
+  --card-border: 220 13% 90%;
 
-  --sidebar: 180 6.6667% 97.0588%;
+  /* Light gray sidebar */
+  --sidebar: 220 14% 97%;
 
-  --sidebar-foreground: 210 25% 7.8431%;
+  --sidebar-foreground: 220 15% 15%;
 
-  --sidebar-border: 205.0000 25.0000% 90.5882%;
+  --sidebar-border: 220 13% 90%;
 
-  --sidebar-primary: 203.8863 88.2845% 53.1373%;
+  /* Professional blue accent */
+  --sidebar-primary: 217 91% 55%;
 
   --sidebar-primary-foreground: 0 0% 100%;
 
-  --sidebar-accent: 211.5789 51.3514% 92.7451%;
+  --sidebar-accent: 217 40% 94%;
 
-  --sidebar-accent-foreground: 203.8863 88.2845% 53.1373%;
+  --sidebar-accent-foreground: 217 91% 50%;
 
-  --sidebar-ring: 202.8169 89.1213% 53.1373%;
+  --sidebar-ring: 217 91% 55%;
 
   --popover: 0 0% 100%;
 
-  --popover-foreground: 210 25% 7.8431%;
+  --popover-foreground: 220 15% 12%;
 
-  --popover-border: 220 10% 86%;
+  --popover-border: 220 13% 88%;
 
-  --primary: 38.23 87.6% 74.71%;
+  /* Blue primary for trading actions */
+  --primary: 217 91% 55%;
 
-  --primary-foreground: 39.27 43.31% 24.9%;
+  --primary-foreground: 0 0% 100%;
 
-  --secondary: 39.27 43.31% 24.9%;
+  /* Dark gray secondary */
+  --secondary: 220 13% 91%;
 
-  --secondary-foreground: 39.75 86.96% 81.96%;
+  --secondary-foreground: 220 15% 20%;
 
-  --muted: 38.4 60.98% 91.96%;
+  /* Subtle muted backgrounds */
+  --muted: 220 14% 94%;
 
-  --muted-foreground: 38.18 53.23% 24.31%;
+  --muted-foreground: 220 10% 45%;
 
-  --accent: 74.4 39.68% 87.65%;
+  /* Soft accent for highlights */
+  --accent: 217 40% 94%;
 
-  --accent-foreground: 91.43 10.55% 39.02%;
+  --accent-foreground: 217 91% 45%;
 
-  --destructive: 0.49 54.19% 55.49%;
+  /* Clear red for destructive actions */
+  --destructive: 0 72% 51%;
 
   --destructive-foreground: 0 0% 100%;
 
-  --input: 44.21 26.76% 86.08%;
-  --ring: 39.27 43.31% 24.9%;
-  --chart-1: 203.8863 88.2845% 53.1373%;
-  --chart-2: 159.7826 100% 36.0784%;
-  --chart-3: 42.0290 92.8251% 56.2745%;
-  --chart-4: 147.1429 78.5047% 41.9608%;
-  --chart-5: 341.4894 75.2000% 50.9804%;
+  --input: 220 13% 88%;
+  --ring: 217 91% 55%;
+  --chart-1: 217 91% 55%;
+  --chart-2: 142 76% 40%;
+  --chart-3: 45 93% 50%;
+  --chart-4: 262 83% 58%;
+  --chart-5: 0 72% 51%;
 
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-serif: Georgia, serif;
