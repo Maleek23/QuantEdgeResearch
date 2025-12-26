@@ -2,6 +2,10 @@ import { TradeIdea, FuturesContract } from "@shared/schema";
 import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 
+// 🎯 MINIMUM LOSS THRESHOLD: Losses below this are treated as "breakeven"
+// Prevents tiny stop-outs from noise (0.1%, 0.4%) counting as real losses
+const MIN_LOSS_THRESHOLD_PERCENT = 1.0; // 1% minimum to count as a real loss
+
 interface ValidationResult {
   shouldUpdate: boolean;
   outcomeStatus?: TradeIdea['outcomeStatus'];
@@ -662,6 +666,44 @@ export class PerformanceValidator {
         idea.stopLoss
       );
       
+      // 🎯 MINIMUM LOSS THRESHOLD CHECK
+      // If loss is below threshold (e.g., -0.1%, -0.4%), treat as breakeven/expired
+      // This prevents noise-level stop-outs from counting as real losses
+      const absLoss = Math.abs(percentGain);
+      if (absLoss < MIN_LOSS_THRESHOLD_PERCENT) {
+        console.log(`📊 [VALIDATION] ${idea.symbol} stop touched but loss too small (${percentGain.toFixed(2)}% < ${MIN_LOSS_THRESHOLD_PERCENT}% threshold) - marking as BREAKEVEN`);
+        
+        const predictionAccurate = this.checkPredictionAccuracy(
+          idea,
+          currentPrice || lowestPrice,
+          highestPrice,
+          lowestPrice
+        );
+        
+        const predictionAccuracyPercent = this.calculatePredictionAccuracyPercent(
+          idea,
+          currentPrice || lowestPrice,
+          highestPrice,
+          lowestPrice
+        );
+        
+        return {
+          shouldUpdate: true,
+          outcomeStatus: 'expired', // Breakeven = expired, not a real loss
+          exitPrice: idea.stopLoss,
+          percentGain,
+          realizedPnL: 0,
+          resolutionReason: 'auto_breakeven', // New resolution reason
+          exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+          actualHoldingTimeMinutes: holdingTimeMinutes,
+          predictionAccurate,
+          predictionAccuracyPercent,
+          predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+          highestPriceReached: highestPrice,
+          lowestPriceReached: lowestPrice,
+        };
+      }
+      
       // Calculate futures P&L if applicable
       let realizedPnL = 0;
       if (idea.assetType === 'future' && idea.futuresMultiplier && idea.futuresTickSize) {
@@ -698,7 +740,7 @@ export class PerformanceValidator {
         lowestPrice
       );
 
-      console.log(`🛑 [VALIDATION] ${idea.symbol} HIT STOP intraday (${directionForValidation.toUpperCase()}: ${directionForValidation === 'long' ? `low $${lowestPrice.toFixed(2)} <= stop $${idea.stopLoss}` : `high $${highestPrice.toFixed(2)} >= stop $${idea.stopLoss}`})`);
+      console.log(`🛑 [VALIDATION] ${idea.symbol} HIT STOP intraday (${directionForValidation.toUpperCase()}: ${directionForValidation === 'long' ? `low $${lowestPrice.toFixed(2)} <= stop $${idea.stopLoss}` : `high $${highestPrice.toFixed(2)} >= stop $${idea.stopLoss}`}) - Loss: ${percentGain.toFixed(2)}%`);
 
       return {
         shouldUpdate: true,
