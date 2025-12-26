@@ -26,8 +26,8 @@ function ConfidenceGauge({ value, sentiment }: { value: number; sentiment: "bull
   const angle = -90 + (percentage * 180);
   
   return (
-    <div className="relative w-32 h-20 mx-auto" data-testid="gauge-confidence">
-      <svg viewBox="0 0 100 60" className="w-full h-full" role="img" aria-label={`Confidence gauge at ${value}%`}>
+    <div className="relative w-32 h-24 mx-auto" data-testid="gauge-confidence">
+      <svg viewBox="0 0 100 60" className="w-full h-16" role="img" aria-label={`Confidence gauge at ${value}%`}>
         <path
           d="M 10 50 A 40 40 0 0 1 90 50"
           fill="none"
@@ -49,16 +49,16 @@ function ConfidenceGauge({ value, sentiment }: { value: number; sentiment: "bull
           x1="50"
           y1="50"
           x2="50"
-          y2="20"
+          y2="22"
           stroke={color}
-          strokeWidth="3"
+          strokeWidth="2"
           strokeLinecap="round"
           transform={`rotate(${angle} 50 50)`}
           className="transition-all duration-500"
         />
-        <circle cx="50" cy="50" r="4" fill={color} />
+        <circle cx="50" cy="50" r="3" fill={color} />
       </svg>
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center">
+      <div className="text-center mt-1">
         <span className="text-xl font-bold" style={{ color }} data-testid="text-confidence-value">{value}%</span>
       </div>
     </div>
