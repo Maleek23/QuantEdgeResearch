@@ -2973,8 +2973,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const schema = z.object({
         count: z.number().optional().default(8),
+        targetHoldingPeriod: z.enum(['day', 'swing', 'position']).optional(),
       });
-      const { count } = schema.parse(req.body);
+      const { count, targetHoldingPeriod } = schema.parse(req.body);
       
       // Get current market data and catalysts
       const marketData = await storage.getAllMarketData();
@@ -2982,7 +2983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Generate quantitative ideas with deduplication
       // Manual generation: skip time check (user can generate anytime)
-      const quantIdeas = await generateQuantIdeas(marketData, catalysts, count, storage, true);
+      const quantIdeas = await generateQuantIdeas(marketData, catalysts, count, storage, true, targetHoldingPeriod);
       
       // Save ideas to storage with validation and send Discord alerts
       const savedIdeas = [];

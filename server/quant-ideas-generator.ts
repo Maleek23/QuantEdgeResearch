@@ -679,11 +679,15 @@ export async function generateQuantIdeas(
   catalysts: Catalyst[],
   count: number = 8,
   storage?: any,
-  skipTimeCheck: boolean = false  // Allow manual generation anytime
+  skipTimeCheck: boolean = false,  // Allow manual generation anytime
+  targetHoldingPeriod?: 'day' | 'swing' | 'position'  // Filter by specific holding period
 ): Promise<InsertTradeIdea[]> {
   const ideas: InsertTradeIdea[] = [];
   const timezone = 'America/Chicago';
   const now = new Date();
+  
+  // If targeting a specific holding period, generate more candidates to filter
+  const targetCount = targetHoldingPeriod ? count * 3 : count;
 
   // 🎯 Time-of-day filter
   // Manual generation (skipTimeCheck=true): Allowed anytime
@@ -1549,6 +1553,13 @@ export async function generateQuantIdeas(
 
       ideas.push(idea);
     }
+  }
+
+  // Filter by target holding period if specified
+  if (targetHoldingPeriod) {
+    const filteredIdeas = ideas.filter(idea => idea.holdingPeriod === targetHoldingPeriod);
+    logger.info(`📊 [QUANT] Filtered to ${filteredIdeas.length}/${ideas.length} ideas for holding period: ${targetHoldingPeriod}`);
+    return filteredIdeas.slice(0, count);
   }
 
   return ideas;

@@ -147,6 +147,40 @@ export default function TradeDeskPage() {
     return counts;
   }, [tradeIdeas]);
 
+  // Generate ideas for a specific timeframe/holding period
+  const generateTimeframeIdeas = useMutation({
+    mutationFn: async (targetTimeframe: TimeframeBucket) => {
+      // Map timeframe bucket to holding period
+      const holdingPeriodMap: Record<TimeframeBucket, string | undefined> = {
+        'all': undefined,
+        'today_tomorrow': 'day',
+        'few_days': 'swing',
+        'next_week': 'swing',
+        'next_month': 'position',
+      };
+      const holdingPeriod = holdingPeriodMap[targetTimeframe];
+      return await apiRequest('POST', '/api/quant/generate-ideas', { 
+        targetHoldingPeriod: holdingPeriod 
+      });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
+      const label = TIMEFRAME_LABELS[activeTimeframe] || 'selected timeframe';
+      toast({
+        title: `${label} Ideas Generated`,
+        description: `Generated ${data.count || data.newIdeas || 0} trade ideas for ${label.toLowerCase()}`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate ideas",
+        variant: "destructive"
+      });
+    }
+  });
+
   const generateQuantIdeas = useMutation({
     mutationFn: async () => {
       return await apiRequest('POST', '/api/quant/generate-ideas', {});
@@ -647,29 +681,50 @@ export default function TradeDeskPage() {
       </div>
 
       {/* Timeframe Tabs - Organize plays by trading horizon */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-1">
-        {(['all', 'today_tomorrow', 'few_days', 'next_week', 'next_month'] as TimeframeBucket[]).map((timeframe) => (
-          <Button
-            key={timeframe}
-            variant={activeTimeframe === timeframe ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setActiveTimeframe(timeframe)}
-            className={cn(
-              "gap-1.5 whitespace-nowrap",
-              activeTimeframe === timeframe && "shadow-sm"
-            )}
-            data-testid={`tab-timeframe-${timeframe}`}
-          >
-            {timeframe === 'today_tomorrow' && <CalendarClock className="h-3.5 w-3.5" />}
-            {TIMEFRAME_LABELS[timeframe]}
-            <Badge 
-              variant={activeTimeframe === timeframe ? "secondary" : "outline"} 
-              className="ml-0.5 px-1.5 py-0 text-[10px] font-medium"
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <div className="flex items-center gap-1">
+          {(['all', 'today_tomorrow', 'few_days', 'next_week', 'next_month'] as TimeframeBucket[]).map((timeframe) => (
+            <Button
+              key={timeframe}
+              variant={activeTimeframe === timeframe ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActiveTimeframe(timeframe)}
+              className={cn(
+                "gap-1.5 whitespace-nowrap",
+                activeTimeframe === timeframe && "shadow-sm"
+              )}
+              data-testid={`tab-timeframe-${timeframe}`}
             >
-              {timeframeCounts[timeframe]}
-            </Badge>
+              {timeframe === 'today_tomorrow' && <CalendarClock className="h-3.5 w-3.5" />}
+              {TIMEFRAME_LABELS[timeframe]}
+              <Badge 
+                variant={activeTimeframe === timeframe ? "secondary" : "outline"} 
+                className="ml-0.5 px-1.5 py-0 text-[10px] font-medium"
+              >
+                {timeframeCounts[timeframe]}
+              </Badge>
+            </Button>
+          ))}
+        </div>
+        
+        {/* Generate for selected timeframe */}
+        {activeTimeframe !== 'all' && canGenerateTradeIdea() && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => generateTimeframeIdeas.mutate(activeTimeframe)}
+            disabled={generateTimeframeIdeas.isPending}
+            className="gap-1.5 whitespace-nowrap border-dashed"
+            data-testid="button-generate-timeframe"
+          >
+            {generateTimeframeIdeas.isPending ? (
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" />
+            )}
+            Generate {TIMEFRAME_LABELS[activeTimeframe]}
           </Button>
-        ))}
+        )}
       </div>
 
       {/* Simple Search + Filter Bar */}
