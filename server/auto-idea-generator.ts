@@ -198,19 +198,44 @@ class AutoIdeaGenerator {
           continue;
         }
 
-        // Apply chart-adjusted prices if suggested (only for stock/crypto, not options which have their own pricing)
+        // Apply chart-adjusted prices if suggested (ONLY for stock/crypto, NOT options which have their own premium pricing)
         let entryPrice = processedIdea.entryPrice;
         let targetPrice = processedIdea.targetPrice;
         let stopLoss = processedIdea.stopLoss;
         
+        // Options use their own pricing from Tradier - never apply chart adjustments to options
         if (processedIdea.assetType !== 'option' && chartValidation.chartAnalysis) {
+          if (chartValidation.adjustedEntry) entryPrice = chartValidation.adjustedEntry;
           if (chartValidation.adjustedTarget) targetPrice = chartValidation.adjustedTarget;
           if (chartValidation.adjustedStop) stopLoss = chartValidation.adjustedStop;
         }
 
-        // Log chart validation notes
+        // 🛡️ RE-VALIDATE RISK after chart adjustments (ensure 2:1 R:R and max-loss still hold)
+        const adjustedIdea = { ...processedIdea, entryPrice, targetPrice, stopLoss };
+        const postChartValidation = validateTradeRisk(adjustedIdea);
+        
+        if (!postChartValidation.isValid) {
+          logger.warn(`🚫 [AUTO-GEN] POST-CHART REJECTED ${processedIdea.symbol} - ${postChartValidation.reason}`);
+          rejectedIdeas.push({ symbol: processedIdea.symbol, reason: `Post-chart: ${postChartValidation.reason}` });
+          continue;
+        }
+
+        // Log chart validation notes and build chart context for analysis
+        let chartContext = '';
         if (chartValidation.validationNotes.length > 0) {
           logger.info(`📊 [AUTO-GEN] ${processedIdea.symbol} chart notes: ${chartValidation.validationNotes.slice(0, 3).join(' | ')}`);
+          // Add chart context to analysis (first 2 notes for brevity)
+          const relevantNotes = chartValidation.validationNotes
+            .filter(n => !n.startsWith('⚠️')) // Exclude warnings for now
+            .slice(0, 2);
+          if (relevantNotes.length > 0) {
+            chartContext = ` Chart: ${relevantNotes.join('; ')}.`;
+          }
+        }
+
+        // Log post-chart validation metrics for auditability
+        if (postChartValidation.metrics) {
+          logger.info(`📊 [AUTO-GEN] ${processedIdea.symbol} post-chart metrics: Loss:${postChartValidation.metrics.maxLossPercent.toFixed(2)}% R:R:${postChartValidation.metrics.riskRewardRatio.toFixed(2)}:1 Gain:${postChartValidation.metrics.potentialGainPercent.toFixed(2)}%`);
         }
 
         // Boost confidence if chart confirms (+5)
@@ -220,8 +245,14 @@ class AutoIdeaGenerator {
         );
         const confidenceBoost = chartConfirmed ? 5 : 0;
 
-        // Recalculate R:R after any chart adjustments
-        const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
+        // Use post-chart validation metrics (these reflect any chart adjustments)
+        const riskRewardRatio = postChartValidation.metrics?.riskRewardRatio || 
+          (targetPrice - entryPrice) / (entryPrice - stopLoss);
+        
+        // Append chart context to analysis for downstream consumers
+        const enhancedAnalysis = chartContext 
+          ? `${processedIdea.analysis}${chartContext}` 
+          : processedIdea.analysis;
 
         // AI ideas default to day trades unless they're crypto (which can be position trades)
         const holdingPeriod: 'day' | 'swing' | 'position' = processedIdea.assetType === 'crypto' ? 'position' : 'day';
@@ -240,7 +271,7 @@ class AutoIdeaGenerator {
           stopLoss,
           riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
           catalyst: processedIdea.catalyst,
-          analysis: processedIdea.analysis,
+          analysis: enhancedAnalysis, // Includes chart context if available
           liquidityWarning: processedIdea.entryPrice < 5,
           sessionContext: processedIdea.sessionContext,
           timestamp: new Date().toISOString(),
@@ -249,7 +280,7 @@ class AutoIdeaGenerator {
           optionType: processedIdea.optionType || null,
           source: 'ai',
           isLottoPlay: isLotto,
-          confidenceScore: finalConfidence, // Base 60 + chart boost
+          confidenceScore: finalConfidence, // Base 60 + chart boost (+5 if chart confirms)
         });
         savedIdeas.push(tradeIdea);
       }
