@@ -3,6 +3,7 @@ import { storage } from "./storage";
 import { generateTradeIdeas, validateTradeRisk } from "./ai-service";
 import { shouldBlockSymbol } from "./earnings-service";
 import { enrichOptionIdea } from "./options-enricher";
+import { validateTradeWithChart } from "./chart-analysis";
 
 /**
  * Automated Daily Idea Generation Service
@@ -171,14 +172,64 @@ class AutoIdeaGenerator {
         }
 
         // ✅ Trade passes risk validation - log metrics and save
-        logger.info(`✅ [AUTO-GEN] ${processedIdea.symbol} passed validation - Loss:${validation.metrics?.maxLossPercent.toFixed(2)}% R:R:${validation.metrics?.riskRewardRatio.toFixed(2)}:1 Gain:${validation.metrics?.potentialGainPercent.toFixed(2)}%`);
+        logger.info(`✅ [AUTO-GEN] ${processedIdea.symbol} passed risk validation - Loss:${validation.metrics?.maxLossPercent.toFixed(2)}% R:R:${validation.metrics?.riskRewardRatio.toFixed(2)}:1 Gain:${validation.metrics?.potentialGainPercent.toFixed(2)}%`);
 
-        const { entryPrice, targetPrice, stopLoss } = processedIdea;
+        // 📈 CHART ANALYSIS PRE-VALIDATION: Check patterns, support/resistance before proceeding
+        // Map option to underlying stock for chart analysis (options use stock charts)
+        const chartAssetType: 'stock' | 'crypto' = processedIdea.assetType === 'option' ? 'stock' : 
+          processedIdea.assetType === 'crypto' ? 'crypto' : 'stock';
+        
+        const chartValidation = await validateTradeWithChart(
+          processedIdea.symbol,
+          chartAssetType,
+          processedIdea.direction,
+          processedIdea.entryPrice,
+          processedIdea.targetPrice,
+          processedIdea.stopLoss
+        );
+
+        // If chart data unavailable, proceed without chart validation (graceful fallback)
+        if (!chartValidation.chartAnalysis) {
+          logger.info(`📊 [AUTO-GEN] ${processedIdea.symbol} - no chart data available, proceeding without chart validation`);
+        } else if (!chartValidation.isValid) {
+          const rejectNote = chartValidation.validationNotes.find(n => n.startsWith('REJECTED')) || 'Chart pattern conflict';
+          logger.warn(`📉 [AUTO-GEN] CHART REJECTED ${processedIdea.symbol} - ${rejectNote}`);
+          rejectedIdeas.push({ symbol: processedIdea.symbol, reason: `Chart: ${rejectNote}` });
+          continue;
+        }
+
+        // Apply chart-adjusted prices if suggested (only for stock/crypto, not options which have their own pricing)
+        let entryPrice = processedIdea.entryPrice;
+        let targetPrice = processedIdea.targetPrice;
+        let stopLoss = processedIdea.stopLoss;
+        
+        if (processedIdea.assetType !== 'option' && chartValidation.chartAnalysis) {
+          if (chartValidation.adjustedTarget) targetPrice = chartValidation.adjustedTarget;
+          if (chartValidation.adjustedStop) stopLoss = chartValidation.adjustedStop;
+        }
+
+        // Log chart validation notes
+        if (chartValidation.validationNotes.length > 0) {
+          logger.info(`📊 [AUTO-GEN] ${processedIdea.symbol} chart notes: ${chartValidation.validationNotes.slice(0, 3).join(' | ')}`);
+        }
+
+        // Boost confidence if chart confirms (+5)
+        const chartConfirmed = chartValidation.chartAnalysis?.patterns.some(
+          p => (processedIdea.direction === 'long' && p.type === 'bullish') ||
+               (processedIdea.direction === 'short' && p.type === 'bearish')
+        );
+        const confidenceBoost = chartConfirmed ? 5 : 0;
+
+        // Recalculate R:R after any chart adjustments
         const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
 
         // AI ideas default to day trades unless they're crypto (which can be position trades)
         const holdingPeriod: 'day' | 'swing' | 'position' = processedIdea.assetType === 'crypto' ? 'position' : 'day';
 
+        // Calculate base confidence + chart boost (AI ideas start at 60 base confidence)
+        const baseConfidence = 60;
+        const finalConfidence = Math.min(100, baseConfidence + confidenceBoost);
+        
         const tradeIdea = await storage.createTradeIdea({
           symbol: processedIdea.symbol,
           assetType: processedIdea.assetType,
@@ -197,7 +248,8 @@ class AutoIdeaGenerator {
           strikePrice: processedIdea.strikePrice || null,
           optionType: processedIdea.optionType || null,
           source: 'ai',
-          isLottoPlay: isLotto
+          isLottoPlay: isLotto,
+          confidenceScore: finalConfidence, // Base 60 + chart boost
         });
         savedIdeas.push(tradeIdea);
       }

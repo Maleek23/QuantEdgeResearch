@@ -1144,8 +1144,9 @@ export async function generateQuantIdeas(
 
     // Quantitatively-proven timing windows based on historical performance + market regime
     const regime = detectMarketRegime(signalStack);
+    const timingAssetType: 'stock' | 'crypto' = (assetType === 'option' || assetType === 'penny_stock' || assetType === 'future') ? 'stock' : assetType === 'crypto' ? 'crypto' : 'stock';
     const timingAnalytics = await calculateTimingWindows(
-      assetType === 'option' || assetType === 'penny_stock' ? 'stock' : assetType, // Options and penny stocks use stock timing
+      timingAssetType,
       signalStack,
       regime
     );
@@ -1180,7 +1181,7 @@ export async function generateQuantIdeas(
     
     // For consistency, use normalizedSignal.direction (already set to 'long' for options)
     
-    const idea: InsertTradeIdea = {
+    let idea: InsertTradeIdea = {
       symbol: data.symbol,
       assetType: assetType,
       direction: normalizedSignal.direction,
@@ -1277,7 +1278,7 @@ export async function generateQuantIdeas(
       const aiIdea = {
         symbol: idea.symbol,
         assetType: 'option' as const,
-        direction: idea.direction,
+        direction: idea.direction as 'long' | 'short',
         entryPrice: idea.entryPrice,
         targetPrice: idea.targetPrice,
         stopLoss: idea.stopLoss,
