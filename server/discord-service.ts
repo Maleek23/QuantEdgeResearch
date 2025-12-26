@@ -416,7 +416,7 @@ export async function sendChartAnalysisToDiscord(analysis: {
         },
         {
           name: '📝 Analysis',
-          value: analysis.analysis.substring(0, 300) + (analysis.analysis.length > 300 ? '...' : ''),
+          value: analysis.analysis.substring(0, 1024) + (analysis.analysis.length > 1024 ? '...' : ''),
           inline: false
         }
       ],
