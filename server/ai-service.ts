@@ -958,7 +958,9 @@ Return your analysis in this EXACT JSON format:
   "timeframe": "detected timeframe or ${timeframe || 'unknown'}"
 }
 
-**IMPORTANT**: All price levels (entry, target, stop, support, resistance) must be realistic values that you can actually SEE on the chart's Y-axis. Do not guess or hallucinate prices.${contextInfo}`;
+**IMPORTANT**: All price levels (entry, target, stop, support, resistance) must be realistic values that you can actually SEE on the chart's Y-axis. Do not guess or hallucinate prices.
+
+**ANALYSIS LENGTH**: Provide a COMPLETE and THOROUGH analysis in the "analysis" field. Write at least 3-4 full paragraphs explaining all visible patterns, price action, volume (if visible), and your reasoning for the trade setup. Do NOT cut off mid-sentence.${contextInfo}`;
 
   const userPrompt = symbol 
     ? `Analyze this trading chart for ${symbol}${timeframe ? ` on ${timeframe} timeframe` : ''}. Provide precise technical analysis with entry/exit points.`
@@ -972,6 +974,7 @@ Return your analysis in this EXACT JSON format:
       model: "gemini-2.5-flash",
       config: {
         systemInstruction: systemPrompt,
+        maxOutputTokens: 4096,
       },
       contents: [
         {
@@ -1020,7 +1023,7 @@ Return your analysis in this EXACT JSON format:
           }
         ],
         response_format: { type: "json_object" },
-        max_completion_tokens: 1500,
+        max_completion_tokens: 4096,
       });
 
       const content = openaiResponse.choices[0].message.content || '{}';
