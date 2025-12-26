@@ -3998,6 +3998,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           timeframe: z.string(),
         }),
         chartImageUrl: z.string().optional(),
+        assetType: z.enum(["stock", "option"]).optional(),
+        optionType: z.enum(["call", "put"]).optional(),
+        expiryDate: z.string().optional(),
       });
       
       const parseResult = schema.safeParse(req.body);
@@ -4011,11 +4014,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validated = parseResult.data;
       const analysis = validated.analysis;
       
-      // Determine direction from sentiment
+      // Determine direction from sentiment (for options: bullish=call, bearish=put)
       const direction = analysis.sentiment === 'bearish' ? 'short' : 'long';
       
-      // Determine asset type (assume stock for now, could be enhanced)
-      const assetType = 'stock';
+      // Use provided asset type or default to stock
+      const assetType = validated.assetType || 'stock';
       
       // Create draft trade idea
       const tradeIdea = await storage.createTradeIdea({
@@ -4037,6 +4040,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         confidenceScore: analysis.confidence,
         chartImageUrl: validated.chartImageUrl,
         chartAnalysisJson: analysis,
+        // Option-specific fields
+        optionType: assetType === 'option' ? validated.optionType : undefined,
+        expiryDate: assetType === 'option' ? validated.expiryDate : undefined,
+        strikePrice: assetType === 'option' ? analysis.entryPoint : undefined,
       });
       
       logger.info(`📊 Chart analysis saved as draft trade idea: ${tradeIdea.id} for ${validated.symbol}`);

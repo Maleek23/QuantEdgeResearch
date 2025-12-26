@@ -406,6 +406,11 @@ export default function ChartAnalysis() {
   const [savedTradeIdeaId, setSavedTradeIdeaId] = useState<string | null>(null);
   const [isPromoted, setIsPromoted] = useState(false);
   const { toast } = useToast();
+  
+  // Asset type and options fields
+  const [assetType, setAssetType] = useState<"stock" | "option">("stock");
+  const [optionType, setOptionType] = useState<"call" | "put">("call");
+  const [expiryDate, setExpiryDate] = useState("");
 
   // Generate deterministic quant signals based on analysis result
   const quantSignals: QuantSignal[] | null = analysisResult && symbol ? (() => {
@@ -443,11 +448,14 @@ export default function ChartAnalysis() {
 
   // Mutation to save analysis as draft trade idea
   const saveDraftMutation = useMutation({
-    mutationFn: async (data: { symbol: string; analysis: ChartAnalysisResult }) => {
+    mutationFn: async (data: { symbol: string; analysis: ChartAnalysisResult; assetType: string; optionType?: string; expiryDate?: string }) => {
       const response = await apiRequest('POST', '/api/trade-ideas/from-chart', {
         symbol: data.symbol,
         analysis: data.analysis,
         chartImageUrl: undefined,
+        assetType: data.assetType,
+        optionType: data.optionType,
+        expiryDate: data.expiryDate,
       });
       return await response.json();
     },
@@ -544,7 +552,13 @@ export default function ChartAnalysis() {
       });
 
       if (symbol) {
-        saveDraftMutation.mutate({ symbol, analysis: data });
+        saveDraftMutation.mutate({ 
+          symbol, 
+          analysis: data, 
+          assetType,
+          optionType: assetType === 'option' ? optionType : undefined,
+          expiryDate: assetType === 'option' ? expiryDate : undefined,
+        });
       }
     },
     onError: (error: Error) => {
@@ -793,6 +807,64 @@ export default function ChartAnalysis() {
                     {tf.label}
                   </Badge>
                 ))}
+              </div>
+
+              {/* Asset Type Selector */}
+              <div className="space-y-2 pt-2 border-t">
+                <Label className="text-xs font-medium">Trade Type</Label>
+                <div className="flex gap-2">
+                  <Badge
+                    variant={assetType === "stock" ? "default" : "outline"}
+                    className="cursor-pointer flex-1 justify-center py-1.5 hover-elevate"
+                    onClick={() => setAssetType("stock")}
+                    data-testid="chip-asset-stock"
+                  >
+                    📈 Shares
+                  </Badge>
+                  <Badge
+                    variant={assetType === "option" ? "default" : "outline"}
+                    className="cursor-pointer flex-1 justify-center py-1.5 hover-elevate"
+                    onClick={() => setAssetType("option")}
+                    data-testid="chip-asset-option"
+                  >
+                    🎯 Options
+                  </Badge>
+                </div>
+                
+                {/* Options-specific fields */}
+                {assetType === "option" && (
+                  <div className="space-y-2 pt-2">
+                    <div className="flex gap-2">
+                      <Badge
+                        variant={optionType === "call" ? "default" : "outline"}
+                        className="cursor-pointer flex-1 justify-center py-1 text-xs hover-elevate"
+                        onClick={() => setOptionType("call")}
+                        data-testid="chip-option-call"
+                      >
+                        CALL
+                      </Badge>
+                      <Badge
+                        variant={optionType === "put" ? "destructive" : "outline"}
+                        className="cursor-pointer flex-1 justify-center py-1 text-xs hover-elevate"
+                        onClick={() => setOptionType("put")}
+                        data-testid="chip-option-put"
+                      >
+                        PUT
+                      </Badge>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="expiry" className="text-xs text-muted-foreground">Expiry Date</Label>
+                      <Input
+                        id="expiry"
+                        type="date"
+                        value={expiryDate}
+                        onChange={(e) => setExpiryDate(e.target.value)}
+                        className="h-8 text-xs"
+                        data-testid="input-expiry"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Context */}
