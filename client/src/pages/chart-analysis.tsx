@@ -13,8 +13,9 @@ import {
   Upload, Image as ImageIcon, TrendingUp, TrendingDown, DollarSign, 
   AlertTriangle, Brain, Loader2, ExternalLink, CheckCircle2, Sparkles,
   Target, Shield, Activity, BarChart3, ArrowUpRight, ArrowDownRight,
-  Zap, Clock, Calculator, Gauge
+  Zap, Clock, Calculator, Gauge, Send
 } from "lucide-react";
+import { SiDiscord } from "react-icons/si";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
@@ -487,6 +488,40 @@ export default function ChartAnalysis() {
     },
   });
 
+  const [sentToDiscord, setSentToDiscord] = useState(false);
+  
+  const discordMutation = useMutation({
+    mutationFn: async (analysis: ChartAnalysisResult & { symbol: string }) => {
+      const response = await apiRequest('POST', '/api/chart-analysis/discord', {
+        symbol: analysis.symbol,
+        sentiment: analysis.sentiment,
+        confidence: analysis.confidence,
+        entryPoint: analysis.entryPoint,
+        targetPrice: analysis.targetPrice,
+        stopLoss: analysis.stopLoss,
+        patterns: analysis.patterns,
+        analysis: analysis.analysis,
+        riskRewardRatio: analysis.riskRewardRatio,
+        timeframe: analysis.timeframe || timeframe,
+      });
+      return await response.json();
+    },
+    onSuccess: () => {
+      setSentToDiscord(true);
+      toast({
+        title: "Sent to Discord",
+        description: "Chart analysis shared in your Discord channel.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Discord Failed",
+        description: error.message || "Could not send to Discord.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const analysisMutation = useMutation({
     mutationFn: async (data: FormData) => {
       const response = await fetch('/api/chart-analysis', {
@@ -579,6 +614,13 @@ export default function ChartAnalysis() {
     setAnalysisResult(null);
     setSavedTradeIdeaId(null);
     setIsPromoted(false);
+    setSentToDiscord(false);
+  };
+
+  const handleSendToDiscord = () => {
+    if (analysisResult && symbol) {
+      discordMutation.mutate({ ...analysisResult, symbol });
+    }
   };
 
   const handlePromote = () => {
@@ -1133,27 +1175,45 @@ export default function ChartAnalysis() {
               </Card>
 
               {/* Action Buttons */}
-              {savedTradeIdeaId && (
+              {analysisResult && (
                 <div className="flex gap-2">
-                  <Button asChild className="flex-1" data-testid="button-view-trade-desk">
-                    <Link href="/trade-desk">
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      View in Trade Desk
-                    </Link>
-                  </Button>
+                  {savedTradeIdeaId && (
+                    <>
+                      <Button asChild className="flex-1" data-testid="button-view-trade-desk">
+                        <Link href="/trade-desk">
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Trade Desk
+                        </Link>
+                      </Button>
+                      <Button
+                        onClick={handlePromote}
+                        disabled={promoteMutation.isPending || isPromoted}
+                        variant="outline"
+                        className="flex-1"
+                        data-testid="button-promote"
+                      >
+                        {promoteMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4 mr-2" />
+                        )}
+                        {isPromoted ? "Published" : "Publish"}
+                      </Button>
+                    </>
+                  )}
                   <Button
-                    onClick={handlePromote}
-                    disabled={promoteMutation.isPending || isPromoted}
+                    onClick={handleSendToDiscord}
+                    disabled={discordMutation.isPending || sentToDiscord}
                     variant="outline"
                     className="flex-1"
-                    data-testid="button-promote"
+                    data-testid="button-send-discord"
                   >
-                    {promoteMutation.isPending ? (
+                    {discordMutation.isPending ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
-                      <Sparkles className="h-4 w-4 mr-2" />
+                      <SiDiscord className="h-4 w-4 mr-2" />
                     )}
-                    {isPromoted ? "Published" : "Publish"}
+                    {sentToDiscord ? "Sent" : "Discord"}
                   </Button>
                 </div>
               )}

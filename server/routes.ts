@@ -4048,6 +4048,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send chart analysis to Discord
+  app.post("/api/chart-analysis/discord", async (req, res) => {
+    try {
+      const schema = z.object({
+        symbol: z.string().min(1),
+        sentiment: z.enum(["bullish", "bearish", "neutral"]),
+        confidence: z.number(),
+        entryPoint: z.number(),
+        targetPrice: z.number(),
+        stopLoss: z.number(),
+        patterns: z.array(z.string()),
+        analysis: z.string(),
+        riskRewardRatio: z.number(),
+        timeframe: z.string().optional(),
+      });
+      
+      const parseResult = schema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid analysis data" });
+      }
+      
+      const { sendChartAnalysisToDiscord } = await import("./discord-service");
+      const success = await sendChartAnalysisToDiscord(parseResult.data);
+      
+      if (success) {
+        res.json({ success: true, message: "Chart analysis sent to Discord" });
+      } else {
+        res.status(500).json({ error: "Failed to send to Discord" });
+      }
+    } catch (error: any) {
+      logger.error("Failed to send chart analysis to Discord:", error);
+      res.status(500).json({ error: error?.message || "Failed to send to Discord" });
+    }
+  });
+
   // Promote draft trade idea to published
   app.patch("/api/trade-ideas/:id/promote", async (req, res) => {
     try {

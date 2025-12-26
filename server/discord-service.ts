@@ -294,6 +294,106 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
   }
 }
 
+// Send chart analysis to Discord
+export async function sendChartAnalysisToDiscord(analysis: {
+  symbol: string;
+  sentiment: "bullish" | "bearish" | "neutral";
+  confidence: number;
+  entryPoint: number;
+  targetPrice: number;
+  stopLoss: number;
+  patterns: string[];
+  analysis: string;
+  riskRewardRatio: number;
+  timeframe?: string;
+}): Promise<boolean> {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    logger.info('⚠️ Discord webhook URL not configured - skipping chart analysis alert');
+    return false;
+  }
+  
+  try {
+    const isBullish = analysis.sentiment === "bullish";
+    const isBearish = analysis.sentiment === "bearish";
+    const sentimentEmoji = isBullish ? "🟢" : isBearish ? "🔴" : "🟡";
+    const color = isBullish ? 0x22c55e : isBearish ? 0xef4444 : 0xf59e0b;
+    
+    // Calculate gain %
+    const gainPercent = ((analysis.targetPrice - analysis.entryPoint) / analysis.entryPoint * 100).toFixed(1);
+    
+    const embed: DiscordEmbed = {
+      title: `${sentimentEmoji} Chart Analysis: ${analysis.symbol.toUpperCase()}`,
+      description: `**${analysis.sentiment.toUpperCase()}** • ${analysis.confidence}% Confidence`,
+      color,
+      fields: [
+        {
+          name: '💰 Entry',
+          value: `$${analysis.entryPoint.toFixed(2)}`,
+          inline: true
+        },
+        {
+          name: '🎯 Target',
+          value: `$${analysis.targetPrice.toFixed(2)} (+${gainPercent}%)`,
+          inline: true
+        },
+        {
+          name: '🛡️ Stop',
+          value: `$${analysis.stopLoss.toFixed(2)}`,
+          inline: true
+        },
+        {
+          name: '📊 R:R',
+          value: `${analysis.riskRewardRatio.toFixed(1)}:1`,
+          inline: true
+        },
+        {
+          name: '⏰ Timeframe',
+          value: analysis.timeframe || 'Daily',
+          inline: true
+        },
+        {
+          name: '📈 Patterns',
+          value: analysis.patterns.slice(0, 3).join(', ') || 'None detected',
+          inline: true
+        },
+        {
+          name: '📝 Analysis',
+          value: analysis.analysis.substring(0, 300) + (analysis.analysis.length > 300 ? '...' : ''),
+          inline: false
+        }
+      ],
+      footer: {
+        text: 'QuantEdge Chart Analysis • Not financial advice'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    const message: DiscordMessage = {
+      content: `📊 **Chart Analysis Alert: ${analysis.symbol.toUpperCase()}** ${sentimentEmoji}`,
+      embeds: [embed]
+    };
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+    
+    if (response.ok) {
+      logger.info(`✅ Discord chart analysis sent: ${analysis.symbol}`);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    logger.error('❌ Failed to send Discord chart analysis:', error);
+    return false;
+  }
+}
+
 // Send daily summary of top trade ideas (scheduled for 8:00 AM CT)
 export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<void> {
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
