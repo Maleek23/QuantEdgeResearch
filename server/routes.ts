@@ -94,10 +94,12 @@ interface EngineTrendEntry {
 }
 
 interface ConfidenceCalibrationEntry {
-  confidence_band: string;
+  band: string;
+  bandLabel: string;
   trades: number;
   wins: number;
-  win_rate: number;
+  losses: number;
+  winRate: number;
 }
 
 interface StreakData {
@@ -2566,15 +2568,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate win rates
       const calibration: ConfidenceCalibrationEntry[] = [];
       
+      // Band label mapping for display
+      const bandLabels: Record<string, string> = {
+        '90-100': '90-100%',
+        '80-89': '80-89%',
+        '70-79': '70-79%',
+        '60-69': '60-69%',
+        '<60': '<60%'
+      };
+      
       bandStats.forEach(stats => {
         const totalTrades = stats.trades.length;
+        const losses = totalTrades - stats.wins;
         const winRate = totalTrades > 0 ? (stats.wins / totalTrades) * 100 : 0;
         
         calibration.push({
-          confidence_band: stats.band,
+          band: stats.band,
+          bandLabel: bandLabels[stats.band] || stats.band,
           trades: totalTrades,
           wins: stats.wins,
-          win_rate: Math.round(winRate * 10) / 10,
+          losses: losses,
+          winRate: Math.round(winRate * 10) / 10,
         });
       });
       
