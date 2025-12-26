@@ -57,6 +57,15 @@ All trade ideas are now pre-validated against chart patterns and support/resista
 
 A critical dual-layer trade validation framework ensures all trade ideas pass through Structural Validation and Risk Guardrails (max 5% loss, min 2:1 R:R, price sanity, volatility filters). News Catalyst Mode relaxes the R:R minimum to 1.5:1 when keywords are detected. All generation methods prevent duplicate trades and maintain comprehensive audit trails. The platform implements a two-tier data filtering system: User-Facing Mode (v3.0+ trades) and ML/Admin Mode (all historical trades).
 
+**Minimum Loss Threshold (Dec 2025):**
+Platform-wide 3% minimum loss threshold to filter noise from tight stops:
+- Losses below 3% are treated as "breakeven" instead of real losses
+- Aligns with platform stop-loss rules: stocks=3.5%, crypto=5%
+- Small losses (e.g., -0.5%, -1%) are noise/tight stops, not proper stop-loss hits
+- `MIN_LOSS_THRESHOLD_PERCENT = 3.0` defined in both `storage.ts` and `performance-validator.ts`
+- Performance stats exclude breakeven trades from win/loss calculations
+- Win rate denominator = wins + real losses (excluding breakeven and expired)
+
 The platform now supports CME futures trading (NQ, GC) with dedicated database schema, data services, adapted quant engine logic (tick-based targets, R:R ≥ 2.0), performance validation, and UI integration. Automated services run on a schedule for idea generation, news monitoring, flow scanning, and performance validation.
 
 **Chart Analysis & Draft Trade Workflow (Nov 2025):**

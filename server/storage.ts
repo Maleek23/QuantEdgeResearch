@@ -1,5 +1,11 @@
 import { randomUUID } from "crypto";
 import { formatInTimeZone } from "date-fns-tz";
+
+// 🎯 MINIMUM LOSS THRESHOLD: Losses below this are treated as "breakeven"
+// Aligns with platform stop-loss rules: stocks=3.5%, crypto=5%
+// Must match the constant in performance-validator.ts
+const MIN_LOSS_THRESHOLD_PERCENT = 3.0;
+
 import type {
   MarketData,
   InsertMarketData,
@@ -899,13 +905,36 @@ export class MemStorage implements IStorage {
     
     const closedIdeas = allIdeas.filter((idea) => idea.outcomeStatus !== 'open');
     const wonIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'hit_target');
-    const lostIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'hit_stop');
+    
+    // 🎯 MINIMUM LOSS THRESHOLD: Only count as loss if percentGain is below -3%
+    // Losses with smaller percentages (e.g., -0.5%, -1%) are treated as breakeven
+    const lostIdeas = closedIdeas.filter((idea) => {
+      if (idea.outcomeStatus !== 'hit_stop') return false;
+      // If percentGain is available, check if it exceeds threshold
+      if (idea.percentGain !== null && idea.percentGain !== undefined) {
+        return idea.percentGain <= -MIN_LOSS_THRESHOLD_PERCENT;
+      }
+      // If no percentGain data, count as loss by default (legacy trades)
+      return true;
+    });
+    
+    // Breakeven: Trades that hit stop but loss was below threshold
+    const breakevenIdeas = closedIdeas.filter((idea) => {
+      if (idea.outcomeStatus !== 'hit_stop') return false;
+      if (idea.percentGain !== null && idea.percentGain !== undefined) {
+        return idea.percentGain > -MIN_LOSS_THRESHOLD_PERCENT;
+      }
+      return false;
+    });
+    
     const expiredIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'expired');
 
     // Overall stats
-    // WIN RATE FIX: Exclude expired ideas from denominator - only count actual wins vs losses
+    // WIN RATE FIX: Exclude expired AND breakeven ideas from denominator - only count actual wins vs real losses
     const decidedIdeas = wonIdeas.length + lostIdeas.length;
     const winRate = decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0;
+    
+    console.log(`[PERF-STATS] Win/Loss count: ${wonIdeas.length}W / ${lostIdeas.length}L (${breakevenIdeas.length} breakeven, threshold=${MIN_LOSS_THRESHOLD_PERCENT}%)`);
     
     // QUANT ACCURACY: Calculate percentage progress toward target (0-100+%)
     // For ALL trades (open + closed), calculate how far price moved toward target
@@ -994,8 +1023,15 @@ export class MemStorage implements IStorage {
 
     const bySource = Array.from(sourceMap.entries()).map(([source, ideas]) => {
       const won = ideas.filter((i) => i.outcomeStatus === 'hit_target').length;
-      const lost = ideas.filter((i) => i.outcomeStatus === 'hit_stop').length;
-      // WIN RATE FIX: Only count decided trades (exclude expired)
+      // 🎯 MINIMUM LOSS THRESHOLD: Only count as loss if percentGain is below threshold
+      const lost = ideas.filter((i) => {
+        if (i.outcomeStatus !== 'hit_stop') return false;
+        if (i.percentGain !== null && i.percentGain !== undefined) {
+          return i.percentGain <= -MIN_LOSS_THRESHOLD_PERCENT;
+        }
+        return true;
+      }).length;
+      // WIN RATE FIX: Only count decided trades (exclude expired and breakeven)
       const decided = won + lost;
       const rate = decided > 0 ? (won / decided) * 100 : 0;
       const avgGain = ideas.length > 0
@@ -1024,8 +1060,15 @@ export class MemStorage implements IStorage {
 
     const byAssetType = Array.from(assetTypeMap.entries()).map(([assetType, ideas]) => {
       const won = ideas.filter((i) => i.outcomeStatus === 'hit_target').length;
-      const lost = ideas.filter((i) => i.outcomeStatus === 'hit_stop').length;
-      // WIN RATE FIX: Only count decided trades (exclude expired)
+      // 🎯 MINIMUM LOSS THRESHOLD: Only count as loss if percentGain is below threshold
+      const lost = ideas.filter((i) => {
+        if (i.outcomeStatus !== 'hit_stop') return false;
+        if (i.percentGain !== null && i.percentGain !== undefined) {
+          return i.percentGain <= -MIN_LOSS_THRESHOLD_PERCENT;
+        }
+        return true;
+      }).length;
+      // WIN RATE FIX: Only count decided trades (exclude expired and breakeven)
       const decided = won + lost;
       const rate = decided > 0 ? (won / decided) * 100 : 0;
       const avgGain = ideas.length > 0
@@ -1056,8 +1099,15 @@ export class MemStorage implements IStorage {
 
     const bySignalType = Array.from(signalMap.entries()).map(([signal, ideas]) => {
       const won = ideas.filter((i) => i.outcomeStatus === 'hit_target').length;
-      const lost = ideas.filter((i) => i.outcomeStatus === 'hit_stop').length;
-      // WIN RATE FIX: Only count decided trades (exclude expired)
+      // 🎯 MINIMUM LOSS THRESHOLD: Only count as loss if percentGain is below threshold
+      const lost = ideas.filter((i) => {
+        if (i.outcomeStatus !== 'hit_stop') return false;
+        if (i.percentGain !== null && i.percentGain !== undefined) {
+          return i.percentGain <= -MIN_LOSS_THRESHOLD_PERCENT;
+        }
+        return true;
+      }).length;
+      // WIN RATE FIX: Only count decided trades (exclude expired and breakeven)
       const decided = won + lost;
       const rate = decided > 0 ? (won / decided) * 100 : 0;
       const avgGain = ideas.length > 0
@@ -1626,10 +1676,26 @@ export class DatabaseStorage implements IStorage {
     const openIdeas = allIdeas.filter(i => i.outcomeStatus === 'open');
     const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open');
     const wonIdeas = closedIdeas.filter(i => i.outcomeStatus === 'hit_target');
-    const lostIdeas = closedIdeas.filter(i => i.outcomeStatus === 'hit_stop');
+    // 🎯 MINIMUM LOSS THRESHOLD: Only count as loss if percentGain is below -3%
+    const lostIdeas = closedIdeas.filter(i => {
+      if (i.outcomeStatus !== 'hit_stop') return false;
+      if (i.percentGain !== null && i.percentGain !== undefined) {
+        return i.percentGain <= -MIN_LOSS_THRESHOLD_PERCENT;
+      }
+      return true;
+    });
     const expiredIdeas = closedIdeas.filter(i => i.outcomeStatus === 'expired' || i.outcomeStatus === 'manual_exit');
 
     const calculateAvg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+    
+    // Helper function to filter real losses (above threshold)
+    const isRealLoss = (idea: TradeIdea) => {
+      if (idea.outcomeStatus !== 'hit_stop') return false;
+      if (idea.percentGain !== null && idea.percentGain !== undefined) {
+        return idea.percentGain <= -MIN_LOSS_THRESHOLD_PERCENT;
+      }
+      return true;
+    };
     
     const closedGains = closedIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
     const closedHoldingTimes = closedIdeas.filter(i => i.actualHoldingTimeMinutes !== null).map(i => i.actualHoldingTimeMinutes!);
@@ -1640,9 +1706,9 @@ export class DatabaseStorage implements IStorage {
       const sourceAllIdeas = allIdeas.filter(i => i.source === source);
       const sourceClosedIdeas = closedIdeas.filter(i => i.source === source);
       const sourceWon = sourceClosedIdeas.filter(i => i.outcomeStatus === 'hit_target');
-      const sourceLost = sourceClosedIdeas.filter(i => i.outcomeStatus === 'hit_stop');
+      const sourceLost = sourceClosedIdeas.filter(i => isRealLoss(i));
       const sourceGains = sourceClosedIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
-      // WIN RATE FIX: Only count decided trades (exclude expired)
+      // WIN RATE FIX: Only count decided trades (exclude expired and breakeven)
       const sourceDecided = sourceWon.length + sourceLost.length;
       
       return {
@@ -1661,9 +1727,9 @@ export class DatabaseStorage implements IStorage {
       const assetAllIdeas = allIdeas.filter(i => i.assetType === assetType);
       const assetClosedIdeas = closedIdeas.filter(i => i.assetType === assetType);
       const assetWon = assetClosedIdeas.filter(i => i.outcomeStatus === 'hit_target');
-      const assetLost = assetClosedIdeas.filter(i => i.outcomeStatus === 'hit_stop');
+      const assetLost = assetClosedIdeas.filter(i => isRealLoss(i));
       const assetGains = assetClosedIdeas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
-      // WIN RATE FIX: Only count decided trades (exclude expired)
+      // WIN RATE FIX: Only count decided trades (exclude expired and breakeven)
       const assetDecided = assetWon.length + assetLost.length;
       
       return {
@@ -1689,9 +1755,9 @@ export class DatabaseStorage implements IStorage {
 
     const bySignalType = Array.from(signalMap.entries()).map(([signal, ideas]) => {
       const signalWon = ideas.filter(i => i.outcomeStatus === 'hit_target');
-      const signalLost = ideas.filter(i => i.outcomeStatus === 'hit_stop');
+      const signalLost = ideas.filter(i => isRealLoss(i));
       const signalGains = ideas.filter(i => i.percentGain !== null).map(i => i.percentGain!);
-      // WIN RATE FIX: Only count decided trades (exclude expired)
+      // WIN RATE FIX: Only count decided trades (exclude expired and breakeven)
       const signalDecided = signalWon.length + signalLost.length;
       
       return {
