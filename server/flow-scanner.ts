@@ -492,9 +492,18 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   };
 }
 
+// DTE ranges by holding period for flow scanner filtering
+export const FLOW_DTE_RANGES: Record<string, { min: number; max: number; label: string }> = {
+  'day': { min: 0, max: 2, label: 'Today/Tomorrow (0-2 DTE)' },      // 0DTE, 1DTE
+  'swing': { min: 3, max: 14, label: 'Swing (3-14 DTE)' },            // ~1-2 weeks
+  'position': { min: 15, max: 60, label: 'Position (15-60 DTE)' },    // ~2 weeks to 2 months
+  'all': { min: 0, max: 540, label: 'All Expirations' }               // Everything
+};
+
 // Main flow scanner function
-export async function scanUnusualOptionsFlow(): Promise<InsertTradeIdea[]> {
-  logger.info(`📊 [FLOW] Starting unusual options flow scan on ${FLOW_SCAN_TICKERS.length} tickers...`);
+export async function scanUnusualOptionsFlow(holdingPeriod?: string): Promise<InsertTradeIdea[]> {
+  const dteRange = FLOW_DTE_RANGES[holdingPeriod || 'all'] || FLOW_DTE_RANGES['all'];
+  logger.info(`📊 [FLOW] Starting flow scan - ${dteRange.label} (DTE: ${dteRange.min}-${dteRange.max})`);
   
   // 🔒 MARKET HOURS CHECK: Only scan when market is open (data is stale otherwise)
   const marketStatus = isMarketOpen();
@@ -533,8 +542,16 @@ export async function scanUnusualOptionsFlow(): Promise<InsertTradeIdea[]> {
       scannedCount++;
       const currentPrice = quote.last;
 
-      // Detect unusual options
-      const unusualOptions = await detectUnusualOptions(ticker);
+      // Detect unusual options (with DTE filtering)
+      const allUnusualOptions = await detectUnusualOptions(ticker);
+      
+      // Filter by DTE range for selected holding period
+      const now = new Date();
+      const unusualOptions = allUnusualOptions.filter(opt => {
+        const expDate = new Date(opt.expiration);
+        const daysToExp = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return daysToExp >= dteRange.min && daysToExp <= dteRange.max;
+      });
       
       if (unusualOptions.length === 0) {
         continue;

@@ -3124,10 +3124,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Unusual Options Flow Scanner (Premium only)
   app.post("/api/flow/generate-ideas", quantGenerationLimiter, async (req, res) => {
     try {
-      logger.info('📊 [FLOW] Manual flow scan triggered');
+      const { holdingPeriod } = req.body || {};
+      logger.info(`📊 [FLOW] Manual flow scan triggered${holdingPeriod ? ` (holding period: ${holdingPeriod})` : ''}`);
       
-      // Scan for unusual options activity
-      const flowIdeas = await scanUnusualOptionsFlow();
+      // Scan for unusual options activity (filtered by holding period if specified)
+      const flowIdeas = await scanUnusualOptionsFlow(holdingPeriod);
       
       // Save ideas to storage with validation and send Discord alerts
       const savedIdeas = [];

@@ -268,15 +268,25 @@ export default function TradeDeskPage() {
   });
 
   const generateFlowIdeas = useMutation({
-    mutationFn: async () => {
-      return await apiRequest('POST', '/api/flow/generate-ideas', {});
+    mutationFn: async (targetTimeframe?: TimeframeBucket) => {
+      // Map timeframe bucket to holding period for flow scanner
+      const holdingPeriodMap: Record<TimeframeBucket, string | undefined> = {
+        'all': undefined,
+        'today_tomorrow': 'day',
+        'few_days': 'swing',
+        'next_week': 'swing',
+        'next_month': 'position',
+      };
+      const holdingPeriod = holdingPeriodMap[targetTimeframe || 'all'];
+      return await apiRequest('POST', '/api/flow/generate-ideas', { holdingPeriod });
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
+      const timeframeLabel = activeTimeframe !== 'all' ? TIMEFRAME_LABELS[activeTimeframe] : 'All';
       toast({
         title: "Flow Scanner Complete",
-        description: data.message || `Scanned 20 tickers, generated ${data.count || 0} flow trades`,
+        description: data.message || `Scanned ${timeframeLabel} options, found ${data.count || 0} flow trades`,
       });
     },
     onError: (error: any) => {
@@ -667,12 +677,12 @@ export default function TradeDeskPage() {
             {/* Options Focused */}
             <div className="px-2 py-1.5 text-xs text-muted-foreground">Options</div>
             <DropdownMenuItem
-              onClick={() => generateFlowIdeas.mutate()}
+              onClick={() => generateFlowIdeas.mutate(activeTimeframe)}
               disabled={generateFlowIdeas.isPending}
               data-testid="menu-generate-flow"
             >
               <Activity className="h-4 w-4 mr-2" />
-              Flow Scanner
+              Flow Scanner {activeTimeframe !== 'all' && `(${TIMEFRAME_LABELS[activeTimeframe]})`}
               <span className="ml-auto text-[10px] text-muted-foreground">+ Lotto</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
