@@ -270,6 +270,22 @@ const TIMEFRAME_OPTIONS = [
   { value: "1M", label: "Monthly" },
 ];
 
+// Calculate how long a chart analysis remains valid based on timeframe
+function getAnalysisValidity(timeframe: string): { duration: string; warning: string; hoursValid: number } {
+  const validityMap: Record<string, { duration: string; warning: string; hoursValid: number }> = {
+    "1m": { duration: "15-30 min", warning: "Ultra short-term, re-analyze frequently", hoursValid: 0.5 },
+    "5m": { duration: "1-2 hours", warning: "Short-term scalping window", hoursValid: 1.5 },
+    "15m": { duration: "2-4 hours", warning: "Intraday trading window", hoursValid: 3 },
+    "30m": { duration: "4-8 hours", warning: "Half-day trading window", hoursValid: 6 },
+    "1H": { duration: "8-24 hours", warning: "Good for day trades", hoursValid: 16 },
+    "4H": { duration: "1-3 days", warning: "Swing trade window", hoursValid: 48 },
+    "1D": { duration: "1-2 weeks", warning: "Position trade window", hoursValid: 240 },
+    "1W": { duration: "2-4 weeks", warning: "Longer-term outlook", hoursValid: 504 },
+    "1M": { duration: "1-3 months", warning: "Strategic positioning", hoursValid: 1440 },
+  };
+  return validityMap[timeframe] || validityMap["1D"];
+}
+
 export default function ChartAnalysis() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -852,7 +868,7 @@ export default function ChartAnalysis() {
                   <CardContent className="pt-4">
                     <TabsContent value="ai" className="mt-0 space-y-4">
                       {/* Visual Graphics Row */}
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-3 gap-4">
                         {/* Predicted Trend */}
                         <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
                           <Label className="text-xs text-muted-foreground mb-2 block">Predicted Trend</Label>
@@ -870,6 +886,25 @@ export default function ChartAnalysis() {
                             value={analysisResult.confidence} 
                             sentiment={analysisResult.sentiment}
                           />
+                        </div>
+                        
+                        {/* Analysis Validity */}
+                        <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
+                          <Label className="text-xs text-muted-foreground mb-2 block text-center">Valid For</Label>
+                          <div className="text-center" data-testid="validity-indicator">
+                            <div className="flex items-center justify-center gap-1.5 mb-1">
+                              <Clock className="h-4 w-4 text-amber-500" />
+                              <span className="text-lg font-bold text-foreground" data-testid="text-validity-duration">
+                                {getAnalysisValidity(timeframe).duration}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground" data-testid="text-validity-warning">
+                              {getAnalysisValidity(timeframe).warning}
+                            </p>
+                            <Badge variant="outline" className="mt-2 text-xs" data-testid="badge-timeframe-display">
+                              {timeframe} Chart
+                            </Badge>
+                          </div>
                         </div>
                       </div>
                       
