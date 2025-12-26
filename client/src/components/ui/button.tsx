@@ -5,25 +5,28 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0" +
-  " hover-elevate active-elevate-2",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-semibold tracking-tight transition-all duration-100 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-40 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 select-none active:scale-[0.98]",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground border border-primary-border shadow-sm",
+          "bg-primary text-primary-foreground rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.1)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.15)] active:shadow-[0_0px_1px_rgba(0,0,0,0.2)]",
         destructive:
-          "bg-destructive text-destructive-foreground border border-destructive-border shadow-sm",
+          "bg-destructive text-destructive-foreground rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.1)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.2)]",
         outline:
-          "border [border-color:var(--button-outline)] shadow-sm hover:shadow-none",
-        secondary: "bg-secondary text-secondary-foreground border border-secondary-border shadow-sm",
-        ghost: "border border-transparent",
+          "border-2 border-border/60 bg-transparent hover-elevate hover:border-border rounded-lg",
+        secondary: 
+          "bg-secondary text-secondary-foreground rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.08)] hover-elevate",
+        ghost: 
+          "hover-elevate rounded-lg",
+        success:
+          "bg-green-600 text-white rounded-lg shadow-[0_1px_2px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.1)] hover-elevate",
       },
       size: {
-        default: "min-h-9 px-4 py-2",
-        sm: "min-h-8 rounded-md px-3 text-xs",
-        lg: "min-h-10 rounded-md px-8",
-        icon: "h-9 w-9",
+        default: "min-h-9 px-5 py-2",
+        sm: "min-h-8 px-3 text-xs rounded-md",
+        lg: "min-h-10 px-8 text-base rounded-lg",
+        icon: "h-9 w-9 rounded-lg",
       },
     },
     defaultVariants: {
