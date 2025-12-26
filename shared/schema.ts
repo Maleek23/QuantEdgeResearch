@@ -442,6 +442,57 @@ export const insertDailyUsageSchema = createInsertSchema(dailyUsage).omit({ id: 
 export type InsertDailyUsage = z.infer<typeof insertDailyUsageSchema>;
 export type DailyUsage = typeof dailyUsage.$inferSelect;
 
+// Active Trade Position Status
+export type ActiveTradeStatus = 'open' | 'closed' | 'expired';
+
+// Active Trades - Live position tracking for real-time P&L monitoring
+export const activeTrades = pgTable("active_trades", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  
+  // Position Details
+  symbol: text("symbol").notNull(),
+  assetType: text("asset_type").notNull().$type<AssetType>(),
+  direction: text("direction").notNull(), // 'long' | 'short'
+  
+  // Option-specific fields
+  optionType: text("option_type"), // 'call' | 'put'
+  strikePrice: real("strike_price"),
+  expiryDate: text("expiry_date"), // YYYY-MM-DD
+  
+  // Entry Details
+  entryPrice: real("entry_price").notNull(), // Price paid for option/stock
+  quantity: integer("quantity").notNull().default(1), // Number of contracts/shares
+  entryTime: text("entry_time").notNull(), // ISO timestamp
+  
+  // Targets & Stops
+  targetPrice: real("target_price"),
+  stopLoss: real("stop_loss"),
+  
+  // Live Tracking
+  currentPrice: real("current_price"), // Last fetched price
+  lastPriceUpdate: text("last_price_update"), // When price was last updated
+  unrealizedPnL: real("unrealized_pnl"), // Current P&L in dollars
+  unrealizedPnLPercent: real("unrealized_pnl_percent"), // Current P&L as %
+  
+  // Exit Details
+  status: text("status").$type<ActiveTradeStatus>().notNull().default('open'),
+  exitPrice: real("exit_price"),
+  exitTime: text("exit_time"),
+  realizedPnL: real("realized_pnl"),
+  realizedPnLPercent: real("realized_pnl_percent"),
+  
+  // Notes
+  notes: text("notes"),
+  linkedTradeIdeaId: varchar("linked_trade_idea_id"), // Optional link to a trade idea
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertActiveTradeSchema = createInsertSchema(activeTrades).omit({ id: true, createdAt: true });
+export type InsertActiveTrade = z.infer<typeof insertActiveTradeSchema>;
+export type ActiveTrade = typeof activeTrades.$inferSelect;
+
 // Position Calculation Interface (not stored, just for calculations)
 export interface PositionCalculation {
   symbol: string;
