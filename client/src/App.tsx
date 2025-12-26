@@ -31,6 +31,7 @@ import Academy from "@/pages/academy";
 import Blog from "@/pages/blog";
 import TradingRules from "@/pages/trading-rules";
 import Pricing from "@/pages/pricing";
+import LiveTrading from "@/pages/live-trading";
 import NotFound from "@/pages/not-found";
 function Router() {
   return (
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/trade-desk" component={TradeDeskPage} />
+      <Route path="/live-trading" component={LiveTrading} />
       <Route path="/chart-analysis" component={ChartAnalysis} />
       <Route path="/performance" component={PerformancePage} />
       <Route path="/market" component={MarketPage} />

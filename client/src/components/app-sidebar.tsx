@@ -1,4 +1,4 @@
-import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sun, Moon, Upload, BookOpen, Home, CreditCard, ExternalLink, User } from "lucide-react";
+import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sun, Moon, Upload, BookOpen, Home, CreditCard, ExternalLink, User, Activity } from "lucide-react";
 import { useLocation } from "wouter";
 import {
   Sidebar,
@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 const mainItems = [
   { title: "Home", url: "/home", icon: Home },
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
+  { title: "Live Trading", url: "/live-trading", icon: Activity },
   { title: "Trading Rules", url: "/trading-rules", icon: BookOpen },
 ];
 
