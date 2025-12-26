@@ -126,65 +126,174 @@ function TrendArrow({ sentiment, confidence, gainPercent }: {
   const color = isBullish ? "#22c55e" : isBearish ? "#ef4444" : "#f59e0b";
   
   return (
-    <div className="relative h-24 flex items-center justify-center" data-testid="visual-trend-arrow">
-      <svg viewBox="0 0 120 80" className="w-full h-full max-w-[200px]" role="img" aria-label={`${sentiment} trend prediction`}>
+    <div className="flex items-center gap-3" data-testid="visual-trend-arrow">
+      <svg viewBox="0 0 80 60" className="w-16 h-12 flex-shrink-0" role="img" aria-label={`${sentiment} trend prediction`}>
         {isBullish && (
           <>
             <path
-              d="M 20 60 Q 50 50 80 30 L 100 25"
+              d="M 10 45 Q 30 38 50 25 L 68 15"
               fill="none"
               stroke={color}
               strokeWidth="3"
               strokeLinecap="round"
-              className="opacity-80"
             />
-            <polygon
-              points="100,15 110,25 100,35 100,28 95,25 100,22"
-              fill={color}
-            />
-            <circle cx="20" cy="60" r="4" fill={color} className="opacity-60" />
+            <polygon points="68,8 75,15 68,22" fill={color} />
+            <circle cx="10" cy="45" r="4" fill={color} className="opacity-60" />
           </>
         )}
         {isBearish && (
           <>
             <path
-              d="M 20 25 Q 50 35 80 55 L 100 60"
+              d="M 10 15 Q 30 22 50 35 L 68 45"
               fill="none"
               stroke={color}
               strokeWidth="3"
               strokeLinecap="round"
-              className="opacity-80"
             />
-            <polygon
-              points="100,50 110,60 100,70 100,63 95,60 100,57"
-              fill={color}
-            />
-            <circle cx="20" cy="25" r="4" fill={color} className="opacity-60" />
+            <polygon points="68,38 75,45 68,52" fill={color} />
+            <circle cx="10" cy="15" r="4" fill={color} className="opacity-60" />
           </>
         )}
         {!isBullish && !isBearish && (
           <>
             <path
-              d="M 20 40 Q 50 35 80 42 L 100 40"
+              d="M 10 30 Q 30 28 50 32 L 68 30"
               fill="none"
               stroke={color}
               strokeWidth="3"
               strokeLinecap="round"
-              className="opacity-80"
             />
-            <polygon
-              points="100,32 110,40 100,48 100,43 95,40 100,37"
-              fill={color}
-            />
-            <circle cx="20" cy="40" r="4" fill={color} className="opacity-60" />
+            <polygon points="68,23 75,30 68,37" fill={color} />
+            <circle cx="10" cy="30" r="4" fill={color} className="opacity-60" />
           </>
         )}
       </svg>
-      <div className="absolute right-2 top-1/2 -translate-y-1/2 text-right">
-        <span className="text-lg font-bold" style={{ color }} data-testid="text-expected-move">
+      <div className="text-right flex-1">
+        <span className="text-2xl font-bold block" style={{ color }} data-testid="text-expected-move">
           {isBullish ? "+" : isBearish ? "-" : "±"}{Math.abs(gainPercent).toFixed(1)}%
         </span>
         <p className="text-xs text-muted-foreground">Expected</p>
+      </div>
+    </div>
+  );
+}
+
+// Predicted price path mini chart
+function PredictedPathChart({ 
+  entry, target, stop, sentiment, timeframe 
+}: { 
+  entry: number; 
+  target: number; 
+  stop: number; 
+  sentiment: "bullish" | "bearish" | "neutral";
+  timeframe: string;
+}) {
+  const isBullish = sentiment === "bullish";
+  const isBearish = sentiment === "bearish";
+  
+  // Normalize price levels to chart coordinates (0-100 scale)
+  const prices = [stop, entry, target];
+  const minPrice = Math.min(...prices) * 0.995;
+  const maxPrice = Math.max(...prices) * 1.005;
+  const range = maxPrice - minPrice || 1;
+  
+  const normalize = (price: number) => 90 - ((price - minPrice) / range) * 80; // Invert for SVG coords
+  
+  const entryY = normalize(entry);
+  const targetY = normalize(target);
+  const stopY = normalize(stop);
+  
+  // Generate path points for predicted movement
+  const pathColor = isBullish ? "#22c55e" : isBearish ? "#ef4444" : "#f59e0b";
+  const stopColor = "#ef4444";
+  const targetColor = "#22c55e";
+  
+  // Create a realistic looking price path
+  const generatePath = () => {
+    if (isBullish) {
+      // Bullish: start at entry, small dip, then rise to target
+      return `M 15 ${entryY} Q 25 ${entryY + 5} 35 ${entryY - 3} Q 50 ${entryY - 10} 65 ${(entryY + targetY) / 2} Q 80 ${targetY + 5} 90 ${targetY}`;
+    } else if (isBearish) {
+      // Bearish: start at entry, small bump, then fall to target
+      return `M 15 ${entryY} Q 25 ${entryY - 5} 35 ${entryY + 3} Q 50 ${entryY + 10} 65 ${(entryY + targetY) / 2} Q 80 ${targetY - 5} 90 ${targetY}`;
+    }
+    // Neutral: sideways movement
+    return `M 15 ${entryY} Q 35 ${entryY - 3} 55 ${entryY + 3} Q 75 ${entryY - 2} 90 ${entryY}`;
+  };
+
+  return (
+    <div className="space-y-2" data-testid="visual-predicted-chart">
+      <svg viewBox="0 0 100 100" className="w-full h-32" role="img" aria-label="Predicted price movement chart">
+        <defs>
+          <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor={pathColor} stopOpacity="0.3" />
+            <stop offset="100%" stopColor={pathColor} stopOpacity="1" />
+          </linearGradient>
+        </defs>
+        
+        {/* Grid lines */}
+        <line x1="10" y1="10" x2="10" y2="90" stroke="currentColor" strokeOpacity="0.1" strokeWidth="0.5" />
+        <line x1="10" y1="90" x2="95" y2="90" stroke="currentColor" strokeOpacity="0.1" strokeWidth="0.5" />
+        
+        {/* Stop loss zone (dashed red line) */}
+        <line 
+          x1="10" y1={stopY} x2="95" y2={stopY} 
+          stroke={stopColor} 
+          strokeWidth="1" 
+          strokeDasharray="3,3"
+          strokeOpacity="0.5"
+        />
+        
+        {/* Target zone (dashed green line) */}
+        <line 
+          x1="10" y1={targetY} x2="95" y2={targetY} 
+          stroke={targetColor} 
+          strokeWidth="1" 
+          strokeDasharray="3,3"
+          strokeOpacity="0.5"
+        />
+        
+        {/* Entry line (blue) */}
+        <line 
+          x1="10" y1={entryY} x2="95" y2={entryY} 
+          stroke="#3b82f6" 
+          strokeWidth="1" 
+          strokeDasharray="2,2"
+          strokeOpacity="0.4"
+        />
+        
+        {/* Predicted price path */}
+        <path
+          d={generatePath()}
+          fill="none"
+          stroke="url(#pathGradient)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          className="transition-all duration-700"
+        />
+        
+        {/* Entry point marker */}
+        <circle cx="15" cy={entryY} r="3" fill="#3b82f6" />
+        
+        {/* Target point marker */}
+        <circle cx="90" cy={targetY} r="3" fill={pathColor} />
+        
+        {/* Labels */}
+        <text x="97" y={stopY + 1} className="text-[6px] fill-red-500" textAnchor="start">Stop</text>
+        <text x="97" y={entryY + 1} className="text-[6px] fill-blue-500" textAnchor="start">Entry</text>
+        <text x="97" y={targetY + 1} className="text-[6px] fill-green-500" textAnchor="start">Target</text>
+      </svg>
+      
+      {/* Price labels */}
+      <div className="flex justify-between text-xs">
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-full bg-blue-500" />
+          <span className="text-muted-foreground">Now</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: pathColor }} />
+          <span className="text-muted-foreground">{getAnalysisValidity(timeframe).duration}</span>
+        </div>
       </div>
     </div>
   );
@@ -906,6 +1015,18 @@ export default function ChartAnalysis() {
                             </Badge>
                           </div>
                         </div>
+                      </div>
+                      
+                      {/* Predicted Path Chart */}
+                      <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
+                        <Label className="text-xs text-muted-foreground mb-3 block">Predicted Price Path</Label>
+                        <PredictedPathChart 
+                          entry={analysisResult.entryPoint}
+                          target={analysisResult.targetPrice}
+                          stop={analysisResult.stopLoss}
+                          sentiment={analysisResult.sentiment}
+                          timeframe={timeframe}
+                        />
                       </div>
                       
                       {/* Signal Balance Meter */}
