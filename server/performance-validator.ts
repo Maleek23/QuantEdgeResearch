@@ -3,8 +3,9 @@ import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 
 // 🎯 MINIMUM LOSS THRESHOLD: Losses below this are treated as "breakeven"
-// Prevents tiny stop-outs from noise (0.1%, 0.4%) counting as real losses
-const MIN_LOSS_THRESHOLD_PERCENT = 1.0; // 1% minimum to count as a real loss
+// Aligns with platform stop-loss rules: stocks=3.5%, crypto=5%
+// Losses under 3% are likely noise/tight stops, not proper stop-loss hits
+const MIN_LOSS_THRESHOLD_PERCENT = 3.0; // 3% minimum to count as a real loss
 
 interface ValidationResult {
   shouldUpdate: boolean;
