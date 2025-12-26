@@ -4080,6 +4080,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         symbol: "NVDA",
         assetType: "option" as const,
         optionType: "call" as const,
+        strikePrice: 145,
+        expiryDate: "01/17",
         direction: "long" as const,
         holdingPeriod: "day" as const,
         entryPrice: 4.50,
@@ -4102,6 +4104,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         symbol: "TSLA",
         assetType: "option" as const,
         optionType: "put" as const,
+        strikePrice: 400,
+        expiryDate: "01/24",
         direction: "short" as const,
         holdingPeriod: "day" as const,
         entryPrice: 3.20,
@@ -4155,6 +4159,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error: any) {
       logger.error("Failed to send test Discord alerts:", error);
+      res.status(500).json({ error: error?.message || "Failed to send test alerts" });
+    }
+  });
+
+  // Test Discord watchlist alert (admin only)
+  app.post("/api/admin/test-watchlist-discord", async (req, res) => {
+    try {
+      const { sendDiscordAlert } = await import("./discord-service");
+      
+      // Test stock watchlist alert
+      await sendDiscordAlert({
+        symbol: "AAPL",
+        assetType: "stock",
+        alertType: "entry",
+        currentPrice: 248.50,
+        alertPrice: 250.00,
+        percentFromTarget: -0.6,
+        notes: "Approaching buy zone",
+      });
+      
+      await new Promise(r => setTimeout(r, 500));
+      
+      // Test option watchlist alert with strike and expiry
+      await sendDiscordAlert({
+        symbol: "SPY",
+        assetType: "option",
+        alertType: "target",
+        currentPrice: 12.50,
+        alertPrice: 10.00,
+        percentFromTarget: 25.0,
+        optionType: "call",
+        strike: 600,
+        expiry: "01/31",
+        notes: "Profit target reached!",
+      });
+      
+      await new Promise(r => setTimeout(r, 500));
+      
+      // Test crypto watchlist alert
+      await sendDiscordAlert({
+        symbol: "ETH",
+        assetType: "crypto",
+        alertType: "stop",
+        currentPrice: 3280.00,
+        alertPrice: 3300.00,
+        percentFromTarget: -0.6,
+      });
+      
+      res.json({ 
+        success: true, 
+        message: "Sent 3 watchlist alerts: Stock entry, Option target, Crypto stop" 
+      });
+    } catch (error: any) {
+      logger.error("Failed to send test watchlist alerts:", error);
       res.status(500).json({ error: error?.message || "Failed to send test alerts" });
     }
   });

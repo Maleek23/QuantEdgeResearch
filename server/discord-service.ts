@@ -37,16 +37,17 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
                      idea.source === 'hybrid' ? '🎯 Hybrid (AI+Quant)' :
                      '📝 Manual';
   
-  // Asset type with clear labeling
+  // Asset type with clear labeling - for options show TYPE STRIKE EXPIRY
   let assetLabel: string;
   if (idea.assetType === 'option') {
-    // For options: show CALL or PUT prominently
     const optionType = idea.optionType?.toUpperCase() || 'OPTION';
-    assetLabel = `🎯 ${optionType} Option`;
+    const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
+    const expiry = idea.expiryDate || '';
+    // Format: "CALL $150 01/17" all on one line
+    assetLabel = `🎯 ${optionType} ${strike} ${expiry}`.trim();
   } else if (idea.assetType === 'crypto') {
     assetLabel = '₿ Crypto';
   } else {
-    // For stocks: show "Shares"
     assetLabel = '📈 Shares';
   }
   
@@ -94,7 +95,7 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
       {
         name: '📋 Type',
         value: idea.assetType === 'option' 
-          ? `${(idea.optionType || 'option').toUpperCase()} Option` 
+          ? `${(idea.optionType || 'option').toUpperCase()}${idea.strikePrice ? ` $${idea.strikePrice}` : ''}${idea.expiryDate ? ` ${idea.expiryDate}` : ''}`
           : idea.assetType === 'crypto' 
             ? 'Crypto' 
             : 'Shares',
@@ -178,6 +179,10 @@ export async function sendDiscordAlert(alert: {
   alertPrice: number;
   percentFromTarget: number;
   notes?: string;
+  // Option-specific fields
+  optionType?: string;
+  strike?: number;
+  expiry?: string;
 }): Promise<void> {
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
@@ -194,40 +199,63 @@ export async function sendDiscordAlert(alert: {
                   alert.alertType === 'stop' ? 0xff0000 : // Red for stop
                   0x0099ff; // Blue for target
     
+    // Format asset type label clearly
+    let assetLabel: string;
+    let optionDetails = '';
+    if (alert.assetType === 'option' && alert.optionType) {
+      // For options: show TYPE STRIKE EXPIRY on one line
+      const typeStr = alert.optionType.toUpperCase();
+      const strikeStr = alert.strike ? `$${alert.strike}` : '';
+      const expiryStr = alert.expiry || '';
+      optionDetails = `${typeStr} ${strikeStr} ${expiryStr}`.trim();
+      assetLabel = `🎯 ${optionDetails}`;
+    } else if (alert.assetType === 'crypto') {
+      assetLabel = '₿ Crypto';
+    } else {
+      assetLabel = '📈 Shares';
+    }
+    
+    // Format prices appropriately (fewer decimals for stocks)
+    const priceDecimals = alert.assetType === 'crypto' && alert.currentPrice < 1 ? 6 : 2;
+    
     const embed: DiscordEmbed = {
-      title: `${alertEmoji} WATCHLIST ALERT: ${alert.symbol}`,
-      description: `**${alertTitle}**\n${alert.notes || 'Price alert triggered'}`,
+      title: `${alertEmoji} ${alert.symbol} ${assetLabel}`,
+      description: `**${alertTitle}**`,
       color,
       fields: [
         {
-          name: '💰 Current Price',
-          value: `$${alert.currentPrice.toFixed(4)}`,
+          name: '💰 Current',
+          value: `$${alert.currentPrice.toFixed(priceDecimals)}`,
           inline: true
         },
         {
-          name: '🎯 Alert Price',
-          value: `$${alert.alertPrice.toFixed(4)}`,
+          name: '🎯 Alert At',
+          value: `$${alert.alertPrice.toFixed(priceDecimals)}`,
           inline: true
         },
         {
-          name: '📊 Asset Type',
-          value: alert.assetType.toUpperCase(),
-          inline: true
-        },
-        {
-          name: '📈 Distance from Target',
+          name: '📊 Distance',
           value: `${alert.percentFromTarget > 0 ? '+' : ''}${alert.percentFromTarget.toFixed(2)}%`,
           inline: true
         }
       ],
       timestamp: new Date().toISOString(),
       footer: {
-        text: `QuantEdge Watchlist Monitor • ${alert.assetType === 'crypto' ? '24/7 Crypto' : 'Market Hours'}`
+        text: `QuantEdge Watchlist • ${alert.assetType === 'crypto' ? '24/7' : 'Market Hours'}`
       }
     };
     
+    // Add notes if present and not just default text
+    if (alert.notes && !alert.notes.includes('symbol search') && alert.notes !== 'Watchlist alert triggered') {
+      embed.fields.push({
+        name: '📝 Notes',
+        value: alert.notes.substring(0, 100),
+        inline: false
+      });
+    }
+    
     const message: DiscordMessage = {
-      content: `${alertEmoji} **WATCHLIST PRICE ALERT: ${alert.symbol}** ${alertEmoji}`,
+      content: `${alertEmoji} **WATCHLIST: ${alert.symbol}** ${assetLabel}`,
       embeds: [embed]
     };
     
@@ -270,10 +298,13 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
                  COLORS.QUANT;
     
     const summary = ideas.map(idea => {
-      // Clear asset type label
+      // Clear asset type label - for options show TYPE STRIKE EXPIRY
       let typeLabel: string;
       if (idea.assetType === 'option') {
-        typeLabel = idea.optionType ? `${idea.optionType.toUpperCase()} Option` : 'Option';
+        const optType = idea.optionType?.toUpperCase() || 'OPT';
+        const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
+        const exp = idea.expiryDate || '';
+        typeLabel = `${optType} ${strike} ${exp}`.trim();
       } else if (idea.assetType === 'crypto') {
         typeLabel = 'Crypto';
       } else {
@@ -445,14 +476,16 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
       return;
     }
     
-    // Format top ideas with clear asset type labels
+    // Format top ideas with clear asset type labels - for options show TYPE STRIKE EXPIRY
     const ideaList = topIdeas.map((idea, i) => {
       const emoji = idea.direction === 'long' ? '🟢' : '🔴';
       const sourceIcon = idea.source === 'ai' ? '🧠' : idea.source === 'quant' ? '✨' : idea.source === 'hybrid' ? '🎯' : '📊';
-      // Clear asset type label
       let typeLabel: string;
       if (idea.assetType === 'option') {
-        typeLabel = idea.optionType ? `${idea.optionType.toUpperCase()}` : 'OPT';
+        const optType = idea.optionType?.toUpperCase() || 'OPT';
+        const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
+        const exp = idea.expiryDate || '';
+        typeLabel = `${optType} ${strike} ${exp}`.trim();
       } else if (idea.assetType === 'crypto') {
         typeLabel = 'CRYPTO';
       } else {
