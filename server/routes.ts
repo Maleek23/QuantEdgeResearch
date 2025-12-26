@@ -2312,10 +2312,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allIdeas = await storage.getAllTradeIdeas();
       
       // Filter: only auto-resolved trades + optional engine filter
-      let filteredIdeas = allIdeas.filter(idea => 
-        idea.resolutionReason === 'auto_target_hit' || 
-        idea.resolutionReason === 'auto_stop_hit'
-      );
+      // Also filter out trades with synthetic exit timestamps (exactly 12:00:00)
+      let filteredIdeas = allIdeas.filter(idea => {
+        // Must be auto-resolved
+        if (idea.resolutionReason !== 'auto_target_hit' && idea.resolutionReason !== 'auto_stop_hit') {
+          return false;
+        }
+        
+        // Must have a valid exitDate (not null)
+        if (!idea.exitDate) {
+          return false;
+        }
+        
+        // Filter out synthetic 12:00:00 timestamps
+        // These are likely placeholder values, not real exit times
+        try {
+          const exitDate = new Date(idea.exitDate);
+          const exitHour = exitDate.getUTCHours();
+          const exitMinute = exitDate.getUTCMinutes();
+          const exitSecond = exitDate.getUTCSeconds();
+          
+          // Also check in ET timezone
+          const etTimeStr = formatInTimeZone(exitDate, 'America/New_York', 'HH:mm:ss');
+          const isSyntheticET = etTimeStr === '12:00:00';
+          
+          // Filter out if exactly 12:00:00 UTC or 12:00:00 ET (likely synthetic)
+          if ((exitHour === 12 && exitMinute === 0 && exitSecond === 0) || isSyntheticET) {
+            return false;
+          }
+        } catch {
+          // If we can't parse the exit date, exclude it
+          return false;
+        }
+        
+        return true;
+      });
       
       if (engine) {
         filteredIdeas = filteredIdeas.filter(idea => idea.source === engine);

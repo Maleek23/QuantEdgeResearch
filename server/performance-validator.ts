@@ -31,33 +31,38 @@ export class PerformanceValidator {
    */
   private static parseExitByDate(exitByString: string, tradeCreatedAt: Date): Date | null {
     try {
-      // Remove "or Expiry" suffix if present
-      const cleanedString = exitByString.replace(/\s+or\s+Expiry$/i, '').trim();
+      // Strip surrounding quotes if present (some DB values have them)
+      let cleanedString = exitByString.replace(/^["']|["']$/g, '').trim();
       
-      // Try standard parsing first (handles ISO dates)
+      // Remove "or Expiry" suffix if present
+      cleanedString = cleanedString.replace(/\s+or\s+Expiry$/i, '').trim();
+      
+      // Try standard parsing first (handles ISO dates like "2025-10-22T15:57:36.995Z")
       let exitByDate = new Date(cleanedString);
       if (!isNaN(exitByDate.getTime())) {
         return exitByDate;
       }
       
-      // Parse human-readable format: "Oct 22, 10:28 AM CST"
-      // Regex: (Month) (Day), (Time) (AM/PM) (Timezone?)
-      const match = cleanedString.match(/^(\w{3})\s+(\d{1,2}),\s+(\d{1,2}):(\d{2})\s+(AM|PM)/i);
+      // Parse human-readable format: "Oct 22, 10:28 AM CST" or "Oct 22, 10:28 AM ET"
+      // Regex captures: (Month) (Day), (Hour):(Min) (AM/PM) (optional Timezone)
+      const match = cleanedString.match(/^(\w{3})\s+(\d{1,2}),\s+(\d{1,2}):(\d{2})\s+(AM|PM)(?:\s+(\w+))?/i);
       
       if (!match) {
-        return null; // Can't parse
+        console.warn(`[parseExitByDate] Failed to parse: "${exitByString}"`);
+        return null;
       }
       
-      const [, monthStr, dayStr, hourStr, minuteStr, ampm] = match;
+      const [, monthStr, dayStr, hourStr, minuteStr, ampm, tzStr] = match;
       
-      // Convert month abbreviation to number (0-indexed)
-      const monthMap: Record<string, number> = {
-        Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-        Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
+      // Convert month abbreviation to number (0-indexed) - case insensitive
+      const monthMapLower: Record<string, number> = {
+        jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+        jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
       };
       
-      const month = monthMap[monthStr];
+      const month = monthMapLower[monthStr.toLowerCase()];
       if (month === undefined) {
+        console.warn(`[parseExitByDate] Unknown month: "${monthStr}"`);
         return null;
       }
       
@@ -72,40 +77,91 @@ export class PerformanceValidator {
         hour = 0;
       }
       
-      // CRITICAL FIX: Build date string in ISO format and parse
-      // The Date constructor is behaving weirdly with UTC, so let's use a string instead
-      const currentYear = new Date().getFullYear();
+      // 🔧 FIX: Use the trade's year, not current year
+      const tradeYear = tradeCreatedAt.getFullYear();
       
-      // Build ISO date string: "2025-10-22T16:28:00-06:00" (CST)
-      // Month is 0-indexed in Date constructor but 1-indexed in ISO string
+      // Determine which year to use by comparing against trade timestamp ± 36 hours
+      // Most trades exit within 36 hours of creation - use this window for year inference
+      let exitYear = tradeYear;
+      
+      // Build a candidate date in the trade's year first
+      const candidateInTradeYear = new Date(tradeYear, month, day, hour, minute);
+      const candidateInNextYear = new Date(tradeYear + 1, month, day, hour, minute);
+      
+      // Calculate time difference from trade creation (in hours)
+      const diffTradeYear = Math.abs(candidateInTradeYear.getTime() - tradeCreatedAt.getTime()) / (1000 * 60 * 60);
+      const diffNextYear = Math.abs(candidateInNextYear.getTime() - tradeCreatedAt.getTime()) / (1000 * 60 * 60);
+      
+      // Use the year that puts the exit date closest to trade timestamp within a reasonable window
+      // If trade year candidate is within 36 hours, use it; otherwise check next year
+      if (diffTradeYear <= 36) {
+        exitYear = tradeYear;
+      } else if (diffNextYear <= 36) {
+        exitYear = tradeYear + 1;
+      } else {
+        // Both are far from trade date - pick the closer one that's in the future relative to trade
+        if (candidateInTradeYear >= tradeCreatedAt) {
+          exitYear = tradeYear;
+        } else if (candidateInNextYear >= tradeCreatedAt) {
+          exitYear = tradeYear + 1;
+        } else {
+          // Fallback: use trade year
+          exitYear = tradeYear;
+        }
+      }
+      
+      // 🔧 FIX: Parse timezone from string and use correct offset
+      // CST = Central Standard Time (UTC-6)
+      // CDT = Central Daylight Time (UTC-5)
+      // EST = Eastern Standard Time (UTC-5)
+      // EDT = Eastern Daylight Time (UTC-4)
+      // ET = Eastern Time (could be EST or EDT, assume standard for safety)
+      const tzOffsets: Record<string, string> = {
+        'CST': '-06:00',
+        'CDT': '-05:00',
+        'EST': '-05:00',
+        'EDT': '-04:00',
+        'ET': '-05:00',  // Default to EST
+        'CT': '-06:00',  // Default to CST
+        'PST': '-08:00',
+        'PDT': '-07:00',
+        'PT': '-08:00',  // Default to PST
+      };
+      
+      const tzOffset = tzOffsets[tzStr?.toUpperCase()] || '-05:00'; // Default to ET (Eastern Time)
+      
+      // Build ISO date string
       const isoMonth = String(month + 1).padStart(2, '0');
       const isoDay = String(day).padStart(2, '0');
       const isoHour = String(hour).padStart(2, '0');
       const isoMinute = String(minute).padStart(2, '0');
       
-      // CST = UTC-6, CDT = UTC-5
-      const tzOffset = '-06:00'; // Using CST for consistency
-      
-      // Create ISO date string
-      const isoString = `${currentYear}-${isoMonth}-${isoDay}T${isoHour}:${isoMinute}:00${tzOffset}`;
+      const isoString = `${exitYear}-${isoMonth}-${isoDay}T${isoHour}:${isoMinute}:00${tzOffset}`;
       
       exitByDate = new Date(isoString);
       
-      // Validate the result
       if (isNaN(exitByDate.getTime())) {
-        console.error(`Failed to parse ISO date: ${isoString}`);
+        console.error(`[parseExitByDate] Failed to parse ISO date: ${isoString}`);
         return null;
       }
       
-      // If the parsed date is more than 6 months in the past, it's probably next year
-      const sixMonthsAgo = new Date(Date.now() - (6 * 30 * 24 * 60 * 60 * 1000));
-      if (exitByDate < sixMonthsAgo) {
-        const nextYearIsoString = `${currentYear + 1}-${isoMonth}-${isoDay}T${isoHour}:${isoMinute}:00${tzOffset}`;
-        exitByDate = new Date(nextYearIsoString);
+      // Sanity check: exitBy should be after trade creation (or within a reasonable window before for pre-market)
+      const maxDaysBeforeTrade = 1; // Allow 1 day before trade creation for pre-market ideas
+      const minValidDate = new Date(tradeCreatedAt.getTime() - (maxDaysBeforeTrade * 24 * 60 * 60 * 1000));
+      
+      if (exitByDate < minValidDate) {
+        // Exit date is way before trade creation - probably wrong year, try next year
+        const nextYearIsoString = `${exitYear + 1}-${isoMonth}-${isoDay}T${isoHour}:${isoMinute}:00${tzOffset}`;
+        const nextYearDate = new Date(nextYearIsoString);
+        if (!isNaN(nextYearDate.getTime())) {
+          console.log(`[parseExitByDate] Adjusted ${exitByString} from ${exitYear} to ${exitYear + 1}`);
+          return nextYearDate;
+        }
       }
       
       return exitByDate;
     } catch (e) {
+      console.error(`[parseExitByDate] Exception parsing "${exitByString}":`, e);
       return null;
     }
   }
