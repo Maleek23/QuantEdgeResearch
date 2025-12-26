@@ -960,6 +960,16 @@ Return your analysis in this EXACT JSON format:
 
 **IMPORTANT**: All price levels (entry, target, stop, support, resistance) must be realistic values that you can actually SEE on the chart's Y-axis. Do not guess or hallucinate prices.
 
+**REALISTIC TARGETS BY TIMEFRAME**: Your target price must be achievable within the timeframe:
+- 1m-5m charts: Target 0.1-0.3% moves (scalping)
+- 15m-30m charts: Target 0.3-0.8% moves (intraday)
+- 1H charts: Target 0.5-1.5% moves (day trade)
+- 4H charts: Target 1-3% moves (swing trade)
+- Daily charts: Target 2-5% moves (position trade)
+- Weekly/Monthly: Target 5-15% moves (longer-term)
+
+Base your target on the NEAREST visible resistance level, not aspirational prices. Conservative targets with good R:R are better than aggressive targets that rarely hit.
+
 **ANALYSIS LENGTH**: Provide a COMPLETE and THOROUGH analysis in the "analysis" field. Write at least 3-4 full paragraphs explaining all visible patterns, price action, volume (if visible), and your reasoning for the trade setup. Do NOT cut off mid-sentence.${contextInfo}`;
 
   const userPrompt = symbol 
