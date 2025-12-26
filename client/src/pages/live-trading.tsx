@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,19 +10,18 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { ActiveTrade, TradeIdea } from "@shared/schema";
-import { Link } from "wouter";
+import type { ActiveTrade } from "@shared/schema";
 import { 
   Plus, 
   TrendingUp, 
   TrendingDown, 
-  X, 
   RefreshCw, 
   DollarSign, 
   Target, 
@@ -30,21 +29,29 @@ import {
   Clock,
   Trash2,
   CheckCircle,
-  Search,
-  ArrowLeft,
-  ExternalLink,
-  LineChart,
-  Lightbulb
+  X
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 
-const confirmEntryFormSchema = z.object({
+// Manual trade entry form schema
+const manualTradeFormSchema = z.object({
+  symbol: z.string().min(1, "Symbol is required").transform(s => s.toUpperCase()),
+  assetType: z.enum(['stock', 'option', 'crypto', 'future']),
+  direction: z.enum(['long', 'short']),
   entryPrice: z.coerce.number().positive("Entry price must be positive"),
+  targetPrice: z.coerce.number().positive("Target must be positive").optional(),
+  stopLoss: z.coerce.number().positive("Stop loss must be positive").optional(),
   quantity: z.coerce.number().int().positive("Quantity must be at least 1").default(1),
+  notes: z.string().optional(),
+  // Option-specific fields
+  optionType: z.enum(['call', 'put']).optional(),
+  strikePrice: z.coerce.number().positive().optional(),
+  expiryDate: z.string().optional(),
 });
 
-type ConfirmEntryFormValues = z.infer<typeof confirmEntryFormSchema>;
+type ManualTradeFormValues = z.infer<typeof manualTradeFormSchema>;
 
 const closeTradeFormSchema = z.object({
   exitPrice: z.coerce.number().positive("Exit price must be positive"),
@@ -58,9 +65,6 @@ export default function LiveTradingPage() {
   const [isNewTradeOpen, setIsNewTradeOpen] = useState(false);
   const [closingTradeId, setClosingTradeId] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-  const [step, setStep] = useState<1 | 2>(1);
-  const [selectedIdea, setSelectedIdea] = useState<TradeIdea | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: trades = [], isLoading, refetch } = useQuery<ActiveTrade[]>({
     queryKey: ['/api/active-trades'],
@@ -69,40 +73,6 @@ export default function LiveTradingPage() {
     enabled: isAuthenticated,
   });
 
-  const { data: tradeIdeas = [], isLoading: isLoadingIdeas } = useQuery<TradeIdea[]>({
-    queryKey: ['/api/trade-ideas'],
-    enabled: isAuthenticated && isNewTradeOpen,
-  });
-
-  // Filter and categorize ideas - today's ideas first
-  const { todaysIdeas, olderIdeas, filteredIdeas } = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const isToday = (dateStr: string | null | undefined) => {
-      if (!dateStr) return false;
-      const date = new Date(dateStr);
-      date.setHours(0, 0, 0, 0);
-      return date.getTime() === today.getTime();
-    };
-    
-    const allIdeas = tradeIdeas.filter(idea => idea.status === 'published');
-    const todays = allIdeas.filter(idea => isToday(idea.timestamp)); // Using timestamp field
-    const older = allIdeas.filter(idea => !isToday(idea.timestamp));
-    
-    // Apply search filter
-    const query = searchQuery.toLowerCase().trim();
-    const filtered = query 
-      ? allIdeas.filter(idea => 
-          idea.symbol.toLowerCase().includes(query) ||
-          idea.headline?.toLowerCase().includes(query) ||
-          idea.source?.toLowerCase().includes(query)
-        )
-      : [...todays, ...older.slice(0, 10)]; // Show today's + last 10 older
-    
-    return { todaysIdeas: todays, olderIdeas: older, filteredIdeas: filtered };
-  }, [tradeIdeas, searchQuery]);
-
   useEffect(() => {
     const interval = setInterval(() => {
       setLastRefresh(new Date());
@@ -110,24 +80,23 @@ export default function LiveTradingPage() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    if (!isNewTradeOpen) {
-      setStep(1);
-      setSelectedIdea(null);
-      setSearchQuery("");
-    }
-  }, [isNewTradeOpen]);
-
   const openTrades = trades.filter(t => t.status === 'open');
   const closedTrades = trades.filter(t => t.status === 'closed');
 
-  const confirmEntryForm = useForm<ConfirmEntryFormValues>({
-    resolver: zodResolver(confirmEntryFormSchema),
+  // Manual trade entry form
+  const tradeForm = useForm<ManualTradeFormValues>({
+    resolver: zodResolver(manualTradeFormSchema),
     defaultValues: {
+      symbol: "",
+      assetType: "stock",
+      direction: "long",
       entryPrice: 0,
       quantity: 1,
+      notes: "",
     },
   });
+
+  const watchAssetType = tradeForm.watch("assetType");
 
   const closeTradeForm = useForm<CloseTradeFormValues>({
     resolver: zodResolver(closeTradeFormSchema),
@@ -136,30 +105,30 @@ export default function LiveTradingPage() {
     },
   });
 
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!isNewTradeOpen) {
+      tradeForm.reset();
+    }
+  }, [isNewTradeOpen]);
+
   const createTradeMutation = useMutation({
-    mutationFn: async (data: ConfirmEntryFormValues) => {
-      if (!selectedIdea) throw new Error("No trade idea selected");
-      
-      const direction = selectedIdea.direction === 'bullish' ? 'long' : 
-                        selectedIdea.direction === 'bearish' ? 'short' : 
-                        selectedIdea.direction;
-      
+    mutationFn: async (data: ManualTradeFormValues) => {
       const payload = {
-        symbol: selectedIdea.symbol.toUpperCase(),
-        assetType: selectedIdea.assetType === 'penny_stock' ? 'stock' : selectedIdea.assetType,
-        direction: direction,
+        symbol: data.symbol,
+        assetType: data.assetType,
+        direction: data.direction,
         entryPrice: data.entryPrice,
         quantity: data.quantity,
         entryTime: new Date().toISOString(),
-        targetPrice: selectedIdea.targetPrice,
-        stopLoss: selectedIdea.stopLoss,
-        notes: [selectedIdea.headline, selectedIdea.rationale].filter(Boolean).join('\n\n'),
-        ...(selectedIdea.assetType === "option" && {
-          optionType: selectedIdea.optionType,
-          strikePrice: selectedIdea.strikePrice,
-          expiryDate: selectedIdea.expiryDate,
+        targetPrice: data.targetPrice || null,
+        stopLoss: data.stopLoss || null,
+        notes: data.notes || null,
+        ...(data.assetType === "option" && {
+          optionType: data.optionType,
+          strikePrice: data.strikePrice,
+          expiryDate: data.expiryDate,
         }),
-        tradeIdeaId: selectedIdea.id,
       };
       return await apiRequest('POST', '/api/active-trades', payload);
     },
@@ -167,9 +136,7 @@ export default function LiveTradingPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/active-trades'] });
       toast({ title: "Trade Added", description: "Your position has been recorded" });
       setIsNewTradeOpen(false);
-      confirmEntryForm.reset();
-      setSelectedIdea(null);
-      setStep(1);
+      tradeForm.reset();
     },
     onError: (error: any) => {
       toast({ 
@@ -216,16 +183,7 @@ export default function LiveTradingPage() {
     },
   });
 
-  const handleSelectIdea = (idea: TradeIdea) => {
-    setSelectedIdea(idea);
-    confirmEntryForm.reset({
-      entryPrice: idea.entryPrice || 0,
-      quantity: 1,
-    });
-    setStep(2);
-  };
-
-  const handleConfirmEntry = (data: ConfirmEntryFormValues) => {
+  const handleCreateTrade = (data: ManualTradeFormValues) => {
     createTradeMutation.mutate(data);
   };
 
@@ -254,43 +212,6 @@ export default function LiveTradingPage() {
     if (trade.strikePrice) parts.push(`$${trade.strikePrice}`);
     if (trade.optionType) parts.push(trade.optionType.toUpperCase());
     return parts.join(" ");
-  };
-
-  const getIdeaOptionLabel = (idea: TradeIdea) => {
-    if (idea.assetType !== 'option') return idea.symbol;
-    const parts = [idea.symbol];
-    if (idea.expiryDate) {
-      try {
-        parts.push(format(parseISO(idea.expiryDate), "MM/dd"));
-      } catch {
-        parts.push(idea.expiryDate);
-      }
-    }
-    if (idea.strikePrice) parts.push(`$${idea.strikePrice}`);
-    if (idea.optionType) parts.push(idea.optionType.toUpperCase());
-    return parts.join(" ");
-  };
-
-  const getSourceIcon = (source: string) => {
-    switch (source) {
-      case 'ai':
-        return <Lightbulb className="h-3 w-3" />;
-      case 'quant':
-        return <LineChart className="h-3 w-3" />;
-      case 'chart_analysis':
-        return <TrendingUp className="h-3 w-3" />;
-      default:
-        return <Target className="h-3 w-3" />;
-    }
-  };
-
-  const getSourceLabel = (source: string) => {
-    switch (source) {
-      case 'ai': return 'AI';
-      case 'quant': return 'Quant';
-      case 'chart_analysis': return 'Chart';
-      default: return source;
-    }
   };
 
   const totalUnrealizedPnL = openTrades.reduce((sum, t) => sum + (t.unrealizedPnL || 0), 0);
@@ -353,309 +274,290 @@ export default function LiveTradingPage() {
                 New Trade
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>
-                  {step === 1 ? "Select Trade Idea" : "Confirm Entry"}
-                </DialogTitle>
+                <DialogTitle>Add Trade</DialogTitle>
                 <DialogDescription>
-                  {step === 1 
-                    ? (
-                      <span className="flex items-center gap-2">
-                        <Clock className="h-3.5 w-3.5" />
-                        {format(new Date(), "EEEE, MMMM d, yyyy")} — {todaysIdeas.length} ideas today
-                      </span>
-                    )
-                    : "Review details and enter your position size"
-                  }
+                  <span className="flex items-center gap-2">
+                    <Clock className="h-3.5 w-3.5" />
+                    {format(new Date(), "EEEE, MMMM d, yyyy")}
+                  </span>
                 </DialogDescription>
               </DialogHeader>
 
-              {step === 1 && (
-                <>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search by symbol, headline..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9"
-                      data-testid="input-search-ideas"
+              <Form {...tradeForm}>
+                <form onSubmit={tradeForm.handleSubmit(handleCreateTrade)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={tradeForm.control}
+                      name="symbol"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Symbol</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="AAPL" 
+                              {...field} 
+                              className="uppercase font-mono"
+                              data-testid="input-symbol"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={tradeForm.control}
+                      name="assetType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Asset Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-asset-type">
+                                <SelectValue placeholder="Select type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="stock">Stock</SelectItem>
+                              <SelectItem value="option">Option</SelectItem>
+                              <SelectItem value="crypto">Crypto</SelectItem>
+                              <SelectItem value="future">Future</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
                     />
                   </div>
 
-                  {isLoadingIdeas ? (
-                    <div className="space-y-3 py-4">
-                      {[1, 2, 3].map(i => (
-                        <Skeleton key={i} className="h-20 w-full" />
-                      ))}
-                    </div>
-                  ) : filteredIdeas.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Lightbulb className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-30" />
-                      <p className="font-medium text-muted-foreground">No trade ideas available</p>
-                      <p className="text-sm text-muted-foreground mt-1 mb-4">
-                        Generate ideas from Chart Analysis or the Trade Desk
-                      </p>
-                      <Link href="/chart-analysis">
-                        <Button variant="outline" onClick={() => setIsNewTradeOpen(false)} data-testid="button-go-to-chart-analysis">
-                          <LineChart className="h-4 w-4 mr-2" />
-                          Go to Chart Analysis
-                        </Button>
-                      </Link>
-                    </div>
-                  ) : (
-                    <ScrollArea className="flex-1 max-h-[400px] -mx-6 px-6">
-                      <div className="space-y-2 py-2">
-                        {filteredIdeas.map((idea) => (
-                          <button
-                            key={idea.id}
-                            onClick={() => handleSelectIdea(idea)}
-                            className="w-full text-left p-3 rounded-lg border hover-elevate transition-colors"
-                            data-testid={`button-select-idea-${idea.id}`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-mono font-semibold">
-                                    {getIdeaOptionLabel(idea)}
-                                  </span>
-                                  <Badge 
-                                    variant={idea.direction === 'bullish' ? 'default' : 'secondary'}
-                                    className="text-xs"
-                                  >
-                                    {idea.direction === 'bullish' ? (
-                                      <TrendingUp className="h-3 w-3 mr-1" />
-                                    ) : (
-                                      <TrendingDown className="h-3 w-3 mr-1" />
-                                    )}
-                                    {idea.direction}
-                                  </Badge>
-                                  <Badge variant="outline" className="text-xs">
-                                    {getSourceIcon(idea.source)}
-                                    <span className="ml-1">{getSourceLabel(idea.source)}</span>
-                                  </Badge>
-                                </div>
-                                {idea.headline && (
-                                  <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                                    {idea.headline}
-                                  </p>
-                                )}
-                                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    {idea.timestamp ? format(new Date(idea.timestamp), "h:mm a") : "—"}
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <Target className="h-3 w-3 text-green-500" />
-                                    ${idea.targetPrice?.toFixed(2)}
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <AlertTriangle className="h-3 w-3 text-red-500" />
-                                    ${idea.stopLoss?.toFixed(2)}
-                                  </span>
-                                  {idea.confidenceScore && (
-                                    <span className="flex items-center gap-1">
-                                      {idea.confidenceScore.toFixed(0)}%
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={tradeForm.control}
+                      name="direction"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Direction</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-direction">
+                                <SelectValue placeholder="Select direction" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="long">
+                                <span className="flex items-center gap-2">
+                                  <TrendingUp className="h-3 w-3 text-green-500" />
+                                  Long
+                                </span>
+                              </SelectItem>
+                              <SelectItem value="short">
+                                <span className="flex items-center gap-2">
+                                  <TrendingDown className="h-3 w-3 text-red-500" />
+                                  Short
+                                </span>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={tradeForm.control}
+                      name="quantity"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Quantity</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              min="1"
+                              {...field} 
+                              data-testid="input-quantity"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <Separator />
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <FormField
+                      control={tradeForm.control}
+                      name="entryPrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Entry $</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.01"
+                              placeholder="0.00" 
+                              {...field} 
+                              className="font-mono"
+                              data-testid="input-entry-price"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={tradeForm.control}
+                      name="targetPrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-green-600 dark:text-green-400">Target $</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.01"
+                              placeholder="0.00" 
+                              {...field}
+                              value={field.value ?? ""}
+                              className="font-mono"
+                              data-testid="input-target-price"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={tradeForm.control}
+                      name="stopLoss"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-red-600 dark:text-red-400">Stop $</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              step="0.01"
+                              placeholder="0.00" 
+                              {...field}
+                              value={field.value ?? ""}
+                              className="font-mono"
+                              data-testid="input-stop-loss"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {watchAssetType === "option" && (
+                    <>
+                      <Separator />
+                      <div className="grid grid-cols-3 gap-3">
+                        <FormField
+                          control={tradeForm.control}
+                          name="optionType"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Call/Put</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger data-testid="select-option-type">
+                                    <SelectValue placeholder="Type" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="call">Call</SelectItem>
+                                  <SelectItem value="put">Put</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={tradeForm.control}
+                          name="strikePrice"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Strike $</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  step="0.5"
+                                  placeholder="0.00" 
+                                  {...field}
+                                  value={field.value ?? ""}
+                                  className="font-mono"
+                                  data-testid="input-strike-price"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={tradeForm.control}
+                          name="expiryDate"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Expiry</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="date"
+                                  {...field}
+                                  value={field.value ?? ""}
+                                  data-testid="input-expiry-date"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       </div>
-                    </ScrollArea>
+                    </>
                   )}
+
+                  <FormField
+                    control={tradeForm.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Notes (optional)</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Trade rationale, setup, etc."
+                            className="resize-none"
+                            rows={2}
+                            {...field}
+                            value={field.value ?? ""}
+                            data-testid="input-notes"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <DialogFooter>
                     <Button 
                       type="button" 
                       variant="outline" 
                       onClick={() => setIsNewTradeOpen(false)}
-                      data-testid="button-cancel-new-trade"
+                      data-testid="button-cancel-trade"
                     >
                       Cancel
                     </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={createTradeMutation.isPending}
+                      data-testid="button-add-trade"
+                    >
+                      {createTradeMutation.isPending ? "Adding..." : "Add Trade"}
+                    </Button>
                   </DialogFooter>
-                </>
-              )}
-
-              {step === 2 && selectedIdea && (
-                <>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setStep(1);
-                          setSelectedIdea(null);
-                        }}
-                        data-testid="button-back-to-ideas"
-                      >
-                        <ArrowLeft className="h-4 w-4 mr-1" />
-                        Back
-                      </Button>
-                    </div>
-
-                    <Card>
-                      <CardContent className="pt-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-mono font-bold text-lg">
-                                {getIdeaOptionLabel(selectedIdea)}
-                              </span>
-                              <Badge 
-                                variant={selectedIdea.direction === 'bullish' ? 'default' : 'secondary'}
-                              >
-                                {selectedIdea.direction === 'bullish' ? (
-                                  <TrendingUp className="h-3 w-3 mr-1" />
-                                ) : (
-                                  <TrendingDown className="h-3 w-3 mr-1" />
-                                )}
-                                {selectedIdea.direction === 'bullish' ? 'LONG' : 'SHORT'}
-                              </Badge>
-                            </div>
-                            {selectedIdea.headline && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {selectedIdea.headline}
-                              </p>
-                            )}
-                          </div>
-                          <Link href="/trade-desk">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => setIsNewTradeOpen(false)}
-                              data-testid="link-view-trade-desk"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                        </div>
-
-                        <Separator className="my-3" />
-
-                        <div className="grid grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <p className="text-muted-foreground text-xs">Target</p>
-                            <p className="font-mono text-green-600 dark:text-green-400">
-                              ${selectedIdea.targetPrice?.toFixed(2)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">Stop Loss</p>
-                            <p className="font-mono text-red-600 dark:text-red-400">
-                              ${selectedIdea.stopLoss?.toFixed(2)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground text-xs">R:R Ratio</p>
-                            <p className="font-mono">
-                              {selectedIdea.riskRewardRatio?.toFixed(2) || '-'}
-                            </p>
-                          </div>
-                        </div>
-
-                        {selectedIdea.assetType === 'option' && (
-                          <>
-                            <Separator className="my-3" />
-                            <div className="grid grid-cols-3 gap-4 text-sm">
-                              <div>
-                                <p className="text-muted-foreground text-xs">Type</p>
-                                <p className="font-medium uppercase">{selectedIdea.optionType}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground text-xs">Strike</p>
-                                <p className="font-mono">${selectedIdea.strikePrice?.toFixed(2)}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground text-xs">Expiry</p>
-                                <p className="font-mono">
-                                  {selectedIdea.expiryDate ? (
-                                    (() => {
-                                      try {
-                                        return format(parseISO(selectedIdea.expiryDate), "MM/dd/yy");
-                                      } catch {
-                                        return selectedIdea.expiryDate;
-                                      }
-                                    })()
-                                  ) : '-'}
-                                </p>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    <Form {...confirmEntryForm}>
-                      <form onSubmit={confirmEntryForm.handleSubmit(handleConfirmEntry)} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <FormField
-                            control={confirmEntryForm.control}
-                            name="entryPrice"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Entry Price</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    step="0.01"
-                                    placeholder="0.00" 
-                                    {...field} 
-                                    data-testid="input-entry-price"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={confirmEntryForm.control}
-                            name="quantity"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Quantity</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    min="1"
-                                    {...field} 
-                                    data-testid="input-quantity"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        <DialogFooter>
-                          <Button 
-                            type="button" 
-                            variant="outline" 
-                            onClick={() => setIsNewTradeOpen(false)}
-                            data-testid="button-cancel-confirm"
-                          >
-                            Cancel
-                          </Button>
-                          <Button 
-                            type="submit" 
-                            disabled={createTradeMutation.isPending}
-                            data-testid="button-confirm-trade"
-                          >
-                            {createTradeMutation.isPending ? "Adding..." : "Confirm Trade"}
-                          </Button>
-                        </DialogFooter>
-                      </form>
-                    </Form>
-                  </div>
-                </>
-              )}
+                </form>
+              </Form>
             </DialogContent>
           </Dialog>
         </div>
