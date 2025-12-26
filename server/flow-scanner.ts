@@ -55,7 +55,7 @@ function isValidTradingDay(dateStr: string): boolean {
 }
 
 // Check if market is currently open (9:30 AM - 4:00 PM ET, weekdays, non-holidays)
-function isMarketOpen(): { isOpen: boolean; reason: string } {
+function isMarketOpen(): { isOpen: boolean; reason: string; minutesUntilClose: number } {
   const now = new Date();
   const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
   const day = etTime.getDay();
@@ -66,12 +66,12 @@ function isMarketOpen(): { isOpen: boolean; reason: string } {
   
   // Check weekend
   if (day === 0 || day === 6) {
-    return { isOpen: false, reason: 'Weekend - market closed' };
+    return { isOpen: false, reason: 'Weekend - market closed', minutesUntilClose: 0 };
   }
   
   // Check holiday
   if (MARKET_HOLIDAYS.has(dateStr)) {
-    return { isOpen: false, reason: `Holiday (${dateStr}) - market closed` };
+    return { isOpen: false, reason: `Holiday (${dateStr}) - market closed`, minutesUntilClose: 0 };
   }
   
   // Check time (9:30 AM = 570 minutes, 4:00 PM = 960 minutes)
@@ -79,14 +79,95 @@ function isMarketOpen(): { isOpen: boolean; reason: string } {
   const marketClose = 16 * 60; // 4:00 PM
   
   if (timeInMinutes < marketOpen) {
-    return { isOpen: false, reason: 'Pre-market - market not yet open' };
+    return { isOpen: false, reason: 'Pre-market - market not yet open', minutesUntilClose: marketClose - marketOpen };
   }
   
   if (timeInMinutes >= marketClose) {
-    return { isOpen: false, reason: 'After-hours - market closed' };
+    return { isOpen: false, reason: 'After-hours - market closed', minutesUntilClose: 0 };
   }
   
-  return { isOpen: true, reason: 'Market is open' };
+  const minutesUntilClose = marketClose - timeInMinutes;
+  return { isOpen: true, reason: 'Market is open', minutesUntilClose };
+}
+
+// Minimum trading time required for different DTE options (in minutes)
+const MIN_TRADING_TIME = {
+  0: 120,   // 0 DTE: Need at least 2 hours
+  1: 90,    // 1 DTE: Need at least 1.5 hours  
+  2: 60,    // 2 DTE: Need at least 1 hour
+  default: 30  // 3+ DTE: 30 minutes minimum
+};
+
+// Check if there's enough trading time for an option
+function hasEnoughTradingTime(expirationDate: string, minutesUntilClose: number): { hasTime: boolean; reason: string; dte: number } {
+  const now = new Date();
+  const etNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const expDate = new Date(expirationDate);
+  
+  // 🔧 FIX: Use calendar day comparison for accurate 0 DTE detection
+  // Compare dates in ET timezone to properly identify same-day expirations
+  const todayET = etNow.toISOString().split('T')[0]; // YYYY-MM-DD in ET
+  const expiryDateStr = expirationDate.split('T')[0]; // YYYY-MM-DD from expiration
+  
+  // Calculate proper DTE based on calendar days
+  let daysToExpiry: number;
+  if (todayET === expiryDateStr) {
+    daysToExpiry = 0; // Same calendar day = 0 DTE
+  } else {
+    // Calculate days difference
+    const todayMs = new Date(todayET + 'T00:00:00Z').getTime();
+    const expiryMs = new Date(expiryDateStr + 'T00:00:00Z').getTime();
+    daysToExpiry = Math.floor((expiryMs - todayMs) / (1000 * 60 * 60 * 24));
+  }
+  
+  // Get minimum time requirement based on DTE
+  const minMinutes = MIN_TRADING_TIME[daysToExpiry as keyof typeof MIN_TRADING_TIME] || MIN_TRADING_TIME.default;
+  
+  // For 0 DTE (same day), MUST have enough minutes until close
+  if (daysToExpiry === 0) {
+    if (minutesUntilClose < minMinutes) {
+      return { 
+        hasTime: false, 
+        reason: `0 DTE with only ${minutesUntilClose} min until close (need ${minMinutes} min)`,
+        dte: 0
+      };
+    }
+  }
+  
+  // For 1 DTE, enforce the 90-minute minimum requirement
+  if (daysToExpiry === 1) {
+    const minFor1DTE = MIN_TRADING_TIME[1]; // 90 minutes
+    if (minutesUntilClose < minFor1DTE) {
+      return {
+        hasTime: false,
+        reason: `1 DTE with only ${minutesUntilClose} min until close (need ${minFor1DTE} min)`,
+        dte: 1
+      };
+    }
+  }
+  
+  // For 2 DTE, enforce the 60-minute minimum requirement
+  if (daysToExpiry === 2) {
+    const minFor2DTE = MIN_TRADING_TIME[2]; // 60 minutes
+    if (minutesUntilClose < minFor2DTE) {
+      return {
+        hasTime: false,
+        reason: `2 DTE with only ${minutesUntilClose} min until close (need ${minFor2DTE} min)`,
+        dte: 2
+      };
+    }
+  }
+  
+  // For 3+ DTE, enforce the default 30-minute minimum
+  if (daysToExpiry >= 3 && minutesUntilClose < MIN_TRADING_TIME.default) {
+    return {
+      hasTime: false,
+      reason: `${daysToExpiry} DTE with only ${minutesUntilClose} min until close (need ${MIN_TRADING_TIME.default} min)`,
+      dte: daysToExpiry
+    };
+  }
+  
+  return { hasTime: true, reason: 'Sufficient trading time', dte: daysToExpiry };
 }
 
 // Top 20 high-volume tickers for flow scanning
@@ -408,21 +489,60 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   // Generate timestamp and entry/exit windows
   const now = new Date();
   const timestamp = now.toISOString();
-  const entryValidUntil = new Date(now.getTime() + 60 * 60 * 1000).toISOString(); // +1 hour
+  
+  // ⏰ TIME-CONSCIOUS ENTRY/EXIT CALCULATION
+  // Entry window: Based on expected move timing (shorter for high IV, longer for low IV)
+  const ivPercent = mostActiveOption.impliedVol || 0.3; // Default 30% IV
+  
+  // Higher IV = faster moves expected = shorter entry window
+  // Low IV (20%): 90 min entry window
+  // High IV (80%): 30 min entry window
+  const entryWindowMinutes = Math.round(90 - (ivPercent * 75)); // Range: 30-90 min
+  const entryValidUntil = new Date(now.getTime() + Math.max(30, entryWindowMinutes) * 60 * 1000).toISOString();
   
   // ✅ FIX: For options, exit_by MUST be BEFORE or ON expiry_date (can't hold past expiration!)
   const optionExpiryDate = new Date(mostActiveOption.expiration);
   // Set option expiry to 4:00 PM ET (16:00) on expiry date (when options expire)
   optionExpiryDate.setHours(16, 0, 0, 0);
   
-  // Calculate default exit_by (+6 hours from now for day trade)
-  const defaultExitBy = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+  // 🎯 DYNAMIC EXIT TIME CALCULATION (fluctuates based on IV, DTE, and expected move)
+  // Formula: Base time adjusted by IV + random jitter for natural variation
+  const daysToExpiry = Math.max(1, Math.ceil((optionExpiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
   
-  // Use the EARLIER of: (defaultExitBy OR option expiry time)
-  // This ensures we never try to exit AFTER the option has expired
-  const exitBy = (defaultExitBy < optionExpiryDate ? defaultExitBy : optionExpiryDate).toISOString();
+  // Base exit time in hours:
+  // - 0 DTE: 1-3 hours (quick scalps)
+  // - 1 DTE: 2-4 hours (day trades)  
+  // - 2+ DTE: 3-6 hours (can hold longer)
+  let baseExitHours: number;
+  if (daysToExpiry <= 1) {
+    baseExitHours = 1.5 + (ivPercent * 1.5); // 1.5-3 hours for 0-1 DTE
+  } else if (daysToExpiry <= 2) {
+    baseExitHours = 2.5 + (ivPercent * 1.5); // 2.5-4 hours for 2 DTE
+  } else {
+    baseExitHours = 3 + (ivPercent * 3); // 3-6 hours for 3+ DTE
+  }
   
-  logger.info(`📊 [FLOW] ${ticker} TIMING: Entry valid until ${formatInTimeZone(new Date(entryValidUntil), 'America/New_York', 'MMM dd h:mm a zzz')}, Exit by ${formatInTimeZone(new Date(exitBy), 'America/New_York', 'MMM dd h:mm a zzz')} (option expires ${formatInTimeZone(optionExpiryDate, 'America/New_York', 'MMM dd h:mm a zzz')})`)
+  // Add random jitter (±20%) for natural fluctuation - every trade is different!
+  const jitterPercent = 0.8 + (Math.random() * 0.4); // 0.8 to 1.2
+  const exitHoursWithJitter = baseExitHours * jitterPercent;
+  
+  // Convert to milliseconds and calculate exit time
+  const exitTimeMs = now.getTime() + (exitHoursWithJitter * 60 * 60 * 1000);
+  const dynamicExitBy = new Date(exitTimeMs);
+  
+  // Use the EARLIER of: (dynamicExitBy OR option expiry time - 30 min buffer)
+  // This ensures we never try to exit AFTER the option has expired, with buffer time
+  const expiryBuffer = new Date(optionExpiryDate.getTime() - 30 * 60 * 1000); // 30 min before expiry
+  const exitBy = (dynamicExitBy < expiryBuffer ? dynamicExitBy : expiryBuffer).toISOString();
+  
+  // VALIDATION: Entry must be before exit
+  if (new Date(entryValidUntil) >= new Date(exitBy)) {
+    logger.warn(`📊 [FLOW] ${ticker} rejected: Entry window (${entryValidUntil}) >= Exit time (${exitBy})`);
+    return null;
+  }
+  
+  logger.info(`📊 [FLOW] ${ticker} TIMING: Entry valid ${Math.round(entryWindowMinutes)}min, Exit in ~${exitHoursWithJitter.toFixed(1)}h (IV=${(ivPercent * 100).toFixed(0)}%, DTE=${daysToExpiry})`)
+  logger.info(`📊 [FLOW] ${ticker} WINDOWS: Entry until ${formatInTimeZone(new Date(entryValidUntil), 'America/New_York', 'h:mm a')}, Exit by ${formatInTimeZone(new Date(exitBy), 'America/New_York', 'h:mm a')} (exp: ${formatInTimeZone(optionExpiryDate, 'America/New_York', 'MMM dd h:mm a')})`)
 
   // Build catalyst and analysis with dynamic target explanation
   const catalyst = `Unusual ${direction === 'long' ? 'CALL' : 'PUT'} Flow: ${unusualOptions.length} contracts, $${(totalPremium / 1000000).toFixed(2)}M premium`;
@@ -481,7 +601,7 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
     ],
     probabilityBand: signalStrength >= 70 ? 'B+' : signalStrength >= 60 ? 'B' : 'C+',
     dataSourceUsed: 'tradier',
-    engineVersion: 'flow_v2.1.0_options_generation',  // Updated version for options
+    engineVersion: 'flow_v3.0.0_time_conscious',  // Time-conscious with dynamic exit times
     generationTimestamp: timestamp,
     // ✅ OPTIONS-SPECIFIC FIELDS (match schema field names)
     optionType,  // 'call' or 'put' from most active option
@@ -545,13 +665,31 @@ export async function scanUnusualOptionsFlow(holdingPeriod?: string): Promise<In
       // Detect unusual options (with DTE filtering)
       const allUnusualOptions = await detectUnusualOptions(ticker);
       
-      // Filter by DTE range for selected holding period
+      // Filter by DTE range for selected holding period AND trading time remaining
       const now = new Date();
+      let insufficientTimeCount = 0;
       const unusualOptions = allUnusualOptions.filter(opt => {
         const expDate = new Date(opt.expiration);
         const daysToExp = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        return daysToExp >= dteRange.min && daysToExp <= dteRange.max;
+        
+        // Check DTE range
+        if (daysToExp < dteRange.min || daysToExp > dteRange.max) {
+          return false;
+        }
+        
+        // ⏰ TIME-CONSCIOUS: Check if enough trading time remains for this option
+        const timeCheck = hasEnoughTradingTime(opt.expiration, marketStatus.minutesUntilClose);
+        if (!timeCheck.hasTime) {
+          insufficientTimeCount++;
+          return false;
+        }
+        
+        return true;
       });
+      
+      if (insufficientTimeCount > 0) {
+        logger.info(`📊 [FLOW] ${ticker}: Filtered out ${insufficientTimeCount} options with insufficient trading time`);
+      }
       
       if (unusualOptions.length === 0) {
         continue;
