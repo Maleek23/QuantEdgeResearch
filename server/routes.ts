@@ -4048,6 +4048,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test Discord trade alert (admin only)
+  app.post("/api/admin/test-discord", async (req, res) => {
+    try {
+      const { sendTradeIdeaToDiscord } = await import("./discord-service");
+      
+      // Create sample trade ideas for each asset type
+      const stockIdea = {
+        id: "test-stock-1",
+        symbol: "AAPL",
+        assetType: "stock" as const,
+        direction: "long" as const,
+        holdingPeriod: "day" as const,
+        entryPrice: 198.50,
+        targetPrice: 205.00,
+        stopLoss: 193.50,
+        riskRewardRatio: 1.3,
+        catalyst: "Strong earnings beat, upgraded price targets",
+        timestamp: new Date().toISOString(),
+        source: "quant" as const,
+        status: "published" as const,
+        confidenceScore: 82,
+        probabilityBand: "A",
+        sessionContext: "Regular Market Hours",
+        dataSourceUsed: "yahoo_finance",
+        outcomeStatus: "open" as const,
+      };
+      
+      const optionCallIdea = {
+        id: "test-option-call-1",
+        symbol: "NVDA",
+        assetType: "option" as const,
+        optionType: "call" as const,
+        direction: "long" as const,
+        holdingPeriod: "day" as const,
+        entryPrice: 4.50,
+        targetPrice: 9.00,
+        stopLoss: 2.25,
+        riskRewardRatio: 2.0,
+        catalyst: "AI chip demand surge, bullish momentum",
+        timestamp: new Date().toISOString(),
+        source: "ai" as const,
+        status: "published" as const,
+        confidenceScore: 78,
+        probabilityBand: "B+",
+        sessionContext: "Pre-market momentum",
+        dataSourceUsed: "tradier",
+        outcomeStatus: "open" as const,
+      };
+      
+      const optionPutIdea = {
+        id: "test-option-put-1",
+        symbol: "TSLA",
+        assetType: "option" as const,
+        optionType: "put" as const,
+        direction: "short" as const,
+        holdingPeriod: "day" as const,
+        entryPrice: 3.20,
+        targetPrice: 6.40,
+        stopLoss: 1.60,
+        riskRewardRatio: 2.0,
+        catalyst: "Bearish reversal pattern, resistance rejection",
+        timestamp: new Date().toISOString(),
+        source: "hybrid" as const,
+        status: "published" as const,
+        confidenceScore: 75,
+        probabilityBand: "B",
+        sessionContext: "Regular Hours",
+        dataSourceUsed: "tradier",
+        outcomeStatus: "open" as const,
+      };
+      
+      const cryptoIdea = {
+        id: "test-crypto-1",
+        symbol: "BTC",
+        assetType: "crypto" as const,
+        direction: "long" as const,
+        holdingPeriod: "swing" as const,
+        entryPrice: 98500,
+        targetPrice: 105000,
+        stopLoss: 93575,
+        riskRewardRatio: 1.32,
+        catalyst: "Institutional accumulation, ETF inflows",
+        timestamp: new Date().toISOString(),
+        source: "quant" as const,
+        status: "published" as const,
+        confidenceScore: 85,
+        probabilityBand: "A-",
+        sessionContext: "24/7 Crypto Markets",
+        dataSourceUsed: "coingecko",
+        outcomeStatus: "open" as const,
+      };
+      
+      // Send all test alerts
+      await sendTradeIdeaToDiscord(stockIdea as any);
+      await new Promise(r => setTimeout(r, 500)); // Small delay between messages
+      await sendTradeIdeaToDiscord(optionCallIdea as any);
+      await new Promise(r => setTimeout(r, 500));
+      await sendTradeIdeaToDiscord(optionPutIdea as any);
+      await new Promise(r => setTimeout(r, 500));
+      await sendTradeIdeaToDiscord(cryptoIdea as any);
+      
+      res.json({ 
+        success: true, 
+        message: "Sent 4 test alerts: Stock (shares), Option (CALL), Option (PUT), Crypto" 
+      });
+    } catch (error: any) {
+      logger.error("Failed to send test Discord alerts:", error);
+      res.status(500).json({ error: error?.message || "Failed to send test alerts" });
+    }
+  });
+
   // Send chart analysis to Discord
   app.post("/api/chart-analysis/discord", async (req, res) => {
     try {

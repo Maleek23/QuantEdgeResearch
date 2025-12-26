@@ -37,10 +37,18 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
                      idea.source === 'hybrid' ? '🎯 Hybrid (AI+Quant)' :
                      '📝 Manual';
   
-  // Asset type badge
-  const assetBadge = idea.assetType === 'stock' ? '📈 Stock' :
-                    idea.assetType === 'option' ? '🎯 Option' :
-                    '₿ Crypto';
+  // Asset type with clear labeling
+  let assetLabel: string;
+  if (idea.assetType === 'option') {
+    // For options: show CALL or PUT prominently
+    const optionType = idea.optionType?.toUpperCase() || 'OPTION';
+    assetLabel = `🎯 ${optionType} Option`;
+  } else if (idea.assetType === 'crypto') {
+    assetLabel = '₿ Crypto';
+  } else {
+    // For stocks: show "Shares"
+    assetLabel = '📈 Shares';
+  }
   
   // Direction indicator
   const directionEmoji = isLong ? '🟢' : '🔴';
@@ -49,8 +57,8 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
   const potentialGain = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(2);
   
   const embed: DiscordEmbed = {
-    title: `${directionEmoji} ${idea.symbol} - ${idea.direction.toUpperCase()}`,
-    description: `${sourceBadge} • ${assetBadge}${idea.optionType ? ` ${idea.optionType.toUpperCase()}` : ''}`,
+    title: `${directionEmoji} ${idea.symbol} - ${idea.direction.toUpperCase()} ${assetLabel}`,
+    description: `${sourceBadge}`,
     color,
     fields: [
       {
@@ -81,6 +89,15 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
       {
         name: '⭐ Grade',
         value: idea.probabilityBand || 'N/A',
+        inline: true
+      },
+      {
+        name: '📋 Type',
+        value: idea.assetType === 'option' 
+          ? `${(idea.optionType || 'option').toUpperCase()} Option` 
+          : idea.assetType === 'crypto' 
+            ? 'Crypto' 
+            : 'Shares',
         inline: true
       }
     ],
@@ -252,9 +269,18 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
                  source === 'news' ? 0xE67E22 : // Orange for news
                  COLORS.QUANT;
     
-    const summary = ideas.map(idea => 
-      `${idea.direction === 'long' ? '🟢' : '🔴'} **${idea.symbol}** (${idea.assetType}) - Entry: $${idea.entryPrice.toFixed(2)}`
-    ).join('\n');
+    const summary = ideas.map(idea => {
+      // Clear asset type label
+      let typeLabel: string;
+      if (idea.assetType === 'option') {
+        typeLabel = idea.optionType ? `${idea.optionType.toUpperCase()} Option` : 'Option';
+      } else if (idea.assetType === 'crypto') {
+        typeLabel = 'Crypto';
+      } else {
+        typeLabel = 'Shares';
+      }
+      return `${idea.direction === 'long' ? '🟢' : '🔴'} **${idea.symbol}** ${typeLabel} - Entry: $${idea.entryPrice.toFixed(2)}`;
+    }).join('\n');
     
     const embed: DiscordEmbed = {
       title: `${sourceLabel} Batch Generated - ${ideas.length} Ideas`,
@@ -419,11 +445,20 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
       return;
     }
     
-    // Format top ideas
+    // Format top ideas with clear asset type labels
     const ideaList = topIdeas.map((idea, i) => {
       const emoji = idea.direction === 'long' ? '🟢' : '🔴';
       const sourceIcon = idea.source === 'ai' ? '🧠' : idea.source === 'quant' ? '✨' : idea.source === 'hybrid' ? '🎯' : '📊';
-      return `${i + 1}. ${emoji} **${idea.symbol}** ${idea.assetType.toUpperCase()} → $${idea.targetPrice.toFixed(2)} (${idea.confidenceScore}% conf) ${sourceIcon}`;
+      // Clear asset type label
+      let typeLabel: string;
+      if (idea.assetType === 'option') {
+        typeLabel = idea.optionType ? `${idea.optionType.toUpperCase()}` : 'OPT';
+      } else if (idea.assetType === 'crypto') {
+        typeLabel = 'CRYPTO';
+      } else {
+        typeLabel = 'SHARES';
+      }
+      return `${i + 1}. ${emoji} **${idea.symbol}** ${typeLabel} → $${idea.targetPrice.toFixed(2)} (${idea.confidenceScore}% conf) ${sourceIcon}`;
     }).join('\n');
     
     // Calculate stats
