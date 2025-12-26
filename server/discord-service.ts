@@ -293,3 +293,89 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
     logger.error('❌ Failed to send Discord batch summary:', error);
   }
 }
+
+// Send daily summary of top trade ideas (scheduled for 8:00 AM CT)
+export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<void> {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    logger.info('⚠️ Discord webhook URL not configured - skipping daily summary');
+    return;
+  }
+  
+  try {
+    // Get today's date in CT
+    const nowCT = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+    const dateStr = nowCT.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    
+    // Filter to open ideas with high confidence, sorted by confidence
+    const topIdeas = ideas
+      .filter(i => i.outcomeStatus === 'open' && i.confidenceScore >= 70)
+      .sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0))
+      .slice(0, 5);
+    
+    if (topIdeas.length === 0) {
+      logger.info('📭 No high-confidence open ideas for daily summary');
+      return;
+    }
+    
+    // Format top ideas
+    const ideaList = topIdeas.map((idea, i) => {
+      const emoji = idea.direction === 'long' ? '🟢' : '🔴';
+      const sourceIcon = idea.source === 'ai' ? '🧠' : idea.source === 'quant' ? '✨' : idea.source === 'hybrid' ? '🎯' : '📊';
+      return `${i + 1}. ${emoji} **${idea.symbol}** ${idea.assetType.toUpperCase()} → $${idea.targetPrice.toFixed(2)} (${idea.confidenceScore}% conf) ${sourceIcon}`;
+    }).join('\n');
+    
+    // Calculate stats
+    const totalOpen = ideas.filter(i => i.outcomeStatus === 'open').length;
+    const longCount = topIdeas.filter(i => i.direction === 'long').length;
+    const shortCount = topIdeas.filter(i => i.direction === 'short').length;
+    const avgConfidence = Math.round(topIdeas.reduce((sum, i) => sum + (i.confidenceScore || 0), 0) / topIdeas.length);
+    
+    const embed: DiscordEmbed = {
+      title: `📈 Daily Trading Preview - ${dateStr}`,
+      description: `**Top ${topIdeas.length} Trade Ideas Today**\n\n${ideaList}`,
+      color: 0x3b82f6, // Blue
+      fields: [
+        {
+          name: '📊 Total Open Ideas',
+          value: `${totalOpen}`,
+          inline: true
+        },
+        {
+          name: '📈 Direction',
+          value: `${longCount} Long • ${shortCount} Short`,
+          inline: true
+        },
+        {
+          name: '⭐ Avg Confidence',
+          value: `${avgConfidence}%`,
+          inline: true
+        }
+      ],
+      footer: {
+        text: 'QuantEdge Research • View full details at your dashboard'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    const message: DiscordMessage = {
+      content: `☀️ **Good Morning! Here's your Daily Trading Preview**`,
+      embeds: [embed]
+    };
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+    
+    if (response.ok) {
+      logger.info(`✅ Discord daily summary sent: ${topIdeas.length} top ideas`);
+    }
+  } catch (error) {
+    logger.error('❌ Failed to send Discord daily summary:', error);
+  }
+}

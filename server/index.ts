@@ -633,5 +633,55 @@ app.use((req, res, next) => {
     });
     
     log('🎰 Lotto Scanner started - hunting for cheap far-OTM weeklies every 15 minutes during market hours (9:30 AM-4:00 PM ET)');
+    
+    // Daily summary to Discord at 8:00 AM CT (before market open)
+    let lastDailySummaryDate: string | null = null;
+    
+    cron.default.schedule('*/5 * * * *', async () => {
+      try {
+        const now = new Date();
+        const nowCT = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        
+        const hour = nowCT.getHours();
+        const minute = nowCT.getMinutes();
+        const dayOfWeek = nowCT.getDay();
+        const dateKey = nowCT.toISOString().split('T')[0];
+        
+        // Skip weekends
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          return;
+        }
+        
+        // Check if it's 8:00 AM CT (hour = 8, minute = 0-4 to catch the window)
+        const isDailySummaryTime = hour === 8 && minute >= 0 && minute < 5;
+        
+        if (!isDailySummaryTime) {
+          return;
+        }
+        
+        // Check if we already sent today
+        if (lastDailySummaryDate === dateKey) {
+          return;
+        }
+        
+        lastDailySummaryDate = dateKey;
+        
+        logger.info('📨 [DAILY-SUMMARY] Sending morning summary to Discord...');
+        
+        // Get all open ideas
+        const allIdeas = await storage.getAllTradeIdeas();
+        
+        // Send daily summary
+        const { sendDailySummaryToDiscord } = await import('./discord-service');
+        await sendDailySummaryToDiscord(allIdeas);
+        
+        logger.info('📨 [DAILY-SUMMARY] Morning summary sent successfully');
+        
+      } catch (error: any) {
+        logger.error('📨 [DAILY-SUMMARY] Failed to send daily summary:', error);
+      }
+    });
+    
+    log('📨 Daily Summary started - sending top ideas to Discord at 8:00 AM CT weekdays');
   });
 })();
