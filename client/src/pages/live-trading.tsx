@@ -74,14 +74,33 @@ export default function LiveTradingPage() {
     enabled: isAuthenticated && isNewTradeOpen,
   });
 
-  const filteredIdeas = useMemo(() => {
-    if (!searchQuery.trim()) return tradeIdeas;
-    const query = searchQuery.toLowerCase();
-    return tradeIdeas.filter(idea => 
-      idea.symbol.toLowerCase().includes(query) ||
-      idea.headline?.toLowerCase().includes(query) ||
-      idea.source?.toLowerCase().includes(query)
-    );
+  // Filter and categorize ideas - today's ideas first
+  const { todaysIdeas, olderIdeas, filteredIdeas } = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const isToday = (dateStr: string | null | undefined) => {
+      if (!dateStr) return false;
+      const date = new Date(dateStr);
+      date.setHours(0, 0, 0, 0);
+      return date.getTime() === today.getTime();
+    };
+    
+    const allIdeas = tradeIdeas.filter(idea => idea.status === 'published');
+    const todays = allIdeas.filter(idea => isToday(idea.timestamp)); // Using timestamp field
+    const older = allIdeas.filter(idea => !isToday(idea.timestamp));
+    
+    // Apply search filter
+    const query = searchQuery.toLowerCase().trim();
+    const filtered = query 
+      ? allIdeas.filter(idea => 
+          idea.symbol.toLowerCase().includes(query) ||
+          idea.headline?.toLowerCase().includes(query) ||
+          idea.source?.toLowerCase().includes(query)
+        )
+      : [...todays, ...older.slice(0, 10)]; // Show today's + last 10 older
+    
+    return { todaysIdeas: todays, olderIdeas: older, filteredIdeas: filtered };
   }, [tradeIdeas, searchQuery]);
 
   useEffect(() => {
@@ -341,7 +360,12 @@ export default function LiveTradingPage() {
                 </DialogTitle>
                 <DialogDescription>
                   {step === 1 
-                    ? "Choose a trade idea to execute" 
+                    ? (
+                      <span className="flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5" />
+                        {format(new Date(), "EEEE, MMMM d, yyyy")} — {todaysIdeas.length} ideas today
+                      </span>
+                    )
                     : "Review details and enter your position size"
                   }
                 </DialogDescription>
@@ -419,6 +443,10 @@ export default function LiveTradingPage() {
                                 )}
                                 <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                                   <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {idea.timestamp ? format(new Date(idea.timestamp), "h:mm a") : "—"}
+                                  </span>
+                                  <span className="flex items-center gap-1">
                                     <Target className="h-3 w-3 text-green-500" />
                                     ${idea.targetPrice?.toFixed(2)}
                                   </span>
@@ -428,7 +456,7 @@ export default function LiveTradingPage() {
                                   </span>
                                   {idea.confidenceScore && (
                                     <span className="flex items-center gap-1">
-                                      {idea.confidenceScore.toFixed(0)}% confidence
+                                      {idea.confidenceScore.toFixed(0)}%
                                     </span>
                                   )}
                                 </div>
