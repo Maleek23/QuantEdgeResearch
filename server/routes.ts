@@ -78,10 +78,11 @@ interface SymbolLeaderboardEntry {
 
 interface TimeOfDayHeatmapEntry {
   hour: number;
-  trades_count: number;
+  hourLabel: string;
+  trades: number;
   wins: number;
   losses: number;
-  win_rate: number;
+  winRate: number;
 }
 
 interface EngineTrendEntry {
@@ -2366,12 +2367,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const totalTrades = stats.trades.length;
         const winRate = totalTrades > 0 ? (stats.wins / totalTrades) * 100 : 0;
         
+        // Format hour label (e.g., "9 AM", "12 PM", "4 PM")
+        const hourLabel = stats.hour === 12 
+          ? "12 PM" 
+          : stats.hour > 12 
+            ? `${stats.hour - 12} PM` 
+            : `${stats.hour} AM`;
+        
         heatmap.push({
           hour: stats.hour,
-          trades_count: totalTrades,
+          hourLabel,
+          trades: totalTrades,
           wins: stats.wins,
           losses: stats.losses,
-          win_rate: Math.round(winRate * 10) / 10,
+          winRate: Math.round(winRate * 10) / 10,
         });
       });
       
