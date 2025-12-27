@@ -7,19 +7,22 @@ import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { 
   Upload, Image as ImageIcon, TrendingUp, TrendingDown, DollarSign, 
   AlertTriangle, Brain, Loader2, ExternalLink, CheckCircle2, Sparkles,
   Target, Shield, Activity, BarChart3, ArrowUpRight, ArrowDownRight,
-  Zap, Clock, Calculator, Gauge, Send
+  Zap, Clock, Calculator, Gauge, Send, LineChart, Lightbulb, Users,
+  ChevronRight, Database, BookOpen, Trophy
 } from "lucide-react";
 import { SiDiscord } from "react-icons/si";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { TierGate } from "@/components/tier-gate";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
 
 function ConfidenceGauge({ value, sentiment }: { value: number; sentiment: "bullish" | "bearish" | "neutral" }) {
   const color = sentiment === "bullish" ? "#22c55e" : sentiment === "bearish" ? "#ef4444" : "#f59e0b";
@@ -179,7 +182,6 @@ function TrendArrow({ sentiment, confidence, gainPercent }: {
   );
 }
 
-// Predicted price path mini chart
 function PredictedPathChart({ 
   entry, target, stop, sentiment, timeframe 
 }: { 
@@ -192,33 +194,27 @@ function PredictedPathChart({
   const isBullish = sentiment === "bullish";
   const isBearish = sentiment === "bearish";
   
-  // Normalize price levels to chart coordinates (0-100 scale)
   const prices = [stop, entry, target];
   const minPrice = Math.min(...prices) * 0.995;
   const maxPrice = Math.max(...prices) * 1.005;
   const range = maxPrice - minPrice || 1;
   
-  const normalize = (price: number) => 90 - ((price - minPrice) / range) * 80; // Invert for SVG coords
+  const normalize = (price: number) => 90 - ((price - minPrice) / range) * 80;
   
   const entryY = normalize(entry);
   const targetY = normalize(target);
   const stopY = normalize(stop);
   
-  // Generate path points for predicted movement
   const pathColor = isBullish ? "#22c55e" : isBearish ? "#ef4444" : "#f59e0b";
   const stopColor = "#ef4444";
   const targetColor = "#22c55e";
   
-  // Create a realistic looking price path
   const generatePath = () => {
     if (isBullish) {
-      // Bullish: start at entry, small dip, then rise to target
       return `M 15 ${entryY} Q 25 ${entryY + 5} 35 ${entryY - 3} Q 50 ${entryY - 10} 65 ${(entryY + targetY) / 2} Q 80 ${targetY + 5} 90 ${targetY}`;
     } else if (isBearish) {
-      // Bearish: start at entry, small bump, then fall to target
       return `M 15 ${entryY} Q 25 ${entryY - 5} 35 ${entryY + 3} Q 50 ${entryY + 10} 65 ${(entryY + targetY) / 2} Q 80 ${targetY - 5} 90 ${targetY}`;
     }
-    // Neutral: sideways movement
     return `M 15 ${entryY} Q 35 ${entryY - 3} 55 ${entryY + 3} Q 75 ${entryY - 2} 90 ${entryY}`;
   };
 
@@ -232,11 +228,9 @@ function PredictedPathChart({
           </linearGradient>
         </defs>
         
-        {/* Grid lines */}
         <line x1="10" y1="10" x2="10" y2="90" stroke="currentColor" strokeOpacity="0.1" strokeWidth="0.5" />
         <line x1="10" y1="90" x2="95" y2="90" stroke="currentColor" strokeOpacity="0.1" strokeWidth="0.5" />
         
-        {/* Stop loss zone (dashed red line) */}
         <line 
           x1="10" y1={stopY} x2="95" y2={stopY} 
           stroke={stopColor} 
@@ -245,7 +239,6 @@ function PredictedPathChart({
           strokeOpacity="0.5"
         />
         
-        {/* Target zone (dashed green line) */}
         <line 
           x1="10" y1={targetY} x2="95" y2={targetY} 
           stroke={targetColor} 
@@ -254,16 +247,14 @@ function PredictedPathChart({
           strokeOpacity="0.5"
         />
         
-        {/* Entry line (blue) */}
         <line 
           x1="10" y1={entryY} x2="95" y2={entryY} 
-          stroke="#3b82f6" 
+          stroke="#22d3ee" 
           strokeWidth="1" 
           strokeDasharray="2,2"
           strokeOpacity="0.4"
         />
         
-        {/* Predicted price path */}
         <path
           d={generatePath()}
           fill="none"
@@ -273,19 +264,14 @@ function PredictedPathChart({
           className="transition-all duration-700"
         />
         
-        {/* Entry point marker */}
-        <circle cx="15" cy={entryY} r="3" fill="#3b82f6" />
-        
-        {/* Target point marker */}
+        <circle cx="15" cy={entryY} r="3" fill="#22d3ee" />
         <circle cx="90" cy={targetY} r="3" fill={pathColor} />
         
-        {/* Labels */}
         <text x="97" y={stopY + 1} className="text-[6px] fill-red-500" textAnchor="start">Stop</text>
-        <text x="97" y={entryY + 1} className="text-[6px] fill-blue-500" textAnchor="start">Entry</text>
+        <text x="97" y={entryY + 1} className="text-[6px] fill-cyan-400" textAnchor="start">Entry</text>
         <text x="97" y={targetY + 1} className="text-[6px] fill-green-500" textAnchor="start">Target</text>
       </svg>
       
-      {/* Price labels */}
       <div className="flex justify-between text-xs">
         <div className="flex items-center gap-1">
           <div className="w-2 h-2 rounded-full bg-cyan-500" />
@@ -350,7 +336,6 @@ interface ChartAnalysisResult {
   analysis: string;
   confidence: number;
   timeframe: string;
-  // Price validation fields (from backend)
   currentPrice?: number | null;
   priceDiscrepancyWarning?: string | null;
   adjustedLevels?: {
@@ -380,7 +365,6 @@ const TIMEFRAME_OPTIONS = [
   { value: "1M", label: "Monthly" },
 ];
 
-// Calculate how long a chart analysis remains valid based on timeframe
 function getAnalysisValidity(timeframe: string): { duration: string; warning: string; hoursValid: number } {
   const validityMap: Record<string, { duration: string; warning: string; hoursValid: number }> = {
     "1m": { duration: "15-30 min", warning: "Ultra short-term, re-analyze frequently", hoursValid: 0.5 },
@@ -396,7 +380,66 @@ function getAnalysisValidity(timeframe: string): { duration: string; warning: st
   return validityMap[timeframe] || validityMap["1D"];
 }
 
+function AnalysisTypeCard({ 
+  title, 
+  description, 
+  icon: Icon, 
+  badge, 
+  badgeVariant = "default",
+  isActive,
+  onClick,
+  stats
+}: {
+  title: string;
+  description: string;
+  icon: any;
+  badge?: string;
+  badgeVariant?: "default" | "secondary";
+  isActive?: boolean;
+  onClick?: () => void;
+  stats?: string;
+}) {
+  return (
+    <div 
+      onClick={onClick}
+      className={`glass-card rounded-xl p-5 cursor-pointer transition-all hover-elevate ${
+        isActive ? 'ring-2 ring-cyan-400/50 bg-cyan-500/5' : ''
+      }`}
+      data-testid={`card-analysis-${title.toLowerCase().replace(/ /g, '-')}`}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+          isActive ? 'bg-cyan-500/20' : 'bg-muted/50'
+        }`}>
+          <Icon className={`h-5 w-5 ${isActive ? 'text-cyan-400' : 'text-muted-foreground'}`} />
+        </div>
+        {badge && (
+          <Badge variant={badgeVariant} className="text-[10px]">
+            {badge}
+          </Badge>
+        )}
+      </div>
+      <h3 className="font-semibold text-sm mb-1">{title}</h3>
+      <p className="text-xs text-muted-foreground mb-3">{description}</p>
+      {stats && (
+        <p className="text-xs text-cyan-400">{stats}</p>
+      )}
+    </div>
+  );
+}
+
+function QuickStatCard({ label, value, icon: Icon }: { label: string; value: string | number; icon: any }) {
+  return (
+    <div className="glass-card rounded-xl p-4 text-center">
+      <Icon className="h-5 w-5 text-cyan-400 mx-auto mb-2" />
+      <p className="text-xl font-bold">{value}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
+    </div>
+  );
+}
+
 export default function ChartAnalysis() {
+  const { user } = useAuth();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [symbol, setSymbol] = useState("");
@@ -405,14 +448,17 @@ export default function ChartAnalysis() {
   const [analysisResult, setAnalysisResult] = useState<ChartAnalysisResult | null>(null);
   const [savedTradeIdeaId, setSavedTradeIdeaId] = useState<string | null>(null);
   const [isPromoted, setIsPromoted] = useState(false);
+  const [analysisMode, setAnalysisMode] = useState<"day" | "swing">("day");
   const { toast } = useToast();
   
-  // Asset type and options fields
   const [assetType, setAssetType] = useState<"stock" | "option">("stock");
   const [optionType, setOptionType] = useState<"call" | "put">("call");
   const [expiryDate, setExpiryDate] = useState("");
 
-  // Generate deterministic quant signals based on analysis result
+  const { data: perfStats } = useQuery<{ overall: { totalIdeas: number; winRate: number } }>({
+    queryKey: ['/api/performance/stats'],
+  });
+
   const quantSignals: QuantSignal[] | null = analysisResult && symbol ? (() => {
     const sentiment = analysisResult.sentiment;
     const confidence = analysisResult.confidence;
@@ -446,7 +492,6 @@ export default function ChartAnalysis() {
     ];
   })() : null;
 
-  // Mutation to save analysis as draft trade idea
   const saveDraftMutation = useMutation({
     mutationFn: async (data: { symbol: string; analysis: ChartAnalysisResult; assetType: string; optionType?: string; expiryDate?: string }) => {
       const response = await apiRequest('POST', '/api/trade-ideas/from-chart', {
@@ -643,7 +688,6 @@ export default function ChartAnalysis() {
     }
   };
 
-  // Calculate percentages for display
   const calculateGainPercent = () => {
     if (!analysisResult) return 0;
     return ((analysisResult.targetPrice - analysisResult.entryPoint) / analysisResult.entryPoint * 100);
@@ -654,7 +698,6 @@ export default function ChartAnalysis() {
     return Math.abs((analysisResult.stopLoss - analysisResult.entryPoint) / analysisResult.entryPoint * 100);
   };
 
-  // Validation warnings
   const getValidationWarnings = () => {
     if (!analysisResult) return [];
     const warnings: string[] = [];
@@ -679,55 +722,82 @@ export default function ChartAnalysis() {
   };
 
   const validationWarnings = getValidationWarnings();
+  const userName = (user as any)?.firstName || 'Trader';
 
   return (
     <TierGate feature="chart-analysis">
     <div className="container mx-auto p-4 md:p-6 max-w-7xl space-y-6" data-testid="page-chart-analysis">
-      {/* Header */}
+      {/* Hero Header */}
       <div className="relative overflow-hidden rounded-xl glass-card p-6 sm:p-8">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase mb-1">
-              {format(new Date(), 'EEEE, MMMM d')}
-            </p>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-3 flex items-center gap-2" data-testid="text-chart-analysis-title">
-              <BarChart3 className="h-7 w-7 text-cyan-400" />
-              Chart Analysis
-            </h1>
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-sm text-muted-foreground">
-                AI + Quantitative analysis for precise trade setups
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <span className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs flex items-center gap-1">
-              <Brain className="h-3 w-3" />
-              AI Vision
-            </span>
-            <span className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs flex items-center gap-1">
-              <Calculator className="h-3 w-3" />
-              Quant Engine
-            </span>
-          </div>
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/5" />
+        <div className="relative z-10">
+          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase mb-1">
+            {format(new Date(), 'EEEE, MMMM d')}
+          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">
+            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {userName}!
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Your AI-powered chart analysis command center
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+      {/* Analysis Type Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <AnalysisTypeCard 
+          title="Day Trading"
+          description="Intraday opportunities with precise entry and exit points for quick moves."
+          icon={Zap}
+          badge="Popular"
+          badgeVariant="default"
+          isActive={analysisMode === "day"}
+          onClick={() => {
+            setAnalysisMode("day");
+            setTimeframe("15m");
+          }}
+          stats="Best for 15m - 1H charts"
+        />
+        <AnalysisTypeCard 
+          title="Swing Trading"
+          description="Multi-day to multi-week setups with larger profit targets."
+          icon={LineChart}
+          badge="AI Enhanced"
+          badgeVariant="secondary"
+          isActive={analysisMode === "swing"}
+          onClick={() => {
+            setAnalysisMode("swing");
+            setTimeframe("1D");
+          }}
+          stats="Best for 4H - Daily charts"
+        />
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <QuickStatCard label="Charts Analyzed" value={perfStats?.overall?.totalIdeas || 0} icon={BarChart3} />
+        <QuickStatCard label="Win Rate" value={`${(perfStats?.overall?.winRate || 0).toFixed(0)}%`} icon={Trophy} />
+        <QuickStatCard label="AI Confidence" value="85%" icon={Brain} />
+        <QuickStatCard label="Patterns Detected" value="12+" icon={Target} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Upload Section - Left Column */}
         <div className="lg:col-span-2 space-y-4">
           <div className="glass-card rounded-xl overflow-hidden">
-            <div className="p-4 pb-3">
-              <h3 className="text-base font-semibold flex items-center gap-2 text-cyan-400">
-                <Upload className="h-4 w-4" />
+            <div className="p-4 pb-3 border-b border-border/50">
+              <h3 className="text-base font-semibold flex items-center gap-2">
+                <Upload className="h-4 w-4 text-cyan-400" />
                 Upload Chart
               </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Drop your {analysisMode === "day" ? "intraday" : "swing"} chart for AI analysis
+              </p>
             </div>
-            <div className="px-4 pb-4 space-y-4">
+            <div className="p-4 space-y-4">
               {/* File Upload Area */}
               <div 
-                className="relative border-2 border-dashed rounded-xl p-4 text-center hover:border-primary/50 transition-colors cursor-pointer bg-muted/30"
+                className="relative border-2 border-dashed border-muted-foreground/30 rounded-xl p-4 text-center hover:border-cyan-400/50 transition-colors cursor-pointer bg-muted/20"
               >
                 <Input
                   id="chart-upload"
@@ -748,13 +818,13 @@ export default function ChartAnalysis() {
                       <p className="text-xs text-muted-foreground">Click to change</p>
                     </div>
                   ) : (
-                    <div className="py-6 space-y-2">
-                      <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-                        <ImageIcon className="h-6 w-6 text-primary" />
+                    <div className="py-8 space-y-3">
+                      <div className="w-14 h-14 mx-auto rounded-full bg-cyan-500/10 flex items-center justify-center">
+                        <ImageIcon className="h-7 w-7 text-cyan-400" />
                       </div>
                       <div>
                         <p className="font-medium text-sm">Drop chart here or click to upload</p>
-                        <p className="text-xs text-muted-foreground">PNG, JPG up to 10MB</p>
+                        <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 10MB</p>
                       </div>
                     </div>
                   )}
@@ -769,22 +839,16 @@ export default function ChartAnalysis() {
                   placeholder="AAPL, TSLA, BTC..."
                   value={symbol}
                   onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                  className="h-9"
+                  className="h-10"
                   data-testid="input-symbol"
                 />
               </div>
 
-              {/* Chart Timeframe Dropdown */}
+              {/* Chart Timeframe */}
               <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Label className="text-xs font-medium">Chart Timeframe</Label>
-                  <Clock className="h-3 w-3 text-muted-foreground" />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  What time period does each candle/bar represent on your chart?
-                </p>
+                <Label className="text-xs font-medium">Chart Timeframe</Label>
                 <Select value={timeframe} onValueChange={setTimeframe}>
-                  <SelectTrigger className="h-9" data-testid="select-timeframe">
+                  <SelectTrigger className="h-10" data-testid="select-timeframe">
                     <SelectValue placeholder="Select timeframe" />
                   </SelectTrigger>
                   <SelectContent>
@@ -798,20 +862,18 @@ export default function ChartAnalysis() {
               </div>
 
               {/* Quick Timeframe Chips */}
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { value: "15m", label: "15 Min" },
-                  { value: "1H", label: "1 Hour" },
-                  { value: "4H", label: "4 Hour" },
-                  { value: "1D", label: "Daily" }
-                ].map((tf) => (
+              <div className="flex flex-wrap gap-2">
+                {(analysisMode === "day" 
+                  ? [{ value: "5m", label: "5 Min" }, { value: "15m", label: "15 Min" }, { value: "1H", label: "1 Hour" }]
+                  : [{ value: "4H", label: "4 Hour" }, { value: "1D", label: "Daily" }, { value: "1W", label: "Weekly" }]
+                ).map((tf) => (
                   <button
                     key={tf.value}
                     type="button"
-                    className={`rounded px-2 py-0.5 text-xs cursor-pointer hover-elevate transition-colors ${
+                    className={`rounded-full px-3 py-1 text-xs cursor-pointer transition-colors ${
                       timeframe === tf.value 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-white/10 text-muted-foreground'
+                        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' 
+                        : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
                     }`}
                     onClick={() => setTimeframe(tf.value)}
                     data-testid={`chip-timeframe-${tf.value.toLowerCase()}`}
@@ -821,46 +883,45 @@ export default function ChartAnalysis() {
                 ))}
               </div>
 
-              {/* Asset Type Selector */}
-              <div className="space-y-2 pt-2 border-t">
+              {/* Asset Type */}
+              <div className="space-y-2 pt-2 border-t border-border/50">
                 <Label className="text-xs font-medium">Trade Type</Label>
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    className={`flex-1 rounded px-2 py-1.5 text-xs cursor-pointer hover-elevate transition-colors flex items-center justify-center gap-1 ${
+                    className={`flex-1 rounded-lg px-3 py-2 text-xs cursor-pointer transition-colors flex items-center justify-center gap-2 ${
                       assetType === "stock" 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-white/10 text-muted-foreground'
+                        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' 
+                        : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
                     }`}
                     onClick={() => setAssetType("stock")}
                     data-testid="chip-asset-stock"
                   >
-                    <TrendingUp className="h-3 w-3" /> Shares
+                    <TrendingUp className="h-4 w-4" /> Shares
                   </button>
                   <button
                     type="button"
-                    className={`flex-1 rounded px-2 py-1.5 text-xs cursor-pointer hover-elevate transition-colors flex items-center justify-center gap-1 ${
+                    className={`flex-1 rounded-lg px-3 py-2 text-xs cursor-pointer transition-colors flex items-center justify-center gap-2 ${
                       assetType === "option" 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-white/10 text-muted-foreground'
+                        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' 
+                        : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
                     }`}
                     onClick={() => setAssetType("option")}
                     data-testid="chip-asset-option"
                   >
-                    <Target className="h-3 w-3" /> Options
+                    <Target className="h-4 w-4" /> Options
                   </button>
                 </div>
                 
-                {/* Options-specific fields */}
                 {assetType === "option" && (
                   <div className="space-y-2 pt-2">
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        className={`flex-1 rounded px-2 py-1 text-xs cursor-pointer hover-elevate transition-colors ${
+                        className={`flex-1 rounded px-2 py-1.5 text-xs cursor-pointer transition-colors ${
                           optionType === "call" 
-                            ? 'bg-primary text-primary-foreground' 
-                            : 'bg-white/10 text-muted-foreground'
+                            ? 'bg-green-500/20 text-green-400 border border-green-500/50' 
+                            : 'bg-muted/30 text-muted-foreground'
                         }`}
                         onClick={() => setOptionType("call")}
                         data-testid="chip-option-call"
@@ -869,10 +930,10 @@ export default function ChartAnalysis() {
                       </button>
                       <button
                         type="button"
-                        className={`flex-1 rounded px-2 py-1 text-xs cursor-pointer hover-elevate transition-colors ${
+                        className={`flex-1 rounded px-2 py-1.5 text-xs cursor-pointer transition-colors ${
                           optionType === "put" 
-                            ? 'bg-destructive text-destructive-foreground' 
-                            : 'bg-white/10 text-muted-foreground'
+                            ? 'bg-red-500/20 text-red-400 border border-red-500/50' 
+                            : 'bg-muted/30 text-muted-foreground'
                         }`}
                         onClick={() => setOptionType("put")}
                         data-testid="chip-option-put"
@@ -887,7 +948,7 @@ export default function ChartAnalysis() {
                         type="date"
                         value={expiryDate}
                         onChange={(e) => setExpiryDate(e.target.value)}
-                        className="h-8 text-xs"
+                        className="h-9 text-xs"
                         data-testid="input-expiry"
                       />
                     </div>
@@ -900,7 +961,7 @@ export default function ChartAnalysis() {
                 <Label htmlFor="context" className="text-xs font-medium">Context (Optional)</Label>
                 <Textarea
                   id="context"
-                  placeholder="Market conditions, specific patterns to look for..."
+                  placeholder="Market conditions, patterns to look for..."
                   value={additionalContext}
                   onChange={(e) => setAdditionalContext(e.target.value)}
                   rows={2}
@@ -925,8 +986,8 @@ export default function ChartAnalysis() {
                     </>
                   ) : (
                     <>
-                      <Zap className="h-4 w-4 mr-2" />
-                      Analyze
+                      <Brain className="h-4 w-4 mr-2" />
+                      Analyze Chart
                     </>
                   )}
                 </Button>
@@ -938,10 +999,28 @@ export default function ChartAnalysis() {
               </div>
             </div>
           </div>
+
+          {/* Trading Tip Card */}
+          <div className="glass-card rounded-xl p-4 border-l-2 border-l-amber-400">
+            <div className="flex items-start gap-3">
+              <Lightbulb className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-400 mb-1">
+                  {analysisMode === "day" ? "Day Trading Tip" : "Swing Trading Tip"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {analysisMode === "day" 
+                    ? "For intraday charts, use 15-minute candles for cleaner signals. Avoid trading during the first 15 minutes of market open."
+                    : "Daily charts work best for swing trades. Look for setups near key support/resistance levels with increasing volume."
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Results Section - Right Column */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="lg:col-span-3 space-y-4">
           {analysisResult ? (
             <>
               {/* Summary Banner */}
@@ -969,130 +1048,91 @@ export default function ChartAnalysis() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-lg">{symbol}</span>
-                          <span className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs">{timeframe}</span>
-                          <span className={`rounded px-2 py-0.5 text-xs font-medium ${
-                            analysisResult.sentiment === "bullish" ? "bg-green-500/20 text-green-400" : 
-                            analysisResult.sentiment === "bearish" ? "bg-red-500/20 text-red-400" : 
-                            "bg-white/10 text-muted-foreground"
-                          }`}>
+                          <Badge variant="secondary" className="text-[10px]">{timeframe}</Badge>
+                          <Badge variant={analysisResult.sentiment === "bullish" ? "default" : analysisResult.sentiment === "bearish" ? "destructive" : "secondary"} className="text-[10px]">
                             {analysisResult.sentiment.toUpperCase()}
-                          </span>
+                          </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {analysisResult.confidence}% Confidence • {analysisResult.patterns.length} Patterns
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {savedTradeIdeaId && (
-                        <span className={`rounded px-2 py-0.5 text-xs flex items-center gap-1 ${isPromoted ? "bg-green-500/20 text-green-400" : "bg-white/10 text-muted-foreground"}`}>
-                          <CheckCircle2 className="h-3 w-3" />
-                          {isPromoted ? "Published" : "Draft"}
-                        </span>
-                      )}
-                    </div>
+                    {savedTradeIdeaId && (
+                      <Badge variant={isPromoted ? "default" : "secondary"} className="text-[10px]">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        {isPromoted ? "Published" : "Draft Saved"}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Price Context Info (only for extreme discrepancies) */}
+              {/* Price Discrepancy Warning */}
               {analysisResult.priceDiscrepancyWarning && (
-                <div className="glass-card rounded-xl border-l-2 border-l-amber-400">
-                  <div className="p-4">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
-                      <div className="space-y-2 flex-1">
-                        <p className="text-sm font-semibold text-amber-500">Price Context</p>
-                        <p className="text-sm text-muted-foreground">
-                          {analysisResult.priceDiscrepancyWarning}
-                        </p>
-                        {analysisResult.adjustedLevels && (
-                          <div className="mt-3 p-3 rounded-lg bg-background/50">
-                            <p className="text-xs font-medium mb-2">Alternative: If entering at current price:</p>
-                            <div className="grid grid-cols-3 gap-2 text-center">
-                              <div>
-                                <p className="text-xs text-muted-foreground">Entry</p>
-                                <p className="font-mono font-bold text-sm">${analysisResult.adjustedLevels.entry.toFixed(2)}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground">Target</p>
-                                <p className="font-mono font-bold text-sm text-green-500">${analysisResult.adjustedLevels.target.toFixed(2)}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground">Stop</p>
-                                <p className="font-mono font-bold text-sm text-red-500">${analysisResult.adjustedLevels.stop.toFixed(2)}</p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                <div className="glass-card rounded-xl border-l-2 border-l-amber-400 p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                    <div className="space-y-2 flex-1">
+                      <p className="text-sm font-semibold text-amber-500">Price Context</p>
+                      <p className="text-sm text-muted-foreground">
+                        {analysisResult.priceDiscrepancyWarning}
+                      </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Current Price Display */}
-              {analysisResult.currentPrice && !analysisResult.priceDiscrepancyWarning && (
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                  <Activity className="h-4 w-4" />
-                  <span>Current {symbol} Price: <span className="font-mono font-bold text-foreground">${analysisResult.currentPrice.toFixed(2)}</span></span>
-                </div>
-              )}
-
               {/* Price Levels Card */}
-              <div className="glass-card rounded-xl border-l-2 border-l-cyan-400">
-                <div className="p-4">
-                  <div className="grid grid-cols-4 gap-3">
-                    <div className="text-center p-3 rounded-lg bg-muted/50">
-                      <p className="text-xs text-muted-foreground mb-1">Entry</p>
-                      <p className="text-lg font-bold font-mono" data-testid="text-entry-point">
-                        ${analysisResult.entryPoint.toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="text-center p-3 rounded-lg bg-green-500/10">
-                      <p className="text-xs text-muted-foreground mb-1">Target</p>
-                      <p className="text-lg font-bold font-mono text-green-500" data-testid="text-target-price">
-                        ${analysisResult.targetPrice.toFixed(2)}
-                      </p>
-                      <p className="text-xs text-green-500 flex items-center justify-center gap-0.5">
-                        <ArrowUpRight className="h-3 w-3" />
-                        +{calculateGainPercent().toFixed(1)}%
-                      </p>
-                    </div>
-                    <div className="text-center p-3 rounded-lg bg-red-500/10">
-                      <p className="text-xs text-muted-foreground mb-1">Stop</p>
-                      <p className="text-lg font-bold font-mono text-red-500" data-testid="text-stop-loss">
-                        ${analysisResult.stopLoss.toFixed(2)}
-                      </p>
-                      <p className="text-xs text-red-500 flex items-center justify-center gap-0.5">
-                        <ArrowDownRight className="h-3 w-3" />
-                        -{calculateRiskPercent().toFixed(1)}%
-                      </p>
-                    </div>
-                    <div className="text-center p-3 rounded-lg bg-primary/10">
-                      <p className="text-xs text-muted-foreground mb-1">R:R</p>
-                      <p className="text-lg font-bold font-mono text-primary" data-testid="text-risk-reward">
-                        {analysisResult.riskRewardRatio.toFixed(1)}:1
-                      </p>
-                    </div>
+              <div className="glass-card rounded-xl p-4">
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="text-center p-3 rounded-lg bg-muted/30">
+                    <p className="text-xs text-muted-foreground mb-1">Entry</p>
+                    <p className="text-lg font-bold font-mono" data-testid="text-entry-point">
+                      ${analysisResult.entryPoint.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-green-500/10">
+                    <p className="text-xs text-muted-foreground mb-1">Target</p>
+                    <p className="text-lg font-bold font-mono text-green-500" data-testid="text-target-price">
+                      ${analysisResult.targetPrice.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-green-500 flex items-center justify-center gap-0.5">
+                      <ArrowUpRight className="h-3 w-3" />
+                      +{calculateGainPercent().toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-red-500/10">
+                    <p className="text-xs text-muted-foreground mb-1">Stop</p>
+                    <p className="text-lg font-bold font-mono text-red-500" data-testid="text-stop-loss">
+                      ${analysisResult.stopLoss.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-red-500 flex items-center justify-center gap-0.5">
+                      <ArrowDownRight className="h-3 w-3" />
+                      -{calculateRiskPercent().toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-cyan-500/10">
+                    <p className="text-xs text-muted-foreground mb-1">R:R</p>
+                    <p className="text-lg font-bold font-mono text-cyan-400" data-testid="text-risk-reward">
+                      {analysisResult.riskRewardRatio.toFixed(1)}:1
+                    </p>
                   </div>
                 </div>
               </div>
 
               {/* Validation Warnings */}
               {validationWarnings.length > 0 && (
-                <div className="glass-card rounded-xl border-l-2 border-l-amber-400">
-                  <div className="p-3">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium text-amber-400">Validation Alerts</p>
-                        <ul className="text-xs text-muted-foreground space-y-0.5">
-                          {validationWarnings.map((warning, i) => (
-                            <li key={i}>• {warning}</li>
-                          ))}
-                        </ul>
-                      </div>
+                <div className="glass-card rounded-xl border-l-2 border-l-amber-400 p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-amber-400">Validation Alerts</p>
+                      <ul className="text-xs text-muted-foreground space-y-0.5">
+                        {validationWarnings.map((warning, i) => (
+                          <li key={i}>• {warning}</li>
+                        ))}
+                      </ul>
                     </div>
                   </div>
                 </div>
@@ -1119,9 +1159,7 @@ export default function ChartAnalysis() {
                   </div>
                   <div className="p-4 pt-4">
                     <TabsContent value="ai" className="mt-0 space-y-4">
-                      {/* Visual Graphics Row */}
                       <div className="grid grid-cols-3 gap-4">
-                        {/* Predicted Trend */}
                         <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
                           <Label className="text-xs text-muted-foreground mb-2 block">Predicted Trend</Label>
                           <TrendArrow 
@@ -1130,8 +1168,6 @@ export default function ChartAnalysis() {
                             gainPercent={calculateGainPercent()}
                           />
                         </div>
-                        
-                        {/* Confidence Gauge */}
                         <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
                           <Label className="text-xs text-muted-foreground mb-2 block text-center">AI Confidence</Label>
                           <ConfidenceGauge 
@@ -1139,8 +1175,6 @@ export default function ChartAnalysis() {
                             sentiment={analysisResult.sentiment}
                           />
                         </div>
-                        
-                        {/* Analysis Validity */}
                         <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
                           <Label className="text-xs text-muted-foreground mb-2 block text-center">Valid For</Label>
                           <div className="text-center" data-testid="validity-indicator">
@@ -1153,14 +1187,10 @@ export default function ChartAnalysis() {
                             <p className="text-xs text-muted-foreground" data-testid="text-validity-warning">
                               {getAnalysisValidity(timeframe).warning}
                             </p>
-                            <span className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs mt-2 inline-block" data-testid="badge-timeframe-display">
-                              {timeframe} Chart
-                            </span>
                           </div>
                         </div>
                       </div>
                       
-                      {/* Predicted Path Chart */}
                       <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
                         <Label className="text-xs text-muted-foreground mb-3 block">Predicted Price Path</Label>
                         <PredictedPathChart 
@@ -1172,14 +1202,12 @@ export default function ChartAnalysis() {
                         />
                       </div>
                       
-                      {/* Signal Balance Meter */}
                       {quantSignals && quantSignals.length > 0 && (
                         <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
                           <SignalMeter signals={quantSignals} />
                         </div>
                       )}
                       
-                      {/* Price Range Visualization */}
                       <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
                         <Label className="text-xs text-muted-foreground mb-3 block">Price Target Range</Label>
                         <PriceRangeBar 
@@ -1190,19 +1218,17 @@ export default function ChartAnalysis() {
                         />
                       </div>
                       
-                      {/* Patterns */}
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Detected Patterns</Label>
                         <div className="flex flex-wrap gap-1.5">
                           {analysisResult.patterns.map((pattern, i) => (
-                            <span key={i} className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs">
+                            <Badge key={i} variant="secondary" className="text-[10px]">
                               {pattern}
-                            </span>
+                            </Badge>
                           ))}
                         </div>
                       </div>
                       
-                      {/* Analysis Text */}
                       <div className="space-y-2">
                         <Label className="text-xs text-muted-foreground">Technical Analysis</Label>
                         <p className="text-sm leading-relaxed" data-testid="text-analysis">
@@ -1217,13 +1243,9 @@ export default function ChartAnalysis() {
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-medium">{signal.name}</span>
-                              <span className={`rounded px-2 py-0.5 text-xs font-medium ${
-                                signal.signal === "bullish" ? "bg-green-500/20 text-green-400" : 
-                                signal.signal === "bearish" ? "bg-red-500/20 text-red-400" : 
-                                "bg-white/10 text-muted-foreground"
-                              }`}>
+                              <Badge variant={signal.signal === "bullish" ? "default" : signal.signal === "bearish" ? "destructive" : "secondary"} className="text-[10px]">
                                 {signal.signal}
-                              </span>
+                              </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">{signal.description}</p>
                           </div>
@@ -1276,87 +1298,117 @@ export default function ChartAnalysis() {
               </div>
 
               {/* Action Buttons */}
-              {analysisResult && (
-                <div className="flex gap-2">
-                  {savedTradeIdeaId && (
-                    <>
-                      <Button asChild variant="glass" className="flex-1" data-testid="button-view-trade-desk">
-                        <Link href="/trade-desk">
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          Trade Desk
-                        </Link>
-                      </Button>
-                      <Button
-                        onClick={handlePromote}
-                        disabled={promoteMutation.isPending || isPromoted}
-                        variant="glass-secondary"
-                        className="flex-1"
-                        data-testid="button-promote"
-                      >
-                        {promoteMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Sparkles className="h-4 w-4 mr-2" />
-                        )}
-                        {isPromoted ? "Published" : "Publish"}
-                      </Button>
-                    </>
+              <div className="flex gap-2">
+                {savedTradeIdeaId && (
+                  <>
+                    <Button asChild variant="glass" className="flex-1" data-testid="button-view-trade-desk">
+                      <Link href="/trade-desk">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Trade Desk
+                      </Link>
+                    </Button>
+                    <Button
+                      onClick={handlePromote}
+                      disabled={promoteMutation.isPending || isPromoted}
+                      variant="glass-secondary"
+                      className="flex-1"
+                      data-testid="button-promote"
+                    >
+                      {promoteMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 mr-2" />
+                      )}
+                      {isPromoted ? "Published" : "Publish"}
+                    </Button>
+                  </>
+                )}
+                <Button
+                  onClick={handleSendToDiscord}
+                  disabled={discordMutation.isPending || sentToDiscord}
+                  variant="glass-secondary"
+                  className="flex-1"
+                  data-testid="button-send-discord"
+                >
+                  {discordMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <SiDiscord className="h-4 w-4 mr-2" />
                   )}
-                  <Button
-                    onClick={handleSendToDiscord}
-                    disabled={discordMutation.isPending || sentToDiscord}
-                    variant="glass-secondary"
-                    className="flex-1"
-                    data-testid="button-send-discord"
-                  >
-                    {discordMutation.isPending ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <SiDiscord className="h-4 w-4 mr-2" />
-                    )}
-                    {sentToDiscord ? "Sent" : "Discord"}
-                  </Button>
-                </div>
-              )}
+                  {sentToDiscord ? "Sent" : "Discord"}
+                </Button>
+              </div>
             </>
           ) : (
-            /* Empty State */
-            <div className="glass-card rounded-xl h-full min-h-[400px] flex items-center justify-center">
-              <div className="text-center py-12">
-                <div className="w-16 h-16 mx-auto rounded-full bg-muted flex items-center justify-center mb-4">
-                  <BarChart3 className="h-8 w-8 text-muted-foreground" />
+            /* Empty State - Feature Cards */
+            <div className="space-y-4">
+              <div className="glass-card rounded-xl p-6 text-center">
+                <div className="w-16 h-16 mx-auto rounded-full bg-cyan-500/10 flex items-center justify-center mb-4">
+                  <BarChart3 className="h-8 w-8 text-cyan-400" />
                 </div>
-                <h3 className="font-semibold text-lg mb-2">No Analysis Yet</h3>
-                <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                  Upload a chart image and enter a symbol to get AI-powered technical analysis combined with quantitative signals.
+                <h3 className="font-semibold text-lg mb-2">Ready to Analyze</h3>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-4">
+                  Upload a chart screenshot and let AI + Quant engines identify patterns, levels, and trade setups.
                 </p>
-                <div className="flex items-center justify-center gap-4 mt-6 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Brain className="h-3.5 w-3.5" />
-                    Pattern Recognition
+                <div className="flex justify-center gap-2">
+                  <Badge variant="secondary" className="text-[10px]">
+                    <Brain className="h-3 w-3 mr-1" />
+                    AI Vision
+                  </Badge>
+                  <Badge variant="secondary" className="text-[10px]">
+                    <Calculator className="h-3 w-3 mr-1" />
+                    Quant Engine
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Quick Links */}
+              <div className="grid grid-cols-2 gap-3">
+                <Link href="/chart-database">
+                  <div className="glass-card rounded-xl p-4 hover-elevate cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <Database className="h-5 w-5 text-cyan-400" />
+                      <div>
+                        <p className="text-sm font-medium">Chart Database</p>
+                        <p className="text-xs text-muted-foreground">Browse past analyses</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Calculator className="h-3.5 w-3.5" />
-                    Quant Validation
+                </Link>
+                <Link href="/academy">
+                  <div className="glass-card rounded-xl p-4 hover-elevate cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <BookOpen className="h-5 w-5 text-cyan-400" />
+                      <div>
+                        <p className="text-sm font-medium">Learning Center</p>
+                        <p className="text-xs text-muted-foreground">Master chart patterns</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Target className="h-3.5 w-3.5" />
-                    Price Levels
-                  </div>
+                </Link>
+              </div>
+
+              {/* Features List */}
+              <div className="glass-card rounded-xl p-4">
+                <h4 className="text-sm font-medium mb-3">What You'll Get</h4>
+                <div className="space-y-2">
+                  {[
+                    { icon: Target, text: "Precise entry, target, and stop levels" },
+                    { icon: LineChart, text: "Pattern recognition (head & shoulders, wedges, flags)" },
+                    { icon: Shield, text: "Support and resistance levels" },
+                    { icon: Calculator, text: "Risk/reward ratio calculations" },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <item.icon className="h-4 w-4 text-cyan-400" />
+                      <span>{item.text}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Footer Disclaimer */}
-      <div className="glass-card rounded-xl border-l-2 border-l-amber-400/50">
-        <div className="p-3 flex items-center gap-2 text-xs text-muted-foreground">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" />
-          <span>
-            Educational purposes only. Not financial advice. Always conduct your own research before trading.
-          </span>
         </div>
       </div>
     </div>

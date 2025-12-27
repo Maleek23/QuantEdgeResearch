@@ -1,4 +1,8 @@
-import { TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, Sun, Moon, Upload, BookOpen, Home, CreditCard, ExternalLink, User, Activity, DollarSign, Wallet, MessageSquare } from "lucide-react";
+import { 
+  TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, 
+  Sun, Moon, Upload, BookOpen, Home, CreditCard, ExternalLink, User, Activity, 
+  LineChart, GraduationCap, FileText, Database, LogOut, Sparkles
+} from "lucide-react";
 import { useLocation } from "wouter";
 import {
   Sidebar,
@@ -14,37 +18,48 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/theme-provider";
-import { cn } from "@/lib/utils";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 
-// Simplified navigation - just the essentials
-const mainItems = [
-  { title: "Home", url: "/home", icon: Home },
-  { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
+interface NavItem {
+  title: string;
+  url: string;
+  icon: any;
+  badge?: string;
+  badgeVariant?: "default" | "secondary" | "destructive" | "outline";
+}
+
+const tradingToolsItems: NavItem[] = [
+  { title: "Dashboard", url: "/home", icon: Home },
+  { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp, badge: "Popular", badgeVariant: "default" },
   { title: "Live Trading", url: "/live-trading", icon: Activity },
-  // Hidden for now - Paper Trading, Wallet Tracker, CT Tracker
-  // { title: "Paper Trading", url: "/paper-trading", icon: DollarSign },
-  // { title: "Wallet Tracker", url: "/wallet-tracker", icon: Wallet },
-  // { title: "CT Tracker", url: "/ct-tracker", icon: MessageSquare },
-  { title: "Trading Rules", url: "/trading-rules", icon: BookOpen },
 ];
 
-const moreItems = [
+const analysisItems: NavItem[] = [
+  { title: "Chart Analysis", url: "/chart-analysis", icon: Upload, badge: "AI", badgeVariant: "secondary" },
   { title: "Performance", url: "/performance", icon: Target },
-  { title: "Market", url: "/market", icon: BarChart2 },
-  { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
+  { title: "Market Data", url: "/market", icon: BarChart2 },
+  { title: "Chart Database", url: "/chart-database", icon: Database },
 ];
 
-const systemItems = [
+const learningItems: NavItem[] = [
+  { title: "Trading Rules", url: "/trading-rules", icon: BookOpen },
+  { title: "Academy", url: "/academy", icon: GraduationCap },
+  { title: "Blog", url: "/blog", icon: FileText },
+];
+
+const accountItems: NavItem[] = [
   { title: "Pricing", url: "/pricing", icon: CreditCard },
   { title: "Settings", url: "/settings", icon: Settings },
-  { title: "Admin", url: "/admin", icon: Shield },
+  { title: "Admin", url: "/admin", icon: Shield, badge: "Admin" },
 ];
 
 function SidebarHeaderContent() {
   const [, setLocation] = useLocation();
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
 
   return (
     <div className="py-4 flex justify-center">
@@ -53,24 +68,25 @@ function SidebarHeaderContent() {
         data-testid="nav-logo" 
         className="flex items-center justify-center cursor-pointer"
       >
-        {/* Collapsed state - just logo */}
-        <img 
-          src={quantEdgeLogoUrl} 
-          alt="QuantEdge" 
-          className="h-8 w-8 object-contain group-data-[collapsible=icon]:block hidden"
-        />
-        {/* Expanded state - logo with text */}
-        <div className="flex flex-col items-center gap-1 group-data-[collapsible=icon]:hidden">
+        {isCollapsed ? (
           <img 
             src={quantEdgeLogoUrl} 
             alt="QuantEdge" 
-            className="h-14 w-14 object-contain"
+            className="h-8 w-8 object-contain"
           />
-          <div className="text-center">
-            <div className="text-sm font-bold text-foreground">QuantEdge</div>
-            <div className="text-[10px] text-muted-foreground tracking-wider">RESEARCH</div>
+        ) : (
+          <div className="flex flex-col items-center gap-1">
+            <img 
+              src={quantEdgeLogoUrl} 
+              alt="QuantEdge" 
+              className="h-12 w-12 object-contain"
+            />
+            <div className="text-center">
+              <div className="text-sm font-bold text-foreground">QuantEdge</div>
+              <div className="text-[10px] text-cyan-400 tracking-wider font-medium">2 Engines. 1 Edge.</div>
+            </div>
           </div>
-        </div>
+        )}
       </button>
     </div>
   );
@@ -85,19 +101,23 @@ function SidebarToggleButton() {
       variant="ghost"
       size="sm"
       onClick={toggleSidebar}
-      className="w-full justify-start gap-2 group-data-[collapsible=icon]:justify-center"
+      className="w-full justify-start gap-2"
       data-testid="button-toggle-sidebar"
     >
-      <PanelLeftClose className="h-4 w-4 group-data-[collapsible=icon]:hidden" />
-      <PanelLeft className="h-4 w-4 hidden group-data-[collapsible=icon]:block" />
-      <span className="group-data-[collapsible=icon]:hidden">Collapse</span>
+      {isCollapsed ? (
+        <PanelLeft className="h-4 w-4" />
+      ) : (
+        <>
+          <PanelLeftClose className="h-4 w-4" />
+          <span>Collapse</span>
+        </>
+      )}
     </Button>
   );
 }
 
 function ThemeToggleButton() {
   const { theme, setTheme } = useTheme();
-  const { state } = useSidebar();
 
   return (
     <Button
@@ -114,13 +134,90 @@ function ThemeToggleButton() {
   );
 }
 
+function NavSection({ 
+  label, 
+  items, 
+  location, 
+  onNavigate,
+  showAdminOnly = false,
+  isAdmin = false
+}: { 
+  label: string; 
+  items: NavItem[]; 
+  location: string; 
+  onNavigate: (url: string) => void;
+  showAdminOnly?: boolean;
+  isAdmin?: boolean;
+}) {
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+  
+  const filteredItems = items.filter(item => {
+    if (item.badge === "Admin") {
+      return isAdmin;
+    }
+    return true;
+  });
+
+  if (filteredItems.length === 0) return null;
+
+  return (
+    <SidebarGroup className="py-2 px-3">
+      {!isCollapsed && (
+        <SidebarGroupLabel className="mb-1 px-0 text-[11px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+          {label}
+        </SidebarGroupLabel>
+      )}
+      <SidebarGroupContent>
+        <SidebarMenu className="gap-0.5">
+          {filteredItems.map((item) => (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton 
+                isActive={location === item.url}
+                onClick={() => onNavigate(item.url)}
+                data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
+                tooltip={item.title}
+                className="group/item"
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                {!isCollapsed && (
+                  <span className="flex-1 truncate">{item.title}</span>
+                )}
+                {!isCollapsed && item.badge && (
+                  <Badge 
+                    variant={item.badgeVariant || "secondary"} 
+                    className="text-[10px] px-1.5 py-0 h-4 font-medium"
+                  >
+                    {item.badge}
+                  </Badge>
+                )}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
 
   const handleNavigation = (url: string) => {
     setLocation(url);
   };
+
+  const handleLogout = async () => {
+    await logout();
+    setLocation("/");
+  };
+
+  const isAdmin = !!(user as any)?.isAdmin;
+  const userName = String((user as any)?.firstName || (user as any)?.email?.split('@')[0] || 'User');
+  const userEmail = String((user as any)?.email || '');
 
   return (
     <Sidebar collapsible="icon">
@@ -132,105 +229,88 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
       
-      <SidebarContent className="gap-0 py-2">
-        {/* Main Section - Core navigation */}
-        <SidebarGroup className="py-1.5 px-3 group-data-[collapsible=icon]:px-2">
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-0">
-              {mainItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    isActive={location === item.url}
-                    onClick={() => handleNavigation(item.url)}
-                    data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
-                    tooltip={item.title}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* More Section - Additional tools */}
-        <SidebarGroup className="py-1.5 px-3 group-data-[collapsible=icon]:px-2">
-          <SidebarGroupLabel className="mb-0.5 px-0 text-xs group-data-[collapsible=icon]:hidden">More</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-0">
-              {moreItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    isActive={location === item.url}
-                    onClick={() => handleNavigation(item.url)}
-                    data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
-                    tooltip={item.title}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* System Section */}
-        <SidebarGroup className="py-1.5 px-3 group-data-[collapsible=icon]:px-2">
-          <SidebarGroupLabel className="mb-0.5 px-0 text-xs group-data-[collapsible=icon]:hidden">System</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-0">
-              {systemItems.map((item) => {
-                // Only show Admin link to the owner account (set via ADMIN_EMAIL env var on backend)
-                if (item.title === "Admin" && !(user as any)?.isAdmin) {
-                  return null;
-                }
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      isActive={location === item.url}
-                      onClick={() => handleNavigation(item.url)}
-                      data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
-                      tooltip={item.title}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+      <SidebarContent className="gap-0 py-1">
+        <NavSection 
+          label="Trading Tools" 
+          items={tradingToolsItems} 
+          location={location} 
+          onNavigate={handleNavigation}
+        />
+        
+        <NavSection 
+          label="Analysis & Research" 
+          items={analysisItems} 
+          location={location} 
+          onNavigate={handleNavigation}
+        />
+        
+        <NavSection 
+          label="Learning" 
+          items={learningItems} 
+          location={location} 
+          onNavigate={handleNavigation}
+        />
+        
+        <NavSection 
+          label="Account" 
+          items={accountItems} 
+          location={location} 
+          onNavigate={handleNavigation}
+          isAdmin={isAdmin}
+        />
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border/50 p-2 mt-auto">
-        {/* User Account Display */}
         {isAuthenticated && user && (
-          <div className="flex items-center gap-2 px-2 py-1.5 mb-2 rounded-md bg-sidebar-accent/30 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-            <User className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="flex flex-col min-w-0 group-data-[collapsible=icon]:hidden">
-              <span className="text-xs font-medium truncate" data-testid="text-user-name">
-                {String((user as any)?.firstName || (user as any)?.email?.split('@')[0] || 'User')}
-              </span>
-              <span className="text-[10px] text-muted-foreground truncate" data-testid="text-user-email">
-                {String((user as any)?.email || '')}
-              </span>
-            </div>
+          <div className="mb-2">
+            {!isCollapsed ? (
+              <div className="flex items-center gap-2 px-2 py-2 rounded-lg bg-sidebar-accent/30">
+                <div className="h-8 w-8 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                  <User className="h-4 w-4 text-cyan-400" />
+                </div>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-xs font-medium truncate" data-testid="text-user-name">
+                    {userName}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground truncate" data-testid="text-user-email">
+                    {userEmail}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleLogout}
+                  className="h-7 w-7 shrink-0"
+                  data-testid="button-logout"
+                >
+                  <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex justify-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleLogout}
+                  className="h-8 w-8"
+                  data-testid="button-logout"
+                >
+                  <LogOut className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
         
-        {/* Back to Landing Page Link */}
         <Button
           variant="ghost"
           size="sm"
           onClick={() => handleNavigation("/")}
-          className="w-full justify-start gap-2 mb-2 text-muted-foreground hover:text-foreground group-data-[collapsible=icon]:justify-center"
+          className="w-full justify-start gap-2 mb-2 text-muted-foreground hover:text-foreground"
           data-testid="nav-landing-page"
         >
           <ExternalLink className="h-4 w-4" />
-          <span className="group-data-[collapsible=icon]:hidden">Back to Site</span>
+          {!isCollapsed && <span>Back to Site</span>}
         </Button>
         
         <div className="flex items-center gap-2">
