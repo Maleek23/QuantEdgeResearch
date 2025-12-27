@@ -117,7 +117,7 @@ export default function Landing() {
     {
       icon: Calculator,
       title: "Quantitative Signals",
-      description: "Research-backed engine using proven strategies with 75-91% historical win rates."
+      description: "Research-backed engine using RSI(2), VWAP, and volume analysis. Targeting 55-65% live win rate."
     },
     {
       icon: Bell,
@@ -281,7 +281,7 @@ export default function Landing() {
                   {statsLoading ? (
                     <Skeleton className="h-5 w-24 inline-block" />
                   ) : perfStats?.overall?.totalIdeas ? (
-                    `${perfStats.overall.totalIdeas.toLocaleString()}+ Validated Trades`
+                    `${perfStats.overall.totalIdeas.toLocaleString()}+ Trade Ideas Generated`
                   ) : (
                     "Real Performance Data"
                   )}
@@ -530,19 +530,19 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Success Stories Carousel */}
-      <section className="py-16 md:py-24" id="success-stories">
+      {/* Recent Performance */}
+      <section className="py-16 md:py-24" id="recent-performance">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
             <Badge variant="secondary" className="mb-4">
-              <Award className="h-3 w-3 mr-1" />
-              Verified Results
+              <Activity className="h-3 w-3 mr-1" />
+              Transparent Tracking
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Success Stories
+              Recent Performance
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Real results from our platform. Every trade is tracked and verified.
+              All trade ideas are tracked from entry to exit. Results include both wins and losses.
             </p>
           </div>
 
@@ -702,7 +702,7 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {/* Free Tier */}
             <Card data-testid="card-pricing-free">
               <CardContent className="p-8 flex flex-col h-full">
@@ -807,6 +807,66 @@ export default function Landing() {
               </CardContent>
             </Card>
 
+            {/* Pro Tier - Coming Soon */}
+            <Card className="relative border-amber-500/30 bg-amber-500/5" data-testid="card-pricing-pro">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                  <Clock className="h-3 w-3 mr-1" />
+                  Coming Soon
+                </Badge>
+              </div>
+              <CardContent className="p-8 flex flex-col h-full">
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold mb-2">Pro</h3>
+                  <div className="flex items-baseline gap-1 mb-2">
+                    <span className="text-4xl font-bold text-amber-600">$79</span>
+                    <span className="text-muted-foreground">/month</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">Institutional-grade tools</p>
+                </div>
+                
+                <ul className="space-y-3 mb-8 flex-1">
+                  <li className="flex items-start gap-2">
+                    <Check className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm font-medium">Everything in Advanced</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Clock className="h-5 w-5 text-amber-500/60 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-muted-foreground">Futures trading (NQ, ES, GC)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Clock className="h-5 w-5 text-amber-500/60 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-muted-foreground">REST API access</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Clock className="h-5 w-5 text-amber-500/60 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-muted-foreground">White-label PDF reports</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Clock className="h-5 w-5 text-amber-500/60 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-muted-foreground">Backtesting module</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Clock className="h-5 w-5 text-amber-500/60 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-muted-foreground">Custom webhooks</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Clock className="h-5 w-5 text-amber-500/60 mt-0.5 flex-shrink-0" />
+                    <span className="text-sm text-muted-foreground">Priority idea generation</span>
+                  </li>
+                </ul>
+                
+                <Button 
+                  variant="outline"
+                  className="w-full border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+                  data-testid="button-pricing-pro"
+                >
+                  <Clock className="h-4 w-4 mr-2" />
+                  Join Waitlist
+                </Button>
+              </CardContent>
+            </Card>
+
           </div>
         </div>
       </section>
@@ -834,8 +894,8 @@ export default function Landing() {
                   How accurate are the trade signals?
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground pb-4" data-testid="content-faq-accuracy">
-                  Our quantitative engine uses research-backed strategies with historical win rates of 75-91%. 
-                  Every trade is tracked transparently with actual win/loss results published to our performance ledger.
+                  Our quantitative engine uses research-backed strategies targeting 55-65% win rate in live trading. 
+                  Every trade is tracked transparently with actual win/loss results. Past performance does not guarantee future results.
                 </AccordionContent>
               </AccordionItem>
 

@@ -20,12 +20,12 @@ const SIGNAL_ICONS: Record<string, { icon: typeof TrendingUp; label: string; des
   'RSI(2) Mean Reversion': { 
     icon: Activity, 
     label: 'RSI',
-    description: 'RSI(2) extreme oversold/overbought - 75-91% win rate (Larry Connors research)' 
+    description: 'RSI(2) extreme oversold/overbought with 200-day MA filter (Connors research)' 
   },
   'VWAP Cross': { 
     icon: TrendingUp, 
     label: 'VWAP',
-    description: 'Price crossing VWAP with volume - 80%+ win rate (professional standard)' 
+    description: 'Price crossing VWAP with volume confirmation (professional standard)' 
   },
   'Volume Spike': { 
     icon: Volume2, 
