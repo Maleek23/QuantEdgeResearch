@@ -44,36 +44,33 @@ const systemItems = [
 ];
 
 function SidebarHeaderContent() {
-  const { state } = useSidebar();
   const [, setLocation] = useLocation();
-  const isCollapsed = state === "collapsed";
 
   return (
-    <div className="px-3 py-4">
+    <div className="py-4 flex justify-center">
       <button 
         onClick={() => setLocation("/home")} 
         data-testid="nav-logo" 
-        className="flex items-center justify-center w-full cursor-pointer"
+        className="flex items-center justify-center cursor-pointer"
       >
-        {isCollapsed ? (
+        {/* Collapsed state - just logo */}
+        <img 
+          src={quantEdgeLogoUrl} 
+          alt="QuantEdge" 
+          className="h-8 w-8 object-contain group-data-[collapsible=icon]:block hidden"
+        />
+        {/* Expanded state - logo with text */}
+        <div className="flex flex-col items-center gap-1 group-data-[collapsible=icon]:hidden">
           <img 
             src={quantEdgeLogoUrl} 
             alt="QuantEdge" 
-            className="h-10 w-10 object-contain"
+            className="h-14 w-14 object-contain"
           />
-        ) : (
-          <div className="flex flex-col items-center gap-1">
-            <img 
-              src={quantEdgeLogoUrl} 
-              alt="QuantEdge" 
-              className="h-14 w-14 object-contain"
-            />
-            <div className="text-center">
-              <div className="text-sm font-bold text-foreground">QuantEdge</div>
-              <div className="text-[10px] text-muted-foreground tracking-wider">RESEARCH</div>
-            </div>
+          <div className="text-center">
+            <div className="text-sm font-bold text-foreground">QuantEdge</div>
+            <div className="text-[10px] text-muted-foreground tracking-wider">RESEARCH</div>
           </div>
-        )}
+        </div>
       </button>
     </div>
   );
@@ -137,7 +134,7 @@ export function AppSidebar() {
       
       <SidebarContent className="gap-0 py-2">
         {/* Main Section - Core navigation */}
-        <SidebarGroup className="py-1.5 px-3">
+        <SidebarGroup className="py-1.5 px-3 group-data-[collapsible=icon]:px-2">
           <SidebarGroupContent>
             <SidebarMenu className="gap-0">
               {mainItems.map((item) => (
@@ -146,6 +143,7 @@ export function AppSidebar() {
                     isActive={location === item.url}
                     onClick={() => handleNavigation(item.url)}
                     data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
+                    tooltip={item.title}
                   >
                     <item.icon className="h-4 w-4" />
                     <span>{item.title}</span>
@@ -157,8 +155,8 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* More Section - Additional tools */}
-        <SidebarGroup className="py-1.5 px-3">
-          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">More</SidebarGroupLabel>
+        <SidebarGroup className="py-1.5 px-3 group-data-[collapsible=icon]:px-2">
+          <SidebarGroupLabel className="mb-0.5 px-0 text-xs group-data-[collapsible=icon]:hidden">More</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0">
               {moreItems.map((item) => (
@@ -167,6 +165,7 @@ export function AppSidebar() {
                     isActive={location === item.url}
                     onClick={() => handleNavigation(item.url)}
                     data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
+                    tooltip={item.title}
                   >
                     <item.icon className="h-4 w-4" />
                     <span>{item.title}</span>
@@ -178,8 +177,8 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* System Section */}
-        <SidebarGroup className="py-1.5 px-3">
-          <SidebarGroupLabel className="mb-0.5 px-0 text-xs">System</SidebarGroupLabel>
+        <SidebarGroup className="py-1.5 px-3 group-data-[collapsible=icon]:px-2">
+          <SidebarGroupLabel className="mb-0.5 px-0 text-xs group-data-[collapsible=icon]:hidden">System</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0">
               {systemItems.map((item) => {
@@ -193,6 +192,7 @@ export function AppSidebar() {
                       isActive={location === item.url}
                       onClick={() => handleNavigation(item.url)}
                       data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
+                      tooltip={item.title}
                     >
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
