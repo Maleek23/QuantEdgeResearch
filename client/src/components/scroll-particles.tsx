@@ -137,10 +137,21 @@ export function ScrollParticles() {
           if (particle.y > canvas.height) particle.y = 0;
         }
         
+        // Detect if dark mode is active
+        const isDarkMode = document.documentElement.classList.contains('dark');
+        
+        // Use theme-appropriate colors - subtle in light mode, visible in dark mode
+        const particleColor = isDarkMode 
+          ? 'rgba(6, 182, 212, 1)'      // cyan-500 for dark mode
+          : 'rgba(8, 145, 178, 0.6)';   // cyan-600 with transparency for light mode
+        const connectionColor = isDarkMode
+          ? 'rgba(6, 182, 212, 1)'
+          : 'rgba(8, 145, 178, 0.4)';
+        
         // Draw particle (node)
         ctx.save();
-        ctx.globalAlpha = particle.opacity;
-        ctx.fillStyle = 'rgba(6, 182, 212, 1)'; // cyan-500 - neural network color
+        ctx.globalAlpha = isDarkMode ? particle.opacity : particle.opacity * 0.5;
+        ctx.fillStyle = particleColor;
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
         ctx.fill();
@@ -156,10 +167,10 @@ export function ScrollParticles() {
           
           // Draw connection if particles are close enough
           if (distance < 120) {
-            const connectionAlpha = particle.opacity * (1 - distance / 120) * 0.15;
+            const connectionAlpha = particle.opacity * (1 - distance / 120) * (isDarkMode ? 0.15 : 0.08);
             ctx.save();
             ctx.globalAlpha = connectionAlpha;
-            ctx.strokeStyle = 'rgba(6, 182, 212, 1)'; // cyan-500
+            ctx.strokeStyle = connectionColor;
             ctx.lineWidth = 0.5;
             ctx.beginPath();
             ctx.moveTo(particle.x, particle.y);

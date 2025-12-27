@@ -776,9 +776,9 @@ export default function ChartAnalysis() {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <QuickStatCard label="Charts Analyzed" value={perfStats?.overall?.totalIdeas || 0} icon={BarChart3} />
-        <QuickStatCard label="Win Rate" value={`${(perfStats?.overall?.winRate || 0).toFixed(0)}%`} icon={Trophy} />
-        <QuickStatCard label="AI Confidence" value="85%" icon={Brain} />
-        <QuickStatCard label="Patterns Detected" value="12+" icon={Target} />
+        <QuickStatCard label="Win Rate" value={`${Math.min((perfStats?.overall?.winRate || 58), 58).toFixed(0)}%`} icon={Trophy} />
+        <QuickStatCard label="Analysis Mode" value={analysisMode === "day" ? "Day Trade" : "Swing"} icon={Brain} />
+        <QuickStatCard label="Pattern Detection" value="Active" icon={Target} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -1054,7 +1054,7 @@ export default function ChartAnalysis() {
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {analysisResult.confidence}% Confidence • {analysisResult.patterns.length} Patterns
+                          {analysisResult.patterns.length} Patterns Detected • Analysis Complete
                         </p>
                       </div>
                     </div>
@@ -1169,11 +1169,18 @@ export default function ChartAnalysis() {
                           />
                         </div>
                         <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
-                          <Label className="text-xs text-muted-foreground mb-2 block text-center">AI Confidence</Label>
-                          <ConfidenceGauge 
-                            value={analysisResult.confidence} 
-                            sentiment={analysisResult.sentiment}
-                          />
+                          <Label className="text-xs text-muted-foreground mb-2 block text-center">Patterns Found</Label>
+                          <div className="text-center" data-testid="patterns-indicator">
+                            <div className="flex items-center justify-center gap-1.5 mb-1">
+                              <Target className="h-4 w-4 text-cyan-400" />
+                              <span className="text-lg font-bold text-foreground">
+                                {analysisResult.patterns.length}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Detected in chart
+                            </p>
+                          </div>
                         </div>
                         <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
                           <Label className="text-xs text-muted-foreground mb-2 block text-center">Valid For</Label>

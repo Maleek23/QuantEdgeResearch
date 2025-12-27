@@ -19,7 +19,7 @@ import { ExplainabilityPanel } from "@/components/explainability-panel";
 import { TradeIdeaDetailModal } from "@/components/trade-idea-detail-modal";
 import { TradingAdvice } from "@/components/trading-advice";
 import { ManualOutcomeRecorder } from "@/components/manual-outcome-recorder";
-import { ConfidenceCircle } from "@/components/confidence-circle";
+import { SignalFiltersDisplay } from "@/components/signal-filters-display";
 import { MiniSparkline } from "@/components/mini-sparkline";
 import { SignalStrengthBars } from "@/components/signal-strength-bars";
 import { EnhancedCountdown } from "@/components/enhanced-countdown";
@@ -365,8 +365,12 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 </Badge>
               )}
               
-              <ConfidenceCircle 
-                score={idea.confidenceScore} 
+              <SignalFiltersDisplay 
+                qualitySignals={idea.qualitySignals}
+                volatilityRegime={idea.volatilityRegime}
+                sessionPhase={idea.sessionPhase}
+                rsiValue={idea.rsiValue}
+                volumeRatio={idea.volumeRatio}
                 size="md" 
                 showLabel={false}
               />

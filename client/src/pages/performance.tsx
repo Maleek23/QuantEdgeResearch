@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, TrendingUp, Activity, Filter, Calendar, HelpCircle, Info } from "lucide-react";
+import { Download, TrendingUp, Activity, Filter, Calendar, HelpCircle, Info, AlertTriangle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -264,6 +264,18 @@ export default function PerformancePage() {
           <p className="text-sm">
             <span className="font-semibold text-cyan-400">Metrics v3.0+</span> - Performance metrics now filter to <span className="font-semibold">v3.0.0+</span> engine only (research-backed RSI2, VWAP, Volume signals). Old v2.x trades (131 total with 39% WR using broken MACD/ML signals) are excluded from calculations.
           </p>
+        </div>
+      </div>
+
+      <div className="glass rounded-xl p-4 border-l-2 border-l-amber-500">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <span className="font-semibold text-amber-400">Confidence Score Update (Dec 2024)</span>
+            <p className="text-muted-foreground mt-1">
+              Previous confidence percentages were inversely correlated with actual performance. We now show transparent <span className="font-semibold text-cyan-400">"Filters Passed"</span> (e.g., 3/3 signals) instead of misleading percentages. Hover over the badge to see exactly which signals fired, volatility regime, and market context.
+            </p>
+          </div>
         </div>
       </div>
 
