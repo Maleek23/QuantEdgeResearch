@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -684,18 +684,24 @@ export default function ChartAnalysis() {
     <TierGate feature="chart-analysis">
     <div className="container mx-auto p-4 md:p-6 max-w-7xl space-y-6" data-testid="page-chart-analysis">
       {/* Header */}
-      <div className="glass-card rounded-xl p-6">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="space-y-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2 text-cyan-400">
-              <BarChart3 className="h-7 w-7" />
+      <div className="relative overflow-hidden rounded-xl glass-card p-6 sm:p-8">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase mb-1">
+              {format(new Date(), 'EEEE, MMMM d')}
+            </p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-3 flex items-center gap-2" data-testid="text-chart-analysis-title">
+              <BarChart3 className="h-7 w-7 text-cyan-400" />
               Chart Analysis
             </h1>
-            <p className="text-sm text-muted-foreground">
-              AI + Quantitative analysis for precise trade setups
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm text-muted-foreground">
+                AI + Quantitative analysis for precise trade setups
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex gap-2">
             <span className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs flex items-center gap-1">
               <Brain className="h-3 w-3" />
               AI Vision
@@ -799,15 +805,19 @@ export default function ChartAnalysis() {
                   { value: "4H", label: "4 Hour" },
                   { value: "1D", label: "Daily" }
                 ].map((tf) => (
-                  <Badge
+                  <button
                     key={tf.value}
-                    variant={timeframe === tf.value ? "default" : "outline"}
-                    className="cursor-pointer text-xs hover-elevate"
+                    type="button"
+                    className={`rounded px-2 py-0.5 text-xs cursor-pointer hover-elevate transition-colors ${
+                      timeframe === tf.value 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'bg-white/10 text-muted-foreground'
+                    }`}
                     onClick={() => setTimeframe(tf.value)}
                     data-testid={`chip-timeframe-${tf.value.toLowerCase()}`}
                   >
                     {tf.label}
-                  </Badge>
+                  </button>
                 ))}
               </div>
 
@@ -815,44 +825,60 @@ export default function ChartAnalysis() {
               <div className="space-y-2 pt-2 border-t">
                 <Label className="text-xs font-medium">Trade Type</Label>
                 <div className="flex gap-2">
-                  <Badge
-                    variant={assetType === "stock" ? "default" : "outline"}
-                    className="cursor-pointer flex-1 justify-center py-1.5 hover-elevate"
+                  <button
+                    type="button"
+                    className={`flex-1 rounded px-2 py-1.5 text-xs cursor-pointer hover-elevate transition-colors flex items-center justify-center gap-1 ${
+                      assetType === "stock" 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'bg-white/10 text-muted-foreground'
+                    }`}
                     onClick={() => setAssetType("stock")}
                     data-testid="chip-asset-stock"
                   >
-                    📈 Shares
-                  </Badge>
-                  <Badge
-                    variant={assetType === "option" ? "default" : "outline"}
-                    className="cursor-pointer flex-1 justify-center py-1.5 hover-elevate"
+                    <TrendingUp className="h-3 w-3" /> Shares
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 rounded px-2 py-1.5 text-xs cursor-pointer hover-elevate transition-colors flex items-center justify-center gap-1 ${
+                      assetType === "option" 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'bg-white/10 text-muted-foreground'
+                    }`}
                     onClick={() => setAssetType("option")}
                     data-testid="chip-asset-option"
                   >
-                    🎯 Options
-                  </Badge>
+                    <Target className="h-3 w-3" /> Options
+                  </button>
                 </div>
                 
                 {/* Options-specific fields */}
                 {assetType === "option" && (
                   <div className="space-y-2 pt-2">
                     <div className="flex gap-2">
-                      <Badge
-                        variant={optionType === "call" ? "default" : "outline"}
-                        className="cursor-pointer flex-1 justify-center py-1 text-xs hover-elevate"
+                      <button
+                        type="button"
+                        className={`flex-1 rounded px-2 py-1 text-xs cursor-pointer hover-elevate transition-colors ${
+                          optionType === "call" 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'bg-white/10 text-muted-foreground'
+                        }`}
                         onClick={() => setOptionType("call")}
                         data-testid="chip-option-call"
                       >
                         CALL
-                      </Badge>
-                      <Badge
-                        variant={optionType === "put" ? "destructive" : "outline"}
-                        className="cursor-pointer flex-1 justify-center py-1 text-xs hover-elevate"
+                      </button>
+                      <button
+                        type="button"
+                        className={`flex-1 rounded px-2 py-1 text-xs cursor-pointer hover-elevate transition-colors ${
+                          optionType === "put" 
+                            ? 'bg-destructive text-destructive-foreground' 
+                            : 'bg-white/10 text-muted-foreground'
+                        }`}
                         onClick={() => setOptionType("put")}
                         data-testid="chip-option-put"
                       >
                         PUT
-                      </Badge>
+                      </button>
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor="expiry" className="text-xs text-muted-foreground">Expiry Date</Label>

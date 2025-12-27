@@ -165,7 +165,7 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-background">
       {/* Sticky Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-50" data-testid="navbar">
+      <header className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-white/10" data-testid="navbar">
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16 gap-4">
             {/* Left: Logo */}
@@ -318,11 +318,11 @@ export default function Landing() {
       </section>
 
       {/* Platform Stats */}
-      <section className="border-y bg-muted/30 py-12">
+      <section className="border-y glass-card py-12">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-3 gap-6 max-w-3xl mx-auto">
             <div className="text-center" data-testid="stat-total-ideas">
-              <div className="text-2xl md:text-3xl font-bold text-primary mb-1">
+              <div className="text-2xl md:text-3xl font-bold text-cyan-400 mb-1">
                 {statsLoading ? (
                   <Skeleton className="h-8 w-16 mx-auto" />
                 ) : perfStats?.overall?.totalIdeas ? (
@@ -340,7 +340,7 @@ export default function Landing() {
               <div className="text-xs md:text-sm text-muted-foreground">Target Win Rate</div>
             </div>
             <div className="text-center" data-testid="stat-rr-ratio">
-              <div className="text-2xl md:text-3xl font-bold text-green-500 mb-1">
+              <div className="text-2xl md:text-3xl font-bold text-green-400 mb-1">
                 2:1
               </div>
               <div className="text-xs md:text-sm text-muted-foreground">Min R:R Ratio</div>
@@ -361,7 +361,7 @@ export default function Landing() {
               How The Edge Works
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-amber-500 to-primary">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-amber-500 to-cyan-400">
                 2 Engines. 1 Platform.
               </span>
               <br />
@@ -375,75 +375,71 @@ export default function Landing() {
           <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-12">
             {/* Engine 1: AI */}
             <div className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary to-amber-500 rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
-              <Card className="relative bg-background border-primary/20 hover:border-primary/50 transition-all">
-                <CardContent className="p-8">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 rounded-lg bg-primary/10">
-                      <Brain className="h-6 w-6 text-primary" />
-                    </div>
-                    <h3 className="text-xl font-bold">Engine 1: AI Analysis</h3>
+              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
+              <div className="relative overflow-hidden rounded-xl glass-card p-8 border-l-2 border-l-cyan-400">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-3 rounded-lg bg-cyan-500/10">
+                    <Brain className="h-6 w-6 text-cyan-400" />
                   </div>
-                  <p className="text-muted-foreground mb-6">
-                    Claude, GPT, and Gemini work together to analyze market fundamentals, news catalysts, and macro context.
-                  </p>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-primary" />
-                      <span>Fundamental Analysis</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-primary" />
-                      <span>News & Catalyst Integration</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-primary" />
-                      <span>Market Context</span>
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
+                  <h3 className="text-xl font-bold">Engine 1: AI Analysis</h3>
+                </div>
+                <p className="text-muted-foreground mb-6">
+                  Claude, GPT, and Gemini work together to analyze market fundamentals, news catalysts, and macro context.
+                </p>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-cyan-400" />
+                    <span>Fundamental Analysis</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-cyan-400" />
+                    <span>News & Catalyst Integration</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-cyan-400" />
+                    <span>Market Context</span>
+                  </li>
+                </ul>
+              </div>
             </div>
 
             {/* Engine 2: Quant */}
             <div className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 to-green-500 rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
-              <Card className="relative bg-background border-green-500/20 hover:border-green-500/50 transition-all">
-                <CardContent className="p-8">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 rounded-lg bg-green-500/10">
-                      <Calculator className="h-6 w-6 text-green-500" />
-                    </div>
-                    <h3 className="text-xl font-bold">Engine 2: Quantitative</h3>
+              <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 to-green-500 rounded-xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
+              <div className="relative overflow-hidden rounded-xl glass-card p-8 border-l-2 border-l-green-400">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-3 rounded-lg bg-green-500/10">
+                    <Calculator className="h-6 w-6 text-green-400" />
                   </div>
-                  <p className="text-muted-foreground mb-6">
-                    RSI(2), VWAP, volume spikes, and pattern validation create mechanical, reproducible signals.
-                  </p>
-                  <ul className="space-y-2 text-sm">
-                    <li className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-green-500" />
-                      <span>Mean Reversion Signals</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-green-500" />
-                      <span>Institutional Flow Detection</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-green-500" />
-                      <span>55-65% Target Win Rate</span>
-                    </li>
-                  </ul>
-                </CardContent>
-              </Card>
+                  <h3 className="text-xl font-bold">Engine 2: Quantitative</h3>
+                </div>
+                <p className="text-muted-foreground mb-6">
+                  RSI(2), VWAP, volume spikes, and pattern validation create mechanical, reproducible signals.
+                </p>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-400" />
+                    <span>Mean Reversion Signals</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-400" />
+                    <span>Institutional Flow Detection</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-400" />
+                    <span>55-65% Target Win Rate</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
 
           {/* Hybrid Result */}
           <div className="text-center">
-            <div className="inline-flex items-center gap-4 px-8 py-4 rounded-lg border border-primary/30 bg-primary/5">
-              <Brain className="h-5 w-5 text-primary" />
+            <div className="inline-flex items-center gap-4 px-8 py-4 rounded-xl glass-card border-l-2 border-l-cyan-400">
+              <Brain className="h-5 w-5 text-cyan-400" />
               <span className="text-sm font-medium">+</span>
-              <Calculator className="h-5 w-5 text-green-500" />
+              <Calculator className="h-5 w-5 text-green-400" />
               <span className="text-sm font-medium">=</span>
               <div>
                 <p className="text-sm font-semibold text-foreground">Precision + Context</p>
@@ -474,22 +470,19 @@ export default function Landing() {
             {steps.map((step, idx) => {
               const Icon = step.icon;
               return (
-                <Card key={step.number} className="relative" data-testid={`card-step-${idx + 1}`}>
-                  <CardContent className="p-8 text-center">
-                    {/* Large Number Circle */}
-                    <div className="h-20 w-20 rounded-full bg-primary/10 border-2 border-primary/20 flex items-center justify-center mx-auto mb-6">
-                      <span className="text-3xl font-bold text-primary">{step.number}</span>
+                <div key={step.number} className="relative overflow-hidden rounded-xl glass-card p-8 text-center" data-testid={`card-step-${idx + 1}`}>
+                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-blue-500/5" />
+                  <div className="relative z-10">
+                    <div className="h-20 w-20 rounded-full bg-cyan-500/10 border-2 border-cyan-400/20 flex items-center justify-center mx-auto mb-6">
+                      <span className="text-3xl font-bold text-cyan-400">{step.number}</span>
                     </div>
-                    
-                    {/* Icon */}
                     <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center mx-auto mb-4">
-                      <Icon className="h-6 w-6 text-muted-foreground" />
+                      <Icon className="h-6 w-6 text-cyan-400" />
                     </div>
-                    
                     <h3 className="text-xl font-bold mb-3">{step.title}</h3>
                     <p className="text-sm text-muted-foreground">{step.description}</p>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -497,7 +490,7 @@ export default function Landing() {
       </section>
 
       {/* Features Grid */}
-      <section className="py-16 md:py-24 bg-muted/30" id="features">
+      <section className="py-16 md:py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent" id="features">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <Badge variant="secondary" className="mb-4">
@@ -516,22 +509,20 @@ export default function Landing() {
             {features.map((feature, idx) => {
               const Icon = feature.icon;
               return (
-                <Card key={idx} className="hover-elevate" data-testid={`card-feature-${idx}`}>
-                  <CardContent className="p-6">
-                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                      <Icon className="h-6 w-6 text-primary" />
-                    </div>
-                    <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-                    <p className="text-sm text-muted-foreground mb-4">{feature.description}</p>
-                    <button 
-                      className="text-sm text-primary hover:underline"
-                      onClick={() => scrollToSection('pricing')}
-                      data-testid={`link-learn-more-${idx}`}
-                    >
-                      Learn more →
-                    </button>
-                  </CardContent>
-                </Card>
+                <div key={idx} className="overflow-hidden rounded-xl glass-card p-6 hover-elevate" data-testid={`card-feature-${idx}`}>
+                  <div className="h-12 w-12 rounded-xl bg-cyan-500/10 flex items-center justify-center mb-4">
+                    <Icon className="h-6 w-6 text-cyan-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{feature.description}</p>
+                  <button 
+                    className="text-sm text-cyan-400 hover:underline"
+                    onClick={() => scrollToSection('pricing')}
+                    data-testid={`link-learn-more-${idx}`}
+                  >
+                    Learn more →
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -912,6 +903,7 @@ export default function Landing() {
                 </ul>
                 
                 <Button 
+                  variant="glass"
                   className="w-full"
                   onClick={() => setLocation('/signup')}
                   data-testid="button-pricing-advanced"
@@ -972,8 +964,8 @@ export default function Landing() {
                 </ul>
                 
                 <Button 
-                  variant="outline"
-                  className="w-full border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+                  variant="glass-secondary"
+                  className="w-full"
                   data-testid="button-pricing-pro"
                 >
                   <Clock className="h-4 w-4 mr-2" />
@@ -1069,22 +1061,27 @@ export default function Landing() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 md:py-24 bg-primary/5">
-        <div className="container mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Ready to Trade with Precision?
-          </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
-            Research platform for self-directed traders. Paper trade first, risk second.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <Button size="lg" onClick={() => setLocation('/signup')} data-testid="button-cta-signup">
-              Get Started Free
-              <ArrowRight className="h-5 w-5 ml-2" />
-            </Button>
-            <Button size="lg" variant="outline" onClick={() => setLocation('/chart-analysis')} data-testid="button-cta-demo">
-              Try Chart Analysis
-            </Button>
+      <section className="py-16 md:py-24">
+        <div className="container mx-auto px-6">
+          <div className="relative overflow-hidden rounded-xl glass-card p-12 text-center">
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+            <div className="relative z-10">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">
+                Ready to Trade with Precision?
+              </h2>
+              <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
+                Research platform for self-directed traders. Paper trade first, risk second.
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Button size="lg" variant="glass" onClick={() => setLocation('/signup')} data-testid="button-cta-signup">
+                  Get Started Free
+                  <ArrowRight className="h-5 w-5 ml-2" />
+                </Button>
+                <Button size="lg" variant="glass-secondary" onClick={() => setLocation('/chart-analysis')} data-testid="button-cta-demo">
+                  Try Chart Analysis
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </section>

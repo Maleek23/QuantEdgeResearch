@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -63,125 +62,133 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center gap-2 mb-2">
-            <Link href="/">
-              <Button variant="ghost" size="icon" data-testid="button-back">
-                <ArrowLeft className="h-4 w-4" />
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-background to-blue-500/5" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+      
+      <div className="relative w-full max-w-md overflow-hidden rounded-xl glass-card p-6">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+        <div className="relative z-10">
+          <div className="space-y-1 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Link href="/">
+                <Button variant="ghost" size="icon" data-testid="button-back">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+            <h2 className="text-2xl font-bold text-center">Welcome back</h2>
+            <p className="text-center text-muted-foreground">
+              Enter your credentials to access your account
+            </p>
+          </div>
+          
+          <div className="space-y-4">
+            <a href="/api/auth/google" className="w-full">
+              <Button
+                type="button"
+                variant="glass-secondary"
+                className="w-full"
+                data-testid="button-google-login"
+              >
+                <SiGoogle className="mr-2 h-4 w-4" />
+                Continue with Google
               </Button>
-            </Link>
-          </div>
-          <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
-          <CardDescription className="text-center">
-            Enter your credentials to access your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Direct Google Login */}
-          <a href="/api/auth/google" className="w-full">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              data-testid="button-google-login"
-            >
-              <SiGoogle className="mr-2 h-4 w-4" />
-              Continue with Google
-            </Button>
-          </a>
+            </a>
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <Separator className="w-full" />
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background/50 px-2 text-muted-foreground">Or continue with email</span>
+              </div>
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or continue with email</span>
-            </div>
-          </div>
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="you@example.com"
-                        data-testid="input-email"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
                         <Input
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Enter your password"
-                          data-testid="input-password"
+                          type="email"
+                          placeholder="you@example.com"
+                          data-testid="input-email"
                           {...field}
                         />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-0 top-0 h-full px-3"
-                          onClick={() => setShowPassword(!showPassword)}
-                          data-testid="button-toggle-password"
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={loginMutation.isPending}
-                data-testid="button-login"
-              >
-                {loginMutation.isPending ? (
-                  "Logging in..."
-                ) : (
-                  <>
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Log in
-                  </>
-                )}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <div className="text-sm text-muted-foreground text-center">
-            Don't have an account?{" "}
-            <Link href="/signup" className="text-primary hover:underline" data-testid="link-signup">
-              Sign up
-            </Link>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Enter your password"
+                            data-testid="input-password"
+                            {...field}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-3"
+                            onClick={() => setShowPassword(!showPassword)}
+                            data-testid="button-toggle-password"
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  variant="glass"
+                  className="w-full"
+                  disabled={loginMutation.isPending}
+                  data-testid="button-login"
+                >
+                  {loginMutation.isPending ? (
+                    "Logging in..."
+                  ) : (
+                    <>
+                      <LogIn className="mr-2 h-4 w-4" />
+                      Log in
+                    </>
+                  )}
+                </Button>
+              </form>
+            </Form>
+            
+            <div className="flex flex-col gap-4 mt-4">
+              <div className="text-sm text-muted-foreground text-center">
+                Don't have an account?{" "}
+                <Link href="/signup" className="text-cyan-400 hover:underline" data-testid="link-signup">
+                  Sign up
+                </Link>
+              </div>
+            </div>
           </div>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

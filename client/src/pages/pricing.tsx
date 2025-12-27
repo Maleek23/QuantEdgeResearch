@@ -129,20 +129,26 @@ export default function Pricing() {
           </div>
         </div>
 
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 
-            className="text-3xl font-bold tracking-tight mb-4 text-cyan-400"
-            data-testid="text-pricing-header"
-          >
-            Choose Your Plan
-          </h1>
-          <p 
-            className="text-lg text-muted-foreground max-w-2xl mx-auto"
-            data-testid="text-pricing-subtext"
-          >
-            Start with Free to explore the research platform, then upgrade to Advanced for unlimited access and real-time data.
-          </p>
+        {/* Hero Header - Glassmorphism */}
+        <div className="relative overflow-hidden rounded-xl glass-card p-6 sm:p-8 mb-12">
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+          <div className="relative z-10 text-center">
+            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase mb-1">
+              Research Platform
+            </p>
+            <h1 
+              className="text-2xl sm:text-3xl font-bold mb-3"
+              data-testid="text-pricing-header"
+            >
+              Choose Your Plan
+            </h1>
+            <p 
+              className="text-muted-foreground max-w-2xl mx-auto"
+              data-testid="text-pricing-subtext"
+            >
+              Start with Free to explore the research platform, then upgrade to Advanced for unlimited access and real-time data.
+            </p>
+          </div>
         </div>
 
         {/* Billing Toggle */}
@@ -182,8 +188,8 @@ export default function Pricing() {
                 key={plan.id}
                 className={`relative flex flex-col glass-card rounded-xl p-6 ${
                   plan.popular 
-                    ? 'border-2 border-cyan-400/50 ring-2 ring-cyan-400/20' 
-                    : ''
+                    ? 'border-l-2 border-l-cyan-500' 
+                    : 'border border-white/10'
                 }`}
                 data-testid={`card-plan-${plan.id}`}
               >

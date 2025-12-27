@@ -27,7 +27,8 @@ import {
   Clock,
   Trash2,
   CheckCircle,
-  X
+  X,
+  Activity
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Link } from "wouter";
@@ -246,15 +247,26 @@ export default function LiveTradingPage() {
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="glass-card rounded-xl p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="relative overflow-hidden rounded-xl glass-card p-6 sm:p-8">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-cyan-400" data-testid="text-page-title">Live Trading</h1>
-            <p className="text-sm text-muted-foreground" data-testid="text-last-refresh">
-              Last refresh: {format(lastRefresh, "HH:mm:ss")}
+            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase mb-1">
+              {format(new Date(), 'EEEE, MMMM d')}
             </p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-3" data-testid="text-page-title">Live Trading</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 glass-success rounded-lg px-3 py-1.5" data-testid="badge-open-trades">
+                <Activity className="h-4 w-4" />
+                <span className="text-sm font-medium">{openTrades.length} Open</span>
+              </div>
+              <div className="flex items-center gap-2 glass rounded-lg px-3 py-1.5" data-testid="badge-last-refresh">
+                <Clock className="h-4 w-4" />
+                <span className="text-sm font-medium">Updated {format(lastRefresh, "HH:mm:ss")}</span>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex gap-2">
             <Button
               variant="glass-secondary"
               size="sm"

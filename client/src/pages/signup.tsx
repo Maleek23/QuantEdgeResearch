@@ -6,11 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { UserPlus, ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
+import { UserPlus, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { Separator } from "@/components/ui/separator";
 import { Link } from "wouter";
@@ -74,195 +73,203 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex items-center gap-2 mb-2">
-            <Link href="/">
-              <Button variant="ghost" size="icon" data-testid="button-back">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-          <CardTitle className="text-2xl font-bold text-center">Create an account</CardTitle>
-          <CardDescription className="text-center">
-            Enter your details to get started with QuantEdge
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Direct Google Sign Up */}
-          <a href="/api/auth/google" className="w-full">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              data-testid="button-google-signup"
-            >
-              <SiGoogle className="mr-2 h-4 w-4" />
-              Continue with Google
-            </Button>
-          </a>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <Separator className="w-full" />
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-background to-blue-500/5" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+      
+      <div className="relative w-full max-w-md overflow-hidden rounded-xl glass-card p-6">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+        <div className="relative z-10">
+          <div className="space-y-1 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Link href="/">
+                <Button variant="ghost" size="icon" data-testid="button-back">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or continue with email</span>
-            </div>
+            <h2 className="text-2xl font-bold text-center">Create an account</h2>
+            <p className="text-center text-muted-foreground">
+              Enter your details to get started with QuantEdge
+            </p>
           </div>
-
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="John"
-                          data-testid="input-first-name"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Doe"
-                          data-testid="input-last-name"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="you@example.com"
-                        data-testid="input-email"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          type={showPassword ? "text" : "password"}
-                          placeholder="At least 6 characters"
-                          data-testid="input-password"
-                          {...field}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-0 top-0 h-full px-3"
-                          onClick={() => setShowPassword(!showPassword)}
-                          data-testid="button-toggle-password"
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          type={showConfirmPassword ? "text" : "password"}
-                          placeholder="Confirm your password"
-                          data-testid="input-confirm-password"
-                          {...field}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-0 top-0 h-full px-3"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          data-testid="button-toggle-confirm-password"
-                        >
-                          {showConfirmPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          
+          <div className="space-y-4">
+            <a href="/api/auth/google" className="w-full">
               <Button
-                type="submit"
+                type="button"
+                variant="glass-secondary"
                 className="w-full"
-                disabled={signupMutation.isPending}
-                data-testid="button-signup"
+                data-testid="button-google-signup"
               >
-                {signupMutation.isPending ? (
-                  "Creating account..."
-                ) : (
-                  <>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Create account
-                  </>
-                )}
+                <SiGoogle className="mr-2 h-4 w-4" />
+                Continue with Google
               </Button>
-            </form>
-          </Form>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4">
-          <div className="text-sm text-muted-foreground text-center">
-            Already have an account?{" "}
-            <Link href="/login" className="text-primary hover:underline" data-testid="link-login">
-              Log in
-            </Link>
+            </a>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background/50 px-2 text-muted-foreground">Or continue with email</span>
+              </div>
+            </div>
+
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="firstName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>First Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="John"
+                            data-testid="input-first-name"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="lastName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Last Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Doe"
+                            data-testid="input-last-name"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="you@example.com"
+                          data-testid="input-email"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder="At least 6 characters"
+                            data-testid="input-password"
+                            {...field}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-3"
+                            onClick={() => setShowPassword(!showPassword)}
+                            data-testid="button-toggle-password"
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type={showConfirmPassword ? "text" : "password"}
+                            placeholder="Confirm your password"
+                            data-testid="input-confirm-password"
+                            {...field}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-3"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            data-testid="button-toggle-confirm-password"
+                          >
+                            {showConfirmPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  variant="glass"
+                  className="w-full"
+                  disabled={signupMutation.isPending}
+                  data-testid="button-signup"
+                >
+                  {signupMutation.isPending ? (
+                    "Creating account..."
+                  ) : (
+                    <>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Create account
+                    </>
+                  )}
+                </Button>
+              </form>
+            </Form>
+            
+            <div className="flex flex-col gap-4 mt-4">
+              <div className="text-sm text-muted-foreground text-center">
+                Already have an account?{" "}
+                <Link href="/login" className="text-cyan-400 hover:underline" data-testid="link-login">
+                  Log in
+                </Link>
+              </div>
+            </div>
           </div>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

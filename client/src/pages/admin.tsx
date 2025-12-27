@@ -391,6 +391,7 @@ export default function AdminPanel() {
             
             <Button 
               onClick={handlePinSubmit} 
+              variant="glass"
               className="w-full"
               size="lg"
               disabled={pinCode.length !== 4}
@@ -443,6 +444,7 @@ export default function AdminPanel() {
             
             <Button 
               onClick={handlePasswordSubmit} 
+              variant="glass"
               className="w-full"
               size="lg"
               data-testid="button-admin-login"
@@ -472,44 +474,46 @@ export default function AdminPanel() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header with Aurora */}
-      <div className="relative border-b aurora-hero">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-background opacity-50" />
+      <div className="relative border-b">
+        <div className="absolute inset-0 aurora-hero opacity-30" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
         <div className="container relative mx-auto px-6 py-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold flex items-center gap-3 text-display">
-                <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
-                  <Shield className="h-7 w-7 text-primary" />
-                </div>
-                Admin Control Center
-              </h1>
-              <p className="text-muted-foreground mt-2 text-lg">
-                Platform management and analytics dashboard
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <Badge variant="default" className="h-8 px-4">
-                <CheckCircle2 className="h-3 w-3 mr-1" />
-                Administrator
-              </Badge>
-              <Button
-                onClick={() => setLocation('/dashboard')}
-                variant="outline"
-                className="glass-card"
-                data-testid="button-back-dashboard"
-              >
-                <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
-                Back to Dashboard
-              </Button>
-              <Button
-                onClick={handleExportData}
-                variant="outline"
-                className="glass-card"
-                data-testid="button-export-all"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Export Data
-              </Button>
+          <div className="relative overflow-hidden rounded-xl glass-card p-6">
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl lg:text-4xl font-bold flex items-center gap-3 text-display">
+                  <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
+                    <Shield className="h-7 w-7 text-cyan-400" />
+                  </div>
+                  Admin Control Center
+                </h1>
+                <p className="text-muted-foreground mt-2 text-lg">
+                  Platform management and analytics dashboard
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge variant="default" className="h-8 px-4">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Administrator
+                </Badge>
+                <Button
+                  onClick={() => setLocation('/dashboard')}
+                  variant="glass-secondary"
+                  data-testid="button-back-dashboard"
+                >
+                  <ArrowRight className="h-4 w-4 mr-2 rotate-180" />
+                  Back to Dashboard
+                </Button>
+                <Button
+                  onClick={handleExportData}
+                  variant="glass"
+                  data-testid="button-export-all"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Data
+                </Button>
+              </div>
             </div>
           </div>
         </div>
