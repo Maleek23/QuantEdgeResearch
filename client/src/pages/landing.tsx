@@ -170,7 +170,7 @@ export default function Landing() {
           <div className="flex items-center justify-between h-16 gap-4">
             {/* Left: Logo */}
             <Link href="/" className="flex items-center gap-2 flex-shrink-0" data-testid="link-logo">
-              <QuantEdgeIcon className="h-8 w-8" />
+              <img src={quantEdgeLogoUrl} alt="QuantEdge" className="h-8 w-8 object-contain" />
               <span className="font-bold text-lg hidden sm:block">QuantEdge</span>
             </Link>
 
@@ -270,12 +270,13 @@ export default function Landing() {
 
             {/* Headline */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight" data-testid="text-hero-headline">
-              QuantEdge <span className="text-primary">Research.</span><br />Research tools. Real expectations.
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-amber-500 to-primary">2 Engines. 1 Edge.</span><br />
+              <span className="text-foreground">QuantEdge Research</span>
             </h1>
 
             {/* Subheadline */}
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6" data-testid="text-hero-subheadline">
-              Educational research platform with trade ideas across stocks, options, and crypto. Every idea includes entry, exit, and risk levels—for learning, not advice.
+              AI Analysis + Quantitative Signals working together. Real trade ideas with entry, exit, stops, and risk calculations—for research, not advice.
             </p>
 
             {/* Validated Stats */}
@@ -358,14 +359,14 @@ export default function Landing() {
           <div className="text-center mb-16">
             <Badge variant="secondary" className="mb-4">
               <Brain className="h-3 w-3 mr-1" />
-              Dual Engine Architecture
+              How The Edge Works
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              AI + Quantitative
-              <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-amber-500 to-primary">
-                One Platform, Two Engines
+                2 Engines. 1 Platform.
               </span>
+              <br />
+              Precision + Context
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Watch real market data flow through two independent analysis engines working in parallel
@@ -1096,7 +1097,7 @@ export default function Landing() {
             {/* Brand Column */}
             <div className="md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
-                <QuantEdgeIcon className="h-8 w-8" />
+                <img src={quantEdgeLogoUrl} alt="QuantEdge" className="h-8 w-8 object-contain" />
                 <span className="font-bold text-lg">QuantEdge</span>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
