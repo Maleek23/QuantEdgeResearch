@@ -461,7 +461,8 @@ export default function TradeIdeasPage() {
           onClick={() => generateNewsIdeas.mutate()}
           disabled={generateNewsIdeas.isPending}
           size="sm"
-          className="gap-1.5 bg-amber-600 hover:bg-amber-700"
+          variant="glass-secondary"
+          className="gap-1.5"
           data-testid="button-generate-news-permanent"
         >
           <Newspaper className="h-4 w-4" />
@@ -482,7 +483,7 @@ export default function TradeIdeasPage() {
         {/* View Mode Toggle */}
         <div className="flex items-center gap-1 border rounded-md p-1">
           <Button
-            variant={viewMode === "list" ? "default" : "ghost"}
+            variant={viewMode === "list" ? "glass" : "ghost"}
             size="sm"
             onClick={() => setViewMode("list")}
             className="h-8 px-3"
@@ -491,7 +492,7 @@ export default function TradeIdeasPage() {
             <List className="h-4 w-4" />
           </Button>
           <Button
-            variant={viewMode === "grid" ? "default" : "ghost"}
+            variant={viewMode === "grid" ? "glass" : "ghost"}
             size="sm"
             onClick={() => setViewMode("grid")}
             className="h-8 px-3"
@@ -576,7 +577,7 @@ export default function TradeIdeasPage() {
                 <Label className="text-sm text-muted-foreground">Direction</Label>
                 <div className="flex gap-2">
                   <Button
-                    variant={activeDirection === "all" ? "default" : "outline"}
+                    variant={activeDirection === "all" ? "glass" : "outline"}
                     size="sm"
                     onClick={() => setActiveDirection("all")}
                     className="flex-1"
@@ -585,7 +586,7 @@ export default function TradeIdeasPage() {
                     All
                   </Button>
                   <Button
-                    variant={activeDirection === "long" ? "default" : "outline"}
+                    variant={activeDirection === "long" ? "glass" : "outline"}
                     size="sm"
                     onClick={() => setActiveDirection("long")}
                     className="flex-1"
@@ -594,7 +595,7 @@ export default function TradeIdeasPage() {
                     Long
                   </Button>
                   <Button
-                    variant={activeDirection === "short" ? "default" : "outline"}
+                    variant={activeDirection === "short" ? "glass" : "outline"}
                     size="sm"
                     onClick={() => setActiveDirection("short")}
                     className="flex-1"
@@ -603,7 +604,7 @@ export default function TradeIdeasPage() {
                     Short
                   </Button>
                   <Button
-                    variant={activeDirection === "day_trade" ? "default" : "outline"}
+                    variant={activeDirection === "day_trade" ? "glass" : "outline"}
                     size="sm"
                     onClick={() => setActiveDirection("day_trade")}
                     className="flex-1"

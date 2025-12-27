@@ -34,7 +34,7 @@ export function SignalPerformanceGrid({ signals }: SignalPerformanceGridProps) {
 
   const getGradeColor = (grade: string) => {
     if (grade.startsWith('A')) return 'text-green-500';
-    if (grade.startsWith('B')) return 'text-blue-500';
+    if (grade.startsWith('B')) return 'text-cyan-500';
     if (grade.startsWith('C')) return 'text-amber-500';
     return 'text-muted-foreground';
   };

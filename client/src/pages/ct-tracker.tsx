@@ -415,7 +415,7 @@ function MentionCard({ mention }: { mention: CTMention }) {
 function PerformanceTable({ performance }: { performance: CTPerformance[] }) {
   const getStatusBadge = (status: CTPerformance["status"]) => {
     const config = {
-      open: { color: "bg-blue-500/20 text-blue-400 border-blue-500/30", label: "Open" },
+      open: { color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30", label: "Open" },
       won: { color: "bg-green-500/20 text-green-400 border-green-500/30", label: "Won" },
       lost: { color: "bg-red-500/20 text-red-400 border-red-500/30", label: "Lost" },
       breakeven: { color: "bg-white/10 text-muted-foreground border-white/10", label: "Breakeven" },

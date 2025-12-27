@@ -78,7 +78,7 @@ function Neuron({ position, signal, index, totalSignals }: NeuronProps) {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Avg Gain:</span>
-              <span className="text-blue-400 font-medium">{signal.avgGain > 0 ? '+' : ''}{signal.avgGain.toFixed(2)}%</span>
+              <span className="text-cyan-400 font-medium">{signal.avgGain > 0 ? '+' : ''}{signal.avgGain.toFixed(2)}%</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Trades:</span>

@@ -216,10 +216,10 @@ export function TradeIdeaDetailModal({
 
             {/* Entry Time Display (Open Trades Only) */}
             {idea.outcomeStatus === 'open' && (
-              <div className="p-4 rounded-lg border bg-gradient-to-br from-blue-500/5 via-card to-purple-500/5">
+              <div className="p-4 rounded-lg border bg-gradient-to-br from-cyan-500/5 via-card to-purple-500/5">
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-blue-400" />
-                  <span className="text-blue-400">Trade Entry Information</span>
+                  <Clock className="h-4 w-4 text-cyan-400" />
+                  <span className="text-cyan-400">Trade Entry Information</span>
                 </h3>
                 
                 <div className="grid grid-cols-3 gap-3">
@@ -285,8 +285,8 @@ export function TradeIdeaDetailModal({
                 
                 {/* Timing Analytics - Data-Backed Probabilities */}
                 {(idea.targetHitProbability || idea.timingConfidence || idea.volatilityRegime || idea.sessionPhase) && (
-                  <div className="p-3 rounded-lg border bg-gradient-to-br from-blue-500/5 to-purple-500/5">
-                    <div className="text-xs font-semibold text-blue-400 mb-2">📊 Quantitative Backing</div>
+                  <div className="p-3 rounded-lg border bg-gradient-to-br from-cyan-500/5 to-purple-500/5">
+                    <div className="text-xs font-semibold text-cyan-400 mb-2">📊 Quantitative Backing</div>
                     <div className="grid grid-cols-2 gap-3 text-xs">
                       {idea.targetHitProbability && (
                         <div>
@@ -299,7 +299,7 @@ export function TradeIdeaDetailModal({
                       {idea.timingConfidence && (
                         <div>
                           <span className="text-muted-foreground">Timing Confidence:</span>
-                          <div className="font-semibold text-blue-400 mt-0.5">
+                          <div className="font-semibold text-cyan-400 mt-0.5">
                             {idea.timingConfidence.toFixed(0)}%
                           </div>
                         </div>
@@ -328,10 +328,10 @@ export function TradeIdeaDetailModal({
 
             {/* Entry/Exit Timing Analysis (Closed Trades Only) */}
             {idea.outcomeStatus !== 'open' && (
-              <div className="p-4 rounded-lg border bg-gradient-to-br from-blue-500/5 via-card to-purple-500/5">
+              <div className="p-4 rounded-lg border bg-gradient-to-br from-cyan-500/5 via-card to-purple-500/5">
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-blue-400" />
-                  <span className="text-blue-400">Trade Timing Analysis</span>
+                  <Clock className="h-4 w-4 text-cyan-400" />
+                  <span className="text-cyan-400">Trade Timing Analysis</span>
                 </h3>
                 
                 <div className="grid grid-cols-3 gap-3">
@@ -489,7 +489,7 @@ export function TradeIdeaDetailModal({
                     <div className="font-bold">A+ / A</div>
                     <div>90-100</div>
                   </div>
-                  <div className={cn("p-2 rounded text-center", idea.confidenceScore >= 80 && idea.confidenceScore < 90 ? "bg-blue-500/20 text-blue-600 font-semibold" : "bg-muted/30 text-muted-foreground")}>
+                  <div className={cn("p-2 rounded text-center", idea.confidenceScore >= 80 && idea.confidenceScore < 90 ? "bg-cyan-500/20 text-cyan-600 font-semibold" : "bg-muted/30 text-muted-foreground")}>
                     <div className="font-bold">B+ / B</div>
                     <div>80-89</div>
                   </div>

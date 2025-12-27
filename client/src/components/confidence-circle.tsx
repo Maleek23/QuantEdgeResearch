@@ -15,8 +15,8 @@ export function ConfidenceCircle({ score, size = "md", showLabel = true, classNa
   const getGradeColor = (grade: string): string => {
     if (grade === 'A') return 'text-green-500';
     if (grade === 'A+') return 'text-green-500';
-    if (grade === 'B+') return 'text-blue-500';
-    if (grade === 'B') return 'text-blue-500';
+    if (grade === 'B+') return 'text-cyan-500';
+    if (grade === 'B') return 'text-cyan-500';
     if (grade === 'C+') return 'text-yellow-500';
     if (grade === 'C') return 'text-yellow-500';
     return 'text-red-500';

@@ -143,7 +143,7 @@ const CubeFace = memo(({ combinations, position, rotation }: CubeFaceProps) => {
                       Win Rate: <span className="text-green-400 font-medium">{(cell.winRate * 100).toFixed(1)}%</span>
                     </div>
                     <div className="text-muted-foreground">
-                      Avg Gain: <span className="text-blue-400 font-medium">{cell.avgGain > 0 ? '+' : ''}{cell.avgGain.toFixed(2)}%</span>
+                      Avg Gain: <span className="text-cyan-400 font-medium">{cell.avgGain > 0 ? '+' : ''}{cell.avgGain.toFixed(2)}%</span>
                     </div>
                     <div className="text-muted-foreground">
                       Count: {cell.occurrences}

@@ -560,6 +560,7 @@ export default function LiveTradingPage() {
                       </Button>
                       <Button 
                         type="submit" 
+                        variant="glass"
                         disabled={createTradeMutation.isPending}
                         data-testid="button-add-trade"
                       >
@@ -818,6 +819,7 @@ export default function LiveTradingPage() {
                                     </Button>
                                     <Button 
                                       type="submit"
+                                      variant="glass"
                                       disabled={closeTradeMutation.isPending}
                                       data-testid="button-confirm-close"
                                     >

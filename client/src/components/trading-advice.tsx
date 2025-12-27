@@ -98,7 +98,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
         icon: CheckCircle,
         message: 'Good entry price' + rrText,
         action: 'ENTER',
-        color: 'text-blue-500'
+        color: 'text-cyan-500'
       };
     }
     

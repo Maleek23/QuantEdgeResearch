@@ -203,7 +203,7 @@ export default function Blog() {
             <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
               Get the latest trading insights, platform updates, and market analysis delivered to your inbox
             </p>
-            <Button disabled data-testid="button-subscribe-newsletter">
+            <Button variant="glass" disabled data-testid="button-subscribe-newsletter">
               Subscribe to Newsletter (Coming Soon)
             </Button>
           </CardContent>

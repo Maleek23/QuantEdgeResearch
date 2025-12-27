@@ -43,7 +43,7 @@ export function RiskDisclosure({ variant = 'compact', engineVersion, className =
       <CardContent className="space-y-4 text-sm">
         <div className="space-y-2">
           <div className="flex items-start gap-3">
-            <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+            <Info className="h-4 w-4 text-cyan-500 mt-0.5 shrink-0" />
             <div>
               <p className="font-semibold text-foreground">Educational & Research Purposes Only</p>
               <p className="text-muted-foreground">
@@ -76,7 +76,7 @@ export function RiskDisclosure({ variant = 'compact', engineVersion, className =
           </div>
 
           <div className="flex items-start gap-3">
-            <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+            <Info className="h-4 w-4 text-cyan-500 mt-0.5 shrink-0" />
             <div>
               <p className="font-semibold text-foreground">Model Limitations & Data Quality</p>
               <p className="text-muted-foreground">

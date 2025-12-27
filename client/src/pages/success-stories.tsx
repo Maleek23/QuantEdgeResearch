@@ -100,7 +100,7 @@ export default function SuccessStories() {
               <p className="text-muted-foreground mb-6">
                 Check back soon for winning trades from our platform
               </p>
-              <Button onClick={() => setLocation('/trade-desk')} data-testid="button-view-trades">
+              <Button variant="glass" onClick={() => setLocation('/trade-desk')} data-testid="button-view-trades">
                 <ArrowRight className="h-4 w-4 mr-2" />
                 View Trade Desk
               </Button>
@@ -173,6 +173,7 @@ export default function SuccessStories() {
             Join traders using AI-powered analysis and quantitative signals to find winning opportunities
           </p>
           <Button
+            variant="glass"
             onClick={() => setLocation('/trade-desk')}
             className="btn-magnetic neon-accent"
             data-testid="button-get-started"

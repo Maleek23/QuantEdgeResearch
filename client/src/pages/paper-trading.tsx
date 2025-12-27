@@ -221,7 +221,7 @@ function PortfolioSummaryCard({
                   className="w-28 h-8"
                   data-testid="input-max-position"
                 />
-                <Button size="sm" onClick={handleMaxPositionSave} data-testid="button-save-settings">
+                <Button size="sm" variant="glass" onClick={handleMaxPositionSave} data-testid="button-save-settings">
                   Save
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setIsEditingSettings(false)}>
@@ -550,7 +550,7 @@ function CreatePortfolioCard({ onCreate, isCreating }: { onCreate: () => void; i
           Create a virtual portfolio with $100,000 to practice trading without risking real money.
           Test strategies and track your performance.
         </p>
-        <Button onClick={onCreate} disabled={isCreating} size="lg" data-testid="button-create-portfolio">
+        <Button variant="glass" onClick={onCreate} disabled={isCreating} size="lg" data-testid="button-create-portfolio">
           <Plus className="h-5 w-5 mr-2" />
           {isCreating ? "Creating..." : "Create Portfolio"}
         </Button>

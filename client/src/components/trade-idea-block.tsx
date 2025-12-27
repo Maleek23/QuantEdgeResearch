@@ -385,7 +385,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
             <div className="mb-2 px-2 py-1.5 rounded border bg-card/30 text-[11px]">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1">
-                  <Clock className="h-2.5 w-2.5 text-blue-400" />
+                  <Clock className="h-2.5 w-2.5 text-cyan-400" />
                   <span className="text-muted-foreground">Posted:</span>
                   <span className="font-semibold">{formatInUserTZ(idea.timestamp, 'h:mm a')}</span>
                 </div>
@@ -411,10 +411,10 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
           {/* ===== ENTRY/EXIT TIMING ANALYSIS (CLOSED TRADES) ===== */}
           {idea.outcomeStatus !== 'open' && (
-            <div className="mb-3 p-3 rounded-lg border bg-gradient-to-br from-blue-500/5 via-card to-purple-500/5" data-testid={`timing-analysis-${idea.symbol}`}>
+            <div className="mb-3 p-3 rounded-lg border bg-gradient-to-br from-cyan-500/5 via-card to-purple-500/5" data-testid={`timing-analysis-${idea.symbol}`}>
               <div className="flex items-center gap-1.5 mb-2">
-                <Clock className="h-3.5 w-3.5 text-blue-400" />
-                <h4 className="text-xs font-semibold text-blue-400 uppercase tracking-wide">Timing</h4>
+                <Clock className="h-3.5 w-3.5 text-cyan-400" />
+                <h4 className="text-xs font-semibold text-cyan-400 uppercase tracking-wide">Timing</h4>
               </div>
               
               <div className="grid grid-cols-3 gap-2">
@@ -615,13 +615,13 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                         className="h-6 w-6 hover-elevate"
                         data-testid="button-option-info"
                       >
-                        <HelpCircle className="h-4 w-4 text-blue-400" />
+                        <HelpCircle className="h-4 w-4 text-cyan-400" />
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                          <Info className="h-5 w-5 text-blue-400" />
+                          <Info className="h-5 w-5 text-cyan-400" />
                           Understanding Option Pricing & Timing
                         </DialogTitle>
                       </DialogHeader>
@@ -630,12 +630,12 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                         {/* WHERE PRICES COME FROM */}
                         <div className="p-4 rounded-lg bg-accent/20 border border-border">
                           <div className="flex items-center gap-2 mb-3">
-                            <Database className="h-4 w-4 text-blue-400" />
-                            <h3 className="font-bold text-blue-400">Where Does the Entry Premium Come From?</h3>
+                            <Database className="h-4 w-4 text-cyan-400" />
+                            <h3 className="font-bold text-cyan-400">Where Does the Entry Premium Come From?</h3>
                           </div>
                           <div className="space-y-2 text-muted-foreground">
                             <p className="leading-relaxed">
-                              The <span className="font-semibold text-foreground">Entry Premium of ${idea.entryPrice.toFixed(2)}</span> comes from <span className="font-semibold text-blue-400">Tradier API's live market data</span> (the <code className="px-1 py-0.5 bg-muted rounded text-xs">lastPrice</code> field).
+                              The <span className="font-semibold text-foreground">Entry Premium of ${idea.entryPrice.toFixed(2)}</span> comes from <span className="font-semibold text-cyan-400">Tradier API's live market data</span> (the <code className="px-1 py-0.5 bg-muted rounded text-xs">lastPrice</code> field).
                             </p>
                             <p className="leading-relaxed">
                               This is the <span className="font-semibold text-foreground">actual market price</span> traders are paying for this option contract at the time the trade was generated.
@@ -659,7 +659,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                           </div>
                           <div className="space-y-3">
                             <div className="flex items-start gap-3">
-                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-400">
+                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-cyan-500/20 flex items-center justify-center text-xs font-bold text-cyan-400">
                                 1
                               </div>
                               <div>
@@ -720,7 +720,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                           </div>
                           <div className="space-y-2 text-xs">
                             <div className="flex items-start gap-2">
-                              <span className="font-semibold text-blue-400 min-w-[80px]">Options:</span>
+                              <span className="font-semibold text-cyan-400 min-w-[80px]">Options:</span>
                               <span className="text-muted-foreground">Tradier API (live option chain data with real-time premiums)</span>
                             </div>
                             <div className="flex items-start gap-2">
@@ -741,7 +741,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 {/* Option Details Grid */}
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <div className="text-[11px] text-blue-400 mb-1 uppercase tracking-wider flex items-center gap-1 font-semibold">
+                    <div className="text-[11px] text-cyan-400 mb-1 uppercase tracking-wider flex items-center gap-1 font-semibold">
                       <Activity className="h-3.5 w-3.5" />
                       Type
                     </div>

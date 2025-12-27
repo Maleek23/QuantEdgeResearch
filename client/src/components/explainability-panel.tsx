@@ -77,8 +77,8 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
     
     if (ratio >= 5) return { label: 'Institutional Flow', color: 'text-green-400', signal: 'Major interest' };
     if (ratio >= 3) return { label: 'Exceptional (3x+)', color: 'text-green-300', signal: 'High conviction' };
-    if (ratio >= 2) return { label: 'Strong (2x+)', color: 'text-blue-400', signal: 'Above average' };
-    if (ratio >= 1.5) return { label: 'Above Average', color: 'text-blue-300', signal: 'Confirmed' };
+    if (ratio >= 2) return { label: 'Strong (2x+)', color: 'text-cyan-400', signal: 'Above average' };
+    if (ratio >= 1.5) return { label: 'Above Average', color: 'text-cyan-300', signal: 'Confirmed' };
     if (ratio >= 1.2) return { label: 'Confirmed', color: 'text-muted-foreground', signal: 'Normal' };
     return { label: 'Below Average', color: 'text-amber-400', signal: 'Weak confirmation' };
   };

@@ -157,7 +157,7 @@ function AddWalletDialog({ onSuccess }: { onSuccess: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button data-testid="button-add-wallet">
+        <Button variant="glass" data-testid="button-add-wallet">
           <Plus className="h-4 w-4 mr-2" />
           Add Wallet
         </Button>
@@ -208,6 +208,7 @@ function AddWalletDialog({ onSuccess }: { onSuccess: () => void }) {
             Cancel
           </Button>
           <Button
+            variant="glass"
             onClick={handleSubmit}
             disabled={addWalletMutation.isPending}
             data-testid="button-submit-wallet"
@@ -316,6 +317,7 @@ function CreateAlertDialog({ wallets, onSuccess }: { wallets: TrackedWallet[]; o
             Cancel
           </Button>
           <Button
+            variant="glass"
             onClick={handleSubmit}
             disabled={createAlertMutation.isPending || !walletId}
             data-testid="button-submit-alert"
