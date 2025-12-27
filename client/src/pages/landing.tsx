@@ -186,11 +186,11 @@ export default function Landing() {
                 Chart Database
               </Link>
               <button 
-                onClick={() => scrollToSection('success-stories')} 
+                onClick={() => scrollToSection('recent-performance')} 
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                data-testid="link-success-stories"
+                data-testid="link-recent-performance"
               >
-                Success Stories
+                Performance
               </button>
               <Link 
                 href="/academy" 
@@ -246,11 +246,11 @@ export default function Landing() {
         
         <div className="container relative mx-auto px-6">
           <div className="max-w-4xl mx-auto text-center">
-            {/* Dual Engine Badge */}
+            {/* Research Platform Badge */}
             <div className="flex justify-center mb-6">
-              <Badge variant="secondary" className="px-4 py-2 text-sm" data-testid="badge-dual-engine">
-                <Zap className="h-4 w-4 mr-2 text-amber-500" />
-                Dual-Engine Architecture: AI + Quantitative
+              <Badge variant="secondary" className="px-4 py-2 text-sm" data-testid="badge-research-platform">
+                <FileText className="h-4 w-4 mr-2 text-amber-500" />
+                Research Platform for Self-Directed Traders
               </Badge>
             </div>
 
@@ -265,12 +265,12 @@ export default function Landing() {
 
             {/* Headline */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight" data-testid="text-hero-headline">
-              Two engines. <span className="text-primary">One edge.</span>
+              Research tools. <span className="text-primary">Real expectations.</span>
             </h1>
 
             {/* Subheadline */}
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6" data-testid="text-hero-subheadline">
-              Quantitative signals and AI analysis working together. Stocks, options, crypto—every trade idea comes with entry, exit, and risk levels.
+              Educational research platform with trade ideas across stocks, options, and crypto. Every idea includes entry, exit, and risk levels—for learning, not advice.
             </p>
 
             {/* Validated Stats */}
@@ -326,33 +326,23 @@ export default function Landing() {
                   "—"
                 )}
               </div>
-              <div className="text-xs md:text-sm text-muted-foreground">Trade Ideas</div>
+              <div className="text-xs md:text-sm text-muted-foreground">Ideas Tracked</div>
             </div>
-            <div className="text-center" data-testid="stat-stock-win-rate">
-              <div className="text-2xl md:text-3xl font-bold text-green-500 mb-1">
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-16 mx-auto" />
-                ) : (() => {
-                  const stockStats = perfStats?.byAssetType?.find(a => a.assetType === 'stock');
-                  return stockStats?.winRate ? `${stockStats.winRate.toFixed(0)}%` : "—";
-                })()}
-              </div>
-              <div className="text-xs md:text-sm text-muted-foreground">Stocks Win Rate</div>
-            </div>
-            <div className="text-center" data-testid="stat-crypto-win-rate">
+            <div className="text-center" data-testid="stat-target">
               <div className="text-2xl md:text-3xl font-bold text-amber-500 mb-1">
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-16 mx-auto" />
-                ) : (() => {
-                  const cryptoStats = perfStats?.byAssetType?.find(a => a.assetType === 'crypto');
-                  return cryptoStats?.winRate ? `${cryptoStats.winRate.toFixed(0)}%` : "—";
-                })()}
+                55-65%
               </div>
-              <div className="text-xs md:text-sm text-muted-foreground">Crypto Win Rate</div>
+              <div className="text-xs md:text-sm text-muted-foreground">Target Win Rate</div>
+            </div>
+            <div className="text-center" data-testid="stat-rr-ratio">
+              <div className="text-2xl md:text-3xl font-bold text-green-500 mb-1">
+                2:1
+              </div>
+              <div className="text-xs md:text-sm text-muted-foreground">Min R:R Ratio</div>
             </div>
           </div>
           <p className="text-center text-xs text-muted-foreground mt-4">
-            Based on validated trades with confirmed outcomes (excludes options pending proper pricing)
+            Win rate based on backtested research. Past performance does not guarantee future results.
           </p>
         </div>
       </section>
@@ -642,14 +632,14 @@ export default function Landing() {
             <div className="max-w-2xl mx-auto">
               <Card>
                 <CardContent className="p-12 text-center">
-                  <Award className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <h3 className="text-xl font-semibold mb-2">Building Success Stories</h3>
+                  <BarChart3 className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                  <h3 className="text-xl font-semibold mb-2">Performance Tracking</h3>
                   <p className="text-muted-foreground mb-6">
-                    We're generating winning trades every day. Check back soon!
+                    All trade ideas are tracked from entry to exit. View real results—both wins and losses.
                   </p>
                   <Button onClick={() => setLocation('/trade-desk')} data-testid="button-view-trades-cta">
                     <ArrowRight className="h-4 w-4 mr-2" />
-                    View Active Trades
+                    View Trade Ideas
                   </Button>
                 </CardContent>
               </Card>
@@ -1067,11 +1057,11 @@ export default function Landing() {
                 </li>
                 <li>
                   <button 
-                    onClick={() => scrollToSection('success-stories')} 
+                    onClick={() => scrollToSection('recent-performance')} 
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    data-testid="footer-link-success-stories"
+                    data-testid="footer-link-performance"
                   >
-                    Success Stories
+                    Performance
                   </button>
                 </li>
                 <li>
@@ -1107,13 +1097,26 @@ export default function Landing() {
             </div>
           </div>
 
+          {/* Risk Disclaimer */}
+          <div className="border-t pt-8 mb-6">
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 text-center">
+              <p className="text-sm font-medium text-destructive mb-1">
+                NOT FINANCIAL ADVICE
+              </p>
+              <p className="text-xs text-muted-foreground">
+                QuantEdge is an educational research platform. Trading involves substantial risk of loss. 
+                Past performance does not guarantee future results. You could lose your entire investment.
+              </p>
+            </div>
+          </div>
+
           {/* Bottom Bar */}
-          <div className="border-t pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-muted-foreground">
               © {new Date().getFullYear()} QuantEdge Research. All rights reserved.
             </p>
             <p className="text-xs text-muted-foreground text-center md:text-right">
-              <span className="text-destructive font-medium">NOT FINANCIAL ADVICE</span> • Educational research platform. Trading involves substantial risk.
+              Research platform for self-directed traders. Education, not advice.
             </p>
           </div>
         </div>
