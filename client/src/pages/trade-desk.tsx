@@ -597,39 +597,53 @@ export default function TradeDeskPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-4">
-      {/* Clean Minimal Header */}
-      <div className="flex items-center justify-between gap-4 pb-2">
-        <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-page-title">Trade Desk</h1>
-          <p className="text-sm text-muted-foreground">
-            {format(new Date(), 'EEEE, MMM d')} · {activeIdeas.length} active ideas
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] })}
-            title="Refresh trade ideas"
-            data-testid="button-refresh-ideas"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <UsageBadge className="mr-1" data-testid="badge-usage-remaining" />
-          <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="default"
-              size="default"
-              className="gap-2"
-              disabled={!canGenerateTradeIdea()}
-              data-testid="button-generate-ideas"
+      {/* Glassmorphism Header */}
+      <div className="relative overflow-hidden rounded-xl glass-card p-6">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase mb-1">
+              {format(new Date(), 'EEEE, MMM d')}
+            </p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-3" data-testid="text-page-title">Trade Desk</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 glass-success rounded-lg px-3 py-1.5">
+                <Activity className="h-4 w-4" />
+                <span className="text-sm font-medium">{activeIdeas.length} Active</span>
+              </div>
+              {newIdeasCount > 0 && (
+                <div className="flex items-center gap-2 glass rounded-lg px-3 py-1.5">
+                  <Sparkles className="h-4 w-4" />
+                  <span className="text-sm font-medium">{newIdeasCount} Fresh</span>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="glass-secondary"
+              size="icon"
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] })}
+              title="Refresh trade ideas"
+              data-testid="button-refresh-ideas"
             >
-              <Sparkles className="h-4 w-4" />
-              Generate
-              <ChevronDown className="h-3 w-3" />
+              <RefreshCw className="h-4 w-4" />
             </Button>
-          </DropdownMenuTrigger>
+            <UsageBadge className="mr-1" data-testid="badge-usage-remaining" />
+            <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="glass"
+                size="default"
+                className="gap-2"
+                disabled={!canGenerateTradeIdea()}
+                data-testid="button-generate-ideas"
+              >
+                <Sparkles className="h-4 w-4" />
+                Generate
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
             {/* Recommended - Best for most users */}
             <DropdownMenuItem
@@ -638,9 +652,9 @@ export default function TradeDeskPage() {
               data-testid="menu-generate-hybrid"
               className="font-medium"
             >
-              <Sparkles className="h-4 w-4 mr-2 text-primary" />
+              <Sparkles className="h-4 w-4 mr-2 text-cyan-400" />
               Smart Picks
-              <Badge variant="secondary" className="ml-auto text-[10px] px-1.5">Best</Badge>
+              <span className="ml-auto bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs">Best</span>
             </DropdownMenuItem>
             
             <DropdownMenuSeparator />
@@ -686,17 +700,18 @@ export default function TradeDeskPage() {
               <span className="ml-auto text-[10px] text-muted-foreground">+ Lotto</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenu>
+          </div>
         </div>
       </div>
 
-      {/* Timeframe Tabs - Organize plays by trading horizon */}
+      {/* Timeframe Tabs - Glassmorphism */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         <div className="flex items-center gap-1">
           {(['all', 'today_tomorrow', 'few_days', 'next_week', 'next_month'] as TimeframeBucket[]).map((timeframe) => (
             <Button
               key={timeframe}
-              variant={activeTimeframe === timeframe ? 'default' : 'outline'}
+              variant={activeTimeframe === timeframe ? 'glass' : 'glass-secondary'}
               size="sm"
               onClick={() => setActiveTimeframe(timeframe)}
               className={cn(
@@ -707,12 +722,9 @@ export default function TradeDeskPage() {
             >
               {timeframe === 'today_tomorrow' && <CalendarClock className="h-3.5 w-3.5" />}
               {TIMEFRAME_LABELS[timeframe]}
-              <Badge 
-                variant={activeTimeframe === timeframe ? "secondary" : "outline"} 
-                className="ml-0.5 px-1.5 py-0 text-[10px] font-medium"
-              >
+              <span className="ml-0.5 bg-white/10 rounded px-1.5 py-0 text-[10px] font-medium">
                 {timeframeCounts[timeframe]}
-              </Badge>
+              </span>
             </Button>
           ))}
         </div>
@@ -720,7 +732,7 @@ export default function TradeDeskPage() {
         {/* Generate for selected timeframe */}
         {activeTimeframe !== 'all' && canGenerateTradeIdea() && (
           <Button
-            variant="outline"
+            variant="glass-secondary"
             size="sm"
             onClick={() => generateTimeframeIdeas.mutate(activeTimeframe)}
             disabled={generateTimeframeIdeas.isPending}
@@ -737,20 +749,20 @@ export default function TradeDeskPage() {
         )}
       </div>
 
-      {/* Simple Search + Filter Bar */}
-      <div className="flex items-center gap-3">
+      {/* Simple Search + Filter Bar - Glassmorphism */}
+      <div className="glass-card rounded-xl p-3 flex items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
             placeholder="Search symbols..."
             value={symbolSearch}
             onChange={(e) => setSymbolSearch(e.target.value.toUpperCase())}
-            className="pl-10"
+            className="pl-10 bg-white/5 border-white/10"
             data-testid="filter-symbol-search"
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[130px]" data-testid="filter-status">
+          <SelectTrigger className="w-[130px] bg-white/5 border-white/10" data-testid="filter-status">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -762,7 +774,7 @@ export default function TradeDeskPage() {
         </Select>
         {(symbolSearch || statusFilter !== 'all') && (
           <Button
-            variant="ghost"
+            variant="glass-secondary"
             size="icon"
             onClick={() => {
               setSymbolSearch('');
@@ -775,14 +787,16 @@ export default function TradeDeskPage() {
         )}
       </div>
 
-      {/* Weekend Notice - Only when relevant */}
+      {/* Weekend Notice - Glassmorphism */}
       {isWeekend() && (
-        <Alert className="border-muted" data-testid="weekend-preview-section">
-          <Clock className="h-4 w-4" />
-          <AlertDescription className="text-sm">
-            Markets open {format(getNextTradingWeekStart(), 'EEEE, MMM d')} at 9:30 AM CT
-          </AlertDescription>
-        </Alert>
+        <div className="glass-card rounded-xl p-4 flex items-center gap-3 border-l-2 border-l-amber-500" data-testid="weekend-preview-section">
+          <div className="h-10 w-10 rounded-lg glass flex items-center justify-center">
+            <Clock className="h-5 w-5 text-amber-400" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Markets open <span className="text-cyan-400 font-medium">{format(getNextTradingWeekStart(), 'EEEE, MMM d')}</span> at 9:30 AM CT
+          </p>
+        </div>
       )}
 
       {/* Watchlist Spotlight - "Watch Out For These" */}
@@ -794,15 +808,15 @@ export default function TradeDeskPage() {
         {ideasLoading ? (
           <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
-              <Skeleton key={i} className="h-32 w-full" data-testid={`skeleton-idea-${i}`} />
+              <Skeleton key={i} className="h-32 w-full rounded-xl" data-testid={`skeleton-idea-${i}`} />
             ))}
           </div>
         ) : filteredAndSortedIdeas.length === 0 ? (
-          /* Enhanced Empty State */
-          <Card className="border-dashed border-2">
-            <CardContent className="flex flex-col items-center justify-center py-20">
-              <div className="rounded-full bg-primary/5 p-6 mb-6">
-                <BarChart3 className="h-16 w-16 text-primary/50" />
+          /* Enhanced Empty State - Glassmorphism */
+          <div className="glass-card rounded-xl border-dashed border-2 border-white/10">
+            <div className="flex flex-col items-center justify-center py-20 px-6">
+              <div className="h-20 w-20 rounded-2xl glass flex items-center justify-center mb-6">
+                <BarChart3 className="h-10 w-10 text-cyan-400" />
               </div>
               <h3 className="text-2xl font-bold mb-2">No Trade Ideas Found</h3>
               <p className="text-muted-foreground text-center max-w-md mb-4">
@@ -814,7 +828,7 @@ export default function TradeDeskPage() {
               </p>
               {statusFilter !== 'all' && tradeIdeas.length > 0 && (
                 <Button
-                  variant="outline"
+                  variant="glass"
                   onClick={() => setStatusFilter('all')}
                   className="mb-4"
                   data-testid="button-show-all-statuses"
@@ -825,24 +839,27 @@ export default function TradeDeskPage() {
               <p className="text-sm text-muted-foreground text-center">
                 {statusFilter === 'active' && "Tip: By default, only ACTIVE trades are shown to reduce clutter"}
               </p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ) : (
           <>
-            {/* SECTION 1: Active Trades */}
+            {/* SECTION 1: Active Trades - Glassmorphism */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-semibold">Active Trades</h3>
-                  <Badge variant="default" className="bg-blue-500/20 text-blue-500 border-blue-500/30">
-                    {activeIdeas.length} open
-                  </Badge>
+              <div className="glass-card rounded-xl p-4 flex items-center justify-between gap-4 border-l-2 border-l-cyan-500">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg glass flex items-center justify-center">
+                    <Activity className="h-5 w-5 text-cyan-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Active Trades</h3>
+                    <span className="text-sm text-muted-foreground">{activeIdeas.length} open positions</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {/* View Mode Toggle */}
-                  <div className="flex items-center border rounded-md p-0.5">
+                  <div className="flex items-center glass-secondary rounded-md p-0.5">
                     <Button
-                      variant={viewMode === "list" ? "default" : "ghost"}
+                      variant={viewMode === "list" ? "glass" : "ghost"}
                       size="sm"
                       onClick={() => setViewMode("list")}
                       className="h-7 px-2"
@@ -851,7 +868,7 @@ export default function TradeDeskPage() {
                       <List className="h-4 w-4" />
                     </Button>
                     <Button
-                      variant={viewMode === "grid" ? "default" : "ghost"}
+                      variant={viewMode === "grid" ? "glass" : "ghost"}
                       size="sm"
                       onClick={() => setViewMode("grid")}
                       className="h-7 px-2"
@@ -862,7 +879,7 @@ export default function TradeDeskPage() {
                   </div>
                   {expandedIdeaId && (
                     <Button
-                      variant="ghost"
+                      variant="glass-secondary"
                       size="sm"
                       onClick={handleCollapseAll}
                       className="gap-1.5"
@@ -876,12 +893,14 @@ export default function TradeDeskPage() {
               </div>
 
               {activeIdeas.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="flex flex-col items-center justify-center py-12">
-                    <Activity className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                <div className="glass-card rounded-xl border-dashed border-2 border-white/10">
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <div className="h-14 w-14 rounded-lg glass flex items-center justify-center mb-3">
+                      <Activity className="h-7 w-7 text-muted-foreground/50" />
+                    </div>
                     <p className="text-muted-foreground text-sm">No active trades match your filters</p>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               ) : (
                 <Accordion type="single" collapsible className="space-y-4" defaultValue={Object.entries(groupedIdeas)[0]?.[0]}>
                   {Object.entries(groupedIdeas)
@@ -902,17 +921,17 @@ export default function TradeDeskPage() {
                       const stats = calculateGroupStats(ideas);
                       
                       return (
-                        <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
+                        <AccordionItem key={assetType} value={assetType} className="glass-card rounded-xl border-white/10">
                           <AccordionTrigger className="px-4 hover:no-underline" data-testid={`accordion-asset-${assetType}`}>
                             <div className="flex items-center gap-3 flex-wrap">
                               <span className="font-semibold">{label}</span>
-                              <Badge variant="outline" data-testid={`badge-count-${assetType}`}>
+                              <span className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs" data-testid={`badge-count-${assetType}`}>
                                 {ideas.length} idea{ideas.length !== 1 ? 's' : ''}
-                              </Badge>
+                              </span>
                               {stats.avgRR > 0 && (
-                                <Badge variant="outline" className="text-xs font-mono">
+                                <span className="bg-white/10 text-cyan-400 rounded px-2 py-0.5 text-xs font-mono">
                                   {stats.avgRR.toFixed(1)}x R:R
-                                </Badge>
+                                </span>
                               )}
                             </div>
                           </AccordionTrigger>
@@ -939,45 +958,46 @@ export default function TradeDeskPage() {
               {activeIdeas.length > 0 && visibleCount < activeIdeas.length && (
                 <div className="flex justify-center pt-4">
                   <Button
-                    variant="outline"
+                    variant="glass-secondary"
                     size="lg"
                     onClick={() => setVisibleCount(prev => prev + 50)}
                     className="gap-2"
                     data-testid="button-load-more"
                   >
                     Load More Active
-                    <Badge variant="secondary" className="ml-1">
+                    <span className="ml-1 bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs">
                       {Math.min(50, activeIdeas.length - visibleCount)} more
-                    </Badge>
+                    </span>
                   </Button>
                 </div>
               )}
             </div>
 
-            {/* SECTION 2: Closed Trades Summary (simplified - full analysis on Performance page) */}
+            {/* SECTION 2: Closed Trades Summary - Glassmorphism */}
             {closedIdeas.length > 0 && (
-              <Card className="mt-4">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm text-muted-foreground">Recent Performance:</span>
-                      <Badge variant="default" className="bg-green-500/20 text-green-500 border-green-500/30">
-                        {closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target').length} wins
-                      </Badge>
-                      <Badge variant="destructive" className="bg-red-500/20 text-red-500 border-red-500/30">
-                        {closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_stop').length} losses
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">({closedIdeas.length} closed)</span>
+              <div className="glass-card rounded-xl p-4 mt-4 border-l-2 border-l-blue-500">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg glass flex items-center justify-center">
+                      <BarChart3 className="h-5 w-5 text-cyan-400" />
                     </div>
-                    <Button variant="outline" size="sm" asChild className="gap-1.5" data-testid="link-view-performance">
-                      <a href="/performance">
-                        <BarChart3 className="h-4 w-4" />
-                        View Performance
-                      </a>
-                    </Button>
+                    <span className="text-sm text-muted-foreground">Recent Performance:</span>
+                    <span className="bg-green-500/20 text-green-400 rounded px-2 py-0.5 text-xs border border-green-500/30">
+                      {closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target').length} wins
+                    </span>
+                    <span className="bg-red-500/20 text-red-400 rounded px-2 py-0.5 text-xs border border-red-500/30">
+                      {closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_stop').length} losses
+                    </span>
+                    <span className="text-xs text-muted-foreground">({closedIdeas.length} closed)</span>
                   </div>
-                </CardContent>
-              </Card>
+                  <Button variant="glass" size="sm" asChild className="gap-1.5" data-testid="link-view-performance">
+                    <a href="/performance">
+                      <BarChart3 className="h-4 w-4" />
+                      View Performance
+                    </a>
+                  </Button>
+                </div>
+              </div>
             )}
           </>
         )}

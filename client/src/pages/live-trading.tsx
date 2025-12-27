@@ -3,10 +3,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -230,420 +228,423 @@ export default function LiveTradingPage() {
   if (!isAuthenticated) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[60vh]">
-        <Card className="max-w-md w-full">
-          <CardHeader className="text-center">
-            <CardTitle data-testid="text-login-prompt">Login Required</CardTitle>
-            <CardDescription>
+        <div className="glass-card rounded-xl max-w-md w-full p-6">
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-cyan-400 mb-2" data-testid="text-login-prompt">Login Required</h2>
+            <p className="text-muted-foreground text-sm mb-6">
               Please log in to track your live trading positions
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center">
+            </p>
             <Link href="/login">
-              <Button data-testid="button-go-to-login">Go to Login</Button>
+              <Button variant="glass" data-testid="button-go-to-login">Go to Login</Button>
             </Link>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">Live Trading</h1>
-          <p className="text-sm text-muted-foreground" data-testid="text-last-refresh">
-            Last refresh: {format(lastRefresh, "HH:mm:ss")}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isLoading}
-            data-testid="button-refresh"
-          >
-            <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
-            Refresh
-          </Button>
-          <Dialog open={isNewTradeOpen} onOpenChange={setIsNewTradeOpen}>
-            <DialogTrigger asChild>
-              <Button data-testid="button-new-trade">
-                <Plus className="h-4 w-4 mr-2" />
-                New Trade
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Add Trade</DialogTitle>
-                <DialogDescription>
-                  <span className="flex items-center gap-2">
-                    <Clock className="h-3.5 w-3.5" />
-                    {format(new Date(), "EEEE, MMMM d, yyyy")}
-                  </span>
-                </DialogDescription>
-              </DialogHeader>
+      {/* Header */}
+      <div className="glass-card rounded-xl p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-cyan-400" data-testid="text-page-title">Live Trading</h1>
+            <p className="text-sm text-muted-foreground" data-testid="text-last-refresh">
+              Last refresh: {format(lastRefresh, "HH:mm:ss")}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="glass-secondary"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isLoading}
+              data-testid="button-refresh"
+            >
+              <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
+              Refresh
+            </Button>
+            <Dialog open={isNewTradeOpen} onOpenChange={setIsNewTradeOpen}>
+              <DialogTrigger asChild>
+                <Button variant="glass" data-testid="button-new-trade">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Trade
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Add Trade</DialogTitle>
+                  <DialogDescription>
+                    <span className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5" />
+                      {format(new Date(), "EEEE, MMMM d, yyyy")}
+                    </span>
+                  </DialogDescription>
+                </DialogHeader>
 
-              <Form {...tradeForm}>
-                <form onSubmit={tradeForm.handleSubmit(handleCreateTrade)} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={tradeForm.control}
-                      name="symbol"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Symbol</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="AAPL" 
-                              {...field} 
-                              className="uppercase font-mono"
-                              data-testid="input-symbol"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={tradeForm.control}
-                      name="assetType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Asset Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Form {...tradeForm}>
+                  <form onSubmit={tradeForm.handleSubmit(handleCreateTrade)} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={tradeForm.control}
+                        name="symbol"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Symbol</FormLabel>
                             <FormControl>
-                              <SelectTrigger data-testid="select-asset-type">
-                                <SelectValue placeholder="Select type" />
-                              </SelectTrigger>
+                              <Input 
+                                placeholder="AAPL" 
+                                {...field} 
+                                className="uppercase font-mono"
+                                data-testid="input-symbol"
+                              />
                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value="stock">Stock</SelectItem>
-                              <SelectItem value="option">Option</SelectItem>
-                              <SelectItem value="crypto">Crypto</SelectItem>
-                              <SelectItem value="future">Future</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={tradeForm.control}
+                        name="assetType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Asset Type</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-asset-type">
+                                  <SelectValue placeholder="Select type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="stock">Stock</SelectItem>
+                                <SelectItem value="option">Option</SelectItem>
+                                <SelectItem value="crypto">Crypto</SelectItem>
+                                <SelectItem value="future">Future</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={tradeForm.control}
-                      name="direction"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Direction</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={tradeForm.control}
+                        name="direction"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Direction</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-direction">
+                                  <SelectValue placeholder="Select direction" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="long">
+                                  <span className="flex items-center gap-2">
+                                    <TrendingUp className="h-3 w-3 text-green-400" />
+                                    Long
+                                  </span>
+                                </SelectItem>
+                                <SelectItem value="short">
+                                  <span className="flex items-center gap-2">
+                                    <TrendingDown className="h-3 w-3 text-red-400" />
+                                    Short
+                                  </span>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={tradeForm.control}
+                        name="quantity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Quantity</FormLabel>
                             <FormControl>
-                              <SelectTrigger data-testid="select-direction">
-                                <SelectValue placeholder="Select direction" />
-                              </SelectTrigger>
+                              <Input 
+                                type="number" 
+                                min="1"
+                                {...field} 
+                                data-testid="input-quantity"
+                              />
                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value="long">
-                                <span className="flex items-center gap-2">
-                                  <TrendingUp className="h-3 w-3 text-green-500" />
-                                  Long
-                                </span>
-                              </SelectItem>
-                              <SelectItem value="short">
-                                <span className="flex items-center gap-2">
-                                  <TrendingDown className="h-3 w-3 text-red-500" />
-                                  Short
-                                </span>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={tradeForm.control}
-                      name="quantity"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Quantity</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              min="1"
-                              {...field} 
-                              data-testid="input-quantity"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                  <Separator />
+                    <Separator />
 
-                  <div className="grid grid-cols-3 gap-3">
-                    <FormField
-                      control={tradeForm.control}
-                      name="entryPrice"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Entry $</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              placeholder="0.00" 
-                              {...field} 
-                              className="font-mono"
-                              data-testid="input-entry-price"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={tradeForm.control}
-                      name="targetPrice"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-green-600 dark:text-green-400">Target $</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              placeholder="0.00" 
-                              {...field}
-                              value={field.value ?? ""}
-                              className="font-mono"
-                              data-testid="input-target-price"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={tradeForm.control}
-                      name="stopLoss"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-red-600 dark:text-red-400">Stop $</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              step="0.01"
-                              placeholder="0.00" 
-                              {...field}
-                              value={field.value ?? ""}
-                              className="font-mono"
-                              data-testid="input-stop-loss"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <FormField
+                        control={tradeForm.control}
+                        name="entryPrice"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Entry $</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                step="0.01"
+                                placeholder="0.00" 
+                                {...field} 
+                                className="font-mono"
+                                data-testid="input-entry-price"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={tradeForm.control}
+                        name="targetPrice"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-green-400">Target $</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                step="0.01"
+                                placeholder="0.00" 
+                                {...field}
+                                value={field.value ?? ""}
+                                className="font-mono"
+                                data-testid="input-target-price"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={tradeForm.control}
+                        name="stopLoss"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-red-400">Stop $</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                step="0.01"
+                                placeholder="0.00" 
+                                {...field}
+                                value={field.value ?? ""}
+                                className="font-mono"
+                                data-testid="input-stop-loss"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                  {watchAssetType === "option" && (
-                    <>
-                      <Separator />
-                      <div className="grid grid-cols-3 gap-3">
-                        <FormField
-                          control={tradeForm.control}
-                          name="optionType"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Call/Put</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger data-testid="select-option-type">
-                                    <SelectValue placeholder="Type" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="call">Call</SelectItem>
-                                  <SelectItem value="put">Put</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={tradeForm.control}
-                          name="strikePrice"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Strike $</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  step="0.5"
-                                  placeholder="0.00" 
-                                  {...field}
-                                  value={field.value ?? ""}
-                                  className="font-mono"
-                                  data-testid="input-strike-price"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={tradeForm.control}
-                          name="expiryDate"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Expiry</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="date"
-                                  {...field}
-                                  value={field.value ?? ""}
-                                  data-testid="input-expiry-date"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  <FormField
-                    control={tradeForm.control}
-                    name="notes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notes (optional)</FormLabel>
-                        <FormControl>
-                          <Textarea 
-                            placeholder="Trade rationale, setup, etc."
-                            className="resize-none"
-                            rows={2}
-                            {...field}
-                            value={field.value ?? ""}
-                            data-testid="input-notes"
+                    {watchAssetType === "option" && (
+                      <>
+                        <Separator />
+                        <div className="grid grid-cols-3 gap-3">
+                          <FormField
+                            control={tradeForm.control}
+                            name="optionType"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Call/Put</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger data-testid="select-option-type">
+                                      <SelectValue placeholder="Type" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value="call">Call</SelectItem>
+                                    <SelectItem value="put">Put</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
                           />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                          <FormField
+                            control={tradeForm.control}
+                            name="strikePrice"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Strike $</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="number" 
+                                    step="0.5"
+                                    placeholder="0.00" 
+                                    {...field}
+                                    value={field.value ?? ""}
+                                    className="font-mono"
+                                    data-testid="input-strike-price"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={tradeForm.control}
+                            name="expiryDate"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Expiry</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    type="date"
+                                    {...field}
+                                    value={field.value ?? ""}
+                                    data-testid="input-expiry-date"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </>
                     )}
-                  />
 
-                  <DialogFooter>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={() => setIsNewTradeOpen(false)}
-                      data-testid="button-cancel-trade"
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      disabled={createTradeMutation.isPending}
-                      data-testid="button-add-trade"
-                    >
-                      {createTradeMutation.isPending ? "Adding..." : "Add Trade"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+                    <FormField
+                      control={tradeForm.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Notes (optional)</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Trade rationale, setup, etc."
+                              className="resize-none"
+                              rows={2}
+                              {...field}
+                              value={field.value ?? ""}
+                              data-testid="input-notes"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <DialogFooter>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => setIsNewTradeOpen(false)}
+                        data-testid="button-cancel-trade"
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        disabled={createTradeMutation.isPending}
+                        data-testid="button-add-trade"
+                      >
+                        {createTradeMutation.isPending ? "Adding..." : "Add Trade"}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </div>
 
+      {/* Stats Grid */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Open Positions</p>
-                <p className="text-2xl font-bold" data-testid="text-open-positions-count">{openTrades.length}</p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
+        <div className="glass-card rounded-xl p-6 border-l-2 border-l-cyan-400">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Open Positions</p>
+              <p className="text-2xl font-bold text-cyan-400" data-testid="text-open-positions-count">{openTrades.length}</p>
             </div>
-          </CardContent>
-        </Card>
+            <div className="h-10 w-10 rounded-lg glass flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-cyan-400" />
+            </div>
+          </div>
+        </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Unrealized P&L</p>
-                <p 
-                  className={cn(
-                    "text-2xl font-bold font-mono",
-                    totalUnrealizedPnL >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                  )}
-                  data-testid="text-unrealized-pnl"
-                >
-                  {formatPnL(totalUnrealizedPnL)}
-                </p>
-              </div>
-              <div className={cn(
-                "h-10 w-10 rounded-lg flex items-center justify-center",
-                totalUnrealizedPnL >= 0 ? "bg-green-100 dark:bg-green-500/20" : "bg-red-100 dark:bg-red-500/20"
-              )}>
-                <DollarSign className={cn(
-                  "h-5 w-5",
-                  totalUnrealizedPnL >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                )} />
-              </div>
+        <div className={cn(
+          "glass-card rounded-xl p-6 border-l-2",
+          totalUnrealizedPnL >= 0 ? "border-l-green-400" : "border-l-red-400"
+        )}>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Unrealized P&L</p>
+              <p 
+                className={cn(
+                  "text-2xl font-bold font-mono",
+                  totalUnrealizedPnL >= 0 ? "text-green-400" : "text-red-400"
+                )}
+                data-testid="text-unrealized-pnl"
+              >
+                {formatPnL(totalUnrealizedPnL)}
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            <div className={cn(
+              "h-10 w-10 rounded-lg flex items-center justify-center",
+              totalUnrealizedPnL >= 0 ? "glass-success" : "glass-danger"
+            )}>
+              <DollarSign className={cn(
+                "h-5 w-5",
+                totalUnrealizedPnL >= 0 ? "text-green-400" : "text-red-400"
+              )} />
+            </div>
+          </div>
+        </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Realized P&L</p>
-                <p 
-                  className={cn(
-                    "text-2xl font-bold font-mono",
-                    totalRealizedPnL >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                  )}
-                  data-testid="text-realized-pnl"
-                >
-                  {formatPnL(totalRealizedPnL)}
-                </p>
-              </div>
-              <div className={cn(
-                "h-10 w-10 rounded-lg flex items-center justify-center",
-                totalRealizedPnL >= 0 ? "bg-green-100 dark:bg-green-500/20" : "bg-red-100 dark:bg-red-500/20"
-              )}>
-                <CheckCircle className={cn(
-                  "h-5 w-5",
-                  totalRealizedPnL >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                )} />
-              </div>
+        <div className={cn(
+          "glass-card rounded-xl p-6 border-l-2",
+          totalRealizedPnL >= 0 ? "border-l-green-400" : "border-l-red-400"
+        )}>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Realized P&L</p>
+              <p 
+                className={cn(
+                  "text-2xl font-bold font-mono",
+                  totalRealizedPnL >= 0 ? "text-green-400" : "text-red-400"
+                )}
+                data-testid="text-realized-pnl"
+              >
+                {formatPnL(totalRealizedPnL)}
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            <div className={cn(
+              "h-10 w-10 rounded-lg flex items-center justify-center",
+              totalRealizedPnL >= 0 ? "glass-success" : "glass-danger"
+            )}>
+              <CheckCircle className={cn(
+                "h-5 w-5",
+                totalRealizedPnL >= 0 ? "text-green-400" : "text-red-400"
+              )} />
+            </div>
+          </div>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2" data-testid="text-open-positions-title">
-            <TrendingUp className="h-5 w-5 text-blue-500" />
+      {/* Open Positions */}
+      <div className="glass-card rounded-xl p-6 border-l-2 border-l-cyan-400">
+        <div className="mb-4">
+          <h2 className="text-lg font-bold flex items-center gap-2 text-cyan-400" data-testid="text-open-positions-title">
+            <TrendingUp className="h-5 w-5" />
             Open Positions
-          </CardTitle>
-          <CardDescription>Active trades with real-time P&L tracking</CardDescription>
-        </CardHeader>
-        <CardContent>
+          </h2>
+          <p className="text-sm text-muted-foreground">Active trades with real-time P&L tracking</p>
+        </div>
+        <div>
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map(i => (
@@ -679,22 +680,25 @@ export default function LiveTradingPage() {
                         <div className="font-medium" data-testid={`text-symbol-${trade.id}`}>
                           {getOptionLabel(trade)}
                         </div>
-                        <Badge variant="outline" className="text-xs mt-1">
+                        <span className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs">
                           {trade.assetType}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell>
-                        <Badge 
-                          variant={trade.direction === 'long' ? 'default' : 'secondary'}
+                        <span 
+                          className={cn(
+                            "rounded px-2 py-0.5 text-xs font-medium inline-flex items-center gap-1",
+                            trade.direction === 'long' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                          )}
                           data-testid={`badge-direction-${trade.id}`}
                         >
                           {trade.direction === 'long' ? (
-                            <TrendingUp className="h-3 w-3 mr-1" />
+                            <TrendingUp className="h-3 w-3" />
                           ) : (
-                            <TrendingDown className="h-3 w-3 mr-1" />
+                            <TrendingDown className="h-3 w-3" />
                           )}
                           {trade.direction.toUpperCase()}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell className="text-right font-mono" data-testid={`text-entry-price-${trade.id}`}>
                         ${trade.entryPrice.toFixed(2)}
@@ -708,7 +712,7 @@ export default function LiveTradingPage() {
                       <TableCell 
                         className={cn(
                           "text-right font-mono font-medium",
-                          (trade.unrealizedPnL || 0) >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                          (trade.unrealizedPnL || 0) >= 0 ? "text-green-400" : "text-red-400"
                         )}
                         data-testid={`text-unrealized-pnl-${trade.id}`}
                       >
@@ -717,7 +721,7 @@ export default function LiveTradingPage() {
                       <TableCell 
                         className={cn(
                           "text-right font-mono",
-                          (trade.unrealizedPnLPercent || 0) >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                          (trade.unrealizedPnLPercent || 0) >= 0 ? "text-green-400" : "text-red-400"
                         )}
                         data-testid={`text-unrealized-pnl-percent-${trade.id}`}
                       >
@@ -726,13 +730,13 @@ export default function LiveTradingPage() {
                       <TableCell>
                         <div className="flex flex-col gap-1 text-xs">
                           {trade.targetPrice && (
-                            <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                            <div className="flex items-center gap-1 text-green-400">
                               <Target className="h-3 w-3" />
                               <span>${trade.targetPrice.toFixed(2)}</span>
                             </div>
                           )}
                           {trade.stopLoss && (
-                            <div className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                            <div className="flex items-center gap-1 text-red-400">
                               <AlertTriangle className="h-3 w-3" />
                               <span>${trade.stopLoss.toFixed(2)}</span>
                             </div>
@@ -753,7 +757,7 @@ export default function LiveTradingPage() {
                             <DialogTrigger asChild>
                               <Button 
                                 size="sm" 
-                                variant="outline"
+                                variant="glass-secondary"
                                 onClick={() => {
                                   setClosingTradeId(trade.id);
                                   closeTradeForm.reset({ exitPrice: trade.currentPrice || trade.entryPrice });
@@ -819,7 +823,7 @@ export default function LiveTradingPage() {
                             disabled={deleteTradeMutation.isPending}
                             data-testid={`button-delete-trade-${trade.id}`}
                           >
-                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-red-400" />
                           </Button>
                         </div>
                       </TableCell>
@@ -829,20 +833,21 @@ export default function LiveTradingPage() {
               </Table>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <Separator />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2" data-testid="text-closed-positions-title">
-            <CheckCircle className="h-5 w-5 text-green-500" />
+      {/* Closed Positions */}
+      <div className="glass-card rounded-xl p-6 border-l-2 border-l-green-400">
+        <div className="mb-4">
+          <h2 className="text-lg font-bold flex items-center gap-2 text-green-400" data-testid="text-closed-positions-title">
+            <CheckCircle className="h-5 w-5" />
             Closed Positions
-          </CardTitle>
-          <CardDescription>Trade history with realized P&L</CardDescription>
-        </CardHeader>
-        <CardContent>
+          </h2>
+          <p className="text-sm text-muted-foreground">Trade history with realized P&L</p>
+        </div>
+        <div>
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2].map(i => (
@@ -878,14 +883,17 @@ export default function LiveTradingPage() {
                         <div className="font-medium" data-testid={`text-closed-symbol-${trade.id}`}>
                           {getOptionLabel(trade)}
                         </div>
-                        <Badge variant="outline" className="text-xs mt-1">
+                        <span className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs">
                           {trade.assetType}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={trade.direction === 'long' ? 'default' : 'secondary'}>
+                        <span className={cn(
+                          "rounded px-2 py-0.5 text-xs font-medium",
+                          trade.direction === 'long' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                        )}>
                           {trade.direction.toUpperCase()}
-                        </Badge>
+                        </span>
                       </TableCell>
                       <TableCell className="text-right font-mono">
                         ${trade.entryPrice.toFixed(2)}
@@ -899,7 +907,7 @@ export default function LiveTradingPage() {
                       <TableCell 
                         className={cn(
                           "text-right font-mono font-medium",
-                          (trade.realizedPnL || 0) >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                          (trade.realizedPnL || 0) >= 0 ? "text-green-400" : "text-red-400"
                         )}
                         data-testid={`text-realized-pnl-${trade.id}`}
                       >
@@ -908,7 +916,7 @@ export default function LiveTradingPage() {
                       <TableCell 
                         className={cn(
                           "text-right font-mono",
-                          (trade.realizedPnLPercent || 0) >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                          (trade.realizedPnLPercent || 0) >= 0 ? "text-green-400" : "text-red-400"
                         )}
                         data-testid={`text-realized-pnl-percent-${trade.id}`}
                       >
@@ -930,7 +938,7 @@ export default function LiveTradingPage() {
                           disabled={deleteTradeMutation.isPending}
                           data-testid={`button-delete-closed-trade-${trade.id}`}
                         >
-                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-red-400" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -939,8 +947,8 @@ export default function LiveTradingPage() {
               </Table>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

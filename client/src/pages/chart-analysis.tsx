@@ -684,39 +684,41 @@ export default function ChartAnalysis() {
     <TierGate feature="chart-analysis">
     <div className="container mx-auto p-4 md:p-6 max-w-7xl space-y-6" data-testid="page-chart-analysis">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
-            <BarChart3 className="h-7 w-7 text-primary" />
-            Chart Analysis
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            AI + Quantitative analysis for precise trade setups
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="gap-1">
-            <Brain className="h-3 w-3" />
-            AI Vision
-          </Badge>
-          <Badge variant="outline" className="gap-1">
-            <Calculator className="h-3 w-3" />
-            Quant Engine
-          </Badge>
+      <div className="glass-card rounded-xl p-6">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="space-y-1">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2 text-cyan-400">
+              <BarChart3 className="h-7 w-7" />
+              Chart Analysis
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              AI + Quantitative analysis for precise trade setups
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs flex items-center gap-1">
+              <Brain className="h-3 w-3" />
+              AI Vision
+            </span>
+            <span className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs flex items-center gap-1">
+              <Calculator className="h-3 w-3" />
+              Quant Engine
+            </span>
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Upload Section - Left Column */}
         <div className="lg:col-span-2 space-y-4">
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
+          <div className="glass-card rounded-xl overflow-hidden">
+            <div className="p-4 pb-3">
+              <h3 className="text-base font-semibold flex items-center gap-2 text-cyan-400">
                 <Upload className="h-4 w-4" />
                 Upload Chart
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              </h3>
+            </div>
+            <div className="px-4 pb-4 space-y-4">
               {/* File Upload Area */}
               <div 
                 className="relative border-2 border-dashed rounded-xl p-4 text-center hover:border-primary/50 transition-colors cursor-pointer bg-muted/30"
@@ -884,6 +886,7 @@ export default function ChartAnalysis() {
               {/* Action Buttons */}
               <div className="flex gap-2 pt-2">
                 <Button
+                  variant="glass"
                   onClick={handleSubmit}
                   disabled={!selectedFile || !symbol || analysisMutation.isPending}
                   className="flex-1"
@@ -902,13 +905,13 @@ export default function ChartAnalysis() {
                   )}
                 </Button>
                 {(selectedFile || analysisResult) && (
-                  <Button variant="outline" onClick={resetForm} data-testid="button-reset">
+                  <Button variant="glass-secondary" onClick={resetForm} data-testid="button-reset">
                     Reset
                   </Button>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
         {/* Results Section - Right Column */}
@@ -916,12 +919,12 @@ export default function ChartAnalysis() {
           {analysisResult ? (
             <>
               {/* Summary Banner */}
-              <Card className={`overflow-hidden border-l-4 ${
-                analysisResult.sentiment === "bullish" ? "border-l-green-500" :
-                analysisResult.sentiment === "bearish" ? "border-l-red-500" :
-                "border-l-amber-500"
+              <div className={`glass-card rounded-xl overflow-hidden border-l-2 ${
+                analysisResult.sentiment === "bullish" ? "border-l-green-400" :
+                analysisResult.sentiment === "bearish" ? "border-l-red-400" :
+                "border-l-amber-400"
               }`}>
-                <CardContent className="p-4">
+                <div className="p-4">
                   <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-3">
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
@@ -940,14 +943,14 @@ export default function ChartAnalysis() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-lg">{symbol}</span>
-                          <Badge variant="secondary" className="text-xs">{timeframe}</Badge>
-                          <Badge 
-                            variant={analysisResult.sentiment === "bullish" ? "default" : 
-                                    analysisResult.sentiment === "bearish" ? "destructive" : "secondary"}
-                            className="text-xs"
-                          >
+                          <span className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs">{timeframe}</span>
+                          <span className={`rounded px-2 py-0.5 text-xs font-medium ${
+                            analysisResult.sentiment === "bullish" ? "bg-green-500/20 text-green-400" : 
+                            analysisResult.sentiment === "bearish" ? "bg-red-500/20 text-red-400" : 
+                            "bg-white/10 text-muted-foreground"
+                          }`}>
                             {analysisResult.sentiment.toUpperCase()}
-                          </Badge>
+                          </span>
                         </div>
                         <p className="text-xs text-muted-foreground">
                           {analysisResult.confidence}% Confidence • {analysisResult.patterns.length} Patterns
@@ -956,20 +959,20 @@ export default function ChartAnalysis() {
                     </div>
                     <div className="flex items-center gap-2">
                       {savedTradeIdeaId && (
-                        <Badge variant={isPromoted ? "default" : "outline"} className="gap-1">
+                        <span className={`rounded px-2 py-0.5 text-xs flex items-center gap-1 ${isPromoted ? "bg-green-500/20 text-green-400" : "bg-white/10 text-muted-foreground"}`}>
                           <CheckCircle2 className="h-3 w-3" />
                           {isPromoted ? "Published" : "Draft"}
-                        </Badge>
+                        </span>
                       )}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {/* Price Context Info (only for extreme discrepancies) */}
               {analysisResult.priceDiscrepancyWarning && (
-                <Card className="border-amber-500/50 bg-amber-500/10">
-                  <CardContent className="p-4">
+                <div className="glass-card rounded-xl border-l-2 border-l-amber-400">
+                  <div className="p-4">
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
                       <div className="space-y-2 flex-1">
@@ -998,8 +1001,8 @@ export default function ChartAnalysis() {
                         )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               {/* Current Price Display */}
@@ -1011,8 +1014,8 @@ export default function ChartAnalysis() {
               )}
 
               {/* Price Levels Card */}
-              <Card>
-                <CardContent className="p-4">
+              <div className="glass-card rounded-xl border-l-2 border-l-cyan-400">
+                <div className="p-4">
                   <div className="grid grid-cols-4 gap-3">
                     <div className="text-center p-3 rounded-lg bg-muted/50">
                       <p className="text-xs text-muted-foreground mb-1">Entry</p>
@@ -1047,17 +1050,17 @@ export default function ChartAnalysis() {
                       </p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {/* Validation Warnings */}
               {validationWarnings.length > 0 && (
-                <Card className="border-amber-500/50 bg-amber-500/5">
-                  <CardContent className="p-3">
+                <div className="glass-card rounded-xl border-l-2 border-l-amber-400">
+                  <div className="p-3">
                     <div className="flex items-start gap-2">
                       <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
                       <div className="space-y-1">
-                        <p className="text-sm font-medium text-amber-500">Validation Alerts</p>
+                        <p className="text-sm font-medium text-amber-400">Validation Alerts</p>
                         <ul className="text-xs text-muted-foreground space-y-0.5">
                           {validationWarnings.map((warning, i) => (
                             <li key={i}>• {warning}</li>
@@ -1065,14 +1068,14 @@ export default function ChartAnalysis() {
                         </ul>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
 
               {/* Tabbed Analysis */}
-              <Card>
+              <div className="glass-card rounded-xl">
                 <Tabs defaultValue="ai" className="w-full">
-                  <CardHeader className="pb-0">
+                  <div className="p-4 pb-0">
                     <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="ai" className="gap-1.5 text-xs" data-testid="tab-ai-analysis">
                         <Brain className="h-3.5 w-3.5" />
@@ -1087,8 +1090,8 @@ export default function ChartAnalysis() {
                         Levels
                       </TabsTrigger>
                     </TabsList>
-                  </CardHeader>
-                  <CardContent className="pt-4">
+                  </div>
+                  <div className="p-4 pt-4">
                     <TabsContent value="ai" className="mt-0 space-y-4">
                       {/* Visual Graphics Row */}
                       <div className="grid grid-cols-3 gap-4">
@@ -1124,9 +1127,9 @@ export default function ChartAnalysis() {
                             <p className="text-xs text-muted-foreground" data-testid="text-validity-warning">
                               {getAnalysisValidity(timeframe).warning}
                             </p>
-                            <Badge variant="outline" className="mt-2 text-xs" data-testid="badge-timeframe-display">
+                            <span className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs mt-2 inline-block" data-testid="badge-timeframe-display">
                               {timeframe} Chart
-                            </Badge>
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -1166,9 +1169,9 @@ export default function ChartAnalysis() {
                         <Label className="text-xs text-muted-foreground">Detected Patterns</Label>
                         <div className="flex flex-wrap gap-1.5">
                           {analysisResult.patterns.map((pattern, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">
+                            <span key={i} className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs">
                               {pattern}
-                            </Badge>
+                            </span>
                           ))}
                         </div>
                       </div>
@@ -1188,13 +1191,13 @@ export default function ChartAnalysis() {
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-medium">{signal.name}</span>
-                              <Badge 
-                                variant={signal.signal === "bullish" ? "default" : 
-                                        signal.signal === "bearish" ? "destructive" : "secondary"}
-                                className="text-xs"
-                              >
+                              <span className={`rounded px-2 py-0.5 text-xs font-medium ${
+                                signal.signal === "bullish" ? "bg-green-500/20 text-green-400" : 
+                                signal.signal === "bearish" ? "bg-red-500/20 text-red-400" : 
+                                "bg-white/10 text-muted-foreground"
+                              }`}>
                                 {signal.signal}
-                              </Badge>
+                              </span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-0.5">{signal.description}</p>
                           </div>
@@ -1242,16 +1245,16 @@ export default function ChartAnalysis() {
                         </div>
                       </div>
                     </TabsContent>
-                  </CardContent>
+                  </div>
                 </Tabs>
-              </Card>
+              </div>
 
               {/* Action Buttons */}
               {analysisResult && (
                 <div className="flex gap-2">
                   {savedTradeIdeaId && (
                     <>
-                      <Button asChild className="flex-1" data-testid="button-view-trade-desk">
+                      <Button asChild variant="glass" className="flex-1" data-testid="button-view-trade-desk">
                         <Link href="/trade-desk">
                           <ExternalLink className="h-4 w-4 mr-2" />
                           Trade Desk
@@ -1260,7 +1263,7 @@ export default function ChartAnalysis() {
                       <Button
                         onClick={handlePromote}
                         disabled={promoteMutation.isPending || isPromoted}
-                        variant="outline"
+                        variant="glass-secondary"
                         className="flex-1"
                         data-testid="button-promote"
                       >
@@ -1276,7 +1279,7 @@ export default function ChartAnalysis() {
                   <Button
                     onClick={handleSendToDiscord}
                     disabled={discordMutation.isPending || sentToDiscord}
-                    variant="outline"
+                    variant="glass-secondary"
                     className="flex-1"
                     data-testid="button-send-discord"
                   >
@@ -1292,8 +1295,8 @@ export default function ChartAnalysis() {
             </>
           ) : (
             /* Empty State */
-            <Card className="h-full min-h-[400px] flex items-center justify-center">
-              <CardContent className="text-center py-12">
+            <div className="glass-card rounded-xl h-full min-h-[400px] flex items-center justify-center">
+              <div className="text-center py-12">
                 <div className="w-16 h-16 mx-auto rounded-full bg-muted flex items-center justify-center mb-4">
                   <BarChart3 className="h-8 w-8 text-muted-foreground" />
                 </div>
@@ -1315,21 +1318,21 @@ export default function ChartAnalysis() {
                     Price Levels
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
       {/* Footer Disclaimer */}
-      <Card className="bg-muted/30 border-dashed">
-        <CardContent className="p-3 flex items-center gap-2 text-xs text-muted-foreground">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+      <div className="glass-card rounded-xl border-l-2 border-l-amber-400/50">
+        <div className="p-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-400" />
           <span>
             Educational purposes only. Not financial advice. Always conduct your own research before trading.
           </span>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
     </TierGate>
   );

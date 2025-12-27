@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Check, X, Crown, Zap, TrendingUp, Rocket, Clock, AlertTriangle } from "lucide-react";
 
@@ -114,11 +112,11 @@ export default function Pricing() {
       <div className="max-w-7xl mx-auto">
         {/* Risk Acknowledgment */}
         <div className="max-w-3xl mx-auto mb-8" data-testid="risk-acknowledgment">
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+          <div className="glass-card rounded-xl p-4 border-l-2 border-l-amber-500">
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-1">
+                <p className="text-sm font-medium text-amber-400 mb-1">
                   Research Platform Disclaimer
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -131,9 +129,10 @@ export default function Pricing() {
           </div>
         </div>
 
+        {/* Header */}
         <div className="text-center mb-12">
           <h1 
-            className="text-3xl font-bold tracking-tight mb-4"
+            className="text-3xl font-bold tracking-tight mb-4 text-cyan-400"
             data-testid="text-pricing-header"
           >
             Choose Your Plan
@@ -146,6 +145,7 @@ export default function Pricing() {
           </p>
         </div>
 
+        {/* Billing Toggle */}
         <div className="flex items-center justify-center gap-4 mb-10">
           <span 
             className={`text-sm font-medium ${!isYearly ? 'text-foreground' : 'text-muted-foreground'}`}
@@ -165,69 +165,70 @@ export default function Pricing() {
             Yearly
           </span>
           {isYearly && (
-            <Badge variant="default" className="bg-green-600 text-white border-green-700" data-testid="badge-yearly-savings">
+            <span className="glass-success rounded px-2 py-0.5 text-xs text-green-400" data-testid="badge-yearly-savings">
               Save ~25%
-            </Badge>
+            </span>
           )}
         </div>
 
+        {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 max-w-6xl mx-auto">
           {plans.map((plan) => {
             const Icon = plan.icon;
             const savings = getYearlySavings(plan.monthlyPrice, plan.yearlyPrice);
             
             return (
-              <Card 
+              <div 
                 key={plan.id}
-                className={`relative flex flex-col ${
+                className={`relative flex flex-col glass-card rounded-xl p-6 ${
                   plan.popular 
-                    ? 'border-primary ring-2 ring-primary/20' 
+                    ? 'border-2 border-cyan-400/50 ring-2 ring-cyan-400/20' 
                     : ''
                 }`}
                 data-testid={`card-plan-${plan.id}`}
               >
                 {plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge 
-                      variant="default" 
-                      className="bg-primary text-primary-foreground"
+                    <span 
+                      className="glass rounded px-3 py-1 text-xs font-medium text-cyan-400 flex items-center gap-1"
                       data-testid="badge-most-popular"
                     >
-                      <Crown className="w-3 h-3 mr-1" />
+                      <Crown className="w-3 h-3" />
                       Most Popular
-                    </Badge>
+                    </span>
                   </div>
                 )}
                 {plan.comingSoon && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge 
-                      variant="secondary" 
-                      className="bg-amber-500/10 text-amber-600 border-amber-500/20"
+                    <span 
+                      className="glass-secondary rounded px-3 py-1 text-xs font-medium text-amber-400 flex items-center gap-1"
                       data-testid="badge-coming-soon"
                     >
-                      <Clock className="w-3 h-3 mr-1" />
+                      <Clock className="w-3 h-3" />
                       Coming Soon
-                    </Badge>
+                    </span>
                   </div>
                 )}
                 
-                <CardHeader className="text-center pb-4">
-                  <div className="mx-auto mb-3 p-3 rounded-full bg-muted w-fit">
-                    <Icon className="w-6 h-6 text-primary" />
+                {/* Plan Header */}
+                <div className="text-center pb-4 pt-2">
+                  <div className="mx-auto mb-3 p-3 rounded-full glass w-fit">
+                    <Icon className="w-6 h-6 text-cyan-400" />
                   </div>
-                  <CardTitle className="text-xl" data-testid={`text-plan-name-${plan.id}`}>
+                  <h3 className="text-xl font-bold text-cyan-400" data-testid={`text-plan-name-${plan.id}`}>
                     {plan.name}
-                  </CardTitle>
-                  <CardDescription data-testid={`text-plan-description-${plan.id}`}>
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1" data-testid={`text-plan-description-${plan.id}`}>
                     {plan.description}
-                  </CardDescription>
-                </CardHeader>
+                  </p>
+                </div>
                 
-                <CardContent className="flex-1">
+                {/* Pricing */}
+                <div className="flex-1">
                   <div className="text-center mb-6">
                     <div className="flex items-baseline justify-center gap-1">
                       <span 
-                        className="text-4xl font-bold"
+                        className="text-4xl font-bold text-foreground"
                         data-testid={`text-plan-price-${plan.id}`}
                       >
                         {formatPrice(plan.monthlyPrice, plan.yearlyPrice)}
@@ -237,12 +238,13 @@ export default function Pricing() {
                       </span>
                     </div>
                     {isYearly && savings && (
-                      <p className="text-sm text-green-500 mt-1" data-testid={`text-savings-${plan.id}`}>
+                      <p className="text-sm text-green-400 mt-1" data-testid={`text-savings-${plan.id}`}>
                         Save {savings}% vs monthly
                       </p>
                     )}
                   </div>
                   
+                  {/* Features */}
                   <ul className="space-y-3">
                     {plan.features.map((feature, index) => (
                       <li 
@@ -251,27 +253,28 @@ export default function Pricing() {
                         data-testid={`feature-${plan.id}-${index}`}
                       >
                         {feature.included ? (
-                          <Check className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                          <Check className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
                         ) : (
                           <X className="w-5 h-5 text-muted-foreground/50 shrink-0 mt-0.5" />
                         )}
                         <span className={`flex items-center gap-2 ${feature.included ? '' : 'text-muted-foreground/50'}`}>
                           {feature.name}
                           {feature.comingSoon && (
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-amber-600 border-amber-500/30">
+                            <span className="bg-white/10 text-amber-400 rounded px-1.5 py-0 text-[10px]">
                               Soon
-                            </Badge>
+                            </span>
                           )}
                         </span>
                       </li>
                     ))}
                   </ul>
-                </CardContent>
+                </div>
                 
-                <CardFooter className="pt-4">
+                {/* CTA Button */}
+                <div className="pt-6">
                   {plan.currentPlan ? (
                     <Button 
-                      variant="outline" 
+                      variant="glass-secondary" 
                       className="w-full" 
                       disabled
                       data-testid={`button-plan-${plan.id}`}
@@ -280,7 +283,7 @@ export default function Pricing() {
                     </Button>
                   ) : plan.comingSoon ? (
                     <Button 
-                      variant="outline"
+                      variant="glass-secondary"
                       className="w-full"
                       data-testid={`button-plan-${plan.id}`}
                     >
@@ -289,7 +292,7 @@ export default function Pricing() {
                     </Button>
                   ) : (
                     <Button 
-                      variant={plan.popular ? "default" : "outline"}
+                      variant={plan.popular ? "glass" : "glass-secondary"}
                       className="w-full"
                       data-testid={`button-plan-${plan.id}`}
                     >
@@ -297,19 +300,20 @@ export default function Pricing() {
                       Upgrade to {plan.name}
                     </Button>
                   )}
-                </CardFooter>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
 
+        {/* Footer */}
         <div className="mt-12 text-center space-y-4">
           <p className="text-sm text-muted-foreground" data-testid="text-pricing-footer">
             All plans include access to our educational research platform. 
             Upgrade or downgrade at any time.
           </p>
           <p className="text-xs text-muted-foreground max-w-2xl mx-auto">
-            <span className="text-destructive font-medium">NOT FINANCIAL ADVICE</span> • 
+            <span className="text-red-400 font-medium">NOT FINANCIAL ADVICE</span> • 
             QuantEdge is for educational research purposes only. Trading involves substantial risk of loss.
           </p>
         </div>
