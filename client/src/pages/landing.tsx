@@ -74,29 +74,33 @@ export default function Landing() {
     queryKey: ['/api/trade-ideas'],
   });
 
-  const successStories = (allIdeas || [])
-    .filter(idea => idea.outcomeStatus === 'hit_target' && (idea.percentGain || 0) > 10)
-    .sort((a, b) => (b.percentGain || 0) - (a.percentGain || 0))
+  const recentTrades = (allIdeas || [])
+    .filter(idea => idea.outcomeStatus && ['hit_target', 'hit_stop', 'expired'].includes(idea.outcomeStatus))
+    .sort((a, b) => {
+      const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+      const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+      return dateB - dateA;
+    })
     .slice(0, 5);
 
   useEffect(() => {
-    if (carouselIndex >= successStories.length) {
+    if (carouselIndex >= recentTrades.length) {
       setCarouselIndex(0);
     }
-  }, [successStories.length, carouselIndex]);
+  }, [recentTrades.length, carouselIndex]);
 
-  const activeStory = successStories.length > 0 && carouselIndex < successStories.length
-    ? successStories[carouselIndex]
+  const activeTrade = recentTrades.length > 0 && carouselIndex < recentTrades.length
+    ? recentTrades[carouselIndex]
     : null;
 
-  const nextStory = () => {
-    if (successStories.length === 0) return;
-    setCarouselIndex((prev) => (prev + 1) % successStories.length);
+  const nextTrade = () => {
+    if (recentTrades.length === 0) return;
+    setCarouselIndex((prev) => (prev + 1) % recentTrades.length);
   };
 
-  const prevStory = () => {
-    if (successStories.length === 0) return;
-    setCarouselIndex((prev) => (prev - 1 + successStories.length) % successStories.length);
+  const prevTrade = () => {
+    if (recentTrades.length === 0) return;
+    setCarouselIndex((prev) => (prev - 1 + recentTrades.length) % recentTrades.length);
   };
 
   const scrollToSection = (id: string) => {
@@ -538,65 +542,83 @@ export default function Landing() {
 
           {ideasLoading ? (
             <div className="max-w-4xl mx-auto">
-              <Skeleton className="h-64 w-full rounded-2xl" data-testid="skeleton-success-stories" />
+              <Skeleton className="h-64 w-full rounded-2xl" data-testid="skeleton-recent-trades" />
             </div>
-          ) : activeStory ? (
+          ) : activeTrade ? (
             <div className="max-w-4xl mx-auto relative">
               <div className="flex items-center justify-between gap-4">
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={prevStory}
-                  disabled={successStories.length <= 1}
+                  onClick={prevTrade}
+                  disabled={recentTrades.length <= 1}
                   data-testid="button-carousel-prev"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </Button>
 
-                <Card className="flex-1" data-testid={`card-success-story-${carouselIndex}`}>
+                <Card className="flex-1" data-testid={`card-recent-trade-${carouselIndex}`}>
                   <CardContent className="p-8 md:p-10">
                     <div className="flex items-start justify-between gap-4 mb-6">
                       <div className="flex items-center gap-3">
-                        <div className="h-14 w-14 rounded-2xl bg-green-500/10 flex items-center justify-center">
-                          <TrendingUp className="h-7 w-7 text-green-500" />
+                        <div className={`h-14 w-14 rounded-2xl flex items-center justify-center ${
+                          activeTrade.outcomeStatus === 'hit_target' 
+                            ? 'bg-green-500/10' 
+                            : 'bg-red-500/10'
+                        }`}>
+                          <TrendingUp className={`h-7 w-7 ${
+                            activeTrade.outcomeStatus === 'hit_target' 
+                              ? 'text-green-500' 
+                              : 'text-red-500'
+                          }`} />
                         </div>
                         <div>
-                          <h3 className="text-2xl font-bold mb-1" data-testid="text-success-symbol">
-                            {activeStory.symbol}
+                          <h3 className="text-2xl font-bold mb-1" data-testid="text-trade-symbol">
+                            {activeTrade.symbol}
                           </h3>
                           <Badge 
-                            variant={activeStory.direction === 'long' ? 'default' : 'secondary'}
-                            data-testid="badge-success-direction"
+                            variant={activeTrade.direction === 'long' ? 'default' : 'secondary'}
+                            data-testid="badge-trade-direction"
                           >
-                            {activeStory.direction.toUpperCase()}
+                            {activeTrade.direction.toUpperCase()}
                           </Badge>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 text-green-500">
-                        <CheckCircle2 className="h-5 w-5" />
-                        <span className="text-xs">Verified</span>
-                      </div>
+                      <Badge 
+                        variant={activeTrade.outcomeStatus === 'hit_target' ? 'default' : 'destructive'}
+                        data-testid="badge-trade-outcome"
+                      >
+                        {activeTrade.outcomeStatus === 'hit_target' ? 'Win' : 'Loss'}
+                      </Badge>
                     </div>
 
                     <div className="grid grid-cols-2 gap-6 mb-6">
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">Entry Price</p>
-                        <p className="text-xl font-bold" data-testid="text-success-entry">
-                          ${activeStory.entryPrice?.toFixed(2) || 'N/A'}
+                        <p className="text-xl font-bold" data-testid="text-trade-entry">
+                          ${activeTrade.entryPrice?.toFixed(2) || 'N/A'}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">Exit Price</p>
-                        <p className="text-xl font-bold" data-testid="text-success-exit">
-                          ${activeStory.exitPrice?.toFixed(2) || 'N/A'}
+                        <p className="text-xl font-bold" data-testid="text-trade-exit">
+                          ${activeTrade.exitPrice?.toFixed(2) || 'N/A'}
                         </p>
                       </div>
                     </div>
 
-                    <div className="bg-green-500/10 rounded-xl p-6 text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Realized Gain</p>
-                      <p className="text-5xl font-bold text-green-500" data-testid="text-success-gain">
-                        +{activeStory.percentGain?.toFixed(1) || '0.0'}%
+                    <div className={`rounded-xl p-6 text-center ${
+                      (activeTrade.percentGain || 0) >= 0 
+                        ? 'bg-green-500/10' 
+                        : 'bg-red-500/10'
+                    }`}>
+                      <p className="text-sm text-muted-foreground mb-2">Result</p>
+                      <p className={`text-5xl font-bold ${
+                        (activeTrade.percentGain || 0) >= 0 
+                          ? 'text-green-500' 
+                          : 'text-red-500'
+                      }`} data-testid="text-trade-result">
+                        {(activeTrade.percentGain || 0) >= 0 ? '+' : ''}{activeTrade.percentGain?.toFixed(1) || '0.0'}%
                       </p>
                     </div>
                   </CardContent>
@@ -605,17 +627,17 @@ export default function Landing() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={nextStory}
-                  disabled={successStories.length <= 1}
+                  onClick={nextTrade}
+                  disabled={recentTrades.length <= 1}
                   data-testid="button-carousel-next"
                 >
                   <ChevronRight className="h-5 w-5" />
                 </Button>
               </div>
 
-              {successStories.length > 1 && (
+              {recentTrades.length > 1 && (
                 <div className="flex justify-center gap-2 mt-6">
-                  {successStories.map((_, idx) => (
+                  {recentTrades.map((_, idx) => (
                     <button
                       key={idx}
                       onClick={() => setCarouselIndex(idx)}
