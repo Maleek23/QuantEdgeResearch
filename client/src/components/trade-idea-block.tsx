@@ -223,7 +223,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
         return {
           label: 'AI',
           icon: Bot,
-          className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/50'
+          className: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/50'
         };
       case 'quant':
         return {

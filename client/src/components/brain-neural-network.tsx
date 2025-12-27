@@ -105,7 +105,7 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Avg Gain:</span>
-                    <span className="text-blue-400 font-medium">{signal.avgGain > 0 ? '+' : ''}{signal.avgGain.toFixed(2)}%</span>
+                    <span className="text-cyan-400 font-medium">{signal.avgGain > 0 ? '+' : ''}{signal.avgGain.toFixed(2)}%</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Trades:</span>
@@ -202,7 +202,7 @@ export function BrainNeuralNetwork({ signals }: BrainNeuralNetworkProps) {
             <span className="text-xs text-muted-foreground">60%+ Win Rate</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500" />
+            <div className="w-3 h-3 rounded-full bg-cyan-500" />
             <span className="text-xs text-muted-foreground">50-60%</span>
           </div>
           <div className="flex items-center gap-2">

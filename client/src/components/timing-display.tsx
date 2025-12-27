@@ -52,7 +52,7 @@ export function TimingDisplay({ timestamp, label, showCountdown = false, classNa
       className={cn(
         "flex items-start gap-2 px-3 py-2 rounded-md border",
         isEnterWhen 
-          ? "bg-blue-500/5 border-blue-500/30" 
+          ? "bg-cyan-500/5 border-cyan-500/30" 
           : "bg-green-500/5 border-green-500/30",
         isPast && isEnterWhen && "opacity-60",
         className
@@ -61,12 +61,12 @@ export function TimingDisplay({ timestamp, label, showCountdown = false, classNa
     >
       <Calendar className={cn(
         "h-4 w-4 mt-0.5 flex-shrink-0",
-        isEnterWhen ? "text-blue-500" : "text-green-500"
+        isEnterWhen ? "text-cyan-500" : "text-green-500"
       )} />
       <div className="flex flex-col gap-0.5 min-w-0">
         <div className={cn(
           "text-xs font-semibold uppercase tracking-wide",
-          isEnterWhen ? "text-blue-400" : "text-green-400"
+          isEnterWhen ? "text-cyan-400" : "text-green-400"
         )}>
           {label}:
         </div>

@@ -58,17 +58,17 @@ export function TradeIdeaDetailModal({
       'Acceptable R:R (1.2:1+)': {
         points: 8,
         description: 'Risk/reward ratio of 1.2:1 or better. Meets minimum threshold for day trading setups.',
-        color: 'bg-blue-400'
+        color: 'bg-cyan-400'
       },
       'Confirmed Volume': {
         points: 18,
         description: 'Volume is 1.5x+ average, confirming institutional interest and reducing liquidity risk.',
-        color: 'bg-blue-500'
+        color: 'bg-cyan-500'
       },
       'Strong Volume': {
         points: 12,
         description: 'Volume is above average, providing adequate liquidity for entry and exit.',
-        color: 'bg-blue-400'
+        color: 'bg-cyan-400'
       },
       'Strong Signal': {
         points: 25,
@@ -110,7 +110,7 @@ export function TradeIdeaDetailModal({
     return signalMap[signal] || { 
       points: 5, 
       description: 'Quality signal detected by our quantitative system.', 
-      color: 'bg-gray-500' 
+      color: 'bg-white/10' 
     };
   };
 

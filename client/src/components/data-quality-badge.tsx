@@ -60,7 +60,7 @@ export function DataQualityBadge({ assetType, dataSource, className }: DataQuali
     return {
       icon: CheckCircle2,
       label: 'Verified',
-      color: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+      color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
       tooltip: 'Data verified from market APIs.',
       variant: 'success' as const  // Changed to success so glow effect applies
     };

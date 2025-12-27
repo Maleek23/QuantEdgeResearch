@@ -152,11 +152,22 @@
   --elevate-1: rgba(255,255,255, .05);
   --elevate-2: rgba(255,255,255, .10);
 
+  /* QuantEdge Standardized Color System */
+  --accent-cyan: #00d4ff;
+  --bg-glass: rgba(30, 30, 32, 0.4);
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --text-muted: rgba(255, 255, 255, 0.4);
+  --danger-red: #ff453a;
+  --success-green: #30d158;
+  --warning-orange: #ff9f0a;
+
   /* Glassmorphism Colors */
   --glass-cyan: 188 100% 50%;
   --glass-cyan-rgb: 0, 212, 255;
-  --glass-border: rgba(255, 255, 255, 0.15);
-  --glass-border-hover: rgba(255, 255, 255, 0.25);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-hover: rgba(255, 255, 255, 0.15);
 
   /* Deep dark background for glassmorphism (#0A0A0A) */
   --background: 0 0% 4%;

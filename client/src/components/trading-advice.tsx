@@ -153,7 +153,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
       advice.type === 'success' && "bg-green-500/10 border-green-500/30",
       advice.type === 'danger' && "bg-red-500/10 border-red-500/30",
       advice.type === 'warning' && "bg-amber-500/10 border-amber-500/30",
-      advice.type === 'info' && "bg-blue-500/10 border-blue-500/30",
+      advice.type === 'info' && "bg-cyan-500/10 border-cyan-500/30",
       advice.type === 'neutral' && "bg-muted/30"
     )}>
       <div className="flex items-center gap-3 flex-1">
@@ -176,7 +176,7 @@ export function TradingAdvice({ idea, currentPrice }: TradingAdviceProps) {
         className={cn(
           "font-bold",
           advice.type === 'warning' && "bg-amber-500/20 text-amber-400 border-amber-500/30",
-          advice.type === 'info' && "bg-blue-500/20 text-blue-400 border-blue-500/30"
+          advice.type === 'info' && "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"
         )}
       >
         {advice.action}

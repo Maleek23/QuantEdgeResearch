@@ -62,7 +62,7 @@ function TradeParticle({ trade }: { trade: TradePoint }) {
   // Color based on status
   const color = trade.status === 'winner' ? '#10b981' : 
                 trade.status === 'loser' ? '#ef4444' : 
-                '#3b82f6';
+                '#06b6d4';
 
   return (
     <group>
@@ -106,7 +106,7 @@ function TradeTrajectoryLine({ trade }: { trade: TradePoint }) {
 
   const color = trade.status === 'winner' ? '#10b981' : 
                 trade.status === 'loser' ? '#ef4444' : 
-                '#3b82f6';
+                '#06b6d4';
 
   return (
     <line geometry={lineGeometry}>
@@ -243,7 +243,7 @@ export function TradeTrajectory3D() {
             <span className="text-muted-foreground">Losers: {trades.filter(t => t.status === 'loser').length}</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500" />
+            <div className="w-3 h-3 rounded-full bg-cyan-500" />
             <span className="text-muted-foreground">Active: {trades.filter(t => t.status === 'active').length}</span>
           </div>
         </div>
@@ -286,7 +286,7 @@ export function TradeTrajectory3D() {
           <span className="text-muted-foreground">Losers</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-blue-500" />
+          <div className="w-3 h-3 rounded-full bg-cyan-500" />
           <span className="text-muted-foreground">Active</span>
         </div>
       </div>

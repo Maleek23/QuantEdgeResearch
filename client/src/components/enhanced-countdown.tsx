@@ -83,9 +83,9 @@ export function EnhancedCountdown({ exitBy, className, showFullDate = false, ass
       border: 'border-green-500/50'
     },
     safe: {
-      bg: 'bg-blue-500/10',
-      text: 'text-blue-600 dark:text-blue-400',
-      border: 'border-blue-500/50'
+      bg: 'bg-cyan-500/10',
+      text: 'text-cyan-600 dark:text-cyan-400',
+      border: 'border-cyan-500/50'
     }
   };
 

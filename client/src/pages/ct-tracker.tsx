@@ -120,7 +120,7 @@ function PlatformIcon({ platform, className }: { platform: Platform; className?:
 function PlatformBadge({ platform }: { platform: Platform }) {
   const colors: Record<Platform, string> = {
     twitter: "bg-sky-500/20 text-sky-400 border-sky-500/30",
-    bluesky: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    bluesky: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
     reddit: "bg-orange-500/20 text-orange-400 border-orange-500/30",
     discord: "bg-indigo-500/20 text-indigo-400 border-indigo-500/30",
     telegram: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
@@ -144,7 +144,7 @@ function SentimentBadge({ sentiment }: { sentiment: Sentiment }) {
   const config = {
     bullish: { color: "bg-green-500/20 text-green-400 border-green-500/30", icon: TrendingUp },
     bearish: { color: "bg-red-500/20 text-red-400 border-red-500/30", icon: TrendingDown },
-    neutral: { color: "bg-gray-500/20 text-gray-400 border-gray-500/30", icon: BarChart3 },
+    neutral: { color: "bg-white/10 text-muted-foreground border-white/10", icon: BarChart3 },
   };
   const { color, icon: Icon } = config[sentiment];
   return (
@@ -418,7 +418,7 @@ function PerformanceTable({ performance }: { performance: CTPerformance[] }) {
       open: { color: "bg-blue-500/20 text-blue-400 border-blue-500/30", label: "Open" },
       won: { color: "bg-green-500/20 text-green-400 border-green-500/30", label: "Won" },
       lost: { color: "bg-red-500/20 text-red-400 border-red-500/30", label: "Lost" },
-      breakeven: { color: "bg-gray-500/20 text-gray-400 border-gray-500/30", label: "Breakeven" },
+      breakeven: { color: "bg-white/10 text-muted-foreground border-white/10", label: "Breakeven" },
     };
     const { color, label } = config[status];
     return <Badge variant="outline" className={cn("text-xs", color)}>{label}</Badge>;

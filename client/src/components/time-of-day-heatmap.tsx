@@ -123,8 +123,8 @@ export default function TimeOfDayHeatmap({ selectedEngine }: TimeOfDayHeatmapPro
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-          <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+          <Info className="w-4 h-4 text-cyan-500 mt-0.5 flex-shrink-0" />
           <p className="text-xs text-muted-foreground">
             Market opens at 9:30 AM ET, closes at 4:00 PM ET. Performance measured during regular trading hours only.
           </p>

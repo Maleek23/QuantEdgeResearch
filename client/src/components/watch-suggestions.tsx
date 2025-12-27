@@ -55,7 +55,7 @@ const reasonIcons: Record<WatchReason['type'], typeof Eye> = {
 const priorityColors: Record<WatchSuggestion['priority'], string> = {
   hot: 'bg-red-500/20 text-red-400 border-red-500/30',
   warm: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  watch: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  watch: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
 };
 
 const impactColors: Record<WatchReason['impact'], string> = {

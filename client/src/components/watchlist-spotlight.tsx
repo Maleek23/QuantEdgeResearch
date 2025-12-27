@@ -110,7 +110,7 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
                           </Badge>
                         )}
                         {nearTarget && (
-                          <Badge variant="default" className="text-[10px] px-1 py-0 bg-blue-600">
+                          <Badge variant="default" className="text-[10px] px-1 py-0 bg-cyan-600">
                             Near Target
                           </Badge>
                         )}

@@ -137,7 +137,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                 </Badge>
               )}
               {idea.assetType === 'future' && idea.futuresContractCode && (
-                <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/50 text-xs font-semibold gap-1" data-testid={`text-futures-contract-${idea.futuresContractCode}`}>
+                <Badge variant="secondary" className="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/50 text-xs font-semibold gap-1" data-testid={`text-futures-contract-${idea.futuresContractCode}`}>
                   <BarChart3 className="h-3 w-3" />
                   {idea.futuresContractCode}
                 </Badge>
@@ -150,7 +150,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                 className={cn(
                   "text-xs font-semibold",
                   idea.holdingPeriod === 'day' && "bg-amber-500/10 text-amber-300 border-amber-500/30",
-                  idea.holdingPeriod === 'swing' && "bg-blue-500/10 text-blue-300 border-blue-500/30",
+                  idea.holdingPeriod === 'swing' && "bg-cyan-500/10 text-cyan-300 border-cyan-500/30",
                   idea.holdingPeriod === 'position' && "bg-purple-500/10 text-purple-300 border-purple-500/30"
                 )}
                 data-testid={`badge-holding-period-${idea.symbol}`}
@@ -188,7 +188,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
             className={cn(
               "rounded-lg p-3 border-2 transition-all",
               dynamicSignal.color === 'green' && "bg-green-500/10 border-green-500/50",
-              dynamicSignal.color === 'blue' && "bg-blue-500/10 border-blue-500/50",
+              dynamicSignal.color === 'blue' && "bg-cyan-500/10 border-cyan-500/50",
               dynamicSignal.color === 'yellow' && "bg-amber-500/10 border-amber-500/50",
               dynamicSignal.color === 'red' && "bg-red-500/10 border-red-500/50",
               dynamicSignal.color === 'purple' && "bg-purple-500/10 border-purple-500/50",
@@ -204,7 +204,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                     className={cn(
                       "font-bold text-xs",
                       dynamicSignal.color === 'green' && "bg-green-500/20 text-green-300 border-green-500/30",
-                      dynamicSignal.color === 'blue' && "bg-blue-500/20 text-blue-300 border-blue-500/30",
+                      dynamicSignal.color === 'blue' && "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
                       dynamicSignal.color === 'yellow' && "bg-amber-500/20 text-amber-300 border-amber-500/30",
                       dynamicSignal.color === 'red' && "bg-red-500/20 text-red-300 border-red-500/30",
                       dynamicSignal.color === 'purple' && "bg-purple-500/20 text-purple-300 border-purple-500/30",
@@ -306,7 +306,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
         <Separator />
 
         {idea.assetType === 'future' && (
-          <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-500/30">
+          <div className="bg-cyan-500/10 rounded-lg p-4 border border-cyan-500/30">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <div className="text-xs text-muted-foreground uppercase font-semibold">Contract Specs</div>
