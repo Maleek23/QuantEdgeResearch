@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -9,38 +10,48 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Loader2 } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { ScrollParticles } from "@/components/scroll-particles";
-import Landing from "@/pages/landing";
-import Login from "@/pages/login";
-import Signup from "@/pages/signup";
-import HomePage from "@/pages/home";
-import TradeDeskPage from "@/pages/trade-desk";
-import ChartAnalysis from "@/pages/chart-analysis";
-import MarketPage from "@/pages/market";
-import PerformancePage from "@/pages/performance";
-import SettingsPage from "@/pages/settings";
-import AdminPanel from "@/pages/admin";
-import About from "@/pages/about";
-import PrivacyPolicy from "@/pages/privacy-policy";
-import TermsOfService from "@/pages/terms-of-service";
-import SuccessStories from "@/pages/success-stories";
-import ChartDatabase from "@/pages/chart-database";
-import Academy from "@/pages/academy";
-import Blog from "@/pages/blog";
-import TradingRules from "@/pages/trading-rules";
-import Pricing from "@/pages/pricing";
-import LiveTrading from "@/pages/live-trading";
-import PaperTrading from "@/pages/paper-trading";
-import WalletTracker from "@/pages/wallet-tracker";
-import CTTracker from "@/pages/ct-tracker";
-import NotFound from "@/pages/not-found";
+
+const Landing = lazy(() => import("@/pages/landing"));
+const Login = lazy(() => import("@/pages/login"));
+const Signup = lazy(() => import("@/pages/signup"));
+const HomePage = lazy(() => import("@/pages/home"));
+const TradeDeskPage = lazy(() => import("@/pages/trade-desk"));
+const ChartAnalysis = lazy(() => import("@/pages/chart-analysis"));
+const MarketPage = lazy(() => import("@/pages/market"));
+const PerformancePage = lazy(() => import("@/pages/performance"));
+const SettingsPage = lazy(() => import("@/pages/settings"));
+const AdminPanel = lazy(() => import("@/pages/admin"));
+const About = lazy(() => import("@/pages/about"));
+const PrivacyPolicy = lazy(() => import("@/pages/privacy-policy"));
+const TermsOfService = lazy(() => import("@/pages/terms-of-service"));
+const SuccessStories = lazy(() => import("@/pages/success-stories"));
+const ChartDatabase = lazy(() => import("@/pages/chart-database"));
+const Academy = lazy(() => import("@/pages/academy"));
+const Blog = lazy(() => import("@/pages/blog"));
+const TradingRules = lazy(() => import("@/pages/trading-rules"));
+const Pricing = lazy(() => import("@/pages/pricing"));
+const LiveTrading = lazy(() => import("@/pages/live-trading"));
+const PaperTrading = lazy(() => import("@/pages/paper-trading"));
+const WalletTracker = lazy(() => import("@/pages/wallet-tracker"));
+const CTTracker = lazy(() => import("@/pages/ct-tracker"));
+const NotFound = lazy(() => import("@/pages/not-found"));
+
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
+    </div>
+  );
+}
 function Router() {
   return (
-    <Switch>
-      {/* Core Pages */}
-      <Route path="/" component={Landing} />
+    <Suspense fallback={<PageLoader />}>
+      <Switch>
+        {/* Core Pages */}
+        <Route path="/" component={Landing} />
       <Route path="/home" component={HomePage} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
@@ -99,7 +110,8 @@ function Router() {
       
       {/* 404 Fallback */}
       <Route component={NotFound} />
-    </Switch>
+      </Switch>
+    </Suspense>
   );
 }
 
