@@ -115,20 +115,24 @@ function AuthHeader() {
   const userData = user as { email?: string; firstName?: string } | null;
   
   return (
-    <header className="flex items-center justify-between gap-2 p-4 border-b bg-background">
-      <div className="flex items-center gap-2">
+    <header className="flex items-center justify-between gap-2 px-4 py-3 border-b border-white/10 glass-card rounded-none">
+      <div className="flex items-center gap-3">
         <SidebarTrigger data-testid="button-mobile-menu" className="lg:hidden" />
         <h1 className="text-lg font-semibold lg:hidden">QuantEdge</h1>
+        <span className="hidden lg:flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+          Market Closed
+        </span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         {isAuthenticated && userData && (
           <>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <User className="h-4 w-4" />
-              <span className="hidden sm:inline">{userData.email || userData.firstName || 'User'}</span>
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 text-sm">
+              <User className="h-4 w-4 text-cyan-400" />
+              <span className="text-muted-foreground">{userData.email || userData.firstName || 'User'}</span>
             </div>
             <Button 
-              variant="ghost" 
+              variant="glass-secondary" 
               size="sm" 
               onClick={handleLogout}
               data-testid="button-logout"
