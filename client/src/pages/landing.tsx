@@ -900,7 +900,7 @@ export default function Landing() {
             Ready to Trade with Precision?
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
-            Join thousands of traders using AI-powered analysis to make smarter trading decisions.
+            Research platform for self-directed traders. Paper trade first, risk second.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Button size="lg" onClick={() => setLocation('/signup')} data-testid="button-cta-signup">
@@ -925,7 +925,7 @@ export default function Landing() {
                 <span className="font-bold text-lg">QuantEdge</span>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
-                AI-powered trading intelligence for professional traders.
+                Research tools for self-directed traders. Education, not advice.
               </p>
               <div className="flex items-center gap-3">
                 <Button variant="ghost" size="icon" data-testid="link-social-twitter">

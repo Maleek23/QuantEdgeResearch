@@ -2,14 +2,14 @@
 
 ## GitHub Description (Short)
 ```
-Quantitative trading research platform with dual-engine architecture: AI-powered + rules-based signal detection across equities, options, and crypto. Features 7-signal quant engine, multi-timeframe analysis, probability-based grading (A+/A/B/C), and real-time market data integration.
+Research platform for self-directed traders with dual-engine architecture: quantitative + AI-assisted signal detection across equities, options, and crypto. Features rules-based quant engine, multi-timeframe analysis, probability grading, and real-time market data. Educational tool - not financial advice.
 ```
 
 ## GitHub README Summary (Extended)
 ```markdown
 # QuantEdge Research Platform
 
-Professional quantitative trading research platform for identifying day-trading opportunities across US equities, options, and cryptocurrency markets.
+Research platform for self-directed traders to explore backtest-educated ideas across US equities, options, and cryptocurrency markets. Educational tool for research purposes - not financial advice.
 
 ## 🎯 Core Architecture
 
