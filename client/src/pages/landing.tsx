@@ -38,8 +38,8 @@ import {
   Github,
   Activity
 } from "lucide-react";
-import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 import { useState, useEffect } from "react";
+import { QuantEdgeLogo, QuantEdgeIcon } from "@/components/quantedge-logo";
 
 interface AssetTypeStats {
   assetType: string;
@@ -169,7 +169,7 @@ export default function Landing() {
           <div className="flex items-center justify-between h-16 gap-4">
             {/* Left: Logo */}
             <Link href="/" className="flex items-center gap-2 flex-shrink-0" data-testid="link-logo">
-              <img src={quantEdgeLogoUrl} alt="QuantEdge" className="h-8 w-8 object-contain" />
+              <QuantEdgeIcon className="h-8 w-8" />
               <span className="font-bold text-lg hidden sm:block">QuantEdge</span>
             </Link>
 
@@ -259,12 +259,8 @@ export default function Landing() {
             </div>
 
             {/* Logo */}
-            <div className="flex justify-center mb-8">
-              <img 
-                src={quantEdgeLogoUrl} 
-                alt="QuantEdge Research" 
-                className="h-36 w-36 md:h-44 md:w-44 object-contain drop-shadow-xl"
-              />
+            <div className="flex justify-center mb-8 animate-pulse-slow">
+              <QuantEdgeLogo size="lg" />
             </div>
 
             {/* Headline */}
@@ -348,6 +344,108 @@ export default function Landing() {
           <p className="text-center text-xs text-muted-foreground mt-4">
             Win rate based on backtested research. Past performance does not guarantee future results.
           </p>
+        </div>
+      </section>
+
+      {/* Dual Engine Showcase */}
+      <section className="py-16 md:py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <Badge variant="secondary" className="mb-4">
+              <Brain className="h-3 w-3 mr-1" />
+              Dual Engine Architecture
+            </Badge>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              AI + Quantitative
+              <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-amber-500 to-primary">
+                One Platform, Two Engines
+              </span>
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Watch real market data flow through two independent analysis engines working in parallel
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-12">
+            {/* Engine 1: AI */}
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary to-amber-500 rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
+              <Card className="relative bg-background border-primary/20 hover:border-primary/50 transition-all">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 rounded-lg bg-primary/10">
+                      <Brain className="h-6 w-6 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-bold">Engine 1: AI Analysis</h3>
+                  </div>
+                  <p className="text-muted-foreground mb-6">
+                    Claude, GPT, and Gemini work together to analyze market fundamentals, news catalysts, and macro context.
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-primary" />
+                      <span>Fundamental Analysis</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-primary" />
+                      <span>News & Catalyst Integration</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-primary" />
+                      <span>Market Context</span>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Engine 2: Quant */}
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 to-green-500 rounded-lg blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200" />
+              <Card className="relative bg-background border-green-500/20 hover:border-green-500/50 transition-all">
+                <CardContent className="p-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 rounded-lg bg-green-500/10">
+                      <Calculator className="h-6 w-6 text-green-500" />
+                    </div>
+                    <h3 className="text-xl font-bold">Engine 2: Quantitative</h3>
+                  </div>
+                  <p className="text-muted-foreground mb-6">
+                    RSI(2), VWAP, volume spikes, and pattern validation create mechanical, reproducible signals.
+                  </p>
+                  <ul className="space-y-2 text-sm">
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-green-500" />
+                      <span>Mean Reversion Signals</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-green-500" />
+                      <span>Institutional Flow Detection</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-green-500" />
+                      <span>55-65% Target Win Rate</span>
+                    </li>
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Hybrid Result */}
+          <div className="text-center">
+            <div className="inline-flex items-center gap-4 px-8 py-4 rounded-lg border border-primary/30 bg-primary/5">
+              <Brain className="h-5 w-5 text-primary" />
+              <span className="text-sm font-medium">+</span>
+              <Calculator className="h-5 w-5 text-green-500" />
+              <span className="text-sm font-medium">=</span>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Precision + Context</p>
+                <p className="text-xs text-muted-foreground">Best of both worlds</p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -993,7 +1091,7 @@ export default function Landing() {
             {/* Brand Column */}
             <div className="md:col-span-1">
               <div className="flex items-center gap-2 mb-4">
-                <img src={quantEdgeLogoUrl} alt="QuantEdge" className="h-8 w-8 object-contain" />
+                <QuantEdgeIcon className="h-8 w-8" />
                 <span className="font-bold text-lg">QuantEdge</span>
               </div>
               <p className="text-sm text-muted-foreground mb-4">
