@@ -368,7 +368,7 @@ function generateFuturesAnalysis(
   
   return `${productName} futures (${contractCode}) shows ${direction} setup with ${signal.signals.length} confirming signals: ${signalList}. ` +
     `This futures contract has a ${spec.tickSize} tick size (${spec.tickValue} per tick) and requires $${spec.initialMargin.toLocaleString()} initial margin. ` +
-    `Mean reversion strategy with proven 75-91% win rate in ranging markets. Trade within CME Regular Trading Hours (RTH) for best liquidity.`;
+    `Mean reversion strategy targeting 55-65% live win rate in ranging markets. Trade within CME Regular Trading Hours (RTH) for best liquidity.`;
 }
 
 /**

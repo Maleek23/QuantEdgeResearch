@@ -136,7 +136,7 @@ export const ENGINE_CHANGELOG = {
   "v3.3.0": "TIME-OF-DAY FIX: Restricted generation to 9:30-11:30 AM ET ONLY. Diagnostic audit revealed morning trades: 75-80% WR, afternoon trades: 16-46% WR. v3.2.0 extended window killed performance. This single change should restore 60%+ WR based on historical data.",
   "v3.2.0": "CRITICAL RECALIBRATION: (1) Enabled SHORT trades (RSI>90 below 200MA = 42.9% WR boost), (2) Widened stops 2%→3.5% stocks, 3%→5% crypto (match academic research), (3) Relaxed ADX filter 25→30 (less restrictive), (4) Extended window 2hr→full day, (5) Re-enabled crypto (collect training data). Target: 60%+ WR.",
   "v3.1.0": "REGIME FILTERING: Added ADX-based market regime detection (ranging vs trending), signal confidence voting (require 2+ confirmations), ATR liquidity filter, time-of-day filter (first 2 hours only), earnings blackout (skip ±3 days). Research shows mean reversion fails in trending markets (ADX >25).",
-  "v3.0.0": "COMPLETE REBUILD: Removed failing signals (MACD 'very low success', complex scoring). Implemented ONLY proven strategies: (1) RSI(2)<10 + 200MA filter (75-91% win rate), (2) VWAP institutional flow (80%+ win rate), (3) Volume spike early entry. Simplified to rule-based entries per academic research.",
+  "v3.0.0": "COMPLETE REBUILD: Removed failing signals (MACD 'very low success', complex scoring). Implemented research-backed strategies: (1) RSI(2)<10 + 200MA filter (targeting 55-65% live), (2) VWAP institutional flow, (3) Volume spike early entry. Simplified to rule-based entries per academic research.",
   "v2.5.2": "SCORING FIXES - Fixed Strong Trend penalty (-10→+5), restored moderate signals (12→18), lowered threshold (90→85)",
   "v2.4.0": "PERFORMANCE FIX: Removed reversal setups (18% WR → eliminated), crypto tier filter (top 20 only, was 16.7% WR)",
   "v2.3.0": "ACCURACY BOOST: Tighter stops (2-3%), stricter filtering (90+ confidence)",
@@ -293,7 +293,7 @@ async function analyzeMultiTimeframe(
 }
 
 // 🎯 PROVEN STRATEGY v3.5: Research-Backed Signal Detection + Triple-Filter System
-// Based on academic research with 75-91% backtested win rates
+// Based on academic research (targeting 55-65% live win rate with 2:1 R:R)
 // Sources: QuantifiedStrategies, FINVIZ multi-year studies, Larry Connors research
 //
 // IMPROVEMENT v3.5 - TRIPLE-FILTER UPGRADE (target: 60%+ win rate):
@@ -303,7 +303,7 @@ async function analyzeMultiTimeframe(
 // - Signal confidence voting: Require 2+ confirmations (proven in v3.1)
 //
 // ONLY 3 PROVEN SIGNALS:
-// 1. RSI(2) < 10 + 50-day MA + 200-day MA filter (75-91% win rate - QQQ 1998-2024)
+// 1. RSI(2) < 10 + 50-day MA + 200-day MA filter (targeting 55-65% live)
 // 2. VWAP institutional flow (80%+ win rate - professional trader standard)
 // 3. Volume spike + small move (early entry detection)
 //
@@ -323,7 +323,7 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   const avgVolume = data.avgVolume || volume;
   const volumeRatio = avgVolume > 0 ? volume / avgVolume : 1;
   
-  // Calculate CRITICAL 200-day MA (trend filter that makes 75-91% win rate possible)
+  // Calculate CRITICAL 200-day MA (trend filter for directional alignment)
   const sma200 = calculateSMA(historicalPrices, 200);
   
   // 🆕 v3.5: Calculate 50-day MA (intermediate trend filter - prevents false signals in downtrends)
@@ -346,7 +346,7 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   let primarySignal: QuantSignal | null = null;
   
   // PRIORITY 1: RSI(2) Mean Reversion with 200-day MA Trend Filter + REGIME FILTER
-  // Research: 75-91% win rate (Larry Connors, QQQ backtest 1998-2024)
+  // Based on Larry Connors RSI(2) research (targeting 55-65% live)
   // v3.5: TIGHTENED regime filter - ADX < 25 instead of 30 (reduces choppy market trades)
   // v3.5: Added 50-day MA filter (price must be above 50-day MA for LONG signals)
   // Mean reversion works best in ranging markets with proper trend alignment
@@ -371,7 +371,7 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   }
   
   // 🆕 v3.2: RSI(2) SHORT Mean Reversion (overbought conditions)
-  // Research: Same 75-91% win rate applies to SHORT side
+  // Same methodology applies to SHORT side (targeting 55-65% live)
   // RSI > 90 = extreme overbought, price likely to revert DOWN
   // v3.5: Added 50-day MA filter (price must be below 50-day MA for SHORT signals)
   if (rsi2 > 90 && currentPrice < sma200) {
@@ -428,7 +428,7 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   
   // 🆕 v3.2: SIGNAL CONFIDENCE VOTING - Modified for SHORT trades
   // Research shows single signals have ~55-65% win rate, but 2+ signals = 70%+ win rate
-  // EXCEPTION: Allow single RSI(2) SHORT signals (high-conviction bearish setups, same 75-91% WR as longs)
+  // EXCEPTION: Allow single RSI(2) SHORT signals (high-conviction bearish setups)
   const hasShortSignal = detectedSignals.includes('RSI2_SHORT_REVERSION');
   const isHighConvictionShort = hasShortSignal && primarySignal?.strength === 'strong';
   
@@ -521,13 +521,13 @@ function generateAnalysis(data: MarketData, signal: QuantSignal): string {
   if (signal.type === 'rsi2_mean_reversion') {
     const rsiValue = signal.rsiValue || 50;
     return `RSI(2) at ${rsiValue.toFixed(0)} indicates extreme oversold condition with price above 200-day MA. ` +
-           `Research shows 75-91% win rate for this setup (Larry Connors, QQQ backtest 1998-2024). ` +
-           `Mean reversion strategy targets quick ${signal.strength === 'strong' ? '8-12%' : '6-10%'} bounce.`;
+           `Mean reversion strategy based on Connors RSI(2) research (targeting 55-65% live win rate). ` +
+           `Target quick ${signal.strength === 'strong' ? '8-12%' : '6-10%'} bounce with 2:1 R:R.`;
   } else if (signal.type === 'rsi2_short_reversion') {
     const rsiValue = signal.rsiValue || 50;
     return `RSI(2) at ${rsiValue.toFixed(0)} indicates extreme overbought condition with price below 200-day MA. ` +
-           `Research shows 75-91% win rate for SHORT mean reversion setups (same methodology as LONG). ` +
-           `Mean reversion strategy targets ${signal.strength === 'strong' ? '8-12%' : '6-10%'} decline.`;
+           `Short mean reversion based on same Connors methodology (targeting 55-65% live win rate). ` +
+           `Target ${signal.strength === 'strong' ? '8-12%' : '6-10%'} decline with 2:1 R:R.`;
   } else if (signal.type === 'vwap_cross') {
     return `Price crossing above VWAP (${signal.vwapValue?.toFixed(2) || 'N/A'}) with ${volumeRatio.toFixed(1)}x volume indicates institutional buying. ` +
            `VWAP is the most widely used indicator by professional day traders (80%+ win rate). ` +

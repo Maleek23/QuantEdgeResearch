@@ -258,7 +258,7 @@ export function calculateVWAP(prices: number[], volumes: number[]): number {
 }
 
 /**
- * Analyze RSI(2) mean reversion signal (Proven 75-91% win rate)
+ * Analyze RSI(2) mean reversion signal (targeting 55-65% live win rate)
  * Based on Larry Connors' research: RSI(2) < 10 with 200-day MA trend filter
  * @param rsi2 - RSI value with 2-period
  * @param currentPrice - Current price
@@ -281,7 +281,7 @@ export function analyzeRSI2MeanReversion(
     return { signal: 'strong_buy', strength: 'strong' };
   }
 
-  // RSI(2) < 10 = Standard oversold (75-91% win rate threshold)
+  // RSI(2) < 10 = Standard oversold (targeting 55-65% live)
   if (rsi2 < 10 && aboveTrend) {
     return { signal: 'buy', strength: 'moderate' };
   }
