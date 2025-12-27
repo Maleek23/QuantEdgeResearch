@@ -262,14 +262,14 @@ export default function Landing() {
             <div className="flex justify-center mb-8">
               <img 
                 src={quantEdgeLogoUrl} 
-                alt="QuantEdge" 
+                alt="QuantEdge Research" 
                 className="h-36 w-36 md:h-44 md:w-44 object-contain drop-shadow-xl"
               />
             </div>
 
             {/* Headline */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight" data-testid="text-hero-headline">
-              Research tools. <span className="text-primary">Real expectations.</span>
+              QuantEdge <span className="text-primary">Research.</span><br />Research tools. Real expectations.
             </h1>
 
             {/* Subheadline */}
