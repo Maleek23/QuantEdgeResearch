@@ -96,135 +96,149 @@ export default function HomePage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/90 via-primary to-blue-700 dark:from-blue-600 dark:via-blue-700 dark:to-indigo-900 p-6 sm:p-8">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.05%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-30" />
-        <div className="relative z-10">
-          <p className="text-blue-100 text-sm font-medium tracking-wide uppercase mb-1">
-            {format(new Date(), 'EEEE, MMMM d')}
-          </p>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-4" data-testid="text-home-title">
-            Good {greeting}
-          </h1>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-lg px-3 py-2" data-testid="badge-active-count">
-              <Activity className="h-4 w-4 text-green-300" />
-              <span className="text-white text-sm font-medium" data-testid="text-active-count">{activeCount} Active</span>
-            </div>
-            <div className="flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-lg px-3 py-2" data-testid="badge-fresh-today">
-              <Zap className="h-4 w-4 text-yellow-300" />
-              <span className="text-white text-sm font-medium" data-testid="text-fresh-today">{todaysTopIdeas.length} Fresh Today</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        {/* Weekly P&L */}
-        <Card className="relative overflow-hidden border-0 shadow-lg dark:shadow-none dark:border">
-          <div className={`absolute top-0 left-0 w-1 h-full ${weeklyPnL >= 0 ? 'bg-green-500' : 'bg-red-500'}`} />
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Weekly P&L</p>
-                <p className={`text-3xl font-bold font-mono tracking-tight ${weeklyPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} data-testid="text-weekly-pnl">
-                  {weeklyPnL >= 0 ? '+' : ''}${Math.abs(weeklyPnL).toFixed(0)}
-                </p>
-              </div>
-              <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${weeklyPnL >= 0 ? 'bg-green-100 dark:bg-green-500/20' : 'bg-red-100 dark:bg-red-500/20'}`}>
-                <DollarSign className={`h-6 w-6 ${weeklyPnL >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} />
-              </div>
-            </div>
-            <div className="mt-4">
-              <div className="flex justify-between gap-2 text-xs font-medium text-muted-foreground mb-2">
-                <span>Goal: ${weeklyGoal}</span>
-                <span>{Math.max(0, goalProgress).toFixed(0)}%</span>
-              </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all duration-700 ${weeklyPnL >= 0 ? 'bg-green-500' : 'bg-red-500'}`}
-                  style={{ width: `${Math.max(0, goalProgress)}%` }}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Win Rate */}
-        <Card className="relative overflow-hidden border-0 shadow-lg dark:shadow-none dark:border">
-          <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Win Rate</p>
-                <p className="text-3xl font-bold font-mono tracking-tight" data-testid="text-win-rate">
-                  {winRate.toFixed(0)}%
-                </p>
-              </div>
-              <div className="h-12 w-12 rounded-xl bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center">
-                <Percent className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-4">
-              <span className="font-semibold text-foreground">{closedThisWeek.length}</span> trades closed this week
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Active Ideas */}
-        <Card className="relative overflow-hidden border-0 shadow-lg dark:shadow-none dark:border">
-          <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Active Ideas</p>
-                <p className="text-3xl font-bold font-mono tracking-tight" data-testid="text-active-ideas">
-                  {activeCount}
-                </p>
-              </div>
-              <div className="h-12 w-12 rounded-xl bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
-                <BarChart3 className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground mt-4">
-              <span className="font-semibold text-foreground">{todaysTopIdeas.length}</span> fresh opportunities today
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Today's Top Picks */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
+      {/* Hero Header - Glassmorphism */}
+      <div className="relative overflow-hidden rounded-xl glass-card p-6 sm:p-8">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold tracking-tight">Today's Top Picks</h2>
-            <p className="text-sm text-muted-foreground">Highest confidence opportunities</p>
+            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase mb-1">
+              {format(new Date(), 'EEEE, MMMM d')}
+            </p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-3" data-testid="text-home-title">
+              Good {greeting}
+            </h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 glass-success rounded-lg px-3 py-1.5" data-testid="badge-active-count">
+                <Activity className="h-4 w-4" />
+                <span className="text-sm font-medium" data-testid="text-active-count">{activeCount} Active</span>
+              </div>
+              <div className="flex items-center gap-2 glass rounded-lg px-3 py-1.5" data-testid="badge-fresh-today">
+                <Zap className="h-4 w-4" />
+                <span className="text-sm font-medium" data-testid="text-fresh-today">{todaysTopIdeas.length} Fresh Today</span>
+              </div>
+            </div>
           </div>
-          {todaysTopIdeas.length === 0 && (
+          <div className="flex gap-2">
             <Button 
+              variant="glass" 
               onClick={() => generateHybridIdeas.mutate()}
               disabled={generateHybridIdeas.isPending}
               data-testid="button-generate-ideas"
             >
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="h-4 w-4 mr-2" />
               {generateHybridIdeas.isPending ? 'Generating...' : 'Generate Ideas'}
             </Button>
-          )}
+            <Link href="/trading-rules">
+              <Button variant="glass-secondary" data-testid="button-review-rules">
+                <BookOpen className="h-4 w-4 mr-2" />
+                Rules
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats Grid - Glassmorphism */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        {/* Weekly P&L */}
+        <div className={`glass-card rounded-xl p-5 ${weeklyPnL >= 0 ? 'border-l-2 border-l-green-500' : 'border-l-2 border-l-red-500'}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Weekly P&L</p>
+              <p className={`text-3xl font-bold font-mono tracking-tight ${weeklyPnL >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-weekly-pnl">
+                {weeklyPnL >= 0 ? '+' : ''}${Math.abs(weeklyPnL).toFixed(0)}
+              </p>
+            </div>
+            <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${weeklyPnL >= 0 ? 'glass-success' : 'glass-danger'}`}>
+              <DollarSign className="h-5 w-5" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <div className="flex justify-between gap-2 text-xs font-medium text-muted-foreground mb-2">
+              <span>Goal: ${weeklyGoal}</span>
+              <span>{Math.max(0, goalProgress).toFixed(0)}%</span>
+            </div>
+            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all duration-700 ${weeklyPnL >= 0 ? 'bg-green-500' : 'bg-red-500'}`}
+                style={{ width: `${Math.max(0, goalProgress)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Win Rate */}
+        <div className="glass-card rounded-xl p-5 border-l-2 border-l-cyan-500">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Win Rate</p>
+              <p className="text-3xl font-bold font-mono tracking-tight text-cyan-400" data-testid="text-win-rate">
+                {winRate.toFixed(0)}%
+              </p>
+            </div>
+            <div className="h-10 w-10 rounded-lg glass flex items-center justify-center">
+              <Percent className="h-5 w-5" />
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground mt-4">
+            <span className="font-semibold text-foreground">{closedThisWeek.length}</span> trades closed this week
+          </p>
+        </div>
+
+        {/* Active Ideas */}
+        <div className="glass-card rounded-xl p-5 border-l-2 border-l-amber-500">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Active Ideas</p>
+              <p className="text-3xl font-bold font-mono tracking-tight text-amber-400" data-testid="text-active-ideas">
+                {activeCount}
+              </p>
+            </div>
+            <div className="h-10 w-10 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+              <BarChart3 className="h-5 w-5 text-amber-400" />
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground mt-4">
+            <span className="font-semibold text-foreground">{todaysTopIdeas.length}</span> fresh opportunities today
+          </p>
+        </div>
+      </div>
+
+      {/* Today's Top Picks - Glassmorphism */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight">Top Signals Today</h2>
+            <p className="text-sm text-muted-foreground">Highest confidence opportunities</p>
+          </div>
+          <Link href="/trade-desk">
+            <Button variant="ghost" size="sm" data-testid="button-view-all-signals">
+              View All <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          </Link>
         </div>
 
         {todaysTopIdeas.length === 0 ? (
-          <Card className="border-dashed border-2">
-            <CardContent className="py-16 text-center">
-              <div className="h-16 w-16 rounded-2xl bg-muted mx-auto mb-4 flex items-center justify-center">
-                <Clock className="h-8 w-8 text-muted-foreground" />
+          <div className="glass-card rounded-xl border-dashed border-2 border-white/10">
+            <div className="py-12 text-center">
+              <div className="h-14 w-14 rounded-xl glass mx-auto mb-4 flex items-center justify-center">
+                <Clock className="h-7 w-7 text-muted-foreground" />
               </div>
-              <p className="font-semibold text-lg mb-1">No fresh ideas yet</p>
-              <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                Generate new trade ideas or check back after market opens for the latest opportunities
+              <p className="font-semibold text-lg mb-1">No fresh signals yet</p>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-4">
+                Generate new trade ideas or check back after market opens
               </p>
-            </CardContent>
-          </Card>
+              <Button 
+                variant="glass"
+                onClick={() => generateHybridIdeas.mutate()}
+                disabled={generateHybridIdeas.isPending}
+                data-testid="button-generate-ideas-empty"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                {generateHybridIdeas.isPending ? 'Generating...' : 'Generate Ideas'}
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="grid gap-3">
             {todaysTopIdeas.map((idea, index) => {
