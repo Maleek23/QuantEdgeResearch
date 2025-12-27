@@ -520,3 +520,307 @@ export interface ScreenerFilters {
   highIVOnly?: boolean; // IV > 50%
   unusualVolume?: boolean; // volume > 2x avg
 }
+
+// ==========================================
+// PAPER TRADING - Simulation Portfolio System
+// ==========================================
+
+export type PaperTradeStatus = 'open' | 'closed';
+
+// Paper Trading Portfolio - Virtual portfolio for simulation
+export const paperPortfolios = pgTable("paper_portfolios", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  name: text("name").notNull().default('My Paper Portfolio'),
+  
+  // Capital
+  startingCapital: real("starting_capital").notNull().default(100000), // Default $100K
+  cashBalance: real("cash_balance").notNull().default(100000), // Available cash
+  
+  // Performance Metrics (calculated)
+  totalValue: real("total_value").notNull().default(100000), // Cash + positions value
+  totalPnL: real("total_pnl").notNull().default(0),
+  totalPnLPercent: real("total_pnl_percent").notNull().default(0),
+  winCount: integer("win_count").notNull().default(0),
+  lossCount: integer("loss_count").notNull().default(0),
+  
+  // Settings
+  autoExecute: boolean("auto_execute").default(false), // Auto-execute QuantEdge signals
+  maxPositionSize: real("max_position_size").default(5000), // Max per position
+  riskPerTrade: real("risk_per_trade").default(0.02), // 2% default risk
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPaperPortfolioSchema = createInsertSchema(paperPortfolios).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertPaperPortfolio = z.infer<typeof insertPaperPortfolioSchema>;
+export type PaperPortfolio = typeof paperPortfolios.$inferSelect;
+
+// Paper Positions - Open simulated positions
+export const paperPositions = pgTable("paper_positions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  portfolioId: varchar("portfolio_id").notNull(),
+  tradeIdeaId: varchar("trade_idea_id"), // Link to original signal
+  
+  // Position Details
+  symbol: text("symbol").notNull(),
+  assetType: text("asset_type").notNull().$type<AssetType>(),
+  direction: text("direction").notNull(), // 'long' | 'short'
+  
+  // Option-specific
+  optionType: text("option_type"), // 'call' | 'put'
+  strikePrice: real("strike_price"),
+  expiryDate: text("expiry_date"),
+  
+  // Entry
+  entryPrice: real("entry_price").notNull(),
+  quantity: integer("quantity").notNull(),
+  entryTime: text("entry_time").notNull(),
+  
+  // Targets
+  targetPrice: real("target_price"),
+  stopLoss: real("stop_loss"),
+  
+  // Current State
+  currentPrice: real("current_price"),
+  lastPriceUpdate: text("last_price_update"),
+  unrealizedPnL: real("unrealized_pnl").default(0),
+  unrealizedPnLPercent: real("unrealized_pnl_percent").default(0),
+  
+  // Status
+  status: text("status").$type<PaperTradeStatus>().notNull().default('open'),
+  exitPrice: real("exit_price"),
+  exitTime: text("exit_time"),
+  exitReason: text("exit_reason"), // 'target_hit' | 'stop_hit' | 'manual' | 'expired'
+  realizedPnL: real("realized_pnl"),
+  realizedPnLPercent: real("realized_pnl_percent"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPaperPositionSchema = createInsertSchema(paperPositions).omit({ id: true, createdAt: true });
+export type InsertPaperPosition = z.infer<typeof insertPaperPositionSchema>;
+export type PaperPosition = typeof paperPositions.$inferSelect;
+
+// Paper Equity Snapshots - Daily equity curve
+export const paperEquitySnapshots = pgTable("paper_equity_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  portfolioId: varchar("portfolio_id").notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD
+  totalValue: real("total_value").notNull(),
+  cashBalance: real("cash_balance").notNull(),
+  positionsValue: real("positions_value").notNull(),
+  dailyPnL: real("daily_pnl").notNull().default(0),
+  dailyPnLPercent: real("daily_pnl_percent").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPaperEquitySnapshotSchema = createInsertSchema(paperEquitySnapshots).omit({ id: true, createdAt: true });
+export type InsertPaperEquitySnapshot = z.infer<typeof insertPaperEquitySnapshotSchema>;
+export type PaperEquitySnapshot = typeof paperEquitySnapshots.$inferSelect;
+
+// ==========================================
+// WALLET TRACKER - Whale Wallet Monitoring
+// ==========================================
+
+export type BlockchainNetwork = 'ethereum' | 'solana' | 'bitcoin';
+export type WalletAlertType = 'large_transfer' | 'token_accumulation' | 'token_dump' | 'new_token';
+
+// Tracked Wallets - Whale wallets to monitor
+export const trackedWallets = pgTable("tracked_wallets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(), // Who added this wallet
+  
+  address: text("address").notNull(),
+  network: text("network").$type<BlockchainNetwork>().notNull(),
+  label: text("label"), // e.g., "Vitalik", "Jump Trading", "Alameda"
+  category: text("category"), // 'whale' | 'institution' | 'dex' | 'cex' | 'personal'
+  
+  // Tracking Status
+  isActive: boolean("is_active").default(true),
+  lastSyncAt: text("last_sync_at"),
+  syncErrorCount: integer("sync_error_count").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTrackedWalletSchema = createInsertSchema(trackedWallets).omit({ id: true, createdAt: true });
+export type InsertTrackedWallet = z.infer<typeof insertTrackedWalletSchema>;
+export type TrackedWallet = typeof trackedWallets.$inferSelect;
+
+// Wallet Holdings - Token balances for tracked wallets
+export const walletHoldings = pgTable("wallet_holdings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  walletId: varchar("wallet_id").notNull(),
+  
+  tokenAddress: text("token_address"), // null for native (ETH/SOL)
+  tokenSymbol: text("token_symbol").notNull(),
+  tokenName: text("token_name"),
+  
+  balance: real("balance").notNull(),
+  balanceUsd: real("balance_usd"),
+  
+  // Change tracking
+  previousBalance: real("previous_balance"),
+  changePercent: real("change_percent"),
+  
+  lastUpdatedAt: text("last_updated_at").notNull(),
+});
+
+export const insertWalletHoldingSchema = createInsertSchema(walletHoldings).omit({ id: true });
+export type InsertWalletHolding = z.infer<typeof insertWalletHoldingSchema>;
+export type WalletHolding = typeof walletHoldings.$inferSelect;
+
+// Wallet Transactions - Transfer history
+export const walletTransactions = pgTable("wallet_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  walletId: varchar("wallet_id").notNull(),
+  
+  txHash: text("tx_hash").notNull(),
+  network: text("network").$type<BlockchainNetwork>().notNull(),
+  
+  // Transaction details
+  type: text("type").notNull(), // 'send' | 'receive' | 'swap' | 'stake' | 'unstake'
+  tokenSymbol: text("token_symbol").notNull(),
+  tokenAddress: text("token_address"),
+  amount: real("amount").notNull(),
+  amountUsd: real("amount_usd"),
+  
+  // Counterparty
+  fromAddress: text("from_address"),
+  toAddress: text("to_address"),
+  
+  // Metadata
+  blockNumber: integer("block_number"),
+  timestamp: text("timestamp").notNull(),
+  isLargeTransaction: boolean("is_large_transaction").default(false), // >$100K
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWalletTransactionSchema = createInsertSchema(walletTransactions).omit({ id: true, createdAt: true });
+export type InsertWalletTransaction = z.infer<typeof insertWalletTransactionSchema>;
+export type WalletTransaction = typeof walletTransactions.$inferSelect;
+
+// Wallet Alerts - Notifications for significant activity
+export const walletAlerts = pgTable("wallet_alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  walletId: varchar("wallet_id").notNull(),
+  transactionId: varchar("transaction_id"),
+  
+  alertType: text("alert_type").$type<WalletAlertType>().notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  
+  tokenSymbol: text("token_symbol"),
+  amountUsd: real("amount_usd"),
+  
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWalletAlertSchema = createInsertSchema(walletAlerts).omit({ id: true, createdAt: true });
+export type InsertWalletAlert = z.infer<typeof insertWalletAlertSchema>;
+export type WalletAlert = typeof walletAlerts.$inferSelect;
+
+// ==========================================
+// CT TRACKER - Crypto Twitter / Social Intelligence
+// ==========================================
+
+export type CTSourceType = 'twitter' | 'bluesky' | 'reddit' | 'discord' | 'rss' | 'telegram';
+export type CTSentiment = 'bullish' | 'bearish' | 'neutral';
+export type CTCallOutcome = 'pending' | 'win' | 'loss' | 'expired';
+
+// CT Sources - Influencer accounts to track
+export const ctSources = pgTable("ct_sources", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  platform: text("platform").$type<CTSourceType>().notNull(),
+  handle: text("handle").notNull(), // @username or feed URL
+  displayName: text("display_name"),
+  profileImageUrl: text("profile_image_url"),
+  
+  // Metrics
+  followersCount: integer("followers_count"),
+  historicalAccuracy: real("historical_accuracy"), // Win rate of past calls
+  
+  // Status
+  isActive: boolean("is_active").default(true),
+  lastFetchAt: text("last_fetch_at"),
+  fetchErrorCount: integer("fetch_error_count").default(0),
+  
+  // Admin control
+  isVerified: boolean("is_verified").default(false), // Admin-verified influencer
+  category: text("category"), // 'analyst' | 'whale' | 'news' | 'degen'
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCTSourceSchema = createInsertSchema(ctSources).omit({ id: true, createdAt: true });
+export type InsertCTSource = z.infer<typeof insertCTSourceSchema>;
+export type CTSource = typeof ctSources.$inferSelect;
+
+// CT Mentions - Parsed ticker mentions from social
+export const ctMentions = pgTable("ct_mentions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceId: varchar("source_id").notNull(),
+  
+  // Content
+  postUrl: text("post_url"),
+  postText: text("post_text").notNull(),
+  
+  // Parsed Data
+  tickers: text("tickers").array(), // ['$BTC', '$ETH', '$SOL']
+  sentiment: text("sentiment").$type<CTSentiment>().notNull().default('neutral'),
+  sentimentScore: real("sentiment_score"), // -1 to 1
+  
+  // Call details (if trading call detected)
+  isCall: boolean("is_call").default(false), // Is this a specific trading call?
+  callDirection: text("call_direction"), // 'long' | 'short'
+  callTargetPrice: real("call_target_price"),
+  callStopLoss: real("call_stop_loss"),
+  
+  // Engagement
+  likesCount: integer("likes_count"),
+  retweetsCount: integer("retweets_count"),
+  repliesCount: integer("replies_count"),
+  
+  // Timestamps
+  postedAt: text("posted_at").notNull(),
+  fetchedAt: text("fetched_at").notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCTMentionSchema = createInsertSchema(ctMentions).omit({ id: true, createdAt: true });
+export type InsertCTMention = z.infer<typeof insertCTMentionSchema>;
+export type CTMention = typeof ctMentions.$inferSelect;
+
+// CT Call Performance - Track accuracy of influencer calls
+export const ctCallPerformance = pgTable("ct_call_performance", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  mentionId: varchar("mention_id").notNull(),
+  sourceId: varchar("source_id").notNull(),
+  
+  symbol: text("symbol").notNull(),
+  direction: text("direction").notNull(), // 'long' | 'short'
+  
+  // Entry/Exit
+  callPrice: real("call_price").notNull(), // Price when call was made
+  targetPrice: real("target_price"),
+  stopLoss: real("stop_loss"),
+  
+  // Outcome
+  outcome: text("outcome").$type<CTCallOutcome>().notNull().default('pending'),
+  exitPrice: real("exit_price"),
+  pnlPercent: real("pnl_percent"),
+  resolvedAt: text("resolved_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCTCallPerformanceSchema = createInsertSchema(ctCallPerformance).omit({ id: true, createdAt: true });
+export type InsertCTCallPerformance = z.infer<typeof insertCTCallPerformanceSchema>;
+export type CTCallPerformance = typeof ctCallPerformance.$inferSelect;
