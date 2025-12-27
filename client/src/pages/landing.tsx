@@ -170,7 +170,7 @@ export default function Landing() {
           <div className="flex items-center justify-between h-16 gap-4">
             {/* Left: Logo */}
             <Link href="/" className="flex-shrink-0" data-testid="link-logo">
-              <img src={quantEdgeLogoUrl} alt="QuantEdge" className="h-8 w-8 object-contain" />
+              <img src={quantEdgeLogoUrl} alt="QuantEdge" className="h-12 w-12 object-contain" />
             </Link>
 
             {/* Center: Nav Links */}
