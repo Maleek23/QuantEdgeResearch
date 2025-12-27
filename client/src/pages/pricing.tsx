@@ -56,8 +56,8 @@ const plans: PricingPlan[] = [
     features: [
       { name: "Unlimited trade ideas", included: true },
       { name: "Real-time market data", included: true },
-      { name: "10 chart analyses per day", included: true },
-      { name: "25 AI generations per day", included: true },
+      { name: "Unlimited chart analyses", included: true },
+      { name: "Unlimited AI generations", included: true },
       { name: "Full performance history", included: true },
       { name: "Discord alerts", included: true },
       { name: "Advanced analytics", included: true },
