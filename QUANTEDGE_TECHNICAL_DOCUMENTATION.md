@@ -73,16 +73,16 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierLimits> = {
   },
   advanced: {
     ideasPerDay: Infinity,
-    aiChatMessagesPerDay: 25,
-    chartAnalysisPerDay: 10,
-    watchlistItems: 50,
+    aiChatMessagesPerDay: Infinity,
+    chartAnalysisPerDay: Infinity,
+    watchlistItems: Infinity,
     canAccessPerformance: true,
     canAccessAdvancedAnalytics: true,
     canAccessRealTimeAlerts: true,
     canExportData: true,
-    prioritySupport: false,
+    prioritySupport: true, // Full access for beta launch
   },
-  pro: { /* Reserved for future */ },
+  pro: { /* Reserved for future integrations */ },
   admin: { /* Unlimited access */ },
 };
 
@@ -97,16 +97,19 @@ export const PRICING = {
 
 | Feature | Free ($0/mo) | Advanced ($39/mo) | Pro (Coming Soon) |
 |---------|--------------|-------------------|-------------------|
-| Trade Ideas | 5/day | Unlimited | Unlimited |
-| AI Chat | 3 messages/day | 25/day | Unlimited |
-| Chart Analysis | None | 10/day | Unlimited |
-| Watchlist Items | 3 | 50 | Unlimited |
+| Trade Ideas | 5/day | **Unlimited** | Unlimited |
+| AI Chat | 3 messages/day | **Unlimited** | Unlimited |
+| Chart Analysis | None | **Unlimited** | Unlimited |
+| Watchlist Items | 3 | **Unlimited** | Unlimited |
 | Market Data | 15min delayed | Real-time | Real-time |
 | Performance History | 7 days | Full history | Full history |
 | Assets | Stocks & Crypto | All (incl. Options) | All + Futures |
 | Discord Alerts | No | Yes | Priority channel |
 | Data Export | No | Yes | Yes |
-| API Access | No | No | Yes |
+| Priority Support | No | **Yes** | Yes |
+| API Access | No | No | Yes (future) |
+
+**Note:** For beta launch, Advanced tier includes nearly all features. Pro tier is reserved for future integrations (API access, futures, white-label reports, etc.).
 
 ---
 

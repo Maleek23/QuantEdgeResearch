@@ -26,14 +26,14 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierLimits> = {
   },
   advanced: {
     ideasPerDay: Infinity,
-    aiChatMessagesPerDay: 25,
-    chartAnalysisPerDay: 10,
-    watchlistItems: 50,
+    aiChatMessagesPerDay: Infinity,
+    chartAnalysisPerDay: Infinity,
+    watchlistItems: Infinity,
     canAccessPerformance: true,
     canAccessAdvancedAnalytics: true,
     canAccessRealTimeAlerts: true,
     canExportData: true,
-    prioritySupport: false,
+    prioritySupport: true, // Full access for beta launch
   },
   pro: {
     ideasPerDay: Infinity,
