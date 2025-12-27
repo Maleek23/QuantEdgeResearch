@@ -46,6 +46,20 @@ A Performance Tracking System validates trade outcomes and tracks win rates, inc
 
 The quantitative engine (v3.6.0) leverages RSI(2) Mean Reversion with a 200-Day MA Filter, VWAP Institutional Flow, Volume Spike Early Entry, ADX Regime Filtering, Signal Confidence Voting, time-of-day filtering, and **chart pattern pre-validation**. Stop losses are set at 3.5% for stocks and 5% for crypto, with a standard 2:1 R:R. A Hybrid AI+Quant system combines quantitative signals with AI fundamental analysis.
 
+**Strict Chart Pattern Validation (v3.7.0 - Dec 2025):**
+Chart validation is now REQUIRED for standard trade ideas (not just optional):
+- Trade ideas without chart data are REJECTED (except lotto plays and news catalyst trades)
+- Ensures every trade has technical confirmation before being suggested
+- Lotto/news trades exempt since they're time-sensitive and momentum-driven
+
+**Dynamic Exit Time Recalculation (v3.7.0 - Dec 2025):**
+Exit times now fluctuate dynamically based on current market conditions:
+- `recalculateExitTime()` function in timing-intelligence.ts estimates live volatility
+- Uses price movement from entry and stop/target spread as volatility proxies
+- Applies ±10-30% variance using symbol hash + random factors
+- Asset-specific adjustments: options get shorter windows (theta decay), crypto slightly longer (24/7)
+- Exit times recalculate on every API fetch (not stored statically)
+
 **Chart Analysis Pre-Validation (v3.6.0 - Dec 2025):**
 All trade ideas are now pre-validated against chart patterns and support/resistance levels before being suggested:
 - **Pattern Recognition**: Detects 7 chart patterns - Head & Shoulders, Double Top/Bottom, Bull Flags, Ascending/Descending Triangles, Wedges, and Channels
@@ -77,11 +91,13 @@ The platform employs a multi-page architecture with user authentication via Repl
 **Configuration Notes:**
 - Vite HMR error overlay has been disabled in vite.config.ts (`server.hmr.overlay: false`) to prevent cosmetic dev-banner plugin errors from disrupting the user experience.
 
-**Subscription Tier System (Dec 2025):**
-Three-tier subscription model with usage-based gating:
-- **Free ($0/mo)**: 3 ideas/day, 1 chart analysis/day, basic features only
-- **Advanced ($39/mo or $349/yr)**: 15 ideas/day, 10 chart analysis/day, AI engine access, performance analytics, data export
-- **Pro ($79/mo or $699/yr)**: Unlimited ideas, unlimited chart analysis, all features including flow scanner, advanced analytics, priority support
+**Subscription Tier System (Dec 2025, Updated):**
+Two-tier subscription model for beta launch (Pro tier reserved for future expansion):
+- **Free ($0/mo)**: 5 ideas/day, delayed market data (15min), 7-day performance history, stocks & crypto only, 3 watchlist items
+- **Advanced ($39/mo or $349/yr)**: Unlimited ideas, real-time market data, 10 chart analyses/day, 25 AI generations/day, full performance history, Discord alerts, advanced analytics, data export, 50 watchlist items
+
+**Future Pro Tier (Coming Soon):**
+When launched, Pro tier could include: options & futures coverage, unlimited chart analysis, unlimited AI generation, priority Discord channel, API access, custom alerts, white-label reports, priority support
 
 Implementation:
 - `server/tierConfig.ts`: Defines limits for each tier

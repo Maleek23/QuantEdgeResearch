@@ -26,60 +26,41 @@ const plans: PricingPlan[] = [
   {
     id: "free",
     name: "Free",
-    description: "Get started with basic trading insights",
+    description: "Preview the platform and explore trade ideas",
     monthlyPrice: 0,
     yearlyPrice: 0,
     icon: TrendingUp,
     currentPlan: true,
     features: [
-      { name: "3 trade ideas per day", included: true },
-      { name: "5 AI chat messages per day", included: true },
-      { name: "1 chart analysis per day", included: true },
-      { name: "5 watchlist items", included: true },
-      { name: "Performance tracking", included: false },
-      { name: "Real-time alerts", included: false },
+      { name: "5 trade ideas per day", included: true },
+      { name: "Delayed market data (15min)", included: true },
+      { name: "7-day performance history", included: true },
+      { name: "Stocks & crypto only", included: true },
+      { name: "3 watchlist items", included: true },
+      { name: "Real-time market data", included: false },
+      { name: "Chart analysis", included: false },
+      { name: "Discord alerts", included: false },
       { name: "Advanced analytics", included: false },
-      { name: "Export data", included: false },
-      { name: "Priority support", included: false },
     ],
   },
   {
     id: "advanced",
     name: "Advanced",
-    description: "For serious traders who want more power",
+    description: "Full stock & crypto access for serious traders",
     monthlyPrice: 39,
     yearlyPrice: 349,
     icon: Zap,
-    features: [
-      { name: "15 trade ideas per day", included: true },
-      { name: "50 AI chat messages per day", included: true },
-      { name: "10 chart analyses per day", included: true },
-      { name: "25 watchlist items", included: true },
-      { name: "Performance tracking", included: true },
-      { name: "Real-time alerts", included: true },
-      { name: "Advanced analytics", included: false },
-      { name: "Export data", included: true },
-      { name: "Priority support", included: false },
-    ],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    description: "Unlimited access for professional traders",
-    monthlyPrice: 79,
-    yearlyPrice: 699,
-    icon: Crown,
     popular: true,
     features: [
       { name: "Unlimited trade ideas", included: true },
-      { name: "Unlimited AI chat messages", included: true },
-      { name: "Unlimited chart analyses", included: true },
-      { name: "Unlimited watchlist items", included: true },
-      { name: "Performance tracking", included: true },
-      { name: "Real-time alerts", included: true },
+      { name: "Real-time market data", included: true },
+      { name: "10 chart analyses per day", included: true },
+      { name: "25 AI generations per day", included: true },
+      { name: "Full performance history", included: true },
+      { name: "Discord alerts", included: true },
       { name: "Advanced analytics", included: true },
       { name: "Export data", included: true },
-      { name: "Priority support", included: true },
+      { name: "50 watchlist items", included: true },
     ],
   },
 ];
@@ -119,8 +100,7 @@ export default function Pricing() {
             className="text-lg text-muted-foreground max-w-2xl mx-auto"
             data-testid="text-pricing-subtext"
           >
-            Unlock the full power of QuantEdge with our 3-tier subscription model. 
-            From free basic access to unlimited professional features.
+            Start with Free to preview the platform, then upgrade to Advanced for unlimited access and real-time data.
           </p>
         </div>
 
@@ -149,7 +129,7 @@ export default function Pricing() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 max-w-4xl mx-auto">
           {plans.map((plan) => {
             const Icon = plan.icon;
             const savings = getYearlySavings(plan.monthlyPrice, plan.yearlyPrice);

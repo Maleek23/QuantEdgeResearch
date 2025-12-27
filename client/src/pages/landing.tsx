@@ -702,7 +702,7 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
             {/* Free Tier */}
             <Card data-testid="card-pricing-free">
               <CardContent className="p-8 flex flex-col h-full">
@@ -807,70 +807,6 @@ export default function Landing() {
               </CardContent>
             </Card>
 
-            {/* Pro Tier */}
-            <Card className="relative" data-testid="card-pricing-pro">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <Badge variant="secondary" className="bg-amber-500/10 text-amber-500 border-amber-500/20">
-                  Full Access
-                </Badge>
-              </div>
-              <CardContent className="p-8 flex flex-col h-full">
-                <div className="mb-6">
-                  <h3 className="text-xl font-bold mb-2">Pro</h3>
-                  <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-4xl font-bold">
-                      ${billingPeriod === 'monthly' ? '79' : '66'}
-                    </span>
-                    <span className="text-muted-foreground">/month</span>
-                  </div>
-                  {billingPeriod === 'yearly' && (
-                    <p className="text-xs text-green-500">Billed $790/year (save $158)</p>
-                  )}
-                  <p className="text-sm text-muted-foreground">All assets + premium features</p>
-                </div>
-                
-                <ul className="space-y-3 mb-8 flex-1">
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm font-medium">Everything in Advanced</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Options & futures coverage</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Unlimited chart analysis</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Unlimited AI generation</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Priority Discord channel</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">API access & data export</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <Check className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                    <span className="text-sm">Priority support</span>
-                  </li>
-                </ul>
-                
-                <Button 
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setLocation('/signup')}
-                  data-testid="button-pricing-pro"
-                >
-                  <Zap className="h-4 w-4 mr-2" />
-                  Go Pro
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </section>
@@ -948,8 +884,8 @@ export default function Landing() {
                   What's the difference between the plans?
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground pb-4" data-testid="content-faq-premium">
-                  <strong>Free</strong> lets you preview with limited views. <strong>Advanced</strong> ($29/mo) unlocks unlimited trade ideas 
-                  and daily chart/AI limits. <strong>Pro</strong> ($49/mo) removes all limits with priority support.
+                  <strong>Free</strong> gives you 5 trade ideas per day with delayed market data to preview the platform. 
+                  <strong>Advanced</strong> ($39/mo) unlocks unlimited trade ideas, real-time data, chart analysis, Discord alerts, and full performance history.
                 </AccordionContent>
               </AccordionItem>
             </Accordion>

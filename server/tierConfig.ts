@@ -14,10 +14,10 @@ export interface TierLimits {
 
 export const TIER_CONFIG: Record<SubscriptionTier, TierLimits> = {
   free: {
-    ideasPerDay: 3,
-    aiChatMessagesPerDay: 5,
-    chartAnalysisPerDay: 1,
-    watchlistItems: 5,
+    ideasPerDay: 5,
+    aiChatMessagesPerDay: 3,
+    chartAnalysisPerDay: 0,
+    watchlistItems: 3,
     canAccessPerformance: false,
     canAccessAdvancedAnalytics: false,
     canAccessRealTimeAlerts: false,
@@ -25,12 +25,12 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierLimits> = {
     prioritySupport: false,
   },
   advanced: {
-    ideasPerDay: 15,
-    aiChatMessagesPerDay: 50,
+    ideasPerDay: Infinity,
+    aiChatMessagesPerDay: 25,
     chartAnalysisPerDay: 10,
-    watchlistItems: 25,
+    watchlistItems: 50,
     canAccessPerformance: true,
-    canAccessAdvancedAnalytics: false,
+    canAccessAdvancedAnalytics: true,
     canAccessRealTimeAlerts: true,
     canExportData: true,
     prioritySupport: false,
