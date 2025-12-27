@@ -73,6 +73,213 @@ export function calculateTradingCosts(
   return { totalCost, costPercent };
 }
 
+/**
+ * Calculate position size based on fixed fractional risk (Kelly-inspired)
+ * This is the recommended way to size positions for proper risk management
+ * 
+ * @param accountSize - Total account value in dollars
+ * @param riskPerTrade - Risk per trade as decimal (0.01 = 1%, 0.02 = 2%)
+ * @param entryPrice - Entry price per share/contract
+ * @param stopLoss - Stop loss price per share/contract
+ * @param assetType - Type of asset being traded
+ * @returns Position sizing details
+ */
+export function calculatePositionSize(
+  accountSize: number,
+  riskPerTrade: number,
+  entryPrice: number,
+  stopLoss: number,
+  assetType: 'stock' | 'option' | 'crypto' | 'future' = 'stock'
+): {
+  shares: number;
+  positionValue: number;
+  maxLossAmount: number;
+  positionPercent: number;
+  isValid: boolean;
+  warnings: string[];
+} {
+  const warnings: string[] = [];
+  let isValid = true;
+  
+  // Calculate risk per share/unit
+  const riskPerShare = Math.abs(entryPrice - stopLoss);
+  
+  // Guard against zero risk (stop at entry price)
+  if (riskPerShare === 0) {
+    warnings.push('Stop loss equals entry price - cannot calculate position size');
+    return {
+      shares: 0,
+      positionValue: 0,
+      maxLossAmount: 0,
+      positionPercent: 0,
+      isValid: false,
+      warnings,
+    };
+  }
+  
+  // Multiplier for options (1 contract = 100 shares)
+  const multiplier = assetType === 'option' ? 100 : 1;
+  
+  // Maximum amount willing to risk on this trade
+  const maxRiskAmount = accountSize * riskPerTrade;
+  
+  // Calculate number of shares that fits within risk budget
+  let shares = Math.floor(maxRiskAmount / riskPerShare);
+  
+  // For options, minimum is 1 contract
+  if (assetType === 'option' && shares < 1) {
+    shares = 1;
+    warnings.push('Minimum 1 contract for options - exceeds risk budget');
+  }
+  
+  // Check if position is too large for account and clamp
+  let positionValue = shares * entryPrice * multiplier;
+  if (positionValue > accountSize) {
+    isValid = false;
+    warnings.push('Position value exceeds account size - reducing to fit');
+    shares = Math.floor(accountSize / (entryPrice * multiplier));
+  }
+  
+  // Recalculate ALL derived values after any share adjustments
+  shares = Math.max(shares, 0);
+  positionValue = shares * entryPrice * multiplier;
+  const maxLossAmount = shares * riskPerShare * multiplier;
+  const positionPercent = accountSize > 0 ? (positionValue / accountSize) * 100 : 0;
+  
+  // Check if position is too concentrated (>25% of account is risky)
+  if (positionPercent > 25) {
+    warnings.push(`Position is ${positionPercent.toFixed(1)}% of account - consider reducing`);
+  }
+  
+  // Check if stop is too wide (risk per share > 10% of price)
+  if (riskPerShare / entryPrice > 0.10) {
+    warnings.push('Stop loss is very wide (>10% from entry)');
+  }
+  
+  return {
+    shares,
+    positionValue,
+    maxLossAmount,
+    positionPercent,
+    isValid,
+    warnings,
+  };
+}
+
+/**
+ * Calculate REAL performance stats counting ALL losses (no 3% filter)
+ * This is the honest accounting that matches actual account P&L
+ */
+export interface RealPerformanceStats {
+  totalTrades: number;
+  wins: number;
+  losses: number;
+  breakeven: number;
+  winRate: number;           // Real win rate (no filtering)
+  avgWinPercent: number;
+  avgLossPercent: number;
+  expectancy: number;        // Expected value per trade
+  profitFactor: number;      // Gross profit / Gross loss
+  maxConsecutiveLosses: number;
+  largestWin: number;
+  largestLoss: number;
+}
+
+/**
+ * Calculate real performance stats from trade results - NO FILTERING
+ * This is the honest accounting that shows actual account impact
+ * 
+ * @param trades - Array of completed trade results with percentGain
+ * @returns Real performance statistics without any loss filtering
+ */
+export function calculateRealPerformanceStats(
+  trades: Array<{ percentGain: number | null; outcomeStatus: string }>
+): RealPerformanceStats {
+  // Only include closed trades with valid P&L
+  const completedTrades = trades.filter(
+    t => t.outcomeStatus !== 'open' && t.percentGain !== null
+  );
+  
+  if (completedTrades.length === 0) {
+    return {
+      totalTrades: 0,
+      wins: 0,
+      losses: 0,
+      breakeven: 0,
+      winRate: 0,
+      avgWinPercent: 0,
+      avgLossPercent: 0,
+      expectancy: 0,
+      profitFactor: 0,
+      maxConsecutiveLosses: 0,
+      largestWin: 0,
+      largestLoss: 0,
+    };
+  }
+  
+  // Categorize trades honestly (including small losses)
+  const wins = completedTrades.filter(t => (t.percentGain || 0) > 0);
+  const losses = completedTrades.filter(t => (t.percentGain || 0) < 0);
+  const breakeven = completedTrades.filter(t => (t.percentGain || 0) === 0);
+  
+  // Calculate averages
+  const avgWinPercent = wins.length > 0
+    ? wins.reduce((sum, t) => sum + (t.percentGain || 0), 0) / wins.length
+    : 0;
+  
+  const avgLossPercent = losses.length > 0
+    ? losses.reduce((sum, t) => sum + (t.percentGain || 0), 0) / losses.length
+    : 0;
+  
+  // Win rate (honest - no filtering)
+  const winRate = wins.length / completedTrades.length;
+  
+  // Expectancy: (Win% × AvgWin) + (Loss% × AvgLoss)
+  const lossRate = losses.length / completedTrades.length;
+  const expectancy = (winRate * avgWinPercent) + (lossRate * avgLossPercent);
+  
+  // Profit factor: Gross Profit / |Gross Loss|
+  const grossProfit = wins.reduce((sum, t) => sum + (t.percentGain || 0), 0);
+  const grossLoss = Math.abs(losses.reduce((sum, t) => sum + (t.percentGain || 0), 0));
+  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+  
+  // Max consecutive losses
+  let maxConsecutiveLosses = 0;
+  let currentStreak = 0;
+  for (const trade of completedTrades) {
+    if ((trade.percentGain || 0) < 0) {
+      currentStreak++;
+      maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentStreak);
+    } else {
+      currentStreak = 0;
+    }
+  }
+  
+  // Largest win/loss
+  const largestWin = wins.length > 0
+    ? Math.max(...wins.map(t => t.percentGain || 0))
+    : 0;
+  
+  const largestLoss = losses.length > 0
+    ? Math.min(...losses.map(t => t.percentGain || 0))
+    : 0;
+  
+  return {
+    totalTrades: completedTrades.length,
+    wins: wins.length,
+    losses: losses.length,
+    breakeven: breakeven.length,
+    winRate: Number((winRate * 100).toFixed(1)),
+    avgWinPercent: Number(avgWinPercent.toFixed(2)),
+    avgLossPercent: Number(avgLossPercent.toFixed(2)),
+    expectancy: Number(expectancy.toFixed(2)),
+    profitFactor: Number(profitFactor.toFixed(2)),
+    maxConsecutiveLosses,
+    largestWin: Number(largestWin.toFixed(2)),
+    largestLoss: Number(largestLoss.toFixed(2)),
+  };
+}
+
 interface ValidationResult {
   shouldUpdate: boolean;
   outcomeStatus?: TradeIdea['outcomeStatus'];
