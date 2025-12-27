@@ -16,17 +16,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/theme-provider";
-import { QuantEdgeLogo } from "@/components/quantedge-logo";
 import { cn } from "@/lib/utils";
+import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 
 // Simplified navigation - just the essentials
 const mainItems = [
   { title: "Home", url: "/home", icon: Home },
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
   { title: "Live Trading", url: "/live-trading", icon: Activity },
-  { title: "Paper Trading", url: "/paper-trading", icon: DollarSign },
-  { title: "Wallet Tracker", url: "/wallet-tracker", icon: Wallet },
-  { title: "CT Tracker", url: "/ct-tracker", icon: MessageSquare },
+  // Hidden for now - Paper Trading, Wallet Tracker, CT Tracker
+  // { title: "Paper Trading", url: "/paper-trading", icon: DollarSign },
+  // { title: "Wallet Tracker", url: "/wallet-tracker", icon: Wallet },
+  // { title: "CT Tracker", url: "/ct-tracker", icon: MessageSquare },
   { title: "Trading Rules", url: "/trading-rules", icon: BookOpen },
 ];
 
@@ -54,10 +55,25 @@ function SidebarHeaderContent() {
         data-testid="nav-logo" 
         className="flex items-center justify-center w-full cursor-pointer"
       >
-        <QuantEdgeLogo 
-          collapsed={isCollapsed} 
-          size={isCollapsed ? "md" : "md"}
-        />
+        {isCollapsed ? (
+          <img 
+            src={quantEdgeLogoUrl} 
+            alt="QuantEdge" 
+            className="h-10 w-10 object-contain"
+          />
+        ) : (
+          <div className="flex flex-col items-center gap-1">
+            <img 
+              src={quantEdgeLogoUrl} 
+              alt="QuantEdge" 
+              className="h-14 w-14 object-contain"
+            />
+            <div className="text-center">
+              <div className="text-sm font-bold text-foreground">QuantEdge</div>
+              <div className="text-[10px] text-muted-foreground tracking-wider">RESEARCH</div>
+            </div>
+          </div>
+        )}
       </button>
     </div>
   );
