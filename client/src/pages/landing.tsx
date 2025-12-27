@@ -109,34 +109,34 @@ export default function Landing() {
 
   const features = [
     {
-      icon: Upload,
-      title: "Chart Pattern Recognition",
-      description: "Upload any trading chart and get instant AI analysis with pattern detection and precise entry/exit points."
-    },
-    {
       icon: Brain,
-      title: "AI-Powered Analysis",
-      description: "Multi-provider AI (Claude, GPT, Gemini) generates trade ideas with comprehensive market analysis."
+      title: "Engine 1: AI Analysis",
+      description: "Multi-provider AI (Claude, GPT, Gemini) for fundamental analysis, news catalysts, and comprehensive market insights. Generates context-aware trade ideas."
     },
     {
       icon: Calculator,
-      title: "Quantitative Signals",
-      description: "Research-backed engine using RSI(2), VWAP, and volume analysis. Targeting 55-65% live win rate."
+      title: "Engine 2: Quantitative Signals",
+      description: "Research-backed quantitative engine using RSI(2), VWAP, volume spike detection, and pattern validation. Targets 55-65% live win rate with data-driven precision."
+    },
+    {
+      icon: Sparkles,
+      title: "Hybrid Decision System",
+      description: "Both engines work together: Quant finds technical setups, AI validates fundamental strength. Get the best of both—mechanical precision plus market context."
+    },
+    {
+      icon: Upload,
+      title: "Chart Pattern Recognition",
+      description: "Upload any trading chart and get instant AI analysis with technical pattern detection, support/resistance levels, and precise entry/exit zones."
     },
     {
       icon: Bell,
       title: "Instant Alerts",
-      description: "Get instant notifications for new trade ideas with complete details delivered to Discord."
-    },
-    {
-      icon: BarChart3,
-      title: "Real-Time Data",
-      description: "Live pricing from Yahoo Finance, Alpha Vantage, and CoinGecko across all markets."
+      description: "Get instant Discord notifications for new trade ideas from both engines with complete entry, target, stop-loss, and probability estimates."
     },
     {
       icon: Shield,
       title: "Risk Management",
-      description: "Built-in position sizing calculator with entry, target, stop-loss, and R:R ratio."
+      description: "Built-in position sizing with 3.5% stock stops, 5% crypto stops, 2:1 risk-reward ratios, and complete trade validation guardrails."
     }
   ];
 
