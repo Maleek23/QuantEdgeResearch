@@ -188,9 +188,20 @@ class AutoIdeaGenerator {
           processedIdea.stopLoss
         );
 
-        // If chart data unavailable, proceed without chart validation (graceful fallback)
+        // 🛡️ STRICT CHART VALIDATION: Reject if chart data unavailable (unless lotto/news)
+        // Check if this is a lotto play or news catalyst trade - these can bypass chart validation
+        const isLottoOrNews = isLotto || processedIdea.isNewsCatalyst === true;
+        
         if (!chartValidation.chartAnalysis) {
-          logger.info(`📊 [AUTO-GEN] ${processedIdea.symbol} - no chart data available, proceeding without chart validation`);
+          if (isLottoOrNews) {
+            // Lotto and news catalyst trades can proceed without chart validation
+            logger.info(`📊 [AUTO-GEN] ${processedIdea.symbol} - no chart data available, proceeding (${isLotto ? 'LOTTO' : 'NEWS CATALYST'} trade - chart validation optional)`);
+          } else {
+            // Regular trades REQUIRE chart validation - reject if unavailable
+            logger.warn(`🚫 [AUTO-GEN] CHART REJECTED ${processedIdea.symbol} - chart data unavailable for non-lotto/non-news trade`);
+            rejectedIdeas.push({ symbol: processedIdea.symbol, reason: 'Chart data unavailable - chart validation required for standard trades' });
+            continue;
+          }
         } else if (!chartValidation.isValid) {
           const rejectNote = chartValidation.validationNotes.find(n => n.startsWith('REJECTED')) || 'Chart pattern conflict';
           logger.warn(`📉 [AUTO-GEN] CHART REJECTED ${processedIdea.symbol} - ${rejectNote}`);

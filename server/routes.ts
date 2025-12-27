@@ -8,7 +8,7 @@ import { generateFuturesIdeas } from "./quantitative-engine";
 import { scanUnusualOptionsFlow } from "./flow-scanner";
 import { generateDiagnosticExport } from "./diagnostic-export";
 import { validateAndLog as validateTradeStructure } from "./trade-validation";
-import { deriveTimingWindows, verifyTimingUniqueness } from "./timing-intelligence";
+import { deriveTimingWindows, verifyTimingUniqueness, recalculateExitTime } from "./timing-intelligence";
 import { formatInTimeZone } from "date-fns-tz";
 import multer from "multer";
 import {
@@ -1382,11 +1382,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? await storage.getTradeIdeasByUser(userId)
           : [];
       
-      // Add current prices to response (options always get null - they use entry/target/stop premiums)
-      const ideasWithPrices = updatedIdeas.map(idea => ({
-        ...idea,
-        currentPrice: idea.assetType === 'option' ? null : (priceMap.get(idea.symbol) || null),
-      }));
+      // Add current prices and dynamically recalculated exit times to response
+      const ideasWithPrices = updatedIdeas.map(idea => {
+        const currentPrice = idea.assetType === 'option' ? null : (priceMap.get(idea.symbol) || null);
+        
+        // 🔄 DYNAMIC EXIT TIME: Recalculate for open trades with exitBy set
+        let adjustedExitBy = idea.exitBy;
+        if (idea.outcomeStatus === 'open' && idea.exitBy) {
+          try {
+            const recalcResult = recalculateExitTime({
+              symbol: idea.symbol,
+              assetType: idea.assetType as any,
+              entryPrice: idea.entryPrice,
+              targetPrice: idea.targetPrice,
+              stopLoss: idea.stopLoss,
+              direction: idea.direction as 'long' | 'short',
+              originalExitBy: idea.exitBy,
+              currentPrice: currentPrice || undefined,
+            });
+            adjustedExitBy = recalcResult.exitBy;
+          } catch (error) {
+            // Keep original exitBy on error
+          }
+        }
+        
+        return {
+          ...idea,
+          currentPrice,
+          exitBy: adjustedExitBy, // Return dynamically adjusted exit time
+        };
+      });
       
       res.json(ideasWithPrices);
     } catch (error) {

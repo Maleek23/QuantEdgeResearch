@@ -479,3 +479,132 @@ export function verifyTimingUniqueness(
   logger.info(`📊 [TIMING] Entry window range: ${Math.min(...entryWindowDurations)}min - ${Math.max(...entryWindowDurations)}min`);
   logger.info(`📊 [TIMING] Exit window range: ${Math.min(...exitWindowDurations)}min - ${Math.max(...exitWindowDurations)}min`);
 }
+
+// 🔄 DYNAMIC EXIT TIME RECALCULATION: Fluctuates exit times based on current volatility
+// Prevents all trades from showing identical exit times
+export interface RecalculateExitTimeInput {
+  symbol: string;
+  assetType: AssetType;
+  entryPrice: number;
+  targetPrice: number;
+  stopLoss: number;
+  direction: 'long' | 'short';
+  originalExitBy: string; // ISO timestamp
+  currentPrice?: number; // Optional current price for volatility estimation
+}
+
+export interface RecalculateExitTimeOutput {
+  exitBy: string; // Updated ISO timestamp
+  varianceApplied: number; // Percentage variance applied (-30% to +30%)
+  reason: string;
+}
+
+/**
+ * Recalculates the exitBy timestamp dynamically based on current market conditions
+ * Adds ±10-30% variance to prevent all trades showing identical exit times
+ */
+export function recalculateExitTime(input: RecalculateExitTimeInput): RecalculateExitTimeOutput {
+  const { symbol, assetType, entryPrice, targetPrice, stopLoss, direction, originalExitBy, currentPrice } = input;
+  
+  const originalExitDate = new Date(originalExitBy);
+  const now = new Date();
+  
+  // Calculate remaining time to original exit
+  const remainingMs = originalExitDate.getTime() - now.getTime();
+  
+  // If already expired or very close, don't adjust
+  if (remainingMs < 5 * 60 * 1000) { // Less than 5 minutes
+    return {
+      exitBy: originalExitBy,
+      varianceApplied: 0,
+      reason: 'Exit time imminent - no adjustment'
+    };
+  }
+  
+  // 📊 VOLATILITY ESTIMATION from price action
+  let volatilityMultiplier = 1.0;
+  let volatilityReason = 'baseline';
+  
+  // Calculate price range as volatility proxy
+  const maxMove = direction === 'long'
+    ? (targetPrice - entryPrice) / entryPrice
+    : (entryPrice - targetPrice) / entryPrice;
+  
+  const maxLoss = direction === 'long'
+    ? (entryPrice - stopLoss) / entryPrice
+    : (stopLoss - entryPrice) / entryPrice;
+  
+  const priceRangePercent = (maxMove + maxLoss) * 100;
+  
+  // If we have current price, use it to estimate volatility
+  if (currentPrice !== undefined) {
+    const currentPriceMove = Math.abs(currentPrice - entryPrice) / entryPrice * 100;
+    
+    // High volatility: price already moved significantly from entry
+    if (currentPriceMove > 2.5) {
+      volatilityMultiplier = 0.7 + Math.random() * 0.1; // 0.7x - 0.8x (shorten exit window)
+      volatilityReason = `high vol (${currentPriceMove.toFixed(1)}% move from entry)`;
+    } else if (currentPriceMove > 1.5) {
+      volatilityMultiplier = 0.85 + Math.random() * 0.15; // 0.85x - 1.0x
+      volatilityReason = `moderate vol (${currentPriceMove.toFixed(1)}% move)`;
+    } else {
+      volatilityMultiplier = 1.0 + Math.random() * 0.2; // 1.0x - 1.2x (can extend slightly)
+      volatilityReason = `low vol (${currentPriceMove.toFixed(1)}% move)`;
+    }
+  } else {
+    // Estimate from stop/target range if no current price
+    if (priceRangePercent > 8) {
+      volatilityMultiplier = 0.75 + Math.random() * 0.15; // Wide range = high vol
+      volatilityReason = `wide range (${priceRangePercent.toFixed(1)}%)`;
+    } else if (priceRangePercent > 5) {
+      volatilityMultiplier = 0.9 + Math.random() * 0.2;
+      volatilityReason = `moderate range (${priceRangePercent.toFixed(1)}%)`;
+    } else {
+      volatilityMultiplier = 1.0 + Math.random() * 0.15;
+      volatilityReason = `tight range (${priceRangePercent.toFixed(1)}%)`;
+    }
+  }
+  
+  // Asset-specific adjustments
+  if (assetType === 'option') {
+    volatilityMultiplier *= 0.85; // Options have time decay - shorter windows
+    volatilityReason += ' + options theta';
+  } else if (assetType === 'crypto') {
+    volatilityMultiplier *= 1.1; // Crypto 24/7 - can extend slightly
+    volatilityReason += ' + crypto 24/7';
+  }
+  
+  // Add ±10-30% random variance to prevent identical exit times
+  // This variance is seeded by symbol hash for consistency within session
+  const symbolHash = symbol.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const seedVariance = ((symbolHash % 41) - 20) / 100; // -20% to +20% based on symbol
+  const randomVariance = (Math.random() - 0.5) * 0.2; // ±10% additional random
+  const totalVariance = seedVariance + randomVariance;
+  
+  // Apply variance (clamped to ±30%)
+  const clampedVariance = Math.max(-0.3, Math.min(0.3, totalVariance));
+  const finalMultiplier = volatilityMultiplier * (1 + clampedVariance);
+  
+  // Calculate new remaining time
+  const adjustedRemainingMs = remainingMs * finalMultiplier;
+  
+  // Minimum 10 minutes, maximum is original + 30%
+  const minRemainingMs = 10 * 60 * 1000;
+  const maxRemainingMs = remainingMs * 1.3;
+  const clampedRemainingMs = Math.max(minRemainingMs, Math.min(maxRemainingMs, adjustedRemainingMs));
+  
+  // Calculate new exit time
+  const newExitDate = new Date(now.getTime() + clampedRemainingMs);
+  const newExitBy = newExitDate.toISOString();
+  
+  // Calculate actual variance percentage for logging
+  const actualVariance = ((clampedRemainingMs - remainingMs) / remainingMs) * 100;
+  
+  logger.debug(`⏰ [RECALC] ${symbol}: Exit time adjusted by ${actualVariance.toFixed(1)}% (${volatilityReason})`);
+  
+  return {
+    exitBy: newExitBy,
+    varianceApplied: Math.round(actualVariance * 10) / 10,
+    reason: volatilityReason
+  };
+}

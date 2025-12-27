@@ -30,6 +30,8 @@ import type {
   ActiveTrade,
   InsertActiveTrade,
   ActiveTradeStatus,
+  SubscriptionTier,
+  AssetType,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, desc, sql as drizzleSql } from "drizzle-orm";
@@ -597,7 +599,7 @@ export class MemStorage implements IStorage {
 
     seedCatalysts.forEach((catalyst) => {
       const id = randomUUID();
-      this.catalysts.set(id, { ...catalyst, id });
+      this.catalysts.set(id, { ...catalyst, id, sourceUrl: catalyst.sourceUrl ?? null } as Catalyst);
     });
 
     // Seed watchlist items
@@ -633,12 +635,26 @@ export class MemStorage implements IStorage {
     // Initialize default user preferences
     this.userPreferences = {
       id: randomUUID(),
+      userId: "default_user",
       accountSize: 10000,
       maxRiskPerTrade: 1,
       defaultCapitalPerIdea: 1000,
       defaultOptionsBudget: 250,
       preferredAssets: ["stock", "option", "crypto"],
       holdingHorizon: "intraday",
+      theme: "dark",
+      timezone: "America/Chicago",
+      defaultViewMode: "card",
+      compactMode: false,
+      discordWebhookUrl: null,
+      enableTradeAlerts: true,
+      enablePriceAlerts: true,
+      enablePerformanceAlerts: false,
+      enableWeeklyReport: false,
+      defaultAssetFilter: "all",
+      defaultConfidenceFilter: "all",
+      autoRefreshEnabled: true,
+      updatedAt: new Date(),
     };
   }
 
@@ -661,8 +677,12 @@ export class MemStorage implements IStorage {
       id,
       discordUserId: userData.discordUserId || null,
       discordUsername: userData.discordUsername || null,
-      email: userData.email || null,
-      subscriptionTier: userData.subscriptionTier || 'free',
+      email: userData.email ?? `user_${id}@quantedge.local`, // Email required in schema
+      passwordHash: userData.passwordHash || null,
+      firstName: userData.firstName || null,
+      lastName: userData.lastName || null,
+      profileImageUrl: userData.profileImageUrl || null,
+      subscriptionTier: (userData.subscriptionTier || 'free') as SubscriptionTier,
       subscriptionStatus: userData.subscriptionStatus || 'active',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -1177,7 +1197,7 @@ export class MemStorage implements IStorage {
 
   async createCatalyst(catalyst: InsertCatalyst): Promise<Catalyst> {
     const id = randomUUID();
-    const newCatalyst: Catalyst = { ...catalyst, id };
+    const newCatalyst: Catalyst = { ...catalyst, id, sourceUrl: catalyst.sourceUrl ?? null };
     this.catalysts.set(id, newCatalyst);
     return newCatalyst;
   }
@@ -1406,7 +1426,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUserSubscription(userId: string, subscriptionData: { stripeCustomerId?: string; stripeSubscriptionId?: string; subscriptionTier?: string; subscriptionStatus?: string; subscriptionEndsAt?: Date | null }): Promise<User | undefined> {
+  async updateUserSubscription(userId: string, subscriptionData: { stripeCustomerId?: string; stripeSubscriptionId?: string; subscriptionTier?: SubscriptionTier; subscriptionStatus?: string; subscriptionEndsAt?: Date | null }): Promise<User | undefined> {
     const [updated] = await db
       .update(users)
       .set({
@@ -1457,13 +1477,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createMarketData(data: InsertMarketData): Promise<MarketData> {
-    const [created] = await db.insert(marketDataTable).values(data).returning();
+    const [created] = await db.insert(marketDataTable).values(data as any).returning();
     return created;
   }
 
   async updateMarketData(symbol: string, data: Partial<InsertMarketData>): Promise<MarketData | undefined> {
     const [updated] = await db.update(marketDataTable)
-      .set(data)
+      .set(data as any)
       .where(eq(marketDataTable.symbol, symbol))
       .returning();
     return updated || undefined;
@@ -1480,7 +1500,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createTradeIdea(idea: InsertTradeIdea): Promise<TradeIdea> {
-    const [created] = await db.insert(tradeIdeas).values(idea).returning();
+    const [created] = await db.insert(tradeIdeas).values(idea as any).returning();
     return created;
   }
 
@@ -1512,7 +1532,7 @@ export class DatabaseStorage implements IStorage {
 
     // Add asset type filter if provided
     if (assetType) {
-      conditions.push(eq(tradeIdeas.assetType, assetType));
+      conditions.push(eq(tradeIdeas.assetType, assetType as AssetType));
     }
 
     // Add option-specific filters if provided
@@ -1975,7 +1995,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCatalyst(catalyst: InsertCatalyst): Promise<Catalyst> {
-    const [created] = await db.insert(catalystsTable).values(catalyst).returning();
+    const [created] = await db.insert(catalystsTable).values(catalyst as any).returning();
     return created;
   }
 
@@ -1996,7 +2016,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addToWatchlist(item: InsertWatchlist): Promise<WatchlistItem> {
-    const [created] = await db.insert(watchlistTable).values(item).returning();
+    const [created] = await db.insert(watchlistTable).values(item as any).returning();
     return created;
   }
 
@@ -2215,7 +2235,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createActiveTrade(trade: InsertActiveTrade): Promise<ActiveTrade> {
-    const [created] = await db.insert(activeTradesTable).values(trade).returning();
+    const [created] = await db.insert(activeTradesTable).values(trade as any).returning();
     return created;
   }
 
