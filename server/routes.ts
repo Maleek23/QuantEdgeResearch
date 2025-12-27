@@ -34,6 +34,7 @@ import { getSession, setupAuth } from "./replitAuth";
 import { setupGoogleAuth } from "./googleAuth";
 import { createUser, authenticateUser, sanitizeUser } from "./userAuth";
 import { getTierLimits } from "./tierConfig";
+import { syncDocumentationToNotion } from "./notion-sync";
 
 // Session-based authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -1063,6 +1064,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'maintenance archive' });
       res.status(500).json({ error: "Archive failed" });
+    }
+  });
+
+  // Notion Documentation Sync
+  app.post("/api/admin/sync-notion", requireAdmin, async (_req, res) => {
+    try {
+      logger.info('Starting Notion documentation sync');
+      const result = await syncDocumentationToNotion();
+      
+      if (result.success) {
+        res.json({ 
+          success: true, 
+          message: `Successfully synced ${result.pagesCreated} documentation pages to Notion`
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          error: result.error || "Sync failed"
+        });
+      }
+    } catch (error) {
+      logError(error as Error, { context: 'notion sync' });
+      res.status(500).json({ error: "Notion sync failed" });
     }
   });
 
