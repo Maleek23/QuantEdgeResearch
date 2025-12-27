@@ -63,11 +63,11 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-background to-blue-500/5" />
+      <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-background to-cyan-400/5" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
       
       <div className="relative w-full max-w-md overflow-hidden rounded-xl glass-card p-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
         <div className="relative z-10">
           <div className="space-y-1 mb-6">
             <div className="flex items-center gap-2 mb-4">

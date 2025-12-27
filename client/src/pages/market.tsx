@@ -84,7 +84,7 @@ export default function MarketPage() {
     <div className="container mx-auto p-6 space-y-6">
       {/* Header - Glassmorphism */}
       <div className="relative overflow-hidden rounded-xl glass-card p-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" data-testid="text-page-title">Market Overview</h1>

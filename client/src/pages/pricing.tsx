@@ -131,7 +131,7 @@ export default function Pricing() {
 
         {/* Hero Header - Glassmorphism */}
         <div className="relative overflow-hidden rounded-xl glass-card p-6 sm:p-8 mb-12">
-          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
           <div className="relative z-10 text-center">
             <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase mb-1">
               Research Platform

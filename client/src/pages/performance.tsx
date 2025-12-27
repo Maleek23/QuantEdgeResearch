@@ -228,7 +228,7 @@ export default function PerformancePage() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="relative overflow-hidden rounded-xl glass-card p-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold" data-testid="text-performance-title">Performance Tracker</h1>

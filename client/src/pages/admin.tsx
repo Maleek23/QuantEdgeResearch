@@ -479,7 +479,7 @@ export default function AdminPanel() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
         <div className="container relative mx-auto px-6 py-8">
           <div className="relative overflow-hidden rounded-xl glass-card p-6">
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
             <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
                 <h1 className="text-3xl lg:text-4xl font-bold flex items-center gap-3 text-display">

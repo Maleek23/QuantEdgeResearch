@@ -471,7 +471,7 @@ export default function Landing() {
               const Icon = step.icon;
               return (
                 <div key={step.number} className="relative overflow-hidden rounded-xl glass-card p-8 text-center" data-testid={`card-step-${idx + 1}`}>
-                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-blue-500/5" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-cyan-400/5" />
                   <div className="relative z-10">
                     <div className="h-20 w-20 rounded-full bg-cyan-500/10 border-2 border-cyan-400/20 flex items-center justify-center mx-auto mb-6">
                       <span className="text-3xl font-bold text-cyan-400">{step.number}</span>
@@ -1064,7 +1064,7 @@ export default function Landing() {
       <section className="py-16 md:py-24">
         <div className="container mx-auto px-6">
           <div className="relative overflow-hidden rounded-xl glass-card p-12 text-center">
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-blue-500/10" />
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
             <div className="relative z-10">
               <h2 className="text-3xl md:text-4xl font-bold mb-4">
                 Ready to Trade with Precision?
