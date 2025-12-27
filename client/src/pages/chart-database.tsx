@@ -20,11 +20,17 @@ export default function ChartDatabase() {
     queryKey: ['/api/trade-ideas'],
   });
 
-  const closedTrades = tradeIdeas.filter(idea => 
+  // Only include trades with resolved outcomes (hit_target or hit_stop)
+  // Expired trades are excluded because they timed out without resolution
+  const resolvedTrades = tradeIdeas.filter(idea => 
+    idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop'
+  );
+  
+  const allClosedTrades = tradeIdeas.filter(idea => 
     idea.outcomeStatus && idea.outcomeStatus !== 'open'
   );
 
-  const filteredTrades = closedTrades.filter(trade => {
+  const filteredTrades = allClosedTrades.filter(trade => {
     if (symbolSearch && !trade.symbol.toLowerCase().includes(symbolSearch.toLowerCase())) return false;
     if (outcomeFilter !== "all" && trade.outcomeStatus !== outcomeFilter) return false;
     if (assetFilter !== "all" && trade.assetType !== assetFilter) return false;
@@ -32,13 +38,18 @@ export default function ChartDatabase() {
     return true;
   });
 
+  const wins = resolvedTrades.filter(t => t.outcomeStatus === 'hit_target').length;
+  const losses = resolvedTrades.filter(t => t.outcomeStatus === 'hit_stop').length;
+  const totalResolved = wins + losses;
+  
   const stats = {
-    total: closedTrades.length,
-    wins: closedTrades.filter(t => t.outcomeStatus === 'hit_target').length,
-    losses: closedTrades.filter(t => t.outcomeStatus === 'hit_stop').length,
-    winRate: closedTrades.length > 0 
-      ? Math.round((closedTrades.filter(t => t.outcomeStatus === 'hit_target').length / closedTrades.length) * 100)
-      : 0,
+    total: allClosedTrades.length,
+    totalResolved: totalResolved,
+    expired: allClosedTrades.length - totalResolved,
+    wins: wins,
+    losses: losses,
+    // Win rate only calculated from resolved trades (not expired)
+    winRate: totalResolved > 0 ? Math.round((wins / totalResolved) * 100) : 0,
   };
 
   return (
@@ -55,14 +66,30 @@ export default function ChartDatabase() {
           </p>
         </div>
 
+        {/* Data Source Notice */}
+        <div className="glass-card rounded-xl border-l-2 border-l-amber-400 p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <BarChart3 className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-400">About This Data</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                This database includes auto-generated ideas from flow scanners, quant signals, and AI analysis. 
+                Win rate is calculated from <strong>resolved trades only</strong> (hit target or hit stop). 
+                {stats.expired > 0 && ` ${stats.expired.toLocaleString()} expired trades are excluded from win rate.`}
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Stats Cards */}
         <div className="grid md:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Total Patterns</p>
-                  <p className="text-3xl font-bold">{stats.total}</p>
+                  <p className="text-sm text-muted-foreground mb-1">Total Closed</p>
+                  <p className="text-3xl font-bold">{stats.total.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">{stats.totalResolved} resolved</p>
                 </div>
                 <BarChart3 className="h-8 w-8 text-primary" />
               </div>
@@ -96,6 +123,7 @@ export default function ChartDatabase() {
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Win Rate</p>
                   <p className="text-3xl font-bold">{stats.winRate}%</p>
+                  <p className="text-xs text-muted-foreground">of resolved trades</p>
                 </div>
                 <Target className="h-8 w-8 text-cyan-500" />
               </div>
