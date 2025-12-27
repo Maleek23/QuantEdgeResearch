@@ -36,7 +36,13 @@ import { createUser, authenticateUser, sanitizeUser } from "./userAuth";
 import { getTierLimits } from "./tierConfig";
 import { syncDocumentationToNotion } from "./notion-sync";
 import * as paperTradingService from "./paper-trading-service";
-import { insertPaperPortfolioSchema, insertPaperPositionSchema } from "@shared/schema";
+import { 
+  insertPaperPortfolioSchema, 
+  insertPaperPositionSchema,
+  insertTrackedWalletSchema,
+  insertWalletAlertSchema,
+  insertCTSourceSchema,
+} from "@shared/schema";
 
 // Session-based authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -5591,6 +5597,440 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       logger.error("Error recording equity snapshot", { error });
       res.status(500).json({ error: "Failed to record snapshot" });
+    }
+  });
+
+  // ==========================================
+  // WALLET TRACKER API ENDPOINTS
+  // ==========================================
+
+  // GET /api/wallets - Get all tracked wallets for authenticated user
+  app.get("/api/wallets", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const wallets = await storage.getTrackedWallets(userId);
+      res.json(wallets);
+    } catch (error: any) {
+      logger.error("Error fetching tracked wallets", { error });
+      res.status(500).json({ error: "Failed to fetch wallets" });
+    }
+  });
+
+  // POST /api/wallets - Add a new wallet to track
+  app.post("/api/wallets", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const validatedData = insertTrackedWalletSchema.parse({
+        ...req.body,
+        userId,
+      });
+      
+      const wallet = await storage.createTrackedWallet(validatedData);
+      res.status(201).json(wallet);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid wallet data", details: error.errors });
+      }
+      logger.error("Error creating tracked wallet", { error });
+      res.status(500).json({ error: "Failed to create wallet" });
+    }
+  });
+
+  // DELETE /api/wallets/:id - Remove a tracked wallet
+  app.delete("/api/wallets/:id", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { id } = req.params;
+      
+      const wallet = await storage.getTrackedWalletById(id);
+      if (!wallet) {
+        return res.status(404).json({ error: "Wallet not found" });
+      }
+      
+      if (wallet.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      await storage.deleteTrackedWallet(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error("Error deleting tracked wallet", { error });
+      res.status(500).json({ error: "Failed to delete wallet" });
+    }
+  });
+
+  // GET /api/wallets/:id/holdings - Get token holdings for a wallet
+  app.get("/api/wallets/:id/holdings", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { id } = req.params;
+      
+      const wallet = await storage.getTrackedWalletById(id);
+      if (!wallet) {
+        return res.status(404).json({ error: "Wallet not found" });
+      }
+      
+      if (wallet.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const holdings = await storage.getWalletHoldings(id);
+      res.json(holdings);
+    } catch (error: any) {
+      logger.error("Error fetching wallet holdings", { error });
+      res.status(500).json({ error: "Failed to fetch holdings" });
+    }
+  });
+
+  // GET /api/wallets/:id/transactions - Get transaction history for a wallet
+  app.get("/api/wallets/:id/transactions", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { id } = req.params;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      
+      const wallet = await storage.getTrackedWalletById(id);
+      if (!wallet) {
+        return res.status(404).json({ error: "Wallet not found" });
+      }
+      
+      if (wallet.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const transactions = await storage.getWalletTransactions(id, limit);
+      res.json(transactions);
+    } catch (error: any) {
+      logger.error("Error fetching wallet transactions", { error });
+      res.status(500).json({ error: "Failed to fetch transactions" });
+    }
+  });
+
+  // POST /api/wallets/:id/sync - Trigger a sync for wallet holdings/transactions
+  app.post("/api/wallets/:id/sync", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { id } = req.params;
+      
+      const wallet = await storage.getTrackedWalletById(id);
+      if (!wallet) {
+        return res.status(404).json({ error: "Wallet not found" });
+      }
+      
+      if (wallet.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      // Update lastSyncAt timestamp (actual sync would be done by a background service)
+      const now = new Date().toISOString();
+      await storage.updateTrackedWallet(id, { lastSyncAt: now });
+      
+      res.json({ 
+        success: true, 
+        message: "Wallet sync initiated",
+        syncedAt: now 
+      });
+    } catch (error: any) {
+      logger.error("Error syncing wallet", { error });
+      res.status(500).json({ error: "Failed to sync wallet" });
+    }
+  });
+
+  // GET /api/whale-activity - Get recent large transactions across all tracked wallets
+  app.get("/api/whale-activity", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+      
+      const activity = await storage.getWhaleActivity(userId, limit);
+      res.json(activity);
+    } catch (error: any) {
+      logger.error("Error fetching whale activity", { error });
+      res.status(500).json({ error: "Failed to fetch whale activity" });
+    }
+  });
+
+  // POST /api/wallet-alerts - Create an alert for a wallet
+  app.post("/api/wallet-alerts", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const validatedData = insertWalletAlertSchema.parse({
+        ...req.body,
+        userId,
+      });
+      
+      // Verify wallet belongs to user
+      const wallet = await storage.getTrackedWalletById(validatedData.walletId);
+      if (!wallet || wallet.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized or wallet not found" });
+      }
+      
+      const alert = await storage.createWalletAlert(validatedData);
+      res.status(201).json(alert);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid alert data", details: error.errors });
+      }
+      logger.error("Error creating wallet alert", { error });
+      res.status(500).json({ error: "Failed to create alert" });
+    }
+  });
+
+  // GET /api/wallet-alerts - Get all alerts for authenticated user
+  app.get("/api/wallet-alerts", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const alerts = await storage.getWalletAlerts(userId);
+      res.json(alerts);
+    } catch (error: any) {
+      logger.error("Error fetching wallet alerts", { error });
+      res.status(500).json({ error: "Failed to fetch alerts" });
+    }
+  });
+
+  // DELETE /api/wallet-alerts/:id - Delete an alert
+  app.delete("/api/wallet-alerts/:id", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { id } = req.params;
+      
+      const alert = await storage.getWalletAlertById(id);
+      if (!alert) {
+        return res.status(404).json({ error: "Alert not found" });
+      }
+      
+      if (alert.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      await storage.deleteWalletAlert(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error("Error deleting wallet alert", { error });
+      res.status(500).json({ error: "Failed to delete alert" });
+    }
+  });
+
+  // ==========================================
+  // CT TRACKER API ENDPOINTS
+  // ==========================================
+
+  // GET /api/ct/sources - Get all tracked influencer sources
+  app.get("/api/ct/sources", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const sources = await storage.getCTSources();
+      res.json(sources);
+    } catch (error: any) {
+      logger.error("Error fetching CT sources", { error });
+      res.status(500).json({ error: "Failed to fetch sources" });
+    }
+  });
+
+  // POST /api/ct/sources - Add a new influencer source to track
+  app.post("/api/ct/sources", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const validatedData = insertCTSourceSchema.parse(req.body);
+      const source = await storage.createCTSource(validatedData);
+      res.status(201).json(source);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid source data", details: error.errors });
+      }
+      logger.error("Error creating CT source", { error });
+      res.status(500).json({ error: "Failed to create source" });
+    }
+  });
+
+  // DELETE /api/ct/sources/:id - Remove a source
+  app.delete("/api/ct/sources/:id", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const { id } = req.params;
+      
+      const source = await storage.getCTSourceById(id);
+      if (!source) {
+        return res.status(404).json({ error: "Source not found" });
+      }
+      
+      await storage.deleteCTSource(id);
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error("Error deleting CT source", { error });
+      res.status(500).json({ error: "Failed to delete source" });
+    }
+  });
+
+  // GET /api/ct/mentions - Get recent mentions (query params: hours, ticker, sentiment)
+  app.get("/api/ct/mentions", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const hours = req.query.hours ? parseInt(req.query.hours as string) : undefined;
+      const ticker = req.query.ticker as string | undefined;
+      const sentiment = req.query.sentiment as string | undefined;
+      
+      let mentions;
+      if (ticker) {
+        mentions = await storage.getCTMentionsByTicker(ticker, hours);
+      } else if (sentiment) {
+        mentions = await storage.getCTMentionsBySentiment(sentiment, hours);
+      } else {
+        mentions = await storage.getCTMentions(hours);
+      }
+      
+      res.json(mentions);
+    } catch (error: any) {
+      logger.error("Error fetching CT mentions", { error });
+      res.status(500).json({ error: "Failed to fetch mentions" });
+    }
+  });
+
+  // GET /api/ct/top-tickers - Get most mentioned tickers
+  app.get("/api/ct/top-tickers", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const hours = req.query.hours ? parseInt(req.query.hours as string) : 24;
+      
+      const mentions = await storage.getCTMentions(hours);
+      
+      // Count ticker mentions
+      const tickerCounts = new Map<string, { count: number; bullish: number; bearish: number; neutral: number }>();
+      
+      for (const mention of mentions) {
+        if (mention.tickers) {
+          for (const ticker of mention.tickers) {
+            const existing = tickerCounts.get(ticker) || { count: 0, bullish: 0, bearish: 0, neutral: 0 };
+            existing.count++;
+            if (mention.sentiment === 'bullish') existing.bullish++;
+            else if (mention.sentiment === 'bearish') existing.bearish++;
+            else existing.neutral++;
+            tickerCounts.set(ticker, existing);
+          }
+        }
+      }
+      
+      // Sort by count and return top tickers
+      const topTickers = Array.from(tickerCounts.entries())
+        .map(([ticker, data]) => ({ ticker, ...data }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit);
+      
+      res.json(topTickers);
+    } catch (error: any) {
+      logger.error("Error fetching top tickers", { error });
+      res.status(500).json({ error: "Failed to fetch top tickers" });
+    }
+  });
+
+  // POST /api/ct/parse - Parse text for ticker mentions
+  app.post("/api/ct/parse", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const { text, sourceId } = req.body;
+      
+      if (!text || typeof text !== 'string') {
+        return res.status(400).json({ error: "Text is required" });
+      }
+      
+      // Parse tickers from text (looking for $SYMBOL pattern)
+      const tickerRegex = /\$[A-Z]{1,10}/gi;
+      const tickers = [...new Set(text.match(tickerRegex) || [])].map(t => t.toUpperCase());
+      
+      // Simple sentiment analysis based on keywords
+      const bullishKeywords = ['buy', 'long', 'moon', 'bullish', 'pump', 'breakout', 'accumulate', 'ath', 'gains'];
+      const bearishKeywords = ['sell', 'short', 'dump', 'bearish', 'crash', 'avoid', 'rekt', 'scam', 'rug'];
+      
+      const lowerText = text.toLowerCase();
+      const bullishScore = bullishKeywords.filter(k => lowerText.includes(k)).length;
+      const bearishScore = bearishKeywords.filter(k => lowerText.includes(k)).length;
+      
+      let sentiment: 'bullish' | 'bearish' | 'neutral' = 'neutral';
+      let sentimentScore = 0;
+      
+      if (bullishScore > bearishScore) {
+        sentiment = 'bullish';
+        sentimentScore = Math.min(1, bullishScore * 0.2);
+      } else if (bearishScore > bullishScore) {
+        sentiment = 'bearish';
+        sentimentScore = Math.max(-1, -bearishScore * 0.2);
+      }
+      
+      // Check if this appears to be a trading call
+      const callKeywords = ['entry', 'target', 'tp', 'sl', 'stop', 'take profit', 'position', 'buy at', 'sell at'];
+      const isCall = callKeywords.some(k => lowerText.includes(k));
+      
+      res.json({
+        tickers,
+        sentiment,
+        sentimentScore,
+        isCall,
+        originalText: text,
+        sourceId,
+      });
+    } catch (error: any) {
+      logger.error("Error parsing CT text", { error });
+      res.status(500).json({ error: "Failed to parse text" });
+    }
+  });
+
+  // GET /api/ct/performance - Get call performance stats
+  app.get("/api/ct/performance", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const stats = await storage.getCTCallPerformanceStats();
+      res.json(stats);
+    } catch (error: any) {
+      logger.error("Error fetching CT performance", { error });
+      res.status(500).json({ error: "Failed to fetch performance stats" });
+    }
+  });
+
+  // POST /api/ct/generate-mock - Generate mock data for testing (admin only)
+  app.post("/api/ct/generate-mock", isAuthenticated, requireAdmin, async (req: any, res: Response) => {
+    try {
+      const { count = 10 } = req.body;
+      
+      // Generate mock CT sources
+      const mockSources = [
+        { platform: 'twitter' as const, handle: '@cryptowhale', displayName: 'Crypto Whale', category: 'whale' },
+        { platform: 'twitter' as const, handle: '@defi_insider', displayName: 'DeFi Insider', category: 'analyst' },
+        { platform: 'twitter' as const, handle: '@altcoin_daily', displayName: 'Altcoin Daily', category: 'news' },
+      ];
+      
+      const createdSources = [];
+      for (const source of mockSources) {
+        const created = await storage.createCTSource(source);
+        createdSources.push(created);
+      }
+      
+      // Generate mock mentions
+      const mockTickers = ['$BTC', '$ETH', '$SOL', '$AVAX', '$MATIC', '$ARB', '$DOGE', '$SHIB'];
+      const sentiments: Array<'bullish' | 'bearish' | 'neutral'> = ['bullish', 'bearish', 'neutral'];
+      
+      const createdMentions = [];
+      for (let i = 0; i < count; i++) {
+        const source = createdSources[Math.floor(Math.random() * createdSources.length)];
+        const ticker = mockTickers[Math.floor(Math.random() * mockTickers.length)];
+        const sentiment = sentiments[Math.floor(Math.random() * sentiments.length)];
+        
+        const mention = await storage.createCTMention({
+          sourceId: source.id,
+          postText: `Mock ${sentiment} call on ${ticker}. This is a test mention.`,
+          tickers: [ticker],
+          sentiment,
+          sentimentScore: sentiment === 'bullish' ? 0.7 : sentiment === 'bearish' ? -0.7 : 0,
+          isCall: Math.random() > 0.5,
+          postedAt: new Date().toISOString(),
+          fetchedAt: new Date().toISOString(),
+        });
+        createdMentions.push(mention);
+      }
+      
+      res.json({
+        success: true,
+        created: {
+          sources: createdSources.length,
+          mentions: createdMentions.length,
+        },
+      });
+    } catch (error: any) {
+      logger.error("Error generating mock CT data", { error });
+      res.status(500).json({ error: "Failed to generate mock data" });
     }
   });
 

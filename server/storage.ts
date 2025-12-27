@@ -39,6 +39,20 @@ import type {
   PaperEquitySnapshot,
   InsertPaperEquitySnapshot,
   PaperTradeStatus,
+  InsertCTSource,
+  CTSource,
+  InsertCTMention,
+  CTMention,
+  InsertCTCallPerformance,
+  CTCallPerformance,
+  TrackedWallet,
+  InsertTrackedWallet,
+  WalletHolding,
+  InsertWalletHolding,
+  WalletTransaction,
+  InsertWalletTransaction,
+  WalletAlert,
+  InsertWalletAlert,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, sql as drizzleSql } from "drizzle-orm";
@@ -57,6 +71,13 @@ import {
   paperPortfolios as paperPortfoliosTable,
   paperPositions as paperPositionsTable,
   paperEquitySnapshots as paperEquitySnapshotsTable,
+  ctSources,
+  ctMentions,
+  ctCallPerformance,
+  trackedWallets,
+  walletHoldings,
+  walletTransactions,
+  walletAlerts,
 } from "@shared/schema";
 
 export interface ChatMessage {
@@ -217,6 +238,40 @@ export interface IStorage {
   // Paper Trading - Equity Snapshots
   createPaperEquitySnapshot(snapshot: InsertPaperEquitySnapshot): Promise<PaperEquitySnapshot>;
   getPaperEquitySnapshots(portfolioId: string, startDate?: string, endDate?: string): Promise<PaperEquitySnapshot[]>;
+
+  // CT Ingestion
+  createCTSource(source: InsertCTSource): Promise<CTSource>;
+  getCTSources(): Promise<CTSource[]>;
+  getCTSourceById(id: string): Promise<CTSource | undefined>;
+  deleteCTSource(id: string): Promise<boolean>;
+  createCTMention(mention: InsertCTMention): Promise<CTMention>;
+  getCTMentions(hours?: number): Promise<CTMention[]>;
+  getCTMentionsByTicker(ticker: string, hours?: number): Promise<CTMention[]>;
+  getCTMentionsBySentiment(sentiment: string, hours?: number): Promise<CTMention[]>;
+  getCTCallPerformance(mentionId: number): Promise<CTCallPerformance | undefined>;
+  getCTCallPerformanceStats(): Promise<{ totalCalls: number; wins: number; losses: number; winRate: number }>;
+  updateCTCallPerformance(mentionId: number, updates: Partial<CTCallPerformance>): Promise<CTCallPerformance>;
+
+  // Wallet Tracker
+  getTrackedWallets(userId: string): Promise<TrackedWallet[]>;
+  getTrackedWalletById(id: string): Promise<TrackedWallet | undefined>;
+  createTrackedWallet(wallet: InsertTrackedWallet): Promise<TrackedWallet>;
+  deleteTrackedWallet(id: string): Promise<boolean>;
+  updateTrackedWallet(id: string, updates: Partial<TrackedWallet>): Promise<TrackedWallet | undefined>;
+  
+  getWalletHoldings(walletId: string): Promise<WalletHolding[]>;
+  createWalletHolding(holding: InsertWalletHolding): Promise<WalletHolding>;
+  updateWalletHolding(id: string, updates: Partial<WalletHolding>): Promise<WalletHolding | undefined>;
+  deleteWalletHoldings(walletId: string): Promise<boolean>;
+  
+  getWalletTransactions(walletId: string, limit?: number): Promise<WalletTransaction[]>;
+  getWhaleActivity(userId: string, limit?: number): Promise<WalletTransaction[]>;
+  createWalletTransaction(tx: InsertWalletTransaction): Promise<WalletTransaction>;
+  
+  getWalletAlerts(userId: string): Promise<WalletAlert[]>;
+  getWalletAlertById(id: string): Promise<WalletAlert | undefined>;
+  createWalletAlert(alert: InsertWalletAlert): Promise<WalletAlert>;
+  deleteWalletAlert(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -229,6 +284,9 @@ export class MemStorage implements IStorage {
   private chatHistory: Map<string, ChatMessage>;
   private users: Map<string, User>;
   private futuresContracts: Map<string, FuturesContract>;
+  private ctSources: Map<number, CTSource>;
+  private ctMentions: Map<number, CTMention>;
+  private ctCallPerformance: Map<number, CTCallPerformance>;
 
   constructor() {
     this.marketData = new Map();
@@ -240,6 +298,9 @@ export class MemStorage implements IStorage {
     this.chatHistory = new Map();
     this.users = new Map();
     this.futuresContracts = new Map();
+    this.ctSources = new Map();
+    this.ctMentions = new Map();
+    this.ctCallPerformance = new Map();
     this.seedData();
   }
 
@@ -2499,6 +2560,201 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(paperEquitySnapshotsTable)
       .where(and(...conditions))
       .orderBy(desc(paperEquitySnapshotsTable.date));
+  }
+
+  // CT Ingestion
+  async createCTSource(source: InsertCTSource): Promise<CTSource> {
+    const [created] = await db.insert(ctSources).values(source as any).returning();
+    return created;
+  }
+
+  async getCTSources(): Promise<CTSource[]> {
+    return await db.select().from(ctSources);
+  }
+
+  async createCTMention(mention: InsertCTMention): Promise<CTMention> {
+    const [created] = await db.insert(ctMentions).values(mention as any).returning();
+    return created;
+  }
+
+  async getCTMentions(hours?: number): Promise<CTMention[]> {
+    if (hours) {
+      const cutoff = new Date(Date.now() - hours * 60 * 60 * 1000);
+      return await db.select().from(ctMentions)
+        .where(gte(ctMentions.timestamp, cutoff))
+        .orderBy(desc(ctMentions.timestamp));
+    }
+    return await db.select().from(ctMentions).orderBy(desc(ctMentions.timestamp));
+  }
+
+  async getCTCallPerformance(mentionId: number): Promise<CTCallPerformance | undefined> {
+    const [performance] = await db.select().from(ctCallPerformance)
+      .where(eq(ctCallPerformance.mentionId, mentionId));
+    return performance || undefined;
+  }
+
+  async updateCTCallPerformance(mentionId: number, updates: Partial<CTCallPerformance>): Promise<CTCallPerformance> {
+    const performance = await this.getCTCallPerformance(mentionId);
+    if (performance) {
+      const [updated] = await db.update(ctCallPerformance)
+        .set({ ...updates, lastCheckedAt: new Date() })
+        .where(eq(ctCallPerformance.id, performance.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(ctCallPerformance).values({
+      mentionId,
+      entryPrice: updates.entryPrice || 0,
+      currentPrice: updates.currentPrice || null,
+      maxPriceReached: updates.maxPriceReached || null,
+      percentChange: updates.percentChange || null,
+      status: updates.status || 'active',
+      lastCheckedAt: new Date(),
+    } as any).returning();
+    return created;
+  }
+
+  async getCTSourceById(id: string): Promise<CTSource | undefined> {
+    const [source] = await db.select().from(ctSources).where(eq(ctSources.id, id));
+    return source || undefined;
+  }
+
+  async deleteCTSource(id: string): Promise<boolean> {
+    await db.delete(ctMentions).where(eq(ctMentions.sourceId, id));
+    await db.delete(ctSources).where(eq(ctSources.id, id));
+    return true;
+  }
+
+  async getCTMentionsByTicker(ticker: string, hours?: number): Promise<CTMention[]> {
+    const normalizedTicker = ticker.startsWith('$') ? ticker : `$${ticker}`;
+    const allMentions = await this.getCTMentions(hours);
+    return allMentions.filter(m => m.tickers?.includes(normalizedTicker));
+  }
+
+  async getCTMentionsBySentiment(sentiment: string, hours?: number): Promise<CTMention[]> {
+    const allMentions = await this.getCTMentions(hours);
+    return allMentions.filter(m => m.sentiment === sentiment);
+  }
+
+  async getCTCallPerformanceStats(): Promise<{ totalCalls: number; wins: number; losses: number; winRate: number }> {
+    const allPerformance = await db.select().from(ctCallPerformance);
+    const wins = allPerformance.filter(p => p.status === 'win').length;
+    const losses = allPerformance.filter(p => p.status === 'loss').length;
+    const totalCalls = allPerformance.length;
+    const winRate = totalCalls > 0 ? (wins / (wins + losses)) * 100 : 0;
+    return { totalCalls, wins, losses, winRate };
+  }
+
+  // ==========================================
+  // WALLET TRACKER OPERATIONS
+  // ==========================================
+
+  async getTrackedWallets(userId: string): Promise<TrackedWallet[]> {
+    return await db.select().from(trackedWallets)
+      .where(eq(trackedWallets.userId, userId))
+      .orderBy(desc(trackedWallets.createdAt));
+  }
+
+  async getTrackedWalletById(id: string): Promise<TrackedWallet | undefined> {
+    const [wallet] = await db.select().from(trackedWallets).where(eq(trackedWallets.id, id));
+    return wallet || undefined;
+  }
+
+  async createTrackedWallet(wallet: InsertTrackedWallet): Promise<TrackedWallet> {
+    const [created] = await db.insert(trackedWallets).values(wallet as any).returning();
+    return created;
+  }
+
+  async deleteTrackedWallet(id: string): Promise<boolean> {
+    await db.delete(walletHoldings).where(eq(walletHoldings.walletId, id));
+    await db.delete(walletTransactions).where(eq(walletTransactions.walletId, id));
+    await db.delete(walletAlerts).where(eq(walletAlerts.walletId, id));
+    await db.delete(trackedWallets).where(eq(trackedWallets.id, id));
+    return true;
+  }
+
+  async updateTrackedWallet(id: string, updates: Partial<TrackedWallet>): Promise<TrackedWallet | undefined> {
+    const [updated] = await db.update(trackedWallets)
+      .set(updates)
+      .where(eq(trackedWallets.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async getWalletHoldings(walletId: string): Promise<WalletHolding[]> {
+    return await db.select().from(walletHoldings)
+      .where(eq(walletHoldings.walletId, walletId));
+  }
+
+  async createWalletHolding(holding: InsertWalletHolding): Promise<WalletHolding> {
+    const [created] = await db.insert(walletHoldings).values(holding as any).returning();
+    return created;
+  }
+
+  async updateWalletHolding(id: string, updates: Partial<WalletHolding>): Promise<WalletHolding | undefined> {
+    const [updated] = await db.update(walletHoldings)
+      .set(updates)
+      .where(eq(walletHoldings.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteWalletHoldings(walletId: string): Promise<boolean> {
+    await db.delete(walletHoldings).where(eq(walletHoldings.walletId, walletId));
+    return true;
+  }
+
+  async getWalletTransactions(walletId: string, limit?: number): Promise<WalletTransaction[]> {
+    const query = db.select().from(walletTransactions)
+      .where(eq(walletTransactions.walletId, walletId))
+      .orderBy(desc(walletTransactions.createdAt));
+    
+    if (limit) {
+      return await query.limit(limit);
+    }
+    return await query;
+  }
+
+  async getWhaleActivity(userId: string, limit: number = 50): Promise<WalletTransaction[]> {
+    const userWallets = await this.getTrackedWallets(userId);
+    const walletIds = userWallets.map(w => w.id);
+    
+    if (walletIds.length === 0) {
+      return [];
+    }
+
+    const transactions = await db.select().from(walletTransactions)
+      .where(eq(walletTransactions.isLargeTransaction, true))
+      .orderBy(desc(walletTransactions.createdAt))
+      .limit(limit);
+    
+    return transactions.filter(tx => walletIds.includes(tx.walletId));
+  }
+
+  async createWalletTransaction(tx: InsertWalletTransaction): Promise<WalletTransaction> {
+    const [created] = await db.insert(walletTransactions).values(tx as any).returning();
+    return created;
+  }
+
+  async getWalletAlerts(userId: string): Promise<WalletAlert[]> {
+    return await db.select().from(walletAlerts)
+      .where(eq(walletAlerts.userId, userId))
+      .orderBy(desc(walletAlerts.createdAt));
+  }
+
+  async getWalletAlertById(id: string): Promise<WalletAlert | undefined> {
+    const [alert] = await db.select().from(walletAlerts).where(eq(walletAlerts.id, id));
+    return alert || undefined;
+  }
+
+  async createWalletAlert(alert: InsertWalletAlert): Promise<WalletAlert> {
+    const [created] = await db.insert(walletAlerts).values(alert as any).returning();
+    return created;
+  }
+
+  async deleteWalletAlert(id: string): Promise<boolean> {
+    await db.delete(walletAlerts).where(eq(walletAlerts.id, id));
+    return true;
   }
 }
 

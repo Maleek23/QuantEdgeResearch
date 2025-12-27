@@ -33,6 +33,8 @@ import TradingRules from "@/pages/trading-rules";
 import Pricing from "@/pages/pricing";
 import LiveTrading from "@/pages/live-trading";
 import PaperTrading from "@/pages/paper-trading";
+import WalletTracker from "@/pages/wallet-tracker";
+import CTTracker from "@/pages/ct-tracker";
 import NotFound from "@/pages/not-found";
 function Router() {
   return (
@@ -45,6 +47,8 @@ function Router() {
       <Route path="/trade-desk" component={TradeDeskPage} />
       <Route path="/live-trading" component={LiveTrading} />
       <Route path="/paper-trading" component={PaperTrading} />
+      <Route path="/wallet-tracker" component={WalletTracker} />
+      <Route path="/ct-tracker" component={CTTracker} />
       <Route path="/chart-analysis" component={ChartAnalysis} />
       <Route path="/performance" component={PerformancePage} />
       <Route path="/market" component={MarketPage} />

@@ -161,6 +161,13 @@ export const tradeIdeas = pgTable("trade_ideas", {
   isLottoPlay: boolean("is_lotto_play").default(false), // True for $20-70 options with delta <0.30 (far OTM)
 });
 
+// Ticker Data Types
+export type TickerMention = {
+  ticker: string;
+  sentiment: 'bullish' | 'bearish' | 'neutral';
+  confidence: number;
+};
+
 export const insertTradeIdeaSchema = createInsertSchema(tradeIdeas).omit({ id: true });
 export type InsertTradeIdea = z.infer<typeof insertTradeIdeaSchema>;
 export type TradeIdea = typeof tradeIdeas.$inferSelect & {
