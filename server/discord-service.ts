@@ -2,6 +2,9 @@
 import type { TradeIdea } from "@shared/schema";
 import { logger } from './logger';
 
+// GLOBAL DISABLE FLAG - Set to true to stop all Discord notifications
+const DISCORD_DISABLED = true;
+
 interface DiscordEmbed {
   title: string;
   description: string;
@@ -137,6 +140,8 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
 
 // Send trade idea to Discord webhook
 export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
@@ -185,6 +190,8 @@ export async function sendDiscordAlert(alert: {
   strike?: number;
   expiry?: string;
 }): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
@@ -278,6 +285,8 @@ export async function sendDiscordAlert(alert: {
 
 // Send batch summary to Discord
 export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai' | 'quant' | 'hybrid' | 'flow' | 'news'): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl || ideas.length === 0) {
@@ -363,6 +372,8 @@ export async function sendChartAnalysisToDiscord(analysis: {
   riskRewardRatio: number;
   timeframe?: string;
 }): Promise<boolean> {
+  if (DISCORD_DISABLED) return false;
+  
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
@@ -454,6 +465,8 @@ export async function sendChartAnalysisToDiscord(analysis: {
 
 // Send daily summary of top trade ideas (scheduled for 8:00 AM CT)
 export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {

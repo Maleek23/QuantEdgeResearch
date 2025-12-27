@@ -4086,7 +4086,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let currentPrice: number | null = null;
       if (symbol) {
         try {
-          const isCrypto = ['BTC', 'ETH', 'SOL', 'DOGE', 'XRP', 'ADA', 'AVAX', 'LINK', 'DOT', 'MATIC'].some(
+          const isCrypto = ['BTC', 'ETH', 'SOL', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT', 'MATIC'].some(
             crypto => symbol.toUpperCase().includes(crypto)
           );
           

@@ -286,7 +286,7 @@ export async function generateTradeIdeas(marketContext: string): Promise<AITrade
   const systemPrompt = `You are a quantitative trading analyst. Generate 3-4 high-quality trade ideas based on current market conditions.
 
 CRYPTO UNIVERSE (pick 1-2 from different sectors):
-- Large Cap: BTC, ETH, XRP, BNB, SOL, ADA
+- Large Cap: BTC, ETH, BNB, SOL, ADA
 - DeFi: AAVE, UNI, LINK, MKR
 - L1s: SOL, AVAX, NEAR, FTM
 - Meme/Speculative: DOGE, SHIB, PEPE
