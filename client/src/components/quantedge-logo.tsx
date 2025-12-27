@@ -28,10 +28,6 @@ export function QuantEdgeLogo({ collapsed = false, className, size = "md" }: Qua
               <stop offset="50%" stopColor="#059669" />
               <stop offset="100%" stopColor="#047857" />
             </linearGradient>
-            <linearGradient id="qe-gradient-accent" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#6366f1" />
-              <stop offset="100%" stopColor="#8b5cf6" />
-            </linearGradient>
             <linearGradient id="qe-gradient-gold" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#fbbf24" />
               <stop offset="100%" stopColor="#f59e0b" />
@@ -41,74 +37,41 @@ export function QuantEdgeLogo({ collapsed = false, className, size = "md" }: Qua
           <rect 
             x="2" y="2" 
             width="44" height="44" 
-            rx="8" 
-            fill="currentColor" 
-            className="text-slate-900 dark:text-slate-100"
-            fillOpacity="0.05"
+            rx="10" 
+            fill="#0f1419"
           />
           <rect 
             x="2" y="2" 
             width="44" height="44" 
-            rx="8" 
+            rx="10" 
             stroke="url(#qe-gradient-primary)" 
-            strokeWidth="2"
+            strokeWidth="2.5"
             fill="none"
           />
           
+          <text 
+            x="24" 
+            y="20" 
+            textAnchor="middle" 
+            fontSize="12" 
+            fontWeight="600" 
+            fontFamily="system-ui, -apple-system, sans-serif"
+            fill="#9ca3af"
+            letterSpacing="1"
+          >
+            QE
+          </text>
+          
           <path 
-            d="M12 32 L18 24 L24 28 L30 18 L36 22" 
+            d="M10 36 L20 30 L30 32 L38 24" 
             stroke="url(#qe-gradient-primary)" 
-            strokeWidth="3" 
+            strokeWidth="2.5" 
             strokeLinecap="round" 
             strokeLinejoin="round"
             fill="none"
           />
           
-          <circle cx="36" cy="22" r="3" fill="url(#qe-gradient-gold)" />
-          
-          <path 
-            d="M12 36 L12 32" 
-            stroke="url(#qe-gradient-accent)" 
-            strokeWidth="2.5" 
-            strokeLinecap="round"
-          />
-          <path 
-            d="M18 36 L18 24" 
-            stroke="url(#qe-gradient-accent)" 
-            strokeWidth="2.5" 
-            strokeLinecap="round"
-          />
-          <path 
-            d="M24 36 L24 28" 
-            stroke="url(#qe-gradient-accent)" 
-            strokeWidth="2.5" 
-            strokeLinecap="round"
-          />
-          <path 
-            d="M30 36 L30 18" 
-            stroke="url(#qe-gradient-accent)" 
-            strokeWidth="2.5" 
-            strokeLinecap="round"
-          />
-          <path 
-            d="M36 36 L36 22" 
-            stroke="url(#qe-gradient-accent)" 
-            strokeWidth="2.5" 
-            strokeLinecap="round"
-          />
-          
-          <text 
-            x="24" 
-            y="14" 
-            textAnchor="middle" 
-            fontSize="8" 
-            fontWeight="700" 
-            fontFamily="system-ui, -apple-system, sans-serif"
-            fill="url(#qe-gradient-primary)"
-            letterSpacing="0.5"
-          >
-            QE
-          </text>
+          <circle cx="10" cy="36" r="3" fill="url(#qe-gradient-gold)" />
         </svg>
       </div>
       
@@ -140,10 +103,6 @@ export function QuantEdgeIcon({ className }: { className?: string }) {
           <stop offset="50%" stopColor="#059669" />
           <stop offset="100%" stopColor="#047857" />
         </linearGradient>
-        <linearGradient id="qe-icon-accent" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#6366f1" />
-          <stop offset="100%" stopColor="#8b5cf6" />
-        </linearGradient>
         <linearGradient id="qe-icon-gold" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stopColor="#fbbf24" />
           <stop offset="100%" stopColor="#f59e0b" />
@@ -153,49 +112,41 @@ export function QuantEdgeIcon({ className }: { className?: string }) {
       <rect 
         x="2" y="2" 
         width="44" height="44" 
-        rx="8" 
-        fill="currentColor" 
-        className="text-slate-900 dark:text-slate-100"
-        fillOpacity="0.05"
+        rx="10" 
+        fill="#0f1419"
       />
       <rect 
         x="2" y="2" 
         width="44" height="44" 
-        rx="8" 
+        rx="10" 
         stroke="url(#qe-icon-gradient)" 
-        strokeWidth="2"
+        strokeWidth="2.5"
         fill="none"
       />
       
+      <text 
+        x="24" 
+        y="20" 
+        textAnchor="middle" 
+        fontSize="12" 
+        fontWeight="600" 
+        fontFamily="system-ui, -apple-system, sans-serif"
+        fill="#9ca3af"
+        letterSpacing="1"
+      >
+        QE
+      </text>
+      
       <path 
-        d="M12 32 L18 24 L24 28 L30 18 L36 22" 
+        d="M10 36 L20 30 L30 32 L38 24" 
         stroke="url(#qe-icon-gradient)" 
-        strokeWidth="3" 
+        strokeWidth="2.5" 
         strokeLinecap="round" 
         strokeLinejoin="round"
         fill="none"
       />
       
-      <circle cx="36" cy="22" r="3" fill="url(#qe-icon-gold)" />
-      
-      <path d="M12 36 L12 32" stroke="url(#qe-icon-accent)" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M18 36 L18 24" stroke="url(#qe-icon-accent)" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M24 36 L24 28" stroke="url(#qe-icon-accent)" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M30 36 L30 18" stroke="url(#qe-icon-accent)" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M36 36 L36 22" stroke="url(#qe-icon-accent)" strokeWidth="2.5" strokeLinecap="round" />
-      
-      <text 
-        x="24" 
-        y="14" 
-        textAnchor="middle" 
-        fontSize="8" 
-        fontWeight="700" 
-        fontFamily="system-ui, -apple-system, sans-serif"
-        fill="url(#qe-icon-gradient)"
-        letterSpacing="0.5"
-      >
-        QE
-      </text>
+      <circle cx="10" cy="36" r="3" fill="url(#qe-icon-gold)" />
     </svg>
   );
 }
