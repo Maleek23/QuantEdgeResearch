@@ -240,78 +240,73 @@ export default function HomePage() {
             </div>
           </div>
         ) : (
-          <div className="grid gap-3">
+          <div className="glass-card rounded-xl divide-y divide-white/10">
             {todaysTopIdeas.map((idea, index) => {
               const grade = getPerformanceGrade(idea.confidenceScore);
               const isLong = idea.direction === 'long';
               
               return (
                 <Link key={idea.id} href="/trade-desk">
-                  <Card 
-                    className="group cursor-pointer transition-all duration-200 hover:shadow-lg dark:hover:shadow-none hover:-translate-y-0.5 border-0 shadow-md dark:shadow-none dark:border"
+                  <div 
+                    className="group cursor-pointer p-4 hover:bg-white/5 transition-all first:rounded-t-xl last:rounded-b-xl"
                     data-testid={`card-top-idea-${index}`}
                   >
-                    <CardContent className="p-4 sm:p-5">
-                      <div className="flex items-center gap-4">
-                        <div className={`h-14 w-14 rounded-xl flex items-center justify-center shrink-0 ${
-                          isLong 
-                            ? 'bg-gradient-to-br from-green-400 to-green-600' 
-                            : 'bg-gradient-to-br from-red-400 to-red-600'
-                        }`}>
-                          {isLong ? (
-                            <TrendingUp className="h-7 w-7 text-white" />
-                          ) : (
-                            <TrendingDown className="h-7 w-7 text-white" />
-                          )}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="font-bold text-xl tracking-tight">{idea.symbol}</span>
-                            <Badge variant="secondary" className="text-xs font-medium">
-                              {idea.assetType}
-                            </Badge>
-                            <Badge 
-                              variant="outline" 
-                              className={`text-xs font-bold ${
-                                grade.grade === 'A+' || grade.grade === 'A' 
-                                  ? 'border-green-500/50 bg-green-500/10 text-green-600 dark:text-green-400' 
-                                  : ''
-                              }`}
-                            >
-                              {grade.grade}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {idea.catalyst || 'Technical setup identified'}
-                          </p>
-                        </div>
-
-                        <div className="hidden sm:flex items-center gap-6 shrink-0">
-                          <div className="text-right">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">Entry</p>
-                            <p className="font-mono font-bold text-lg">${idea.entryPrice?.toFixed(2)}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs font-medium text-muted-foreground mb-1">Target</p>
-                            <p className="font-mono font-bold text-lg text-green-600 dark:text-green-400">${idea.targetPrice?.toFixed(2)}</p>
-                          </div>
-                          <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                        </div>
+                    <div className="flex items-center gap-4">
+                      <div className={`h-12 w-12 rounded-lg flex items-center justify-center shrink-0 ${
+                        isLong 
+                          ? 'glass-success' 
+                          : 'glass-danger'
+                      }`}>
+                        {isLong ? (
+                          <TrendingUp className="h-6 w-6" />
+                        ) : (
+                          <TrendingDown className="h-6 w-6" />
+                        )}
                       </div>
-                    </CardContent>
-                  </Card>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-bold text-lg tracking-tight">{idea.symbol}</span>
+                          <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-muted-foreground">
+                            {idea.assetType}
+                          </span>
+                          <span className={`text-xs px-2 py-0.5 rounded font-semibold ${
+                            grade.grade === 'A+' || grade.grade === 'A' 
+                              ? 'bg-green-500/20 text-green-400' 
+                              : 'bg-white/10 text-muted-foreground'
+                          }`}>
+                            {grade.grade}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {idea.catalyst || 'Technical setup identified'}
+                        </p>
+                      </div>
+
+                      <div className="hidden sm:flex items-center gap-6 shrink-0">
+                        <div className="text-right">
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Entry</p>
+                          <p className="font-mono font-bold text-lg">${idea.entryPrice?.toFixed(2)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Target</p>
+                          <p className="font-mono font-bold text-lg text-green-400">${idea.targetPrice?.toFixed(2)}</p>
+                        </div>
+                        <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
+                      </div>
+                    </div>
+                  </div>
                 </Link>
               );
             })}
             
-            <Link href="/trade-desk">
-              <Button variant="ghost" className="w-full mt-1" data-testid="button-view-all-ideas">
-                View All Ideas
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
           </div>
+          <Link href="/trade-desk" className="block mt-3">
+            <Button variant="glass-secondary" className="w-full" data-testid="button-view-all-ideas">
+              View All Ideas
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
         )}
       </div>
 
@@ -324,57 +319,51 @@ export default function HomePage() {
           {/* Quick Actions */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
             <Link href="/trade-desk">
-              <Card className="group cursor-pointer transition-all duration-200 hover:shadow-lg dark:hover:shadow-none hover:-translate-y-0.5 border-0 shadow-md dark:shadow-none dark:border h-full" data-testid="card-action-trade-desk">
-                <CardContent className="p-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center">
-                      <TrendingUp className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-bold">Trade Desk</p>
-                      <p className="text-sm text-muted-foreground">Browse all opportunities</p>
-                    </div>
+              <div className="group cursor-pointer glass-card rounded-xl p-4 flex items-center justify-between gap-4 hover:translate-y-[-2px] transition-all" data-testid="card-action-trade-desk">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-xl glass flex items-center justify-center">
+                    <TrendingUp className="h-6 w-6" />
                   </div>
-                  <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
-                </CardContent>
-              </Card>
+                  <div>
+                    <p className="font-bold">Trade Desk</p>
+                    <p className="text-sm text-muted-foreground">Browse all opportunities</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-cyan-400 group-hover:translate-x-1 transition-all shrink-0" />
+              </div>
             </Link>
             
             <Link href="/trading-rules">
-              <Card className="group cursor-pointer transition-all duration-200 hover:shadow-lg dark:hover:shadow-none hover:-translate-y-0.5 border-0 shadow-md dark:shadow-none dark:border h-full" data-testid="card-action-rules">
-                <CardContent className="p-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-                      <BookOpen className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-bold">Trading Rules</p>
-                      <p className="text-sm text-muted-foreground">Position sizing & checklist</p>
-                    </div>
+              <div className="group cursor-pointer glass-card rounded-xl p-4 flex items-center justify-between gap-4 hover:translate-y-[-2px] transition-all" data-testid="card-action-rules">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+                    <BookOpen className="h-6 w-6 text-amber-400" />
                   </div>
-                  <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
-                </CardContent>
-              </Card>
+                  <div>
+                    <p className="font-bold">Trading Rules</p>
+                    <p className="text-sm text-muted-foreground">Position sizing & checklist</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-amber-400 group-hover:translate-x-1 transition-all shrink-0" />
+              </div>
             </Link>
           </div>
 
-          {/* Risk Reminder */}
-          <Card className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800/50">
-            <CardContent className="p-4 flex items-start gap-4">
-              <div className="h-10 w-10 rounded-lg bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center shrink-0">
-                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="font-semibold text-amber-900 dark:text-amber-200 mb-1">Risk Reminder</p>
-                <p className="text-sm text-amber-800 dark:text-amber-300/80">
-                  Max 10% capital per trade. Stops: 50% for options, 3.5% for stocks.{' '}
-                  <Link href="/trading-rules" className="font-medium underline hover:no-underline">
-                    Review rules
-                  </Link>
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Risk Reminder - Glass Warning */}
+          <div className="glass-card rounded-xl p-4 flex items-start gap-4 border-l-2 border-l-amber-500">
+            <div className="h-10 w-10 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
+              <AlertTriangle className="h-5 w-5 text-amber-400" />
+            </div>
+            <div>
+              <p className="font-semibold text-amber-400 mb-1">Risk Reminder</p>
+              <p className="text-sm text-muted-foreground">
+                Max 10% capital per trade. Stops: 50% for options, 3.5% for stocks.{' '}
+                <Link href="/trading-rules" className="font-medium text-cyan-400 hover:underline">
+                  Review rules
+                </Link>
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
