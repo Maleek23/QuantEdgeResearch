@@ -32,9 +32,16 @@ import type {
   ActiveTradeStatus,
   SubscriptionTier,
   AssetType,
+  PaperPortfolio,
+  InsertPaperPortfolio,
+  PaperPosition,
+  InsertPaperPosition,
+  PaperEquitySnapshot,
+  InsertPaperEquitySnapshot,
+  PaperTradeStatus,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, desc, sql as drizzleSql } from "drizzle-orm";
+import { eq, and, gte, lte, desc, sql as drizzleSql } from "drizzle-orm";
 import {
   tradeIdeas,
   marketData as marketDataTable,
@@ -47,6 +54,9 @@ import {
   futuresContracts,
   dailyUsage as dailyUsageTable,
   activeTrades as activeTradesTable,
+  paperPortfolios as paperPortfoliosTable,
+  paperPositions as paperPositionsTable,
+  paperEquitySnapshots as paperEquitySnapshotsTable,
 } from "@shared/schema";
 
 export interface ChatMessage {
@@ -189,6 +199,24 @@ export interface IStorage {
   updateActiveTrade(id: string, updates: Partial<ActiveTrade>): Promise<ActiveTrade | undefined>;
   closeActiveTrade(id: string, exitPrice: number): Promise<ActiveTrade | undefined>;
   deleteActiveTrade(id: string): Promise<boolean>;
+
+  // Paper Trading - Portfolios
+  createPaperPortfolio(portfolio: InsertPaperPortfolio): Promise<PaperPortfolio>;
+  getPaperPortfoliosByUser(userId: string): Promise<PaperPortfolio[]>;
+  getPaperPortfolioById(id: string): Promise<PaperPortfolio | undefined>;
+  updatePaperPortfolio(id: string, updates: Partial<PaperPortfolio>): Promise<PaperPortfolio | undefined>;
+  deletePaperPortfolio(id: string): Promise<boolean>;
+
+  // Paper Trading - Positions
+  createPaperPosition(position: InsertPaperPosition): Promise<PaperPosition>;
+  getPaperPositionsByPortfolio(portfolioId: string): Promise<PaperPosition[]>;
+  getPaperPositionById(id: string): Promise<PaperPosition | undefined>;
+  updatePaperPosition(id: string, updates: Partial<PaperPosition>): Promise<PaperPosition | undefined>;
+  closePaperPosition(id: string, exitPrice: number, exitReason: string): Promise<PaperPosition | undefined>;
+
+  // Paper Trading - Equity Snapshots
+  createPaperEquitySnapshot(snapshot: InsertPaperEquitySnapshot): Promise<PaperEquitySnapshot>;
+  getPaperEquitySnapshots(portfolioId: string, startDate?: string, endDate?: string): Promise<PaperEquitySnapshot[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -1390,6 +1418,57 @@ export class MemStorage implements IStorage {
   async deleteActiveTrade(_id: string): Promise<boolean> {
     return false;
   }
+
+  // Paper Trading - Portfolios (stub - not persisted in MemStorage)
+  async createPaperPortfolio(_portfolio: InsertPaperPortfolio): Promise<PaperPortfolio> {
+    throw new Error("Paper Trading not supported in MemStorage");
+  }
+
+  async getPaperPortfoliosByUser(_userId: string): Promise<PaperPortfolio[]> {
+    return [];
+  }
+
+  async getPaperPortfolioById(_id: string): Promise<PaperPortfolio | undefined> {
+    return undefined;
+  }
+
+  async updatePaperPortfolio(_id: string, _updates: Partial<PaperPortfolio>): Promise<PaperPortfolio | undefined> {
+    return undefined;
+  }
+
+  async deletePaperPortfolio(_id: string): Promise<boolean> {
+    return false;
+  }
+
+  // Paper Trading - Positions (stub)
+  async createPaperPosition(_position: InsertPaperPosition): Promise<PaperPosition> {
+    throw new Error("Paper Trading not supported in MemStorage");
+  }
+
+  async getPaperPositionsByPortfolio(_portfolioId: string): Promise<PaperPosition[]> {
+    return [];
+  }
+
+  async getPaperPositionById(_id: string): Promise<PaperPosition | undefined> {
+    return undefined;
+  }
+
+  async updatePaperPosition(_id: string, _updates: Partial<PaperPosition>): Promise<PaperPosition | undefined> {
+    return undefined;
+  }
+
+  async closePaperPosition(_id: string, _exitPrice: number, _exitReason: string): Promise<PaperPosition | undefined> {
+    return undefined;
+  }
+
+  // Paper Trading - Equity Snapshots (stub)
+  async createPaperEquitySnapshot(_snapshot: InsertPaperEquitySnapshot): Promise<PaperEquitySnapshot> {
+    throw new Error("Paper Trading not supported in MemStorage");
+  }
+
+  async getPaperEquitySnapshots(_portfolioId: string, _startDate?: string, _endDate?: string): Promise<PaperEquitySnapshot[]> {
+    return [];
+  }
 }
 
 // Database Storage Implementation (from javascript_database blueprint)
@@ -2272,6 +2351,154 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(activeTradesTable)
       .where(eq(activeTradesTable.id, id));
     return true;
+  }
+
+  // ==========================================
+  // PAPER TRADING - Portfolio Operations
+  // ==========================================
+
+  async createPaperPortfolio(portfolio: InsertPaperPortfolio): Promise<PaperPortfolio> {
+    const [created] = await db.insert(paperPortfoliosTable).values(portfolio).returning();
+    return created;
+  }
+
+  async getPaperPortfoliosByUser(userId: string): Promise<PaperPortfolio[]> {
+    return await db.select().from(paperPortfoliosTable)
+      .where(eq(paperPortfoliosTable.userId, userId))
+      .orderBy(desc(paperPortfoliosTable.createdAt));
+  }
+
+  async getPaperPortfolioById(id: string): Promise<PaperPortfolio | undefined> {
+    const [portfolio] = await db.select().from(paperPortfoliosTable)
+      .where(eq(paperPortfoliosTable.id, id));
+    return portfolio || undefined;
+  }
+
+  async updatePaperPortfolio(id: string, updates: Partial<PaperPortfolio>): Promise<PaperPortfolio | undefined> {
+    const [updated] = await db.update(paperPortfoliosTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(paperPortfoliosTable.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deletePaperPortfolio(id: string): Promise<boolean> {
+    await db.delete(paperPositionsTable).where(eq(paperPositionsTable.portfolioId, id));
+    await db.delete(paperEquitySnapshotsTable).where(eq(paperEquitySnapshotsTable.portfolioId, id));
+    await db.delete(paperPortfoliosTable).where(eq(paperPortfoliosTable.id, id));
+    return true;
+  }
+
+  // ==========================================
+  // PAPER TRADING - Position Operations
+  // ==========================================
+
+  async createPaperPosition(position: InsertPaperPosition): Promise<PaperPosition> {
+    const insertData = {
+      portfolioId: position.portfolioId,
+      symbol: position.symbol,
+      assetType: position.assetType as AssetType,
+      direction: position.direction,
+      entryPrice: position.entryPrice,
+      quantity: position.quantity,
+      entryTime: position.entryTime,
+      tradeIdeaId: position.tradeIdeaId ?? undefined,
+      optionType: position.optionType ?? undefined,
+      strikePrice: position.strikePrice ?? undefined,
+      expiryDate: position.expiryDate ?? undefined,
+      targetPrice: position.targetPrice ?? undefined,
+      stopLoss: position.stopLoss ?? undefined,
+      currentPrice: position.currentPrice ?? undefined,
+      lastPriceUpdate: position.lastPriceUpdate ?? undefined,
+      unrealizedPnL: position.unrealizedPnL ?? undefined,
+      unrealizedPnLPercent: position.unrealizedPnLPercent ?? undefined,
+      status: (position.status ?? 'open') as PaperTradeStatus,
+    };
+    const [created] = await db.insert(paperPositionsTable).values(insertData).returning();
+    return created;
+  }
+
+  async getPaperPositionsByPortfolio(portfolioId: string): Promise<PaperPosition[]> {
+    return await db.select().from(paperPositionsTable)
+      .where(eq(paperPositionsTable.portfolioId, portfolioId))
+      .orderBy(desc(paperPositionsTable.createdAt));
+  }
+
+  async getPaperPositionById(id: string): Promise<PaperPosition | undefined> {
+    const [position] = await db.select().from(paperPositionsTable)
+      .where(eq(paperPositionsTable.id, id));
+    return position || undefined;
+  }
+
+  async updatePaperPosition(id: string, updates: Partial<PaperPosition>): Promise<PaperPosition | undefined> {
+    const [updated] = await db.update(paperPositionsTable)
+      .set(updates)
+      .where(eq(paperPositionsTable.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async closePaperPosition(id: string, exitPrice: number, exitReason: string): Promise<PaperPosition | undefined> {
+    const position = await this.getPaperPositionById(id);
+    if (!position) return undefined;
+
+    const now = new Date().toISOString();
+    const multiplier = position.assetType === 'option' ? 100 : 1;
+    const directionMultiplier = position.direction === 'long' ? 1 : -1;
+    
+    const realizedPnL = (exitPrice - position.entryPrice) * position.quantity * multiplier * directionMultiplier;
+    const realizedPnLPercent = ((exitPrice - position.entryPrice) / position.entryPrice) * 100 * directionMultiplier;
+
+    const [updated] = await db.update(paperPositionsTable)
+      .set({
+        status: 'closed' as PaperTradeStatus,
+        exitPrice,
+        exitTime: now,
+        exitReason,
+        realizedPnL,
+        realizedPnLPercent,
+      })
+      .where(eq(paperPositionsTable.id, id))
+      .returning();
+
+    if (updated) {
+      const portfolio = await this.getPaperPortfolioById(position.portfolioId);
+      if (portfolio) {
+        const positionCost = position.entryPrice * position.quantity * multiplier;
+        await this.updatePaperPortfolio(portfolio.id, {
+          cashBalance: portfolio.cashBalance + positionCost + realizedPnL,
+          totalPnL: portfolio.totalPnL + realizedPnL,
+          winCount: realizedPnL > 0 ? portfolio.winCount + 1 : portfolio.winCount,
+          lossCount: realizedPnL <= 0 ? portfolio.lossCount + 1 : portfolio.lossCount,
+        });
+      }
+    }
+
+    return updated || undefined;
+  }
+
+  // ==========================================
+  // PAPER TRADING - Equity Snapshot Operations
+  // ==========================================
+
+  async createPaperEquitySnapshot(snapshot: InsertPaperEquitySnapshot): Promise<PaperEquitySnapshot> {
+    const [created] = await db.insert(paperEquitySnapshotsTable).values(snapshot).returning();
+    return created;
+  }
+
+  async getPaperEquitySnapshots(portfolioId: string, startDate?: string, endDate?: string): Promise<PaperEquitySnapshot[]> {
+    let conditions = [eq(paperEquitySnapshotsTable.portfolioId, portfolioId)];
+    
+    if (startDate) {
+      conditions.push(gte(paperEquitySnapshotsTable.date, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(paperEquitySnapshotsTable.date, endDate));
+    }
+
+    return await db.select().from(paperEquitySnapshotsTable)
+      .where(and(...conditions))
+      .orderBy(desc(paperEquitySnapshotsTable.date));
   }
 }
 
