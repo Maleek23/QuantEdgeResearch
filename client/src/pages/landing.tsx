@@ -297,6 +297,7 @@ export default function Landing() {
             <div className="flex flex-wrap justify-center gap-4">
               <Button 
                 size="lg"
+                variant="glass"
                 onClick={() => setLocation('/chart-analysis')}
                 data-testid="button-start-analyzing"
               >
@@ -305,7 +306,7 @@ export default function Landing() {
               </Button>
               <Button 
                 size="lg"
-                variant="outline"
+                variant="glass-secondary"
                 onClick={() => scrollToSection('pricing')}
                 data-testid="button-view-pricing"
               >
