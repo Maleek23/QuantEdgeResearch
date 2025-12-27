@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { QuantEdgeLogo, QuantEdgeIcon } from "@/components/quantedge-logo";
+import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 
 interface AssetTypeStats {
   assetType: string;
@@ -259,8 +260,12 @@ export default function Landing() {
             </div>
 
             {/* Logo */}
-            <div className="flex justify-center mb-8 animate-pulse-slow">
-              <QuantEdgeLogo size="lg" />
+            <div className="flex justify-center mb-8">
+              <img 
+                src={quantEdgeLogoUrl} 
+                alt="QuantEdge Research" 
+                className="h-40 w-40 md:h-48 md:w-48 object-contain drop-shadow-lg hover:drop-shadow-xl transition-all"
+              />
             </div>
 
             {/* Headline */}
