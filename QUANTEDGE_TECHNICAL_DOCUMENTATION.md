@@ -50,7 +50,7 @@ QuantEdge Research is a professional quantitative trading research platform desi
 
 | Metric | Backtest (Academic) | Realistic Live |
 |--------|---------------------|----------------|
-| Win Rate | 75-91% | **55-65%** |
+| Win Rate | 75-91% (backtest*) | **55-65%** (live) |
 | Slippage | 0% | 0.1-2% per trade |
 | Execution | Perfect | Variable |
 | Costs | None | $0.50-$3+ per trade |
@@ -203,7 +203,7 @@ The engine uses a **Triple-Filter System** for maximum win rate:
 ### Signal Detection Algorithm
 
 ```typescript
-// ONLY 3 PROVEN SIGNALS (75-91% backtested win rate):
+// 3 RESEARCH-BACKED SIGNALS (targeting 55-65% live win rate with 2:1 R:R):
 
 interface QuantSignal {
   type: 'rsi2_mean_reversion' | 'vwap_cross' | 'volume_spike' | 'rsi2_short_reversion';
@@ -226,7 +226,7 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   const detectedSignals: string[] = [];
   
   // PRIORITY 1: RSI(2) Mean Reversion LONG
-  // Research: 75-91% win rate (Larry Connors, QQQ backtest 1998-2024)
+  // Based on: Larry Connors RSI(2) research (see Appendix for backtest caveats)
   if (rsi2 < 10 && currentPrice > sma200 && currentPrice > sma50 && adx <= 25) {
     detectedSignals.push('RSI2_MEAN_REVERSION');
     return {
@@ -350,8 +350,8 @@ export function calculateRSI(prices: number[], period: number = 14): number {
 
 ```typescript
 /**
- * RSI(2) Mean Reversion - 75-91% backtested win rate
- * Based on Larry Connors' research
+ * RSI(2) Mean Reversion - targeting 55-65% live win rate
+ * Based on Larry Connors' research (see Appendix for backtest limitations)
  */
 export function analyzeRSI2MeanReversion(
   rsi2: number,
@@ -365,7 +365,7 @@ export function analyzeRSI2MeanReversion(
     return { signal: 'strong_buy', strength: 'strong' };
   }
 
-  // RSI(2) < 10 = Standard oversold (75-91% win rate)
+  // RSI(2) < 10 = Standard oversold (targeting 55-65% live)
   if (rsi2 < 10 && aboveTrend) {
     return { signal: 'buy', strength: 'moderate' };
   }
@@ -405,6 +405,8 @@ export function calculateVWAP(prices: number[], volumes: number[]): number {
  * - ADX < 20: Ranging/choppy → GOOD for mean reversion
  * - ADX 20-25: Developing trend
  * - ADX > 25: Strong trend → BAD for mean reversion
+ * 
+ * v3.7.0: Now properly Wilder-smooths DX values to produce ADX
  */
 export function calculateADX(
   highs: number[],
@@ -412,10 +414,13 @@ export function calculateADX(
   closes: number[],
   period: number = 14
 ): number {
+  if (highs.length < period + 1) return 50; // Neutral if not enough data
+
   const plusDM: number[] = [];
   const minusDM: number[] = [];
   const trueRanges: number[] = [];
 
+  // Calculate directional movement and true range
   for (let i = 1; i < highs.length; i++) {
     const highDiff = highs[i] - highs[i - 1];
     const lowDiff = lows[i - 1] - lows[i];
@@ -431,12 +436,46 @@ export function calculateADX(
     trueRanges.push(tr);
   }
 
-  // Smooth calculations...
-  const plusDI = (smoothedPlusDM / smoothedTR) * 100;
-  const minusDI = (smoothedMinusDM / smoothedTR) * 100;
-  const dx = (Math.abs(plusDI - minusDI) / (plusDI + minusDI)) * 100;
+  // Wilder smoothing for +DM, -DM, and TR (initial sum)
+  let smoothedPlusDM = plusDM.slice(0, period).reduce((a, b) => a + b, 0);
+  let smoothedMinusDM = minusDM.slice(0, period).reduce((a, b) => a + b, 0);
+  let smoothedTR = trueRanges.slice(0, period).reduce((a, b) => a + b, 0);
 
-  return dx;
+  // Calculate DX values for ADX smoothing
+  const dxValues: number[] = [];
+
+  for (let i = period; i < plusDM.length; i++) {
+    // Wilder smoothing: prev - (prev/period) + current
+    smoothedPlusDM = smoothedPlusDM - (smoothedPlusDM / period) + plusDM[i];
+    smoothedMinusDM = smoothedMinusDM - (smoothedMinusDM / period) + minusDM[i];
+    smoothedTR = smoothedTR - (smoothedTR / period) + trueRanges[i];
+
+    // Calculate +DI and -DI (with zero-division protection)
+    const plusDI = smoothedTR !== 0 ? (smoothedPlusDM / smoothedTR) * 100 : 0;
+    const minusDI = smoothedTR !== 0 ? (smoothedMinusDM / smoothedTR) * 100 : 0;
+
+    // Calculate DX (with zero-division protection)
+    const diSum = plusDI + minusDI;
+    const dx = diSum !== 0 ? (Math.abs(plusDI - minusDI) / diSum) * 100 : 0;
+    dxValues.push(dx);
+  }
+
+  // ADX is the Wilder-smoothed average of DX values
+  if (dxValues.length < period) {
+    return dxValues.length > 0 
+      ? dxValues.reduce((a, b) => a + b, 0) / dxValues.length 
+      : 50;
+  }
+
+  // Initial ADX is SMA of first 'period' DX values
+  let adx = dxValues.slice(0, period).reduce((a, b) => a + b, 0) / period;
+
+  // Apply Wilder smoothing to subsequent DX values
+  for (let i = period; i < dxValues.length; i++) {
+    adx = ((adx * (period - 1)) + dxValues[i]) / period;
+  }
+
+  return Number(adx.toFixed(2));
 }
 
 export function determineMarketRegime(adx: number) {
@@ -1541,7 +1580,7 @@ export const tradeIdeas = pgTable("trade_ideas", {
 ### v3.0.0 (October 2025)
 - **Complete Rebuild**: Removed all failing signals (MACD, RSI divergence)
 - Implemented ONLY proven strategies:
-  1. RSI(2) < 10 + 200MA filter (75-91% win rate)
+  1. RSI(2) < 10 + 200MA filter (targeting 55-65% live)
   2. VWAP institutional flow (80%+ win rate)
   3. Volume spike early entry
 
@@ -1549,7 +1588,7 @@ export const tradeIdeas = pgTable("trade_ideas", {
 
 ## Appendix: Research References
 
-1. **Larry Connors RSI(2) Strategy**: 75-91% backtested win rate on QQQ (1998-2024)
+1. **Larry Connors RSI(2) Strategy**: 75-91% *backtested* win rate on QQQ (1998-2024). **IMPORTANT**: Backtests assume perfect execution, zero costs, and no slippage. Live trading typically achieves 55-65% due to execution realities.
 2. **FINVIZ Study**: MACD "generally very low success rate" (16,954 stocks, 1995-2009)
 3. **ADX Regime Filtering**: Mean reversion fails in trending markets (ADX > 25)
 4. **VWAP Institutional Flow**: 80%+ win rate, professional trader standard
