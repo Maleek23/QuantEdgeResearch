@@ -2512,24 +2512,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      // Calculate metrics
-      const trends: EngineTrendEntry[] = [];
+      // Pivot data: group by week, with each engine as a column
+      const weeklyData = new Map<string, {
+        week: string;
+        weekLabel: string;
+        ai: number;
+        quant: number;
+        hybrid: number;
+        flow: number;
+        news: number;
+      }>();
       
-      engineWeekStats.forEach(stats => {
-        const totalTrades = stats.trades.length;
-        const winRate = totalTrades > 0 ? (stats.wins / totalTrades) * 100 : 0;
+      // Get all unique weeks
+      const uniqueWeeks = new Set<string>();
+      engineWeekStats.forEach((_, key) => {
+        const week = key.split('_')[1];
+        uniqueWeeks.add(week);
+      });
+      
+      // Initialize each week with 0 win rates
+      uniqueWeeks.forEach(week => {
+        const weekDate = new Date(week);
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const weekLabel = `${monthNames[weekDate.getMonth()]} ${weekDate.getDate()}`;
         
-        trends.push({
-          engine: stats.engine,
-          week: stats.week,
-          trades: totalTrades,
-          wins: stats.wins,
-          win_rate: Math.round(winRate * 10) / 10,
+        weeklyData.set(week, {
+          week,
+          weekLabel,
+          ai: 0,
+          quant: 0,
+          hybrid: 0,
+          flow: 0,
+          news: 0,
         });
       });
       
-      // Sort by week DESC (most recent first)
-      trends.sort((a, b) => b.week.localeCompare(a.week));
+      // Calculate win rates for each engine per week
+      engineWeekStats.forEach(stats => {
+        const totalTrades = stats.trades.length;
+        const winRate = totalTrades > 0 ? Math.round((stats.wins / totalTrades) * 1000) / 10 : 0;
+        
+        const weekData = weeklyData.get(stats.week);
+        if (weekData) {
+          const engine = stats.engine.toLowerCase();
+          if (engine === 'ai') weekData.ai = winRate;
+          else if (engine === 'quant') weekData.quant = winRate;
+          else if (engine === 'hybrid') weekData.hybrid = winRate;
+          else if (engine === 'flow') weekData.flow = winRate;
+          else if (engine === 'news') weekData.news = winRate;
+        }
+      });
+      
+      // Convert to array and sort by week ASC (oldest first for chart display)
+      const trends = Array.from(weeklyData.values()).sort((a, b) => a.week.localeCompare(b.week));
       
       res.json(trends);
     } catch (error) {
