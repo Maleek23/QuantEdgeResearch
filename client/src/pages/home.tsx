@@ -240,73 +240,74 @@ export default function HomePage() {
             </div>
           </div>
         ) : (
-          <div className="glass-card rounded-xl divide-y divide-white/10">
-            {todaysTopIdeas.map((idea, index) => {
-              const grade = getPerformanceGrade(idea.confidenceScore);
-              const isLong = idea.direction === 'long';
-              
-              return (
-                <Link key={idea.id} href="/trade-desk">
-                  <div 
-                    className="group cursor-pointer p-4 hover:bg-white/5 transition-all first:rounded-t-xl last:rounded-b-xl"
-                    data-testid={`card-top-idea-${index}`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`h-12 w-12 rounded-lg flex items-center justify-center shrink-0 ${
-                        isLong 
-                          ? 'glass-success' 
-                          : 'glass-danger'
-                      }`}>
-                        {isLong ? (
-                          <TrendingUp className="h-6 w-6" />
-                        ) : (
-                          <TrendingDown className="h-6 w-6" />
-                        )}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="font-bold text-lg tracking-tight">{idea.symbol}</span>
-                          <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-muted-foreground">
-                            {idea.assetType}
-                          </span>
-                          <span className={`text-xs px-2 py-0.5 rounded font-semibold ${
-                            grade.grade === 'A+' || grade.grade === 'A' 
-                              ? 'bg-green-500/20 text-green-400' 
-                              : 'bg-white/10 text-muted-foreground'
-                          }`}>
-                            {grade.grade}
-                          </span>
+          <>
+            <div className="glass-card rounded-xl divide-y divide-white/10">
+              {todaysTopIdeas.map((idea, index) => {
+                const grade = getPerformanceGrade(idea.confidenceScore);
+                const isLong = idea.direction === 'long';
+                
+                return (
+                  <Link key={idea.id} href="/trade-desk">
+                    <div 
+                      className="group cursor-pointer p-4 hover:bg-white/5 transition-all first:rounded-t-xl last:rounded-b-xl"
+                      data-testid={`card-top-idea-${index}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`h-12 w-12 rounded-lg flex items-center justify-center shrink-0 ${
+                          isLong 
+                            ? 'glass-success' 
+                            : 'glass-danger'
+                        }`}>
+                          {isLong ? (
+                            <TrendingUp className="h-6 w-6" />
+                          ) : (
+                            <TrendingDown className="h-6 w-6" />
+                          )}
                         </div>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {idea.catalyst || 'Technical setup identified'}
-                        </p>
-                      </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="font-bold text-lg tracking-tight">{idea.symbol}</span>
+                            <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-muted-foreground">
+                              {idea.assetType}
+                            </span>
+                            <span className={`text-xs px-2 py-0.5 rounded font-semibold ${
+                              grade.grade === 'A+' || grade.grade === 'A' 
+                                ? 'bg-green-500/20 text-green-400' 
+                                : 'bg-white/10 text-muted-foreground'
+                            }`}>
+                              {grade.grade}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {idea.catalyst || 'Technical setup identified'}
+                          </p>
+                        </div>
 
-                      <div className="hidden sm:flex items-center gap-6 shrink-0">
-                        <div className="text-right">
-                          <p className="text-xs font-medium text-muted-foreground mb-1">Entry</p>
-                          <p className="font-mono font-bold text-lg">${idea.entryPrice?.toFixed(2)}</p>
+                        <div className="hidden sm:flex items-center gap-6 shrink-0">
+                          <div className="text-right">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Entry</p>
+                            <p className="font-mono font-bold text-lg">${idea.entryPrice?.toFixed(2)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">Target</p>
+                            <p className="font-mono font-bold text-lg text-green-400">${idea.targetPrice?.toFixed(2)}</p>
+                          </div>
+                          <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs font-medium text-muted-foreground mb-1">Target</p>
-                          <p className="font-mono font-bold text-lg text-green-400">${idea.targetPrice?.toFixed(2)}</p>
-                        </div>
-                        <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-cyan-400 group-hover:translate-x-1 transition-all" />
                       </div>
                     </div>
-                  </div>
-                </Link>
-              );
-            })}
-            
-          </div>
-          <Link href="/trade-desk" className="block mt-3">
-            <Button variant="glass-secondary" className="w-full" data-testid="button-view-all-ideas">
-              View All Ideas
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
+                  </Link>
+                );
+              })}
+            </div>
+            <Link href="/trade-desk" className="block mt-3">
+              <Button variant="glass-secondary" className="w-full" data-testid="button-view-all-ideas">
+                View All Ideas
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </>
         )}
       </div>
 
