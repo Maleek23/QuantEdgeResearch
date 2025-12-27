@@ -35,6 +35,8 @@ import { setupGoogleAuth } from "./googleAuth";
 import { createUser, authenticateUser, sanitizeUser } from "./userAuth";
 import { getTierLimits } from "./tierConfig";
 import { syncDocumentationToNotion } from "./notion-sync";
+import * as paperTradingService from "./paper-trading-service";
+import { insertPaperPortfolioSchema, insertPaperPositionSchema } from "@shared/schema";
 
 // Session-based authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -5284,6 +5286,311 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       logger.error("Diagnostic export error:", error);
       res.status(500).json({ error: error?.message || "Failed to generate diagnostic export" });
+    }
+  });
+
+  // ==========================================
+  // 📈 PAPER TRADING: Simulation Portfolio System
+  // ==========================================
+
+  // GET /api/paper/portfolios - Get all portfolios for authenticated user
+  app.get("/api/paper/portfolios", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const portfolios = await storage.getPaperPortfoliosByUser(userId);
+      res.json(portfolios);
+    } catch (error: any) {
+      logger.error("Error fetching paper portfolios", { error });
+      res.status(500).json({ error: "Failed to fetch portfolios" });
+    }
+  });
+
+  // POST /api/paper/portfolios - Create a new portfolio
+  app.post("/api/paper/portfolios", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      
+      const parseResult = insertPaperPortfolioSchema.safeParse({
+        ...req.body,
+        userId,
+      });
+      
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid portfolio data", details: parseResult.error.errors });
+      }
+      
+      const portfolio = await storage.createPaperPortfolio(parseResult.data);
+      res.status(201).json(portfolio);
+    } catch (error: any) {
+      logger.error("Error creating paper portfolio", { error });
+      res.status(500).json({ error: "Failed to create portfolio" });
+    }
+  });
+
+  // GET /api/paper/portfolios/:id - Get portfolio by ID (with positions)
+  app.get("/api/paper/portfolios/:id", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { id } = req.params;
+      
+      const portfolio = await storage.getPaperPortfolioById(id);
+      if (!portfolio) {
+        return res.status(404).json({ error: "Portfolio not found" });
+      }
+      
+      if (portfolio.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const positions = await storage.getPaperPositionsByPortfolio(id);
+      const portfolioValue = await paperTradingService.calculatePortfolioValue(id);
+      
+      res.json({
+        ...portfolio,
+        positions,
+        calculatedValue: portfolioValue,
+      });
+    } catch (error: any) {
+      logger.error("Error fetching paper portfolio", { error });
+      res.status(500).json({ error: "Failed to fetch portfolio" });
+    }
+  });
+
+  // PATCH /api/paper/portfolios/:id - Update portfolio settings
+  app.patch("/api/paper/portfolios/:id", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { id } = req.params;
+      
+      const portfolio = await storage.getPaperPortfolioById(id);
+      if (!portfolio) {
+        return res.status(404).json({ error: "Portfolio not found" });
+      }
+      
+      if (portfolio.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const allowedFields = ['name', 'autoExecute', 'maxPositionSize', 'riskPerTrade'];
+      const updates: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (req.body[field] !== undefined) {
+          updates[field] = req.body[field];
+        }
+      }
+      
+      const updatedPortfolio = await storage.updatePaperPortfolio(id, updates);
+      res.json(updatedPortfolio);
+    } catch (error: any) {
+      logger.error("Error updating paper portfolio", { error });
+      res.status(500).json({ error: "Failed to update portfolio" });
+    }
+  });
+
+  // DELETE /api/paper/portfolios/:id - Delete portfolio
+  app.delete("/api/paper/portfolios/:id", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { id } = req.params;
+      
+      const portfolio = await storage.getPaperPortfolioById(id);
+      if (!portfolio) {
+        return res.status(404).json({ error: "Portfolio not found" });
+      }
+      
+      if (portfolio.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const deleted = await storage.deletePaperPortfolio(id);
+      if (!deleted) {
+        return res.status(500).json({ error: "Failed to delete portfolio" });
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error("Error deleting paper portfolio", { error });
+      res.status(500).json({ error: "Failed to delete portfolio" });
+    }
+  });
+
+  // GET /api/paper/portfolios/:portfolioId/positions - Get all positions for a portfolio
+  app.get("/api/paper/portfolios/:portfolioId/positions", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { portfolioId } = req.params;
+      
+      const portfolio = await storage.getPaperPortfolioById(portfolioId);
+      if (!portfolio) {
+        return res.status(404).json({ error: "Portfolio not found" });
+      }
+      
+      if (portfolio.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const positions = await storage.getPaperPositionsByPortfolio(portfolioId);
+      res.json(positions);
+    } catch (error: any) {
+      logger.error("Error fetching paper positions", { error });
+      res.status(500).json({ error: "Failed to fetch positions" });
+    }
+  });
+
+  // POST /api/paper/portfolios/:portfolioId/execute/:tradeIdeaId - Execute a trade idea into the portfolio
+  app.post("/api/paper/portfolios/:portfolioId/execute/:tradeIdeaId", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { portfolioId, tradeIdeaId } = req.params;
+      
+      const portfolio = await storage.getPaperPortfolioById(portfolioId);
+      if (!portfolio) {
+        return res.status(404).json({ error: "Portfolio not found" });
+      }
+      
+      if (portfolio.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const tradeIdea = await storage.getTradeIdeaById(tradeIdeaId);
+      if (!tradeIdea) {
+        return res.status(404).json({ error: "Trade idea not found" });
+      }
+      
+      const result = await paperTradingService.executeTradeIdea(portfolioId, tradeIdea);
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+      
+      res.status(201).json(result.position);
+    } catch (error: any) {
+      logger.error("Error executing paper trade", { error });
+      res.status(500).json({ error: "Failed to execute trade" });
+    }
+  });
+
+  // POST /api/paper/positions/:positionId/close - Close a position manually
+  app.post("/api/paper/positions/:positionId/close", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { positionId } = req.params;
+      const { exitPrice } = req.body;
+      
+      if (typeof exitPrice !== 'number' || exitPrice <= 0) {
+        return res.status(400).json({ error: "Valid exitPrice is required" });
+      }
+      
+      const position = await storage.getPaperPositionById(positionId);
+      if (!position) {
+        return res.status(404).json({ error: "Position not found" });
+      }
+      
+      const portfolio = await storage.getPaperPortfolioById(position.portfolioId);
+      if (!portfolio || portfolio.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const result = await paperTradingService.closePosition(positionId, exitPrice, 'manual');
+      
+      if (!result.success) {
+        return res.status(400).json({ error: result.error });
+      }
+      
+      res.json(result.position);
+    } catch (error: any) {
+      logger.error("Error closing paper position", { error });
+      res.status(500).json({ error: "Failed to close position" });
+    }
+  });
+
+  // POST /api/paper/portfolios/:portfolioId/update-prices - Refresh position prices
+  app.post("/api/paper/portfolios/:portfolioId/update-prices", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { portfolioId } = req.params;
+      
+      const portfolio = await storage.getPaperPortfolioById(portfolioId);
+      if (!portfolio) {
+        return res.status(404).json({ error: "Portfolio not found" });
+      }
+      
+      if (portfolio.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      await paperTradingService.updatePositionPrices(portfolioId);
+      
+      const closedPositions = await paperTradingService.checkStopsAndTargets(portfolioId);
+      
+      const positions = await storage.getPaperPositionsByPortfolio(portfolioId);
+      const portfolioValue = await paperTradingService.calculatePortfolioValue(portfolioId);
+      
+      res.json({
+        positions,
+        portfolioValue,
+        autoClosedPositions: closedPositions,
+      });
+    } catch (error: any) {
+      logger.error("Error updating paper prices", { error });
+      res.status(500).json({ error: "Failed to update prices" });
+    }
+  });
+
+  // GET /api/paper/portfolios/:portfolioId/equity - Get equity curve data
+  app.get("/api/paper/portfolios/:portfolioId/equity", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { portfolioId } = req.params;
+      const { startDate, endDate } = req.query;
+      
+      const portfolio = await storage.getPaperPortfolioById(portfolioId);
+      if (!portfolio) {
+        return res.status(404).json({ error: "Portfolio not found" });
+      }
+      
+      if (portfolio.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const snapshots = await storage.getPaperEquitySnapshots(
+        portfolioId,
+        startDate as string | undefined,
+        endDate as string | undefined
+      );
+      
+      res.json(snapshots);
+    } catch (error: any) {
+      logger.error("Error fetching equity curve", { error });
+      res.status(500).json({ error: "Failed to fetch equity curve" });
+    }
+  });
+
+  // POST /api/paper/portfolios/:portfolioId/snapshot - Record daily snapshot
+  app.post("/api/paper/portfolios/:portfolioId/snapshot", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { portfolioId } = req.params;
+      
+      const portfolio = await storage.getPaperPortfolioById(portfolioId);
+      if (!portfolio) {
+        return res.status(404).json({ error: "Portfolio not found" });
+      }
+      
+      if (portfolio.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      
+      const success = await paperTradingService.recordEquitySnapshot(portfolioId);
+      
+      if (!success) {
+        return res.status(500).json({ error: "Failed to record snapshot" });
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error("Error recording equity snapshot", { error });
+      res.status(500).json({ error: "Failed to record snapshot" });
     }
   });
 
