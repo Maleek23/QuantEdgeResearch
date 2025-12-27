@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Check, X, Crown, Zap, TrendingUp, Rocket, Clock } from "lucide-react";
+import { Check, X, Crown, Zap, TrendingUp, Rocket, Clock, AlertTriangle } from "lucide-react";
 
 interface PlanFeature {
   name: string;
@@ -28,7 +28,7 @@ const plans: PricingPlan[] = [
   {
     id: "free",
     name: "Free",
-    description: "Preview the platform and explore trade ideas",
+    description: "Explore the research platform risk-free",
     monthlyPrice: 0,
     yearlyPrice: 0,
     icon: TrendingUp,
@@ -112,6 +112,25 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+        {/* Risk Acknowledgment */}
+        <div className="max-w-3xl mx-auto mb-8" data-testid="risk-acknowledgment">
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-1">
+                  Research Platform Disclaimer
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  QuantEdge provides educational trade research only—not financial advice. 
+                  Past performance does not guarantee future results. You could lose your entire investment. 
+                  We recommend paper trading to validate strategies before risking real capital.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="text-center mb-12">
           <h1 
             className="text-3xl font-bold tracking-tight mb-4"
@@ -123,7 +142,7 @@ export default function Pricing() {
             className="text-lg text-muted-foreground max-w-2xl mx-auto"
             data-testid="text-pricing-subtext"
           >
-            Start with Free to preview the platform, then upgrade to Advanced for unlimited access and real-time data.
+            Start with Free to explore the research platform, then upgrade to Advanced for unlimited access and real-time data.
           </p>
         </div>
 
@@ -284,10 +303,14 @@ export default function Pricing() {
           })}
         </div>
 
-        <div className="mt-12 text-center">
+        <div className="mt-12 text-center space-y-4">
           <p className="text-sm text-muted-foreground" data-testid="text-pricing-footer">
-            All plans include access to our core trading research platform. 
+            All plans include access to our educational research platform. 
             Upgrade or downgrade at any time.
+          </p>
+          <p className="text-xs text-muted-foreground max-w-2xl mx-auto">
+            <span className="text-destructive font-medium">NOT FINANCIAL ADVICE</span> • 
+            QuantEdge is for educational research purposes only. Trading involves substantial risk of loss.
           </p>
         </div>
       </div>
