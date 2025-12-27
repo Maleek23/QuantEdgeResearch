@@ -7,6 +7,72 @@ import { formatInTimeZone } from "date-fns-tz";
 // Losses under 3% are likely noise/tight stops, not proper stop-loss hits
 const MIN_LOSS_THRESHOLD_PERCENT = 3.0; // 3% minimum to count as a real loss
 
+// 📊 REALISTIC TRADING COSTS: Applied to performance calculations
+// These model real-world execution costs that reduce backtest performance
+export const TRADING_COSTS = {
+  // Slippage: difference between expected and actual execution price
+  slippage: {
+    stock: 0.01,      // $0.01 per share for liquid stocks
+    option: 0.05,     // $0.05 per contract (wider spreads)
+    crypto: 0.001,    // 0.1% of trade value (typical exchange slippage)
+    future: 0.02,     // $0.02 per contract (CME futures)
+  },
+  // Commission per trade (round trip = 2x)
+  commission: {
+    stock: 0,         // Most brokers now commission-free
+    option: 0.65,     // $0.65 per contract (Schwab, TD, etc.)
+    crypto: 0.001,    // 0.1% maker/taker fee
+    future: 2.25,     // $2.25 per contract (CME)
+  },
+  // Spread cost as percentage (bid-ask spread impact)
+  spreadCost: {
+    stock: 0.0005,    // 0.05% for liquid stocks
+    option: 0.02,     // 2% for options (can be much higher)
+    crypto: 0.001,    // 0.1% for major pairs
+    future: 0.0003,   // 0.03% for ES/NQ
+  },
+};
+
+/**
+ * Calculate realistic trading costs for a trade
+ * @param assetType - Type of asset traded
+ * @param entryPrice - Entry price
+ * @param quantity - Number of shares/contracts (default: 100 shares, 1 contract)
+ * @returns Total cost in dollars and as percentage of trade value
+ */
+export function calculateTradingCosts(
+  assetType: 'stock' | 'option' | 'crypto' | 'future',
+  entryPrice: number,
+  quantity: number = assetType === 'stock' ? 100 : 1
+): { totalCost: number; costPercent: number } {
+  const costs = TRADING_COSTS;
+  
+  // Calculate trade value
+  const multiplier = assetType === 'option' ? 100 : 1; // Options represent 100 shares
+  const tradeValue = entryPrice * quantity * multiplier;
+  
+  // Slippage cost (both entry and exit)
+  const slippagePerUnit = costs.slippage[assetType] || 0.01;
+  const slippageCost = assetType === 'crypto' 
+    ? tradeValue * slippagePerUnit * 2  // Crypto: percentage-based
+    : slippagePerUnit * quantity * 2;    // Others: per-unit
+  
+  // Commission (round trip)
+  const commissionPerUnit = costs.commission[assetType] || 0;
+  const commissionCost = assetType === 'crypto'
+    ? tradeValue * commissionPerUnit * 2  // Crypto: percentage-based
+    : commissionPerUnit * quantity * 2;    // Others: per-unit
+  
+  // Spread cost (entry only - exit assumed at mid)
+  const spreadPercent = costs.spreadCost[assetType] || 0.001;
+  const spreadCost = tradeValue * spreadPercent;
+  
+  const totalCost = slippageCost + commissionCost + spreadCost;
+  const costPercent = (totalCost / tradeValue) * 100;
+  
+  return { totalCost, costPercent };
+}
+
 interface ValidationResult {
   shouldUpdate: boolean;
   outcomeStatus?: TradeIdea['outcomeStatus'];

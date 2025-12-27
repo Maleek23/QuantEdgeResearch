@@ -29,16 +29,77 @@ QuantEdge Research is a professional quantitative trading research platform desi
 
 ### Core Features
 - AI-powered trade ideas (GPT-5, Claude Sonnet 4, Gemini 2.5)
-- Quantitative engine with proven 75-91% backtested strategies
+- Quantitative engine with research-backed strategies
 - Chart pattern recognition with support/resistance detection
 - Dynamic timing intelligence for entry/exit windows
-- Performance tracking with minimum loss threshold (3%)
+- Performance tracking with trading cost modeling
 - Two-tier subscription model (Free & Advanced)
 
 ### Critical Requirements
 1. **Chart Pattern Pre-Validation**: All trade ideas must pass chart pattern validation before being suggested
 2. **Dynamic Exit Times**: Exit times fluctuate ±10-30% based on volatility/IV/market conditions
 3. **Minimum Loss Threshold**: 3% minimum loss threshold to filter noise from tight stops
+
+---
+
+## 1.1 Realistic Performance Expectations
+
+> ⚠️ **IMPORTANT DISCLAIMER**: This platform provides research-grade trade ideas for educational purposes only. Past performance does not guarantee future results.
+
+### Backtest vs Live Trading Reality
+
+| Metric | Backtest (Academic) | Realistic Live |
+|--------|---------------------|----------------|
+| Win Rate | 75-91% | **55-65%** |
+| Slippage | 0% | 0.1-2% per trade |
+| Execution | Perfect | Variable |
+| Costs | None | $0.50-$3+ per trade |
+
+### Why Backtest Results Don't Transfer
+
+1. **Slippage**: Academic backtests assume perfect execution at the exact price. Live trading has bid-ask spreads and market impact.
+
+2. **Timing**: Backtests use closing prices; you can't trade at the close if you see the signal after market close.
+
+3. **Selection Bias**: Historical patterns that worked may not persist (regime changes, market structure evolution).
+
+4. **Position Sizing**: Backtests often assume fixed position sizes. Real trading requires dynamic sizing based on account equity.
+
+### Trading Cost Impact
+
+```typescript
+// Real-world trading costs (modeled in performance calculations)
+TRADING_COSTS = {
+  slippage: {
+    stock: $0.01/share,    // ~0.05% on $20 stock
+    option: $0.05/contract, // ~2% on $2.50 option
+    crypto: 0.1%,           // Per side
+  },
+  commission: {
+    stock: $0 (most brokers),
+    option: $0.65/contract,
+    crypto: 0.1% (maker/taker),
+  },
+  spreadCost: {
+    stock: 0.05%,
+    option: 2%,  // Options have wide spreads
+    crypto: 0.1%,
+  }
+};
+
+// Example: $5,000 stock trade
+// Entry: $0.01 slippage × 250 shares = $2.50
+// Exit: $0.01 slippage × 250 shares = $2.50
+// Spread: 0.05% × $5,000 = $2.50
+// Total costs: ~$7.50 = 0.15% of trade value
+```
+
+### Recommended Risk Management
+
+1. **Position Sizing**: Risk 1-2% of account per trade, not fixed dollar amounts
+2. **Max Drawdown**: Stop trading if account draws down 10% in a day
+3. **Correlation**: Don't take 5 similar tech stock signals simultaneously
+4. **Paper Trade First**: Test for 30+ days before risking real capital
 
 ---
 

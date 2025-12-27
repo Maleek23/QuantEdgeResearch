@@ -383,28 +383,47 @@ export function calculateADX(
     trueRanges.push(tr);
   }
 
-  // Smooth +DM, -DM, and TR
+  // Wilder smoothing for +DM, -DM, and TR
   let smoothedPlusDM = plusDM.slice(0, period).reduce((a, b) => a + b, 0);
   let smoothedMinusDM = minusDM.slice(0, period).reduce((a, b) => a + b, 0);
   let smoothedTR = trueRanges.slice(0, period).reduce((a, b) => a + b, 0);
+
+  // Calculate DX values for ADX smoothing
+  const dxValues: number[] = [];
 
   for (let i = period; i < plusDM.length; i++) {
     smoothedPlusDM = smoothedPlusDM - (smoothedPlusDM / period) + plusDM[i];
     smoothedMinusDM = smoothedMinusDM - (smoothedMinusDM / period) + minusDM[i];
     smoothedTR = smoothedTR - (smoothedTR / period) + trueRanges[i];
+
+    // Calculate +DI and -DI at this point
+    const plusDI = smoothedTR !== 0 ? (smoothedPlusDM / smoothedTR) * 100 : 0;
+    const minusDI = smoothedTR !== 0 ? (smoothedMinusDM / smoothedTR) * 100 : 0;
+
+    // Calculate DX
+    const diSum = plusDI + minusDI;
+    const dx = diSum !== 0 ? (Math.abs(plusDI - minusDI) / diSum) * 100 : 0;
+    dxValues.push(dx);
   }
 
-  // Calculate +DI and -DI
-  const plusDI = smoothedTR !== 0 ? (smoothedPlusDM / smoothedTR) * 100 : 0;
-  const minusDI = smoothedTR !== 0 ? (smoothedMinusDM / smoothedTR) * 100 : 0;
+  // ADX is the Wilder-smoothed average of DX values
+  if (dxValues.length < period) {
+    // Not enough DX values for proper ADX smoothing, return simple average
+    const avgDx = dxValues.length > 0 
+      ? dxValues.reduce((a, b) => a + b, 0) / dxValues.length 
+      : 50;
+    return Number(avgDx.toFixed(2));
+  }
 
-  // Calculate DX
-  const diSum = plusDI + minusDI;
-  const dx = diSum !== 0 ? (Math.abs(plusDI - minusDI) / diSum) * 100 : 0;
+  // Initial ADX is SMA of first 'period' DX values
+  let adx = dxValues.slice(0, period).reduce((a, b) => a + b, 0) / period;
 
-  // ADX is the smoothed DX (we'll use current DX as approximation for now)
-  // In production, you'd smooth DX over 'period' periods
-  return Number(dx.toFixed(2));
+  // Apply Wilder smoothing to subsequent DX values
+  for (let i = period; i < dxValues.length; i++) {
+    adx = ((adx * (period - 1)) + dxValues[i]) / period;
+  }
+
+  return Number(adx.toFixed(2));
 }
 
 /**

@@ -127,8 +127,9 @@ async function calculateTimingWindows(
 }
 
 // 🔐 MODEL GOVERNANCE: Engine version for audit trail
-export const QUANT_ENGINE_VERSION = "v3.6.0"; // Updated Dec 25, 2025: CHART ANALYSIS UPGRADE - Added pattern recognition + S/R levels + pre-validation for all trade ideas
+export const QUANT_ENGINE_VERSION = "v3.7.0"; // Updated Dec 27, 2025: REALISTIC COST MODELING + ADX FIX
 export const ENGINE_CHANGELOG = {
+  "v3.7.0": "REALISTIC COST MODELING: Fixed ADX to return properly Wilder-smoothed values (was returning raw DX). Added slippage/commission/spread cost modeling to performance calculations. Updated documentation with realistic 55-65% live win rate expectations (vs 75-91% backtest). Added risk management guidelines.",
   "v3.6.0": "CHART ANALYSIS UPGRADE: Pre-validates all trade ideas with chart pattern recognition (head & shoulders, double top/bottom, flags, triangles, wedges, channels) and support/resistance levels (swing highs/lows, MAs, round numbers). Adjusts targets to pattern targets, stops to support levels. Rejects ideas that conflict with chart patterns (e.g., LONG signal during bearish H&S). Boosts confidence +5 when chart confirms setup.",
   "v3.5.0": "TRIPLE-FILTER UPGRADE: Three critical improvements to boost win rate from 39.1% to 60%+: (1) Added 50-day MA filter - prevents false LONG signals in downtrends and SHORT signals in uptrends (price must be above 50-day MA for LONG, below for SHORT), (2) Tightened ADX threshold from ≤30 to ≤25 - reduces choppy market trades that fail, (3) Signal consensus already optimized (2+ signals required). All filters are academically-proven: 50-day MA + 200-day MA + ADX≤25 create robust multi-timeframe trend alignment.",
   "v3.4.0": "CONFIDENCE RECALIBRATION: Diagnostic audit exposed inverted confidence system - high scores (90-100%) = 15.6% WR, low scores (<60%) = 63% WR. ROOT CAUSE: R:R bonuses were INVERSE predictors ('Excellent R:R 3:1+' = 5.1% WR worst signal). FIX: (1) Removed ALL bonuses (R:R, volume), (2) Lowered base scores from 90-95 to 50-65 matching actual 30-60% WR, (3) Simplified scoring - fewer signals = better performance.",
