@@ -1166,6 +1166,183 @@ async getPerformanceStats(engineVersion?: string, startDate?: string, endDate?: 
 }
 ```
 
+### Real Performance Stats (v3.7.0)
+
+The platform provides **two** performance calculations:
+1. **Filtered Stats** - Uses 3% minimum loss threshold (user-friendly)
+2. **Real Stats** - Counts ALL losses (honest accounting)
+
+```typescript
+// server/performance-validator.ts
+
+/**
+ * Calculate REAL performance stats counting ALL losses (no 3% filter)
+ * This matches actual account P&L
+ */
+export function calculateRealPerformanceStats(closedTrades: TradeIdea[]): RealPerformanceStats {
+  const wins = closedTrades.filter(t => t.outcomeStatus === 'win');
+  const losses = closedTrades.filter(t => t.outcomeStatus === 'loss');
+  
+  const totalWins = wins.length;
+  const totalLosses = losses.length;
+  const totalTrades = totalWins + totalLosses;
+  
+  // Honest win rate - no filtering
+  const winRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
+  
+  // Average win/loss amounts
+  const avgWinPercent = wins.length > 0
+    ? wins.reduce((sum, t) => sum + (t.percentGain || 0), 0) / wins.length
+    : 0;
+  const avgLossPercent = losses.length > 0
+    ? losses.reduce((sum, t) => sum + Math.abs(t.percentGain || 0), 0) / losses.length
+    : 0;
+  
+  // Expectancy: (Win% × Avg Win) - (Loss% × Avg Loss)
+  const expectancy = (winRate/100 * avgWinPercent) - ((100-winRate)/100 * avgLossPercent);
+  
+  // Profit Factor: Gross Profit / Gross Loss
+  const grossProfit = wins.reduce((sum, t) => sum + (t.percentGain || 0), 0);
+  const grossLoss = Math.abs(losses.reduce((sum, t) => sum + (t.percentGain || 0), 0));
+  const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+  
+  return {
+    totalTrades,
+    totalWins,
+    totalLosses,
+    winRate,
+    avgWinPercent,
+    avgLossPercent,
+    expectancy,
+    profitFactor,
+    grossProfit,
+    grossLoss,
+    maxConsecutiveLosses: calculateMaxConsecutiveLosses(closedTrades)
+  };
+}
+```
+
+### Position Sizing Calculator (v3.7.0)
+
+```typescript
+/**
+ * Calculate optimal position size using fixed fractional risk
+ * Risk 1-2% of account per trade (Kelly-inspired conservative approach)
+ */
+export function calculatePositionSize(
+  accountSize: number,
+  riskPerTrade: number,    // e.g., 0.02 for 2%
+  entryPrice: number,
+  stopLoss: number,
+  assetType: 'stock' | 'option' | 'crypto' | 'future' = 'stock'
+): PositionSizeResult {
+  const riskPerShare = Math.abs(entryPrice - stopLoss);
+  
+  // Guard: stop = entry (invalid)
+  if (riskPerShare === 0) {
+    return { shares: 0, isValid: false, warnings: ['Stop equals entry'] };
+  }
+  
+  const maxRiskAmount = accountSize * riskPerTrade;
+  const multiplier = assetType === 'option' ? 100 : 1;
+  
+  let shares = Math.floor(maxRiskAmount / riskPerShare);
+  
+  // Clamp to account size and recalculate all values
+  let positionValue = shares * entryPrice * multiplier;
+  if (positionValue > accountSize) {
+    shares = Math.floor(accountSize / (entryPrice * multiplier));
+    positionValue = shares * entryPrice * multiplier;
+  }
+  
+  return {
+    shares,
+    positionValue,
+    maxLossAmount: shares * riskPerShare * multiplier,
+    positionPercent: (positionValue / accountSize) * 100,
+    isValid: true
+  };
+}
+```
+
+### Trading Cost Modeling (v3.7.0)
+
+```typescript
+const TRADING_COSTS = {
+  stock: { slippage: 0.0001, commission: 0, spreadCost: 0.0005 },   // ~0.15% RT
+  option: { slippage: 0.02, commission: 0.0065, spreadCost: 0.02 }, // ~4% RT
+  crypto: { slippage: 0.001, commission: 0.001, spreadCost: 0.001 },// ~0.4% RT
+  future: { slippage: 0.0002, commission: 2.5, spreadCost: 0.0005 } // ~0.2% RT
+};
+
+export function calculateTradingCosts(
+  entryPrice: number,
+  exitPrice: number,
+  shares: number,
+  assetType: 'stock' | 'option' | 'crypto' | 'future'
+): TradingCosts {
+  const costs = TRADING_COSTS[assetType];
+  const positionValue = shares * entryPrice;
+  
+  const entrySlippage = positionValue * costs.slippage;
+  const exitSlippage = shares * exitPrice * costs.slippage;
+  const commission = typeof costs.commission === 'number' && costs.commission < 1
+    ? positionValue * costs.commission  // Percentage-based
+    : costs.commission * shares;        // Per-share
+  const spreadCost = (entryPrice + exitPrice) / 2 * shares * costs.spreadCost;
+  
+  const totalCosts = entrySlippage + exitSlippage + commission * 2 + spreadCost;
+  const costPercent = (totalCosts / positionValue) * 100;
+  
+  return { entrySlippage, exitSlippage, commission, spreadCost, totalCosts, costPercent };
+}
+```
+
+### API Retry Logic (v3.7.0)
+
+```typescript
+// server/api-retry.ts
+
+const CIRCUIT_BREAKER_CONFIG = {
+  failureThreshold: 5,   // Open circuit after 5 failures
+  resetTimeout: 60000,   // Try again after 60 seconds
+};
+
+export async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  retryOptions: RetryOptions = {}
+): Promise<Response> {
+  const { maxRetries = 3, baseDelay = 1000, serviceName = 'default' } = retryOptions;
+  
+  if (isCircuitOpen(serviceName)) {
+    throw new Error(`Circuit breaker OPEN for ${serviceName}`);
+  }
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      
+      if (response.status === 429 || response.status >= 500) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      recordSuccess(serviceName);
+      return response;
+    } catch (error) {
+      if (attempt < maxRetries) {
+        // Exponential backoff with jitter
+        const delay = Math.min(baseDelay * Math.pow(2, attempt) + Math.random() * 1000, 10000);
+        await sleep(delay);
+      }
+    }
+  }
+  
+  recordFailure(serviceName);
+  throw new Error('All retries failed');
+}
+```
+
 ---
 
 ## 9. Data Sources & APIs
@@ -1320,6 +1497,12 @@ export const tradeIdeas = pgTable("trade_ideas", {
 - **Strict Chart Validation**: Trade ideas without chart data are REJECTED
 - **Dynamic Exit Time Recalculation**: Uses symbol hash + random factors, ±10-30% variance
 - **Asset-specific adjustments**: Options get shorter windows (theta decay), crypto slightly longer
+- **ADX Calculation Fix**: Now properly Wilder-smooths DX values (was returning raw DX)
+- **Position Sizing Calculator**: Fixed fractional risk (1-2% per trade) with validation
+- **Real Performance Stats**: Added `calculateRealPerformanceStats()` counting ALL losses (no 3% filter)
+- **API Retry Logic**: Circuit breaker pattern with exponential backoff (5 failures → 60s cooldown)
+- **Trading Cost Modeling**: Slippage, commission, spread costs for stocks/options/crypto/futures
+- **Realistic Win Rate Expectations**: Documentation updated to 55-65% (vs 75-91% backtest)
 
 ### v3.6.0 (December 2025)
 - **Chart Analysis Upgrade**: Pre-validates all trade ideas with chart pattern recognition
