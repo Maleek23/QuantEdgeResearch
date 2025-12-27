@@ -389,11 +389,11 @@ export default function TradingRules() {
           </div>
 
           {/* Pre-Trade Checklist */}
-          <div className="glass-card rounded-xl border-l-2 border-l-blue-500">
+          <div className="glass-card rounded-xl border-l-2 border-l-cyan-500">
             <div className="p-5 pb-3">
               <h3 className="flex items-center gap-2 text-lg font-semibold">
-                <CheckCircle className="h-5 w-5 text-blue-400" />
-                <span className="text-blue-400">Pre-Trade Checklist</span>
+                <CheckCircle className="h-5 w-5 text-cyan-400" />
+                <span className="text-cyan-400">Pre-Trade Checklist</span>
               </h3>
               <p className="text-sm text-muted-foreground mt-1">Complete before every trade</p>
             </div>
@@ -608,8 +608,8 @@ export default function TradingRules() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-3 rounded-lg glass border-l-2 border-l-blue-500">
-                  <Info className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+                <div className="flex items-start gap-3 p-3 rounded-lg glass border-l-2 border-l-cyan-500">
+                  <Info className="h-4 w-4 text-cyan-400 shrink-0 mt-0.5" />
                   <p className="text-sm text-muted-foreground">
                     Stock stops are tighter than options (3.5% vs 50%) because stocks don't have time decay working against you.
                   </p>

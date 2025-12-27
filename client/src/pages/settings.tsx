@@ -202,9 +202,9 @@ export default function SettingsPage() {
 
         {/* Display Preferences */}
         <TabsContent value="display" className="space-y-4">
-          <div className="glass-card rounded-xl border-l-2 border-l-blue-500">
+          <div className="glass-card rounded-xl border-l-2 border-l-cyan-500">
             <div className="p-5 pb-3">
-              <h3 className="text-lg font-semibold text-blue-400">Display Preferences</h3>
+              <h3 className="text-lg font-semibold text-cyan-400">Display Preferences</h3>
               <p className="text-sm text-muted-foreground mt-1">Customize how information is presented</p>
             </div>
             <div className="px-5 pb-5 space-y-4">
@@ -363,9 +363,9 @@ export default function SettingsPage() {
 
         {/* Advanced Settings */}
         <TabsContent value="advanced" className="space-y-4">
-          <div className="glass-card rounded-xl border-l-2 border-l-purple-500">
+          <div className="glass-card rounded-xl border-l-2 border-l-cyan-500">
             <div className="p-5 pb-3">
-              <h3 className="text-lg font-semibold text-purple-400">Advanced Settings</h3>
+              <h3 className="text-lg font-semibold text-cyan-400">Advanced Settings</h3>
               <p className="text-sm text-muted-foreground mt-1">Default filters and preferences</p>
             </div>
             <div className="px-5 pb-5 space-y-4">

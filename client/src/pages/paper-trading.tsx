@@ -88,11 +88,11 @@ function DirectionBadge({ direction }: { direction: string }) {
 
 function AssetTypeBadge({ assetType }: { assetType: string }) {
   const variants: Record<string, string> = {
-    stock: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    option: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-    crypto: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    penny_stock: "bg-orange-500/20 text-orange-400 border-orange-500/30",
-    future: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+    stock: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+    option: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+    crypto: "bg-green-500/20 text-green-400 border-green-500/30",
+    penny_stock: "bg-red-500/20 text-red-400 border-red-500/30",
+    future: "bg-cyan-600/20 text-cyan-300 border-cyan-400/30",
   };
   return (
     <Badge variant="outline" className={cn("text-xs", variants[assetType] || "")}>

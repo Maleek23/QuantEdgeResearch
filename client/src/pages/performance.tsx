@@ -188,11 +188,11 @@ export default function PerformancePage() {
 
   const getSourceBadgeColor = (source: string) => {
     const sourceLower = source.toLowerCase();
-    if (sourceLower === 'ai') return 'bg-purple-500/20 text-purple-400 border border-purple-500/30';
+    if (sourceLower === 'ai') return 'bg-amber-500/20 text-amber-400 border border-amber-500/30';
     if (sourceLower === 'quant') return 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30';
-    if (sourceLower === 'hybrid') return 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30';
+    if (sourceLower === 'hybrid') return 'bg-cyan-600/20 text-cyan-300 border border-cyan-400/30';
     if (sourceLower === 'news') return 'bg-amber-500/20 text-amber-400 border border-amber-500/30';
-    if (sourceLower === 'flow') return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+    if (sourceLower === 'flow') return 'bg-green-500/20 text-green-400 border border-green-500/30';
     return 'bg-white/10 text-muted-foreground border border-white/10';
   };
 

@@ -548,21 +548,21 @@ export default function Landing() {
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             <Card data-testid="card-transparency-quant">
               <CardContent className="p-6">
-                <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center mb-4">
-                  <Calculator className="h-6 w-6 text-blue-500" />
+                <div className="h-12 w-12 rounded-xl bg-cyan-500/10 flex items-center justify-center mb-4">
+                  <Calculator className="h-6 w-6 text-cyan-400" />
                 </div>
                 <h3 className="text-lg font-semibold mb-3">Quantitative Engine</h3>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                    <Check className="h-4 w-4 text-cyan-400 mt-0.5 flex-shrink-0" />
                     RSI(2) mean reversion with 200-day MA filter
                   </li>
                   <li className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                    <Check className="h-4 w-4 text-cyan-400 mt-0.5 flex-shrink-0" />
                     VWAP institutional flow analysis
                   </li>
                   <li className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                    <Check className="h-4 w-4 text-cyan-400 mt-0.5 flex-shrink-0" />
                     Volume spike detection
                   </li>
                 </ul>
@@ -571,21 +571,21 @@ export default function Landing() {
 
             <Card data-testid="card-transparency-ai">
               <CardContent className="p-6">
-                <div className="h-12 w-12 rounded-xl bg-purple-500/10 flex items-center justify-center mb-4">
-                  <Brain className="h-6 w-6 text-purple-500" />
+                <div className="h-12 w-12 rounded-xl bg-amber-500/10 flex items-center justify-center mb-4">
+                  <Brain className="h-6 w-6 text-amber-400" />
                 </div>
                 <h3 className="text-lg font-semibold mb-3">AI Analysis</h3>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                    <Check className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
                     Multi-provider LLMs (Claude, GPT, Gemini)
                   </li>
                   <li className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                    <Check className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
                     Market context and sentiment analysis
                   </li>
                   <li className="flex items-start gap-2">
-                    <Check className="h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                    <Check className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
                     Fundamentals and news integration
                   </li>
                 </ul>

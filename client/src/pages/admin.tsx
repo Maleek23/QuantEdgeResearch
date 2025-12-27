@@ -522,14 +522,14 @@ export default function AdminPanel() {
       <div className="container mx-auto px-6 py-8 space-y-8">
         {/* Hero Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="glass-card border-blue-500/20 hover-elevate">
+          <Card className="glass-card border-cyan-500/20 hover-elevate">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   Total Users
                 </CardTitle>
-                <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-blue-500" />
+                <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                  <Users className="h-5 w-5 text-cyan-400" />
                 </div>
               </div>
             </CardHeader>
@@ -572,14 +572,14 @@ export default function AdminPanel() {
             </CardContent>
           </Card>
 
-          <Card className="glass-card border-purple-500/20 hover-elevate">
+          <Card className="glass-card border-amber-500/20 hover-elevate">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
                   Win Rate
                 </CardTitle>
-                <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                  <Target className="h-5 w-5 text-purple-500" />
+                <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                  <Target className="h-5 w-5 text-amber-400" />
                 </div>
               </div>
             </CardHeader>
@@ -799,8 +799,8 @@ export default function AdminPanel() {
               <CardContent className="space-y-6">
                 {/* User Stats Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-lg bg-blue-500/5 border border-blue-500/20">
-                    <div className="text-2xl font-bold text-blue-500">
+                  <div className="p-4 rounded-lg bg-cyan-500/5 border border-cyan-500/20">
+                    <div className="text-2xl font-bold text-cyan-400">
                       {(users as any[])?.length || 0}
                     </div>
                     <div className="text-sm text-muted-foreground">Total Users</div>
@@ -1158,12 +1158,12 @@ export default function AdminPanel() {
                         <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
                           activity.type === 'trade_idea' 
                             ? 'bg-green-500/10' 
-                            : 'bg-blue-500/10'
+                            : 'bg-cyan-500/10'
                         }`}>
                           {activity.type === 'trade_idea' ? (
                             <TrendingUp className="h-4 w-4 text-green-500" />
                           ) : (
-                            <Users className="h-4 w-4 text-blue-500" />
+                            <Users className="h-4 w-4 text-cyan-400" />
                           )}
                         </div>
                         <div className="flex-1">
@@ -1201,8 +1201,8 @@ export default function AdminPanel() {
                     <div className="text-2xl font-bold text-yellow-500">{(alertSummary as any)?.warningAlerts || 0}</div>
                     <div className="text-xs text-muted-foreground">Warnings</div>
                   </div>
-                  <div className="p-4 rounded-lg border border-blue-500/20 bg-blue-500/5">
-                    <div className="text-2xl font-bold text-blue-500">{(alertSummary as any)?.failingAPIs || 0}</div>
+                  <div className="p-4 rounded-lg border border-cyan-500/20 bg-cyan-500/5">
+                    <div className="text-2xl font-bold text-cyan-400">{(alertSummary as any)?.failingAPIs || 0}</div>
                     <div className="text-xs text-muted-foreground">Failing APIs</div>
                   </div>
                 </div>
@@ -1222,7 +1222,7 @@ export default function AdminPanel() {
                             alert.type === 'critical' ? 'border-red-500/30 bg-red-500/5' :
                             alert.type === 'error' ? 'border-amber-500/30 bg-amber-500/5' :
                             alert.type === 'warning' ? 'border-yellow-500/30 bg-yellow-500/5' :
-                            'border-blue-500/30 bg-blue-500/5'
+                            'border-cyan-500/30 bg-cyan-500/5'
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
@@ -1234,7 +1234,7 @@ export default function AdminPanel() {
                                     alert.type === 'critical' ? 'bg-red-500/20 text-red-500' :
                                     alert.type === 'error' ? 'bg-amber-500/20 text-amber-500' :
                                     alert.type === 'warning' ? 'bg-yellow-500/20 text-yellow-500' :
-                                    'bg-blue-500/20 text-blue-500'
+                                    'bg-cyan-500/20 text-cyan-400'
                                   }`}
                                 >
                                   {alert.type.toUpperCase()}
@@ -1412,7 +1412,7 @@ export default function AdminPanel() {
                     <Card className="border-border/50">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-sm flex items-center gap-2">
-                          <Archive className="h-4 w-4 text-blue-500" />
+                          <Archive className="h-4 w-4 text-cyan-400" />
                           Archive Closed Trades
                         </CardTitle>
                         <CardDescription className="text-xs">

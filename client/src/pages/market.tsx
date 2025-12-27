@@ -164,14 +164,14 @@ export default function MarketPage() {
           </p>
         </div>
 
-        <div className="glass-card rounded-xl p-5 border-l-2 border-l-blue-500">
+        <div className="glass-card rounded-xl p-5 border-l-2 border-l-cyan-500">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Active Catalysts</p>
-              <p className="text-3xl font-bold font-mono tracking-tight text-blue-400" data-testid="text-catalyst-count">{catalysts.length}</p>
+              <p className="text-3xl font-bold font-mono tracking-tight text-cyan-400" data-testid="text-catalyst-count">{catalysts.length}</p>
             </div>
-            <div className="h-10 w-10 rounded-lg bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
-              <Activity className="h-5 w-5 text-blue-400" />
+            <div className="h-10 w-10 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
+              <Activity className="h-5 w-5 text-cyan-400" />
             </div>
           </div>
           <p className="text-sm text-muted-foreground mt-3">

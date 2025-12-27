@@ -428,7 +428,8 @@ export default function TradeIdeasPage() {
           onClick={() => generateQuantIdeas.mutate()}
           disabled={generateQuantIdeas.isPending}
           size="sm"
-          className="gap-1.5 bg-cyan-600 hover:bg-cyan-700"
+          variant="glass"
+          className="gap-1.5"
           data-testid="button-generate-quant-permanent"
         >
           <BarChart3 className="h-4 w-4" />
@@ -438,7 +439,8 @@ export default function TradeIdeasPage() {
           onClick={() => generateAIIdeas.mutate()}
           disabled={generateAIIdeas.isPending}
           size="sm"
-          className="gap-1.5 bg-purple-600 hover:bg-purple-700"
+          variant="glass-secondary"
+          className="gap-1.5"
           data-testid="button-generate-ai-permanent"
         >
           <Bot className="h-4 w-4" />
@@ -448,7 +450,8 @@ export default function TradeIdeasPage() {
           onClick={() => generateHybridIdeas.mutate()}
           disabled={generateHybridIdeas.isPending}
           size="sm"
-          className="gap-1.5 bg-indigo-600 hover:bg-indigo-700"
+          variant="glass"
+          className="gap-1.5"
           data-testid="button-generate-hybrid-permanent"
         >
           <Sparkles className="h-4 w-4" />
@@ -468,7 +471,8 @@ export default function TradeIdeasPage() {
           onClick={() => generateFlowIdeas.mutate()}
           disabled={generateFlowIdeas.isPending}
           size="sm"
-          className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+          variant="glass-success"
+          className="gap-1.5"
           data-testid="button-generate-flow-permanent"
         >
           <Activity className="h-4 w-4" />

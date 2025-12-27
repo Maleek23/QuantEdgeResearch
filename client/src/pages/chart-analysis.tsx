@@ -288,7 +288,7 @@ function PredictedPathChart({
       {/* Price labels */}
       <div className="flex justify-between text-xs">
         <div className="flex items-center gap-1">
-          <div className="w-2 h-2 rounded-full bg-blue-500" />
+          <div className="w-2 h-2 rounded-full bg-cyan-500" />
           <span className="text-muted-foreground">Now</span>
         </div>
         <div className="flex items-center gap-1">

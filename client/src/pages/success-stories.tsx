@@ -56,7 +56,7 @@ export default function SuccessStories() {
               <div className="text-sm text-muted-foreground">Avg Gain</div>
             </div>
             <div className="glass-card rounded-xl p-6 text-center">
-              <BarChart3 className="h-8 w-8 text-purple-500 mx-auto mb-3" />
+              <BarChart3 className="h-8 w-8 text-amber-400 mx-auto mb-3" />
               <div className="text-3xl font-bold text-gradient mb-1">
                 {winningTrades.length > 0
                   ? Math.max(...winningTrades.map(t => t.percentGain || 0)).toFixed(1)
