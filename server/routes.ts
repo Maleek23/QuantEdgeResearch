@@ -4315,6 +4315,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // 🛡️ LAYER 2: Risk validation (max 3.5% stop distance for stocks, 5% for crypto)
+      const riskValidation = validateTradeRisk({
+        symbol: validated.symbol,
+        assetType: assetType as 'stock' | 'option' | 'crypto',
+        direction: direction as 'long' | 'short',
+        entryPrice: analysis.entryPoint,
+        targetPrice: analysis.targetPrice,
+        stopLoss: analysis.stopLoss,
+        catalyst: `Chart Pattern: ${analysis.patterns?.join(', ') || 'Technical Analysis'}`,
+        analysis: analysis.analysis || '',
+        sessionContext: `Chart analysis - ${analysis.timeframe}`,
+      });
+      
+      if (!riskValidation.isValid) {
+        logger.warn(`📊 Chart analysis rejected for risk: ${riskValidation.reason}`);
+        return res.status(400).json({
+          error: "Trade exceeds risk limits",
+          reason: riskValidation.reason,
+          metrics: riskValidation.metrics,
+          suggestion: `Max stop distance: 3.5% for stocks, 5% for crypto. Your stop is ${riskValidation.metrics?.maxLossPercent?.toFixed(2)}% from entry.`
+        });
+      }
+      
+      logger.info(`✅ Chart analysis passed validation - Loss:${riskValidation.metrics?.maxLossPercent?.toFixed(2)}% R:R:${riskValidation.metrics?.riskRewardRatio?.toFixed(2)}:1`);
+      
       // Create draft trade idea
       const tradeIdea = await storage.createTradeIdea({
         userId: (req.user as any)?.claims?.sub,
