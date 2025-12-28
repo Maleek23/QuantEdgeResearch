@@ -14,27 +14,35 @@ export default function ChartDatabase() {
   const [symbolSearch, setSymbolSearch] = useState("");
   const [outcomeFilter, setOutcomeFilter] = useState<string>("all");
   const [assetFilter, setAssetFilter] = useState<string>("all");
-  const [sourceFilter, setSourceFilter] = useState<string>("all");
 
   const { data: tradeIdeas = [], isLoading } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
   });
 
+  // ONLY show user-uploaded chart analyses, not auto-generated flow/lotto/quant ideas
+  const chartAnalyses = tradeIdeas.filter(idea => idea.source === 'chart_analysis');
+  
   // Only include trades with resolved outcomes (hit_target or hit_stop)
-  // Expired trades are excluded because they timed out without resolution
-  const resolvedTrades = tradeIdeas.filter(idea => 
+  const resolvedTrades = chartAnalyses.filter(idea => 
     idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop'
   );
   
-  const allClosedTrades = tradeIdeas.filter(idea => 
+  const allClosedTrades = chartAnalyses.filter(idea => 
     idea.outcomeStatus && idea.outcomeStatus !== 'open'
   );
+  
+  const openTrades = chartAnalyses.filter(idea => 
+    !idea.outcomeStatus || idea.outcomeStatus === 'open'
+  );
 
-  const filteredTrades = allClosedTrades.filter(trade => {
+  // Filter all chart analyses (including open ones) for display
+  const filteredTrades = chartAnalyses.filter(trade => {
     if (symbolSearch && !trade.symbol.toLowerCase().includes(symbolSearch.toLowerCase())) return false;
-    if (outcomeFilter !== "all" && trade.outcomeStatus !== outcomeFilter) return false;
+    if (outcomeFilter !== "all") {
+      if (outcomeFilter === "open" && trade.outcomeStatus && trade.outcomeStatus !== 'open') return false;
+      if (outcomeFilter !== "open" && trade.outcomeStatus !== outcomeFilter) return false;
+    }
     if (assetFilter !== "all" && trade.assetType !== assetFilter) return false;
-    if (sourceFilter !== "all" && trade.source !== sourceFilter) return false;
     return true;
   });
 
@@ -43,7 +51,8 @@ export default function ChartDatabase() {
   const totalResolved = wins + losses;
   
   const stats = {
-    total: allClosedTrades.length,
+    total: chartAnalyses.length,
+    open: openTrades.length,
     totalResolved: totalResolved,
     expired: allClosedTrades.length - totalResolved,
     wins: wins,
@@ -59,37 +68,21 @@ export default function ChartDatabase() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <Database className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold">Chart Database</h1>
+            <h1 className="text-4xl font-bold">My Chart Analyses</h1>
           </div>
           <p className="text-lg text-muted-foreground">
-            Historical trade patterns and performance analytics library
+            Track performance of charts you've uploaded for AI analysis
           </p>
         </div>
 
-        {/* Data Source Notice */}
-        <div className="glass-card rounded-xl border-l-2 border-l-amber-400 p-4 mb-6">
-          <div className="flex items-start gap-3">
-            <BarChart3 className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-amber-400">About This Data</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                This database includes auto-generated ideas from flow scanners, quant signals, and AI analysis. 
-                Win rate is calculated from <strong>resolved trades only</strong> (hit target or hit stop). 
-                {stats.expired > 0 && ` ${stats.expired.toLocaleString()} expired trades are excluded from win rate.`}
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Stats Cards */}
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
+        <div className="grid md:grid-cols-5 gap-4 mb-8">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Total Closed</p>
-                  <p className="text-3xl font-bold">{stats.total.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">{stats.totalResolved} resolved</p>
+                  <p className="text-sm text-muted-foreground mb-1">Charts Uploaded</p>
+                  <p className="text-3xl font-bold">{stats.total}</p>
                 </div>
                 <BarChart3 className="h-8 w-8 text-primary" />
               </div>
@@ -99,7 +92,18 @@ export default function ChartDatabase() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Winning Trades</p>
+                  <p className="text-sm text-muted-foreground mb-1">Still Open</p>
+                  <p className="text-3xl font-bold text-cyan-500">{stats.open}</p>
+                </div>
+                <Calendar className="h-8 w-8 text-cyan-500" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Wins</p>
                   <p className="text-3xl font-bold text-green-500">{stats.wins}</p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-green-500" />
@@ -110,7 +114,7 @@ export default function ChartDatabase() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Losing Trades</p>
+                  <p className="text-sm text-muted-foreground mb-1">Losses</p>
                   <p className="text-3xl font-bold text-red-500">{stats.losses}</p>
                 </div>
                 <TrendingDown className="h-8 w-8 text-red-500" />
@@ -123,7 +127,7 @@ export default function ChartDatabase() {
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Win Rate</p>
                   <p className="text-3xl font-bold">{stats.winRate}%</p>
-                  <p className="text-xs text-muted-foreground">of resolved trades</p>
+                  <p className="text-xs text-muted-foreground">{stats.totalResolved} resolved</p>
                 </div>
                 <Target className="h-8 w-8 text-cyan-500" />
               </div>
@@ -136,11 +140,11 @@ export default function ChartDatabase() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Filter className="h-5 w-5" />
-              Filter Patterns
+              Filter Charts
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-4 gap-4">
+            <div className="grid md:grid-cols-3 gap-4">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -157,8 +161,9 @@ export default function ChartDatabase() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Outcomes</SelectItem>
-                  <SelectItem value="hit_target">Hit Target</SelectItem>
-                  <SelectItem value="hit_stop">Hit Stop</SelectItem>
+                  <SelectItem value="open">Still Open</SelectItem>
+                  <SelectItem value="hit_target">Hit Target (Win)</SelectItem>
+                  <SelectItem value="hit_stop">Hit Stop (Loss)</SelectItem>
                   <SelectItem value="expired">Expired</SelectItem>
                 </SelectContent>
               </Select>
@@ -174,19 +179,6 @@ export default function ChartDatabase() {
                   <SelectItem value="future">Futures</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger data-testid="select-source-filter">
-                  <SelectValue placeholder="Source" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Sources</SelectItem>
-                  <SelectItem value="ai">AI Engine</SelectItem>
-                  <SelectItem value="quant">Quantitative</SelectItem>
-                  <SelectItem value="hybrid">Hybrid</SelectItem>
-                  <SelectItem value="news_catalyst">News Catalyst</SelectItem>
-                  <SelectItem value="flow_scanner">Flow Scanner</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </CardContent>
         </Card>
@@ -195,7 +187,7 @@ export default function ChartDatabase() {
         <div className="space-y-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">
-              {filteredTrades.length} Pattern{filteredTrades.length !== 1 ? 's' : ''} Found
+              {filteredTrades.length} Chart{filteredTrades.length !== 1 ? 's' : ''} Found
             </h2>
           </div>
 
