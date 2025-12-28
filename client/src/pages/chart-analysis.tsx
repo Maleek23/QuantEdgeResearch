@@ -454,6 +454,7 @@ export default function ChartAnalysis() {
   const [assetType, setAssetType] = useState<"stock" | "option">("stock");
   const [optionType, setOptionType] = useState<"call" | "put">("call");
   const [expiryDate, setExpiryDate] = useState("");
+  const [strikePrice, setStrikePrice] = useState("");
 
   const { data: perfStats } = useQuery<{ overall: { totalIdeas: number; winRate: number } }>({
     queryKey: ['/api/performance/stats'],
@@ -493,7 +494,7 @@ export default function ChartAnalysis() {
   })() : null;
 
   const saveDraftMutation = useMutation({
-    mutationFn: async (data: { symbol: string; analysis: ChartAnalysisResult; assetType: string; optionType?: string; expiryDate?: string }) => {
+    mutationFn: async (data: { symbol: string; analysis: ChartAnalysisResult; assetType: string; optionType?: string; expiryDate?: string; strikePrice?: number }) => {
       const response = await apiRequest('POST', '/api/trade-ideas/from-chart', {
         symbol: data.symbol,
         analysis: data.analysis,
@@ -501,6 +502,7 @@ export default function ChartAnalysis() {
         assetType: data.assetType,
         optionType: data.optionType,
         expiryDate: data.expiryDate,
+        strikePrice: data.strikePrice,
       });
       return await response.json();
     },
@@ -596,13 +598,18 @@ export default function ChartAnalysis() {
         description: "Chart analyzed successfully.",
       });
 
+      // Auto-suggest option type based on AI analysis sentiment
+      const suggestedOptionType = data.sentiment === 'bullish' ? 'call' : data.sentiment === 'bearish' ? 'put' : optionType;
+      setOptionType(suggestedOptionType);
+      
       if (symbol) {
         saveDraftMutation.mutate({ 
           symbol, 
           analysis: data, 
           assetType,
-          optionType: assetType === 'option' ? optionType : undefined,
+          optionType: assetType === 'option' ? suggestedOptionType : undefined,
           expiryDate: assetType === 'option' ? expiryDate : undefined,
+          strikePrice: assetType === 'option' && strikePrice && !isNaN(parseFloat(strikePrice)) ? parseFloat(strikePrice) : undefined,
         });
       }
     },
@@ -781,9 +788,9 @@ export default function ChartAnalysis() {
         <QuickStatCard label="Pattern Detection" value="Active" icon={Target} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 min-w-0">
         {/* Upload Section - Left Column */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4 min-w-0">
           <div className="glass-card rounded-xl overflow-hidden">
             <div className="p-4 pb-3 border-b border-border/50">
               <h3 className="text-base font-semibold flex items-center gap-2">
@@ -914,7 +921,7 @@ export default function ChartAnalysis() {
                 </div>
                 
                 {assetType === "option" && (
-                  <div className="space-y-2 pt-2">
+                  <div className="space-y-3 pt-2">
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -941,16 +948,36 @@ export default function ChartAnalysis() {
                         PUT
                       </button>
                     </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="expiry" className="text-xs text-muted-foreground">Expiry Date</Label>
-                      <Input
-                        id="expiry"
-                        type="date"
-                        value={expiryDate}
-                        onChange={(e) => setExpiryDate(e.target.value)}
-                        className="h-9 text-xs"
-                        data-testid="input-expiry"
-                      />
+                    {analysisResult && (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Sparkles className="h-3 w-3 text-cyan-400" />
+                        AI suggests {analysisResult.sentiment === 'bullish' ? 'CALL' : analysisResult.sentiment === 'bearish' ? 'PUT' : 'reviewing the chart'}
+                      </p>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label htmlFor="strike" className="text-xs text-muted-foreground">Strike Price</Label>
+                        <Input
+                          id="strike"
+                          type="number"
+                          placeholder="e.g. 150"
+                          value={strikePrice}
+                          onChange={(e) => setStrikePrice(e.target.value)}
+                          className="h-9 text-xs"
+                          data-testid="input-strike"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="expiry" className="text-xs text-muted-foreground">Expiry Date</Label>
+                        <Input
+                          id="expiry"
+                          type="date"
+                          value={expiryDate}
+                          onChange={(e) => setExpiryDate(e.target.value)}
+                          className="h-9 text-xs"
+                          data-testid="input-expiry"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1020,7 +1047,7 @@ export default function ChartAnalysis() {
         </div>
 
         {/* Results Section - Right Column */}
-        <div className="lg:col-span-3 space-y-4">
+        <div className="lg:col-span-3 space-y-4 min-w-0 overflow-hidden">
           {analysisResult ? (
             <>
               {/* Summary Banner */}

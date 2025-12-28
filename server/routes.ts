@@ -4300,6 +4300,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         assetType: z.enum(["stock", "option"]).optional(),
         optionType: z.enum(["call", "put"]).optional(),
         expiryDate: z.string().optional(),
+        strikePrice: z.number().optional(),
       });
       
       const parseResult = schema.safeParse(req.body);
@@ -4390,7 +4391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Option-specific fields
         optionType: assetType === 'option' ? validated.optionType : undefined,
         expiryDate: assetType === 'option' ? validated.expiryDate : undefined,
-        strikePrice: assetType === 'option' ? analysis.entryPoint : undefined,
+        strikePrice: assetType === 'option' ? (validated.strikePrice || analysis.entryPoint) : undefined,
       });
       
       logger.info(`📊 Chart analysis saved as draft trade idea: ${tradeIdea.id} for ${validated.symbol}`);
