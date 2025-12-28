@@ -7,7 +7,7 @@ import { generateQuantIdeas } from "./quant-ideas-generator";
 import { generateFuturesIdeas } from "./quantitative-engine";
 import { scanUnusualOptionsFlow } from "./flow-scanner";
 import { generateDiagnosticExport } from "./diagnostic-export";
-import { validateAndLog as validateTradeStructure } from "./trade-validation";
+import { validateAndLog as validateTradeStructureLog, validateTrade as validateTradeStructure } from "./trade-validation";
 import { deriveTimingWindows, verifyTimingUniqueness, recalculateExitTime } from "./timing-intelligence";
 import { formatInTimeZone } from "date-fns-tz";
 import multer from "multer";
@@ -3269,7 +3269,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // 🛡️ LAYER 1: Structural validation (prevents logically impossible trades)
-        const structureValid = validateTradeStructure({
+        const structureValid = validateTradeStructureLog({
           symbol: idea.symbol,
           assetType: idea.assetType as 'stock' | 'option' | 'crypto',
           direction: idea.direction as 'long' | 'short',
@@ -3407,7 +3407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const idea of flowIdeas) {
         // 🛡️ LAYER 1: Structural validation (prevents logically impossible trades)
-        const structureValid = validateTradeStructure({
+        const structureValid = validateTradeStructureLog({
           symbol: idea.symbol,
           assetType: idea.assetType as 'stock' | 'option' | 'crypto',
           direction: idea.direction as 'long' | 'short',
@@ -3604,7 +3604,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // 🛡️ LAYER 1: Structural validation (prevents logically impossible trades)
-        const structureValid = validateTradeStructure({
+        const structureValid = validateTradeStructureLog({
           symbol: aiIdea.symbol,
           assetType: aiIdea.assetType,
           direction: aiIdea.direction,
@@ -3839,7 +3839,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         // 🛡️ LAYER 1: Structural validation (prevents logically impossible trades)
-        const structureValid = validateTradeStructure({
+        const structureValid = validateTradeStructureLog({
           symbol: hybridIdea.symbol,
           assetType: hybridIdea.assetType,
           direction: hybridIdea.direction,
@@ -4291,6 +4291,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Use provided asset type or default to stock
       const assetType = validated.assetType || 'stock';
+      
+      // 🛡️ CRITICAL: Validate trade structure before saving
+      const structureValidation = validateTradeStructure({
+        symbol: validated.symbol,
+        assetType: assetType as 'stock' | 'option' | 'crypto',
+        direction: direction as 'long' | 'short',
+        entryPrice: analysis.entryPoint,
+        targetPrice: analysis.targetPrice,
+        stopLoss: analysis.stopLoss,
+      });
+      
+      if (!structureValidation.isValid) {
+        logger.warn(`📊 Chart analysis has invalid structure: ${structureValidation.errors.join(', ')}`);
+        return res.status(400).json({
+          error: "Invalid trade structure",
+          details: structureValidation.errors,
+          warnings: structureValidation.warnings,
+          suggestion: `For ${direction.toUpperCase()} trades: ` + 
+            (direction === 'long' 
+              ? 'target should be above entry, stop below entry'
+              : 'target should be below entry, stop above entry')
+        });
+      }
       
       // Create draft trade idea
       const tradeIdea = await storage.createTradeIdea({
