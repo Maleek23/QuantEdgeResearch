@@ -117,7 +117,7 @@ export default function Landing() {
     {
       icon: Calculator,
       title: "Engine 2: Quantitative Signals",
-      description: "Research-backed quantitative engine using RSI(2), VWAP, volume spike detection, and pattern validation. Targets 55-65% live win rate with data-driven precision."
+      description: "Research-backed quantitative engine using RSI(2), VWAP, volume spike detection, and pattern validation. Generates data-driven trade ideas with built-in risk controls."
     },
     {
       icon: Sparkles,
@@ -137,7 +137,7 @@ export default function Landing() {
     {
       icon: Shield,
       title: "Risk Management",
-      description: "Built-in position sizing with 3.5% stock stops, 5% crypto stops, 2:1 risk-reward ratios, and complete trade validation guardrails."
+      description: "Built-in position sizing with 5-7% max stop-loss, 2:1 risk-reward ratios, and complete trade validation guardrails."
     }
   ];
 
@@ -333,11 +333,17 @@ export default function Landing() {
               </div>
               <div className="text-xs md:text-sm text-muted-foreground">Ideas Tracked</div>
             </div>
-            <div className="text-center" data-testid="stat-target">
+            <div className="text-center" data-testid="stat-win-rate">
               <div className="text-2xl md:text-3xl font-bold text-amber-500 mb-1">
-                55-65%
+                {statsLoading ? (
+                  <Skeleton className="h-8 w-16 mx-auto" />
+                ) : perfStats?.overall?.winRate ? (
+                  `${Math.round(perfStats.overall.winRate)}%`
+                ) : (
+                  "—"
+                )}
               </div>
-              <div className="text-xs md:text-sm text-muted-foreground">Target Win Rate</div>
+              <div className="text-xs md:text-sm text-muted-foreground">Tracked Win Rate*</div>
             </div>
             <div className="text-center" data-testid="stat-rr-ratio">
               <div className="text-2xl md:text-3xl font-bold text-green-400 mb-1">
@@ -347,7 +353,8 @@ export default function Landing() {
             </div>
           </div>
           <p className="text-center text-xs text-muted-foreground mt-4">
-            Win rate based on backtested research. Past performance does not guarantee future results.
+            *Win rate calculated from tracked trade ideas. Past performance does not guarantee future results. 
+            Research/educational purposes only - NOT financial advice.
           </p>
         </div>
       </section>
@@ -427,7 +434,7 @@ export default function Landing() {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-400" />
-                    <span>55-65% Target Win Rate</span>
+                    <span>Research-Backed Signals</span>
                   </li>
                 </ul>
               </div>
@@ -1001,8 +1008,8 @@ export default function Landing() {
                   How accurate are the trade signals?
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground pb-4" data-testid="content-faq-accuracy">
-                  Our quantitative engine uses research-backed strategies targeting 55-65% win rate in live trading. 
-                  Every trade is tracked transparently with actual win/loss results. Past performance does not guarantee future results.
+                  All trade ideas are tracked transparently with actual win/loss results visible on the Performance page. 
+                  Past performance does not guarantee future results. This is research for educational purposes only.
                 </AccordionContent>
               </AccordionItem>
 
@@ -1032,7 +1039,7 @@ export default function Landing() {
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground pb-4" data-testid="content-faq-dual-engine">
                   Our AI Engine uses multi-provider LLMs for contextual insights. The Quantitative Engine runs research-backed technical strategies. 
-                  When both engines agree, win rates historically increase by 18%.
+                  When both engines agree on a trade, you get confluence from multiple analysis perspectives.
                 </AccordionContent>
               </AccordionItem>
 

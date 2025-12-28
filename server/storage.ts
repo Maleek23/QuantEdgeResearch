@@ -238,6 +238,9 @@ export interface IStorage {
   // Paper Trading - Equity Snapshots
   createPaperEquitySnapshot(snapshot: InsertPaperEquitySnapshot): Promise<PaperEquitySnapshot>;
   getPaperEquitySnapshots(portfolioId: string, startDate?: string, endDate?: string): Promise<PaperEquitySnapshot[]>;
+  
+  // Paper Trading - Compliance
+  getCompletedPaperTradesCount(userId: string): Promise<number>;
 
   // CT Ingestion
   createCTSource(source: InsertCTSource): Promise<CTSource>;
@@ -1530,6 +1533,11 @@ export class MemStorage implements IStorage {
   async getPaperEquitySnapshots(_portfolioId: string, _startDate?: string, _endDate?: string): Promise<PaperEquitySnapshot[]> {
     return [];
   }
+  
+  // Paper Trading - Compliance (stub returns 0 for MemStorage)
+  async getCompletedPaperTradesCount(_userId: string): Promise<number> {
+    return 0;
+  }
 }
 
 // Database Storage Implementation (from javascript_database blueprint)
@@ -2560,6 +2568,27 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(paperEquitySnapshotsTable)
       .where(and(...conditions))
       .orderBy(desc(paperEquitySnapshotsTable.date));
+  }
+
+  // 🛡️ COMPLIANCE: Count completed (closed) paper trades for a user
+  // Required for paper trading enforcement before live trading access
+  async getCompletedPaperTradesCount(userId: string): Promise<number> {
+    // Get all portfolios for this user
+    const portfolios = await this.getPaperPortfoliosByUser(userId);
+    if (portfolios.length === 0) return 0;
+    
+    // Count closed positions across all portfolios
+    let totalClosedTrades = 0;
+    for (const portfolio of portfolios) {
+      const positions = await db.select().from(paperPositionsTable)
+        .where(and(
+          eq(paperPositionsTable.portfolioId, portfolio.id),
+          eq(paperPositionsTable.status, 'closed')
+        ));
+      totalClosedTrades += positions.length;
+    }
+    
+    return totalClosedTrades;
   }
 
   // CT Ingestion

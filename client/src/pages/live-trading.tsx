@@ -58,12 +58,28 @@ const closeTradeFormSchema = z.object({
 
 type CloseTradeFormValues = z.infer<typeof closeTradeFormSchema>;
 
+// Paper trading status response type
+interface PaperTradingStatus {
+  completedPaperTrades: number;
+  requiredPaperTrades: number;
+  isEligibleForLiveTrading: boolean;
+  remainingPaperTrades: number;
+  progressPercent: number;
+}
+
 export default function LiveTradingPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [isNewTradeOpen, setIsNewTradeOpen] = useState(false);
   const [closingTradeId, setClosingTradeId] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+
+  // 🛡️ COMPLIANCE: Check paper trading status before allowing live trading
+  const { data: paperStatus, isLoading: paperStatusLoading } = useQuery<PaperTradingStatus>({
+    queryKey: ['/api/paper-trading/status'],
+    enabled: isAuthenticated,
+    staleTime: 30000,
+  });
 
   const { data: trades = [], isLoading, refetch } = useQuery<ActiveTrade[]>({
     queryKey: ['/api/active-trades'],
@@ -238,6 +254,70 @@ export default function LiveTradingPage() {
             <Link href="/login">
               <Button variant="glass" data-testid="button-go-to-login">Go to Login</Button>
             </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 🛡️ COMPLIANCE: Show paper trading requirement if not met
+  if (paperStatus && !paperStatus.isEligibleForLiveTrading) {
+    return (
+      <div className="p-4 sm:p-6 space-y-6 max-w-3xl mx-auto">
+        <div className="relative overflow-hidden rounded-xl glass-card p-6 sm:p-8">
+          <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-amber-400/10" />
+          <div className="relative z-10 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-500/20 mb-4">
+              <AlertTriangle className="h-8 w-8 text-amber-400" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-3" data-testid="text-paper-trading-required">Paper Trading Required</h1>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto" data-testid="text-paper-trading-message">
+              Before risking real capital, you must complete <span className="font-semibold text-cyan-400">{paperStatus.requiredPaperTrades} paper trades</span> to practice your strategy.
+            </p>
+            
+            {/* Progress Bar */}
+            <div className="max-w-sm mx-auto mb-6">
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-muted-foreground">Progress</span>
+                <span className="font-mono text-cyan-400" data-testid="text-paper-progress">
+                  {paperStatus.completedPaperTrades} / {paperStatus.requiredPaperTrades}
+                </span>
+              </div>
+              <div className="h-3 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-cyan-500 to-cyan-400 transition-all duration-500"
+                  style={{ width: `${paperStatus.progressPercent}%` }}
+                  data-testid="progress-bar"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                {paperStatus.remainingPaperTrades} more paper trade{paperStatus.remainingPaperTrades !== 1 ? 's' : ''} remaining
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link href="/paper-trading">
+                <Button variant="glass" size="lg" data-testid="button-go-to-paper-trading">
+                  <Target className="h-4 w-4 mr-2" />
+                  Start Paper Trading
+                </Button>
+              </Link>
+              <Link href="/trading-rules">
+                <Button variant="glass-secondary" size="lg" data-testid="button-view-rules">
+                  Learn Trading Rules
+                </Button>
+              </Link>
+            </div>
+
+            <div className="mt-8 p-4 glass-secondary rounded-lg text-left">
+              <h3 className="font-semibold text-sm mb-2 text-amber-400">Why Paper Trading First?</h3>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                <li>• Practice your strategy without financial risk</li>
+                <li>• Learn the platform and execution workflow</li>
+                <li>• Build confidence before committing real capital</li>
+                <li>• Identify weaknesses in your trading approach</li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
