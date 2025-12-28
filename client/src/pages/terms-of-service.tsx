@@ -32,7 +32,7 @@ export default function TermsOfService() {
             QuantEdge Research is an EDUCATIONAL and RESEARCH platform. It is NOT financial advice.
           </p>
           <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>All trade ideas are for educational purposes and research demonstration only</li>
+            <li>All research briefs are for educational purposes and research demonstration only</li>
             <li>We are not licensed financial advisors, brokers, or investment professionals</li>
             <li>Past performance does not guarantee future results</li>
             <li>Trading involves substantial risk of loss and is not suitable for everyone</li>
@@ -68,7 +68,7 @@ export default function TermsOfService() {
           <p>QuantEdge Research provides:</p>
           <ul className="list-disc list-inside space-y-2">
             <li>Quantitative analysis and technical indicator signals</li>
-            <li>AI-powered trade idea generation (educational demonstration)</li>
+            <li>AI-powered research brief generation (educational demonstration)</li>
             <li>Market data aggregation from public sources</li>
             <li>Performance tracking and analytics tools</li>
             <li>Risk calculation and position sizing tools</li>
@@ -92,7 +92,7 @@ export default function TermsOfService() {
             <li>Use the platform only for lawful purposes</li>
             <li>Not attempt to circumvent security measures or access unauthorized data</li>
             <li>Not use automated tools to scrape or harvest data from the platform</li>
-            <li>Not redistribute or resell our trade ideas or analysis</li>
+            <li>Not redistribute or resell our research briefs or analysis</li>
             <li>Conduct your own due diligence before making any trading decisions</li>
           </ul>
         </CardContent>
@@ -108,7 +108,7 @@ export default function TermsOfService() {
           </p>
           <ul className="list-disc list-inside space-y-2">
             <li>Accuracy of market data, prices, or analysis</li>
-            <li>Profitability of any trade ideas or strategies</li>
+            <li>Profitability of any research patterns or strategies</li>
             <li>Availability or uptime of the platform</li>
             <li>Compatibility with your specific use case</li>
             <li>Freedom from errors, bugs, or security vulnerabilities</li>

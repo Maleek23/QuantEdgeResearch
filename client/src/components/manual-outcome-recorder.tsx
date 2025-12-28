@@ -137,9 +137,9 @@ export function ManualOutcomeRecorder({
       </DialogTrigger>
       <DialogContent data-testid={`dialog-record-outcome-${ideaId}`}>
         <DialogHeader>
-          <DialogTitle>Record Trade Outcome</DialogTitle>
+          <DialogTitle>Record Research Outcome</DialogTitle>
           <DialogDescription>
-            Mark this trade idea as won, lost, or breakeven for {symbol}
+            Mark this research brief as won, lost, or breakeven for {symbol}
           </DialogDescription>
         </DialogHeader>
 

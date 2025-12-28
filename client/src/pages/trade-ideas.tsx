@@ -77,7 +77,7 @@ export default function TradeIdeasPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       toast({
         title: "Quant Ideas Generated",
-        description: `Generated ${data.count || data.newIdeas || 0} new quantitative trade ideas`,
+        description: `Generated ${data.count || data.newIdeas || 0} new quantitative research briefs`,
       });
     },
     onError: (error: any) => {
@@ -101,7 +101,7 @@ export default function TradeIdeasPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       toast({
         title: "AI Ideas Generated",
-        description: `Generated ${data.count || 0} new AI-powered trade ideas`,
+        description: `Generated ${data.count || 0} new AI-powered research briefs`,
       });
     },
     onError: (error: any) => {
@@ -123,7 +123,7 @@ export default function TradeIdeasPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       toast({
         title: "Hybrid Ideas Generated",
-        description: `Generated ${data.count || 0} new hybrid (AI+Quant) trade ideas`,
+        description: `Generated ${data.count || 0} new hybrid (AI+Quant) research briefs`,
       });
     },
     onError: (error: any) => {
@@ -145,7 +145,7 @@ export default function TradeIdeasPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       toast({
         title: "News Ideas Generated",
-        description: `Generated ${data.count || 0} news-driven trade ideas`,
+        description: `Generated ${data.count || 0} news-driven research briefs`,
       });
     },
     onError: (error: any) => {
@@ -287,7 +287,7 @@ export default function TradeIdeasPage() {
         <div className="relative flex items-center justify-between gap-4 pt-6">
           <div>
             <div className="flex items-baseline gap-3 flex-wrap">
-              <h1 className="text-3xl font-bold tracking-tight text-gradient-premium" data-testid="text-page-title">Trade Ideas</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-gradient-premium" data-testid="text-page-title">Research Briefs</h1>
               <span className="text-sm font-medium text-muted-foreground hidden md:inline" data-testid="text-current-date">
                 {format(new Date(), 'EEEE, MMM d')}
               </span>
@@ -364,7 +364,7 @@ export default function TradeIdeasPage() {
               <div className="flex items-center gap-2 text-sm">
                 <Info className="w-4 h-4 text-primary flex-shrink-0" />
                 <span className="text-muted-foreground">
-                  Showing trade ideas posted 
+                  Showing research briefs posted 
                   <span className="font-semibold text-foreground mx-1">
                     {dateRange === 'today' && 'today'}
                     {dateRange === '7d' && 'in the last 7 days'}
@@ -391,7 +391,7 @@ export default function TradeIdeasPage() {
                 <p className="text-xs text-muted-foreground">
                   {tradeIdeas.filter(i => i.outcomeStatus === 'open').length > 0 
                     ? `${tradeIdeas.filter(i => i.outcomeStatus === 'open').length} ideas ready for next week`
-                    : "Use the generation buttons above to create new trade ideas"}
+                    : "Use the generation buttons above to create new research briefs"}
                 </p>
               </div>
             </div>
@@ -518,7 +518,7 @@ export default function TradeIdeasPage() {
           <PopoverContent className="w-96" align="end">
             <div className="space-y-4">
               <div>
-                <h4 className="font-semibold mb-3">Filter Trade Ideas</h4>
+                <h4 className="font-semibold mb-3">Filter Research Briefs</h4>
               </div>
 
               {/* Asset Type */}
@@ -742,7 +742,7 @@ export default function TradeIdeasPage() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">No fresh trade ideas</p>
+                <p className="text-lg font-medium text-muted-foreground">No fresh research briefs</p>
                 <p className="text-sm text-muted-foreground/70 mt-1">
                   {tradeIdeas.length === 0 
                     ? "Use the generation buttons above to create new ideas" 
@@ -810,7 +810,7 @@ export default function TradeIdeasPage() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <TrendingUp className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">No active trade ideas</p>
+                <p className="text-lg font-medium text-muted-foreground">No active research briefs</p>
                 <p className="text-sm text-muted-foreground/70 mt-1">
                   {tradeIdeas.length === 0 
                     ? "Generate quantitative ideas to get started" 

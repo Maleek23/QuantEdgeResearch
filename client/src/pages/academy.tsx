@@ -8,7 +8,7 @@ export default function Academy() {
     {
       icon: Brain,
       title: "Understanding AI Trading Signals",
-      description: "Learn how our AI engines analyze market data, news sentiment, and technical patterns to generate high-probability trade ideas.",
+      description: "Learn how our AI engines analyze market data, news sentiment, and technical patterns to generate high-probability research patterns.",
       level: "Beginner",
       duration: "15 min read",
       topics: ["AI Analysis", "Market Context", "Signal Interpretation"],
@@ -31,7 +31,7 @@ export default function Academy() {
     },
     {
       icon: TrendingUp,
-      title: "Reading Trade Ideas Like a Pro",
+      title: "Reading Research Briefs Like a Pro",
       description: "Understand confidence scores, probability bands, entry/exit levels, and how to evaluate which signals align with your strategy.",
       level: "Beginner",
       duration: "18 min read",

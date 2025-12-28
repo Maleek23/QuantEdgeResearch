@@ -508,7 +508,7 @@ export default function ChartAnalysis() {
       setSavedTradeIdeaId(data.id);
       toast({
         title: "Saved as Draft",
-        description: "Analysis saved as draft trade idea.",
+        description: "Analysis saved as draft research brief.",
       });
     },
     onError: (error: Error) => {

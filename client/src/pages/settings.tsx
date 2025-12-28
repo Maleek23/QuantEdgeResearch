@@ -243,7 +243,7 @@ export default function SettingsPage() {
                       <SelectItem value="table">Table View</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">How trade ideas are displayed</p>
+                  <p className="text-xs text-muted-foreground">How research briefs are displayed</p>
                 </div>
               </div>
 
@@ -307,7 +307,7 @@ export default function SettingsPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 rounded-lg glass">
                   <div className="space-y-0.5">
-                    <Label htmlFor="trade-alerts">New Trade Idea Alerts</Label>
+                    <Label htmlFor="trade-alerts">New Research Brief Alerts</Label>
                     <p className="text-xs text-muted-foreground">Get notified when new ideas are generated</p>
                   </div>
                   <Switch
@@ -386,7 +386,7 @@ export default function SettingsPage() {
                       <SelectItem value="crypto">Crypto Only</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Initial filter on Trade Ideas page</p>
+                  <p className="text-xs text-muted-foreground">Initial filter on Research Briefs page</p>
                 </div>
 
                 <div className="space-y-2">
@@ -420,7 +420,7 @@ export default function SettingsPage() {
                 <h3 className="text-lg font-semibold text-amber-400">Disclaimer</h3>
                 <p className="text-sm text-muted-foreground mt-2">
                   QuantEdge Research is for <strong className="text-foreground">educational and research purposes only</strong>. 
-                  This platform provides quantitative analysis and AI-generated trade ideas, but does NOT constitute 
+                  This platform provides quantitative analysis and AI-generated research briefs, but does NOT constitute 
                   financial advice. All trading involves risk. Past performance does not guarantee future results.
                 </p>
               </div>

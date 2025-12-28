@@ -170,7 +170,7 @@ export default function AdminPanel() {
   });
 
   const [testAIProvider, setTestAIProvider] = useState<'openai' | 'anthropic' | 'gemini'>('openai');
-  const [testPrompt, setTestPrompt] = useState("Generate a bullish trade idea for NVDA.");
+  const [testPrompt, setTestPrompt] = useState("Generate a bullish research brief for NVDA.");
 
   // User management mutations
   const updateUserTierMutation = useMutation({
@@ -229,7 +229,7 @@ export default function AdminPanel() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/database-health'] });
-      toast({ title: "Database cleaned up", description: `Removed ${data.deletedIdeas} old ideas` });
+      toast({ title: "Database cleaned up", description: `Removed ${data.deletedIdeas} old research briefs` });
     },
     onError: () => {
       toast({ title: "Database cleanup failed", variant: "destructive" });
@@ -251,7 +251,7 @@ export default function AdminPanel() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/database-health'] });
-      toast({ title: "Database archived", description: `Archived ${data.archivedIdeas} closed ideas` });
+      toast({ title: "Database archived", description: `Archived ${data.archivedIdeas} closed research briefs` });
     },
     onError: () => {
       toast({ title: "Database archive failed", variant: "destructive" });
@@ -551,7 +551,7 @@ export default function AdminPanel() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Trade Ideas
+                  Research Briefs
                 </CardTitle>
                 <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
                   <TrendingUp className="h-5 w-5 text-green-500" />
@@ -560,14 +560,14 @@ export default function AdminPanel() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-gradient">
-                {(stats as any)?.totalIdeas || 0}
+                {(stats as any)?.totalIdeas || 0} briefs
               </div>
               <p className="text-xs text-muted-foreground mt-2">
                 <span className="text-amber-500 font-medium">
-                  {(stats as any)?.activeIdeas || 0} active
+                  {(stats as any)?.activeIdeas || 0} active briefs
                 </span>
                 {' • '}
-                {(stats as any)?.closedIdeas || 0} closed
+                {(stats as any)?.closedIdeas || 0} closed briefs
               </p>
             </CardContent>
           </Card>
@@ -588,7 +588,7 @@ export default function AdminPanel() {
                 {(stats as any)?.winRate || 0}%
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                From {(stats as any)?.closedIdeas || 0} closed trades
+                From {(stats as any)?.closedIdeas || 0} closed research briefs
               </p>
             </CardContent>
           </Card>
@@ -615,7 +615,7 @@ export default function AdminPanel() {
           </Card>
         </div>
 
-        {/* User Management & Trade Ideas */}
+        {/* User Management & Research Briefs */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Users */}
           <Card className="glass-card">
@@ -697,17 +697,17 @@ export default function AdminPanel() {
             </CardContent>
           </Card>
 
-          {/* Recent Trade Ideas */}
+          {/* Recent Research Briefs */}
           <Card className="glass-card">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-primary" />
-                    Trade Ideas
+                    Research Briefs
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    Recent platform ideas
+                    Recent platform briefs
                   </CardDescription>
                 </div>
                 <Badge variant="secondary">{(allIdeas as any[])?.length || 0}</Badge>
@@ -737,7 +737,7 @@ export default function AdminPanel() {
                           variant={idea.outcomeStatus === 'hit_target' ? 'default' : 'destructive'}
                           className="text-xs"
                         >
-                          {idea.outcomeStatus}
+                          {idea.outcomeStatus === 'hit_target' ? 'Target Met' : 'Brief Closed'}
                         </Badge>
                       )}
                       {idea.outcomeStatus === 'open' && (
@@ -750,7 +750,7 @@ export default function AdminPanel() {
                 )) || (
                   <div className="text-center py-8 text-muted-foreground">
                     <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                    <p>No trade ideas yet</p>
+                    <p>No research briefs yet</p>
                   </div>
                 )}
               </div>
@@ -1127,7 +1127,7 @@ export default function AdminPanel() {
                         {testAIMutation.data.success && (
                           <div className="space-y-1">
                             <p className="text-sm text-green-600 font-medium">
-                              ✓ Generated {testAIMutation.data.ideaCount || 0} trade idea(s)
+                              ✓ Generated {testAIMutation.data.ideaCount || 0} research brief(s)
                             </p>
                             <p className="text-xs text-muted-foreground">
                               Provider is responding correctly
@@ -1167,7 +1167,9 @@ export default function AdminPanel() {
                           )}
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm font-medium">{activity.description}</p>
+                          <p className="text-sm font-medium">
+                            {activity.description.replace('trade idea', 'research brief').replace('Trade idea', 'Research brief')}
+                          </p>
                           <p className="text-xs text-muted-foreground">
                             {new Date(activity.timestamp).toLocaleString()}
                           </p>
@@ -1381,16 +1383,16 @@ export default function AdminPanel() {
                       <CardHeader className="pb-3">
                         <CardTitle className="text-sm flex items-center gap-2">
                           <Trash2 className="h-4 w-4 text-amber-500" />
-                          Cleanup Old Ideas
+                          Cleanup Old Briefs
                         </CardTitle>
                         <CardDescription className="text-xs">
-                          Remove trade ideas older than 30 days
+                          Remove research briefs older than 30 days
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <Button
                           onClick={() => {
-                            if (confirm('Delete ideas older than 30 days? This cannot be undone.')) {
+                            if (confirm('Delete briefs older than 30 days? This cannot be undone.')) {
                               cleanupDatabaseMutation.mutate(30);
                             }
                           }}
@@ -1416,7 +1418,7 @@ export default function AdminPanel() {
                           Archive Closed Trades
                         </CardTitle>
                         <CardDescription className="text-xs">
-                          Archive completed ideas older than 7 days
+                          Archive completed research briefs older than 7 days
                         </CardDescription>
                       </CardHeader>
                       <CardContent>

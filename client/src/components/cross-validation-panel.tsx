@@ -63,10 +63,10 @@ export function CrossValidationPanel() {
   const totalIdeas = tradeIdeas.length;
   const perfTotal = performanceStats.overall.totalIdeas;
   validations.push({
-    metric: 'Total Trade Ideas',
+    metric: 'Total Research Briefs',
     expected: totalIdeas,
     actual: perfTotal,
-    source: 'Trade Ideas API vs Performance Stats',
+    source: 'Research API vs Performance Stats',
     valid: totalIdeas === perfTotal,
     severity: totalIdeas === perfTotal ? 'success' : 'error'
   });
@@ -80,10 +80,10 @@ export function CrossValidationPanel() {
   ).length;
   const perfClosed = performanceStats.overall.closedIdeas;
   validations.push({
-    metric: 'Closed Trade Ideas',
+    metric: 'Closed Research Briefs',
     expected: closedIdeas,
     actual: perfClosed,
-    source: 'Trade Ideas API vs Performance Stats',
+    source: 'Research API vs Performance Stats',
     valid: closedIdeas === perfClosed,
     severity: closedIdeas === perfClosed ? 'success' : 'error'
   });
@@ -92,10 +92,10 @@ export function CrossValidationPanel() {
   const wonIdeas = tradeIdeas.filter((idea: any) => idea.outcomeStatus === 'hit_target').length;
   const perfWon = performanceStats.overall.wonIdeas;
   validations.push({
-    metric: 'Won Trade Ideas',
+    metric: 'Successful Briefs',
     expected: wonIdeas,
     actual: perfWon,
-    source: 'Trade Ideas API vs Performance Stats',
+    source: 'Research API vs Performance Stats',
     valid: wonIdeas === perfWon,
     severity: wonIdeas === perfWon ? 'success' : 'error'
   });
@@ -104,10 +104,10 @@ export function CrossValidationPanel() {
   const lostIdeas = tradeIdeas.filter((idea: any) => idea.outcomeStatus === 'hit_stop').length;
   const perfLost = performanceStats.overall.lostIdeas;
   validations.push({
-    metric: 'Lost Trade Ideas',
+    metric: 'Stopped Briefs',
     expected: lostIdeas,
     actual: perfLost,
-    source: 'Trade Ideas API vs Performance Stats',
+    source: 'Research API vs Performance Stats',
     valid: lostIdeas === perfLost,
     severity: lostIdeas === perfLost ? 'success' : 'error'
   });
@@ -116,10 +116,10 @@ export function CrossValidationPanel() {
   const expiredIdeas = tradeIdeas.filter((idea: any) => idea.outcomeStatus === 'expired').length;
   const perfExpired = performanceStats.overall.expiredIdeas;
   validations.push({
-    metric: 'Expired Trade Ideas',
+    metric: 'Expired Briefs',
     expected: expiredIdeas,
     actual: perfExpired,
-    source: 'Trade Ideas API vs Performance Stats',
+    source: 'Research API vs Performance Stats',
     valid: expiredIdeas === perfExpired,
     severity: expiredIdeas === perfExpired ? 'success' : 'error'
   });

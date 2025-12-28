@@ -131,7 +131,7 @@ export default function About() {
           <p className="text-sm text-muted-foreground leading-relaxed">
             <strong className="text-foreground">Platform Note:</strong> QuantEdge Research is a personal project 
             showcasing quantitative analysis and AI-powered trading research tools. This platform demonstrates 
-            advanced technical analysis, multi-timeframe indicators, and intelligent trade idea generation for 
+            advanced technical analysis, multi-timeframe indicators, and intelligent research brief generation for 
             educational purposes.
           </p>
         </div>

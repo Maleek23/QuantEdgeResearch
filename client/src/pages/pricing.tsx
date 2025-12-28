@@ -32,7 +32,7 @@ const plans: PricingPlan[] = [
     icon: TrendingUp,
     currentPlan: true,
     features: [
-      { name: "5 trade ideas per day", included: true },
+      { name: "5 research briefs per day", included: true },
       { name: "Delayed market data (15min)", included: true },
       { name: "7-day performance history", included: true },
       { name: "Stocks & crypto only", included: true },
@@ -52,7 +52,7 @@ const plans: PricingPlan[] = [
     icon: Zap,
     popular: true,
     features: [
-      { name: "Unlimited trade ideas", included: true },
+      { name: "Unlimited research briefs", included: true },
       { name: "Real-time market data", included: true },
       { name: "Unlimited chart analyses", included: true },
       { name: "Unlimited AI generations", included: true },

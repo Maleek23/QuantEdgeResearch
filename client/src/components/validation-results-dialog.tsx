@@ -77,9 +77,9 @@ export function ValidationResultsDialog({
         <DialogHeader>
           <DialogTitle className="text-2xl">Validation Results</DialogTitle>
           <DialogDescription>
-            Checked {totalValidated} open trade ideas. {totalUpdated > 0 
-              ? `${totalUpdated} ${totalUpdated === 1 ? 'idea' : 'ideas'} closed based on price action.`
-              : 'All ideas still active.'}
+            Checked {totalValidated} open research briefs. {totalUpdated > 0 
+              ? `${totalUpdated} ${totalUpdated === 1 ? 'brief' : 'briefs'} closed based on price action.`
+              : 'All briefs still active.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -160,7 +160,7 @@ export function ValidationResultsDialog({
             {results.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
                 <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No trade ideas to validate</p>
+                <p>No research briefs to validate</p>
               </div>
             )}
           </div>

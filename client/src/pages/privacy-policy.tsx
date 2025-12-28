@@ -43,9 +43,9 @@ export default function PrivacyPolicy() {
             </p>
           </div>
           <div>
-            <p className="font-semibold text-foreground mb-2">Trade Ideas and Watchlists</p>
+            <p className="font-semibold text-foreground mb-2">Research Briefs and Watchlists</p>
             <p>
-              Any trade ideas you create, watchlist items you add, or settings you configure are stored 
+              Any research briefs you create, watchlist items you add, or settings you configure are stored 
               in our database to provide our services to you.
             </p>
           </div>
@@ -63,7 +63,7 @@ export default function PrivacyPolicy() {
           <ul className="list-disc list-inside space-y-2">
             <li>Provide and improve our quantitative trading research platform</li>
             <li>Personalize your experience with saved settings and preferences</li>
-            <li>Generate market analysis and trade ideas based on your watchlist</li>
+            <li>Generate market analysis and research briefs based on your watchlist</li>
             <li>Track performance metrics and improve our algorithms</li>
             <li>Send important service updates and security notifications</li>
             <li>Comply with legal obligations and prevent fraud</li>
@@ -110,7 +110,7 @@ export default function PrivacyPolicy() {
             <li><strong>Yahoo Finance</strong> - Stock market data and screening</li>
             <li><strong>Alpha Vantage</strong> - Historical stock data and earnings calendar</li>
             <li><strong>Tradier</strong> - Options data and pricing</li>
-            <li><strong>OpenAI / Anthropic / Google Gemini</strong> - AI-powered trade idea generation</li>
+            <li><strong>OpenAI / Anthropic / Google Gemini</strong> - AI-powered research brief generation</li>
             <li><strong>Neon Database</strong> - PostgreSQL database hosting</li>
           </ul>
           <p className="text-xs mt-4">
@@ -130,7 +130,7 @@ export default function PrivacyPolicy() {
             <li>Request correction of inaccurate data</li>
             <li>Request deletion of your account and associated data</li>
             <li>Opt out of non-essential data collection</li>
-            <li>Export your trade ideas and watchlist data</li>
+            <li>Export your research briefs and watchlist data</li>
           </ul>
         </CardContent>
       </Card>

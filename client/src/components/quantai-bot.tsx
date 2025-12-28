@@ -42,12 +42,12 @@ function TypingMessage({ content }: { content: string }) {
   );
 }
 
-// Markdown message component with manual "Save as Trade Idea" backup
+// Markdown message component with manual "Save as Research Brief" backup
 function MarkdownMessage({ content, messageId, wasAutoSaved }: { content: string; messageId: string; wasAutoSaved?: boolean }) {
   const { toast } = useToast();
   const [showSaveButton, setShowSaveButton] = useState(false);
 
-  // Detect if message contains trade ideas (manual backup only if not auto-saved)
+  // Detect if message contains research patterns (manual backup only if not auto-saved)
   useEffect(() => {
     if (wasAutoSaved) {
       setShowSaveButton(false); // Already saved automatically
@@ -82,13 +82,13 @@ function MarkdownMessage({ content, messageId, wasAutoSaved }: { content: string
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       toast({
         title: "Success!",
-        description: `Saved ${data.count || 1} trade idea(s) from this message`,
+        description: `Saved ${data.count || 1} research brief(s) from this message`,
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Could not parse trade ideas from this message",
+        description: "Could not parse research patterns from this message",
         variant: "destructive",
       });
     },
@@ -118,7 +118,7 @@ function MarkdownMessage({ content, messageId, wasAutoSaved }: { content: string
           data-testid={`button-save-idea-${messageId}`}
         >
           <TrendingUp className="h-3 w-3" />
-          {saveAsTradeIdea.isPending ? "Saving..." : "Save as Trade Idea"}
+          {saveAsTradeIdea.isPending ? "Saving..." : "Save as Research Brief"}
         </Button>
       )}
     </div>
@@ -161,8 +161,8 @@ export function QuantAIBot({ isOpen, onClose }: QuantAIBotProps) {
         // Track this message as auto-saved
         setAutoSavedMessageIds(prev => new Set(prev).add(data.messageId));
         toast({
-          title: "Trade Ideas Added! 🎯",
-          description: `Automatically saved ${data.autoSavedIdeas} trade idea(s) to your feed`,
+          title: "Research Briefs Added!",
+          description: `Automatically saved ${data.autoSavedIdeas} research brief(s) to your feed`,
         });
       }
     },

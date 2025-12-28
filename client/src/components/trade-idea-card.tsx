@@ -416,7 +416,7 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
         <div className="bg-muted/50 rounded-md p-3 border border-muted-border">
           <p className="text-xs text-muted-foreground leading-relaxed">
             <strong className="text-foreground">Educational Research Only:</strong> This is not financial advice. 
-            Trade ideas are for research and educational purposes. Consider liquidity, volatility, and your own risk tolerance. 
+            Research briefs are for educational purposes only. Consider liquidity, volatility, and your own risk tolerance. 
             Never risk more than you can afford to lose.
           </p>
         </div>

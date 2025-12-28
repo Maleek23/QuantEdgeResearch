@@ -271,7 +271,7 @@ export function SignalCorrelationCube({ combinations }: SignalCorrelationCubePro
       <CardContent>
         {combinations.length === 0 ? (
           <div className="h-[500px] flex items-center justify-center text-muted-foreground">
-            <p>No combination data available yet. Generate more trade ideas to see correlations.</p>
+            <p>No combination data available yet. Generate more research briefs to see correlations.</p>
           </div>
         ) : hasWebGL === null ? (
           <div className="h-[500px] flex items-center justify-center text-muted-foreground">

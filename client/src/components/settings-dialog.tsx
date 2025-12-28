@@ -117,9 +117,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label htmlFor="default-view" className="text-sm">Default Trade Ideas View</Label>
+                  <Label htmlFor="default-view" className="text-sm">Default Research Briefs View</Label>
                   <p className="text-xs text-muted-foreground">
-                    Which tab to show when opening Trade Ideas
+                    Which tab to show when opening Research Briefs
                   </p>
                 </div>
                 <Select
@@ -206,7 +206,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 <div className="space-y-0.5">
                   <Label htmlFor="notifications" className="text-sm">Enable notifications</Label>
                   <p className="text-xs text-muted-foreground">
-                    Get alerts for new trade ideas and updates
+                    Get alerts for new research briefs and updates
                   </p>
                 </div>
                 <Switch
@@ -236,11 +236,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
 
           <Separator />
 
-          {/* Trade Idea Filters */}
+          {/* Research Brief Filters */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold">Trade Idea Preferences</h3>
+              <h3 className="text-sm font-semibold">Research Brief Preferences</h3>
             </div>
             
             <div className="space-y-4 pl-6">
