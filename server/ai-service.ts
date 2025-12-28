@@ -101,8 +101,8 @@ export function validateTradeRisk(idea: AITradeIdea, isNewsCatalyst: boolean = f
   
   // 🚨 GUARDRAIL #1: Asset-specific maximum loss caps
   // Options have wider stops due to higher volatility (25-35% is normal for options)
-  // Stocks and crypto use tighter 5% stops
-  const MAX_LOSS_PERCENT = assetType === 'option' ? 35.0 : 5.0;  // 35% for options, 5% for stocks/crypto
+  // Stocks and crypto use 5-7% stops (user-specified max of 7%)
+  const MAX_LOSS_PERCENT = assetType === 'option' ? 35.0 : 7.0;  // 35% for options, 7% for stocks/crypto
   
   if (maxLossPercent > MAX_LOSS_PERCENT) {
     return {

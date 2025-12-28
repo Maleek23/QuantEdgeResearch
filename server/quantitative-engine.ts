@@ -291,10 +291,10 @@ function calculateTickBasedLevels(
 ): { entryPrice: number; targetPrice: number; stopLoss: number; riskRewardRatio: number } {
   const entryPrice = currentPrice;
   
-  // Target: 8% move (same as stocks) but rounded to nearest tick
-  // Stop: 3.5% move (same as stocks) but rounded to nearest tick
-  const targetPercent = 0.08;
-  const stopPercent = 0.035;
+  // Target: 10% move for futures but rounded to nearest tick
+  // Stop: 5% move (aligns with 5-7% platform rule) but rounded to nearest tick
+  const targetPercent = 0.10;
+  const stopPercent = 0.05;
   
   let targetPrice: number;
   let stopLoss: number;

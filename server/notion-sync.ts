@@ -200,10 +200,10 @@ The core engine leverages multiple technical indicators and strategies:
 - Time-of-day filtering for optimal entry windows
 
 ### Risk Management
-- Stop losses: 3.5% for stocks, 5% for crypto
+- Stop losses: 5-7% for stocks and crypto
 - Standard 2:1 Risk/Reward ratio
-- Minimum 2:1 R:R requirement (1.5:1 for news catalyst trades)
-- Maximum 5% loss per trade guardrail
+- Minimum 1.5:1 R:R requirement
+- Maximum 7% loss per trade guardrail
 
 ### Chart Pattern Validation (v3.7.0)
 Chart validation is REQUIRED for standard trade ideas:

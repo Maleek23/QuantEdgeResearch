@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { formatInTimeZone } from "date-fns-tz";
 
 // 🎯 MINIMUM LOSS THRESHOLD: Losses below this are treated as "breakeven"
-// Aligns with platform stop-loss rules: stocks=3.5%, crypto=5%
+// Aligns with platform stop-loss rules: 5-7% for stocks/crypto
 // Must match the constant in performance-validator.ts
 const MIN_LOSS_THRESHOLD_PERCENT = 3.0;
 

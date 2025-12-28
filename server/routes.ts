@@ -4315,7 +4315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // 🛡️ LAYER 2: Risk validation (max 3.5% stop distance for stocks, 5% for crypto)
+      // 🛡️ LAYER 2: Risk validation (max 5-7% stop distance)
       const riskValidation = validateTradeRisk({
         symbol: validated.symbol,
         assetType: assetType as 'stock' | 'option' | 'crypto',
@@ -4334,7 +4334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: "Trade exceeds risk limits",
           reason: riskValidation.reason,
           metrics: riskValidation.metrics,
-          suggestion: `Max stop distance: 3.5% for stocks, 5% for crypto. Your stop is ${riskValidation.metrics?.maxLossPercent?.toFixed(2)}% from entry.`
+          suggestion: `Max stop distance: 5-7%. Your stop is ${riskValidation.metrics?.maxLossPercent?.toFixed(2)}% from entry.`
         });
       }
       

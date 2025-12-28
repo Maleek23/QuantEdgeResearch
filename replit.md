@@ -245,9 +245,8 @@ QuantEdge Research is a professional quantitative trading research platform for 
 6. **Time-of-Day Filtering** (optimal trading windows)
 
 ### Risk Parameters
-- Stock stop-loss: 3.5%
-- Crypto stop-loss: 5%
-- Risk/Reward minimum: 2:1
+- Stop-loss: 5-7% for stocks and crypto
+- Risk/Reward minimum: 1.5:1
 - Target win rate: 55-65%
 - Performance target: <60s end-to-end latency
 
