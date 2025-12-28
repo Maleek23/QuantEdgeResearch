@@ -230,18 +230,30 @@ export default function ChartDatabase() {
                       <div>
                         <p className="text-xs text-muted-foreground mb-1">Entry / Exit</p>
                         <p className="text-sm font-mono font-semibold">
-                          ${trade.entryPrice.toFixed(2)} → ${(trade.exitPrice || 0).toFixed(2)}
+                          ${trade.entryPrice.toFixed(2)} → {trade.exitPrice ? `$${trade.exitPrice.toFixed(2)}` : <span className="text-muted-foreground">Pending</span>}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground mb-1">P&L</p>
-                        <p className={`text-sm font-bold ${(trade.percentGain || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {(trade.percentGain || 0) >= 0 ? '+' : ''}{(trade.percentGain || 0).toFixed(1)}%
-                        </p>
+                        {trade.outcomeStatus && trade.outcomeStatus !== 'open' ? (
+                          <p className={`text-sm font-bold ${(trade.percentGain || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {(trade.percentGain || 0) >= 0 ? '+' : ''}{(trade.percentGain || 0).toFixed(1)}%
+                          </p>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">OPEN</Badge>
+                        )}
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground mb-1">Source</p>
-                        <Badge variant="secondary" className="text-xs">{trade.source}</Badge>
+                        <p className="text-xs text-muted-foreground mb-1">Status</p>
+                        {trade.outcomeStatus === 'hit_target' ? (
+                          <Badge className="bg-green-500/20 text-green-500 border-green-500/30 text-xs">WIN</Badge>
+                        ) : trade.outcomeStatus === 'hit_stop' ? (
+                          <Badge className="bg-red-500/20 text-red-500 border-red-500/30 text-xs">LOSS</Badge>
+                        ) : trade.outcomeStatus === 'expired' ? (
+                          <Badge variant="secondary" className="text-xs">EXPIRED</Badge>
+                        ) : (
+                          <Badge className="bg-cyan-500/20 text-cyan-500 border-cyan-500/30 text-xs">TRACKING</Badge>
+                        )}
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground mb-1">Date</p>
