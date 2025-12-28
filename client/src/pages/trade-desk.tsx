@@ -168,8 +168,8 @@ export default function TradeDeskPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       const label = TIMEFRAME_LABELS[activeTimeframe] || 'selected timeframe';
       toast({
-        title: `${label} Ideas Generated`,
-        description: `Generated ${data.count || data.newIdeas || 0} trade ideas for ${label.toLowerCase()}`,
+        title: `${label} Research Generated`,
+        description: `Generated ${data.count || data.newIdeas || 0} research briefs for ${label.toLowerCase()}`,
       });
     },
     onError: (error: any) => {
@@ -189,8 +189,8 @@ export default function TradeDeskPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       toast({
-        title: "Quant Ideas Generated",
-        description: `Generated ${data.count || data.newIdeas || 0} new quantitative trade ideas`,
+        title: "Quant Research Generated",
+        description: `Generated ${data.count || data.newIdeas || 0} new quantitative research briefs`,
       });
     },
     onError: (error: any) => {
@@ -212,8 +212,8 @@ export default function TradeDeskPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       toast({
-        title: "AI Ideas Generated",
-        description: `Generated ${data.count || 0} new AI-powered trade ideas`,
+        title: "AI Research Generated",
+        description: `Generated ${data.count || 0} new AI-powered research briefs`,
       });
     },
     onError: (error: any) => {
@@ -233,8 +233,8 @@ export default function TradeDeskPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       toast({
-        title: "Hybrid Ideas Generated",
-        description: `Generated ${data.count || 0} new hybrid (AI+Quant) trade ideas`,
+        title: "Hybrid Research Generated",
+        description: `Generated ${data.count || 0} new hybrid (AI+Quant) research briefs`,
       });
     },
     onError: (error: any) => {
@@ -254,8 +254,8 @@ export default function TradeDeskPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       toast({
-        title: "News Ideas Generated",
-        description: `Generated ${data.count || 0} news-driven trade ideas`,
+        title: "News Research Generated",
+        description: `Generated ${data.count || 0} news-driven research briefs`,
       });
     },
     onError: (error: any) => {
@@ -286,7 +286,7 @@ export default function TradeDeskPage() {
       const timeframeLabel = activeTimeframe !== 'all' ? TIMEFRAME_LABELS[activeTimeframe] : 'All';
       toast({
         title: "Flow Scanner Complete",
-        description: data.message || `Scanned ${timeframeLabel} options, found ${data.count || 0} flow trades`,
+        description: data.message || `Scanned ${timeframeLabel} options, found ${data.count || 0} flow patterns`,
       });
     },
     onError: (error: any) => {
@@ -605,11 +605,11 @@ export default function TradeDeskPage() {
             <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase mb-1">
               {format(new Date(), 'EEEE, MMM d')}
             </p>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-3" data-testid="text-page-title">Trade Desk</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-3" data-testid="text-page-title">Research Desk</h1>
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2 glass-success rounded-lg px-3 py-1.5">
                 <Activity className="h-4 w-4" />
-                <span className="text-sm font-medium">{activeIdeas.length} Active</span>
+                <span className="text-sm font-medium">{activeIdeas.length} Active Briefs</span>
               </div>
               {newIdeasCount > 0 && (
                 <div className="flex items-center gap-2 glass rounded-lg px-3 py-1.5">
@@ -624,7 +624,7 @@ export default function TradeDeskPage() {
               variant="glass-secondary"
               size="icon"
               onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] })}
-              title="Refresh trade ideas"
+              title="Refresh research briefs"
               data-testid="button-refresh-ideas"
             >
               <RefreshCw className="h-4 w-4" />
@@ -802,7 +802,7 @@ export default function TradeDeskPage() {
       {/* Watchlist Spotlight - "Watch Out For These" */}
       <WatchlistSpotlight maxItems={5} />
 
-      {/* All Trade Ideas */}
+      {/* All Research Briefs */}
       <div className="space-y-8">
         {/* Loading State */}
         {ideasLoading ? (
@@ -818,13 +818,13 @@ export default function TradeDeskPage() {
               <div className="h-20 w-20 rounded-2xl glass flex items-center justify-center mb-6">
                 <BarChart3 className="h-10 w-10 text-cyan-400" />
               </div>
-              <h3 className="text-2xl font-bold mb-2">No Trade Ideas Found</h3>
+              <h3 className="text-2xl font-bold mb-2">No Research Briefs Found</h3>
               <p className="text-muted-foreground text-center max-w-md mb-4">
                 {tradeIdeas.length === 0 
-                  ? "Start generating quantitative trade ideas using the buttons in the toolbar above. Each engine uses different strategies to find opportunities."
+                  ? "Start generating research briefs using the buttons in the toolbar above. Each engine uses different strategies to identify patterns."
                   : statusFilter === 'active'
-                    ? "No active trade ideas match your filters. Try showing all statuses or adjusting other filters."
-                    : "No ideas match your current filters. Try adjusting the filters above or generate new ideas."}
+                    ? "No active research briefs match your filters. Try showing all statuses or adjusting other filters."
+                    : "No briefs match your current filters. Try adjusting the filters above or generate new analysis."}
               </p>
               {statusFilter !== 'all' && tradeIdeas.length > 0 && (
                 <Button
@@ -837,13 +837,13 @@ export default function TradeDeskPage() {
                 </Button>
               )}
               <p className="text-sm text-muted-foreground text-center">
-                {statusFilter === 'active' && "Tip: By default, only ACTIVE trades are shown to reduce clutter"}
+                {statusFilter === 'active' && "Tip: By default, only ACTIVE briefs are shown to reduce clutter"}
               </p>
             </div>
           </div>
         ) : (
           <>
-            {/* SECTION 1: Active Trades - Glassmorphism */}
+            {/* SECTION 1: Active Research - Glassmorphism */}
             <div className="space-y-4">
               <div className="glass-card rounded-xl p-4 flex items-center justify-between gap-4 border-l-2 border-l-cyan-500">
                 <div className="flex items-center gap-3">
@@ -851,8 +851,8 @@ export default function TradeDeskPage() {
                     <Activity className="h-5 w-5 text-cyan-400" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold">Active Trades</h3>
-                    <span className="text-sm text-muted-foreground">{activeIdeas.length} open positions</span>
+                    <h3 className="text-lg font-semibold">Active Research</h3>
+                    <span className="text-sm text-muted-foreground">{activeIdeas.length} open patterns</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -898,7 +898,7 @@ export default function TradeDeskPage() {
                     <div className="h-14 w-14 rounded-lg glass flex items-center justify-center mb-3">
                       <Activity className="h-7 w-7 text-muted-foreground/50" />
                     </div>
-                    <p className="text-muted-foreground text-sm">No active trades match your filters</p>
+                    <p className="text-muted-foreground text-sm">No active research briefs match your filters</p>
                   </div>
                 </div>
               ) : (
@@ -954,7 +954,7 @@ export default function TradeDeskPage() {
                 </Accordion>
               )}
 
-              {/* Load More Button for Active Trades */}
+              {/* Load More Button for Active Briefs */}
               {activeIdeas.length > 0 && visibleCount < activeIdeas.length && (
                 <div className="flex justify-center pt-4">
                   <Button
@@ -973,7 +973,7 @@ export default function TradeDeskPage() {
               )}
             </div>
 
-            {/* SECTION 2: Closed Trades Summary - Glassmorphism */}
+            {/* SECTION 2: Closed Patterns Summary - Glassmorphism */}
             {closedIdeas.length > 0 && (
               <div className="glass-card rounded-xl p-4 mt-4 border-l-2 border-l-blue-500">
                 <div className="flex items-center justify-between gap-4 flex-wrap">

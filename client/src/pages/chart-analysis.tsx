@@ -529,7 +529,7 @@ export default function ChartAnalysis() {
       setIsPromoted(true);
       toast({
         title: "Published",
-        description: "Trade idea is now visible in Trade Desk.",
+        description: "Research brief is now visible in Research Desk.",
       });
     },
     onError: (error: Error) => {
@@ -1311,7 +1311,7 @@ export default function ChartAnalysis() {
                     <Button asChild variant="glass" className="flex-1" data-testid="button-view-trade-desk">
                       <Link href="/trade-desk">
                         <ExternalLink className="h-4 w-4 mr-2" />
-                        Trade Desk
+                        Research Desk
                       </Link>
                     </Button>
                     <Button

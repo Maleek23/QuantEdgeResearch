@@ -12,9 +12,9 @@ export const TIMEFRAME_LABELS: Record<TimeframeBucket, string> = {
 };
 
 export const TIMEFRAME_DESCRIPTIONS: Record<TimeframeBucket, string> = {
-  all: 'All trade ideas',
-  today_tomorrow: 'Day trades and overnight holds',
-  few_days: '2-5 day swing trades',
+  all: 'All research briefs',
+  today_tomorrow: 'Day patterns and overnight holds',
+  few_days: '2-5 day swing patterns',
   next_week: '1-2 week positions',
   next_month: 'Monthly+ positions and LEAPS',
 };

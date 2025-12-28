@@ -33,7 +33,7 @@ interface NavItem {
 
 const tradingToolsItems: NavItem[] = [
   { title: "Dashboard", url: "/home", icon: Home },
-  { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp, badge: "Popular", badgeVariant: "default" },
+  { title: "Research Desk", url: "/trade-desk", icon: TrendingUp, badge: "Popular", badgeVariant: "default" },
   { title: "Live Trading", url: "/live-trading", icon: Activity },
 ];
 

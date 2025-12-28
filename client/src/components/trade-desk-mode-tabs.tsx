@@ -72,8 +72,8 @@ export const MODES: ModeMeta[] = [
     id: 'news',
     label: 'News Catalyst',
     icon: Newspaper,
-    description: 'Breaking news-driven trades',
-    tooltip: 'Breaking news-driven trades with relaxed risk/reward requirements',
+    description: 'Breaking news-driven patterns',
+    tooltip: 'Breaking news-driven patterns with relaxed risk/reward requirements',
     filters: {
       source: ['news'],
     }
@@ -82,8 +82,8 @@ export const MODES: ModeMeta[] = [
     id: 'manual',
     label: 'Manual',
     icon: UserPlus,
-    description: 'User-created trades',
-    tooltip: 'Your custom trade ideas and manual entries',
+    description: 'User-created briefs',
+    tooltip: 'Your custom research briefs and manual entries',
     filters: {
       source: ['manual'],
     }

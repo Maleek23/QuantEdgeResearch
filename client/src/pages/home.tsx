@@ -39,7 +39,7 @@ export default function HomePage() {
     mutationFn: () => apiRequest('POST', '/api/generate-hybrid-ideas'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
-      toast({ title: "Fresh ideas generated!", description: "Check out today's new opportunities" });
+      toast({ title: "Fresh research briefs generated!", description: "Check out today's new analysis" });
     },
     onError: () => {
       toast({ title: "Generation failed", description: "Try again in a moment", variant: "destructive" });
@@ -126,7 +126,7 @@ export default function HomePage() {
               data-testid="button-generate-ideas"
             >
               <Sparkles className="h-4 w-4 mr-2" />
-              {generateHybridIdeas.isPending ? 'Generating...' : 'Generate Ideas'}
+              {generateHybridIdeas.isPending ? 'Generating...' : 'Generate Briefs'}
             </Button>
             <Link href="/trading-rules">
               <Button variant="glass-secondary" data-testid="button-review-rules">
@@ -181,7 +181,7 @@ export default function HomePage() {
             </div>
           </div>
           <p className="text-sm text-muted-foreground mt-4">
-            <span className="font-semibold text-foreground">{closedThisWeek.length}</span> trades closed this week
+            <span className="font-semibold text-foreground">{closedThisWeek.length}</span> patterns closed this week
           </p>
         </div>
 
@@ -226,7 +226,7 @@ export default function HomePage() {
               </div>
               <p className="font-semibold text-lg mb-1">No fresh signals yet</p>
               <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-4">
-                Generate new trade ideas or check back after market opens
+                Generate new research briefs or check back after market opens
               </p>
               <Button 
                 variant="glass"
@@ -235,7 +235,7 @@ export default function HomePage() {
                 data-testid="button-generate-ideas-empty"
               >
                 <Sparkles className="h-4 w-4 mr-2" />
-                {generateHybridIdeas.isPending ? 'Generating...' : 'Generate Ideas'}
+                {generateHybridIdeas.isPending ? 'Generating...' : 'Generate Briefs'}
               </Button>
             </div>
           </div>
@@ -326,8 +326,8 @@ export default function HomePage() {
                     <TrendingUp className="h-6 w-6" />
                   </div>
                   <div>
-                    <p className="font-bold">Trade Desk</p>
-                    <p className="text-sm text-muted-foreground">Browse all opportunities</p>
+                    <p className="font-bold">Research Desk</p>
+                    <p className="text-sm text-muted-foreground">Browse all research briefs</p>
                   </div>
                 </div>
                 <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-cyan-400 group-hover:translate-x-1 transition-all shrink-0" />

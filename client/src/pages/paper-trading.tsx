@@ -268,7 +268,7 @@ function OpenPositionsSection({
           <div className="text-center py-12 text-muted-foreground">
             <Activity className="h-12 w-12 mx-auto mb-4 opacity-30" />
             <p className="text-lg font-medium">No Open Positions</p>
-            <p className="text-sm mt-1">Execute trade ideas from the Trade Desk to start paper trading</p>
+            <p className="text-sm mt-1">Study research briefs from the Research Desk to start paper trading</p>
           </div>
         </CardContent>
       </Card>

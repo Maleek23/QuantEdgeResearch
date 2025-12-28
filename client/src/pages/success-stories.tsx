@@ -102,7 +102,7 @@ export default function SuccessStories() {
               </p>
               <Button variant="glass" onClick={() => setLocation('/trade-desk')} data-testid="button-view-trades">
                 <ArrowRight className="h-4 w-4 mr-2" />
-                View Trade Desk
+                View Research Desk
               </Button>
             </CardContent>
           </Card>

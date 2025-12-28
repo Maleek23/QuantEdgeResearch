@@ -178,7 +178,7 @@ export default function PerformancePage() {
       console.error('Validation error:', error);
       toast({
         title: "Validation Failed",
-        description: "Failed to validate trade ideas",
+        description: "Failed to validate research briefs",
         variant: "destructive",
       });
     } finally {
@@ -218,7 +218,7 @@ export default function PerformancePage() {
         <div className="glass-card rounded-xl p-6">
           <h2 className="text-xl font-bold">No Performance Data</h2>
           <p className="text-muted-foreground mt-2">
-            Start generating trade ideas to see performance metrics
+            Start generating research briefs to see performance metrics
           </p>
         </div>
       </div>
@@ -233,7 +233,7 @@ export default function PerformancePage() {
           <div>
             <h1 className="text-3xl font-bold" data-testid="text-performance-title">Performance Tracker</h1>
             <p className="text-muted-foreground mt-1">
-              Validate trade ideas and analyze performance metrics
+              Validate research briefs and analyze performance metrics
             </p>
           </div>
           <div className="flex gap-2">
@@ -356,7 +356,7 @@ export default function PerformancePage() {
                 Today's Performance
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                {format(new Date(), 'EEEE, MMMM d, yyyy')} • {todayStats.overall.totalIdeas} trade ideas posted today
+                {format(new Date(), 'EEEE, MMMM d, yyyy')} • {todayStats.overall.totalIdeas} research briefs posted today
               </p>
             </div>
             <Button

@@ -397,7 +397,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 {idea.entryValidUntil && (
                   <div className="flex items-center gap-1">
                     <span className="text-green-400">●</span>
-                    <span className="text-muted-foreground">Enter:</span>
+                    <span className="text-muted-foreground">Window:</span>
                     <span className="font-semibold">{formatInUserTZ(idea.entryValidUntil, 'h:mm a')}</span>
                   </div>
                 )}
@@ -405,7 +405,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 {idea.exitBy && (
                   <div className="flex items-center gap-1">
                     <span className="text-amber-400">●</span>
-                    <span className="text-muted-foreground">Exit:</span>
+                    <span className="text-muted-foreground">Expires:</span>
                     <span className="font-semibold">{formatInUserTZ(idea.exitBy, 'h:mm a')}</span>
                   </div>
                 )}
@@ -667,9 +667,9 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                                 1
                               </div>
                               <div>
-                                <p className="font-semibold text-foreground">Trade Generated</p>
+                                <p className="font-semibold text-foreground">Pattern Identified</p>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  {formatInUserTZ(idea.timestamp, 'MMM d, h:mm:ss a')} CST - When the system created this trade idea
+                                  {formatInUserTZ(idea.timestamp, 'MMM d, h:mm:ss a')} CST - When the system identified this pattern
                                 </p>
                               </div>
                             </div>
@@ -679,12 +679,12 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                                 2
                               </div>
                               <div>
-                                <p className="font-semibold text-foreground">Entry Window (Can Enter Until)</p>
+                                <p className="font-semibold text-foreground">Pattern Study Window</p>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  {idea.entryValidUntil ? formatInUserTZ(idea.entryValidUntil, 'MMM d, h:mm:ss a') : 'N/A'} CST - Deadline to ENTER this trade
+                                  {idea.entryValidUntil ? formatInUserTZ(idea.entryValidUntil, 'MMM d, h:mm:ss a') : 'N/A'} CST - Timeframe when pattern is most relevant
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  ⏰ You need to buy the option BEFORE this time
+                                  Pattern validity window for research purposes
                                 </p>
                               </div>
                             </div>
@@ -694,23 +694,23 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                                 3
                               </div>
                               <div>
-                                <p className="font-semibold text-foreground">Exit Deadline (Must Exit By)</p>
+                                <p className="font-semibold text-foreground">Pattern Expiration</p>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  {idea.exitBy ? formatInUserTZ(idea.exitBy, 'MMM d, h:mm:ss a') : 'N/A'} CST - Deadline to EXIT this trade
+                                  {idea.exitBy ? formatInUserTZ(idea.exitBy, 'MMM d, h:mm:ss a') : 'N/A'} CST - When pattern study window closes
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  ⏰ You need to sell the option BEFORE this time (always before/on option expiry)
+                                  For options: based on contract expiry date
                                 </p>
                               </div>
                             </div>
 
-                            <div className="mt-3 p-3 bg-green-500/10 rounded border-l-2 border-green-500">
-                              <p className="text-xs font-semibold text-green-400">✓ This sequence makes sense:</p>
+                            <div className="mt-3 p-3 bg-amber-500/10 rounded border-l-2 border-amber-500">
+                              <p className="text-xs font-semibold text-amber-400">Educational Note:</p>
                               <p className="text-xs text-muted-foreground mt-1">
-                                System generates trade → You enter the trade → You exit the trade
+                                These timeframes show when the pattern was identified and when it expires for tracking purposes.
                               </p>
                               <p className="text-xs text-muted-foreground mt-1">
-                                Exit deadline is ALWAYS after entry deadline but BEFORE/ON option expiry date.
+                                YOU decide if, when, and how to act on any research. This is not trading advice.
                               </p>
                             </div>
                           </div>

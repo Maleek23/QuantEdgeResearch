@@ -245,8 +245,8 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
                        data.type === 'crypto_shares' ? 'Crypto' : 'Stock Shares';
       
       toast({
-        title: "Trade Idea Created",
-        description: `${marketData.symbol} ${typeLabel} idea added to NEW IDEAS tab`,
+        title: "Research Brief Created",
+        description: `${marketData.symbol} ${typeLabel} brief added to NEW tab`,
       });
       
       onOpenChange(false);
@@ -254,8 +254,8 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
     },
     onError: () => {
       toast({
-        title: "Failed to Create Idea",
-        description: "There was an error creating the trade idea. Please try again.",
+        title: "Failed to Create Brief",
+        description: "There was an error creating the research brief. Please try again.",
         variant: "destructive",
       });
     },
@@ -354,8 +354,8 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
         targetPrice,
         stopLoss,
         riskRewardRatio: parseFloat(riskRewardRatio.toFixed(2)),
-        catalyst: `Manual trade idea - User-defined parameters`,
-        analysis: `Manual ${manualDirection.toUpperCase()} trade on ${marketData.symbol} with ${riskRewardRatio.toFixed(2)}:1 R:R`,
+        catalyst: `Manual research brief - User-defined parameters`,
+        analysis: `Manual ${manualDirection.toUpperCase()} pattern on ${marketData.symbol} with ${riskRewardRatio.toFixed(2)}:1 R:R`,
         liquidityWarning: marketData.currentPrice < 5 && manualAssetType !== 'crypto',
         sessionContext: marketData.session === 'rth' ? 'Regular Trading Hours' : 
                        marketData.session === 'pre-market' ? 'Pre-Market' : 'After Hours',
@@ -377,15 +377,15 @@ export function SymbolActionDialog({ open, onOpenChange, marketData }: SymbolAct
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
       
       toast({
-        title: "Manual Trade Idea Created",
-        description: `${marketData.symbol} manual idea added to NEW IDEAS tab`,
+        title: "Manual Research Brief Created",
+        description: `${marketData.symbol} manual brief added to NEW tab`,
       });
       
       handleOpenChange(false);
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to Create Manual Idea",
+        title: "Failed to Create Manual Brief",
         description: error?.message || "Please check your inputs and try again.",
         variant: "destructive",
       });
