@@ -36,7 +36,6 @@ import { createUser, authenticateUser, sanitizeUser } from "./userAuth";
 import { getTierLimits } from "./tierConfig";
 import { syncDocumentationToNotion } from "./notion-sync";
 import * as paperTradingService from "./paper-trading-service";
-import { checkSectorExposure, getSectorExposureSummary } from "./sector-limits";
 import { 
   insertPaperPortfolioSchema, 
   insertPaperPositionSchema,
@@ -1740,46 +1739,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      // 🛡️ PAPER TRADING ENFORCEMENT: Check if user has completed required paper trades
-      const completedPaperTrades = await storage.getCompletedPaperTradesCount(userId);
-      if (completedPaperTrades < REQUIRED_PAPER_TRADES) {
-        logger.warn(`🚫 [LIVE-TRADE] User ${userId} blocked - Only ${completedPaperTrades}/${REQUIRED_PAPER_TRADES} paper trades completed`);
-        return res.status(403).json({
-          error: "Paper trading requirement not met",
-          message: `You must complete ${REQUIRED_PAPER_TRADES} paper trades before accessing live trading. You have completed ${completedPaperTrades} paper trades.`,
-          completedPaperTrades,
-          requiredPaperTrades: REQUIRED_PAPER_TRADES,
-          suggestion: "Go to Paper Trading to practice before risking real capital."
-        });
-      }
-
-      // 🛡️ SECTOR EXPOSURE CHECK: Prevent over-concentration in any sector
-      const openTrades = await storage.getActiveTrades(userId);
-      const openPositions = openTrades.filter(t => t.status === 'open').map(t => ({ symbol: t.symbol }));
-      const sectorCheck = checkSectorExposure(req.body.symbol, openPositions);
-      
-      if (!sectorCheck.allowed) {
-        logger.warn(`🚫 [SECTOR-LIMIT] User ${userId} blocked from opening ${req.body.symbol} - ${sectorCheck.message}`);
-        return res.status(403).json({
-          error: "Sector exposure limit reached",
-          message: sectorCheck.message,
-          sector: sectorCheck.sector,
-          currentCount: sectorCheck.currentCount,
-          limit: sectorCheck.limit,
-          suggestion: `Close an existing ${sectorCheck.sector} position to maintain diversification.`
-        });
-      }
-
-      // 🛡️ OPTIONS TRADING DISABLED: Options are blocked for risk management
-      if (req.body.assetType === 'option') {
-        logger.warn(`🚫 [OPTIONS-BLOCKED] User ${userId} attempted to trade options - feature disabled for risk management`);
-        return res.status(403).json({
-          error: "Options trading disabled",
-          message: "Options trading is currently disabled on this platform for risk management purposes. Options have higher complexity and risk profile.",
-          suggestion: "Focus on stocks and crypto to build a consistent track record first."
-        });
-      }
-
       const validated = insertActiveTradeSchema.parse({
         ...req.body,
         userId,
@@ -1788,7 +1747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const trade = await storage.createActiveTrade(validated);
-      logger.info(`📈 [LIVE-TRADE] New position opened: ${trade.symbol} ${trade.optionType || trade.assetType} @ $${trade.entryPrice} (User has ${completedPaperTrades} paper trades)`);
+      logger.info(`📈 [LIVE-TRADE] New position opened: ${trade.symbol} ${trade.optionType || trade.assetType} @ $${trade.entryPrice}`);
       res.status(201).json(trade);
     } catch (error) {
       logger.error("Failed to create active trade:", error);
