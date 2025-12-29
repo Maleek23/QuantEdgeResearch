@@ -331,6 +331,65 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   </Badge>
                 )}
 
+                {/* Sector Focus Badge - Hide 'other' */}
+                {idea.sectorFocus && idea.sectorFocus !== 'other' && (
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "text-[11px] h-5 font-semibold",
+                      idea.sectorFocus === 'quantum_computing' ? "bg-violet-500/10 text-violet-400 border-violet-500/30" :
+                      idea.sectorFocus === 'nuclear_fusion' ? "bg-orange-500/10 text-orange-400 border-orange-500/30" :
+                      idea.sectorFocus === 'healthcare' ? "bg-rose-500/10 text-rose-400 border-rose-500/30" :
+                      idea.sectorFocus === 'ai_ml' ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30" :
+                      idea.sectorFocus === 'space' ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/30" :
+                      idea.sectorFocus === 'clean_energy' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" :
+                      idea.sectorFocus === 'crypto' ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/30" :
+                      idea.sectorFocus === 'fintech' ? "bg-blue-500/10 text-blue-400 border-blue-500/30" :
+                      "bg-muted/30 text-muted-foreground border-muted"
+                    )}
+                    data-testid={`badge-sector-${idea.symbol}`}
+                  >
+                    {idea.sectorFocus === 'quantum_computing' ? 'QUANTUM' :
+                     idea.sectorFocus === 'nuclear_fusion' ? 'NUCLEAR' :
+                     idea.sectorFocus === 'healthcare' ? 'HEALTH' :
+                     idea.sectorFocus === 'ai_ml' ? 'AI/ML' :
+                     idea.sectorFocus === 'space' ? 'SPACE' :
+                     idea.sectorFocus === 'clean_energy' ? 'ENERGY' :
+                     idea.sectorFocus === 'crypto' ? 'CRYPTO' :
+                     'FINTECH'}
+                  </Badge>
+                )}
+
+                {/* Risk Profile Badge - Show all except moderate */}
+                {idea.riskProfile && idea.riskProfile !== 'moderate' && (
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "text-[11px] h-5 font-semibold",
+                      idea.riskProfile === 'speculative' ? "bg-red-500/10 text-red-400 border-red-500/30" :
+                      idea.riskProfile === 'aggressive' ? "bg-amber-500/10 text-amber-400 border-amber-500/30" :
+                      idea.riskProfile === 'conservative' ? "bg-green-500/10 text-green-400 border-green-500/30" :
+                      "bg-muted/30 text-muted-foreground border-muted"
+                    )}
+                    data-testid={`badge-risk-${idea.symbol}`}
+                  >
+                    {idea.riskProfile === 'speculative' ? 'SPECULATIVE' :
+                     idea.riskProfile === 'aggressive' ? 'AGGRESSIVE' :
+                     'CONSERVATIVE'}
+                  </Badge>
+                )}
+
+                {/* Liquidity Warning Badge */}
+                {idea.liquidityWarning && (
+                  <Badge 
+                    variant="outline" 
+                    className="text-[11px] h-5 font-semibold bg-rose-500/10 text-rose-400 border-rose-500/30"
+                    data-testid={`badge-liquidity-${idea.symbol}`}
+                  >
+                    LOW LIQ
+                  </Badge>
+                )}
+
                 {/* Earnings Warning Badge - Critical info */}
                 {upcomingEarnings && (
                   <Badge 

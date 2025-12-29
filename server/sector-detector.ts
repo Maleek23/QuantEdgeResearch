@@ -128,8 +128,8 @@ const ULTRA_SPECULATIVE_SYMBOLS = new Set([
   'GME', 'AMC', 'SNDL',
 ]);
 
-export function detectSectorFocus(symbol: string): SectorFocus | undefined {
-  return SECTOR_MAPPINGS[symbol.toUpperCase()];
+export function detectSectorFocus(symbol: string): SectorFocus {
+  return SECTOR_MAPPINGS[symbol.toUpperCase()] || 'other';
 }
 
 export function detectRiskProfile(
