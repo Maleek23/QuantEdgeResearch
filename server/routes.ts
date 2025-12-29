@@ -3277,6 +3277,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // =========== DATA INTELLIGENCE API ===========
+  // Comprehensive endpoint that provides all historical performance data
+  // for use across the platform (trade cards, dashboards, etc.)
+  app.get("/api/data-intelligence", async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Only count resolved trades (hit_target or hit_stop)
+      const resolvedIdeas = allIdeas.filter(idea => 
+        idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop'
+      );
+      
+      // 1. Engine Performance Map
+      const engineStats = new Map<string, { wins: number; losses: number; total: number }>();
+      
+      // 2. Symbol Performance Map
+      const symbolStats = new Map<string, { wins: number; losses: number; total: number }>();
+      
+      // 3. Confidence Band Performance Map
+      const bandStats = new Map<string, { wins: number; losses: number; total: number }>();
+      
+      resolvedIdeas.forEach(idea => {
+        const isWin = idea.outcomeStatus === 'hit_target';
+        const engine = idea.source || 'unknown';
+        const symbol = idea.symbol;
+        const confidence = idea.confidenceScore || 0;
+        
+        // Determine confidence band
+        let band: string;
+        if (confidence >= 80) band = 'A';
+        else if (confidence >= 70) band = 'B+';
+        else if (confidence >= 60) band = 'B';
+        else if (confidence >= 50) band = 'C+';
+        else if (confidence >= 40) band = 'C';
+        else band = 'D';
+        
+        // Update engine stats
+        if (!engineStats.has(engine)) {
+          engineStats.set(engine, { wins: 0, losses: 0, total: 0 });
+        }
+        const engStat = engineStats.get(engine)!;
+        engStat.total++;
+        if (isWin) engStat.wins++; else engStat.losses++;
+        
+        // Update symbol stats
+        if (!symbolStats.has(symbol)) {
+          symbolStats.set(symbol, { wins: 0, losses: 0, total: 0 });
+        }
+        const symStat = symbolStats.get(symbol)!;
+        symStat.total++;
+        if (isWin) symStat.wins++; else symStat.losses++;
+        
+        // Update band stats
+        if (!bandStats.has(band)) {
+          bandStats.set(band, { wins: 0, losses: 0, total: 0 });
+        }
+        const bndStat = bandStats.get(band)!;
+        bndStat.total++;
+        if (isWin) bndStat.wins++; else bndStat.losses++;
+      });
+      
+      // Convert to sorted arrays
+      const enginePerformance = Array.from(engineStats.entries())
+        .map(([engine, stats]) => ({
+          engine,
+          wins: stats.wins,
+          losses: stats.losses,
+          total: stats.total,
+          winRate: stats.total > 0 ? Math.round((stats.wins / stats.total) * 1000) / 10 : 0
+        }))
+        .sort((a, b) => b.total - a.total);
+      
+      const symbolPerformance = Array.from(symbolStats.entries())
+        .filter(([_, stats]) => stats.total >= 3) // Only symbols with 3+ resolved trades
+        .map(([symbol, stats]) => ({
+          symbol,
+          wins: stats.wins,
+          losses: stats.losses,
+          total: stats.total,
+          winRate: stats.total > 0 ? Math.round((stats.wins / stats.total) * 1000) / 10 : 0
+        }))
+        .sort((a, b) => b.total - a.total);
+      
+      const confidenceCalibration = Array.from(bandStats.entries())
+        .map(([band, stats]) => ({
+          band,
+          wins: stats.wins,
+          losses: stats.losses,
+          total: stats.total,
+          winRate: stats.total > 0 ? Math.round((stats.wins / stats.total) * 1000) / 10 : 0
+        }))
+        .sort((a, b) => {
+          // Sort by confidence band (A > B+ > B > C+ > C > D)
+          const order = ['A', 'B+', 'B', 'C+', 'C', 'D'];
+          return order.indexOf(a.band) - order.indexOf(b.band);
+        });
+      
+      // Create quick lookup maps for embedding in trade cards
+      const engineLookup: Record<string, number> = {};
+      enginePerformance.forEach(e => { engineLookup[e.engine] = e.winRate; });
+      
+      const symbolLookup: Record<string, { winRate: number; trades: number }> = {};
+      symbolPerformance.forEach(s => { 
+        symbolLookup[s.symbol] = { winRate: s.winRate, trades: s.total }; 
+      });
+      
+      const bandLookup: Record<string, number> = {};
+      confidenceCalibration.forEach(b => { bandLookup[b.band] = b.winRate; });
+      
+      res.json({
+        summary: {
+          totalIdeas: allIdeas.length,
+          resolvedTrades: resolvedIdeas.length,
+          totalWins: resolvedIdeas.filter(i => i.outcomeStatus === 'hit_target').length,
+          totalLosses: resolvedIdeas.filter(i => i.outcomeStatus === 'hit_stop').length,
+          overallWinRate: resolvedIdeas.length > 0 
+            ? Math.round((resolvedIdeas.filter(i => i.outcomeStatus === 'hit_target').length / resolvedIdeas.length) * 1000) / 10 
+            : 0
+        },
+        enginePerformance,
+        symbolPerformance,
+        confidenceCalibration,
+        // Quick lookup maps for trade cards
+        lookup: {
+          engine: engineLookup,
+          symbol: symbolLookup,
+          band: bandLookup
+        }
+      });
+    } catch (error) {
+      logger.error("Data intelligence error:", error);
+      res.status(500).json({ error: "Failed to fetch data intelligence" });
+    }
+  });
+
   // Engine Health / Telemetry Routes
   
   // GET /api/engine-health - Get current engine health dashboard data

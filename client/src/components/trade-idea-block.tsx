@@ -26,6 +26,7 @@ import { MiniSparkline } from "@/components/mini-sparkline";
 import { SignalStrengthBars } from "@/components/signal-strength-bars";
 import { EnhancedCountdown } from "@/components/enhanced-countdown";
 import { TimingDisplay } from "@/components/timing-display";
+import { HistoricalPerformanceBadge } from "@/components/historical-performance-badge";
 import { getPerformanceGrade } from "@/lib/performance-grade";
 import type { TradeIdea, Catalyst } from "@shared/schema";
 
@@ -251,6 +252,14 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   EARNINGS
                 </Badge>
               )}
+              
+              {/* Historical Performance Badge - Data-backed insights */}
+              <HistoricalPerformanceBadge
+                symbol={idea.symbol}
+                engine={idea.source || 'unknown'}
+                confidenceScore={idea.confidenceScore || undefined}
+                compact={true}
+              />
             </div>
 
             {/* Center: Quick Metrics */}
