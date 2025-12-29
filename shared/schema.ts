@@ -60,7 +60,7 @@ export type AssetType = 'stock' | 'penny_stock' | 'option' | 'crypto' | 'future'
 export type OutcomeStatus = 'open' | 'hit_target' | 'hit_stop' | 'manual_exit' | 'expired';
 
 // Resolution Reason - How outcome was determined
-export type ResolutionReason = 'auto_target_hit' | 'auto_stop_hit' | 'auto_expired' | 'auto_breakeven' | 'missed_entry_window' | 'manual_user_won' | 'manual_user_lost' | 'manual_user_breakeven';
+export type ResolutionReason = 'auto_target_hit' | 'auto_stop_hit' | 'auto_expired' | 'auto_breakeven' | 'missed_entry_window' | 'missed_entry_would_have_won' | 'missed_entry_would_have_lost' | 'missed_entry_no_outcome' | 'manual_user_won' | 'manual_user_lost' | 'manual_user_breakeven';
 
 // Volatility Regime - Market volatility classification at entry time
 export type VolatilityRegime = 'low' | 'normal' | 'high' | 'extreme';
