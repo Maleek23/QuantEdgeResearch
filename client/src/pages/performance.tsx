@@ -34,6 +34,7 @@ const TimeOfDayHeatmap = lazy(() => import("@/components/time-of-day-heatmap"));
 const EngineTrendsChart = lazy(() => import("@/components/engine-trends-chart"));
 const ConfidenceCalibration = lazy(() => import("@/components/confidence-calibration"));
 const StreakTracker = lazy(() => import("@/components/streak-tracker"));
+import { PerformanceLeaderboard } from "@/components/performance-leaderboard";
 
 // Loading fallback for lazy components
 function ChartSkeleton() {
@@ -737,6 +738,17 @@ export default function PerformancePage() {
           isAdmin={isAdmin} 
         />
       )}
+
+      {/* Data Intelligence Leaderboard - Based on 400+ resolved trades */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-semibold">Data-Driven Insights</h3>
+          <Badge variant="outline" className="text-xs border-purple-500/50 text-purple-400">
+            411 Resolved Trades
+          </Badge>
+        </div>
+        <PerformanceLeaderboard />
+      </div>
 
       {/* Confidence Breakdown - Transparency */}
       {calibratedStats && (
