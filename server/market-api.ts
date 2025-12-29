@@ -551,12 +551,17 @@ export async function discoverStockGems(limit: number = 30): Promise<StockGem[]>
     // REDESIGNED STRATEGY:
     // 1. Scan "most_actives" (high volume, but NOT necessarily big price moves)
     // 2. Scan "small_cap_gainers" (smaller stocks more likely to have explosive moves)
-    // 3. Skip "top gainers/losers" (those already moved - we want to catch BEFORE the rally)
-    // 4. Let quant engine filter for: unusual volume (3x+), small moves (<2%), RSI divergence
+    // 3. Scan "aggressive_small_caps" for high-risk/high-reward plays
+    // 4. Scan "growth_technology_stocks" for tech momentum plays
+    // 5. Skip "top gainers/losers" (those already moved - we want to catch BEFORE the rally)
+    // 6. Let quant engine filter for: unusual volume (3x+), small moves (<2%), RSI divergence
     const categories = [
       { name: 'mostActive', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=most_actives&count=250', retries: 3 },
       { name: 'smallCapsGainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=small_cap_gainers&count=100', retries: 3 },
-      { name: 'undervalued', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=undervalued_growth_stocks&count=150', retries: 3 }
+      { name: 'undervalued', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=undervalued_growth_stocks&count=150', retries: 3 },
+      { name: 'aggressiveSmallCaps', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=aggressive_small_caps&count=100', retries: 2 },
+      { name: 'growthTech', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=growth_technology_stocks&count=100', retries: 2 },
+      { name: 'dayGainers', url: 'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=true&scrIds=day_gainers&count=50', retries: 2 }
     ];
     
     for (const category of categories) {
@@ -732,30 +737,52 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
   try {
     logger.info('🔍 Discovering popular stocks ($1-$50 range - penny stocks + retail favorites)...');
     
-    // Expanded stock watchlist - popular retail/swing trading stocks
-    // Includes penny stocks ($1-$7) AND popular mid-cap stocks ($7-$50)
+    // EXPANDED NICHE STOCK UNIVERSE - Hidden gems + lesser-known opportunities
+    // Includes penny stocks ($1-$7), niche small caps, and sector plays
     const pennyStockSymbols = [
-      // Major stocks currently under $7 (high liquidity penny stocks)
-      'AAL', 'NOK', 'F', 'SNAP', 'CCL', 'NCLH',
-      // Tech & EV sector
-      'FUBO', 'GSAT', 'BB',
-      // Healthcare
-      'SNDL', 'MNKD', 'OCGN', 'BNGO',
-      // Energy & Resources
-      'BTU', 'KGC', 'VALE',
-      // Financial
-      'UWMC', 'PBF',
-      // User-requested penny stocks
-      'VSEE', 'XHLD',
-      // Popular retail/swing stocks ($7-$50 range)
-      'SOFI', 'PLTR', 'NIO', 'RIVN', 'LCID', 'AMC', 'GME',
-      'HOOD', 'DKNG', 'OPEN', 'UPST', 'ROKU',
-      // Mega-cap tech (news-driven - NVDA $5T, AAPL/MSFT $4T)
+      // === NICHE PENNY STOCKS (Under $7) ===
+      // Space & Satellite Tech
+      'ASTS', 'SPCE', 'RKLB', 'LUNR', 'RDW', 'BKSY',
+      // AI & Quantum Computing
+      'QUBT', 'RGTI', 'IONQ', 'QBTS', 'SOUN', 'BBAI',
+      // Biotech/Pharma (catalyst-driven)
+      'NVAX', 'INO', 'SRNE', 'VXRT', 'NKLA', 'GOEV', 'FFIE',
+      // Clean Energy & EV
+      'FCEL', 'PLUG', 'BE', 'CHPT', 'BLNK', 'EVGO', 'PTRA',
+      // Cannabis (high volatility)
+      'TLRY', 'CGC', 'ACB', 'SNDL', 'OGI',
+      // Fintech & DeFi Adjacent
+      'UPST', 'AFRM', 'DAVE', 'PSFE', 'CLOV', 'WISH',
+      // Crypto/Blockchain Plays
+      'MARA', 'RIOT', 'CLSK', 'BTBT', 'BITF', 'HUT', 'CIFR',
+      
+      // === NICHE SMALL CAPS ($7-$30) ===
+      // Cybersecurity
+      'CRWD', 'S', 'ZS', 'NET', 'TENB', 'CYBR',
+      // Healthcare Tech
+      'HIMS', 'DOCS', 'TALK', 'AMWL',
+      // Gaming & Metaverse  
+      'RBLX', 'U', 'SKLZ', 'DKNG',
+      // Streaming/Media Disruptors
+      'FUBO', 'PARA', 'WBD', 'LGF.A',
+      // Semiconductors (not mega-cap)
+      'SMCI', 'AEHR', 'WOLF', 'LSCC', 'SITM',
+      // Defense & Drones
+      'RCAT', 'UAVS', 'JOBY', 'ACHR', 'EVTL',
+      
+      // === INTERNATIONAL ADRs (Hidden gems) ===
+      'GRAB', 'SE', 'BABA', 'PDD', 'JD', 'BIDU', 'NIO', 'XPEV', 'LI',
+      'NU', 'STNE', 'PAGS', 'MELI',
+      
+      // === ORIGINAL POPULAR STOCKS ===
+      // High liquidity retail favorites
+      'AAL', 'NOK', 'F', 'SNAP', 'CCL', 'NCLH', 'BB',
+      'SOFI', 'PLTR', 'RIVN', 'LCID', 'AMC', 'GME', 'HOOD',
+      // Mega-cap tech (news-driven)
       'NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSLA',
-      // High-volume tech & crypto stocks
-      'INTC', 'AMD', 'MARA', 'RIOT', 'COIN',
-      // Earnings/news movers
-      'UPS', 'CVS', 'UNH'
+      'INTC', 'AMD', 'COIN', 'ROKU', 'OPEN',
+      // User-requested
+      'VSEE', 'XHLD', 'BTU', 'KGC', 'VALE', 'UWMC', 'PBF'
     ];
     
     const pennyStocks: StockGem[] = [];
@@ -771,9 +798,9 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
         const volume = priceData.volume || 0;
         const marketCap = priceData.marketCap || 0;
         
-        // Filter: Must be $1-$50 (expanded to include popular swing trading stocks)
-        // Minimum volume 100K for liquidity, min market cap $10M to avoid scams
-        if (price >= 1 && price <= 50 && volume >= 100000 && marketCap >= 10_000_000) {
+        // Filter: Must be $0.50-$500 (expanded to include all actionable stocks)
+        // Minimum volume 50K for liquidity, min market cap $10M to avoid scams
+        if (price >= 0.50 && price <= 500 && volume >= 50000 && marketCap >= 10_000_000) {
           pennyStocks.push({
             symbol,
             currentPrice: price,
@@ -794,7 +821,7 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
     
     logger.info(`💎 Discovered ${sortedPennyStocks.length} popular stocks: ${sortedPennyStocks.slice(0, 10).map(g => `${g.symbol} ($${g.currentPrice.toFixed(2)})`).join(', ')}${sortedPennyStocks.length > 10 ? '...' : ''}`);
     
-    return sortedPennyStocks.slice(0, 30); // Return top 30 by volume
+    return sortedPennyStocks.slice(0, 50); // Return top 50 by volume (expanded universe)
   } catch (error) {
     logger.error('❌ Penny stock discovery error:', error);
     return [];

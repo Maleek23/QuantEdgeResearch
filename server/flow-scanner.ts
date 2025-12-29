@@ -170,10 +170,38 @@ function hasEnoughTradingTime(expirationDate: string, minutesUntilClose: number)
   return { hasTime: true, reason: 'Sufficient trading time', dte: daysToExpiry };
 }
 
-// Top 20 high-volume tickers for flow scanning
+// EXPANDED FLOW SCAN UNIVERSE (70+ tickers) - Including niche/hidden gem tickers
 const FLOW_SCAN_TICKERS = [
-  'SPY', 'QQQ', 'AAPL', 'NVDA', 'TSLA', 'MSFT', 'AMZN', 'META', 'GOOGL', 'AMD',
-  'NFLX', 'DIS', 'BA', 'COIN', 'PLTR', 'SOFI', 'HOOD', 'RIOT', 'MARA', 'MSTR'
+  // === CORE HIGH-VOLUME TICKERS ===
+  'SPY', 'QQQ', 'IWM', 'XLF', 'XLE',  // ETFs
+  'AAPL', 'NVDA', 'TSLA', 'MSFT', 'AMZN', 'META', 'GOOGL', 'AMD',  // Mega caps
+  'NFLX', 'DIS', 'BA', 'COIN', 'PLTR', 'SOFI', 'HOOD', 'RIOT', 'MARA', 'MSTR',  // Popular
+  
+  // === NICHE/HIDDEN GEM TICKERS (where unusual flow matters more) ===
+  // AI & Quantum
+  'IONQ', 'RGTI', 'QUBT', 'SOUN', 'BBAI', 'AI',
+  // Space & Satellites
+  'ASTS', 'RKLB', 'LUNR', 'RDW', 'SPCE',
+  // Biotech/Pharma (catalyst-driven)
+  'NVAX', 'MRNA', 'BNTX', 'CRSP', 'EDIT',
+  // Clean Energy
+  'PLUG', 'FCEL', 'BE', 'ENPH', 'SEDG', 'RUN',
+  // EV
+  'RIVN', 'LCID', 'NIO', 'XPEV', 'LI', 'CHPT', 'BLNK',
+  // Fintech
+  'UPST', 'AFRM', 'SQ', 'PYPL', 'NU',
+  // Crypto miners
+  'CLSK', 'BTBT', 'BITF', 'HUT', 'CIFR',
+  // Cybersecurity
+  'CRWD', 'S', 'ZS', 'PANW',
+  // Semiconductors (not mega-cap)
+  'SMCI', 'ARM', 'AVGO', 'MU', 'AEHR',
+  // Gaming/Metaverse
+  'RBLX', 'U', 'DKNG',
+  // Defense & Drones
+  'RCAT', 'JOBY', 'ACHR',
+  // Cannabis
+  'TLRY', 'CGC'
 ];
 
 // Unusual activity thresholds (adjusted for Tradier Sandbox limitations)
