@@ -4597,11 +4597,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { sendChartAnalysisToDiscord } = await import("./discord-service");
       const success = await sendChartAnalysisToDiscord(parseResult.data);
       
-      if (success) {
-        res.json({ success: true, message: "Chart analysis sent to Discord" });
-      } else {
-        res.status(500).json({ error: "Failed to send to Discord" });
-      }
+      // Note: sendChartAnalysisToDiscord returns false when Discord is disabled
+      // Don't treat this as an error - just inform the client
+      res.json({ 
+        success, 
+        message: success ? "Chart analysis sent to Discord" : "Discord notifications are currently disabled" 
+      });
     } catch (error: any) {
       logger.error("Failed to send chart analysis to Discord:", error);
       res.status(500).json({ error: error?.message || "Failed to send to Discord" });
@@ -6006,7 +6007,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Parse tickers from text (looking for $SYMBOL pattern)
       const tickerRegex = /\$[A-Z]{1,10}/gi;
-      const tickers = [...new Set(text.match(tickerRegex) || [])].map(t => t.toUpperCase());
+      const matches = text.match(tickerRegex) || [];
+      const uniqueTickers = Array.from(new Set(matches));
+      const tickers = uniqueTickers.map(t => t.toUpperCase());
       
       // Simple sentiment analysis based on keywords
       const bullishKeywords = ['buy', 'long', 'moon', 'bullish', 'pump', 'breakout', 'accumulate', 'ath', 'gains'];

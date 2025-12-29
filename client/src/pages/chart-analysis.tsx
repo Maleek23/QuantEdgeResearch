@@ -573,11 +573,12 @@ export default function ChartAnalysis() {
       });
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: { success: boolean; message: string }) => {
       setSentToDiscord(true);
       toast({
-        title: "Sent to Discord",
-        description: "Chart analysis shared in your Discord channel.",
+        title: data.success ? "Sent to Discord" : "Discord Disabled",
+        description: data.message,
+        variant: data.success ? "default" : "destructive",
       });
     },
     onError: (error: Error) => {
@@ -638,6 +639,31 @@ export default function ChartAnalysis() {
       setAssetType(suggestedAssetType);
       setOptionType(suggestedOptionType);
       
+      // Auto-generate strike price and expiry for options
+      let autoStrikePrice: number | undefined = undefined;
+      let autoExpiryDate: string | undefined = undefined;
+      
+      if (suggestedAssetType === 'option' && data.entryPoint) {
+        // Calculate ATM strike (round to nearest $1 for stocks under $100, $5 for higher)
+        const entry = data.entryPoint;
+        const roundTo = entry < 100 ? 1 : entry < 500 ? 5 : 10;
+        autoStrikePrice = Math.round(entry / roundTo) * roundTo;
+        
+        // Calculate expiry date based on analysis mode
+        const today = new Date();
+        const daysToAdd = analysisMode === 'day' ? 7 : 21; // 1 week for day trading, 3 weeks for swing
+        const expiry = new Date(today.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+        // Adjust to next Friday if not already a Friday
+        const dayOfWeek = expiry.getDay();
+        const daysToFriday = (5 - dayOfWeek + 7) % 7 || 7;
+        expiry.setDate(expiry.getDate() + daysToFriday);
+        autoExpiryDate = expiry.toISOString().split('T')[0];
+        
+        // Update form fields
+        setStrikePrice(autoStrikePrice.toString());
+        setExpiryDate(autoExpiryDate);
+      }
+      
       // Save draft with AI-suggested values
       if (symbol) {
         saveDraftMutation.mutate({ 
@@ -645,8 +671,8 @@ export default function ChartAnalysis() {
           analysis: data, 
           assetType: suggestedAssetType,
           optionType: suggestedAssetType === 'option' ? suggestedOptionType : undefined,
-          expiryDate: suggestedAssetType === 'option' ? expiryDate : undefined,
-          strikePrice: suggestedAssetType === 'option' && strikePrice && !isNaN(parseFloat(strikePrice)) ? parseFloat(strikePrice) : undefined,
+          expiryDate: suggestedAssetType === 'option' ? autoExpiryDate : undefined,
+          strikePrice: suggestedAssetType === 'option' ? autoStrikePrice : undefined,
         });
       }
       
@@ -1509,6 +1535,20 @@ export default function ChartAnalysis() {
                 <p className="font-mono font-bold text-red-400">${analysisResult.stopLoss.toFixed(2)}</p>
               </div>
             </div>
+            
+            {/* Option Details (if options suggested) */}
+            {aiSuggestion.assetType === 'option' && strikePrice && expiryDate && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="text-center p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
+                  <p className="text-xs text-muted-foreground mb-1">Strike Price</p>
+                  <p className="font-mono font-bold text-purple-400">${parseFloat(strikePrice).toFixed(0)}</p>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
+                  <p className="text-xs text-muted-foreground mb-1">Expiry Date</p>
+                  <p className="font-mono font-bold text-purple-400">{expiryDate}</p>
+                </div>
+              </div>
+            )}
             
             {/* Stats Row */}
             <div className="flex justify-between text-sm bg-muted/30 rounded-lg p-3">
