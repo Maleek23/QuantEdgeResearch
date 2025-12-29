@@ -873,7 +873,7 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   
   if (isLotto) {
     // Override targets for lotto plays - aim for 20x return
-    const lottoTargets = calculateLottoTargets(entryPrice, direction);
+    const lottoTargets = calculateLottoTargets(entryPrice);
     targetPrice = lottoTargets.targetPrice;
     riskRewardRatio = lottoTargets.riskRewardRatio;
     logger.info(`🎰 [FLOW] ${ticker} LOTTO PLAY DETECTED: Entry=$${entryPrice.toFixed(2)}, Delta=${Math.abs(mostActiveOption.greeks?.delta || 0).toFixed(2)}, Target=$${targetPrice.toFixed(2)} (20x potential)`);
