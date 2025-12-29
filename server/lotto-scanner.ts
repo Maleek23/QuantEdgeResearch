@@ -1,13 +1,14 @@
 // Dedicated Lotto Play Scanner
 // Actively hunts for cheap far-OTM weekly options with 20x return potential
 
-import type { InsertTradeIdea } from "@shared/schema";
+import type { InsertTradeIdea, TradeIdea } from "@shared/schema";
 import { detectSectorFocus, detectRiskProfile, detectResearchHorizon } from './sector-detector';
 import { getTradierQuote, getTradierOptionsChain, getTradierOptionsChainsByDTE } from './tradier-api';
 import { logger } from './logger';
 import { formatInTimeZone } from 'date-fns-tz';
 import { storage } from './storage';
 import { isLottoCandidate, calculateLottoTargets, getLottoThresholds } from './lotto-detector';
+import { sendLottoToDiscord } from './discord-service';
 
 // US Market Holidays 2025-2026 (options don't expire on holidays)
 const MARKET_HOLIDAYS = new Set([
@@ -370,8 +371,15 @@ export async function runLottoScanner(): Promise<void> {
 
       const idea = await generateLottoTradeIdea(candidate);
       if (idea) {
-        await storage.createTradeIdea(idea);
+        const createdIdea = await storage.createTradeIdea(idea);
         successCount++;
+        
+        // Send to dedicated Lotto Discord channel
+        try {
+          await sendLottoToDiscord(createdIdea as TradeIdea);
+        } catch (discordError) {
+          logger.warn(`🎰 [LOTTO] Discord notification failed for ${candidate.underlying}:`, discordError);
+        }
       }
     }
 

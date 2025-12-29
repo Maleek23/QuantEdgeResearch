@@ -497,6 +497,101 @@ export async function sendChartAnalysisToDiscord(analysis: {
   }
 }
 
+// Send lotto play to dedicated lotto Discord channel
+export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_LOTTO;
+  
+  if (!webhookUrl) {
+    logger.info('⚠️ DISCORD_WEBHOOK_LOTTO not configured - skipping lotto alert');
+    return;
+  }
+  
+  try {
+    const isCall = idea.optionType === 'call';
+    const color = isCall ? 0x22c55e : 0xef4444; // Green for calls, red for puts
+    
+    // Format expiry nicely
+    const expiryFormatted = idea.expiryDate || 'N/A';
+    
+    // Calculate potential return
+    const potentialReturn = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(0);
+    
+    const embed: DiscordEmbed = {
+      title: `🎰 LOTTO: ${idea.symbol} ${(idea.optionType || 'OPT').toUpperCase()} $${idea.strikePrice}`,
+      description: `**${expiryFormatted} Expiry**\n\nFar OTM weekly targeting **${potentialReturn}%** return`,
+      color,
+      fields: [
+        {
+          name: '💰 Entry',
+          value: `$${idea.entryPrice.toFixed(2)}`,
+          inline: true
+        },
+        {
+          name: '🎯 Target',
+          value: `$${idea.targetPrice.toFixed(2)}`,
+          inline: true
+        },
+        {
+          name: '🛡️ Stop',
+          value: `$${idea.stopLoss.toFixed(2)}`,
+          inline: true
+        },
+        {
+          name: '📊 R:R',
+          value: `${idea.riskRewardRatio}:1`,
+          inline: true
+        },
+        {
+          name: '⭐ Risk',
+          value: idea.riskProfile || 'Speculative',
+          inline: true
+        },
+        {
+          name: '🎲 Type',
+          value: 'LOTTO PLAY',
+          inline: true
+        }
+      ],
+      footer: {
+        text: '⚠️ HIGH RISK - Small position size only | QuantEdge'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    // Add catalyst if available
+    if (idea.catalyst) {
+      embed.fields.push({
+        name: '💡 Setup',
+        value: idea.catalyst.substring(0, 200),
+        inline: false
+      });
+    }
+    
+    const message: DiscordMessage = {
+      content: `🎰 **LOTTO ALERT: ${idea.symbol}** ${(idea.optionType || 'OPT').toUpperCase()} $${idea.strikePrice} exp ${expiryFormatted}`,
+      embeds: [embed]
+    };
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+    
+    if (response.ok) {
+      logger.info(`✅ Discord lotto alert sent: ${idea.symbol} ${idea.optionType} $${idea.strikePrice}`);
+    } else {
+      logger.warn(`⚠️ Discord lotto webhook failed: ${response.status}`);
+    }
+  } catch (error) {
+    logger.error('❌ Failed to send Discord lotto alert:', error);
+  }
+}
+
 // Send daily summary of top trade ideas (scheduled for 8:00 AM CT)
 export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<void> {
   if (DISCORD_DISABLED) return;
