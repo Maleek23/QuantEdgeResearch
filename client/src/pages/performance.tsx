@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Download, TrendingUp, Activity, Filter, Calendar, HelpCircle, Info, AlertTriangle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Download, TrendingUp, Activity, Filter, Calendar, HelpCircle, Info, AlertTriangle, Zap, Brain, BarChart3, Bell, AlertCircle, CheckCircle } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -12,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format, startOfDay, subDays, subMonths, subYears } from 'date-fns';
 import { useState, useMemo } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -28,6 +29,8 @@ import EngineTrendsChart from "@/components/engine-trends-chart";
 import ConfidenceCalibration from "@/components/confidence-calibration";
 import StreakTracker from "@/components/streak-tracker";
 import { TierGate } from "@/components/tier-gate";
+import { useAuth } from "@/hooks/useAuth";
+import type { EngineHealthAlert } from "@shared/schema";
 
 interface PerformanceStats {
   overall: {
@@ -79,6 +82,269 @@ interface PerformanceStats {
   }>;
 }
 
+interface EngineMetrics {
+  ideasGenerated: number;
+  ideasPublished: number;
+  tradesResolved: number;
+  tradesWon: number;
+  tradesLost: number;
+  tradesExpired: number;
+  winRate: number | null;
+  avgGainPercent: number | null;
+  avgLossPercent: number | null;
+  expectancy: number | null;
+  avgHoldingTimeMinutes: number | null;
+  avgConfidenceScore: number | null;
+}
+
+interface EngineHealthData {
+  todayMetrics: Record<string, EngineMetrics>;
+  weekMetrics: Record<string, EngineMetrics>;
+  historicalMetrics: Array<{
+    date: string;
+    engine: string;
+    winRate: number | null;
+  }>;
+  activeAlerts: EngineHealthAlert[];
+}
+
+const ENGINE_CONFIG = {
+  flow: { label: "Flow Scanner", icon: Activity, color: "hsl(142, 76%, 45%)" },
+  lotto: { label: "Lotto Detector", icon: Zap, color: "hsl(45, 93%, 58%)" },
+  quant: { label: "Quant Engine", icon: BarChart3, color: "hsl(280, 70%, 60%)" },
+  ai: { label: "AI Engine", icon: Brain, color: "hsl(217, 91%, 60%)" },
+} as const;
+
+type EngineKey = keyof typeof ENGINE_CONFIG;
+
+function getWinRateColor(winRate: number | null): string {
+  if (winRate === null) return "text-muted-foreground";
+  if (winRate >= 60) return "text-green-500";
+  if (winRate >= 50) return "text-yellow-500";
+  return "text-red-500";
+}
+
+function getSeverityIcon(severity: string) {
+  switch (severity) {
+    case "critical":
+      return <AlertCircle className="h-4 w-4 text-red-500" />;
+    case "warning":
+      return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+    default:
+      return <Info className="h-4 w-4 text-blue-500" />;
+  }
+}
+
+function getSeverityBadgeClass(severity: string): string {
+  switch (severity) {
+    case "critical":
+      return "bg-red-500/20 text-red-400 border-red-500/30";
+    case "warning":
+      return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+    default:
+      return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+  }
+}
+
+function EngineSummaryCard({
+  engineKey,
+  todayMetrics,
+  weekMetrics,
+  alertCount,
+}: {
+  engineKey: EngineKey;
+  todayMetrics: EngineMetrics | undefined;
+  weekMetrics: EngineMetrics | undefined;
+  alertCount: number;
+}) {
+  const config = ENGINE_CONFIG[engineKey];
+  const Icon = config.icon;
+
+  const todayIdeas = todayMetrics?.ideasGenerated ?? 0;
+  const weekIdeas = weekMetrics?.ideasGenerated ?? 0;
+  const winRate = weekMetrics?.winRate ?? null;
+  const expectancy = weekMetrics?.expectancy ?? null;
+
+  return (
+    <Card className="glass-card" data-testid={`card-engine-${engineKey}`}>
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+        <div className="flex items-center gap-2">
+          <div
+            className="p-2 rounded-lg"
+            style={{ backgroundColor: `${config.color}20` }}
+          >
+            <Icon className="h-4 w-4" style={{ color: config.color }} />
+          </div>
+          <CardTitle className="text-base font-semibold">{config.label}</CardTitle>
+        </div>
+        {alertCount > 0 && (
+          <Badge
+            variant="destructive"
+            className="text-xs"
+            data-testid={`badge-alert-count-${engineKey}`}
+          >
+            <Bell className="h-3 w-3 mr-1" />
+            {alertCount}
+          </Badge>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Today</p>
+            <p className="text-lg font-mono font-semibold" data-testid={`text-today-ideas-${engineKey}`}>
+              {todayIdeas}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">7 Days</p>
+            <p className="text-lg font-mono font-semibold" data-testid={`text-week-ideas-${engineKey}`}>
+              {weekIdeas}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2 border-t border-border/50">
+          <div>
+            <p className="text-xs text-muted-foreground">Win Rate</p>
+            <p
+              className={cn("text-lg font-mono font-bold", getWinRateColor(winRate))}
+              data-testid={`text-win-rate-${engineKey}`}
+            >
+              {winRate !== null ? `${winRate.toFixed(1)}%` : "N/A"}
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-muted-foreground">Expectancy</p>
+            <p
+              className={cn(
+                "text-lg font-mono font-bold",
+                expectancy !== null && expectancy > 0 ? "text-green-500" : expectancy !== null && expectancy < 0 ? "text-red-500" : "text-muted-foreground"
+              )}
+              data-testid={`text-expectancy-${engineKey}`}
+            >
+              {expectancy !== null ? `${expectancy > 0 ? "+" : ""}${expectancy.toFixed(2)}%` : "N/A"}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function HealthAlertsSection({
+  alerts,
+  isAdmin,
+}: {
+  alerts: EngineHealthAlert[];
+  isAdmin: boolean;
+}) {
+  const { toast } = useToast();
+
+  const acknowledgeMutation = useMutation({
+    mutationFn: async (alertId: string) => {
+      return await apiRequest("POST", `/api/engine-health/alerts/${alertId}/acknowledge`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/engine-health"] });
+      toast({
+        title: "Alert Acknowledged",
+        description: "The alert has been acknowledged successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Acknowledge",
+        description: error.message || "Could not acknowledge the alert.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  if (alerts.length === 0) {
+    return (
+      <div className="glass-card rounded-xl p-4" data-testid="card-alerts-empty">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <CheckCircle className="h-5 w-5 text-green-500" />
+          <p>No active alerts. All engines are operating normally.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Card className="glass-card" data-testid="card-health-alerts">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-cyan-400" />
+          <CardTitle className="text-lg">Active Health Alerts</CardTitle>
+          <Badge variant="destructive" className="ml-2">
+            {alerts.length}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {alerts.slice(0, 3).map((alert) => (
+            <div
+              key={alert.id}
+              className={cn(
+                "flex items-start gap-3 p-3 rounded-lg border",
+                alert.severity === "critical"
+                  ? "border-red-500/30 bg-red-500/10"
+                  : alert.severity === "warning"
+                  ? "border-yellow-500/30 bg-yellow-500/10"
+                  : "border-blue-500/30 bg-blue-500/10"
+              )}
+              data-testid={`alert-item-${alert.id}`}
+            >
+              <div className="pt-0.5">{getSeverityIcon(alert.severity)}</div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className={cn("text-xs border", getSeverityBadgeClass(alert.severity))}>
+                    {alert.severity.toUpperCase()}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {alert.engine.toUpperCase()}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-sm" data-testid={`alert-message-${alert.id}`}>
+                  {alert.message}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {alert.createdAt ? format(new Date(alert.createdAt), "MMM d, yyyy h:mm a") : "Unknown time"}
+                </p>
+              </div>
+              {isAdmin && !alert.acknowledged && (
+                <Button
+                  variant="glass-secondary"
+                  size="sm"
+                  onClick={() => acknowledgeMutation.mutate(alert.id)}
+                  disabled={acknowledgeMutation.isPending}
+                  data-testid={`button-acknowledge-${alert.id}`}
+                >
+                  {acknowledgeMutation.isPending ? "..." : "Acknowledge"}
+                </Button>
+              )}
+              {alert.acknowledged && (
+                <Badge variant="outline" className="text-xs text-green-500 border-green-500/30">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Acknowledged
+                </Badge>
+              )}
+            </div>
+          ))}
+          {alerts.length > 3 && (
+            <p className="text-xs text-muted-foreground text-center pt-2">
+              +{alerts.length - 3} more alerts
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function PerformancePage() {
   const [dateRange, setDateRange] = useState<string>('all');
   const [selectedEngine, setSelectedEngine] = useState<string>('all');
@@ -87,6 +353,8 @@ export default function PerformancePage() {
   const [showValidationDialog, setShowValidationDialog] = useState(false);
   const [validationSummary, setValidationSummary] = useState({ validated: 0, updated: 0 });
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdmin = !!(user as any)?.isAdmin || (user as any)?.role === "admin";
 
   const apiFilters = useMemo(() => {
     const now = new Date();
@@ -140,6 +408,18 @@ export default function PerformancePage() {
   const { data: todayStats } = useQuery<PerformanceStats>({
     queryKey: ['/api/performance/stats', todayParams],
   });
+
+  const { data: engineHealthData, isLoading: isEngineHealthLoading } = useQuery<EngineHealthData>({
+    queryKey: ["/api/engine-health"],
+    staleTime: 30000,
+    refetchInterval: 60000,
+  });
+
+  const getAlertCountForEngine = (engineKey: EngineKey): number => {
+    return engineHealthData?.activeAlerts?.filter((a) => a.engine === engineKey && !a.acknowledged).length ?? 0;
+  };
+
+  const engines: EngineKey[] = ["flow", "lotto", "quant", "ai"];
 
   const handleExport = () => {
     window.location.href = '/api/performance/export';
@@ -256,6 +536,38 @@ export default function PerformancePage() {
             </Button>
           </div>
         </div>
+      </div>
+
+      <div className="glass-card rounded-xl p-6" data-testid="section-engine-health">
+        <div className="flex items-center gap-2 mb-4">
+          <Activity className="h-5 w-5 text-cyan-400" />
+          <h2 className="text-xl font-bold">Engine Health Overview</h2>
+        </div>
+        {isEngineHealthLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-40" />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {engines.map((engineKey) => (
+                <EngineSummaryCard
+                  key={engineKey}
+                  engineKey={engineKey}
+                  todayMetrics={engineHealthData?.todayMetrics?.[engineKey]}
+                  weekMetrics={engineHealthData?.weekMetrics?.[engineKey]}
+                  alertCount={getAlertCountForEngine(engineKey)}
+                />
+              ))}
+            </div>
+            <HealthAlertsSection 
+              alerts={engineHealthData?.activeAlerts ?? []} 
+              isAdmin={isAdmin} 
+            />
+          </div>
+        )}
       </div>
 
       <div className="glass rounded-xl p-4 border-l-2 border-l-blue-500">

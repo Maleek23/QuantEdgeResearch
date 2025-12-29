@@ -38,7 +38,6 @@ const LiveTrading = lazy(() => import("@/pages/live-trading"));
 const PaperTrading = lazy(() => import("@/pages/paper-trading"));
 const WalletTracker = lazy(() => import("@/pages/wallet-tracker"));
 const CTTracker = lazy(() => import("@/pages/ct-tracker"));
-const EngineHealth = lazy(() => import("@/pages/engine-health"));
 const TradeAudit = lazy(() => import("@/pages/trade-audit"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
@@ -65,7 +64,6 @@ function Router() {
       <Route path="/ct-tracker" component={CTTracker} />
       <Route path="/chart-analysis" component={ChartAnalysis} />
       <Route path="/performance" component={PerformancePage} />
-      <Route path="/engine-health" component={EngineHealth} />
       <Route path="/trade-ideas/:id/audit" component={TradeAudit} />
       <Route path="/market" component={MarketPage} />
       
