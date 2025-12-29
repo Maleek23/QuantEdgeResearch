@@ -69,6 +69,12 @@ export function TierGate({ feature, children, fallback, blur = false }: TierGate
   
   const config = featureConfig[feature];
   
+  // If we have a fallback, render it immediately while loading
+  // This allows public content to show while tier data loads
+  if (isLoading && fallback) {
+    return <>{fallback}</>;
+  }
+  
   // CRITICAL: Don't show upgrade prompt while tier data is still loading
   // This prevents the "flash" where users see upgrade then admin features
   if (isLoading) {

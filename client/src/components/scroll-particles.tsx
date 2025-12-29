@@ -29,8 +29,8 @@ export function ScrollParticles() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       
-      // Recreate ambient particles on resize
-      const ambientCount = 40;
+      // Reduced particle count for better performance
+      const ambientCount = 20; // Reduced from 40
       particlesRef.current = particlesRef.current.filter(p => !p.isAmbient);
       
       for (let i = 0; i < ambientCount; i++) {
@@ -71,13 +71,13 @@ export function ScrollParticles() {
         });
       }
       
-      // Enforce maximum particle count (ambient + scroll particles)
-      const MAX_TOTAL_PARTICLES = 100;
+      // Enforce maximum particle count (ambient + scroll particles) - reduced for performance
+      const MAX_TOTAL_PARTICLES = 50; // Reduced from 100
       const currentCount = particlesRef.current.length;
       
-      if (scrollSpeed > 1 && currentCount < MAX_TOTAL_PARTICLES) {
+      if (scrollSpeed > 2 && currentCount < MAX_TOTAL_PARTICLES) { // Increased threshold
         // Create particles based on scroll velocity
-        const particleCount = Math.min(Math.floor(scrollSpeed / 4), 10);
+        const particleCount = Math.min(Math.floor(scrollSpeed / 6), 5); // Reduced
         const allowedCount = Math.min(particleCount, MAX_TOTAL_PARTICLES - currentCount);
         
         for (let i = 0; i < allowedCount; i++) {
@@ -157,7 +157,7 @@ export function ScrollParticles() {
         ctx.fill();
         ctx.restore();
         
-        // Draw neural connections to nearby particles
+        // Draw neural connections to nearby particles - reduced distance for performance
         particlesRef.current.forEach((otherParticle) => {
           if (particle === otherParticle) return;
           
@@ -165,9 +165,9 @@ export function ScrollParticles() {
           const dy = particle.y - otherParticle.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           
-          // Draw connection if particles are close enough
-          if (distance < 120) {
-            const connectionAlpha = particle.opacity * (1 - distance / 120) * (isDarkMode ? 0.15 : 0.08);
+          // Draw connection if particles are close enough (reduced from 120)
+          if (distance < 80) {
+            const connectionAlpha = particle.opacity * (1 - distance / 80) * (isDarkMode ? 0.15 : 0.08);
             ctx.save();
             ctx.globalAlpha = connectionAlpha;
             ctx.strokeStyle = connectionColor;

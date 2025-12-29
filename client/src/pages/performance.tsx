@@ -31,6 +31,7 @@ import StreakTracker from "@/components/streak-tracker";
 import { TierGate } from "@/components/tier-gate";
 import { useAuth } from "@/hooks/useAuth";
 import type { EngineHealthAlert } from "@shared/schema";
+import { ENGINE_LABELS, ENGINE_COLORS, CONFIDENCE_BAND_LABELS } from "@shared/constants";
 
 interface CalibratedStats {
   calibratedWinRate: number;
@@ -858,15 +859,11 @@ export default function PerformancePage() {
                           variant="outline" 
                           className={cn(
                             "text-xs font-semibold",
-                            engine.engine === 'ai' && "border-amber-500/50 text-amber-400",
-                            engine.engine === 'quant' && "border-cyan-500/50 text-cyan-400",
-                            engine.engine === 'hybrid' && "border-purple-500/50 text-purple-400",
-                            engine.engine === 'flow_scanner' && "border-green-500/50 text-green-400",
-                            engine.engine === 'chart_analysis' && "border-blue-500/50 text-blue-400",
-                            engine.engine === 'lotto_scanner' && "border-pink-500/50 text-pink-400"
+                            ENGINE_COLORS[engine.engine]?.border,
+                            ENGINE_COLORS[engine.engine]?.text
                           )}
                         >
-                          {engine.displayName}
+                          {ENGINE_LABELS[engine.engine] || engine.displayName}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
                           {engine.totalTrades} decided trades
