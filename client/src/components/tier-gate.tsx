@@ -64,10 +64,21 @@ const featureConfig: Record<Feature, {
 };
 
 export function TierGate({ feature, children, fallback, blur = false }: TierGateProps) {
-  const { limits, isAdmin, tier } = useTier();
+  const { limits, isAdmin, tier, isLoading } = useTier();
   const [, setLocation] = useLocation();
   
   const config = featureConfig[feature];
+  
+  // CRITICAL: Don't show upgrade prompt while tier data is still loading
+  // This prevents the "flash" where users see upgrade then admin features
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-pulse text-muted-foreground text-sm">Loading...</div>
+      </div>
+    );
+  }
+  
   const hasAccess = isAdmin || config.checkAccess(limits);
 
   if (hasAccess) {
