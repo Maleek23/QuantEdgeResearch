@@ -828,99 +828,130 @@ export default function PerformancePage() {
             <div className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-cyan-400" />
               <CardTitle className="text-lg">Engine × Confidence Correlation</CardTitle>
-              <Badge variant="outline" className="border-purple-500/50 text-purple-400">
-                Win Rate by Engine & Confidence
-              </Badge>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Shows which engines perform best at each confidence level. Helps identify which engines to trust at different confidence thresholds.
+              Win rate breakdown by engine and confidence level. Green = well-calibrated, Red = needs recalibration.
             </p>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border/50">
-                    <th className="text-left py-2 px-3 font-semibold">Engine</th>
-                    <th className="text-center py-2 px-3 font-semibold">Overall</th>
-                    {correlationData.confidenceBands.map((band) => (
-                      <th key={band} className="text-center py-2 px-3 font-semibold text-xs">
-                        {band}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {correlationData.correlationMatrix.map((engine) => (
-                    <tr key={engine.engine} className="border-b border-border/20 hover:bg-background/50">
-                      <td className="py-3 px-3">
-                        <div className="flex items-center gap-2">
-                          <Badge 
-                            variant="outline" 
-                            className={cn(
-                              "text-xs",
-                              engine.engine === 'ai' && "border-amber-500/50 text-amber-400",
-                              engine.engine === 'quant' && "border-cyan-500/50 text-cyan-400",
-                              engine.engine === 'hybrid' && "border-purple-500/50 text-purple-400",
-                              engine.engine === 'flow_scanner' && "border-green-500/50 text-green-400",
-                              engine.engine === 'chart_analysis' && "border-blue-500/50 text-blue-400",
-                              engine.engine === 'lotto_scanner' && "border-pink-500/50 text-pink-400"
-                            )}
-                          >
-                            {engine.displayName}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            ({engine.totalTrades} trades)
-                          </span>
-                        </div>
-                      </td>
-                      <td className="text-center py-3 px-3">
+            <div className="space-y-3">
+              {correlationData.correlationMatrix.map((engine) => {
+                const highConf = engine.byConfidence.find(c => c.band.includes('High'));
+                const lowConf = engine.byConfidence.find(c => c.band.includes('Low'));
+                const isInverted = highConf && lowConf && highConf.trades > 0 && lowConf.trades > 0 && lowConf.winRate > highConf.winRate;
+                const isCalibrated = highConf && lowConf && highConf.trades > 0 && lowConf.trades > 0 && highConf.winRate >= lowConf.winRate;
+                const noLowData = !lowConf || lowConf.trades === 0;
+                
+                return (
+                  <div 
+                    key={engine.engine} 
+                    className={cn(
+                      "p-4 rounded-lg border",
+                      isCalibrated ? "bg-green-500/5 border-green-500/20" :
+                      isInverted ? "bg-red-500/5 border-red-500/20" :
+                      "bg-background/50 border-border/30"
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            "text-xs font-semibold",
+                            engine.engine === 'ai' && "border-amber-500/50 text-amber-400",
+                            engine.engine === 'quant' && "border-cyan-500/50 text-cyan-400",
+                            engine.engine === 'hybrid' && "border-purple-500/50 text-purple-400",
+                            engine.engine === 'flow_scanner' && "border-green-500/50 text-green-400",
+                            engine.engine === 'chart_analysis' && "border-blue-500/50 text-blue-400",
+                            engine.engine === 'lotto_scanner' && "border-pink-500/50 text-pink-400"
+                          )}
+                        >
+                          {engine.displayName}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {engine.totalTrades} decided trades
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <span className={cn(
-                          "font-mono font-bold",
-                          engine.overallWinRate >= 70 ? "text-green-400" :
-                          engine.overallWinRate >= 50 ? "text-amber-400" :
+                          "text-lg font-mono font-bold",
+                          engine.overallWinRate >= 60 ? "text-green-400" :
+                          engine.overallWinRate >= 45 ? "text-amber-400" :
                           "text-red-400"
                         )}>
                           {engine.overallWinRate.toFixed(1)}%
                         </span>
-                      </td>
+                        {isInverted && (
+                          <Badge variant="outline" className="text-[10px] border-red-500/50 text-red-400">
+                            Inverted
+                          </Badge>
+                        )}
+                        {isCalibrated && (
+                          <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-400">
+                            Calibrated
+                          </Badge>
+                        )}
+                        {noLowData && !isCalibrated && !isInverted && (
+                          <Badge variant="outline" className="text-[10px] border-muted-foreground/50 text-muted-foreground">
+                            Limited Data
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2">
                       {engine.byConfidence.map((conf) => (
-                        <td key={conf.band} className="text-center py-3 px-3">
+                        <div 
+                          key={conf.band} 
+                          className={cn(
+                            "p-2 rounded text-center",
+                            conf.trades > 0 ? (
+                              conf.winRate >= 60 ? "bg-green-500/10" :
+                              conf.winRate >= 40 ? "bg-amber-500/10" :
+                              "bg-red-500/10"
+                            ) : "bg-muted/20"
+                          )}
+                        >
+                          <div className="text-[10px] text-muted-foreground mb-1">
+                            {conf.band.replace(' (70+)', '').replace(' (50-69)', '').replace(' (<50)', '')}
+                          </div>
                           {conf.trades > 0 ? (
-                            <div>
-                              <span className={cn(
-                                "font-mono text-sm",
-                                conf.winRate >= 70 ? "text-green-400" :
-                                conf.winRate >= 50 ? "text-amber-400" :
-                                conf.winRate > 0 ? "text-red-400" :
-                                "text-muted-foreground"
+                            <>
+                              <div className={cn(
+                                "text-xl font-mono font-bold",
+                                conf.winRate >= 60 ? "text-green-400" :
+                                conf.winRate >= 40 ? "text-amber-400" :
+                                "text-red-400"
                               )}>
                                 {conf.winRate.toFixed(0)}%
-                              </span>
-                              <div className="text-[10px] text-muted-foreground">
-                                {conf.wins}W/{conf.losses}L
                               </div>
-                            </div>
+                              <div className="text-[10px] text-muted-foreground">
+                                {conf.wins}W / {conf.losses}L
+                              </div>
+                            </>
                           ) : (
-                            <span className="text-muted-foreground/50">—</span>
+                            <div className="text-lg text-muted-foreground/30">—</div>
                           )}
-                        </td>
+                        </div>
                       ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="mt-4 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
-              <div className="flex items-start gap-2">
-                <Info className="h-4 w-4 text-purple-400 mt-0.5 flex-shrink-0" />
-                <div className="text-sm">
-                  <span className="font-semibold text-purple-400">Reading This Table:</span>
-                  <span className="text-muted-foreground ml-1">
-                    Look for engines with high win rates at high confidence levels - those are well-calibrated. 
-                    Engines with low win rates at high confidence need recalibration.
-                  </span>
-                </div>
+            
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+              <div className="flex items-center gap-2 p-2 rounded bg-green-500/10">
+                <div className="w-3 h-3 rounded-full bg-green-500" />
+                <span className="text-muted-foreground">Calibrated: High conf &gt; Low conf</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded bg-red-500/10">
+                <div className="w-3 h-3 rounded-full bg-red-500" />
+                <span className="text-muted-foreground">Inverted: Low conf beats High conf</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded bg-muted/20">
+                <div className="w-3 h-3 rounded-full bg-muted-foreground/50" />
+                <span className="text-muted-foreground">Limited Data: Not enough trades</span>
               </div>
             </div>
           </CardContent>
