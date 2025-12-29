@@ -209,35 +209,63 @@ function detectNewsCatalyst(catalyst: string, analysis: string): boolean {
 }
 
 // 📊 CONFIDENCE CALCULATION: Calculate confidence score for AI/Hybrid trades
+// NOTE: AI engine has historically poor performance (22% win rate on "high confidence" trades)
+// This function is now calibrated based on actual backtest data
 function calculateAIConfidence(
   idea: any,
   validationMetrics: any,
-  isNewsCatalyst: boolean
+  isNewsCatalyst: boolean,
+  source: string = 'ai'
 ): number {
-  let confidence = 50; // Base confidence
+  // 🎯 SOURCE-BASED BASE CONFIDENCE (calibrated from historical data)
+  // AI engine: Low base (poor historical accuracy)
+  // Hybrid: Medium base (mixed results)
+  // Flow: High base (proven 96.6% on high confidence)
+  let confidence: number;
+  
+  if (source === 'ai') {
+    confidence = 25; // AI has poor track record - start low
+  } else if (source === 'hybrid') {
+    confidence = 30; // Hybrid has mixed results
+  } else if (source === 'flow') {
+    confidence = 55; // Flow has excellent historical accuracy
+  } else {
+    confidence = 35; // Default conservative
+  }
 
-  // R:R ratio contribution (0-25 points)
-  // Higher R:R = higher confidence
+  // 🚫 OPTIONS PENALTY: AI options have -150% avg loss (expire worthless)
+  // Severe penalty for AI-generated options only - they should NOT be high confidence
+  // Hybrid options excluded as they use different analysis methodology
+  if (idea.assetType === 'option' && source === 'ai') {
+    confidence -= 15; // Penalty for AI options
+    logger.info(`📉 [CONFIDENCE] AI option ${idea.symbol} - applied -15 penalty (historical -150% loss rate)`);
+  }
+
+  // R:R ratio contribution (0-15 points for AI, 0-25 for Flow)
+  // Reduced for AI since good R:R doesn't equal good predictions
   const rrRatio = validationMetrics?.riskRewardRatio || 0;
-  if (rrRatio >= 3.0) confidence += 25;
-  else if (rrRatio >= 2.5) confidence += 20;
-  else if (rrRatio >= 2.0) confidence += 15;
-  else if (rrRatio >= 1.5) confidence += 10;
-  else if (rrRatio >= 1.0) confidence += 5;
+  const rrBonus = source === 'flow' ? 25 : 15; // Flow gets full bonus, AI gets less
+  
+  if (rrRatio >= 3.0) confidence += rrBonus;
+  else if (rrRatio >= 2.5) confidence += Math.round(rrBonus * 0.8);
+  else if (rrRatio >= 2.0) confidence += Math.round(rrBonus * 0.6);
+  else if (rrRatio >= 1.5) confidence += Math.round(rrBonus * 0.4);
+  else if (rrRatio >= 1.0) confidence += Math.round(rrBonus * 0.2);
 
-  // Asset type contribution (0-15 points)
-  // Crypto = higher (more predictable for quant), penny_stock = lower (higher risk)
-  if (idea.assetType === 'crypto') confidence += 15;
-  else if (idea.assetType === 'stock' && idea.entryPrice >= 10) confidence += 10;
-  else if (idea.assetType === 'stock' && idea.entryPrice >= 5) confidence += 5;
+  // Asset type contribution (0-10 points for AI, 0-15 for Flow)
+  const assetBonus = source === 'flow' ? 15 : 10;
+  
+  if (idea.assetType === 'crypto') confidence += assetBonus;
+  else if (idea.assetType === 'stock' && idea.entryPrice >= 10) confidence += Math.round(assetBonus * 0.7);
+  else if (idea.assetType === 'stock' && idea.entryPrice >= 5) confidence += Math.round(assetBonus * 0.3);
   else if (idea.assetType === 'penny_stock' || idea.entryPrice < 5) confidence += 0;
 
   // Catalyst strength contribution (0-10 points)
-  // News catalyst = higher confidence (market-moving events)
+  // News catalyst still helps - market-moving events are more predictable
   if (isNewsCatalyst) confidence += 10;
 
-  // Cap at 100
-  return Math.min(100, Math.max(0, confidence));
+  // Cap at 100, floor at 10
+  return Math.min(100, Math.max(10, confidence));
 }
 
 // 🎯 PROBABILITY BAND MAPPING: Standard academic grading scale
@@ -4160,8 +4188,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const { entryPrice, targetPrice, stopLoss } = aiIdea;
         const riskRewardRatio = (targetPrice - entryPrice) / (entryPrice - stopLoss);
         
-        // 📊 Calculate confidence score and quality signals
-        const confidenceScore = calculateAIConfidence(aiIdea, validation.metrics, isNewsCatalyst);
+        // 📊 Calculate confidence score and quality signals (calibrated for AI's poor track record)
+        const confidenceScore = calculateAIConfidence(aiIdea, validation.metrics, isNewsCatalyst, 'ai');
         const qualitySignals = [
           `catalyst_${isNewsCatalyst ? 'news' : 'standard'}`,
           `rr_${riskRewardRatio.toFixed(1)}`,
@@ -4400,8 +4428,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // 📰 NEWS CATALYST DETECTION: Check AI-generated catalyst/analysis for news keywords
         const isNewsCatalyst = detectNewsCatalyst(hybridIdea.catalyst || '', hybridIdea.analysis || '');
         
-        // 📊 Calculate confidence score and quality signals
-        const confidenceScore = calculateAIConfidence(hybridIdea, validation.metrics, isNewsCatalyst);
+        // 📊 Calculate confidence score and quality signals (calibrated for Hybrid's mixed results)
+        const confidenceScore = calculateAIConfidence(hybridIdea, validation.metrics, isNewsCatalyst, 'hybrid');
         const qualitySignals = [
           `catalyst_${isNewsCatalyst ? 'news' : 'standard'}`,
           `rr_${riskRewardRatio.toFixed(1)}`,

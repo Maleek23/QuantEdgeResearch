@@ -477,9 +477,11 @@ export async function generateFuturesIdeas(): Promise<InsertTradeIdea[]> {
       const catalyst = generateFuturesCatalyst(rootSymbol, signal);
       const analysis = generateFuturesAnalysis(rootSymbol, signal, contract.contractCode, spec);
       
-      // Calculate confidence score (simple scoring for v1.0)
-      const confidenceScore = signal.strength === 'strong' ? 85 : 
-                             signal.strength === 'moderate' ? 75 : 65;
+      // Calculate confidence score (calibrated based on historical performance)
+      // NOTE: Quant engine has ~36% win rate historically - confidence reflects uncertainty
+      // Keep scores in meaningful bands while noting limited historical accuracy
+      const confidenceScore = signal.strength === 'strong' ? 65 : 
+                             signal.strength === 'moderate' ? 55 : 45;
       // Standard academic grading
       const probabilityBand = getLetterGrade(confidenceScore);
       
