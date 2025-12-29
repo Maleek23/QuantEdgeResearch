@@ -15,6 +15,7 @@ import {
 import { getActiveFuturesContract, getFuturesPrice } from './futures-data-service';
 import { logger } from './logger';
 import { storage } from './storage';
+import { getLetterGrade } from './grading';
 
 // 🔐 MODEL GOVERNANCE: Engine version for audit trail
 export const FUTURES_ENGINE_VERSION = "v1.0.0";
@@ -480,7 +481,7 @@ export async function generateFuturesIdeas(): Promise<InsertTradeIdea[]> {
       const confidenceScore = signal.strength === 'strong' ? 85 : 
                              signal.strength === 'moderate' ? 75 : 65;
       // Standard academic grading
-      const probabilityBand = confidenceScore >= 95 ? 'A+' : confidenceScore >= 93 ? 'A' : confidenceScore >= 90 ? 'A-' : confidenceScore >= 87 ? 'B+' : confidenceScore >= 83 ? 'B' : confidenceScore >= 80 ? 'B-' : confidenceScore >= 77 ? 'C+' : confidenceScore >= 73 ? 'C' : confidenceScore >= 70 ? 'C-' : confidenceScore >= 67 ? 'D+' : confidenceScore >= 63 ? 'D' : confidenceScore >= 60 ? 'D-' : 'F';
+      const probabilityBand = getLetterGrade(confidenceScore);
       
       // Create futures trade idea
       const idea: InsertTradeIdea = {

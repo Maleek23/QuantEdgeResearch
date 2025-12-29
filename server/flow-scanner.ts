@@ -10,6 +10,7 @@ import { storage } from './storage';
 import { calculateATR } from './technical-indicators';
 import { isLottoCandidate, calculateLottoTargets } from './lotto-detector';
 import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennyStock } from './sector-detector';
+import { getLetterGrade } from './grading';
 
 // US Market Holidays 2025-2026 (options don't expire on holidays)
 const MARKET_HOLIDAYS = new Set([
@@ -908,7 +909,7 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
       `volume_${mostActiveOption.volume}_contracts`,
       `premium_$${(totalPremium / 1000000).toFixed(2)}M`
     ],
-    probabilityBand: signalStrength >= 95 ? 'A+' : signalStrength >= 93 ? 'A' : signalStrength >= 90 ? 'A-' : signalStrength >= 87 ? 'B+' : signalStrength >= 83 ? 'B' : signalStrength >= 80 ? 'B-' : signalStrength >= 77 ? 'C+' : signalStrength >= 73 ? 'C' : signalStrength >= 70 ? 'C-' : signalStrength >= 67 ? 'D+' : signalStrength >= 63 ? 'D' : signalStrength >= 60 ? 'D-' : 'F',
+    probabilityBand: getLetterGrade(signalStrength),
     dataSourceUsed: 'tradier',
     engineVersion: 'flow_v3.0.0_time_conscious',  // Time-conscious with dynamic exit times
     generationTimestamp: timestamp,

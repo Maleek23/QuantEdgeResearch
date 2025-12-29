@@ -38,6 +38,7 @@ import { getTierLimits } from "./tierConfig";
 import { syncDocumentationToNotion } from "./notion-sync";
 import * as paperTradingService from "./paper-trading-service";
 import { telemetryService } from "./telemetry-service";
+import { getReliabilityGrade, getLetterGrade } from "./grading";
 import { 
   insertPaperPortfolioSchema, 
   insertPaperPositionSchema,
@@ -5051,7 +5052,7 @@ FORMATTING:
           expectancy,
           avgWinSize: avgWin,
           avgLossSize: avgLoss,
-          grade: reliabilityScore >= 60 ? 'A' : reliabilityScore >= 40 ? 'B' : 'C'
+          grade: getReliabilityGrade(reliabilityScore)
         };
       }).sort((a, b) => b.reliabilityScore - a.reliabilityScore);
       
