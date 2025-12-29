@@ -20,7 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, IdeaSource, MarketData, Catalyst } from "@shared/schema";
-import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock, Info, Activity, Newspaper, Bot, AlertTriangle, FileText, Eye } from "lucide-react";
+import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock, Info, Activity, Newspaper, Bot, AlertTriangle, FileText, Eye, ArrowUpDown } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, subYears, isAfter, isBefore } from "date-fns";
 import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
@@ -526,6 +526,12 @@ export default function TradeDeskPage() {
           return b.confidenceScore - a.confidenceScore;
         case 'rr':
           return b.riskRewardRatio - a.riskRewardRatio;
+        case 'price_asc':
+          // Cheap to expensive (by entry price / premium)
+          return (a.entryPrice || 0) - (b.entryPrice || 0);
+        case 'price_desc':
+          // Expensive to cheap (by entry price / premium)
+          return (b.entryPrice || 0) - (a.entryPrice || 0);
         default:
           return 0;
       }
@@ -890,6 +896,23 @@ export default function TradeDeskPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {/* Sort By Dropdown */}
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-[140px] h-8 glass-secondary border-white/10" data-testid="select-sort-by">
+                      <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="priority">Priority</SelectItem>
+                      <SelectItem value="price_asc">Cheapest First</SelectItem>
+                      <SelectItem value="price_desc">Expensive First</SelectItem>
+                      <SelectItem value="confidence">Confidence</SelectItem>
+                      <SelectItem value="rr">Risk/Reward</SelectItem>
+                      <SelectItem value="expiry">Expiry Date</SelectItem>
+                      <SelectItem value="timestamp">Newest</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
                   {/* View Mode Toggle */}
                   <div className="flex items-center glass-secondary rounded-md p-0.5">
                     <Button
