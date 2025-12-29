@@ -146,17 +146,16 @@ export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOpt
       stopPremium = 0.01;
       logger.info(`[OPTIONS-ENRICH] 🎰 LOTTO DETECTED: Target 20x ($${targetPremium.toFixed(2)})`);
     } else {
-      // Standard options: 25% gain target, 6.25% stop (maintains 4:1 R:R)
-      if (aiIdea.direction === 'long') {
-        targetPremium = entryPremium * 1.25; // +25%
-        stopPremium = entryPremium * 0.9375; // -6.25%
-      } else {
-        targetPremium = entryPremium * 0.75; // -25%
-        stopPremium = entryPremium * 1.0625; // +6.25%
-      }
+      // 🔧 FIX: OPTIONS PREMIUM TARGETS - You're always BUYING the option!
+      // Whether CALL or PUT, you BUY the option and want premium to increase.
+      // - CALL (direction='long'): Buy call, stock up, call premium UP ✓
+      // - PUT (direction='short'): Buy put, stock down, put premium UP ✓
+      // Both cases: You profit when premium goes UP!
+      targetPremium = entryPremium * 1.25; // +25% gain on premium
+      stopPremium = entryPremium * 0.9375; // -6.25% loss on premium
       
-      const risk = Math.abs(entryPremium - stopPremium);
-      const reward = Math.abs(targetPremium - entryPremium);
+      const risk = entryPremium - stopPremium;
+      const reward = targetPremium - entryPremium;
       riskRewardRatio = reward / risk;
       
       logger.info(`[OPTIONS-ENRICH] Standard play: Entry=$${entryPremium.toFixed(2)}, Target=$${targetPremium.toFixed(2)} (+25%), Stop=$${stopPremium.toFixed(2)} (-6.25%), R:R=${riskRewardRatio.toFixed(2)}:1`);

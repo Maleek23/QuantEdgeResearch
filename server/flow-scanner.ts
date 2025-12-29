@@ -540,24 +540,26 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   // Recalculate stop based on new target (maintain 1.5:1 R:R)
   const effectiveStopMultiplier = effectiveTargetMultiplier / 1.5;
 
-  if (direction === 'long') {
-    // LONG: Entry = current, Target = dynamic % above, Stop = calculated for 1.5:1 R:R
-    targetPrice = entryPrice * (1 + effectiveTargetMultiplier);
-    stopLoss = entryPrice * (1 - effectiveStopMultiplier);
-  } else {
-    // SHORT: Entry = current, Target = dynamic % below, Stop = calculated for 1.5:1 R:R
-    targetPrice = entryPrice * (1 - effectiveTargetMultiplier);
-    stopLoss = entryPrice * (1 + effectiveStopMultiplier);
-  }
+  // 🔧 FIX: OPTIONS PREMIUM TARGETS - You're always BUYING the option, never selling!
+  // Whether CALL or PUT, the goal is to BUY at entry premium and SELL at higher target premium.
+  // - CALL flow (direction='long'): Buy call, stock goes UP, call premium goes UP ✓
+  // - PUT flow (direction='short'): Buy put, stock goes DOWN, put premium goes UP ✓
+  // 
+  // The "direction" label ('long'/'short') refers to the UNDERLYING stock direction,
+  // NOT whether you're long/short on the option. You're always LONG the option premium.
+  // So targets are ALWAYS: target > entry, stop < entry (for profit on premium increase)
+  
+  targetPrice = entryPrice * (1 + effectiveTargetMultiplier);
+  stopLoss = entryPrice * (1 - effectiveStopMultiplier);
   
   // Log the target adjustment for cheap options
   if (effectiveTargetMultiplier > targetMultiplier) {
     logger.info(`📊 [FLOW] ${ticker}: Boosted target from ${(targetMultiplier*100).toFixed(1)}% → ${(effectiveTargetMultiplier*100).toFixed(1)}% (cheap option at $${entryPrice.toFixed(2)})`);
   }
 
-  // Calculate R:R ratio
-  const risk = direction === 'long' ? (entryPrice - stopLoss) : (stopLoss - entryPrice);
-  const reward = direction === 'long' ? (targetPrice - entryPrice) : (entryPrice - targetPrice);
+  // Calculate R:R ratio - always based on premium increase (buying options)
+  const risk = entryPrice - stopLoss;   // Risk = entry - stop (premium decrease)
+  const reward = targetPrice - entryPrice;  // Reward = target - entry (premium increase)
   let riskRewardRatio = reward / risk;
 
   // 🔧 FIX: Generate OPTIONS trades (not stocks) - we're detecting options flow!
