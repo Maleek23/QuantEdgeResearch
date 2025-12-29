@@ -831,3 +831,110 @@ export const ctCallPerformance = pgTable("ct_call_performance", {
 export const insertCTCallPerformanceSchema = createInsertSchema(ctCallPerformance).omit({ id: true, createdAt: true });
 export type InsertCTCallPerformance = z.infer<typeof insertCTCallPerformanceSchema>;
 export type CTCallPerformance = typeof ctCallPerformance.$inferSelect;
+
+// ============================================================================
+// TELEMETRY & CONTINUOUS IMPROVEMENT TABLES
+// ============================================================================
+
+// Engine Source Type for telemetry
+export type EngineSource = 'flow' | 'lotto' | 'quant' | 'ai' | 'hybrid' | 'manual';
+
+// Trade Input Snapshots - Store signal inputs at generation time for ML feedback loops
+export const tradeInputSnapshots = pgTable("trade_input_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tradeIdeaId: varchar("trade_idea_id").notNull(), // Link to trade_ideas.id
+  engine: text("engine").$type<EngineSource>().notNull(),
+  
+  // Signal Inputs at Generation Time
+  signalInputs: jsonb("signal_inputs"), // Full snapshot of inputs (RSI, volume, IV, etc.)
+  
+  // Key metrics that were used in decision
+  volumeAtEntry: real("volume_at_entry"),
+  rsiAtEntry: real("rsi_at_entry"),
+  ivAtEntry: real("iv_at_entry"),
+  premiumAtEntry: real("premium_at_entry"),
+  skewRatioAtEntry: real("skew_ratio_at_entry"),
+  
+  // Confidence breakdown
+  confidenceTotal: real("confidence_total"),
+  confidenceBreakdown: jsonb("confidence_breakdown"), // {volume: 65, premium: 40, iv: 55, ...}
+  qualityBand: text("quality_band"), // 'A', 'B+', 'B', 'C+', 'C'
+  
+  // Market context
+  marketSessionAtEntry: text("market_session_at_entry"), // 'pre-market', 'rth', 'after-hours'
+  vixAtEntry: real("vix_at_entry"),
+  spyChangeAtEntry: real("spy_change_at_entry"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTradeInputSnapshotSchema = createInsertSchema(tradeInputSnapshots).omit({ id: true, createdAt: true });
+export type InsertTradeInputSnapshot = z.infer<typeof insertTradeInputSnapshotSchema>;
+export type TradeInputSnapshot = typeof tradeInputSnapshots.$inferSelect;
+
+// Engine Daily Metrics - Aggregated daily performance per engine
+export const engineDailyMetrics = pgTable("engine_daily_metrics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  date: text("date").notNull(), // YYYY-MM-DD
+  engine: text("engine").$type<EngineSource>().notNull(),
+  
+  // Idea Generation Stats
+  ideasGenerated: integer("ideas_generated").notNull().default(0),
+  ideasPublished: integer("ideas_published").notNull().default(0),
+  
+  // Outcome Stats
+  tradesResolved: integer("trades_resolved").notNull().default(0),
+  tradesWon: integer("trades_won").notNull().default(0),
+  tradesLost: integer("trades_lost").notNull().default(0),
+  tradesExpired: integer("trades_expired").notNull().default(0),
+  
+  // Performance Metrics
+  winRate: real("win_rate"), // % (0-100)
+  avgGainPercent: real("avg_gain_percent"), // Average % gain on winners
+  avgLossPercent: real("avg_loss_percent"), // Average % loss on losers
+  expectancy: real("expectancy"), // (winRate * avgGain) - ((1-winRate) * avgLoss)
+  
+  // Timing Metrics
+  avgHoldingTimeMinutes: real("avg_holding_time_minutes"),
+  avgTimeToTarget: real("avg_time_to_target"), // How fast winners hit target
+  avgTimeToStop: real("avg_time_to_stop"), // How fast losers hit stop
+  
+  // Confidence Calibration
+  avgConfidenceScore: real("avg_confidence_score"),
+  confidenceByBand: jsonb("confidence_by_band"), // { A: {count, winRate}, B+: {...}, ... }
+  
+  // Risk Metrics
+  maxDrawdownPercent: real("max_drawdown_percent"),
+  sharpeRatio: real("sharpe_ratio"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertEngineDailyMetricsSchema = createInsertSchema(engineDailyMetrics).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertEngineDailyMetrics = z.infer<typeof insertEngineDailyMetricsSchema>;
+export type EngineDailyMetrics = typeof engineDailyMetrics.$inferSelect;
+
+// Engine Health Alerts - Track when engines underperform
+export const engineHealthAlerts = pgTable("engine_health_alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  engine: text("engine").$type<EngineSource>().notNull(),
+  alertType: text("alert_type").notNull(), // 'win_rate_drop', 'confidence_miscalibration', 'no_ideas', 'high_drawdown'
+  severity: text("severity").notNull(), // 'info', 'warning', 'critical'
+  
+  message: text("message").notNull(),
+  details: jsonb("details"), // Additional context
+  
+  // Resolution tracking
+  acknowledged: boolean("acknowledged").default(false),
+  acknowledgedBy: varchar("acknowledged_by"),
+  acknowledgedAt: text("acknowledged_at"),
+  resolved: boolean("resolved").default(false),
+  resolvedAt: text("resolved_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertEngineHealthAlertSchema = createInsertSchema(engineHealthAlerts).omit({ id: true, createdAt: true });
+export type InsertEngineHealthAlert = z.infer<typeof insertEngineHealthAlertSchema>;
+export type EngineHealthAlert = typeof engineHealthAlerts.$inferSelect;
