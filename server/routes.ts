@@ -1464,6 +1464,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 📸 Trade Audit Trail - get price snapshots and outcome evidence
+  app.get("/api/trade-ideas/:id/audit", async (req, res) => {
+    try {
+      const auditTrail = await storage.getTradeAuditTrail(req.params.id);
+      if (!auditTrail.tradeIdea) {
+        return res.status(404).json({ error: "Trade idea not found" });
+      }
+      res.json(auditTrail);
+    } catch (error) {
+      console.error("Failed to fetch trade audit trail:", error);
+      res.status(500).json({ error: "Failed to fetch trade audit trail" });
+    }
+  });
+
   app.post("/api/trade-ideas", async (req: any, res) => {
     try {
       const validated = insertTradeIdeaSchema.parse(req.body);

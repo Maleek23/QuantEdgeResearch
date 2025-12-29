@@ -2,7 +2,7 @@ import { storage } from "./storage";
 import { PerformanceValidator } from "./performance-validator";
 import { fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { getOptionQuote } from "./tradier-api";
-import type { TradeIdea } from "@shared/schema";
+import type { TradeIdea, InsertTradePriceSnapshot, PriceSnapshotEvent } from "@shared/schema";
 
 /**
  * Automated Performance Validation Service
@@ -145,6 +145,32 @@ class PerformanceValidationService {
           const idea = openIdeas.find(i => i.id === ideaId);
           if (idea) {
             console.log(`  ✓ ${idea.symbol}: ${result.outcomeStatus} at $${result.exitPrice?.toFixed(2)} (${result.percentGain?.toFixed(1)}%)`);
+            
+            // 📸 Save price snapshot for audit trail
+            const currentPrice = priceMap.get(idea.symbol) || result.exitPrice;
+            if (currentPrice) {
+              const eventType: PriceSnapshotEvent = 
+                result.outcomeStatus === 'hit_target' ? 'target_hit' :
+                result.outcomeStatus === 'hit_stop' ? 'stop_hit' :
+                result.outcomeStatus === 'expired' ? 'expired' : 'validation_check';
+              
+              const snapshot: InsertTradePriceSnapshot = {
+                tradeIdeaId: ideaId,
+                eventType,
+                lastPrice: currentPrice.toString(),
+                bidPrice: null, // Full bid/ask available from Tradier for options
+                askPrice: null,
+                volume: null,
+                validatorVersion: PerformanceValidator.VERSION,
+                notes: `Outcome: ${result.outcomeStatus} | Gain: ${result.percentGain?.toFixed(2)}% | Reason: ${result.resolutionReason}`,
+              };
+              
+              try {
+                await storage.savePriceSnapshot(snapshot);
+              } catch (err) {
+                console.warn(`  ⚠️  Failed to save price snapshot for ${idea.symbol}:`, err);
+              }
+            }
           }
         }
       }
