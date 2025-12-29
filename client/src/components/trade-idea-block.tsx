@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
 import { formatInUserTZ, formatTimeUntilExpiry, formatDateOnly } from "@/lib/timezone";
@@ -406,38 +407,58 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
             {/* Right Side: Confidence Score + Outcome + Expand Button */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              {/* CONFIDENCE SCORE BADGE - Prominently displayed */}
+              {/* CONFIDENCE SCORE BADGE - with tooltip explaining methodology */}
               {idea.confidenceScore && idea.confidenceScore > 0 && (
-                <Badge 
-                  variant="outline"
-                  className={cn(
-                    "font-bold text-xs h-6 px-2",
-                    idea.confidenceScore >= 75 ? "bg-green-500/20 text-green-400 border-green-500/50" :
-                    idea.confidenceScore >= 60 ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50" :
-                    idea.confidenceScore >= 50 ? "bg-amber-500/20 text-amber-400 border-amber-500/50" :
-                    "bg-muted/30 text-muted-foreground border-muted"
-                  )}
-                  data-testid={`badge-confidence-${idea.symbol}`}
-                >
-                  {Math.round(idea.confidenceScore)}%
-                </Badge>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant="outline"
+                      className={cn(
+                        "font-bold text-xs h-6 px-2 cursor-help",
+                        idea.confidenceScore >= 75 ? "bg-green-500/20 text-green-400 border-green-500/50" :
+                        idea.confidenceScore >= 60 ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50" :
+                        idea.confidenceScore >= 50 ? "bg-amber-500/20 text-amber-400 border-amber-500/50" :
+                        "bg-muted/30 text-muted-foreground border-muted"
+                      )}
+                      data-testid={`badge-confidence-${idea.symbol}`}
+                    >
+                      {Math.round(idea.confidenceScore)}%
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[250px]">
+                    <p className="font-semibold mb-1">Signal Confidence Score</p>
+                    <p className="text-xs text-muted-foreground">
+                      Combined score from: volume signals, price patterns, momentum indicators, and unusual activity detection. Higher = more confirming signals aligned.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
               )}
 
-              {/* Quality Band Badge */}
+              {/* Quality Band Badge - with tooltip explaining grade */}
               {idea.probabilityBand && (
-                <Badge 
-                  variant="outline"
-                  className={cn(
-                    "font-bold text-[11px] h-5",
-                    idea.probabilityBand === 'A' ? "bg-green-500/20 text-green-400 border-green-500/50" :
-                    idea.probabilityBand === 'B+' ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50" :
-                    idea.probabilityBand === 'B' ? "bg-blue-500/20 text-blue-400 border-blue-500/50" :
-                    "bg-muted/30 text-muted-foreground border-muted"
-                  )}
-                  data-testid={`badge-band-${idea.symbol}`}
-                >
-                  {idea.probabilityBand}
-                </Badge>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant="outline"
+                      className={cn(
+                        "font-bold text-[11px] h-5 cursor-help",
+                        idea.probabilityBand === 'A' ? "bg-green-500/20 text-green-400 border-green-500/50" :
+                        idea.probabilityBand === 'B+' ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50" :
+                        idea.probabilityBand === 'B' ? "bg-blue-500/20 text-blue-400 border-blue-500/50" :
+                        "bg-muted/30 text-muted-foreground border-muted"
+                      )}
+                      data-testid={`badge-band-${idea.symbol}`}
+                    >
+                      {idea.probabilityBand}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[250px]">
+                    <p className="font-semibold mb-1">Quality Grade</p>
+                    <p className="text-xs text-muted-foreground">
+                      A = Top tier (75%+ confidence), B+ = Strong (60-74%), B = Moderate (50-59%), C+ = Speculative (&lt;50%). Based on historical win rates for similar setups.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
               )}
               
               {/* Outcome Badge for closed ideas */}
@@ -477,30 +498,54 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
             </div>
           </div>
 
-          {/* COMPACT TIMING - Single row */}
+          {/* COMPACT TIMING - Single row with tooltips explaining each term */}
           {idea.outcomeStatus === 'open' && (
             <div className="mb-2 px-2 py-1.5 rounded border bg-card/30 text-[11px]">
               <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-1">
-                  <Clock className="h-2.5 w-2.5 text-cyan-400" />
-                  <span className="text-muted-foreground">Posted:</span>
-                  <span className="font-semibold">{formatInUserTZ(idea.timestamp, 'h:mm a')}</span>
-                </div>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1 cursor-help">
+                      <Clock className="h-2.5 w-2.5 text-cyan-400" />
+                      <span className="text-muted-foreground underline decoration-dotted">Posted:</span>
+                      <span className="font-semibold">{formatInUserTZ(idea.timestamp, 'h:mm a')}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[200px] text-center">
+                    <p className="font-semibold">When this idea was published</p>
+                    <p className="text-xs text-muted-foreground">The timestamp when our analysis engine generated this research brief</p>
+                  </TooltipContent>
+                </Tooltip>
                 
                 {idea.entryValidUntil && (
-                  <div className="flex items-center gap-1">
-                    <span className="text-green-400">●</span>
-                    <span className="text-muted-foreground">Window:</span>
-                    <span className="font-semibold">{formatInUserTZ(idea.entryValidUntil, 'h:mm a')}</span>
-                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1 cursor-help">
+                        <span className="text-green-400">●</span>
+                        <span className="text-muted-foreground underline decoration-dotted">Window:</span>
+                        <span className="font-semibold">{formatInUserTZ(idea.entryValidUntil, 'h:mm a')}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[200px] text-center">
+                      <p className="font-semibold">Entry window closes at this time</p>
+                      <p className="text-xs text-muted-foreground">After this time, the original entry price may no longer be available</p>
+                    </TooltipContent>
+                  </Tooltip>
                 )}
                 
                 {idea.exitBy && (
-                  <div className="flex items-center gap-1">
-                    <span className="text-amber-400">●</span>
-                    <span className="text-muted-foreground">Expires:</span>
-                    <span className="font-semibold">{formatInUserTZ(idea.exitBy, 'h:mm a')}</span>
-                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1 cursor-help">
+                        <span className="text-amber-400">●</span>
+                        <span className="text-muted-foreground underline decoration-dotted">Expires:</span>
+                        <span className="font-semibold">{formatInUserTZ(idea.exitBy, 'h:mm a')}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[200px] text-center">
+                      <p className="font-semibold">Target exit time for this trade</p>
+                      <p className="text-xs text-muted-foreground">Our analysis suggests closing the position by this time for best risk/reward</p>
+                    </TooltipContent>
+                  </Tooltip>
                 )}
               </div>
             </div>
