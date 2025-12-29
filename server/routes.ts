@@ -230,15 +230,20 @@ function calculateAIConfidence(
   return Math.min(100, Math.max(0, confidence));
 }
 
-// 🎯 PROBABILITY BAND MAPPING: Convert confidence score to probability band
+// 🎯 PROBABILITY BAND MAPPING: Convert confidence score to college-style grade
 function getProbabilityBand(confidenceScore: number): string {
-  if (confidenceScore >= 95) return 'A+';
-  if (confidenceScore >= 90) return 'A';
-  if (confidenceScore >= 85) return 'B+';
-  if (confidenceScore >= 80) return 'B';
-  if (confidenceScore >= 75) return 'C+';
-  if (confidenceScore >= 70) return 'C';
-  return 'D';
+  if (confidenceScore >= 75) return 'A+';
+  if (confidenceScore >= 70) return 'A';
+  if (confidenceScore >= 67) return 'A-';
+  if (confidenceScore >= 64) return 'B+';
+  if (confidenceScore >= 60) return 'B';
+  if (confidenceScore >= 57) return 'B-';
+  if (confidenceScore >= 54) return 'C+';
+  if (confidenceScore >= 50) return 'C';
+  if (confidenceScore >= 47) return 'C-';
+  if (confidenceScore >= 44) return 'D+';
+  if (confidenceScore >= 40) return 'D';
+  return 'F';
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {

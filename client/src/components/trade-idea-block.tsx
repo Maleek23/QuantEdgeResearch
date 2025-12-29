@@ -452,10 +452,10 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                       {idea.probabilityBand}
                     </Badge>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-[250px]">
-                    <p className="font-semibold mb-1">Quality Grade</p>
+                  <TooltipContent side="bottom" className="max-w-[280px]">
+                    <p className="font-semibold mb-1">Quality Grade (College Scale)</p>
                     <p className="text-xs text-muted-foreground">
-                      A = Top tier (75%+ confidence), B+ = Strong (60-74%), B = Moderate (50-59%), C+ = Speculative (&lt;50%). Based on historical win rates for similar setups.
+                      A+/A/A- = Excellent (67%+), B+/B/B- = Good (57-66%), C+/C/C- = Average (47-56%), D+/D = Weak (40-46%), F = Speculative (&lt;40%). Based on signal alignment.
                     </p>
                   </TooltipContent>
                 </Tooltip>

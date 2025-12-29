@@ -1,26 +1,29 @@
 /**
- * Performance-Based Grading System (v3.4.0 RECALIBRATED)
+ * Performance-Based Grading System (v3.5.0 COLLEGE STYLE)
  * 
- * Unlike confidence-based grading, this system grades trade ideas based on
- * ACTUAL WIN RATES from historical data. This provides a more honest assessment
- * of signal quality.
+ * Uses standard college grading scale: A+, A, A-, B+, B, B-, C+, C, C-, D+, D, D-, F
  * 
- * v3.4.0 RECALIBRATION: Confidence scoring system was inverted (90-100% confidence
- * had 15.6% actual WR, <60% confidence had 63% WR). System now uses 45-65 score range
- * where confidence scores MATCH actual expected win rates.
+ * Grading scale based on confidence/win rate expectations:
+ * - A+ (97%+): Exceptional - extremely rare
+ * - A  (93-96%): Excellent signals
+ * - A- (90-92%): Very strong signals
+ * - B+ (87-89%): Strong signals
+ * - B  (83-86%): Good signals
+ * - B- (80-82%): Above average
+ * - C+ (77-79%): Average+
+ * - C  (73-76%): Average
+ * - C- (70-72%): Below average
+ * - D+ (67-69%): Weak
+ * - D  (63-66%): Poor
+ * - D- (60-62%): Very poor
+ * - F  (<60%): Failing/speculative
  * 
- * Data-driven thresholds based on v3.4.0 recalibration:
- * - A (65%): Top signals (RSI(2) strong) - ~65% expected WR
- * - B+ (60-64%): Strong signals (RSI(2) moderate, VWAP strong) - ~60% expected WR
- * - B (55-59%): Good signals (VWAP moderate) - ~55% expected WR
- * - C+ (50-54%): Fair signals (Volume Spike strong) - ~50% expected WR
- * - C (45-49%): Weak signals (Volume Spike moderate) - ~45% expected WR
- * - D (<45%): Very weak signals - <45% expected WR
+ * For trading, we map our 45-100 confidence range to this scale.
  */
 
 /**
- * Get performance grade based on ACTUAL EXPECTED WIN RATE
- * v3.4.0: Calibrated to new 45-65 confidence range where score = expected WR
+ * Get performance grade based on confidence score
+ * Maps trading confidence (typically 45-75%) to college letter grades
  */
 export function getPerformanceGrade(confidenceScore: number): {
   grade: string;
@@ -28,77 +31,139 @@ export function getPerformanceGrade(confidenceScore: number): {
   expectedWinRate: number;
   description: string;
 } {
-  // v3.4.0: Recalibrated for 45-65 score range
-  // Confidence scores now directly represent expected win rates
+  // A+ (75%+): Top tier - rare
+  if (confidenceScore >= 75) {
+    return {
+      grade: 'A+',
+      color: 'text-green-400',
+      expectedWinRate: Math.round(confidenceScore),
+      description: 'Exceptional',
+    };
+  }
   
-  // A (65%): Top tier signals
-  if (confidenceScore >= 65) {
+  // A (70-74%): Excellent
+  if (confidenceScore >= 70) {
     return {
       grade: 'A',
       color: 'text-green-500',
       expectedWinRate: Math.round(confidenceScore),
-      description: 'Top signals',
+      description: 'Excellent',
     };
   }
   
-  // B+ (60-64%): Strong signals
-  if (confidenceScore >= 60) {
+  // A- (67-69%): Very strong
+  if (confidenceScore >= 67) {
+    return {
+      grade: 'A-',
+      color: 'text-green-500',
+      expectedWinRate: Math.round(confidenceScore),
+      description: 'Very strong',
+    };
+  }
+  
+  // B+ (64-66%): Strong
+  if (confidenceScore >= 64) {
     return {
       grade: 'B+',
-      color: 'text-blue-500',
+      color: 'text-blue-400',
       expectedWinRate: Math.round(confidenceScore),
-      description: 'Strong signals',
+      description: 'Strong',
     };
   }
   
-  // B (55-59%): Good signals
-  if (confidenceScore >= 55) {
+  // B (60-63%): Good
+  if (confidenceScore >= 60) {
     return {
       grade: 'B',
       color: 'text-blue-500',
       expectedWinRate: Math.round(confidenceScore),
-      description: 'Good signals',
+      description: 'Good',
     };
   }
   
-  // C+ (50-54%): Fair signals
-  if (confidenceScore >= 50) {
+  // B- (57-59%): Above average
+  if (confidenceScore >= 57) {
+    return {
+      grade: 'B-',
+      color: 'text-blue-500',
+      expectedWinRate: Math.round(confidenceScore),
+      description: 'Above average',
+    };
+  }
+  
+  // C+ (54-56%): Average+
+  if (confidenceScore >= 54) {
     return {
       grade: 'C+',
-      color: 'text-yellow-500',
+      color: 'text-cyan-500',
       expectedWinRate: Math.round(confidenceScore),
-      description: 'Fair signals',
+      description: 'Average+',
     };
   }
   
-  // C (45-49%): Weak signals
-  if (confidenceScore >= 45) {
+  // C (50-53%): Average
+  if (confidenceScore >= 50) {
     return {
       grade: 'C',
       color: 'text-yellow-500',
       expectedWinRate: Math.round(confidenceScore),
-      description: 'Weak signals',
+      description: 'Average',
     };
   }
   
-  // D (<45%): Very weak signals
-  // v3.4.0: Score = expected WR (no artificial floor)
+  // C- (47-49%): Below average
+  if (confidenceScore >= 47) {
+    return {
+      grade: 'C-',
+      color: 'text-yellow-500',
+      expectedWinRate: Math.round(confidenceScore),
+      description: 'Below average',
+    };
+  }
+  
+  // D+ (44-46%): Weak
+  if (confidenceScore >= 44) {
+    return {
+      grade: 'D+',
+      color: 'text-orange-500',
+      expectedWinRate: Math.round(confidenceScore),
+      description: 'Weak',
+    };
+  }
+  
+  // D (40-43%): Poor
+  if (confidenceScore >= 40) {
+    return {
+      grade: 'D',
+      color: 'text-orange-500',
+      expectedWinRate: Math.round(confidenceScore),
+      description: 'Poor',
+    };
+  }
+  
+  // F (<40%): Failing/speculative
   return {
-    grade: 'D',
+    grade: 'F',
     color: 'text-red-500',
     expectedWinRate: Math.round(confidenceScore),
-    description: 'Very weak',
+    description: 'Speculative',
   };
 }
 
 /**
- * Get confidence-based letter grade (v3.4.0 system)
+ * Get confidence-based letter grade (college style)
  */
 export function getConfidenceGrade(score: number): string {
-  if (score >= 65) return 'A';
-  if (score >= 60) return 'B+';
-  if (score >= 55) return 'B';
-  if (score >= 50) return 'C+';
-  if (score >= 45) return 'C';
-  return 'D';
+  if (score >= 75) return 'A+';
+  if (score >= 70) return 'A';
+  if (score >= 67) return 'A-';
+  if (score >= 64) return 'B+';
+  if (score >= 60) return 'B';
+  if (score >= 57) return 'B-';
+  if (score >= 54) return 'C+';
+  if (score >= 50) return 'C';
+  if (score >= 47) return 'C-';
+  if (score >= 44) return 'D+';
+  if (score >= 40) return 'D';
+  return 'F';
 }

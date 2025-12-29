@@ -908,7 +908,7 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
       `volume_${mostActiveOption.volume}_contracts`,
       `premium_$${(totalPremium / 1000000).toFixed(2)}M`
     ],
-    probabilityBand: signalStrength >= 70 ? 'B+' : signalStrength >= 60 ? 'B' : 'C+',
+    probabilityBand: signalStrength >= 75 ? 'A+' : signalStrength >= 70 ? 'A' : signalStrength >= 67 ? 'A-' : signalStrength >= 64 ? 'B+' : signalStrength >= 60 ? 'B' : signalStrength >= 57 ? 'B-' : signalStrength >= 54 ? 'C+' : signalStrength >= 50 ? 'C' : signalStrength >= 47 ? 'C-' : signalStrength >= 44 ? 'D+' : signalStrength >= 40 ? 'D' : 'F',
     dataSourceUsed: 'tradier',
     engineVersion: 'flow_v3.0.0_time_conscious',  // Time-conscious with dynamic exit times
     generationTimestamp: timestamp,
