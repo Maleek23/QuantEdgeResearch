@@ -2839,6 +2839,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Calibrated Win Rate - Only counts Medium+ (50+) confidence trades
+  app.get("/api/performance/calibrated-stats", async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Filter: all resolved trades with outcome (hit_target or hit_stop)
+      const resolvedIdeas = allIdeas.filter(idea => 
+        idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop'
+      );
+      
+      // Calculate stats by confidence band
+      const bands = [
+        { name: 'High (70+)', min: 70, max: 100, wins: 0, losses: 0 },
+        { name: 'Medium (50-69)', min: 50, max: 69, wins: 0, losses: 0 },
+        { name: 'Low (<50)', min: 0, max: 49, wins: 0, losses: 0 },
+      ];
+      
+      resolvedIdeas.forEach(idea => {
+        const confidence = idea.confidenceScore || 0;
+        const isWin = idea.outcomeStatus === 'hit_target';
+        
+        const band = bands.find(b => confidence >= b.min && confidence <= b.max);
+        if (band) {
+          if (isWin) band.wins++;
+          else band.losses++;
+        }
+      });
+      
+      // Calculate win rates for each band
+      const confidenceBreakdown = bands.map(band => ({
+        level: band.name,
+        trades: band.wins + band.losses,
+        wins: band.wins,
+        losses: band.losses,
+        winRate: band.wins + band.losses > 0 
+          ? Math.round((band.wins / (band.wins + band.losses)) * 1000) / 10 
+          : 0,
+      }));
+      
+      // Calculate CALIBRATED win rate (Medium+ only = 50+ confidence)
+      const calibratedTrades = bands.filter(b => b.min >= 50);
+      const calibratedWins = calibratedTrades.reduce((sum, b) => sum + b.wins, 0);
+      const calibratedTotal = calibratedTrades.reduce((sum, b) => sum + b.wins + b.losses, 0);
+      const calibratedWinRate = calibratedTotal > 0 
+        ? Math.round((calibratedWins / calibratedTotal) * 1000) / 10 
+        : 0;
+      
+      // Calculate OVERALL win rate (all trades, for comparison)
+      const allWins = bands.reduce((sum, b) => sum + b.wins, 0);
+      const allTotal = bands.reduce((sum, b) => sum + b.wins + b.losses, 0);
+      const overallWinRate = allTotal > 0 
+        ? Math.round((allWins / allTotal) * 1000) / 10 
+        : 0;
+      
+      // Low confidence count (excluded from calibrated)
+      const lowConfidenceTrades = bands.find(b => b.name === 'Low (<50)');
+      const excludedCount = lowConfidenceTrades ? lowConfidenceTrades.wins + lowConfidenceTrades.losses : 0;
+      
+      res.json({
+        calibratedWinRate,
+        calibratedTrades: calibratedTotal,
+        calibratedWins,
+        overallWinRate,
+        overallTrades: allTotal,
+        overallWins: allWins,
+        excludedLowConfidence: excludedCount,
+        confidenceBreakdown,
+      });
+    } catch (error) {
+      logger.error("Calibrated stats error:", error);
+      res.status(500).json({ error: "Failed to fetch calibrated stats" });
+    }
+  });
+
   // 5. Streaks - Current streak and historical streaks
   app.get("/api/performance/streaks", async (req, res) => {
     try {

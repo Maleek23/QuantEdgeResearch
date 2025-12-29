@@ -32,6 +32,23 @@ import { TierGate } from "@/components/tier-gate";
 import { useAuth } from "@/hooks/useAuth";
 import type { EngineHealthAlert } from "@shared/schema";
 
+interface CalibratedStats {
+  calibratedWinRate: number;
+  calibratedTrades: number;
+  calibratedWins: number;
+  overallWinRate: number;
+  overallTrades: number;
+  overallWins: number;
+  excludedLowConfidence: number;
+  confidenceBreakdown: Array<{
+    level: string;
+    trades: number;
+    wins: number;
+    losses: number;
+    winRate: number;
+  }>;
+}
+
 interface PerformanceStats {
   overall: {
     totalIdeas: number;
@@ -415,6 +432,11 @@ export default function PerformancePage() {
     refetchInterval: 60000,
   });
 
+  const { data: calibratedStats } = useQuery<CalibratedStats>({
+    queryKey: ["/api/performance/calibrated-stats"],
+    staleTime: 60000,
+  });
+
   const getAlertCountForEngine = (engineKey: EngineKey): number => {
     return engineHealthData?.activeAlerts?.filter((a) => a.engine === engineKey && !a.acknowledged).length ?? 0;
   };
@@ -538,17 +560,40 @@ export default function PerformancePage() {
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center glass rounded-lg p-4">
-              <div className={cn(
-                "text-4xl font-bold font-mono",
-                stats.overall.winRate >= 60 ? "text-green-400" : 
-                stats.overall.winRate >= 50 ? "text-amber-400" : 
-                stats.overall.winRate > 0 ? "text-red-400" : "text-muted-foreground"
-              )} data-testid="text-headline-winrate">
-                {stats.overall.closedIdeas > 0 ? `${stats.overall.winRate.toFixed(1)}%` : 'N/A'}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">Win Rate</div>
-              <div className="text-xs text-muted-foreground">{stats.overall.wonIdeas}W / {stats.overall.lostIdeas}L</div>
+            <div className="text-center glass rounded-lg p-4 relative">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <div className={cn(
+                        "text-4xl font-bold font-mono",
+                        (calibratedStats?.calibratedWinRate ?? stats.overall.winRate) >= 60 ? "text-green-400" : 
+                        (calibratedStats?.calibratedWinRate ?? stats.overall.winRate) >= 50 ? "text-amber-400" : 
+                        (calibratedStats?.calibratedWinRate ?? stats.overall.winRate) > 0 ? "text-red-400" : "text-muted-foreground"
+                      )} data-testid="text-headline-winrate">
+                        {calibratedStats ? `${calibratedStats.calibratedWinRate.toFixed(1)}%` : 
+                          stats.overall.closedIdeas > 0 ? `${stats.overall.winRate.toFixed(1)}%` : 'N/A'}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1">
+                        Win Rate
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-cyan-500/50 text-cyan-400">
+                          Calibrated
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {calibratedStats ? `${calibratedStats.calibratedWins}W / ${calibratedStats.calibratedTrades - calibratedStats.calibratedWins}L` : 
+                          `${stats.overall.wonIdeas}W / ${stats.overall.lostIdeas}L`}
+                      </div>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-xs">
+                    <p className="font-semibold">Calibrated Win Rate (50%+ Confidence)</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Only counts Medium and High confidence trades. Low confidence trades ({calibratedStats?.excludedLowConfidence || 0}) excluded from official stats.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
             <div className="text-center glass rounded-lg p-4">
               <div className={cn(
@@ -652,6 +697,81 @@ export default function PerformancePage() {
           alerts={engineHealthData.activeAlerts} 
           isAdmin={isAdmin} 
         />
+      )}
+
+      {/* Confidence Breakdown - Proof of Calibration */}
+      {calibratedStats && (
+        <Card className="glass-card" data-testid="section-confidence-breakdown">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-cyan-400" />
+              <CardTitle className="text-lg">Confidence Breakdown (The Proof)</CardTitle>
+              <Badge variant="outline" className="border-cyan-500/50 text-cyan-400">
+                Higher Confidence = Higher Win Rate
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Platform only measures official win rate using Medium+ (50%+) confidence trades. Low confidence trades are tracked but excluded from official stats.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {calibratedStats.confidenceBreakdown.map((band) => {
+                const isExcluded = band.level.includes('Low');
+                return (
+                  <div 
+                    key={band.level}
+                    className={cn(
+                      "p-4 rounded-lg border",
+                      isExcluded 
+                        ? "bg-muted/30 border-muted-foreground/20 opacity-60" 
+                        : band.winRate >= 80 
+                          ? "bg-green-500/10 border-green-500/30"
+                          : band.winRate >= 60
+                            ? "bg-amber-500/10 border-amber-500/30"
+                            : "bg-red-500/10 border-red-500/30"
+                    )}
+                    data-testid={`confidence-band-${band.level}`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold text-sm">{band.level}</span>
+                      {isExcluded && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 border-muted-foreground/30">
+                          Excluded
+                        </Badge>
+                      )}
+                    </div>
+                    <div className={cn(
+                      "text-3xl font-bold font-mono",
+                      isExcluded 
+                        ? "text-muted-foreground"
+                        : band.winRate >= 80 ? "text-green-400" 
+                          : band.winRate >= 60 ? "text-amber-400" 
+                          : "text-red-400"
+                    )}>
+                      {band.winRate.toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {band.wins}W / {band.losses}L ({band.trades} trades)
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+              <div className="flex items-start gap-2">
+                <Info className="h-4 w-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <span className="font-semibold text-cyan-400">Why Calibrate?</span>
+                  <span className="text-muted-foreground ml-1">
+                    Low confidence trades are exploratory - good for discovery but shouldn't define platform performance. 
+                    Official stats use only trades the system was confident about.
+                  </span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Detailed Engine Cards - Expandable */}
