@@ -326,7 +326,7 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
       stopLoss,
       riskRewardRatio,
       confidenceScore: 40, // Lower confidence for lotto plays (high risk)
-      catalyst: `🎰 Lotto Play: Far OTM ${dte <= 7 ? 'weekly' : dte <= 30 ? 'monthly' : 'LEAPS'} option targeting 20x return`,
+      catalyst: `🎰 ${ticker} ${candidate.optionType.toUpperCase()} $${candidate.strike} | Δ${Math.abs(candidate.delta).toFixed(2)} | ${dte}d DTE | ${holdingPeriod} trade`,
       analysis,
       sessionContext: `Market hours - Lotto play on ${ticker} (${holdingPeriod} trade)`,
       holdingPeriod: holdingPeriod as const,

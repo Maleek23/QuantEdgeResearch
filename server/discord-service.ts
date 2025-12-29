@@ -515,12 +515,28 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
     // Format expiry nicely
     const expiryFormatted = idea.expiryDate || 'N/A';
     
+    // Calculate DTE from expiry
+    let dteText = 'N/A';
+    if (idea.expiryDate) {
+      const expiryDate = new Date(idea.expiryDate);
+      const now = new Date();
+      const dte = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      dteText = `${dte}d`;
+    }
+    
     // Calculate potential return
     const potentialReturn = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(0);
     
+    // Determine holding period label
+    const holdingLabel = idea.holdingPeriod === 'position' ? 'Position Trade' : 
+                         idea.holdingPeriod === 'swing' ? 'Swing Trade' : 'Day Trade';
+    
+    // Get sector if available
+    const sectorText = idea.sectorFocus && idea.sectorFocus !== 'general' ? idea.sectorFocus.toUpperCase() : '';
+    
     const embed: DiscordEmbed = {
       title: `🎰 LOTTO: ${idea.symbol} ${(idea.optionType || 'OPT').toUpperCase()} $${idea.strikePrice}`,
-      description: `**${expiryFormatted} Expiry**\n\nFar OTM weekly targeting **${potentialReturn}%** return`,
+      description: `**${expiryFormatted} Expiry** (${dteText} DTE)\n\n${sectorText ? `**${sectorText}** sector | ` : ''}${holdingLabel} targeting **${potentialReturn}%** return`,
       color,
       fields: [
         {
@@ -529,42 +545,42 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
           inline: true
         },
         {
-          name: '🎯 Target',
+          name: '🎯 Target (20x)',
           value: `$${idea.targetPrice.toFixed(2)}`,
           inline: true
         },
         {
-          name: '🛡️ Stop',
+          name: '🛡️ Stop (-50%)',
           value: `$${idea.stopLoss.toFixed(2)}`,
           inline: true
         },
         {
-          name: '📊 R:R',
-          value: `${idea.riskRewardRatio}:1`,
+          name: '📅 DTE',
+          value: dteText,
           inline: true
         },
         {
-          name: '⭐ Risk',
-          value: idea.riskProfile || 'Speculative',
+          name: '⏱️ Hold',
+          value: holdingLabel,
           inline: true
         },
         {
-          name: '🎲 Type',
-          value: 'LOTTO PLAY',
+          name: '🏷️ Sector',
+          value: sectorText || 'General',
           inline: true
         }
       ],
       footer: {
-        text: '⚠️ HIGH RISK - Small position size only | QuantEdge'
+        text: '⚠️ HIGH RISK - Small position size only | QuantEdge Research'
       },
       timestamp: new Date().toISOString()
     };
     
-    // Add catalyst if available
-    if (idea.catalyst) {
+    // Add unique analysis if available
+    if (idea.analysis && idea.analysis.length > 50) {
       embed.fields.push({
-        name: '💡 Setup',
-        value: idea.catalyst.substring(0, 200),
+        name: '📝 Analysis',
+        value: idea.analysis.substring(0, 250) + (idea.analysis.length > 250 ? '...' : ''),
         inline: false
       });
     }
