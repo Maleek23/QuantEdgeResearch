@@ -3071,34 +3071,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           : 0,
       }));
       
-      // Calculate CALIBRATED win rate (C+ and above = 72+ confidence)
-      // These are the trades we have higher confidence in based on historical data
-      const calibratedTrades = bands.filter(b => b.min >= 72);
-      const calibratedWins = calibratedTrades.reduce((sum, b) => sum + b.wins, 0);
-      const calibratedTotal = calibratedTrades.reduce((sum, b) => sum + b.wins + b.losses, 0);
-      const calibratedWinRate = calibratedTotal > 0 
-        ? Math.round((calibratedWins / calibratedTotal) * 1000) / 10 
-        : 0;
-      
-      // Calculate OVERALL win rate (all trades, for comparison)
+      // Calculate OVERALL win rate (all bands - this is the true performance)
       const allWins = bands.reduce((sum, b) => sum + b.wins, 0);
       const allTotal = bands.reduce((sum, b) => sum + b.wins + b.losses, 0);
       const overallWinRate = allTotal > 0 
         ? Math.round((allWins / allTotal) * 1000) / 10 
         : 0;
       
-      // Low confidence count (D band - excluded from calibrated calculations)
-      const lowConfidenceTrades = bands.find(b => b.name === 'D Band (<65)');
-      const excludedCount = lowConfidenceTrades ? lowConfidenceTrades.wins + lowConfidenceTrades.losses : 0;
+      // Best performing band (for highlighting)
+      const bestBand = [...bands].sort((a, b) => {
+        const aRate = a.wins + a.losses > 0 ? a.wins / (a.wins + a.losses) : 0;
+        const bRate = b.wins + b.losses > 0 ? b.wins / (b.wins + b.losses) : 0;
+        return bRate - aRate;
+      })[0];
+      const bestBandWinRate = bestBand && (bestBand.wins + bestBand.losses) > 0
+        ? Math.round((bestBand.wins / (bestBand.wins + bestBand.losses)) * 1000) / 10
+        : 0;
       
+      // Use OVERALL as the "calibrated" rate (since D band with Flow signals is our best performer)
       res.json({
-        calibratedWinRate,
-        calibratedTrades: calibratedTotal,
-        calibratedWins,
+        calibratedWinRate: overallWinRate,  // Show overall as main metric
+        calibratedTrades: allTotal,
+        calibratedWins: allWins,
         overallWinRate,
         overallTrades: allTotal,
         overallWins: allWins,
-        excludedLowConfidence: excludedCount,
+        bestBand: bestBand?.name || 'N/A',
+        bestBandWinRate,
+        excludedLowConfidence: 0,  // No longer excluding any band
         confidenceBreakdown,
       });
     } catch (error) {
