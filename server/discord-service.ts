@@ -3,7 +3,7 @@ import type { TradeIdea } from "@shared/schema";
 import { logger } from './logger';
 
 // GLOBAL DISABLE FLAG - Set to true to stop all Discord notifications
-const DISCORD_DISABLED = true;
+const DISCORD_DISABLED = false;
 
 interface DiscordEmbed {
   title: string;
