@@ -455,6 +455,13 @@ export default function ChartAnalysis() {
   const [optionType, setOptionType] = useState<"call" | "put">("call");
   const [expiryDate, setExpiryDate] = useState("");
   const [strikePrice, setStrikePrice] = useState("");
+  
+  // AI suggestion state - persists separately from user selection
+  const [aiSuggestion, setAiSuggestion] = useState<{
+    assetType: "stock" | "option";
+    optionType: "call" | "put";
+    rationale: string;
+  } | null>(null);
 
   const { data: perfStats } = useQuery<{ overall: { totalIdeas: number; winRate: number } }>({
     queryKey: ['/api/performance/stats'],
@@ -598,9 +605,7 @@ export default function ChartAnalysis() {
         description: "Chart analyzed successfully.",
       });
 
-      // Auto-suggest trade type (shares vs options) based on AI analysis
-      // High confidence + strong momentum patterns = options recommended
-      // Lower confidence or neutral sentiment = shares recommended
+      // Compute AI suggestion for trade type based on analysis
       const hasStrongPatterns = data.patterns.some(p => 
         /breakout|breakdown|momentum|wedge|flag|triangle|channel/i.test(p)
       );
@@ -608,15 +613,27 @@ export default function ChartAnalysis() {
       const goodRiskReward = data.riskRewardRatio >= 1.8;
       const strongSentiment = data.sentiment !== 'neutral';
       
-      // Suggest options if: high confidence + good R:R + strong patterns or sentiment
+      // Determine suggested asset type
       const suggestOptions = (highConfidence && goodRiskReward && (hasStrongPatterns || strongSentiment));
-      const suggestedAssetType = suggestOptions ? 'option' : 'stock';
-      setAssetType(suggestedAssetType);
+      const suggestedAssetType: "stock" | "option" = suggestOptions ? 'option' : 'stock';
       
-      // Auto-suggest option type based on AI analysis sentiment
-      const suggestedOptionType = data.sentiment === 'bullish' ? 'call' : data.sentiment === 'bearish' ? 'put' : optionType;
+      // Determine suggested option type based on sentiment
+      const suggestedOptionType: "call" | "put" = data.sentiment === 'bullish' ? 'call' : 'put';
+      
+      // Build rationale for the suggestion
+      const rationale = suggestOptions 
+        ? `${data.confidence}% confidence, ${data.riskRewardRatio.toFixed(1)}:1 R:R${hasStrongPatterns ? ', momentum patterns detected' : ''}`
+        : `Lower confidence or neutral setup - shares provide less leverage risk`;
+      
+      // Store AI suggestion (persists even if user changes selection)
+      const suggestion = { assetType: suggestedAssetType, optionType: suggestedOptionType, rationale };
+      setAiSuggestion(suggestion);
+      
+      // Auto-apply the AI suggestion to form fields
+      setAssetType(suggestedAssetType);
       setOptionType(suggestedOptionType);
       
+      // Save draft with AI-suggested values
       if (symbol) {
         saveDraftMutation.mutate({ 
           symbol, 
@@ -696,6 +713,11 @@ export default function ChartAnalysis() {
     setSavedTradeIdeaId(null);
     setIsPromoted(false);
     setSentToDiscord(false);
+    setAiSuggestion(null);
+    setAssetType("stock");
+    setOptionType("call");
+    setStrikePrice("");
+    setExpiryDate("");
   };
 
   const handleSendToDiscord = () => {
@@ -909,13 +931,22 @@ export default function ChartAnalysis() {
               <div className="space-y-2 pt-2 border-t border-border/50">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-medium">Trade Type</Label>
-                  {analysisResult && (
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Sparkles className="h-3 w-3 text-cyan-400" />
-                      AI suggests {assetType === 'option' ? 'Options' : 'Shares'}
-                    </span>
-                  )}
                 </div>
+                
+                {/* AI Suggestion Banner - shows after analysis */}
+                {aiSuggestion && (
+                  <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-3 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-cyan-400" />
+                      <span className="text-sm font-medium text-cyan-400">
+                        AI Suggests: {aiSuggestion.assetType === 'option' 
+                          ? `${aiSuggestion.optionType.toUpperCase()} Options` 
+                          : 'Shares'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground pl-6">{aiSuggestion.rationale}</p>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <button
                     type="button"
