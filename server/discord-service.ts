@@ -321,41 +321,59 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
                  source === 'news' ? 0xE67E22 : // Orange for news
                  COLORS.QUANT;
     
-    const summary = ideas.map(idea => {
-      // Clear asset type label - for options show TYPE STRIKE EXPIRY
-      let typeLabel: string;
+    // COMPACT FORMAT: Show top ideas with confidence % on the side
+    const longIdeas = ideas.filter(i => i.direction === 'long');
+    const shortIdeas = ideas.filter(i => i.direction === 'short');
+    
+    // Format compactly: emoji SYMBOL C/P$strike MM/DD | $entry | conf%
+    const formatIdea = (idea: TradeIdea) => {
+      const emoji = idea.direction === 'long' ? '🟢' : '🔴';
+      const conf = idea.confidenceScore ? `**${idea.confidenceScore}%**` : '';
+      
       if (idea.assetType === 'option') {
-        const optType = idea.optionType?.toUpperCase() || 'OPT';
+        const optType = idea.optionType?.toUpperCase().charAt(0) || 'O';
         const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
-        const exp = idea.expiryDate || '';
-        typeLabel = `${optType} ${strike} ${exp}`.trim();
-      } else if (idea.assetType === 'crypto') {
-        typeLabel = 'Crypto';
-      } else {
-        typeLabel = 'Shares';
+        // Format expiry as MM/DD (compact)
+        const exp = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
+        return `${emoji} ${idea.symbol} ${optType}${strike} ${exp} • $${idea.entryPrice.toFixed(2)} • ${conf}`;
       }
-      return `${idea.direction === 'long' ? '🟢' : '🔴'} **${idea.symbol}** ${typeLabel} - Entry: $${idea.entryPrice.toFixed(2)}`;
-    }).join('\n');
+      return `${emoji} ${idea.symbol} $${idea.entryPrice.toFixed(2)} • ${conf}`;
+    };
+    
+    // Limit to top 12 ideas (sorted by confidence) to keep compact
+    const sortedIdeas = [...ideas].sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
+    const topIdeas = sortedIdeas.slice(0, 12);
+    const summary = topIdeas.map(formatIdea).join('\n');
+    const remainingCount = ideas.length - topIdeas.length;
+    const moreText = remainingCount > 0 ? `\n_+${remainingCount} more in dashboard_` : '';
+    
+    // Calculate average confidence
+    const avgConf = Math.round(ideas.reduce((sum, i) => sum + (i.confidenceScore || 0), 0) / ideas.length);
     
     const embed: DiscordEmbed = {
-      title: `${sourceLabel} Batch Generated - ${ideas.length} Ideas`,
-      description: summary,
+      title: `${sourceLabel} - ${ideas.length} Ideas`,
+      description: summary + moreText,
       color,
       fields: [
         {
-          name: '📊 Summary',
-          value: `${ideas.filter(i => i.direction === 'long').length} Long • ${ideas.filter(i => i.direction === 'short').length} Short`,
-          inline: false
+          name: 'Signals',
+          value: `🟢 ${longIdeas.length} Long • 🔴 ${shortIdeas.length} Short`,
+          inline: true
+        },
+        {
+          name: 'Avg Conf',
+          value: `${avgConf}%`,
+          inline: true
         }
       ],
       footer: {
-        text: 'QuantEdge Research • View full details in your dashboard'
+        text: 'QuantEdge • Dashboard for full details'
       },
       timestamp: new Date().toISOString()
     };
     
     const message: DiscordMessage = {
-      content: `📢 **${ideas.length} New ${sourceLabel} Trade Ideas Generated**`,
+      content: `📢 **${ideas.length} ${sourceLabel} Ideas**`,
       embeds: [embed]
     };
     
