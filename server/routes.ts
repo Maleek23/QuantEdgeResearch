@@ -3038,11 +3038,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop'
       );
       
-      // Calculate stats by confidence band
+      // Calculate stats by confidence band - CALIBRATED thresholds (Dec 2025)
+      // Matches getProbabilityBand: A (90+), B+ (85-89), B (78-84), C+ (72-77), C (65-71), D (<65)
       const bands = [
-        { name: 'High (70+)', min: 70, max: 100, wins: 0, losses: 0 },
-        { name: 'Medium (50-69)', min: 50, max: 69, wins: 0, losses: 0 },
-        { name: 'Low (<50)', min: 0, max: 49, wins: 0, losses: 0 },
+        { name: 'A Band (90+)', min: 90, max: 100, wins: 0, losses: 0 },
+        { name: 'B+ Band (85-89)', min: 85, max: 89, wins: 0, losses: 0 },
+        { name: 'B Band (78-84)', min: 78, max: 84, wins: 0, losses: 0 },
+        { name: 'C+ Band (72-77)', min: 72, max: 77, wins: 0, losses: 0 },
+        { name: 'C Band (65-71)', min: 65, max: 71, wins: 0, losses: 0 },
+        { name: 'D Band (<65)', min: 0, max: 64, wins: 0, losses: 0 },
       ];
       
       resolvedIdeas.forEach(idea => {
@@ -3067,8 +3071,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           : 0,
       }));
       
-      // Calculate CALIBRATED win rate (Medium+ only = 50+ confidence)
-      const calibratedTrades = bands.filter(b => b.min >= 50);
+      // Calculate CALIBRATED win rate (C+ and above = 72+ confidence)
+      // These are the trades we have higher confidence in based on historical data
+      const calibratedTrades = bands.filter(b => b.min >= 72);
       const calibratedWins = calibratedTrades.reduce((sum, b) => sum + b.wins, 0);
       const calibratedTotal = calibratedTrades.reduce((sum, b) => sum + b.wins + b.losses, 0);
       const calibratedWinRate = calibratedTotal > 0 
@@ -3082,8 +3087,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? Math.round((allWins / allTotal) * 1000) / 10 
         : 0;
       
-      // Low confidence count (excluded from calibrated)
-      const lowConfidenceTrades = bands.find(b => b.name === 'Low (<50)');
+      // Low confidence count (D band - excluded from calibrated calculations)
+      const lowConfidenceTrades = bands.find(b => b.name === 'D Band (<65)');
       const excludedCount = lowConfidenceTrades ? lowConfidenceTrades.wins + lowConfidenceTrades.losses : 0;
       
       res.json({
