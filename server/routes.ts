@@ -2808,9 +2808,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.getActiveHealthAlerts(),
       ]);
       
+      // Aggregate 7-day metrics per engine
+      const engines = ['flow', 'lotto', 'quant', 'ai', 'hybrid', 'manual'] as const;
+      const weekMetrics: Record<string, {
+        ideasGenerated: number;
+        tradesResolved: number;
+        tradesWon: number;
+        tradesLost: number;
+        winRate: number | null;
+        expectancy: number | null;
+      }> = {};
+      
+      for (const engine of engines) {
+        const engineRecords = historicalMetrics.filter(m => m.engine === engine);
+        const totalIdeas = engineRecords.reduce((sum, m) => sum + (m.ideasGenerated || 0), 0);
+        const totalResolved = engineRecords.reduce((sum, m) => sum + (m.tradesResolved || 0), 0);
+        const totalWon = engineRecords.reduce((sum, m) => sum + (m.tradesWon || 0), 0);
+        const totalLost = engineRecords.reduce((sum, m) => sum + (m.tradesLost || 0), 0);
+        const totalDecided = totalWon + totalLost;
+        
+        const winRate = totalDecided > 0 ? (totalWon / totalDecided) * 100 : null;
+        
+        // Calculate aggregate expectancy
+        const gains = engineRecords.filter(m => m.avgGainPercent !== null).map(m => m.avgGainPercent!);
+        const losses = engineRecords.filter(m => m.avgLossPercent !== null).map(m => m.avgLossPercent!);
+        const avgGain = gains.length > 0 ? gains.reduce((s, v) => s + v, 0) / gains.length : null;
+        const avgLoss = losses.length > 0 ? losses.reduce((s, v) => s + v, 0) / losses.length : null;
+        
+        let expectancy: number | null = null;
+        if (winRate !== null && avgGain !== null && avgLoss !== null) {
+          const wr = winRate / 100;
+          expectancy = (wr * avgGain) - ((1 - wr) * Math.abs(avgLoss));
+        }
+        
+        weekMetrics[engine] = {
+          ideasGenerated: totalIdeas,
+          tradesResolved: totalResolved,
+          tradesWon: totalWon,
+          tradesLost: totalLost,
+          winRate,
+          expectancy,
+        };
+      }
+      
       res.json({
         date: today,
         todayMetrics,
+        weekMetrics,
         historicalMetrics,
         activeAlerts,
       });
