@@ -1,141 +1,126 @@
 # QuantEdge Research Design Guidelines
 
 ## Design Approach
-**Reference-Based**: Drawing from Linear's precision + Stripe's sophistication + Bloomberg Terminal's data density, adapted for dark theme trading aesthetics. Glassmorphism elevates the technical platform with modern, layered visual hierarchy.
+**Reference-Based**: Linear's precision engineering + Stripe's sophisticated restraint + Bloomberg Terminal's data density. Dark-first institutional aesthetic with strategic glassmorphism for depth and modern fintech credibility.
 
 ## Typography
-- **Primary**: Inter (Google Fonts) - clean, technical readability
-- **Data/Numbers**: JetBrains Mono for charts, metrics, tables
-- **Hierarchy**: 
-  - Hero/H1: text-5xl font-bold
-  - H2: text-3xl font-semibold  
+- **Primary**: Inter (Google Fonts) - exceptional readability for extended screen time
+- **Data/Monospace**: JetBrains Mono for all numerical content, charts, metrics, tables
+- **Hierarchy**:
+  - Hero/H1: text-5xl font-bold tracking-tight
+  - H2: text-3xl font-semibold
   - H3: text-xl font-medium
-  - Body: text-base
-  - Data: text-sm font-mono
+  - Body: text-base leading-relaxed
+  - Data/Metrics: text-sm md:text-base font-mono tabular-nums
+  - Small labels: text-xs font-medium uppercase tracking-wide
+
+## Color System
+
+**Background Palette**:
+- Primary: slate-950 (deep charcoal base)
+- Secondary: slate-900 (card backgrounds)
+- Tertiary: slate-800 (elevated surfaces)
+
+**Data Visualization Colors**:
+- Bullish/Positive: green-400 (primary), green-500 (intense)
+- Bearish/Negative: red-400 (primary), red-500 (intense)
+- Neutral/Info: cyan-400 (primary accent)
+- Secondary Accent: purple-400 (alerts, highlights)
+
+**Interactive States**:
+- Primary CTA: cyan-500 background with cyan-400 glow on hover
+- Borders: slate-700 (default), slate-600 (hover), cyan-500 (focus/active)
+- Text: slate-100 (primary), slate-400 (secondary), slate-500 (disabled)
+
+**Glassmorphism Layers**:
+- **glass-card**: bg-slate-900/40 backdrop-blur-xl border-slate-700/50 shadow-2xl shadow-cyan-500/10
+- **glass-elevated**: bg-slate-800/30 backdrop-blur-lg border-slate-600/30
+- **glass-subtle**: bg-slate-900/20 backdrop-blur-md border-slate-700/30
 
 ## Layout System
 
-### Sidebar Solution
-**Fixed-Width Sidebar States**:
-- Collapsed: w-16 (64px)
-- Expanded: w-64 (256px)
-- Transition: duration-300 ease-in-out
+**Sidebar Architecture**:
+- Collapsed: w-16, icon-only navigation
+- Expanded: w-64, icon + label
+- Transition: duration-300 ease-in-out on all states
+- Main content margin: ml-16 (collapsed), ml-64 (expanded) with matching transition
 
-**Main Content Grid**:
-```
-ml-16 (when sidebar collapsed)
-ml-64 (when sidebar expanded)
-transition-[margin] duration-300 ease-in-out
-```
+**Grid Primitives**:
+- Dashboard: grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6
+- Chart Analysis: grid-cols-1 lg:grid-cols-3 (2-col main + 1-col sidebar)
+- Data Tables: Full-width with horizontal scroll on mobile
 
-**Critical**: Main content uses `calc()` for responsive width:
-- Collapsed state: `calc(100vw - 64px)`
-- Expanded state: `calc(100vw - 256px)`
-
-**Spacing Primitives**: 2, 4, 6, 8, 12, 16 units
-- Tight spacing: p-2, gap-4
-- Section padding: p-6, p-8
-- Major sections: p-12, p-16
-
-### Chart Analysis Page Grid
-**Desktop Layout**:
-- 2-column: `grid grid-cols-1 lg:grid-cols-3 gap-6`
-- Main chart: `col-span-2`
-- Side panel: `col-span-1`
-- All containers: `min-w-0` (prevents overflow)
-
-**Mobile**: Single column stack with full-width charts
+**Spacing Scale**: 2, 4, 6, 8, 12, 16
+- Component padding: p-6
+- Section spacing: py-12 lg:py-16
+- Card gaps: gap-4 md:gap-6
+- Tight data: gap-2
 
 ## Component Library
 
-### Glassmorphism Classes
-**glass-card**: 
-- bg-slate-900/40
-- backdrop-blur-xl
-- border border-slate-700/50
-- rounded-xl
-- shadow-2xl shadow-cyan-500/10
-
-**glass**: Lighter variant
-- bg-slate-800/30
-- backdrop-blur-lg
-- border border-slate-600/30
-
-### Core Components
-
-**Navigation Bar** (Top):
-- Fixed, glass effect, h-16
-- Logo left, search center, user profile right
-- Subtle cyan glow on active states
-
-**Sidebar**:
-- Fixed left, full-height
-- Icon-only when collapsed, icon+label when expanded
-- Active state: bg-cyan-500/10, border-l-2 border-cyan-500
-- Sections: Dashboard, Markets, Analysis, Portfolio, Settings
+**Navigation**:
+- Top bar: Fixed h-16, glass-card, logo left, search center, profile/notifications right
+- Sidebar: Full-height fixed, glass-elevated, section dividers with slate-700/50
+- Active states: bg-cyan-500/10 with border-l-2 border-cyan-500, subtle cyan glow
 
 **Data Cards**:
-- glass-card base
-- Header: flex justify-between, icon + title + action
-- Metric displays: Large mono numbers with small labels
-- Bullish metrics: text-green-400
-- Bearish metrics: text-red-400
-- Neutral: text-cyan-400
+- Base: glass-card rounded-xl p-6
+- Header: flex justify-between items-center mb-4
+- Metrics: Large mono numbers (text-3xl font-bold font-mono) with small uppercase labels
+- Color-coded by sentiment: green-400 (up), red-400 (down), cyan-400 (neutral)
+- Sparklines: Inline mini-charts with matching sentiment colors
 
 **Chart Containers**:
-- glass-card with p-6
-- Min-height: min-h-[400px]
-- Responsive: h-64 md:h-96 lg:h-[500px]
-- Dark gridlines, cyan accent lines for key levels
+- glass-card p-6, min-h-[400px]
+- Responsive heights: h-64 md:h-96 lg:h-[500px]
+- Dark gridlines (slate-700/30), cyan accent lines for significant levels
+- Tooltips: glass-subtle with backdrop-blur-md
 
 **Tables**:
-- glass base, striped rows (odd:bg-slate-800/20)
-- Header: bg-slate-800/50, sticky top-0
-- Mono font for numbers, right-aligned
-- Color-coded values (green/red/cyan)
+- glass-elevated base, striped rows (odd:bg-slate-800/20)
+- Sticky header: bg-slate-800/80 backdrop-blur-lg top-0
+- Mono font for all numbers, right-aligned columns
+- Color-coded cells based on value sentiment
+- Row hover: bg-slate-700/20
 
 **Buttons**:
-- Primary: bg-cyan-500 hover:bg-cyan-400 (cyan glow)
-- Secondary: glass border-cyan-500/50
-- Danger: bg-red-500/90 hover:bg-red-500
+- Primary: bg-cyan-500 hover:bg-cyan-400 with cyan glow (shadow-lg shadow-cyan-500/30)
+- Secondary: glass-elevated border-cyan-500/50 hover:border-cyan-400
+- Destructive: bg-red-500/90 hover:bg-red-500
 - Success: bg-green-500/90 hover:bg-green-500
-- On hero images: backdrop-blur-md bg-slate-900/50
+- Hero overlay: backdrop-blur-md bg-slate-900/50 (no hover effects on these)
 
-**Input Fields**:
-- glass base, border-slate-600
-- focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20
-- Mono font for numeric inputs
+**Forms**:
+- Inputs: glass-subtle border-slate-600 focus:border-cyan-500 focus:ring-2 ring-cyan-500/20
+- Mono font for numeric/code inputs
+- Labels: text-sm font-medium text-slate-300 mb-2
 
 **Status Indicators**:
-- Dots: w-2 h-2 rounded-full
-- Live: bg-green-400 animate-pulse
-- Delayed: bg-yellow-400
-- Offline: bg-slate-500
+- Live: w-2 h-2 rounded-full bg-green-400 animate-pulse
+- Processing: bg-yellow-400
+- Inactive: bg-slate-500
+- Pair with text labels in matching colors
 
 ## Images
 
-### Hero Section
-**Large Hero Image**: Yes
-- Full-width, h-[600px] on desktop, h-[400px] mobile
-- Dark overlay: bg-gradient-to-b from-slate-900/80 to-slate-900/95
-- Image suggestion: Abstract trading charts visualization with glowing cyan data points, dark futuristic aesthetic, depth of field
-- Centered content over image with CTA buttons using backdrop-blur backgrounds
+**Hero Section**: Yes - Large, immersive
+- Dimensions: h-[600px] desktop, h-[400px] mobile
+- Treatment: Dark gradient overlay (from-slate-900/85 to-slate-950)
+- Suggested image: Abstract financial data visualization with glowing cyan/purple data points, volumetric lighting, depth of field, dark futuristic aesthetic
+- Content: Centered headline + subheadline + CTA buttons with backdrop-blur backgrounds
 
-### Supporting Images
-- **Dashboard tiles**: Small abstract chart previews (w-full h-48)
-- **Feature showcases**: Trading terminal screenshots with subtle cyan glow borders
-- **About/Team**: Professional portraits with glass-card frames
-
-### Placement
-- Hero: Immediate impact, platform visualization
-- Features section: 2-3 column grid of screenshot cards
-- Trust section: Logos of data providers (glass backgrounds)
+**Supporting Images**:
+- Feature cards: Trading terminal screenshots with glass-card frames and subtle cyan border glow
+- Dashboard previews: Abstract chart visualizations (w-full h-48 rounded-lg)
+- Trust/credibility: Data provider logos on glass-subtle backgrounds
+- About section: Team photos with professional glass-card treatments
 
 ## Animations
-**Minimal, purposeful only**:
-- Sidebar expand/collapse: transform + margin transitions
-- Card hover: subtle translateY(-2px) + glow intensify
-- Data updates: number counter animations
-- Chart tooltips: fade-in on hover
+**Minimal, Performance-First**:
+- Sidebar: transform and margin transitions only
+- Card hover: translateY(-2px) + shadow intensify
+- Number changes: Counter animation for live metrics
+- Chart interactions: Crosshair + tooltip fade-in
+- Avoid: Heavy JS animations, excessive motion, color transitions
 
-**Performance**: Prefer CSS transitions over JS animations, GPU-accelerated properties only (transform, opacity)
+All transitions use GPU-accelerated properties (transform, opacity) with duration-200 to duration-300.
