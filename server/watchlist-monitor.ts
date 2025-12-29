@@ -135,20 +135,75 @@ export async function monitorWatchlist(): Promise<PriceAlert[]> {
 
 /**
  * Send alert notification via Discord
+ * AUTO-DISABLES the triggered alert after firing (one-time alerts)
  */
 async function sendWatchlistAlert(item: any, alert: PriceAlert): Promise<void> {
   try {
-    // Update alert tracking
+    // RE-FETCH the latest item from DB to avoid race conditions with PATCH requests
+    // This ensures we see any new thresholds added while monitor was processing
+    const [freshItem] = await db
+      .select()
+      .from(watchlist)
+      .where(eq(watchlist.id, item.id))
+      .limit(1);
+    
+    if (!freshItem) {
+      logger.info(`⚠️ Watchlist item ${item.id} was deleted before alert could be processed`);
+      return;
+    }
+    
+    // Build update object - always update tracking fields
+    const updateData: Record<string, any> = {
+      lastAlertSent: new Date().toISOString(),
+      alertCount: (freshItem.alertCount || 0) + 1,
+    };
+    
+    // AUTO-DISABLE: Clear the specific alert price that triggered (one-time alert)
+    // This prevents the same alert from firing repeatedly
+    if (alert.alertType === 'entry') {
+      updateData.entryAlertPrice = null;
+      logger.info(`🔕 Auto-disabled entry alert for ${alert.symbol} after firing`);
+    } else if (alert.alertType === 'stop') {
+      updateData.stopAlertPrice = null;
+      logger.info(`🔕 Auto-disabled stop alert for ${alert.symbol} after firing`);
+    } else if (alert.alertType === 'target') {
+      updateData.targetAlertPrice = null;
+      logger.info(`🔕 Auto-disabled target alert for ${alert.symbol} after firing`);
+    }
+    
+    // Use FRESH item data to check for remaining alerts
+    // This ensures we see any thresholds added via PATCH while monitor was processing
+    const effectiveEntry = updateData.entryAlertPrice !== undefined 
+      ? updateData.entryAlertPrice 
+      : freshItem.entryAlertPrice;
+    const effectiveStop = updateData.stopAlertPrice !== undefined 
+      ? updateData.stopAlertPrice 
+      : freshItem.stopAlertPrice;
+    const effectiveTarget = updateData.targetAlertPrice !== undefined 
+      ? updateData.targetAlertPrice 
+      : freshItem.targetAlertPrice;
+    
+    // Check if any alert prices remain after this update
+    // IMPORTANT: Use explicit null checks, not falsy checks (0 is a valid price)
+    const hasRemainingAlerts = 
+      (effectiveEntry !== null && effectiveEntry !== undefined) ||
+      (effectiveStop !== null && effectiveStop !== undefined) ||
+      (effectiveTarget !== null && effectiveTarget !== undefined);
+    
+    if (!hasRemainingAlerts) {
+      updateData.alertsEnabled = false;
+      updateData.discordAlertsEnabled = false;
+      logger.info(`🔕 All alerts fired for ${alert.symbol} - disabling alert monitoring`);
+    }
+    
+    // Update the database
     await db
       .update(watchlist)
-      .set({
-        lastAlertSent: new Date().toISOString(),
-        alertCount: (item.alertCount || 0) + 1,
-      })
-      .where(eq(watchlist.id, item.id));
+      .set(updateData)
+      .where(eq(watchlist.id, freshItem.id));
     
-    // Send Discord notification if enabled
-    if (item.discordAlertsEnabled) {
+    // Send Discord notification if enabled (use fresh item state)
+    if (freshItem.discordAlertsEnabled) {
       await sendDiscordAlert({
         symbol: alert.symbol,
         assetType: alert.assetType,
@@ -156,11 +211,11 @@ async function sendWatchlistAlert(item: any, alert: PriceAlert): Promise<void> {
         currentPrice: alert.currentPrice,
         alertPrice: alert.alertPrice,
         percentFromTarget: alert.percentFromTarget,
-        notes: item.notes || 'Watchlist alert triggered',
+        notes: freshItem.notes || 'Watchlist alert triggered',
       });
     }
     
-    logger.info(`✅ Watchlist Alert Sent: ${alert.symbol} ${alert.alertType.toUpperCase()} - $${alert.currentPrice.toFixed(2)}`);
+    logger.info(`✅ Watchlist Alert Sent: ${alert.symbol} ${alert.alertType.toUpperCase()} - $${alert.currentPrice.toFixed(2)} (alert auto-disabled)`);
     
   } catch (error) {
     logger.error(`❌ Failed to send watchlist alert for ${alert.symbol}:`, error);

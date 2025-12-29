@@ -2946,12 +2946,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/watchlist/:id", async (req, res) => {
     try {
       console.log("PATCH /api/watchlist/:id - Request body:", JSON.stringify(req.body));
-      const updated = await storage.updateWatchlistItem(req.params.id, req.body);
-      if (!updated) {
+      
+      // Get existing item to check current price and validate alerts
+      const existingItem = await storage.getWatchlistItem(req.params.id);
+      if (!existingItem) {
         return res.status(404).json({ error: "Watchlist item not found" });
       }
+      
+      // VALIDATION: Prevent setting alerts that are already triggered
+      const warnings: string[] = [];
+      const { entryAlertPrice, targetAlertPrice, stopAlertPrice } = req.body;
+      
+      // Fetch current price to validate alerts
+      let currentPrice: number | null = null;
+      try {
+        if (existingItem.assetType === 'crypto') {
+          const data = await fetchCryptoPrice(existingItem.symbol);
+          currentPrice = data?.currentPrice || null;
+        } else {
+          const data = await fetchStockPrice(existingItem.symbol);
+          currentPrice = data?.currentPrice || null;
+        }
+      } catch (e) {
+        // Ignore price fetch errors - validation is optional
+      }
+      
+      if (currentPrice) {
+        // Entry alert should be BELOW current price (buy on dip)
+        if (entryAlertPrice && entryAlertPrice >= currentPrice) {
+          warnings.push(`Entry alert ($${entryAlertPrice}) is at or above current price ($${currentPrice.toFixed(2)}). This will trigger immediately.`);
+        }
+        
+        // Target alert should be ABOVE current price (sell on rally)
+        if (targetAlertPrice && targetAlertPrice <= currentPrice) {
+          warnings.push(`Target alert ($${targetAlertPrice}) is at or below current price ($${currentPrice.toFixed(2)}). This will trigger immediately.`);
+        }
+        
+        // Stop alert should be BELOW current price (protect downside)
+        if (stopAlertPrice && stopAlertPrice >= currentPrice) {
+          warnings.push(`Stop alert ($${stopAlertPrice}) is at or above current price ($${currentPrice.toFixed(2)}). This will trigger immediately.`);
+        }
+        
+        // BLOCK updates with immediately-triggering alerts unless force=true
+        if (warnings.length > 0 && !req.body.forceAlerts) {
+          return res.status(400).json({ 
+            error: "Alert would trigger immediately", 
+            warnings,
+            currentPrice,
+            hint: "Set forceAlerts: true to save anyway, or adjust alert prices"
+          });
+        }
+      }
+      
+      // Remove forceAlerts flag before saving (not a valid schema field)
+      const { forceAlerts: _ignored, ...dataToSave } = req.body;
+      
+      const updated = await storage.updateWatchlistItem(req.params.id, dataToSave);
+      if (!updated) {
+        return res.status(404).json({ error: "Watchlist item not found or was deleted" });
+      }
       console.log("PATCH /api/watchlist/:id - Updated:", JSON.stringify(updated));
-      res.json(updated);
+      
+      // Return with warnings if any (only if forceAlerts was used)
+      res.json({ 
+        ...updated, 
+        warnings: warnings.length > 0 ? warnings : undefined,
+        currentPrice 
+      });
     } catch (error: any) {
       console.error("PATCH /api/watchlist/:id - Error:", error);
       res.status(500).json({ error: "Failed to update watchlist item", details: error?.message || error });
