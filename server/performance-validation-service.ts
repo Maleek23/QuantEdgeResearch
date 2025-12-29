@@ -157,12 +157,16 @@ class PerformanceValidationService {
               const snapshot: InsertTradePriceSnapshot = {
                 tradeIdeaId: ideaId,
                 eventType,
-                lastPrice: currentPrice.toString(),
+                eventTimestamp: new Date().toISOString(),
+                currentPrice: currentPrice,
                 bidPrice: null, // Full bid/ask available from Tradier for options
                 askPrice: null,
-                volume: null,
+                lastPrice: currentPrice,
+                distanceToTargetPercent: result.percentGain ? Math.abs(result.percentGain) : null,
+                distanceToStopPercent: null,
+                pnlAtSnapshot: result.percentGain ?? null,
                 validatorVersion: PerformanceValidator.VERSION,
-                notes: `Outcome: ${result.outcomeStatus} | Gain: ${result.percentGain?.toFixed(2)}% | Reason: ${result.resolutionReason}`,
+                dataSource: 'validation',
               };
               
               try {

@@ -78,6 +78,10 @@ QuantEdge Research is a professional quantitative trading research platform for 
 |-------|---------|
 | `modelCards` | ML/Quant model version governance |
 | `dailyUsage` | Rate limiting usage tracking |
+| `tradeInputSnapshots` | Input telemetry for engine health monitoring |
+| `engineDailyMetrics` | Daily aggregated metrics per engine |
+| `engineHealthAlerts` | Engine health alert notifications |
+| `tradePriceSnapshots` | Price evidence captured at validation events |
 
 ---
 
@@ -99,6 +103,7 @@ QuantEdge Research is a professional quantitative trading research platform for 
 | `/market` | Market | Market overview, watchlist |
 | `/chart-analysis` | Chart Analysis | AI chart pattern analysis |
 | `/chart-database` | Chart Database | Historical trade patterns |
+| `/trade-ideas/:id/audit` | Trade Audit | Trade audit trail with price evidence |
 
 ### Hidden Features
 | Route | Page | Description |
@@ -139,6 +144,7 @@ QuantEdge Research is a professional quantitative trading research platform for 
 
 ### Trade Ideas
 - `GET /api/trade-ideas` - List all trade ideas
+- `GET /api/trade-ideas/:id/audit` - Trade audit trail with price snapshots
 - `POST /api/trade-ideas` - Create trade idea
 - `POST /api/generate-ideas` - AI idea generation
 - `POST /api/generate-quant-ideas` - Quant engine generation
