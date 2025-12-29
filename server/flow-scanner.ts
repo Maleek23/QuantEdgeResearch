@@ -514,14 +514,45 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   let targetPrice: number;
   let stopLoss: number;
 
+  // 🎯 MINIMUM VIABLE TARGET - Options need REAL profit potential to be worth trading
+  // Cheap options need larger % moves, expensive options can use smaller %
+  let effectiveTargetMultiplier = targetMultiplier;
+  
+  // For cheap options (under $0.50), require at least 50% gain or $0.05 minimum
+  // For options $0.50-$2, require at least 25% gain
+  // For options over $2, the dynamic calculation is fine
+  if (entryPrice < 0.10) {
+    // Super cheap options: need at least 100% or $0.05 min gain
+    const minGain = Math.max(entryPrice * 1.0, 0.05); // 100% or $0.05
+    effectiveTargetMultiplier = Math.max(targetMultiplier, minGain / entryPrice);
+  } else if (entryPrice < 0.50) {
+    // Cheap options: need at least 50% or $0.10 min gain
+    const minGain = Math.max(entryPrice * 0.50, 0.10);
+    effectiveTargetMultiplier = Math.max(targetMultiplier, minGain / entryPrice);
+  } else if (entryPrice < 2.00) {
+    // Moderate options: need at least 25% gain
+    effectiveTargetMultiplier = Math.max(targetMultiplier, 0.25);
+  } else {
+    // Expensive options: at least 15% for it to be worthwhile
+    effectiveTargetMultiplier = Math.max(targetMultiplier, 0.15);
+  }
+  
+  // Recalculate stop based on new target (maintain 1.5:1 R:R)
+  const effectiveStopMultiplier = effectiveTargetMultiplier / 1.5;
+
   if (direction === 'long') {
     // LONG: Entry = current, Target = dynamic % above, Stop = calculated for 1.5:1 R:R
-    targetPrice = entryPrice * (1 + targetMultiplier);
-    stopLoss = entryPrice * (1 - stopMultiplier);
+    targetPrice = entryPrice * (1 + effectiveTargetMultiplier);
+    stopLoss = entryPrice * (1 - effectiveStopMultiplier);
   } else {
     // SHORT: Entry = current, Target = dynamic % below, Stop = calculated for 1.5:1 R:R
-    targetPrice = entryPrice * (1 - targetMultiplier);
-    stopLoss = entryPrice * (1 + stopMultiplier);
+    targetPrice = entryPrice * (1 - effectiveTargetMultiplier);
+    stopLoss = entryPrice * (1 + effectiveStopMultiplier);
+  }
+  
+  // Log the target adjustment for cheap options
+  if (effectiveTargetMultiplier > targetMultiplier) {
+    logger.info(`📊 [FLOW] ${ticker}: Boosted target from ${(targetMultiplier*100).toFixed(1)}% → ${(effectiveTargetMultiplier*100).toFixed(1)}% (cheap option at $${entryPrice.toFixed(2)})`);
   }
 
   // Calculate R:R ratio
