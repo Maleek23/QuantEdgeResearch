@@ -2948,9 +2948,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       
+      // 🎯 MINIMUM LOSS THRESHOLD: Must match storage.ts logic
+      const MIN_LOSS_THRESHOLD = 3; // Only count as loss if >= 3% loss
+      
+      // Helper: Is this a "real" loss (above threshold)?
+      const isRealLoss = (idea: any): boolean => {
+        if (idea.outcomeStatus !== 'hit_stop') return false;
+        if (idea.percentGain !== null && idea.percentGain !== undefined) {
+          return idea.percentGain <= -MIN_LOSS_THRESHOLD;
+        }
+        return true; // If no percentGain, assume real loss
+      };
+      
       // Filter: only resolved trades with definitive outcome
       const resolvedIdeas = allIdeas.filter(idea => 
         idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop'
+      );
+      
+      // Further filter to only include DECIDED trades (wins + real losses, not breakeven)
+      const decidedIdeas = resolvedIdeas.filter(idea =>
+        idea.outcomeStatus === 'hit_target' || isRealLoss(idea)
       );
       
       // Define engines and confidence bands
@@ -2978,9 +2995,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }[] = [];
       
       engines.forEach(engine => {
-        const engineIdeas = resolvedIdeas.filter(idea => idea.source === engine);
+        const engineIdeas = decidedIdeas.filter(idea => idea.source === engine);
         
         if (engineIdeas.length === 0) return; // Skip engines with no data
+        
+        const engineWins = engineIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
+        const engineLosses = engineIdeas.filter(i => isRealLoss(i)).length;
         
         const engineStats = {
           engine,
@@ -2990,13 +3010,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                        engine === 'flow_scanner' ? 'Flow Scanner' :
                        engine === 'chart_analysis' ? 'Chart Analysis' :
                        engine === 'lotto_scanner' ? 'Lotto Scanner' : engine,
-          totalTrades: engineIdeas.length,
-          totalWins: engineIdeas.filter(i => i.outcomeStatus === 'hit_target').length,
+          totalTrades: engineWins + engineLosses,
+          totalWins: engineWins,
           overallWinRate: 0,
           byConfidence: [] as any[],
         };
         
-        engineStats.overallWinRate = Math.round((engineStats.totalWins / engineStats.totalTrades) * 1000) / 10;
+        engineStats.overallWinRate = engineStats.totalTrades > 0 
+          ? Math.round((engineStats.totalWins / engineStats.totalTrades) * 1000) / 10 
+          : 0;
         
         // Calculate stats for each confidence band
         confidenceBands.forEach(band => {
@@ -3006,14 +3028,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           const wins = bandIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
-          const losses = bandIdeas.length - wins;
-          const winRate = bandIdeas.length > 0 
-            ? Math.round((wins / bandIdeas.length) * 1000) / 10 
+          const losses = bandIdeas.filter(i => isRealLoss(i)).length;
+          const decidedCount = wins + losses;
+          const winRate = decidedCount > 0 
+            ? Math.round((wins / decidedCount) * 1000) / 10 
             : 0;
           
           engineStats.byConfidence.push({
             band: band.name,
-            trades: bandIdeas.length,
+            trades: decidedCount,
             wins,
             losses,
             winRate,
