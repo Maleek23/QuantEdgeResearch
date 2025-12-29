@@ -3323,13 +3323,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const symbol = idea.symbol;
         const confidence = idea.confidenceScore || 0;
         
-        // Determine confidence band
+        // Determine confidence band - CALIBRATED thresholds matching getProbabilityBand
+        // A+ tier: 95+, A: 90+, B+: 85+, B: 78+, C+: 72+, C: 65+, D: 55+, F: <55
         let band: string;
-        if (confidence >= 80) band = 'A';
-        else if (confidence >= 70) band = 'B+';
-        else if (confidence >= 60) band = 'B';
-        else if (confidence >= 50) band = 'C+';
-        else if (confidence >= 40) band = 'C';
+        if (confidence >= 90) band = 'A';
+        else if (confidence >= 85) band = 'B+';
+        else if (confidence >= 78) band = 'B';
+        else if (confidence >= 72) band = 'C+';
+        else if (confidence >= 65) band = 'C';
         else band = 'D';
         
         // Update engine stats

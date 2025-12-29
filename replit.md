@@ -32,3 +32,25 @@ The platform is built with a React 18, TypeScript, and Tailwind CSS frontend, ut
 
 ### Other Integrations
 - **Discord:** Webhook notifications.
+
+## Data Intelligence System
+
+### API Endpoint: `/api/data-intelligence`
+Provides historical performance analytics from 411+ resolved trades:
+- **Engine Performance**: Flow (81.9%), AI (57.1%), Quant (34.4%)
+- **Symbol Performance**: 30+ symbols with 3+ trades tracked
+- **Confidence Calibration**: Bands recalibrated based on actual outcomes
+
+### Confidence Band Thresholds (Calibrated Dec 2025)
+- A band: 90+ confidence score
+- B+ band: 85-89 confidence score  
+- B band: 78-84 confidence score
+- C+ band: 72-77 confidence score
+- C band: 65-71 confidence score
+- D band: <65 confidence score
+
+### Key Performance Insights
+- **Top Symbols**: AAPL, AMD, SOFI, NFLX, QQQ, AMZN, GOOGL, ETH, HOOD (100% win rate, 3+ trades)
+- **Avoid**: SOL, AAVE, SMCI, CLF, USAR (0% win rate)
+- **Flow Engine Dominance**: Best performer at 81.9% win rate
+- **Historical Badges**: Trade cards show engine/symbol performance via HistoricalPerformanceBadge component
