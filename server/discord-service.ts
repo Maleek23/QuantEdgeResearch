@@ -140,12 +140,17 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
 
 // Send trade idea to Discord webhook
 export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
-  if (DISCORD_DISABLED) return;
+  logger.info(`📨 Discord single trade called: ${idea.symbol} (${idea.source || 'unknown'})`);
+  
+  if (DISCORD_DISABLED) {
+    logger.warn('⚠️ Discord is DISABLED - skipping notification');
+    return;
+  }
   
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
-    logger.info('⚠️ Discord webhook URL not configured - skipping alert');
+    logger.warn('⚠️ Discord webhook URL not configured - skipping alert');
     return;
   }
   
@@ -285,11 +290,22 @@ export async function sendDiscordAlert(alert: {
 
 // Send batch summary to Discord
 export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai' | 'quant' | 'hybrid' | 'flow' | 'news'): Promise<void> {
-  if (DISCORD_DISABLED) return;
+  logger.info(`📨 Discord batch summary called: ${ideas.length} ${source} ideas`);
+  
+  if (DISCORD_DISABLED) {
+    logger.warn('⚠️ Discord is DISABLED - skipping notification');
+    return;
+  }
   
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
-  if (!webhookUrl || ideas.length === 0) {
+  if (!webhookUrl) {
+    logger.warn('⚠️ No DISCORD_WEBHOOK_URL configured - skipping notification');
+    return;
+  }
+  
+  if (ideas.length === 0) {
+    logger.info('📨 No ideas to send to Discord');
     return;
   }
   

@@ -4321,6 +4321,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const assetType = validated.assetType || 'stock';
       
       // 🛡️ CRITICAL: Validate trade structure before saving
+      // Include option fields when assetType is 'option' so validation passes
       const structureValidation = validateTradeStructure({
         symbol: validated.symbol,
         assetType: assetType as 'stock' | 'option' | 'crypto',
@@ -4328,6 +4329,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         entryPrice: analysis.entryPoint,
         targetPrice: analysis.targetPrice,
         stopLoss: analysis.stopLoss,
+        // Pass option fields for validation when assetType is 'option'
+        ...(assetType === 'option' && {
+          strikePrice: validated.strikePrice,
+          expiryDate: validated.expiryDate,
+          optionType: validated.optionType,
+        }),
       });
       
       if (!structureValidation.isValid) {
@@ -4395,6 +4402,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       logger.info(`📊 Chart analysis saved as draft trade idea: ${tradeIdea.id} for ${validated.symbol}`);
+      
+      // Send Discord notification for chart analysis trades
+      try {
+        const { sendTradeIdeaToDiscord } = await import("./discord-service");
+        sendTradeIdeaToDiscord(tradeIdea as any).catch(err => 
+          logger.error(`Discord notification failed for chart analysis ${validated.symbol}:`, err)
+        );
+        logger.info(`📨 Discord notification sent for chart analysis: ${validated.symbol}`);
+      } catch (discordError) {
+        logger.error("Failed to send Discord notification:", discordError);
+      }
+      
       res.json(tradeIdea);
     } catch (error: any) {
       logger.error("Failed to create trade idea from chart:", error);

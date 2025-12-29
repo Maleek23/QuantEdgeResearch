@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -468,6 +468,58 @@ export default function ChartAnalysis() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [, navigate] = useLocation();
 
+  // Persist chart analysis state to localStorage
+  const STORAGE_KEY = 'chart_analysis_state';
+  
+  // Restore state from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const state = JSON.parse(saved);
+        if (state.symbol) setSymbol(state.symbol);
+        if (state.timeframe) setTimeframe(state.timeframe);
+        if (state.additionalContext) setAdditionalContext(state.additionalContext);
+        if (state.analysisResult) setAnalysisResult(state.analysisResult);
+        if (state.savedTradeIdeaId) setSavedTradeIdeaId(state.savedTradeIdeaId);
+        if (state.isPromoted !== undefined) setIsPromoted(state.isPromoted);
+        if (state.analysisMode) setAnalysisMode(state.analysisMode);
+        if (state.assetType) setAssetType(state.assetType);
+        if (state.optionType) setOptionType(state.optionType);
+        if (state.expiryDate) setExpiryDate(state.expiryDate);
+        if (state.strikePrice) setStrikePrice(state.strikePrice);
+        if (state.aiSuggestion) setAiSuggestion(state.aiSuggestion);
+        if (state.previewUrl) setPreviewUrl(state.previewUrl);
+      }
+    } catch (e) {
+      console.error('Failed to restore chart analysis state:', e);
+    }
+  }, []);
+
+  // Save state to localStorage when it changes
+  useEffect(() => {
+    try {
+      const state = {
+        symbol,
+        timeframe,
+        additionalContext,
+        analysisResult,
+        savedTradeIdeaId,
+        isPromoted,
+        analysisMode,
+        assetType,
+        optionType,
+        expiryDate,
+        strikePrice,
+        aiSuggestion,
+        previewUrl,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.error('Failed to save chart analysis state:', e);
+    }
+  }, [symbol, timeframe, additionalContext, analysisResult, savedTradeIdeaId, isPromoted, analysisMode, assetType, optionType, expiryDate, strikePrice, aiSuggestion, previewUrl]);
+
   const { data: perfStats } = useQuery<{ overall: { totalIdeas: number; winRate: number } }>({
     queryKey: ['/api/performance/stats'],
   });
@@ -753,6 +805,8 @@ export default function ChartAnalysis() {
     setStrikePrice("");
     setExpiryDate("");
     setShowSuccessModal(false);
+    // Clear persisted state
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const handleSendToDiscord = () => {
