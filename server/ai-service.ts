@@ -495,7 +495,7 @@ Focus on actionable, research-grade opportunities with sector diversification.`;
   }
 }
 
-// Chat with QuantAI Bot (using FREE Gemini tier)
+// Chat with QuantAI Bot (using FREE Gemini tier with OpenAI fallback)
 export async function chatWithQuantAI(userMessage: string, conversationHistory: Array<{role: string, content: string}>): Promise<string> {
   const systemPrompt = `You are QuantAI Bot, an expert quantitative trading assistant for QuantEdge Research platform.
 
@@ -508,7 +508,7 @@ Your role:
 
 Be concise, professional, and data-driven. Use plain language while maintaining technical accuracy.`;
 
-  // Use FREE Gemini tier (25 requests/day)
+  // Use FREE Gemini tier first
   try {
     logger.info("🆓 Using FREE Gemini for chat");
     const conversationText = conversationHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n');
@@ -523,17 +523,37 @@ Be concise, professional, and data-driven. Use plain language while maintaining 
     });
 
     return geminiResponse.text || "I couldn't process that request";
-  } catch (error: any) {
-    logger.error("Gemini chat failed:", error);
+  } catch (geminiError: any) {
+    logger.error("Gemini chat failed:", geminiError);
     
-    // Provide helpful error message
-    if (error?.status === 429) {
+    // Provide helpful error message for rate limits
+    if (geminiError?.status === 429) {
       throw new Error("Free AI limit reached (25/day). Try again tomorrow.");
-    } else if (error?.status === 401) {
-      throw new Error("AI service unavailable: Invalid API credentials");
     }
     
-    throw new Error("Failed to process chat message with free AI");
+    // Try OpenAI as fallback (skip Claude - credits depleted)
+    try {
+      logger.info("🔄 Falling back to OpenAI for chat...");
+      const openaiResponse = await getOpenAI().chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...conversationHistory.map(msg => ({ role: msg.role as "user" | "assistant", content: msg.content })),
+          { role: "user", content: userMessage }
+        ],
+        max_tokens: 2000,
+      });
+      
+      return openaiResponse.choices[0].message.content || "I couldn't process that request";
+    } catch (openaiError: any) {
+      logger.error("OpenAI chat also failed:", openaiError);
+      
+      if (geminiError?.status === 401 || openaiError?.status === 401) {
+        throw new Error("AI service unavailable: Invalid API credentials");
+      }
+      
+      throw new Error("AI chat temporarily unavailable. The quant engines are still generating trade ideas automatically.");
+    }
   }
 }
 
