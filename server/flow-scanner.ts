@@ -555,7 +555,7 @@ function calculateConfidenceScore(
   else if (estHour >= 11 && estHour < 14) timingScore = 60;  // Midday (less significant)
   else if (estHour >= 14 && estHour < 16) timingScore = 80;  // Afternoon (closing push)
   
-  // WEIGHTED COMPOSITE (clamped to 35-85% for realistic range)
+  // WEIGHTED COMPOSITE
   const weighted = 
     (volumeScore * 0.25) +
     (premiumScore * 0.20) +
@@ -564,14 +564,20 @@ function calculateConfidenceScore(
     (skewScore * 0.15) +
     (timingScore * 0.10);
   
-  const total = Math.max(35, Math.min(85, weighted));
+  // CALIBRATED SCORING (Dec 2025)
+  // Flow engine has 81.9% historical win rate but was scoring 35-85%
+  // Apply 1.15x boost to better reflect actual performance
+  // New range: ~40-98% allowing strong signals to reach A band (90+)
+  const calibratedScore = weighted * 1.15;
+  const total = Math.max(40, Math.min(98, calibratedScore));
   
-  // Quality band based on total score (stricter thresholds)
+  // Quality band based on CALIBRATED thresholds (matches getProbabilityBand)
+  // A (90+), B+ (85-89), B (78-84), C+ (72-77), C (65-71), D (<65)
   let band: 'A' | 'B+' | 'B' | 'C+' | 'C';
-  if (total >= 75) band = 'A';
-  else if (total >= 65) band = 'B+';
-  else if (total >= 55) band = 'B';
-  else if (total >= 45) band = 'C+';
+  if (total >= 90) band = 'A';
+  else if (total >= 85) band = 'B+';
+  else if (total >= 78) band = 'B';
+  else if (total >= 72) band = 'C+';
   else band = 'C';
   
   return {
