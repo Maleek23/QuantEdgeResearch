@@ -507,50 +507,168 @@ export default function PerformancePage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="relative overflow-hidden rounded-xl glass-card p-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold" data-testid="text-performance-title">Performance Tracker</h1>
-            <p className="text-muted-foreground mt-1">
-              Validate research briefs and analyze performance metrics
-            </p>
+      {/* Executive Summary - Most Important Info First */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" data-testid="section-executive-summary">
+        {/* Headline KPIs */}
+        <div className="lg:col-span-2 glass-card rounded-xl p-6 border-l-4 border-l-cyan-500">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold" data-testid="text-performance-title">Platform Performance</h1>
+              <p className="text-sm text-muted-foreground">{stats.overall.totalIdeas} total briefs • {stats.overall.closedIdeas} closed</p>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="glass-secondary" 
+                size="sm"
+                onClick={handleValidate}
+                disabled={isValidating}
+                data-testid="button-validate-ideas"
+              >
+                <Activity className={`w-4 h-4 mr-1 ${isValidating ? 'animate-spin' : ''}`} />
+                {isValidating ? 'Validating...' : 'Validate'}
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={handleExport}
+                data-testid="button-export-csv"
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="glass-secondary" 
-              onClick={handleValidate}
-              disabled={isValidating}
-              data-testid="button-validate-ideas"
-            >
-              <Activity className={`w-4 h-4 mr-2 ${isValidating ? 'animate-spin' : ''}`} />
-              {isValidating ? 'Validating...' : 'Validate Ideas'}
-            </Button>
-            <Button 
-              variant="glass" 
-              onClick={handleExport}
-              data-testid="button-export-csv"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Export CSV
-            </Button>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center glass rounded-lg p-4">
+              <div className={cn(
+                "text-4xl font-bold font-mono",
+                stats.overall.winRate >= 60 ? "text-green-400" : 
+                stats.overall.winRate >= 50 ? "text-amber-400" : 
+                stats.overall.winRate > 0 ? "text-red-400" : "text-muted-foreground"
+              )} data-testid="text-headline-winrate">
+                {stats.overall.closedIdeas > 0 ? `${stats.overall.winRate.toFixed(1)}%` : 'N/A'}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Win Rate</div>
+              <div className="text-xs text-muted-foreground">{stats.overall.wonIdeas}W / {stats.overall.lostIdeas}L</div>
+            </div>
+            <div className="text-center glass rounded-lg p-4">
+              <div className={cn(
+                "text-4xl font-bold font-mono",
+                stats.overall.expectancy > 0 ? "text-green-400" : 
+                stats.overall.expectancy < 0 ? "text-red-400" : "text-muted-foreground"
+              )} data-testid="text-headline-expectancy">
+                {stats.overall.expectancy !== 0 ? `${stats.overall.expectancy > 0 ? '+' : ''}${stats.overall.expectancy.toFixed(2)}%` : 'N/A'}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Expectancy</div>
+              <div className="text-xs text-muted-foreground">Per Trade</div>
+            </div>
+            <div className="text-center glass rounded-lg p-4">
+              <div className={cn(
+                "text-4xl font-bold font-mono",
+                stats.overall.profitFactor >= 1.5 ? "text-green-400" : 
+                stats.overall.profitFactor >= 1 ? "text-amber-400" : "text-red-400"
+              )} data-testid="text-headline-profitfactor">
+                {stats.overall.profitFactor > 0 ? stats.overall.profitFactor.toFixed(2) : 'N/A'}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Profit Factor</div>
+              <div className="text-xs text-muted-foreground">Gains / Losses</div>
+            </div>
+            <div className="text-center glass rounded-lg p-4">
+              <div className="text-4xl font-bold font-mono text-cyan-400" data-testid="text-headline-open">
+                {stats.overall.openIdeas}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">Open Positions</div>
+              <div className="text-xs text-muted-foreground">Active</div>
+            </div>
           </div>
+        </div>
+
+        {/* Quick Engine Pulse */}
+        <div className="glass-card rounded-xl p-4" data-testid="section-engine-pulse">
+          <div className="flex items-center gap-2 mb-3">
+            <Activity className="h-4 w-4 text-cyan-400" />
+            <h3 className="font-semibold text-sm">Engine Pulse (7d)</h3>
+          </div>
+          {isEngineHealthLoading ? (
+            <div className="space-y-2">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-10" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {engines.map((engineKey) => {
+                const config = ENGINE_CONFIG[engineKey];
+                const Icon = config.icon;
+                const weekData = engineHealthData?.weekMetrics?.[engineKey];
+                const winRate = weekData?.winRate ?? null;
+                const expectancy = weekData?.expectancy ?? null;
+                const alertCount = getAlertCountForEngine(engineKey);
+                
+                return (
+                  <div 
+                    key={engineKey} 
+                    className="flex items-center justify-between p-2 rounded-lg bg-background/50 hover-elevate"
+                    data-testid={`pulse-engine-${engineKey}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 rounded" style={{ backgroundColor: `${config.color}20` }}>
+                        <Icon className="h-3 w-3" style={{ color: config.color }} />
+                      </div>
+                      <span className="text-xs font-medium">{config.label}</span>
+                      {alertCount > 0 && (
+                        <Badge variant="destructive" className="text-[10px] px-1 h-4">{alertCount}</Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span className={cn(
+                          "text-xs font-mono font-bold",
+                          getWinRateColor(winRate)
+                        )}>
+                          {winRate !== null ? `${winRate.toFixed(0)}%` : '—'}
+                        </span>
+                      </div>
+                      <div className="text-right w-14">
+                        <span className={cn(
+                          "text-xs font-mono",
+                          expectancy !== null && expectancy > 0 ? "text-green-400" : 
+                          expectancy !== null && expectancy < 0 ? "text-red-400" : "text-muted-foreground"
+                        )}>
+                          {expectancy !== null ? `${expectancy > 0 ? '+' : ''}${expectancy.toFixed(1)}%` : '—'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="glass-card rounded-xl p-6" data-testid="section-engine-health">
-        <div className="flex items-center gap-2 mb-4">
+      {/* Health Alerts (if any) */}
+      {engineHealthData?.activeAlerts && engineHealthData.activeAlerts.length > 0 && (
+        <HealthAlertsSection 
+          alerts={engineHealthData.activeAlerts} 
+          isAdmin={isAdmin} 
+        />
+      )}
+
+      {/* Detailed Engine Cards - Expandable */}
+      <details className="glass-card rounded-xl" data-testid="section-engine-health">
+        <summary className="p-4 cursor-pointer hover-elevate rounded-xl flex items-center gap-2">
           <Activity className="h-5 w-5 text-cyan-400" />
-          <h2 className="text-xl font-bold">Engine Health Overview</h2>
-        </div>
-        {isEngineHealthLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-40" />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-4">
+          <span className="font-semibold">Detailed Engine Metrics</span>
+          <span className="text-xs text-muted-foreground ml-2">(click to expand)</span>
+        </summary>
+        <div className="p-4 pt-0">
+          {isEngineHealthLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-40" />
+              ))}
+            </div>
+          ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {engines.map((engineKey) => (
                 <EngineSummaryCard
@@ -562,34 +680,9 @@ export default function PerformancePage() {
                 />
               ))}
             </div>
-            <HealthAlertsSection 
-              alerts={engineHealthData?.activeAlerts ?? []} 
-              isAdmin={isAdmin} 
-            />
-          </div>
-        )}
-      </div>
-
-      <div className="glass rounded-xl p-4 border-l-2 border-l-blue-500">
-        <div className="flex items-start gap-3">
-          <Info className="h-5 w-5 text-cyan-400 flex-shrink-0 mt-0.5" />
-          <p className="text-sm">
-            <span className="font-semibold text-cyan-400">Metrics v3.0+</span> - Performance metrics now filter to <span className="font-semibold">v3.0.0+</span> engine only (research-backed RSI2, VWAP, Volume signals). Old v2.x trades (131 total with 39% WR using broken MACD/ML signals) are excluded from calculations.
-          </p>
+          )}
         </div>
-      </div>
-
-      <div className="glass rounded-xl p-4 border-l-2 border-l-amber-500">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <span className="font-semibold text-amber-400">Confidence Score Update (Dec 2024)</span>
-            <p className="text-muted-foreground mt-1">
-              Previous confidence percentages were inversely correlated with actual performance. We now show transparent <span className="font-semibold text-cyan-400">"Filters Passed"</span> (e.g., 3/3 signals) instead of misleading percentages. Hover over the badge to see exactly which signals fired, volatility regime, and market context.
-            </p>
-          </div>
-        </div>
-      </div>
+      </details>
 
       <div className="glass-card rounded-xl p-6">
         <div className="flex items-center gap-3 flex-wrap">
@@ -795,80 +888,37 @@ export default function PerformancePage() {
         </TooltipProvider>
       )}
 
+      {/* Engine Performance Trends - Moved Up for Visibility */}
+      <div className="glass-card rounded-xl p-6" data-testid="card-engine-trends-section">
+        <EngineTrendsChart />
+      </div>
+
+      {/* Trade Outcomes Summary */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="section-trade-outcomes">
+        <div className="glass-card rounded-xl p-4 text-center border-l-2 border-l-green-500">
+          <div className="text-3xl font-bold font-mono text-green-400">{stats.overall.wonIdeas}</div>
+          <div className="text-xs text-muted-foreground">Wins</div>
+        </div>
+        <div className="glass-card rounded-xl p-4 text-center border-l-2 border-l-red-500">
+          <div className="text-3xl font-bold font-mono text-red-400">{stats.overall.lostIdeas}</div>
+          <div className="text-xs text-muted-foreground">Losses</div>
+        </div>
+        <div className="glass-card rounded-xl p-4 text-center border-l-2 border-l-gray-500">
+          <div className="text-3xl font-bold font-mono text-muted-foreground">{stats.overall.expiredIdeas}</div>
+          <div className="text-xs text-muted-foreground">Expired</div>
+        </div>
+        <div className="glass-card rounded-xl p-4 text-center border-l-2 border-l-cyan-500">
+          <div className="text-3xl font-bold font-mono text-cyan-400">{stats.overall.totalIdeas}</div>
+          <div className="text-xs text-muted-foreground">Total Briefs</div>
+        </div>
+      </div>
+
       <div className="space-y-6" data-testid="performance-simplified">
-        <div className="glass-card rounded-xl p-6 border-l-2 border-l-cyan-500" data-testid="card-market-win-rate">
-          <div className="mb-4">
-            <h2 className="text-xl font-bold">Market Win Rate</h2>
-            <p className="text-sm text-muted-foreground">Overall success rate across all closed positions</p>
-          </div>
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="flex items-baseline gap-3">
-              <div className={cn(
-                "text-6xl font-bold font-mono",
-                stats.overall.winRate >= 60 ? "text-green-400" : 
-                stats.overall.winRate >= 50 ? "text-amber-400" : 
-                stats.overall.winRate > 0 ? "text-red-400" : "text-muted-foreground"
-              )}>
-                {stats.overall.closedIdeas > 0 ? stats.overall.winRate.toFixed(1) : 'N/A'}
-              </div>
-              {stats.overall.closedIdeas > 0 && (
-                <div className="text-3xl font-semibold text-muted-foreground">%</div>
-              )}
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-1">
-              <div className="text-center glass-success rounded-lg p-3">
-                <div className="text-2xl font-bold font-mono text-green-400">{stats.overall.wonIdeas}</div>
-                <div className="text-xs text-muted-foreground">Wins</div>
-              </div>
-              <div className="text-center glass-danger rounded-lg p-3">
-                <div className="text-2xl font-bold font-mono text-red-400">{stats.overall.lostIdeas}</div>
-                <div className="text-xs text-muted-foreground">Losses</div>
-              </div>
-              <div className="text-center glass-secondary rounded-lg p-3">
-                <div className="text-2xl font-bold font-mono text-muted-foreground">{stats.overall.expiredIdeas}</div>
-                <div className="text-xs text-muted-foreground">Expired</div>
-              </div>
-              <div className="text-center glass rounded-lg p-3">
-                <div className="text-2xl font-bold font-mono text-cyan-400">{stats.overall.closedIdeas}</div>
-                <div className="text-xs text-muted-foreground">Total Closed</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="glass-card rounded-xl p-6 border-l-2 border-l-blue-500" data-testid="card-platform-stats">
-          <div className="mb-4">
-            <h2 className="text-lg font-bold flex items-center gap-2">
-              <Activity className="w-5 h-5 text-cyan-400" />
-              Platform Stats
-            </h2>
-            <p className="text-sm text-muted-foreground">Core platform metrics</p>
-          </div>
-          <div className="grid grid-cols-2 gap-6">
-            <div className="glass rounded-lg p-4">
-              <div className="text-sm text-muted-foreground">Total Ideas</div>
-              <div className="text-3xl font-bold font-mono text-cyan-400">{stats.overall.totalIdeas}</div>
-              <div className="text-xs text-muted-foreground">All time</div>
-            </div>
-            <div className="glass-secondary rounded-lg p-4">
-              <div className="text-sm text-muted-foreground">Open Positions</div>
-              <div className="text-3xl font-bold font-mono">{stats.overall.openIdeas}</div>
-              <div className="text-xs text-muted-foreground">Currently active</div>
-            </div>
-          </div>
-        </div>
-
         <TierGate feature="performance" blur>
           <div className="space-y-6" data-testid="section-advanced-analytics">
             <div className="glass-card rounded-xl p-6">
               <h2 className="text-xl font-semibold mb-4 text-cyan-400">Current Performance Streak</h2>
               <StreakTracker selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
-            </div>
-            
-            <div className="glass-card rounded-xl p-6">
-              <h2 className="text-xl font-semibold mb-2 text-cyan-400">Engine Performance Trends</h2>
-              <p className="text-sm text-muted-foreground mb-4">Weekly win rates for all engines over the last 8 weeks</p>
-              <EngineTrendsChart />
             </div>
             
             <div className="glass-card rounded-xl p-6">
