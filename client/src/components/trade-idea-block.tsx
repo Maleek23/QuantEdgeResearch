@@ -208,7 +208,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
         )}>
           <div className="flex items-center justify-between gap-3">
             {/* Left: Identity - Symbol + Core Badges */}
-            <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap overflow-hidden">
               {/* Symbol */}
               <h3 className="text-lg font-bold font-mono flex-shrink-0" data-testid={`text-symbol-${idea.symbol}`}>
                 {idea.symbol}
@@ -239,8 +239,8 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
               {/* Asset Type - Only show for options (important distinction) */}
               {idea.assetType === 'option' && (
-                <Badge variant="outline" className="text-[10px] h-5 font-semibold uppercase bg-purple-500/10 text-purple-400 border-purple-500/30 flex-shrink-0">
-                  OPTION
+                <Badge variant="outline" className="text-[10px] h-5 font-semibold uppercase bg-purple-500/20 text-purple-400 border-purple-500/40 flex-shrink-0 whitespace-nowrap">
+                  OPT
                 </Badge>
               )}
 
@@ -255,11 +255,11 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
             {/* Center: Quick Metrics */}
             <div className="flex items-center gap-3 flex-shrink-0">
-              {/* R:R Ratio */}
+              {/* R:R Ratio - Clear badge format */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="text-xs font-mono cursor-help">
-                    <span className="text-muted-foreground">R:R</span>{' '}
+                  <Badge variant="outline" className="text-[10px] h-5 font-mono px-2 bg-background/80 border-muted-foreground/20 cursor-help whitespace-nowrap">
+                    <span className="text-muted-foreground mr-1">R:R</span>
                     <span className={cn(
                       "font-bold",
                       idea.riskRewardRatio >= 2 ? "text-green-400" : 
@@ -268,7 +268,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     )}>
                       {idea.riskRewardRatio?.toFixed(1) || '—'}
                     </span>
-                  </div>
+                  </Badge>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Risk:Reward Ratio</p>
