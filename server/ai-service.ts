@@ -100,9 +100,9 @@ export function validateTradeRisk(idea: AITradeIdea, isNewsCatalyst: boolean = f
   const riskRewardRatio = potentialGain / maxLoss;
   
   // 🚨 GUARDRAIL #1: Asset-specific maximum loss caps
-  // Options have wider stops due to higher volatility (25-35% is normal for options)
+  // TIGHTENED: Options max loss reduced from 35% to 25% to prevent expiration wipeouts
   // Stocks and crypto use 5-7% stops (user-specified max of 7%)
-  const MAX_LOSS_PERCENT = assetType === 'option' ? 35.0 : 7.0;  // 35% for options, 7% for stocks/crypto
+  const MAX_LOSS_PERCENT = assetType === 'option' ? 25.0 : 7.0;  // 25% for options (was 35%), 7% for stocks/crypto
   
   if (maxLossPercent > MAX_LOSS_PERCENT) {
     return {
@@ -113,10 +113,10 @@ export function validateTradeRisk(idea: AITradeIdea, isNewsCatalyst: boolean = f
   }
   
   // 🚨 GUARDRAIL #2: Minimum Risk/Reward ratio
-  // LOWERED to 1.5:1 for all trades (was 2.0:1) due to low-volatility market conditions
-  // Academic minimum is 1.5:1, and 2:1 was rejecting too many valid trades (SPY 1.96:1, BTC 1.67:1)
-  // This allows more trade generation while maintaining professional risk standards
-  const MIN_RR_RATIO = 1.5;
+  // RESTORED to 2.0:1 - The 1.5:1 setting caused -55% expectancy because small wins
+  // couldn't offset the big losses. Professional standard is 2:1 minimum for options.
+  // Better to generate fewer trades than lose money on bad risk/reward setups.
+  const MIN_RR_RATIO = 2.0;
   if (riskRewardRatio < MIN_RR_RATIO) {
     return {
       isValid: false,
