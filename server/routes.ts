@@ -230,19 +230,20 @@ function calculateAIConfidence(
   return Math.min(100, Math.max(0, confidence));
 }
 
-// 🎯 PROBABILITY BAND MAPPING: Convert confidence score to college-style grade
+// 🎯 PROBABILITY BAND MAPPING: Standard academic grading scale
 function getProbabilityBand(confidenceScore: number): string {
-  if (confidenceScore >= 75) return 'A+';
-  if (confidenceScore >= 70) return 'A';
-  if (confidenceScore >= 67) return 'A-';
-  if (confidenceScore >= 64) return 'B+';
-  if (confidenceScore >= 60) return 'B';
-  if (confidenceScore >= 57) return 'B-';
-  if (confidenceScore >= 54) return 'C+';
-  if (confidenceScore >= 50) return 'C';
-  if (confidenceScore >= 47) return 'C-';
-  if (confidenceScore >= 44) return 'D+';
-  if (confidenceScore >= 40) return 'D';
+  if (confidenceScore >= 95) return 'A+';
+  if (confidenceScore >= 93) return 'A';
+  if (confidenceScore >= 90) return 'A-';
+  if (confidenceScore >= 87) return 'B+';
+  if (confidenceScore >= 83) return 'B';
+  if (confidenceScore >= 80) return 'B-';
+  if (confidenceScore >= 77) return 'C+';
+  if (confidenceScore >= 73) return 'C';
+  if (confidenceScore >= 70) return 'C-';
+  if (confidenceScore >= 67) return 'D+';
+  if (confidenceScore >= 63) return 'D';
+  if (confidenceScore >= 60) return 'D-';
   return 'F';
 }
 

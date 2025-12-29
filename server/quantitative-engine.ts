@@ -477,10 +477,10 @@ export async function generateFuturesIdeas(): Promise<InsertTradeIdea[]> {
       const analysis = generateFuturesAnalysis(rootSymbol, signal, contract.contractCode, spec);
       
       // Calculate confidence score (simple scoring for v1.0)
-      const confidenceScore = signal.strength === 'strong' ? 65 : 
-                             signal.strength === 'moderate' ? 55 : 50;
-      // College-style grading
-      const probabilityBand = confidenceScore >= 75 ? 'A+' : confidenceScore >= 70 ? 'A' : confidenceScore >= 67 ? 'A-' : confidenceScore >= 64 ? 'B+' : confidenceScore >= 60 ? 'B' : confidenceScore >= 57 ? 'B-' : confidenceScore >= 54 ? 'C+' : confidenceScore >= 50 ? 'C' : confidenceScore >= 47 ? 'C-' : 'D';
+      const confidenceScore = signal.strength === 'strong' ? 85 : 
+                             signal.strength === 'moderate' ? 75 : 65;
+      // Standard academic grading
+      const probabilityBand = confidenceScore >= 95 ? 'A+' : confidenceScore >= 93 ? 'A' : confidenceScore >= 90 ? 'A-' : confidenceScore >= 87 ? 'B+' : confidenceScore >= 83 ? 'B' : confidenceScore >= 80 ? 'B-' : confidenceScore >= 77 ? 'C+' : confidenceScore >= 73 ? 'C' : confidenceScore >= 70 ? 'C-' : confidenceScore >= 67 ? 'D+' : confidenceScore >= 63 ? 'D' : confidenceScore >= 60 ? 'D-' : 'F';
       
       // Create futures trade idea
       const idea: InsertTradeIdea = {

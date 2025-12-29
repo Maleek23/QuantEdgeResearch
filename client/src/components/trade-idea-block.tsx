@@ -453,9 +453,9 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-[280px]">
-                    <p className="font-semibold mb-1">Quality Grade (College Scale)</p>
+                    <p className="font-semibold mb-1">Quality Grade (Academic Scale)</p>
                     <p className="text-xs text-muted-foreground">
-                      A+/A/A- = Excellent (67%+), B+/B/B- = Good (57-66%), C+/C/C- = Average (47-56%), D+/D = Weak (40-46%), F = Speculative (&lt;40%). Based on signal alignment.
+                      A+ = 95%+, A = 93%, A- = 90%, B+ = 87%, B = 83%, B- = 80%, C = 70%, D = 60%, F = &lt;45%. Based on signal confidence.
                     </p>
                   </TooltipContent>
                 </Tooltip>
