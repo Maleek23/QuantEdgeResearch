@@ -598,6 +598,21 @@ export default function ChartAnalysis() {
         description: "Chart analyzed successfully.",
       });
 
+      // Auto-suggest trade type (shares vs options) based on AI analysis
+      // High confidence + strong momentum patterns = options recommended
+      // Lower confidence or neutral sentiment = shares recommended
+      const hasStrongPatterns = data.patterns.some(p => 
+        /breakout|breakdown|momentum|wedge|flag|triangle|channel/i.test(p)
+      );
+      const highConfidence = data.confidence >= 70;
+      const goodRiskReward = data.riskRewardRatio >= 1.8;
+      const strongSentiment = data.sentiment !== 'neutral';
+      
+      // Suggest options if: high confidence + good R:R + strong patterns or sentiment
+      const suggestOptions = (highConfidence && goodRiskReward && (hasStrongPatterns || strongSentiment));
+      const suggestedAssetType = suggestOptions ? 'option' : 'stock';
+      setAssetType(suggestedAssetType);
+      
       // Auto-suggest option type based on AI analysis sentiment
       const suggestedOptionType = data.sentiment === 'bullish' ? 'call' : data.sentiment === 'bearish' ? 'put' : optionType;
       setOptionType(suggestedOptionType);
@@ -606,10 +621,10 @@ export default function ChartAnalysis() {
         saveDraftMutation.mutate({ 
           symbol, 
           analysis: data, 
-          assetType,
-          optionType: assetType === 'option' ? suggestedOptionType : undefined,
-          expiryDate: assetType === 'option' ? expiryDate : undefined,
-          strikePrice: assetType === 'option' && strikePrice && !isNaN(parseFloat(strikePrice)) ? parseFloat(strikePrice) : undefined,
+          assetType: suggestedAssetType,
+          optionType: suggestedAssetType === 'option' ? suggestedOptionType : undefined,
+          expiryDate: suggestedAssetType === 'option' ? expiryDate : undefined,
+          strikePrice: suggestedAssetType === 'option' && strikePrice && !isNaN(parseFloat(strikePrice)) ? parseFloat(strikePrice) : undefined,
         });
       }
     },
@@ -892,7 +907,15 @@ export default function ChartAnalysis() {
 
               {/* Asset Type */}
               <div className="space-y-2 pt-2 border-t border-border/50">
-                <Label className="text-xs font-medium">Trade Type</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium">Trade Type</Label>
+                  {analysisResult && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Sparkles className="h-3 w-3 text-cyan-400" />
+                      AI suggests {assetType === 'option' ? 'Options' : 'Shares'}
+                    </span>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <button
                     type="button"

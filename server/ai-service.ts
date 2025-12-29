@@ -1003,8 +1003,21 @@ Base your target on the NEAREST visible resistance level, not aspirational price
     });
 
     const content = geminiResponse.text || '{}';
-    const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+    // More robust JSON extraction - handle various markdown formats
+    let jsonStr = content;
+    // Try to extract JSON from markdown code blocks (various formats)
+    const markdownMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (markdownMatch) {
+      jsonStr = markdownMatch[1].trim();
+    } else {
+      // Try to find first complete JSON object
+      const jsonObjectMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonObjectMatch) {
+        jsonStr = jsonObjectMatch[0];
+      }
+    }
+    // Clean up any remaining issues
+    jsonStr = jsonStr.trim();
     const parsed = JSON.parse(jsonStr) as ChartAnalysisResult;
     
     logger.info("✅ Gemini chart analysis complete");
@@ -1043,12 +1056,61 @@ Base your target on the NEAREST visible resistance level, not aspirational price
       return parsed;
       
     } catch (openaiError: any) {
-      logger.error("All AI providers failed for chart analysis:", {
-        gemini: geminiError?.message,
-        openai: openaiError?.message
-      });
+      logger.info("OpenAI chart analysis failed, trying Claude...", openaiError);
       
-      throw new Error("Chart analysis failed. Please try again later.");
+      // Fallback to Claude (claude-sonnet with vision)
+      try {
+        const claudeResponse = await getClaude().messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: userPrompt },
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: "image/png",
+                    data: base64Image
+                  }
+                }
+              ]
+            }
+          ]
+        });
+
+        const claudeContent = claudeResponse.content[0];
+        const claudeText = claudeContent.type === 'text' ? claudeContent.text : '{}';
+        
+        // Parse JSON from Claude response (same robust extraction)
+        let claudeJsonStr = claudeText;
+        const claudeMarkdownMatch = claudeText.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (claudeMarkdownMatch) {
+          claudeJsonStr = claudeMarkdownMatch[1].trim();
+        } else {
+          const claudeJsonObjectMatch = claudeText.match(/\{[\s\S]*\}/);
+          if (claudeJsonObjectMatch) {
+            claudeJsonStr = claudeJsonObjectMatch[0];
+          }
+        }
+        claudeJsonStr = claudeJsonStr.trim();
+        const claudeParsed = JSON.parse(claudeJsonStr) as ChartAnalysisResult;
+        
+        logger.info("✅ Claude chart analysis complete");
+        return claudeParsed;
+        
+      } catch (claudeError: any) {
+        logger.error("All AI providers failed for chart analysis:", {
+          gemini: geminiError?.message,
+          openai: openaiError?.message,
+          claude: claudeError?.message
+        });
+        
+        throw new Error("Chart analysis failed. Please try again later.");
+      }
     }
   }
 }
