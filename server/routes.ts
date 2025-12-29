@@ -2820,17 +2820,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // GET /api/engine-health - Get current engine health dashboard data
   app.get("/api/engine-health", async (_req, res) => {
     try {
-      const { format, subDays } = await import("date-fns");
+      const { format, subDays, startOfDay } = await import("date-fns");
       const today = format(new Date(), 'yyyy-MM-dd');
-      const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
+      const sevenDaysAgo = subDays(startOfDay(new Date()), 7);
       
-      const [todayMetrics, historicalMetrics, activeAlerts] = await Promise.all([
-        telemetryService.calculateDailyMetrics(today),
-        storage.getEngineMetricsRange(sevenDaysAgo, today),
-        storage.getActiveHealthAlerts(),
-      ]);
+      // Get all trade ideas and calculate metrics directly from source data
+      const allIdeas = await storage.getAllTradeIdeas();
+      const activeAlerts = await storage.getActiveHealthAlerts();
       
-      // Aggregate 7-day metrics per engine
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      
+      // Map sources to engine categories
+      const mapSourceToEngine = (source: string): string => {
+        switch (source) {
+          case 'flow': return 'flow';
+          case 'lotto': return 'lotto';
+          case 'quant': return 'quant';
+          case 'ai': 
+          case 'chart_analysis': return 'ai';
+          case 'hybrid': return 'hybrid';
+          case 'manual': return 'manual';
+          default: return 'manual';
+        }
+      };
+      
+      // Calculate today's metrics
+      const todayIdeas = allIdeas.filter(idea => {
+        const ideaDate = idea.timestamp ? idea.timestamp.split('T')[0] : null;
+        return ideaDate === todayStr;
+      });
+      
+      // Calculate 7-day metrics directly from trade_ideas
       const engines = ['flow', 'lotto', 'quant', 'ai', 'hybrid', 'manual'] as const;
       const weekMetrics: Record<string, {
         ideasGenerated: number;
@@ -2839,37 +2859,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tradesLost: number;
         winRate: number | null;
         expectancy: number | null;
+        avgGainPercent: number | null;
+        avgLossPercent: number | null;
+      }> = {};
+      
+      const todayMetrics: Record<string, {
+        ideasGenerated: number;
+        ideasPublished: number;
+        tradesResolved: number;
+        tradesWon: number;
+        tradesLost: number;
+        tradesExpired: number;
+        winRate: number | null;
+        avgGainPercent: number | null;
+        avgLossPercent: number | null;
+        expectancy: number | null;
+        avgHoldingTimeMinutes: number | null;
+        avgConfidenceScore: number | null;
       }> = {};
       
       for (const engine of engines) {
-        const engineRecords = historicalMetrics.filter(m => m.engine === engine);
-        const totalIdeas = engineRecords.reduce((sum, m) => sum + (m.ideasGenerated || 0), 0);
-        const totalResolved = engineRecords.reduce((sum, m) => sum + (m.tradesResolved || 0), 0);
-        const totalWon = engineRecords.reduce((sum, m) => sum + (m.tradesWon || 0), 0);
-        const totalLost = engineRecords.reduce((sum, m) => sum + (m.tradesLost || 0), 0);
-        const totalDecided = totalWon + totalLost;
+        // Week metrics - ideas generated in last 7 days
+        const weekEngineIdeas = allIdeas.filter(idea => {
+          const ideaDate = idea.timestamp ? new Date(idea.timestamp) : null;
+          return ideaDate && ideaDate >= sevenDaysAgo && mapSourceToEngine(idea.source) === engine;
+        });
         
-        const winRate = totalDecided > 0 ? (totalWon / totalDecided) * 100 : null;
+        // Week resolved trades (all time for this engine, since we want overall performance)
+        const engineResolvedAll = allIdeas.filter(idea => 
+          mapSourceToEngine(idea.source) === engine && 
+          idea.outcomeStatus !== 'open'
+        );
         
-        // Calculate aggregate expectancy
-        const gains = engineRecords.filter(m => m.avgGainPercent !== null).map(m => m.avgGainPercent!);
-        const losses = engineRecords.filter(m => m.avgLossPercent !== null).map(m => m.avgLossPercent!);
+        const winners = engineResolvedAll.filter(i => i.outcomeStatus === 'hit_target');
+        const losers = engineResolvedAll.filter(i => i.outcomeStatus === 'hit_stop');
+        const decidedCount = winners.length + losers.length;
+        
+        const winRate = decidedCount > 0 ? (winners.length / decidedCount) * 100 : null;
+        
+        // Calculate avg gain/loss from percent_gain field
+        const gains = winners.map(w => w.percentGain).filter((g): g is number => g !== null && g > 0);
+        const losses = losers.map(l => l.percentGain).filter((l): l is number => l !== null);
+        
         const avgGain = gains.length > 0 ? gains.reduce((s, v) => s + v, 0) / gains.length : null;
-        const avgLoss = losses.length > 0 ? losses.reduce((s, v) => s + v, 0) / losses.length : null;
+        const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((s, v) => s + v, 0) / losses.length) : null;
         
         let expectancy: number | null = null;
         if (winRate !== null && avgGain !== null && avgLoss !== null) {
           const wr = winRate / 100;
-          expectancy = (wr * avgGain) - ((1 - wr) * Math.abs(avgLoss));
+          expectancy = (wr * avgGain) - ((1 - wr) * avgLoss);
         }
         
         weekMetrics[engine] = {
-          ideasGenerated: totalIdeas,
-          tradesResolved: totalResolved,
-          tradesWon: totalWon,
-          tradesLost: totalLost,
+          ideasGenerated: weekEngineIdeas.length,
+          tradesResolved: engineResolvedAll.length,
+          tradesWon: winners.length,
+          tradesLost: losers.length,
           winRate,
           expectancy,
+          avgGainPercent: avgGain,
+          avgLossPercent: avgLoss ? -avgLoss : null,
+        };
+        
+        // Today's metrics for this engine
+        const todayEngineIdeas = todayIdeas.filter(i => mapSourceToEngine(i.source) === engine);
+        const todayResolved = allIdeas.filter(idea => {
+          if (!idea.exitDate || idea.outcomeStatus === 'open') return false;
+          const exitDate = idea.exitDate.split('T')[0];
+          return exitDate === todayStr && mapSourceToEngine(idea.source) === engine;
+        });
+        
+        const todayWinners = todayResolved.filter(i => i.outcomeStatus === 'hit_target');
+        const todayLosers = todayResolved.filter(i => i.outcomeStatus === 'hit_stop');
+        const todayExpired = todayResolved.filter(i => i.outcomeStatus === 'expired');
+        const todayDecided = todayWinners.length + todayLosers.length;
+        
+        const todayWinRate = todayDecided > 0 ? (todayWinners.length / todayDecided) * 100 : null;
+        
+        const todayGains = todayWinners.map(w => w.percentGain).filter((g): g is number => g !== null);
+        const todayLosses = todayLosers.map(l => l.percentGain).filter((l): l is number => l !== null);
+        const todayAvgGain = todayGains.length > 0 ? todayGains.reduce((s, v) => s + v, 0) / todayGains.length : null;
+        const todayAvgLoss = todayLosses.length > 0 ? todayLosses.reduce((s, v) => s + v, 0) / todayLosses.length : null;
+        
+        let todayExpectancy: number | null = null;
+        if (todayWinRate !== null && todayAvgGain !== null && todayAvgLoss !== null) {
+          const wr = todayWinRate / 100;
+          todayExpectancy = (wr * todayAvgGain) - ((1 - wr) * Math.abs(todayAvgLoss));
+        }
+        
+        const holdingTimes = todayResolved
+          .map(i => i.actualHoldingTimeMinutes)
+          .filter((t): t is number => t !== null);
+        const avgHoldingTime = holdingTimes.length > 0 
+          ? holdingTimes.reduce((s, v) => s + v, 0) / holdingTimes.length 
+          : null;
+          
+        const confidenceScores = todayEngineIdeas
+          .map(i => i.confidenceScore)
+          .filter((c): c is number => c !== null && c > 0);
+        const avgConfidence = confidenceScores.length > 0
+          ? confidenceScores.reduce((s, v) => s + v, 0) / confidenceScores.length
+          : null;
+        
+        todayMetrics[engine] = {
+          ideasGenerated: todayEngineIdeas.length,
+          ideasPublished: todayEngineIdeas.filter(i => i.status === 'published').length,
+          tradesResolved: todayResolved.length,
+          tradesWon: todayWinners.length,
+          tradesLost: todayLosers.length,
+          tradesExpired: todayExpired.length,
+          winRate: todayWinRate,
+          avgGainPercent: todayAvgGain,
+          avgLossPercent: todayAvgLoss,
+          expectancy: todayExpectancy,
+          avgHoldingTimeMinutes: avgHoldingTime,
+          avgConfidenceScore: avgConfidence,
         };
       }
       
@@ -2877,7 +2981,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         date: today,
         todayMetrics,
         weekMetrics,
-        historicalMetrics,
+        historicalMetrics: [], // Empty for now, will be populated by daily rollup
         activeAlerts,
       });
     } catch (error) {
