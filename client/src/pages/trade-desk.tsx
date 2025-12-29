@@ -182,15 +182,22 @@ export default function TradeDeskPage() {
   });
 
   const generateQuantIdeas = useMutation({
-    mutationFn: async () => {
-      return await apiRequest('POST', '/api/quant/generate-ideas', {});
+    mutationFn: async (timeframe?: TimeframeBucket) => {
+      return await apiRequest('POST', '/api/quant/generate-ideas', { 
+        timeframe: timeframe || 'all',
+        holdingPeriod: timeframe === 'today_tomorrow' ? 'day' : 
+                       timeframe === 'few_days' ? 'swing' : 
+                       timeframe === 'next_week' ? 'week-ending' : 
+                       timeframe === 'next_month' ? 'position' : undefined
+      });
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
+      const label = activeTimeframe !== 'all' ? TIMEFRAME_LABELS[activeTimeframe] : '';
       toast({
         title: "Quant Research Generated",
-        description: `Generated ${data.count || data.newIdeas || 0} new quantitative research briefs`,
+        description: `Generated ${data.count || data.newIdeas || 0} new quantitative research briefs${label ? ` for ${label}` : ''}`,
       });
     },
     onError: (error: any) => {
@@ -203,17 +210,23 @@ export default function TradeDeskPage() {
   });
 
   const generateAIIdeas = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (timeframe?: TimeframeBucket) => {
       return await apiRequest('POST', '/api/ai/generate-ideas', {
-        marketContext: "Current market conditions with focus on stocks, options, and crypto"
+        marketContext: "Current market conditions with focus on stocks, options, and crypto",
+        timeframe: timeframe || 'all',
+        holdingPeriod: timeframe === 'today_tomorrow' ? 'day' : 
+                       timeframe === 'few_days' ? 'swing' : 
+                       timeframe === 'next_week' ? 'week-ending' : 
+                       timeframe === 'next_month' ? 'position' : undefined
       });
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
+      const label = activeTimeframe !== 'all' ? TIMEFRAME_LABELS[activeTimeframe] : '';
       toast({
         title: "AI Research Generated",
-        description: `Generated ${data.count || 0} new AI-powered research briefs`,
+        description: `Generated ${data.count || 0} new AI-powered research briefs${label ? ` for ${label}` : ''}`,
       });
     },
     onError: (error: any) => {
@@ -226,15 +239,22 @@ export default function TradeDeskPage() {
   });
 
   const generateHybridIdeas = useMutation({
-    mutationFn: async () => {
-      return await apiRequest('POST', '/api/hybrid/generate-ideas', {});
+    mutationFn: async (timeframe?: TimeframeBucket) => {
+      return await apiRequest('POST', '/api/hybrid/generate-ideas', { 
+        timeframe: timeframe || 'all',
+        holdingPeriod: timeframe === 'today_tomorrow' ? 'day' : 
+                       timeframe === 'few_days' ? 'swing' : 
+                       timeframe === 'next_week' ? 'week-ending' : 
+                       timeframe === 'next_month' ? 'position' : undefined
+      });
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
+      const label = activeTimeframe !== 'all' ? TIMEFRAME_LABELS[activeTimeframe] : '';
       toast({
         title: "Hybrid Research Generated",
-        description: `Generated ${data.count || 0} new hybrid (AI+Quant) research briefs`,
+        description: `Generated ${data.count || 0} new hybrid (AI+Quant) research briefs${label ? ` for ${label}` : ''}`,
       });
     },
     onError: (error: any) => {
@@ -247,15 +267,22 @@ export default function TradeDeskPage() {
   });
 
   const generateNewsIdeas = useMutation({
-    mutationFn: async () => {
-      return await apiRequest('POST', '/api/news/generate-ideas', {});
+    mutationFn: async (timeframe?: TimeframeBucket) => {
+      return await apiRequest('POST', '/api/news/generate-ideas', { 
+        timeframe: timeframe || 'all',
+        holdingPeriod: timeframe === 'today_tomorrow' ? 'day' : 
+                       timeframe === 'few_days' ? 'swing' : 
+                       timeframe === 'next_week' ? 'week-ending' : 
+                       timeframe === 'next_month' ? 'position' : undefined
+      });
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
+      const label = activeTimeframe !== 'all' ? TIMEFRAME_LABELS[activeTimeframe] : '';
       toast({
         title: "News Research Generated",
-        description: `Generated ${data.count || 0} news-driven research briefs`,
+        description: `Generated ${data.count || 0} news-driven research briefs${label ? ` for ${label}` : ''}`,
       });
     },
     onError: (error: any) => {
@@ -645,9 +672,16 @@ export default function TradeDeskPage() {
               </Button>
             </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
+            {/* Show selected timeframe at top if not 'all' */}
+            {activeTimeframe !== 'all' && (
+              <div className="px-2 py-1.5 text-xs text-cyan-400 border-b border-border/50 mb-1">
+                Generating for: {TIMEFRAME_LABELS[activeTimeframe]}
+              </div>
+            )}
+            
             {/* Recommended - Best for most users */}
             <DropdownMenuItem
-              onClick={() => generateHybridIdeas.mutate()}
+              onClick={() => generateHybridIdeas.mutate(activeTimeframe)}
               disabled={generateHybridIdeas.isPending}
               data-testid="menu-generate-hybrid"
               className="font-medium"
@@ -662,7 +696,7 @@ export default function TradeDeskPage() {
             {/* Individual Engines */}
             <div className="px-2 py-1.5 text-xs text-muted-foreground">By Strategy</div>
             <DropdownMenuItem
-              onClick={() => generateQuantIdeas.mutate()}
+              onClick={() => generateQuantIdeas.mutate(activeTimeframe)}
               disabled={generateQuantIdeas.isPending}
               data-testid="menu-generate-quant"
             >
@@ -670,7 +704,7 @@ export default function TradeDeskPage() {
               Quant Signals
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => generateAIIdeas.mutate()}
+              onClick={() => generateAIIdeas.mutate(activeTimeframe)}
               disabled={generateAIIdeas.isPending}
               data-testid="menu-generate-ai"
             >
@@ -678,7 +712,7 @@ export default function TradeDeskPage() {
               AI Analysis
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => generateNewsIdeas.mutate()}
+              onClick={() => generateNewsIdeas.mutate(activeTimeframe)}
               disabled={generateNewsIdeas.isPending}
               data-testid="menu-generate-news"
             >
