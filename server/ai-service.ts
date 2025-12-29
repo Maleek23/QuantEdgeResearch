@@ -984,7 +984,7 @@ Base your target on the NEAREST visible resistance level, not aspirational price
       model: "gemini-2.5-flash",
       config: {
         systemInstruction: systemPrompt,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 8192, // Increased to prevent truncation
       },
       contents: [
         {
@@ -1027,7 +1027,80 @@ Base your target on the NEAREST visible resistance level, not aspirational price
     // Final cleanup - remove any leading/trailing backticks
     jsonStr = jsonStr.replace(/^`+/, '').replace(/`+$/, '').trim();
     
-    const parsed = JSON.parse(jsonStr) as ChartAnalysisResult;
+    // Strategy 4: Repair truncated JSON (common with long analysis text)
+    // Try to detect and fix incomplete JSON
+    let parsed: ChartAnalysisResult;
+    try {
+      parsed = JSON.parse(jsonStr) as ChartAnalysisResult;
+    } catch (parseError) {
+      // Try to repair truncated JSON
+      logger.info("Attempting to repair truncated JSON response...");
+      
+      // Count braces to see if we need to close them
+      const openBraces = (jsonStr.match(/\{/g) || []).length;
+      const closeBraces = (jsonStr.match(/\}/g) || []).length;
+      const openBrackets = (jsonStr.match(/\[/g) || []).length;
+      const closeBrackets = (jsonStr.match(/\]/g) || []).length;
+      
+      let repairedJson = jsonStr;
+      
+      // If truncated mid-string, close the string
+      const lastQuote = repairedJson.lastIndexOf('"');
+      const colonAfterQuote = repairedJson.indexOf(':', lastQuote);
+      if (colonAfterQuote === -1 && lastQuote > 0) {
+        // We're in the middle of a value string, close it
+        repairedJson = repairedJson + '"';
+      }
+      
+      // Add missing closing brackets
+      for (let i = 0; i < openBrackets - closeBrackets; i++) {
+        repairedJson += ']';
+      }
+      
+      // Add missing closing braces
+      for (let i = 0; i < openBraces - closeBraces; i++) {
+        repairedJson += '}';
+      }
+      
+      try {
+        parsed = JSON.parse(repairedJson) as ChartAnalysisResult;
+        logger.info("✅ Successfully repaired truncated JSON");
+      } catch (repairError) {
+        // Last resort: extract key fields using regex
+        logger.info("Regex extraction fallback for critical fields...");
+        const patternMatch = content.match(/"pattern"\s*:\s*"([^"]+)"/);
+        const directionMatch = content.match(/"direction"\s*:\s*"([^"]+)"/);
+        const entryMatch = content.match(/"entry(?:Price)?"\s*:\s*([\d.]+)/);
+        const targetMatch = content.match(/"target(?:Price)?"\s*:\s*([\d.]+)/);
+        const stopMatch = content.match(/"stop(?:Loss)?"\s*:\s*([\d.]+)/);
+        const confidenceMatch = content.match(/"confidence"\s*:\s*(\d+)/);
+        const sentimentMatch = content.match(/"sentiment"\s*:\s*"([^"]+)"/);
+        
+        if (patternMatch && entryMatch) {
+          const entryPrice = parseFloat(entryMatch[1]);
+          const targetPrice = targetMatch ? parseFloat(targetMatch[1]) : entryPrice * 1.02;
+          const stopPrice = stopMatch ? parseFloat(stopMatch[1]) : entryPrice * 0.98;
+          const riskReward = Math.abs(targetPrice - entryPrice) / Math.abs(entryPrice - stopPrice);
+          
+          parsed = {
+            patterns: [patternMatch[1]],
+            supportLevels: [stopPrice],
+            resistanceLevels: [targetPrice],
+            entryPoint: entryPrice,
+            targetPrice: targetPrice,
+            stopLoss: stopPrice,
+            riskRewardRatio: Math.round(riskReward * 10) / 10,
+            confidence: confidenceMatch ? parseInt(confidenceMatch[1]) : 60,
+            sentiment: (sentimentMatch?.[1] as 'bullish' | 'bearish' | 'neutral') || 'neutral',
+            analysis: "Analysis was truncated. Key pattern detected: " + patternMatch[1],
+            timeframe: 'unknown'
+          };
+          logger.info("✅ Extracted key fields via regex fallback");
+        } else {
+          throw parseError; // Re-throw original error
+        }
+      }
+    }
     
     logger.info("✅ Gemini chart analysis complete");
     return parsed;
