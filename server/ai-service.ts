@@ -1005,19 +1005,28 @@ Base your target on the NEAREST visible resistance level, not aspirational price
     const content = geminiResponse.text || '{}';
     // More robust JSON extraction - handle various markdown formats
     let jsonStr = content;
-    // Try to extract JSON from markdown code blocks (various formats)
-    const markdownMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (markdownMatch) {
+    
+    // Try multiple extraction strategies
+    // Strategy 1: Extract from ```json ... ``` blocks (with or without closing)
+    const markdownMatch = content.match(/```(?:json)?\s*([\s\S]*?)(?:```|$)/);
+    if (markdownMatch && markdownMatch[1].includes('{')) {
       jsonStr = markdownMatch[1].trim();
-    } else {
-      // Try to find first complete JSON object
+    }
+    
+    // Strategy 2: Find first complete JSON object if still has backticks
+    if (jsonStr.includes('`')) {
       const jsonObjectMatch = content.match(/\{[\s\S]*\}/);
       if (jsonObjectMatch) {
         jsonStr = jsonObjectMatch[0];
       }
     }
-    // Clean up any remaining issues
-    jsonStr = jsonStr.trim();
+    
+    // Strategy 3: Clean any remaining markdown artifacts
+    jsonStr = jsonStr.replace(/^```json\s*/i, '').replace(/```\s*$/g, '').trim();
+    
+    // Final cleanup - remove any leading/trailing backticks
+    jsonStr = jsonStr.replace(/^`+/, '').replace(/`+$/, '').trim();
+    
     const parsed = JSON.parse(jsonStr) as ChartAnalysisResult;
     
     logger.info("✅ Gemini chart analysis complete");
@@ -1058,9 +1067,9 @@ Base your target on the NEAREST visible resistance level, not aspirational price
     } catch (openaiError: any) {
       logger.info("OpenAI chart analysis failed, trying Claude...", openaiError);
       
-      // Fallback to Claude (claude-sonnet with vision)
+      // Fallback to Claude/Anthropic (claude-sonnet with vision)
       try {
-        const claudeResponse = await getClaude().messages.create({
+        const claudeResponse = await getAnthropic().messages.create({
           model: "claude-sonnet-4-20250514",
           max_tokens: 4096,
           system: systemPrompt,
