@@ -927,87 +927,33 @@ export default function ChartAnalysis() {
                 ))}
               </div>
 
-              {/* Asset Type */}
-              <div className="space-y-2 pt-2 border-t border-border/50">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-medium">Trade Type</Label>
-                </div>
-                
-                {/* AI Suggestion Banner - shows after analysis */}
-                {aiSuggestion && (
-                  <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-3 space-y-1">
+              {/* AI Trade Suggestion - shows after analysis */}
+              {aiSuggestion && (
+                <div className="space-y-3 pt-2 border-t border-border/50">
+                  <div className={`rounded-lg p-4 space-y-2 ${
+                    aiSuggestion.assetType === 'option' 
+                      ? aiSuggestion.optionType === 'call'
+                        ? 'bg-green-500/10 border border-green-500/30'
+                        : 'bg-red-500/10 border border-red-500/30'
+                      : 'bg-cyan-500/10 border border-cyan-500/30'
+                  }`}>
                     <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-cyan-400" />
-                      <span className="text-sm font-medium text-cyan-400">
-                        AI Suggests: {aiSuggestion.assetType === 'option' 
-                          ? `${aiSuggestion.optionType.toUpperCase()} Options` 
-                          : 'Shares'}
+                      <Sparkles className="h-5 w-5 text-cyan-400" />
+                      <span className={`text-lg font-bold ${
+                        aiSuggestion.assetType === 'option'
+                          ? aiSuggestion.optionType === 'call' ? 'text-green-400' : 'text-red-400'
+                          : 'text-cyan-400'
+                      }`}>
+                        {aiSuggestion.assetType === 'option' 
+                          ? `${aiSuggestion.optionType.toUpperCase()} Option` 
+                          : 'Buy Shares'}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground pl-6">{aiSuggestion.rationale}</p>
+                    <p className="text-sm text-muted-foreground">{aiSuggestion.rationale}</p>
                   </div>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    className={`flex-1 rounded-lg px-3 py-2 text-xs cursor-pointer transition-colors flex items-center justify-center gap-2 ${
-                      assetType === "stock" 
-                        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' 
-                        : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
-                    }`}
-                    onClick={() => setAssetType("stock")}
-                    data-testid="chip-asset-stock"
-                  >
-                    <TrendingUp className="h-4 w-4" /> Shares
-                  </button>
-                  <button
-                    type="button"
-                    className={`flex-1 rounded-lg px-3 py-2 text-xs cursor-pointer transition-colors flex items-center justify-center gap-2 ${
-                      assetType === "option" 
-                        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' 
-                        : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
-                    }`}
-                    onClick={() => setAssetType("option")}
-                    data-testid="chip-asset-option"
-                  >
-                    <Target className="h-4 w-4" /> Options
-                  </button>
-                </div>
-                
-                {assetType === "option" && (
-                  <div className="space-y-3 pt-2">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        className={`flex-1 rounded px-2 py-1.5 text-xs cursor-pointer transition-colors ${
-                          optionType === "call" 
-                            ? 'bg-green-500/20 text-green-400 border border-green-500/50' 
-                            : 'bg-muted/30 text-muted-foreground'
-                        }`}
-                        onClick={() => setOptionType("call")}
-                        data-testid="chip-option-call"
-                      >
-                        CALL
-                      </button>
-                      <button
-                        type="button"
-                        className={`flex-1 rounded px-2 py-1.5 text-xs cursor-pointer transition-colors ${
-                          optionType === "put" 
-                            ? 'bg-red-500/20 text-red-400 border border-red-500/50' 
-                            : 'bg-muted/30 text-muted-foreground'
-                        }`}
-                        onClick={() => setOptionType("put")}
-                        data-testid="chip-option-put"
-                      >
-                        PUT
-                      </button>
-                    </div>
-                    {analysisResult && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Sparkles className="h-3 w-3 text-cyan-400" />
-                        AI suggests {analysisResult.sentiment === 'bullish' ? 'CALL' : analysisResult.sentiment === 'bearish' ? 'PUT' : 'reviewing the chart'}
-                      </p>
-                    )}
+                  
+                  {/* Only show strike/expiry inputs if options suggested */}
+                  {aiSuggestion.assetType === 'option' && (
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
                         <Label htmlFor="strike" className="text-xs text-muted-foreground">Strike Price</Label>
@@ -1033,9 +979,9 @@ export default function ChartAnalysis() {
                         />
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
 
               {/* Context */}
               <div className="space-y-1.5">
