@@ -62,6 +62,15 @@ export type VolatilityRegime = 'low' | 'normal' | 'high' | 'extreme';
 // Session Phase - Intraday timing classification
 export type SessionPhase = 'opening' | 'mid-day' | 'closing' | 'overnight';
 
+// Research Horizon - Time frame categorization for educational research
+export type ResearchHorizon = 'intraday' | 'short_swing' | 'multi_week' | 'thematic_long';
+
+// Risk Profile - Risk categorization for speculative plays
+export type RiskProfile = 'conservative' | 'moderate' | 'aggressive' | 'speculative';
+
+// Sector Focus - Thematic sector categorization
+export type SectorFocus = 'quantum_computing' | 'nuclear_fusion' | 'healthcare' | 'ai_ml' | 'space' | 'clean_energy' | 'crypto' | 'fintech' | 'other';
+
 // Trade Idea
 export const tradeIdeas = pgTable("trade_ideas", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -159,6 +168,11 @@ export const tradeIdeas = pgTable("trade_ideas", {
   
   // Lotto Mode - High-risk far-OTM options ($20-70 entry) with 20x potential
   isLottoPlay: boolean("is_lotto_play").default(false), // True for $20-70 options with delta <0.30 (far OTM)
+  
+  // Research Categorization - For educational framing and filtering
+  researchHorizon: text("research_horizon").$type<ResearchHorizon>().default('intraday'), // Time frame: intraday, short_swing, multi_week, thematic_long
+  riskProfile: text("risk_profile").$type<RiskProfile>().default('moderate'), // Risk level: conservative, moderate, aggressive, speculative
+  sectorFocus: text("sector_focus").$type<SectorFocus>(), // Thematic sector: quantum_computing, nuclear_fusion, healthcare, ai_ml, etc.
 });
 
 // Ticker Data Types
