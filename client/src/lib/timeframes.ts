@@ -33,6 +33,19 @@ export function classifyTimeframe(idea: TradeIdea): TimeframeBucket {
   
   const holdingPeriod = idea.holdingPeriod || 'day';
   
+  // For OPTIONS: Use expiryDate (contract expiration) as primary classifier
+  // This ensures LEAPS show in "Next Month+" not "Today/Tomorrow"
+  if (idea.assetType === 'option' && idea.expiryDate) {
+    try {
+      const expiryDate = parseISO(idea.expiryDate);
+      const daysUntilExpiry = differenceInDays(expiryDate, today);
+      return classifyByDays(daysUntilExpiry);
+    } catch {
+      // Fall through to other methods
+    }
+  }
+  
+  // For non-options: Use exitBy (target exit time)
   if (idea.exitBy) {
     try {
       const exitDate = parseISO(idea.exitBy);
@@ -42,6 +55,7 @@ export function classifyTimeframe(idea: TradeIdea): TimeframeBucket {
     }
   }
   
+  // Fallback: use expiryDate for non-options too
   if (idea.expiryDate) {
     try {
       const expiryDate = parseISO(idea.expiryDate);

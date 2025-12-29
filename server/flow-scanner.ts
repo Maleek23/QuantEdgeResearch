@@ -880,13 +880,17 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
 
   const sectorFocus = detectSectorFocus(ticker);
   const riskProfile = detectRiskProfile(ticker, entryPrice, isLotto, 'option');
-  const researchHorizon = detectResearchHorizon('day', daysToExpiry);
+  
+  // Derive holdingPeriod from days to expiry - NOT hardcoded 'day'
+  const derivedHoldingPeriod = daysToExpiry <= 2 ? 'day' : 
+                               daysToExpiry <= 14 ? 'swing' : 'position';
+  const researchHorizon = detectResearchHorizon(derivedHoldingPeriod, daysToExpiry);
   
   return {
     symbol: ticker,
     assetType: 'option',  // ✅ FIXED: Generate options, not stocks
     direction,
-    holdingPeriod: 'day',
+    holdingPeriod: derivedHoldingPeriod,
     entryPrice,
     targetPrice,
     stopLoss,
