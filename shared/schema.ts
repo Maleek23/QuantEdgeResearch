@@ -938,3 +938,56 @@ export const engineHealthAlerts = pgTable("engine_health_alerts", {
 export const insertEngineHealthAlertSchema = createInsertSchema(engineHealthAlerts).omit({ id: true, createdAt: true });
 export type InsertEngineHealthAlert = z.infer<typeof insertEngineHealthAlertSchema>;
 export type EngineHealthAlert = typeof engineHealthAlerts.$inferSelect;
+
+// ============================================================================
+// TRADE AUDIT TRAIL - Price Evidence & Outcome Verification
+// ============================================================================
+
+// Price Snapshot Event Type
+export type PriceSnapshotEventType = 
+  | 'idea_published'      // When trade idea was created
+  | 'entry_window_open'   // Entry window started
+  | 'entry_window_closed' // Entry window ended
+  | 'validation_check'    // Periodic validation check
+  | 'target_hit'          // Price reached target
+  | 'stop_hit'            // Price hit stop loss
+  | 'expired'             // Trade expired without hitting target/stop
+  | 'manual_close';       // User manually closed
+
+// Trade Price Snapshots - Capture market evidence at key moments
+export const tradePriceSnapshots = pgTable("trade_price_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tradeIdeaId: varchar("trade_idea_id").notNull(), // Link to trade_ideas.id
+  
+  // Event info
+  eventType: text("event_type").$type<PriceSnapshotEventType>().notNull(),
+  eventTimestamp: text("event_timestamp").notNull(), // ISO timestamp
+  
+  // Price data captured at this moment
+  currentPrice: real("current_price").notNull(), // Underlying or option price
+  bidPrice: real("bid_price"), // For options
+  askPrice: real("ask_price"), // For options
+  lastPrice: real("last_price"), // Last traded price
+  
+  // Distance from targets
+  distanceToTargetPercent: real("distance_to_target_percent"), // How far from target
+  distanceToStopPercent: real("distance_to_stop_percent"), // How far from stop
+  pnlAtSnapshot: real("pnl_at_snapshot"), // Unrealized P&L at this point
+  
+  // For options - track greeks if available
+  deltaAtSnapshot: real("delta_at_snapshot"),
+  ivAtSnapshot: real("iv_at_snapshot"),
+  
+  // Data source info
+  dataSource: text("data_source"), // 'tradier', 'yahoo', 'coingecko'
+  validatorVersion: text("validator_version"), // Version of validation code
+  
+  // Raw quote data for audit purposes
+  rawQuoteData: jsonb("raw_quote_data"), // Full quote response
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTradePriceSnapshotSchema = createInsertSchema(tradePriceSnapshots).omit({ id: true, createdAt: true });
+export type InsertTradePriceSnapshot = z.infer<typeof insertTradePriceSnapshotSchema>;
+export type TradePriceSnapshot = typeof tradePriceSnapshots.$inferSelect;

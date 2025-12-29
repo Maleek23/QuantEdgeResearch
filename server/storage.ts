@@ -60,6 +60,8 @@ import type {
   InsertEngineHealthAlert,
   EngineHealthAlert,
   EngineSource,
+  InsertTradePriceSnapshot,
+  TradePriceSnapshot,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, sql as drizzleSql } from "drizzle-orm";
@@ -88,6 +90,7 @@ import {
   tradeInputSnapshots,
   engineDailyMetrics,
   engineHealthAlerts,
+  tradePriceSnapshots,
 } from "@shared/schema";
 
 export interface ChatMessage {
@@ -299,6 +302,14 @@ export interface IStorage {
   saveEngineHealthAlert(alert: InsertEngineHealthAlert): Promise<EngineHealthAlert>;
   getActiveHealthAlerts(): Promise<EngineHealthAlert[]>;
   acknowledgeHealthAlert(id: string, userId: string): Promise<void>;
+
+  // Trade Audit Trail - Price Snapshots
+  savePriceSnapshot(snapshot: InsertTradePriceSnapshot): Promise<TradePriceSnapshot>;
+  getPriceSnapshots(tradeIdeaId: string): Promise<TradePriceSnapshot[]>;
+  getTradeAuditTrail(tradeIdeaId: string): Promise<{
+    tradeIdea: TradeIdea | null;
+    priceSnapshots: TradePriceSnapshot[];
+  }>;
 }
 
 export class MemStorage implements IStorage {
@@ -1596,6 +1607,21 @@ export class MemStorage implements IStorage {
 
   async acknowledgeHealthAlert(_id: string, _userId: string): Promise<void> {
     throw new Error("Telemetry not supported in MemStorage");
+  }
+
+  async savePriceSnapshot(_snapshot: InsertTradePriceSnapshot): Promise<TradePriceSnapshot> {
+    throw new Error("Audit trail not supported in MemStorage");
+  }
+
+  async getPriceSnapshots(_tradeIdeaId: string): Promise<TradePriceSnapshot[]> {
+    throw new Error("Audit trail not supported in MemStorage");
+  }
+
+  async getTradeAuditTrail(_tradeIdeaId: string): Promise<{
+    tradeIdea: TradeIdea | null;
+    priceSnapshots: TradePriceSnapshot[];
+  }> {
+    throw new Error("Audit trail not supported in MemStorage");
   }
 }
 
@@ -2917,6 +2943,29 @@ export class DatabaseStorage implements IStorage {
         acknowledgedAt: new Date().toISOString(),
       })
       .where(eq(engineHealthAlerts.id, id));
+  }
+
+  // Trade Audit Trail - Price Snapshots
+  async savePriceSnapshot(snapshot: InsertTradePriceSnapshot): Promise<TradePriceSnapshot> {
+    const [created] = await db.insert(tradePriceSnapshots).values(snapshot as any).returning();
+    return created;
+  }
+
+  async getPriceSnapshots(tradeIdeaId: string): Promise<TradePriceSnapshot[]> {
+    return await db.select().from(tradePriceSnapshots)
+      .where(eq(tradePriceSnapshots.tradeIdeaId, tradeIdeaId))
+      .orderBy(desc(tradePriceSnapshots.createdAt));
+  }
+
+  async getTradeAuditTrail(tradeIdeaId: string): Promise<{
+    tradeIdea: TradeIdea | null;
+    priceSnapshots: TradePriceSnapshot[];
+  }> {
+    const [tradeIdea, priceSnapshots] = await Promise.all([
+      this.getTradeIdeaById(tradeIdeaId),
+      this.getPriceSnapshots(tradeIdeaId),
+    ]);
+    return { tradeIdea: tradeIdea ?? null, priceSnapshots };
   }
 }
 
