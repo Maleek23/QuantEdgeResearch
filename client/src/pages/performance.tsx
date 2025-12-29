@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, startOfDay, subDays, subMonths, subYears } from 'date-fns';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
@@ -23,15 +23,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ValidationResultsDialog } from "@/components/validation-results-dialog";
-import SymbolLeaderboard from "@/components/symbol-leaderboard";
-import TimeOfDayHeatmap from "@/components/time-of-day-heatmap";
-import EngineTrendsChart from "@/components/engine-trends-chart";
-import ConfidenceCalibration from "@/components/confidence-calibration";
-import StreakTracker from "@/components/streak-tracker";
 import { TierGate } from "@/components/tier-gate";
 import { useAuth } from "@/hooks/useAuth";
 import type { EngineHealthAlert } from "@shared/schema";
 import { ENGINE_LABELS, ENGINE_COLORS, CONFIDENCE_BAND_LABELS } from "@shared/constants";
+
+// Lazy load heavy visualization components for better initial load performance
+const SymbolLeaderboard = lazy(() => import("@/components/symbol-leaderboard"));
+const TimeOfDayHeatmap = lazy(() => import("@/components/time-of-day-heatmap"));
+const EngineTrendsChart = lazy(() => import("@/components/engine-trends-chart"));
+const ConfidenceCalibration = lazy(() => import("@/components/confidence-calibration"));
+const StreakTracker = lazy(() => import("@/components/streak-tracker"));
+
+// Loading fallback for lazy components
+function ChartSkeleton() {
+  return (
+    <div className="h-64 w-full animate-pulse bg-muted/30 rounded-lg flex items-center justify-center">
+      <span className="text-muted-foreground text-sm">Loading chart...</span>
+    </div>
+  );
+}
 
 interface CalibratedStats {
   calibratedWinRate: number;
@@ -1191,7 +1202,9 @@ export default function PerformancePage() {
 
       {/* Engine Performance Trends - Moved Up for Visibility */}
       <div className="glass-card rounded-xl p-6" data-testid="card-engine-trends-section">
-        <EngineTrendsChart />
+        <Suspense fallback={<ChartSkeleton />}>
+          <EngineTrendsChart />
+        </Suspense>
       </div>
 
       {/* Trade Outcomes Summary */}
@@ -1219,7 +1232,9 @@ export default function PerformancePage() {
           <div className="space-y-6" data-testid="section-advanced-analytics">
             <div className="glass-card rounded-xl p-6">
               <h2 className="text-xl font-semibold mb-4 text-cyan-400">Current Performance Streak</h2>
-              <StreakTracker selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+              <Suspense fallback={<ChartSkeleton />}>
+                <StreakTracker selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+              </Suspense>
             </div>
             
             <div className="glass-card rounded-xl p-6">
@@ -1227,7 +1242,9 @@ export default function PerformancePage() {
               <p className="text-sm text-muted-foreground mb-4">
                 {selectedEngine === 'all' ? 'All engines' : `${selectedEngine.toUpperCase()} engine`} - Top/worst performing symbols
               </p>
-              <SymbolLeaderboard selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+              <Suspense fallback={<ChartSkeleton />}>
+                <SymbolLeaderboard selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+              </Suspense>
             </div>
             
             <div className="glass-card rounded-xl p-6">
@@ -1235,7 +1252,9 @@ export default function PerformancePage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Win rate by hour (9 AM - 4 PM ET) {selectedEngine !== 'all' && `for ${selectedEngine.toUpperCase()} engine`}
               </p>
-              <TimeOfDayHeatmap selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+              <Suspense fallback={<ChartSkeleton />}>
+                <TimeOfDayHeatmap selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+              </Suspense>
             </div>
             
             <div className="glass-card rounded-xl p-6">
@@ -1243,7 +1262,9 @@ export default function PerformancePage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Actual win rates by confidence score band {selectedEngine !== 'all' && `for ${selectedEngine.toUpperCase()} engine`}
               </p>
-              <ConfidenceCalibration selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+              <Suspense fallback={<ChartSkeleton />}>
+                <ConfidenceCalibration selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+              </Suspense>
             </div>
           </div>
         </TierGate>
