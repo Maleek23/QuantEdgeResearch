@@ -247,20 +247,75 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
     // (We're BUYING the option, so stop triggers if premium drops 50%)
     const stopLoss = entryPrice * 0.5;
 
+    // Determine option type label based on DTE
+    const optionTypeLabel = candidate.daysToExpiry <= 7 ? 'weekly' : candidate.daysToExpiry <= 30 ? 'monthly' : candidate.daysToExpiry <= 365 ? 'long-dated' : 'LEAPS';
+    const holdingTypeLabel = candidate.daysToExpiry <= 7 ? 'Day trade' : candidate.daysToExpiry <= 90 ? 'Swing trade' : 'Position trade';
+    
     // Generate analysis
-    const analysis = `🎰 LOTTO PLAY: ${ticker} ${candidate.optionType.toUpperCase()} $${candidate.strike} expiring ${formatInTimeZone(new Date(candidate.expiration), 'America/Chicago', 'MMM dd')} - Far OTM play (Δ ${Math.abs(candidate.delta).toFixed(2)}) targeting 20x return. Entry: $${entryPrice.toFixed(2)}, Target: $${targetPrice.toFixed(2)}. HIGH RISK: Weekly option with ${candidate.daysToExpiry}d until expiry. Sized for small account growth ($0.20-$2.00 entry range).`;
+    const analysis = `🎰 LOTTO PLAY: ${ticker} ${candidate.optionType.toUpperCase()} $${candidate.strike} expiring ${formatInTimeZone(new Date(candidate.expiration), 'America/Chicago', 'MMM dd, yyyy')} - Far OTM play (Δ ${Math.abs(candidate.delta).toFixed(2)}) targeting 20x return. Entry: $${entryPrice.toFixed(2)}, Target: $${targetPrice.toFixed(2)}. HIGH RISK: ${optionTypeLabel} option with ${candidate.daysToExpiry}d until expiry. ${holdingTypeLabel} - sized for small account growth ($0.20-$2.00 entry range).`;
 
-    // Get entry/exit windows (same day - lotto plays are intraday)
+    // Get entry/exit windows based on DTE (days to expiry)
     const now = new Date();
-    const entryWindow = formatInTimeZone(now, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX");
-    const marketClose = new Date(now);
-    marketClose.setHours(15, 30, 0, 0); // 3:30 PM CT
-    const exitBy = formatInTimeZone(marketClose, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX");
+    const dte = candidate.daysToExpiry;
+    
+    // Entry window scales with DTE:
+    // - Short-dated (0-7 DTE): 1 hour entry window (act fast, theta decay)
+    // - Medium-dated (8-30 DTE): 4 hours entry window  
+    // - Long-dated (31-90 DTE): 24 hours entry window
+    // - LEAPS (91+ DTE): 48 hours entry window (more time to enter position trades)
+    let entryWindowMinutes: number;
+    if (dte <= 7) {
+      entryWindowMinutes = 60; // 1 hour
+    } else if (dte <= 30) {
+      entryWindowMinutes = 240; // 4 hours
+    } else if (dte <= 90) {
+      entryWindowMinutes = 1440; // 24 hours (1 day)
+    } else {
+      entryWindowMinutes = 2880; // 48 hours (2 days)
+    }
+    
+    const entryValidUntilDate = new Date(now.getTime() + entryWindowMinutes * 60 * 1000);
+    const entryWindow = formatInTimeZone(entryValidUntilDate, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX");
+    
+    // Exit window scales with DTE - give position time to work:
+    // - Weekly (0-7 DTE): Exit same day/next day
+    // - Monthly (8-30 DTE): Exit within 5-7 days (swing trade)
+    // - Quarterly (31-90 DTE): Exit within 2-3 weeks
+    // - LEAPS (91-365 DTE): Exit within 30-45 days
+    // - Long LEAPS (365+ DTE): Exit within 60-90 days
+    let exitWindowDays: number;
+    let holdingPeriod: 'day' | 'swing' | 'position';
+    
+    if (dte <= 7) {
+      exitWindowDays = 1;
+      holdingPeriod = 'day';
+    } else if (dte <= 30) {
+      exitWindowDays = Math.min(7, Math.floor(dte * 0.5)); // 50% of DTE, max 7 days
+      holdingPeriod = 'swing';
+    } else if (dte <= 90) {
+      exitWindowDays = Math.min(21, Math.floor(dte * 0.3)); // 30% of DTE, max 21 days
+      holdingPeriod = 'swing';
+    } else if (dte <= 365) {
+      exitWindowDays = Math.min(45, Math.floor(dte * 0.15)); // 15% of DTE, max 45 days
+      holdingPeriod = 'position';
+    } else {
+      // LEAPS (1+ year out)
+      exitWindowDays = Math.min(90, Math.floor(dte * 0.1)); // 10% of DTE, max 90 days
+      holdingPeriod = 'position';
+    }
+    
+    // Calculate exit time (market close on that day, 3:30 PM CT)
+    const exitDate = new Date(now);
+    exitDate.setDate(exitDate.getDate() + exitWindowDays);
+    exitDate.setHours(15, 30, 0, 0); // 3:30 PM CT
+    const exitBy = formatInTimeZone(exitDate, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX");
+    
+    logger.info(`🎰 [LOTTO] ${ticker} TIMING: DTE=${dte}d → Entry window ${entryWindowMinutes}min, Exit in ${exitWindowDays}d (${holdingPeriod} trade)`);
 
     // Create trade idea
     const sectorFocus = detectSectorFocus(ticker);
     const riskProfile = detectRiskProfile(ticker, entryPrice, true, 'option'); // Always speculative for lotto
-    const researchHorizon = detectResearchHorizon('day', candidate.daysToExpiry);
+    const researchHorizon = detectResearchHorizon(holdingPeriod, candidate.daysToExpiry);
     
     const idea: InsertTradeIdea = {
       symbol: ticker,
@@ -271,10 +326,10 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
       stopLoss,
       riskRewardRatio,
       confidenceScore: 40, // Lower confidence for lotto plays (high risk)
-      catalyst: `🎰 Lotto Play: Far OTM weekly option targeting 20x return`,
+      catalyst: `🎰 Lotto Play: Far OTM ${dte <= 7 ? 'weekly' : dte <= 30 ? 'monthly' : 'LEAPS'} option targeting 20x return`,
       analysis,
-      sessionContext: `Market hours - Lotto play on ${ticker}`,
-      holdingPeriod: 'day' as const,
+      sessionContext: `Market hours - Lotto play on ${ticker} (${holdingPeriod} trade)`,
+      holdingPeriod: holdingPeriod as const,
       source: 'lotto',
       strikePrice: candidate.strike,
       optionType: candidate.optionType,
