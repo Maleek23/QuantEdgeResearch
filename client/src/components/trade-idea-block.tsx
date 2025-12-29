@@ -10,7 +10,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
 import { formatInUserTZ, formatTimeUntilExpiry, formatDateOnly } from "@/lib/timezone";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles, Newspaper, HelpCircle, Info, Database, TrendingUpIcon, Zap, UserPlus, AlertTriangle } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles, Newspaper, HelpCircle, Info, Database, TrendingUpIcon, Zap, UserPlus, AlertTriangle, FileSearch } from "lucide-react";
+import { Link } from "wouter";
 import { formatInTimeZone } from "date-fns-tz";
 import { parseISO } from "date-fns";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -737,6 +738,19 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 Chart
               </Button>
             )}
+            
+            <Link href={`/trade-ideas/${idea.id}/audit`}>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="hover-elevate"
+                onClick={(e) => e.stopPropagation()}
+                data-testid={`button-audit-${idea.id}`}
+              >
+                <FileSearch className="h-3.5 w-3.5 mr-1.5" />
+                Audit
+              </Button>
+            </Link>
           </div>
         </div>
       </CollapsibleContent>
