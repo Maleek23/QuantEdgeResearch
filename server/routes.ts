@@ -218,15 +218,16 @@ function calculateAIConfidence(
   source: string = 'ai'
 ): number {
   // 🎯 SOURCE-BASED BASE CONFIDENCE (calibrated from historical data)
-  // AI engine: Low base (poor historical accuracy)
-  // Hybrid: Medium base (mixed results)
-  // Flow: High base (proven 96.6% on high confidence)
+  // AI: 76.8% overall win rate - but high confidence trades underperform
+  // Hybrid: 61.9% overall win rate - solid performance
+  // Quant: 53.7% overall win rate - moderate
+  // Flow: 81.9% overall, 96.6% on high confidence - excellent
   let confidence: number;
   
   if (source === 'ai') {
-    confidence = 25; // AI has poor track record - start low
+    confidence = 35; // AI overall good, but high conf trades underperform
   } else if (source === 'hybrid') {
-    confidence = 30; // Hybrid has mixed results
+    confidence = 45; // Hybrid has solid 61.9% win rate
   } else if (source === 'flow') {
     confidence = 55; // Flow has excellent historical accuracy
   } else {
