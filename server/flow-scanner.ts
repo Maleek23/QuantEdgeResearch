@@ -383,6 +383,108 @@ async function detectUnusualOptions(ticker: string): Promise<UnusualOption[]> {
   }
 }
 
+// 🎯 MULTI-FACTOR CONFIDENCE SCORING
+// Weighted composite of multiple signals for more meaningful scores
+interface ConfidenceBreakdown {
+  volumeScore: number;      // Weight: 25% - Volume relative to threshold
+  premiumScore: number;     // Weight: 20% - Premium magnitude (institutional activity)
+  ivScore: number;          // Weight: 15% - Implied volatility (unusual activity)
+  breadthScore: number;     // Weight: 15% - Number of unusual contracts
+  skewScore: number;        // Weight: 15% - Directional skew strength
+  timingScore: number;      // Weight: 10% - Time of day factor
+  total: number;            // Weighted composite (40-90%)
+  band: 'A' | 'B+' | 'B' | 'C+' | 'C';  // Quality band
+}
+
+function calculateConfidenceScore(
+  dominantOptions: UnusualOption[],
+  totalPremium: number,
+  callPremium: number,
+  putPremium: number
+): ConfidenceBreakdown {
+  // Helper to clamp scores to 0-100
+  const clamp = (v: number) => Math.max(0, Math.min(100, v));
+  
+  // 1. VOLUME SCORE (25%) - Average volume relative to threshold
+  const totalVolume = dominantOptions.reduce((sum, opt) => sum + opt.volume, 0);
+  const avgVolume = totalVolume / Math.max(1, dominantOptions.length);
+  // Score: 500 contracts = 40%, 1500 = 60%, 3000+ = 80%
+  const volumeScore = clamp(40 + ((avgVolume - VOLUME_THRESHOLD) / 50));
+  
+  // 2. PREMIUM SCORE (20%) - Total premium magnitude with proper scaling
+  // Score: $50k = 40%, $250k = 60%, $500k = 75%, $1M+ = 90%
+  // Minimum $50k required for meaningful score
+  const premiumK = totalPremium / 1000;
+  let premiumScore: number;
+  if (premiumK < 50) {
+    premiumScore = clamp(20 + (premiumK / 50) * 20); // 0-50k: 20-40
+  } else if (premiumK < 250) {
+    premiumScore = clamp(40 + ((premiumK - 50) / 200) * 20); // 50k-250k: 40-60
+  } else if (premiumK < 500) {
+    premiumScore = clamp(60 + ((premiumK - 250) / 250) * 15); // 250k-500k: 60-75
+  } else {
+    premiumScore = clamp(75 + Math.min(15, (premiumK - 500) / 100)); // 500k+: 75-90
+  }
+  
+  // 3. IV SCORE (15%) - Average implied volatility (higher = more unusual)
+  const avgIV = dominantOptions.reduce((sum, opt) => sum + (opt.impliedVol || 0.3), 0) / Math.max(1, dominantOptions.length);
+  // Score: 20% IV = 30%, 50% IV = 60%, 80%+ IV = 85%
+  const ivScore = clamp(30 + avgIV * 70);
+  
+  // 4. BREADTH SCORE (15%) - Number of unusual contracts detected
+  // Score: 1 contract = 30%, 3 = 50%, 5 = 65%, 10+ = 85%
+  const contractCount = dominantOptions.length;
+  const breadthScore = clamp(30 + Math.min(55, contractCount * 6));
+  
+  // 5. SKEW SCORE (15%) - Directional conviction (call vs put imbalance)
+  // Score: 50/50 = 30%, 70/30 = 55%, 90/10 = 80%, 100/0 = 90%
+  const totalPremiumBothSides = callPremium + putPremium;
+  const dominantPremium = Math.max(callPremium, putPremium);
+  const skewRatio = totalPremiumBothSides > 0 ? dominantPremium / totalPremiumBothSides : 0.5;
+  // skewRatio ranges from 0.5 (balanced) to 1.0 (one-sided)
+  // Map 0.5-1.0 to 30-90
+  const skewScore = clamp(30 + (skewRatio - 0.5) * 120);
+  
+  // 6. TIMING SCORE (10%) - Time of day factor
+  const now = new Date();
+  const estHour = (now.getUTCHours() - 5 + 24) % 24; // Convert to EST
+  // Score: First 2 hours (9:30-11:30) = 90%, midday = 60%, last hour = 80%
+  let timingScore = 60;
+  if (estHour >= 9 && estHour < 11) timingScore = 90;  // Morning flow (most significant)
+  else if (estHour >= 11 && estHour < 14) timingScore = 60;  // Midday (less significant)
+  else if (estHour >= 14 && estHour < 16) timingScore = 80;  // Afternoon (closing push)
+  
+  // WEIGHTED COMPOSITE (clamped to 35-85% for realistic range)
+  const weighted = 
+    (volumeScore * 0.25) +
+    (premiumScore * 0.20) +
+    (ivScore * 0.15) +
+    (breadthScore * 0.15) +
+    (skewScore * 0.15) +
+    (timingScore * 0.10);
+  
+  const total = Math.max(35, Math.min(85, weighted));
+  
+  // Quality band based on total score (stricter thresholds)
+  let band: 'A' | 'B+' | 'B' | 'C+' | 'C';
+  if (total >= 75) band = 'A';
+  else if (total >= 65) band = 'B+';
+  else if (total >= 55) band = 'B';
+  else if (total >= 45) band = 'C+';
+  else band = 'C';
+  
+  return {
+    volumeScore: Math.round(volumeScore),
+    premiumScore: Math.round(premiumScore),
+    ivScore: Math.round(ivScore),
+    breadthScore: Math.round(breadthScore),
+    skewScore: Math.round(skewScore),
+    timingScore: Math.round(timingScore),
+    total: Math.round(total),
+    band
+  };
+}
+
 // Analyze flow signals from unusual options
 function analyzeFlowSignals(ticker: string, currentPrice: number, unusualOptions: UnusualOption[]): FlowSignal | null {
   if (unusualOptions.length === 0) return null;
@@ -410,11 +512,12 @@ function analyzeFlowSignals(ticker: string, currentPrice: number, unusualOptions
     totalPremium = putPremium;
   }
 
-  // Calculate signal strength (0-100) based on average volume
-  const avgVolume = dominantOptions.reduce((sum, opt) => sum + opt.volume, 0) / dominantOptions.length;
-  const signalStrength = Math.min(100, 50 + ((avgVolume - VOLUME_THRESHOLD) / 100));
+  // 🎯 MULTI-FACTOR CONFIDENCE SCORING
+  const confidence = calculateConfidenceScore(dominantOptions, totalPremium, callPremium, putPremium);
+  const signalStrength = confidence.total;
 
-  logger.info(`📊 [FLOW] ${ticker} FLOW SIGNAL: ${direction.toUpperCase()} - ${dominantOptions.length} unusual ${direction === 'long' ? 'calls' : 'puts'}, $${(totalPremium / 1000000).toFixed(2)}M premium, ${signalStrength.toFixed(0)}% strength`);
+  logger.info(`📊 [FLOW] ${ticker} SIGNAL: ${direction.toUpperCase()} - ${dominantOptions.length} contracts, $${(totalPremium / 1000000).toFixed(2)}M premium`);
+  logger.info(`📊 [FLOW] ${ticker} CONFIDENCE: ${signalStrength}% [${confidence.band}] (Vol:${confidence.volumeScore} Prem:${confidence.premiumScore} IV:${confidence.ivScore} Breadth:${confidence.breadthScore} Skew:${confidence.skewScore} Time:${confidence.timingScore})`);
 
   return {
     ticker,

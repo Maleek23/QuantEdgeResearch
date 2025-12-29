@@ -6,13 +6,14 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Loader2 } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { ScrollParticles } from "@/components/scroll-particles";
+import { cn } from "@/lib/utils";
 
 const Landing = lazy(() => import("@/pages/landing"));
 const Login = lazy(() => import("@/pages/login"));
@@ -194,21 +195,33 @@ function App() {
           <SidebarProvider style={style as React.CSSProperties}>
             <div className="flex h-screen w-full">
               <AppSidebar />
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <AuthHeader />
-                <div className="flex-1 overflow-auto flex flex-col">
-                  <main className="flex-1">
-                    <Router />
-                  </main>
-                  <Footer />
-                </div>
-              </div>
+              <MainContentWrapper />
             </div>
           </SidebarProvider>
           <Toaster />
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
+  );
+}
+
+// Responsive wrapper that adjusts to sidebar state
+function MainContentWrapper() {
+  const { state, isMobile } = useSidebar();
+  const isCollapsed = state === "collapsed";
+  
+  return (
+    <div 
+      className="flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-200"
+    >
+      <AuthHeader />
+      <div className="flex-1 overflow-auto flex flex-col">
+        <main className="flex-1 w-full">
+          <Router />
+        </main>
+        <Footer />
+      </div>
+    </div>
   );
 }
 

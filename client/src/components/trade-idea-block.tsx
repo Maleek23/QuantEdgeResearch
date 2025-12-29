@@ -345,8 +345,42 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
               </div>
             </div>
 
-            {/* Right Side: Confidence Grade + Outcome + Expand Button */}
+            {/* Right Side: Confidence Score + Outcome + Expand Button */}
             <div className="flex items-center gap-2 flex-shrink-0">
+              {/* CONFIDENCE SCORE BADGE - Prominently displayed */}
+              {idea.confidenceScore && idea.confidenceScore > 0 && (
+                <Badge 
+                  variant="outline"
+                  className={cn(
+                    "font-bold text-xs h-6 px-2",
+                    idea.confidenceScore >= 75 ? "bg-green-500/20 text-green-400 border-green-500/50" :
+                    idea.confidenceScore >= 60 ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50" :
+                    idea.confidenceScore >= 50 ? "bg-amber-500/20 text-amber-400 border-amber-500/50" :
+                    "bg-muted/30 text-muted-foreground border-muted"
+                  )}
+                  data-testid={`badge-confidence-${idea.symbol}`}
+                >
+                  {Math.round(idea.confidenceScore)}%
+                </Badge>
+              )}
+
+              {/* Quality Band Badge */}
+              {idea.probabilityBand && (
+                <Badge 
+                  variant="outline"
+                  className={cn(
+                    "font-bold text-[11px] h-5",
+                    idea.probabilityBand === 'A' ? "bg-green-500/20 text-green-400 border-green-500/50" :
+                    idea.probabilityBand === 'B+' ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50" :
+                    idea.probabilityBand === 'B' ? "bg-blue-500/20 text-blue-400 border-blue-500/50" :
+                    "bg-muted/30 text-muted-foreground border-muted"
+                  )}
+                  data-testid={`badge-band-${idea.symbol}`}
+                >
+                  {idea.probabilityBand}
+                </Badge>
+              )}
+              
               {/* Outcome Badge for closed ideas */}
               {idea.outcomeStatus && idea.outcomeStatus !== 'open' && (
                 <Badge 
@@ -479,79 +513,66 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
           )}
 
           {/* ===== PRICE DISPLAY SECTION ===== */}
-          <div className="mb-3 p-4 rounded-lg border-2 bg-gradient-to-br from-card via-card to-muted/5 shadow-sm">
+          <div className="mb-3 p-3 rounded-lg border bg-card/50">
             {currentPrice || idea.assetType === 'option' ? (
-              <div className="space-y-3">
-                {/* Current Price with Change - ENHANCED (or Option Premium Display) */}
-                {idea.assetType === 'option' ? (
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
-                          <Activity className="h-3 w-3" />
-                          ENTRY PREMIUM
-                        </span>
-                        <span className="text-[10px] text-muted-foreground/70 mt-0.5">
-                          Live pricing not yet supported
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-3xl font-bold font-mono text-purple-400" data-testid={`text-entry-premium-${idea.symbol}`}>
-                      {formatCurrency(idea.entryPrice)}
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                          <Activity className={cn("h-3 w-3", priceUpdated && "animate-pulse")} />
-                          LIVE PRICE
-                        </span>
-                        <span className="text-[10px] text-muted-foreground/70 mt-0.5">
-                          Updates every 30s
-                        </span>
-                      </div>
+              <div className="space-y-2">
+                {/* For Stocks: Live Price with Change */}
+                {idea.assetType !== 'option' && currentPrice && (
+                  <div className="flex items-center justify-between pb-2 border-b border-border/50">
+                    <div className="flex items-center gap-2">
+                      <Activity className={cn("h-3 w-3 text-cyan-400", priceUpdated && "animate-pulse")} />
                       <span className={cn(
-                        "text-sm font-bold px-2.5 py-1 rounded-md shadow-sm",
-                        priceChangePercent >= 0 
-                          ? "bg-green-500/30 text-green-300 border border-green-500/50" 
-                          : "bg-red-500/30 text-red-300 border border-red-500/50"
-                      )}>
-                        {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
+                        "text-xl font-bold font-mono transition-all",
+                        priceUpdated && "scale-105",
+                        priceChangePercent >= 0 ? "text-green-400" : "text-red-400"
+                      )} data-testid={`text-current-price-${idea.symbol}`}>
+                        {formatCurrency(currentPrice)}
                       </span>
                     </div>
-                    <div className={cn(
-                      "text-3xl font-bold font-mono text-foreground transition-all duration-300",
-                      priceUpdated && "price-update scale-105",
-                      priceChangePercent >= 0 ? "text-green-400" : "text-red-400"
-                    )} data-testid={`text-current-price-${idea.symbol}`}>
-                      {formatCurrency(currentPrice!)}
-                    </div>
+                    <span className={cn(
+                      "text-xs font-bold px-2 py-0.5 rounded",
+                      priceChangePercent >= 0 
+                        ? "bg-green-500/20 text-green-400" 
+                        : "bg-red-500/20 text-red-400"
+                    )}>
+                      {priceChangePercent >= 0 ? '+' : ''}{formatPercent(priceChangePercent)}
+                    </span>
+                  </div>
+                )}
+
+                {/* Options: Premium indicator */}
+                {idea.assetType === 'option' && (
+                  <div className="flex items-center gap-2 pb-2 border-b border-purple-500/30">
+                    <Badge variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/30 text-[10px]">
+                      PREMIUM
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground">Option prices shown as contract premium</span>
                   </div>
                 )}
 
                 {/* Entry/Target/Stop Grid */}
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/50">
-                  <div>
-                    <div className="text-[10px] text-muted-foreground mb-0.5 uppercase tracking-wider">
-                      {idea.assetType === 'option' ? 'Entry Premium' : 'Entry'}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="text-center p-2 rounded bg-muted/30">
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+                      {idea.assetType === 'option' ? 'Entry $' : 'Entry'}
                     </div>
-                    <div className="text-sm font-semibold font-mono">{formatCurrency(idea.entryPrice)}</div>
+                    <div className="text-sm font-bold font-mono" data-testid={`text-entry-${idea.symbol}`}>
+                      {formatCurrency(idea.entryPrice)}
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-[10px] text-green-400 mb-0.5 uppercase tracking-wider flex items-center gap-0.5">
-                      <TargetIcon className="h-2.5 w-2.5" />
-                      {idea.assetType === 'option' ? 'Target Premium' : 'Target'}
+                  <div className="text-center p-2 rounded bg-green-500/10">
+                    <div className="text-[10px] text-green-400 uppercase tracking-wider mb-1 flex items-center justify-center gap-0.5">
+                      <TargetIcon className="h-2 w-2" />
+                      {idea.assetType === 'option' ? 'Target $' : 'Target'}
                     </div>
-                    <div className="text-sm font-semibold font-mono text-green-400">{formatCurrency(idea.targetPrice)}</div>
+                    <div className="text-sm font-bold font-mono text-green-400">{formatCurrency(idea.targetPrice)}</div>
                   </div>
-                  <div>
-                    <div className="text-[10px] text-red-400 mb-0.5 uppercase tracking-wider flex items-center gap-0.5">
-                      <Shield className="h-2.5 w-2.5" />
-                      {idea.assetType === 'option' ? 'Stop Premium' : 'Stop'}
+                  <div className="text-center p-2 rounded bg-red-500/10">
+                    <div className="text-[10px] text-red-400 uppercase tracking-wider mb-1 flex items-center justify-center gap-0.5">
+                      <Shield className="h-2 w-2" />
+                      {idea.assetType === 'option' ? 'Stop $' : 'Stop'}
                     </div>
-                    <div className="text-sm font-semibold font-mono text-red-400">{formatCurrency(idea.stopLoss)}</div>
+                    <div className="text-sm font-bold font-mono text-red-400">{formatCurrency(idea.stopLoss)}</div>
                   </div>
                 </div>
                 
