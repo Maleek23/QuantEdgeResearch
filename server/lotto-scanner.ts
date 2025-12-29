@@ -2,6 +2,7 @@
 // Actively hunts for cheap far-OTM weekly options with 20x return potential
 
 import type { InsertTradeIdea } from "@shared/schema";
+import { detectSectorFocus, detectRiskProfile, detectResearchHorizon } from './sector-detector';
 import { getTradierQuote, getTradierOptionsChain, getTradierOptionsChainsByDTE } from './tradier-api';
 import { logger } from './logger';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -255,6 +256,10 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
     const exitBy = formatInTimeZone(marketClose, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX");
 
     // Create trade idea
+    const sectorFocus = detectSectorFocus(ticker);
+    const riskProfile = detectRiskProfile(ticker, entryPrice, true, 'option'); // Always speculative for lotto
+    const researchHorizon = detectResearchHorizon('day', candidate.daysToExpiry);
+    
     const idea: InsertTradeIdea = {
       symbol: ticker,
       assetType: 'option' as const,
@@ -275,7 +280,11 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
       entryValidUntil: entryWindow,
       exitBy,
       isLottoPlay: true, // FLAG AS LOTTO PLAY
-      timestamp: formatInTimeZone(now, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX")
+      timestamp: formatInTimeZone(now, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX"),
+      sectorFocus,
+      riskProfile,
+      researchHorizon,
+      liquidityWarning: true, // All lotto plays get liquidity warning
     };
 
     // Basic validation: ensure prices make sense

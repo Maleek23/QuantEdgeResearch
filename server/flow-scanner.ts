@@ -9,6 +9,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { storage } from './storage';
 import { calculateATR } from './technical-indicators';
 import { isLottoCandidate, calculateLottoTargets } from './lotto-detector';
+import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennyStock } from './sector-detector';
 
 // US Market Holidays 2025-2026 (options don't expire on holidays)
 const MARKET_HOLIDAYS = new Set([
@@ -877,6 +878,10 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
     logger.info(`🎰 [FLOW] ${ticker} LOTTO PLAY DETECTED: Entry=$${entryPrice.toFixed(2)}, Delta=${Math.abs(mostActiveOption.greeks?.delta || 0).toFixed(2)}, Target=$${targetPrice.toFixed(2)} (20x potential)`);
   }
 
+  const sectorFocus = detectSectorFocus(ticker);
+  const riskProfile = detectRiskProfile(ticker, entryPrice, isLotto, 'option');
+  const researchHorizon = detectResearchHorizon('day', daysToExpiry);
+  
   return {
     symbol: ticker,
     assetType: 'option',  // ✅ FIXED: Generate options, not stocks
@@ -909,6 +914,11 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
     expiryDate: mostActiveOption.expiration,  // Match schema: expiryDate not expiration
     // 🎰 LOTTO MODE FLAG
     isLottoPlay: isLotto,
+    // 📊 RESEARCH CATEGORIZATION - For filtering and educational framing
+    sectorFocus,
+    riskProfile,
+    researchHorizon,
+    liquidityWarning: isPennyStock(ticker, currentPrice),
   };
 }
 

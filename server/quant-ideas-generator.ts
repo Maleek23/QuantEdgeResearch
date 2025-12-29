@@ -17,6 +17,7 @@ import { logger } from './logger';
 import { shouldBlockSymbol } from './earnings-service';
 import { enrichOptionIdea } from './options-enricher';
 import { validateTradeWithChart, analyzeChart } from './chart-analysis';
+import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennyStock } from './sector-detector';
 
 // v3.1: Simplified timing intelligence (removed complex DB-based timing-intelligence.ts)
 // Timing windows based on proven day-trading patterns
@@ -1315,8 +1316,19 @@ export async function generateQuantIdeas(
       }
     }
     
-    // Add isLottoPlay flag to idea
-    idea = { ...idea, isLottoPlay };
+    // Add isLottoPlay flag and research categorization to idea
+    const sectorFocus = detectSectorFocus(data.symbol);
+    const riskProfile = detectRiskProfile(data.symbol, idea.entryPrice, isLottoPlay, assetType);
+    const researchHorizon = detectResearchHorizon(holdingPeriod);
+    
+    idea = { 
+      ...idea, 
+      isLottoPlay,
+      sectorFocus,
+      riskProfile,
+      researchHorizon,
+      liquidityWarning: isPennyStock(data.symbol, data.currentPrice || idea.entryPrice),
+    };
 
     // Check if we should accept this asset type based on distribution
     if (!shouldAcceptAssetType(assetType)) {
