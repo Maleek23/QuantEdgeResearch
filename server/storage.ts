@@ -1256,13 +1256,22 @@ export class MemStorage implements IStorage {
 
     // Calculate Enhanced Quant-Defensible Metrics
     const wonWithGain = closedIdeas.filter(i => i.outcomeStatus === 'hit_target' && i.percentGain !== null && i.percentGain > 0);
-    const lostWithLoss = closedIdeas.filter(i => i.outcomeStatus === 'hit_stop' && i.percentGain !== null && i.percentGain < 0);
+    const lostWithLoss = closedIdeas.filter(i => i.outcomeStatus === 'hit_stop');
     
     const avgWinSize = wonWithGain.length > 0
       ? wonWithGain.reduce((sum, i) => sum + Math.abs(i.percentGain!), 0) / wonWithGain.length
       : 0;
+    
+    // STANDARD LOSS CALCULATION: Use stop distance (entry to stop), not actual percentGain
+    // This ensures consistent risk metrics based on defined stop levels
     const avgLossSize = lostWithLoss.length > 0
-      ? Math.abs(lostWithLoss.reduce((sum, i) => sum + i.percentGain!, 0) / lostWithLoss.length)
+      ? lostWithLoss.reduce((sum, i) => {
+          // Calculate stop distance as the standard loss
+          const stopDistance = i.direction === 'long'
+            ? ((i.entryPrice - i.stopLoss) / i.entryPrice) * 100
+            : ((i.stopLoss - i.entryPrice) / i.entryPrice) * 100;
+          return sum + Math.abs(stopDistance);
+        }, 0) / lostWithLoss.length
       : 0;
     
     // EV Score = Avg(Win Size) / |Avg(Loss Size)|
