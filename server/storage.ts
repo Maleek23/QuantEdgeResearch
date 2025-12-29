@@ -62,6 +62,9 @@ import type {
   EngineSource,
   InsertTradePriceSnapshot,
   TradePriceSnapshot,
+  BlogPost,
+  InsertBlogPost,
+  BlogPostStatus,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, sql as drizzleSql } from "drizzle-orm";
@@ -91,6 +94,7 @@ import {
   engineDailyMetrics,
   engineHealthAlerts,
   tradePriceSnapshots,
+  blogPosts,
 } from "@shared/schema";
 
 export interface ChatMessage {
@@ -310,6 +314,13 @@ export interface IStorage {
     tradeIdea: TradeIdea | null;
     priceSnapshots: TradePriceSnapshot[];
   }>;
+
+  // Blog Posts CMS
+  getBlogPosts(status?: BlogPostStatus): Promise<BlogPost[]>;
+  getBlogPostBySlug(slug: string): Promise<BlogPost | null>;
+  createBlogPost(post: InsertBlogPost): Promise<BlogPost>;
+  updateBlogPost(id: string, post: Partial<InsertBlogPost>): Promise<BlogPost | null>;
+  deleteBlogPost(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -325,6 +336,7 @@ export class MemStorage implements IStorage {
   private ctSources: Map<number, CTSource>;
   private ctMentions: Map<number, CTMention>;
   private ctCallPerformance: Map<number, CTCallPerformance>;
+  private blogPosts: Map<string, BlogPost>;
 
   constructor() {
     this.marketData = new Map();
@@ -339,11 +351,134 @@ export class MemStorage implements IStorage {
     this.ctSources = new Map();
     this.ctMentions = new Map();
     this.ctCallPerformance = new Map();
+    this.blogPosts = new Map();
     this.seedData();
   }
 
+  private seedBlogPosts() {
+    const posts: BlogPost[] = [
+      {
+        id: "1",
+        slug: "how-ai-is-revolutionizing-day-trading",
+        title: "How AI is Revolutionizing Day Trading",
+        excerpt: "Explore how artificial intelligence is transforming the way traders analyze markets, identify opportunities, and manage risk in real-time.",
+        content: "Full content here...",
+        heroImageUrl: null,
+        category: "AI Trading",
+        tags: ["AI", "Trading", "Tech"],
+        authorName: "QuantEdge Team",
+        status: "published",
+        publishedAt: new Date("2025-01-15"),
+      },
+      {
+        id: "2",
+        slug: "the-power-of-quantitative-trading-strategies",
+        title: "The Power of Quantitative Trading Strategies",
+        excerpt: "Dive deep into proven quantitative strategies like RSI(2) mean reversion and VWAP institutional flow that consistently outperform the market.",
+        content: "Full content here...",
+        heroImageUrl: null,
+        category: "Quantitative Analysis",
+        tags: ["Quant", "Strategies"],
+        authorName: "QuantEdge Team",
+        status: "published",
+        publishedAt: new Date("2025-01-10"),
+      },
+      {
+        id: "3",
+        slug: "understanding-risk-reward-ratios",
+        title: "Understanding Risk-Reward Ratios",
+        excerpt: "Master the fundamentals of risk management with a comprehensive guide to calculating and optimizing your risk-reward ratios.",
+        content: "Full content here...",
+        heroImageUrl: null,
+        category: "Risk Management",
+        tags: ["Risk", "Basics"],
+        authorName: "QuantEdge Team",
+        status: "published",
+        publishedAt: new Date("2025-01-05"),
+      },
+      {
+        id: "4",
+        slug: "market-timing-finding-the-perfect-entry",
+        title: "Market Timing: Finding the Perfect Entry",
+        excerpt: "Learn how time-of-day analysis and market session patterns can significantly improve your entry timing and overall win rate.",
+        content: "Full content here...",
+        heroImageUrl: null,
+        category: "Trading Psychology",
+        tags: ["Timing", "Market"],
+        authorName: "QuantEdge Team",
+        status: "published",
+        publishedAt: new Date("2024-12-28"),
+      },
+      {
+        id: "5",
+        slug: "dual-engine-trading-combining-ai-and-quant-signals",
+        title: "Dual-Engine Trading: Combining AI and Quant Signals",
+        excerpt: "Discover how combining AI contextual analysis with quantitative signals creates high-conviction trading opportunities.",
+        content: "Full content here...",
+        heroImageUrl: null,
+        category: "Platform Features",
+        tags: ["AI", "Quant", "Features"],
+        authorName: "QuantEdge Team",
+        status: "published",
+        publishedAt: new Date("2024-12-20"),
+      },
+      {
+        id: "6",
+        slug: "options-trading-101",
+        title: "Options Trading 101: Calls, Puts, and Delta",
+        excerpt: "A beginner-friendly introduction to options trading, covering the basics of calls, puts, and how to interpret delta values.",
+        content: "Full content here...",
+        heroImageUrl: null,
+        category: "Options Trading",
+        tags: ["Options", "Beginner"],
+        authorName: "QuantEdge Team",
+        status: "published",
+        publishedAt: new Date("2024-12-15"),
+      }
+    ];
+
+    posts.forEach(post => this.blogPosts.set(post.id, post));
+  }
+
   private seedData() {
-    // Seed some initial market data
+    this.seedBlogPosts();
+    this.seedMarketAndTradeData();
+  }
+
+  async getBlogPosts(status?: BlogPostStatus): Promise<BlogPost[]> {
+    return Array.from(this.blogPosts.values())
+      .filter(post => !status || post.status === status)
+      .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+  }
+
+  async getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
+    return Array.from(this.blogPosts.values()).find(post => post.slug === slug) || null;
+  }
+
+  async createBlogPost(post: InsertBlogPost): Promise<BlogPost> {
+    const id = randomUUID();
+    const newPost: BlogPost = {
+      ...post,
+      id,
+      publishedAt: new Date(),
+    };
+    this.blogPosts.set(id, newPost);
+    return newPost;
+  }
+
+  async updateBlogPost(id: string, post: Partial<InsertBlogPost>): Promise<BlogPost | null> {
+    const existing = this.blogPosts.get(id);
+    if (!existing) return null;
+    const updated = { ...existing, ...post };
+    this.blogPosts.set(id, updated);
+    return updated;
+  }
+
+  async deleteBlogPost(id: string): Promise<boolean> {
+    return this.blogPosts.delete(id);
+  }
+
+  private seedMarketAndTradeData() {
     const now = new Date().toISOString();
     
     const seedMarketData: InsertMarketData[] = [
@@ -1631,6 +1766,27 @@ export class MemStorage implements IStorage {
     priceSnapshots: TradePriceSnapshot[];
   }> {
     throw new Error("Audit trail not supported in MemStorage");
+  }
+
+  // Blog Posts CMS (stub)
+  async getBlogPosts(_status?: BlogPostStatus): Promise<BlogPost[]> {
+    throw new Error("Blog not supported in MemStorage");
+  }
+
+  async getBlogPostBySlug(_slug: string): Promise<BlogPost | null> {
+    throw new Error("Blog not supported in MemStorage");
+  }
+
+  async createBlogPost(_post: InsertBlogPost): Promise<BlogPost> {
+    throw new Error("Blog not supported in MemStorage");
+  }
+
+  async updateBlogPost(_id: string, _post: Partial<InsertBlogPost>): Promise<BlogPost | null> {
+    throw new Error("Blog not supported in MemStorage");
+  }
+
+  async deleteBlogPost(_id: string): Promise<boolean> {
+    throw new Error("Blog not supported in MemStorage");
   }
 }
 
@@ -2975,6 +3131,59 @@ export class DatabaseStorage implements IStorage {
       this.getPriceSnapshots(tradeIdeaId),
     ]);
     return { tradeIdea: tradeIdea ?? null, priceSnapshots };
+  }
+
+  // ==========================================
+  // BLOG POSTS CMS
+  // ==========================================
+
+  async getBlogPosts(status?: BlogPostStatus): Promise<BlogPost[]> {
+    if (status) {
+      return await db.select().from(blogPosts)
+        .where(eq(blogPosts.status, status))
+        .orderBy(desc(blogPosts.publishedAt));
+    }
+    return await db.select().from(blogPosts)
+      .orderBy(desc(blogPosts.publishedAt));
+  }
+
+  async getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
+    const [post] = await db.select().from(blogPosts)
+      .where(eq(blogPosts.slug, slug));
+    return post || null;
+  }
+
+  async createBlogPost(post: InsertBlogPost): Promise<BlogPost> {
+    const [created] = await db.insert(blogPosts).values({
+      ...post,
+      publishedAt: post.status === 'published' ? new Date() : null,
+    } as any).returning();
+    return created;
+  }
+
+  async updateBlogPost(id: string, updates: Partial<InsertBlogPost>): Promise<BlogPost | null> {
+    const updateData: any = {
+      ...updates,
+      updatedAt: new Date(),
+    };
+    
+    if (updates.status === 'published') {
+      const [existing] = await db.select().from(blogPosts).where(eq(blogPosts.id, id));
+      if (existing && !existing.publishedAt) {
+        updateData.publishedAt = new Date();
+      }
+    }
+    
+    const [updated] = await db.update(blogPosts)
+      .set(updateData)
+      .where(eq(blogPosts.id, id))
+      .returning();
+    return updated || null;
+  }
+
+  async deleteBlogPost(id: string): Promise<boolean> {
+    await db.delete(blogPosts).where(eq(blogPosts.id, id));
+    return true;
   }
 }
 

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SettingsDialog } from "@/components/settings-dialog";
+import { SEOHead } from "@/components/seo-head";
 import { useState } from "react";
 import profileImage from "@assets/malikpic_1760579415191.jpg";
 
@@ -13,6 +14,7 @@ export default function About() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead pageKey="about" />
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 lg:px-6">
           <div className="flex h-14 items-center justify-between gap-4">

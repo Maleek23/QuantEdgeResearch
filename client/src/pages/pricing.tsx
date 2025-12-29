@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Check, X, Crown, Zap, TrendingUp, Rocket, Clock, AlertTriangle } from "lucide-react";
+import { Check, X, Crown, Zap, TrendingUp, Rocket, Clock, AlertTriangle, Loader2 } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
+import { SEOHead } from "@/components/seo-head";
 
 interface PlanFeature {
   name: string;
@@ -88,6 +93,46 @@ const plans: PricingPlan[] = [
 
 export default function Pricing() {
   const [isYearly, setIsYearly] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const { data: userTier } = useQuery<{ tier: string; isAdmin?: boolean }>({
+    queryKey: ['/api/user/tier'],
+  });
+
+  const checkoutMutation = useMutation({
+    mutationFn: async (priceId: string) => {
+      const response = await apiRequest('POST', '/api/billing/checkout', { priceId });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Checkout Failed",
+        description: error.message || "Unable to start checkout. Please try again.",
+        variant: "destructive",
+      });
+      setCheckoutLoading(null);
+    },
+  });
+
+  const handleUpgrade = (planId: string, priceIdMonthly?: string, priceIdYearly?: string) => {
+    const priceId = isYearly ? priceIdYearly : priceIdMonthly;
+    if (!priceId) {
+      toast({
+        title: "Not Available",
+        description: "This plan is not yet available for purchase.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCheckoutLoading(planId);
+    checkoutMutation.mutate(priceId);
+  };
 
   const formatPrice = (monthly: number, yearly: number) => {
     if (monthly === 0) return "$0";
@@ -107,8 +152,11 @@ export default function Pricing() {
     return percent;
   };
 
+  const currentTier = userTier?.tier || 'free';
+
   return (
     <div className="min-h-screen bg-background py-12 px-4 sm:px-6 lg:px-8">
+      <SEOHead pageKey="pricing" />
       <div className="max-w-7xl mx-auto">
         {/* Risk Acknowledgment */}
         <div className="max-w-3xl mx-auto mb-8" data-testid="risk-acknowledgment">
@@ -278,7 +326,7 @@ export default function Pricing() {
                 
                 {/* CTA Button */}
                 <div className="pt-6">
-                  {plan.currentPlan ? (
+                  {currentTier === plan.id ? (
                     <Button 
                       variant="glass-secondary" 
                       className="w-full" 
@@ -287,6 +335,16 @@ export default function Pricing() {
                     >
                       Current Plan
                     </Button>
+                  ) : plan.id === 'free' ? (
+                    <Link href="/signup">
+                      <Button 
+                        variant="glass-secondary"
+                        className="w-full"
+                        data-testid={`button-plan-${plan.id}`}
+                      >
+                        Get Started Free
+                      </Button>
+                    </Link>
                   ) : plan.comingSoon ? (
                     <Button 
                       variant="glass-secondary"
@@ -300,10 +358,24 @@ export default function Pricing() {
                     <Button 
                       variant={plan.popular ? "glass" : "glass-secondary"}
                       className="w-full"
+                      disabled={checkoutLoading === plan.id}
+                      onClick={() => handleUpgrade(
+                        plan.id,
+                        plan.id === 'advanced' 
+                          ? import.meta.env.VITE_STRIPE_PRICE_ADVANCED_MONTHLY 
+                          : import.meta.env.VITE_STRIPE_PRICE_PRO_MONTHLY,
+                        plan.id === 'advanced' 
+                          ? import.meta.env.VITE_STRIPE_PRICE_ADVANCED_YEARLY 
+                          : import.meta.env.VITE_STRIPE_PRICE_PRO_YEARLY
+                      )}
                       data-testid={`button-plan-${plan.id}`}
                     >
-                      <Zap className="w-4 h-4 mr-2" />
-                      Upgrade to {plan.name}
+                      {checkoutLoading === plan.id ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Zap className="w-4 h-4 mr-2" />
+                      )}
+                      {checkoutLoading === plan.id ? 'Loading...' : `Upgrade to ${plan.name}`}
                     </Button>
                   )}
                 </div>

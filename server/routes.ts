@@ -19,6 +19,7 @@ import {
   insertOptionsDataSchema,
   insertUserPreferencesSchema,
   insertActiveTradeSchema,
+  insertBlogPostSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { logger, logError } from "./logger";
@@ -46,6 +47,13 @@ import {
   insertWalletAlertSchema,
   insertCTSourceSchema,
 } from "@shared/schema";
+import {
+  createCheckoutSession,
+  createPortalSession,
+  handleWebhookEvent,
+  constructWebhookEvent,
+  PRICING_PLANS,
+} from "./stripe-service";
 
 // Session-based authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -454,6 +462,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
       watchlistItems: limits.watchlistItems === Infinity ? -1 : limits.watchlistItems,
     };
   }
+
+  // ============================================================================
+  // BILLING ROUTES - Stripe Integration
+  // ============================================================================
+
+  app.get("/api/billing/plans", (_req, res) => {
+    res.json(PRICING_PLANS);
+  });
+
+  app.post("/api/billing/checkout", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const { priceId } = req.body;
+
+      if (!priceId || priceId.trim() === '') {
+        return res.status(400).json({ error: "Price ID is required. Please contact support if this persists." });
+      }
+
+      if (!priceId.startsWith('price_')) {
+        return res.status(400).json({ error: "Invalid price ID format" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const result = await createCheckoutSession(
+        userId,
+        user.email,
+        priceId,
+        `${baseUrl}/settings?session_id={CHECKOUT_SESSION_ID}&success=true`,
+        `${baseUrl}/pricing?canceled=true`
+      );
+
+      if (result.error) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      res.json({ url: result.url });
+    } catch (error) {
+      logError(error as Error, { context: 'billing/checkout' });
+      res.status(500).json({ error: "Failed to create checkout session" });
+    }
+  });
+
+  app.post("/api/billing/portal", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+      const result = await createPortalSession(userId, `${baseUrl}/settings`);
+
+      if (result.error) {
+        return res.status(400).json({ error: result.error });
+      }
+
+      res.json({ url: result.url });
+    } catch (error) {
+      logError(error as Error, { context: 'billing/portal' });
+      res.status(500).json({ error: "Failed to create portal session" });
+    }
+  });
+
+  // Stripe Webhook - Must be before body parser middleware
+  app.post("/api/billing/webhook", async (req: Request, res: Response) => {
+    const signature = req.headers['stripe-signature'] as string;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    if (!webhookSecret) {
+      logger.error('STRIPE_WEBHOOK_SECRET not configured');
+      return res.status(500).json({ error: 'Webhook not configured' });
+    }
+
+    try {
+      const event = constructWebhookEvent(
+        req.body,
+        signature,
+        webhookSecret
+      );
+
+      await handleWebhookEvent(event);
+      res.json({ received: true });
+    } catch (error) {
+      logError(error as Error, { context: 'billing/webhook' });
+      res.status(400).json({ error: 'Webhook signature verification failed' });
+    }
+  });
 
   // Admin Authentication Routes with JWT
   app.post("/api/admin/verify-code", adminLimiter, (req, res) => {
@@ -6564,6 +6661,123 @@ FORMATTING:
     } catch (error: any) {
       logger.error("Error generating mock CT data", { error });
       res.status(500).json({ error: "Failed to generate mock data" });
+    }
+  });
+
+  // ==========================================
+  // BLOG CMS ROUTES
+  // ==========================================
+
+  // GET /api/blog - List published blog posts (public)
+  app.get("/api/blog", async (_req: Request, res: Response) => {
+    try {
+      const posts = await storage.getBlogPosts('published');
+      res.json(posts);
+    } catch (error: any) {
+      logger.error("Error fetching blog posts", { error });
+      res.status(500).json({ error: "Failed to fetch blog posts" });
+    }
+  });
+
+  // GET /api/blog/:slug - Get single blog post by slug (public)
+  app.get("/api/blog/:slug", async (req: Request, res: Response) => {
+    try {
+      const { slug } = req.params;
+      const post = await storage.getBlogPostBySlug(slug);
+      
+      if (!post) {
+        return res.status(404).json({ error: "Blog post not found" });
+      }
+      
+      // Only return published posts to public
+      if (post.status !== 'published') {
+        return res.status(404).json({ error: "Blog post not found" });
+      }
+      
+      res.json(post);
+    } catch (error: any) {
+      logger.error("Error fetching blog post", { error, slug: req.params.slug });
+      res.status(500).json({ error: "Failed to fetch blog post" });
+    }
+  });
+
+  // POST /api/blog - Create blog post (admin only)
+  app.post("/api/blog", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertBlogPostSchema.parse(req.body);
+      const post = await storage.createBlogPost(validatedData);
+      logger.info("Blog post created", { postId: post.id, slug: post.slug });
+      res.status(201).json(post);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid blog post data", details: error.errors });
+      }
+      logger.error("Error creating blog post", { error });
+      res.status(500).json({ error: "Failed to create blog post" });
+    }
+  });
+
+  // PATCH /api/blog/:id - Update blog post (admin only)
+  app.patch("/api/blog/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertBlogPostSchema.partial().parse(req.body);
+      const updated = await storage.updateBlogPost(id, validatedData);
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Blog post not found" });
+      }
+      
+      logger.info("Blog post updated", { postId: id });
+      res.json(updated);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid blog post data", details: error.errors });
+      }
+      logger.error("Error updating blog post", { error, postId: req.params.id });
+      res.status(500).json({ error: "Failed to update blog post" });
+    }
+  });
+
+  // DELETE /api/blog/:id - Delete blog post (admin only)
+  app.delete("/api/blog/:id", requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteBlogPost(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: "Blog post not found" });
+      }
+      
+      logger.info("Blog post deleted", { postId: id });
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error("Error deleting blog post", { error, postId: req.params.id });
+      res.status(500).json({ error: "Failed to delete blog post" });
+    }
+  });
+
+  // Blog Routes
+  app.get("/api/blog", async (_req, res) => {
+    try {
+      const posts = await storage.getBlogPosts("published");
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching blog posts:", error);
+      res.status(500).json({ error: "Failed to fetch blog posts" });
+    }
+  });
+
+  app.get("/api/blog/:slug", async (req, res) => {
+    try {
+      const post = await storage.getBlogPostBySlug(req.params.slug);
+      if (!post) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+      res.json(post);
+    } catch (error) {
+      console.error("Error fetching blog post:", error);
+      res.status(500).json({ error: "Failed to fetch blog post" });
     }
   });
 

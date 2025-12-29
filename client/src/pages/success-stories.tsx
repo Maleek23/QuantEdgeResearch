@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { TradeIdea } from "@shared/schema";
 import { TrendingUp, CheckCircle2, Award, Target, Clock, BarChart3, ArrowRight } from "lucide-react";
 import { useLocation } from "wouter";
+import { SEOHead } from "@/components/seo-head";
 
 export default function SuccessStories() {
   const [, setLocation] = useLocation();
@@ -21,6 +22,7 @@ export default function SuccessStories() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead pageKey="successStories" />
       {/* Hero Section */}
       <section className="border-b py-12 md:py-16 bg-gradient-to-b from-primary/5 to-background">
         <div className="container mx-auto px-6">

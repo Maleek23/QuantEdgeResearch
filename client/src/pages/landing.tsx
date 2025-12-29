@@ -13,6 +13,7 @@ import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import type { TradeIdea } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
+import { SEOHead } from "@/components/seo-head";
 import { 
   TrendingUp, 
   Brain, 
@@ -164,6 +165,7 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead pageKey="landing" />
       {/* Sticky Navbar */}
       <header className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-white/10" data-testid="navbar">
         <div className="container mx-auto px-6">

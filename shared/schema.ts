@@ -37,6 +37,12 @@ export const users = pgTable("users", {
   subscriptionTier: text("subscription_tier").$type<SubscriptionTier>().notNull().default('free'),
   subscriptionStatus: varchar("subscription_status").default('active'), // 'active', 'canceled', 'past_due'
   
+  // Stripe Integration
+  stripeCustomerId: varchar("stripe_customer_id"),
+  stripeSubscriptionId: varchar("stripe_subscription_id"),
+  stripePriceId: varchar("stripe_price_id"),
+  stripeCurrentPeriodEnd: timestamp("stripe_current_period_end"),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -1005,3 +1011,54 @@ export const tradePriceSnapshots = pgTable("trade_price_snapshots", {
 export const insertTradePriceSnapshotSchema = createInsertSchema(tradePriceSnapshots).omit({ id: true, createdAt: true });
 export type InsertTradePriceSnapshot = z.infer<typeof insertTradePriceSnapshotSchema>;
 export type TradePriceSnapshot = typeof tradePriceSnapshots.$inferSelect;
+
+// ============================================================================
+// BLOG CMS - Content Marketing & SEO
+// ============================================================================
+
+export type BlogPostStatus = 'draft' | 'published' | 'archived';
+export type BlogCategory = 'market-commentary' | 'platform-updates' | 'education' | 'risk-management' | 'strategy' | 'news';
+
+export const blogPosts = pgTable("blog_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  slug: varchar("slug").unique().notNull(), // URL-friendly slug
+  title: varchar("title").notNull(),
+  excerpt: text("excerpt"), // Short description for SEO/previews
+  content: text("content").notNull(), // Markdown content
+  heroImageUrl: varchar("hero_image_url"),
+  category: text("category").$type<BlogCategory>().notNull().default('market-commentary'),
+  tags: text("tags").array(), // Array of tags
+  authorId: varchar("author_id"), // Link to users table
+  authorName: varchar("author_name").notNull().default('QuantEdge Team'),
+  status: text("status").$type<BlogPostStatus>().notNull().default('draft'),
+  metaDescription: text("meta_description"), // SEO meta description
+  metaKeywords: text("meta_keywords"), // SEO keywords
+  publishedAt: timestamp("published_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;
+export type BlogPost = typeof blogPosts.$inferSelect;
+
+// ============================================================================
+// TESTIMONIALS - Social Proof
+// ============================================================================
+
+export const testimonials = pgTable("testimonials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  title: varchar("title"), // Job title/role
+  company: varchar("company"),
+  avatarUrl: varchar("avatar_url"),
+  quote: text("quote").notNull(),
+  rating: integer("rating").default(5), // 1-5 stars
+  featured: boolean("featured").default(false),
+  displayOrder: integer("display_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTestimonialSchema = createInsertSchema(testimonials).omit({ id: true, createdAt: true });
+export type InsertTestimonial = z.infer<typeof insertTestimonialSchema>;
+export type Testimonial = typeof testimonials.$inferSelect;

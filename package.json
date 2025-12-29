@@ -93,6 +93,7 @@
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.2",
     "remark-gfm": "^4.0.1",
+    "stripe": "^20.1.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.160.0",
