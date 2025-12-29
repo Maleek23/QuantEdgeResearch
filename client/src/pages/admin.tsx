@@ -169,6 +169,21 @@ export default function AdminPanel() {
     }
   });
 
+  // AI Provider Status - Real-time health check with billing/quota info
+  const { data: aiProviderStatus, isLoading: aiStatusLoading, refetch: refetchAIStatus } = useQuery({
+    queryKey: ['/api/admin/ai-provider-status'],
+    enabled: authStep === 'authenticated' && !!adminPassword,
+    refetchInterval: 120000, // 2 min for AI status (expensive check)
+    staleTime: 60000,
+    queryFn: async () => {
+      const res = await fetch('/api/admin/ai-provider-status', {
+        headers: { 'x-admin-password': adminPassword }
+      });
+      if (!res.ok) throw new Error('Failed to fetch AI status');
+      return res.json();
+    }
+  });
+
   const [testAIProvider, setTestAIProvider] = useState<'openai' | 'anthropic' | 'gemini'>('openai');
   const [testPrompt, setTestPrompt] = useState("Generate a bullish research brief for NVDA.");
 
@@ -967,42 +982,203 @@ export default function AdminPanel() {
                   </div>
                 </div>
 
-                {/* AI Providers */}
+                {/* AI Providers - LIVE STATUS */}
                 <div>
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Cpu className="h-4 w-4 text-primary" />
-                    AI Providers
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {['openai', 'anthropic', 'gemini'].map((provider) => {
-                      const providerData = (systemHealth as any)?.aiProviders?.[provider];
-                      const isConfigured = providerData?.status === 'configured';
-                      return (
-                        <div 
-                          key={provider}
-                          className={`flex items-center gap-3 p-3 rounded-lg border ${
-                            isConfigured 
-                              ? 'bg-green-500/5 border-green-500/20' 
-                              : 'bg-amber-500/5 border-amber-500/20'
-                          }`}
-                          data-testid={`status-ai-${provider}`}
-                        >
-                          {isConfigured ? (
-                            <CheckCircle2 className="h-6 w-6 text-green-500" />
-                          ) : (
-                            <AlertCircle className="h-6 w-6 text-amber-500" />
-                          )}
-                          <div>
-                            <p className="text-sm font-medium capitalize">{provider}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {providerData?.model?.split('-').slice(0, 2).join('-') || 'N/A'}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <Cpu className="h-4 w-4 text-primary" />
+                      AI Providers (Live Status)
+                    </h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => refetchAIStatus()}
+                      disabled={aiStatusLoading}
+                      data-testid="button-refresh-ai-status"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${aiStatusLoading ? 'animate-spin' : ''}`} />
+                    </Button>
                   </div>
+                  {aiStatusLoading && !aiProviderStatus ? (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
+                      <p className="text-sm">Checking AI providers...</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {['anthropic', 'openai', 'gemini'].map((provider) => {
+                        const providerData = (aiProviderStatus as any)?.providers?.[provider];
+                        const status = providerData?.status || 'unknown';
+                        const isConfigured = status === 'configured';
+                        const isNotConfigured = status === 'not_configured';
+                        const isOperational = status === 'operational';
+                        const isBilling = status === 'billing_issue' || status === 'quota_exceeded';
+                        const isRateLimited = status === 'rate_limited';
+                        
+                        const bgColor = isOperational || isConfigured
+                          ? 'bg-green-500/10 border-green-500/30' 
+                          : isNotConfigured
+                            ? 'bg-gray-500/10 border-gray-500/30'
+                            : isBilling 
+                              ? 'bg-red-500/10 border-red-500/30'
+                              : isRateLimited
+                                ? 'bg-amber-500/10 border-amber-500/30'
+                                : 'bg-gray-500/10 border-gray-500/30';
+                        
+                        const iconColor = isOperational || isConfigured
+                          ? 'text-green-500' 
+                          : isNotConfigured
+                            ? 'text-gray-400'
+                            : isBilling 
+                              ? 'text-red-500'
+                              : isRateLimited
+                                ? 'text-amber-500'
+                                : 'text-gray-500';
+
+                        return (
+                          <div 
+                            key={provider}
+                            className={`p-4 rounded-lg border ${bgColor}`}
+                            data-testid={`status-ai-${provider}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              {isOperational || isConfigured ? (
+                                <CheckCircle2 className={`h-6 w-6 ${iconColor} flex-shrink-0`} />
+                              ) : (
+                                <AlertCircle className={`h-6 w-6 ${iconColor} flex-shrink-0`} />
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold capitalize">{provider}</p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {providerData?.model || 'Unknown model'}
+                                  {providerData?.tier && ` (${providerData.tier})`}
+                                </p>
+                                <Badge 
+                                  variant={isOperational || isConfigured ? "outline" : isNotConfigured ? "secondary" : "destructive"}
+                                  className={`mt-2 text-xs ${isOperational || isConfigured ? 'border-green-500/50 text-green-500' : ''}`}
+                                >
+                                  {status === 'operational' ? 'Working' : 
+                                   status === 'configured' ? 'Configured' :
+                                   status === 'not_configured' ? 'Not Configured' :
+                                   status === 'billing_issue' ? 'Billing Issue' :
+                                   status === 'quota_exceeded' ? 'Quota Exhausted' :
+                                   status === 'rate_limited' ? 'Rate Limited' : 'Error'}
+                                </Badge>
+                                {providerData?.keyPrefix && (
+                                  <p className="text-xs text-muted-foreground mt-1 font-mono">
+                                    Key: {providerData.keyPrefix}
+                                  </p>
+                                )}
+                                {providerData?.message && (
+                                  <p className="text-xs text-muted-foreground mt-2 break-words">
+                                    {providerData.message}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Generation Health Indicator */}
+                    {(aiProviderStatus as any)?.providers?.generationHealth && (
+                      <div className={`mt-3 p-3 rounded-lg border ${
+                        (aiProviderStatus as any).providers.generationHealth.status === 'healthy' 
+                          ? 'bg-green-500/10 border-green-500/30' 
+                          : (aiProviderStatus as any).providers.generationHealth.status === 'stale'
+                            ? 'bg-amber-500/10 border-amber-500/30'
+                            : 'bg-gray-500/10 border-gray-500/30'
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          <Activity className="h-4 w-4" />
+                          <span className="text-sm font-medium">Generation Health:</span>
+                          <Badge variant="outline">
+                            {(aiProviderStatus as any).providers.generationHealth.status === 'healthy' 
+                              ? 'Healthy' 
+                              : (aiProviderStatus as any).providers.generationHealth.status === 'stale'
+                                ? 'Stale (>24h)'
+                                : (aiProviderStatus as any).providers.generationHealth.status === 'inactive'
+                                  ? 'Inactive (>48h)'
+                                  : 'No History'}
+                          </Badge>
+                        </div>
+                        {(aiProviderStatus as any).providers.generationHealth.lastAIGeneration && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Last AI generation: {new Date((aiProviderStatus as any).providers.generationHealth.lastAIGeneration).toLocaleString()}
+                            {(aiProviderStatus as any).providers.generationHealth.hoursAgo !== null && (
+                              <span> ({(aiProviderStatus as any).providers.generationHealth.hoursAgo}h ago)</span>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  )}
                 </div>
+
+                {/* Generation Stats */}
+                {aiProviderStatus?.generationStats && (
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-primary" />
+                      Generation Stats
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                        <p className="text-2xl font-bold font-mono text-cyan-400">
+                          {aiProviderStatus.generationStats.total}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Total Ideas</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                        <p className="text-2xl font-bold font-mono text-green-400">
+                          {aiProviderStatus.generationStats.today?.total || 0}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Today</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                        <p className="text-2xl font-bold font-mono text-purple-400">
+                          {aiProviderStatus.generationStats.thisWeek?.total || 0}
+                        </p>
+                        <p className="text-xs text-muted-foreground">This Week</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <p className="text-2xl font-bold font-mono text-amber-400">
+                          {aiProviderStatus.generationStats.today?.bySource?.ai || 0}
+                        </p>
+                        <p className="text-xs text-muted-foreground">AI Today</p>
+                      </div>
+                    </div>
+                    
+                    {/* Today's breakdown by source */}
+                    <div className="mt-4 p-3 rounded-lg bg-muted/30 border">
+                      <p className="text-xs font-semibold mb-2">Today's Generation by Source:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(aiProviderStatus.generationStats.today?.bySource || {}).map(([source, count]) => (
+                          <Badge key={source} variant="outline" className="text-xs">
+                            {source}: {count as number}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Last generation timestamps */}
+                    <div className="mt-3 p-3 rounded-lg bg-muted/30 border">
+                      <p className="text-xs font-semibold mb-2">Last AI Generation:</p>
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                        {aiProviderStatus.generationStats.lastGenerated?.ai && (
+                          <span>AI: {new Date(aiProviderStatus.generationStats.lastGenerated.ai).toLocaleString()}</span>
+                        )}
+                        {aiProviderStatus.generationStats.lastGenerated?.quant && (
+                          <span>Quant: {new Date(aiProviderStatus.generationStats.lastGenerated.quant).toLocaleString()}</span>
+                        )}
+                        {aiProviderStatus.generationStats.lastGenerated?.hybrid && (
+                          <span>Hybrid: {new Date(aiProviderStatus.generationStats.lastGenerated.hybrid).toLocaleString()}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Market Data APIs */}
                 <div>

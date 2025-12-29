@@ -752,6 +752,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI Provider Status - Check configuration and last known status (no live calls)
+  app.get("/api/admin/ai-provider-status", requireAdmin, async (_req, res) => {
+    try {
+      const results: Record<string, any> = {};
+
+      // Check Anthropic configuration
+      const anthropicKey = process.env.ANTHROPIC_API_KEY;
+      if (!anthropicKey) {
+        results.anthropic = {
+          status: 'not_configured',
+          model: 'claude-sonnet-4-20250514',
+          message: 'API key not set - add ANTHROPIC_API_KEY to secrets',
+          lastCheck: new Date().toISOString()
+        };
+      } else {
+        // Key exists - report as configured (actual test happens via test-ai endpoint)
+        results.anthropic = {
+          status: 'configured',
+          model: 'claude-sonnet-4-20250514',
+          message: 'API key configured - use Test AI to verify',
+          keyPrefix: anthropicKey.substring(0, 8) + '...',
+          lastCheck: new Date().toISOString()
+        };
+      }
+
+      // Check OpenAI configuration
+      const openaiKey = process.env.OPENAI_API_KEY;
+      if (!openaiKey) {
+        results.openai = {
+          status: 'not_configured',
+          model: 'gpt-4o',
+          message: 'API key not set - add OPENAI_API_KEY to secrets',
+          lastCheck: new Date().toISOString()
+        };
+      } else {
+        results.openai = {
+          status: 'configured',
+          model: 'gpt-4o',
+          message: 'API key configured - use Test AI to verify',
+          keyPrefix: openaiKey.substring(0, 8) + '...',
+          lastCheck: new Date().toISOString()
+        };
+      }
+
+      // Check Gemini configuration
+      const geminiKey = process.env.GEMINI_API_KEY;
+      if (!geminiKey) {
+        results.gemini = {
+          status: 'not_configured',
+          model: 'gemini-2.5-flash',
+          tier: 'free',
+          message: 'API key not set - add GEMINI_API_KEY to secrets',
+          lastCheck: new Date().toISOString()
+        };
+      } else {
+        results.gemini = {
+          status: 'configured',
+          model: 'gemini-2.5-flash',
+          tier: 'free (20 requests/day)',
+          message: 'API key configured - use Test AI to verify',
+          keyPrefix: geminiKey.substring(0, 8) + '...',
+          lastCheck: new Date().toISOString()
+        };
+      }
+
+      // Check for recent generation errors from activity logs
+      const ideas = await storage.getAllTradeIdeas();
+      const recentAIIdeas = ideas
+        .filter(i => i.source === 'ai')
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 5);
+      
+      // If we have recent AI ideas, providers are likely working
+      const lastAIGeneration = recentAIIdeas[0]?.timestamp;
+      const hoursAgo = lastAIGeneration 
+        ? Math.round((Date.now() - new Date(lastAIGeneration).getTime()) / (1000 * 60 * 60))
+        : null;
+
+      // Add generation health indicator
+      results.generationHealth = {
+        lastAIGeneration,
+        hoursAgo,
+        recentAICount: recentAIIdeas.length,
+        status: hoursAgo === null ? 'no_history' :
+                hoursAgo < 24 ? 'healthy' :
+                hoursAgo < 48 ? 'stale' : 'inactive'
+      };
+
+      // Get generation stats from database (reuse ideas from above)
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      const todayIdeas = ideas.filter(i => new Date(i.timestamp) >= today);
+      const weekIdeas = ideas.filter(i => new Date(i.timestamp) >= thisWeek);
+
+      const generationStats = {
+        total: ideas.length,
+        today: {
+          total: todayIdeas.length,
+          bySource: {
+            ai: todayIdeas.filter(i => i.source === 'ai').length,
+            quant: todayIdeas.filter(i => i.source === 'quant').length,
+            hybrid: todayIdeas.filter(i => i.source === 'hybrid').length,
+            flow: todayIdeas.filter(i => i.source === 'flow').length,
+            news: todayIdeas.filter(i => i.source === 'news').length,
+            lotto: todayIdeas.filter(i => i.source === 'lotto').length,
+          }
+        },
+        thisWeek: {
+          total: weekIdeas.length,
+          bySource: {
+            ai: weekIdeas.filter(i => i.source === 'ai').length,
+            quant: weekIdeas.filter(i => i.source === 'quant').length,
+            hybrid: weekIdeas.filter(i => i.source === 'hybrid').length,
+            flow: weekIdeas.filter(i => i.source === 'flow').length,
+            news: weekIdeas.filter(i => i.source === 'news').length,
+            lotto: weekIdeas.filter(i => i.source === 'lotto').length,
+          }
+        },
+        lastGenerated: {
+          ai: ideas.filter(i => i.source === 'ai').sort((a, b) => 
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]?.timestamp,
+          quant: ideas.filter(i => i.source === 'quant').sort((a, b) => 
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]?.timestamp,
+          hybrid: ideas.filter(i => i.source === 'hybrid').sort((a, b) => 
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]?.timestamp,
+        }
+      };
+
+      res.json({
+        providers: results,
+        generationStats,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      logger.error('AI provider status check failed', { error });
+      res.status(500).json({ error: "Status check failed", message: error?.message });
+    }
+  });
+
   // Test AI Provider - Individual provider testing
   app.post("/api/admin/test-ai", requireAdmin, async (req, res) => {
     try {
