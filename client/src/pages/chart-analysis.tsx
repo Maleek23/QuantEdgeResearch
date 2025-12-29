@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,7 +14,7 @@ import {
   AlertTriangle, Brain, Loader2, ExternalLink, CheckCircle2, Sparkles,
   Target, Shield, Activity, BarChart3, ArrowUpRight, ArrowDownRight,
   Zap, Clock, Calculator, Gauge, Send, LineChart, Lightbulb, Users,
-  ChevronRight, Database, BookOpen, Trophy
+  ChevronRight, Database, BookOpen, Trophy, Plus
 } from "lucide-react";
 import { SiDiscord } from "react-icons/si";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,6 +23,7 @@ import { Progress } from "@/components/ui/progress";
 import { TierGate } from "@/components/tier-gate";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 function ConfidenceGauge({ value, sentiment }: { value: number; sentiment: "bullish" | "bearish" | "neutral" }) {
   const color = sentiment === "bullish" ? "#22c55e" : sentiment === "bearish" ? "#ef4444" : "#f59e0b";
@@ -462,6 +463,10 @@ export default function ChartAnalysis() {
     optionType: "call" | "put";
     rationale: string;
   } | null>(null);
+  
+  // Success modal state - shows after analysis completes
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [, navigate] = useLocation();
 
   const { data: perfStats } = useQuery<{ overall: { totalIdeas: number; winRate: number } }>({
     queryKey: ['/api/performance/stats'],
@@ -644,6 +649,9 @@ export default function ChartAnalysis() {
           strikePrice: suggestedAssetType === 'option' && strikePrice && !isNaN(parseFloat(strikePrice)) ? parseFloat(strikePrice) : undefined,
         });
       }
+      
+      // Show success modal with trade suggestion
+      setShowSuccessModal(true);
     },
     onError: (error: Error) => {
       toast({
@@ -718,6 +726,7 @@ export default function ChartAnalysis() {
     setOptionType("call");
     setStrikePrice("");
     setExpiryDate("");
+    setShowSuccessModal(false);
   };
 
   const handleSendToDiscord = () => {
@@ -1446,6 +1455,106 @@ export default function ChartAnalysis() {
         </div>
       </div>
     </div>
+    
+    {/* Success Modal - Trade Suggestion Popup */}
+    <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+      <DialogContent className="max-w-md" data-testid="modal-trade-suggestion">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <CheckCircle2 className="h-6 w-6 text-green-500" />
+            Analysis Complete
+          </DialogTitle>
+          <DialogDescription>
+            AI has analyzed your chart and generated a trade suggestion
+          </DialogDescription>
+        </DialogHeader>
+        
+        {aiSuggestion && analysisResult && (
+          <div className="space-y-4 pt-2">
+            {/* Trade Suggestion Banner */}
+            <div className={`rounded-lg p-4 ${
+              aiSuggestion.assetType === 'option' 
+                ? aiSuggestion.optionType === 'call'
+                  ? 'bg-green-500/20 border border-green-500/50'
+                  : 'bg-red-500/20 border border-red-500/50'
+                : 'bg-cyan-500/20 border border-cyan-500/50'
+            }`}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-lg font-bold">{symbol}</span>
+                <Badge className={
+                  aiSuggestion.assetType === 'option'
+                    ? aiSuggestion.optionType === 'call' ? 'bg-green-500' : 'bg-red-500'
+                    : 'bg-cyan-500'
+                }>
+                  {aiSuggestion.assetType === 'option' 
+                    ? `${aiSuggestion.optionType.toUpperCase()} Option` 
+                    : 'Buy Shares'}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">{aiSuggestion.rationale}</p>
+            </div>
+            
+            {/* Key Levels */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center p-3 rounded-lg bg-cyan-500/10">
+                <p className="text-xs text-muted-foreground mb-1">Entry</p>
+                <p className="font-mono font-bold text-cyan-400">${analysisResult.entryPoint.toFixed(2)}</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-green-500/10">
+                <p className="text-xs text-muted-foreground mb-1">Target</p>
+                <p className="font-mono font-bold text-green-400">${analysisResult.targetPrice.toFixed(2)}</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-red-500/10">
+                <p className="text-xs text-muted-foreground mb-1">Stop</p>
+                <p className="font-mono font-bold text-red-400">${analysisResult.stopLoss.toFixed(2)}</p>
+              </div>
+            </div>
+            
+            {/* Stats Row */}
+            <div className="flex justify-between text-sm bg-muted/30 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-cyan-400" />
+                <span className="text-muted-foreground">R:R Ratio</span>
+                <span className="font-bold">{analysisResult.riskRewardRatio.toFixed(1)}:1</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Gauge className="h-4 w-4 text-cyan-400" />
+                <span className="text-muted-foreground">Confidence</span>
+                <span className="font-bold">{analysisResult.confidence}%</span>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="glass"
+                className="flex-1"
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  navigate('/trade-desk');
+                }}
+                data-testid="button-goto-trade-desk"
+              >
+                <ExternalLink className="h-4 w-4 mr-2" />
+                View in Research Desk
+              </Button>
+              <Button
+                variant="glass-secondary"
+                onClick={() => setShowSuccessModal(false)}
+                data-testid="button-close-modal"
+              >
+                Keep Editing
+              </Button>
+            </div>
+            
+            {/* Disclaimer */}
+            <p className="text-[10px] text-muted-foreground text-center pt-2">
+              Educational research only. Not financial advice. You make your own decisions.
+            </p>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
     </TierGate>
   );
 }
