@@ -53,6 +53,13 @@ import type {
   InsertWalletTransaction,
   WalletAlert,
   InsertWalletAlert,
+  InsertTradeInputSnapshot,
+  TradeInputSnapshot,
+  InsertEngineDailyMetrics,
+  EngineDailyMetrics,
+  InsertEngineHealthAlert,
+  EngineHealthAlert,
+  EngineSource,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, sql as drizzleSql } from "drizzle-orm";
@@ -78,6 +85,9 @@ import {
   walletHoldings,
   walletTransactions,
   walletAlerts,
+  tradeInputSnapshots,
+  engineDailyMetrics,
+  engineHealthAlerts,
 } from "@shared/schema";
 
 export interface ChatMessage {
@@ -275,6 +285,20 @@ export interface IStorage {
   getWalletAlertById(id: string): Promise<WalletAlert | undefined>;
   createWalletAlert(alert: InsertWalletAlert): Promise<WalletAlert>;
   deleteWalletAlert(id: string): Promise<boolean>;
+
+  // Telemetry - Trade Input Snapshots
+  saveTradeInputSnapshot(snapshot: InsertTradeInputSnapshot): Promise<TradeInputSnapshot>;
+  getTradeInputSnapshot(tradeIdeaId: string): Promise<TradeInputSnapshot | null>;
+
+  // Telemetry - Engine Daily Metrics
+  saveEngineDailyMetrics(metrics: InsertEngineDailyMetrics): Promise<EngineDailyMetrics>;
+  getEngineDailyMetrics(date: string, engine?: EngineSource): Promise<EngineDailyMetrics[]>;
+  getEngineMetricsRange(startDate: string, endDate: string, engine?: EngineSource): Promise<EngineDailyMetrics[]>;
+
+  // Telemetry - Engine Health Alerts
+  saveEngineHealthAlert(alert: InsertEngineHealthAlert): Promise<EngineHealthAlert>;
+  getActiveHealthAlerts(): Promise<EngineHealthAlert[]>;
+  acknowledgeHealthAlert(id: string, userId: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -1538,6 +1562,41 @@ export class MemStorage implements IStorage {
   async getCompletedPaperTradesCount(_userId: string): Promise<number> {
     return 0;
   }
+
+  // Telemetry - Trade Input Snapshots (stub)
+  async saveTradeInputSnapshot(_snapshot: InsertTradeInputSnapshot): Promise<TradeInputSnapshot> {
+    throw new Error("Telemetry not supported in MemStorage");
+  }
+
+  async getTradeInputSnapshot(_tradeIdeaId: string): Promise<TradeInputSnapshot | null> {
+    throw new Error("Telemetry not supported in MemStorage");
+  }
+
+  // Telemetry - Engine Daily Metrics (stub)
+  async saveEngineDailyMetrics(_metrics: InsertEngineDailyMetrics): Promise<EngineDailyMetrics> {
+    throw new Error("Telemetry not supported in MemStorage");
+  }
+
+  async getEngineDailyMetrics(_date: string, _engine?: EngineSource): Promise<EngineDailyMetrics[]> {
+    throw new Error("Telemetry not supported in MemStorage");
+  }
+
+  async getEngineMetricsRange(_startDate: string, _endDate: string, _engine?: EngineSource): Promise<EngineDailyMetrics[]> {
+    throw new Error("Telemetry not supported in MemStorage");
+  }
+
+  // Telemetry - Engine Health Alerts (stub)
+  async saveEngineHealthAlert(_alert: InsertEngineHealthAlert): Promise<EngineHealthAlert> {
+    throw new Error("Telemetry not supported in MemStorage");
+  }
+
+  async getActiveHealthAlerts(): Promise<EngineHealthAlert[]> {
+    throw new Error("Telemetry not supported in MemStorage");
+  }
+
+  async acknowledgeHealthAlert(_id: string, _userId: string): Promise<void> {
+    throw new Error("Telemetry not supported in MemStorage");
+  }
 }
 
 // Database Storage Implementation (from javascript_database blueprint)
@@ -2784,6 +2843,80 @@ export class DatabaseStorage implements IStorage {
   async deleteWalletAlert(id: string): Promise<boolean> {
     await db.delete(walletAlerts).where(eq(walletAlerts.id, id));
     return true;
+  }
+
+  // ==========================================
+  // TELEMETRY OPERATIONS
+  // ==========================================
+
+  // Trade Input Snapshots
+  async saveTradeInputSnapshot(snapshot: InsertTradeInputSnapshot): Promise<TradeInputSnapshot> {
+    const [created] = await db.insert(tradeInputSnapshots).values(snapshot as any).returning();
+    return created;
+  }
+
+  async getTradeInputSnapshot(tradeIdeaId: string): Promise<TradeInputSnapshot | null> {
+    const [snapshot] = await db.select().from(tradeInputSnapshots)
+      .where(eq(tradeInputSnapshots.tradeIdeaId, tradeIdeaId));
+    return snapshot || null;
+  }
+
+  // Engine Daily Metrics
+  async saveEngineDailyMetrics(metrics: InsertEngineDailyMetrics): Promise<EngineDailyMetrics> {
+    const [created] = await db.insert(engineDailyMetrics).values(metrics as any).returning();
+    return created;
+  }
+
+  async getEngineDailyMetrics(date: string, engine?: EngineSource): Promise<EngineDailyMetrics[]> {
+    if (engine) {
+      return await db.select().from(engineDailyMetrics)
+        .where(and(
+          eq(engineDailyMetrics.date, date),
+          eq(engineDailyMetrics.engine, engine)
+        ));
+    }
+    return await db.select().from(engineDailyMetrics)
+      .where(eq(engineDailyMetrics.date, date));
+  }
+
+  async getEngineMetricsRange(startDate: string, endDate: string, engine?: EngineSource): Promise<EngineDailyMetrics[]> {
+    if (engine) {
+      return await db.select().from(engineDailyMetrics)
+        .where(and(
+          gte(engineDailyMetrics.date, startDate),
+          lte(engineDailyMetrics.date, endDate),
+          eq(engineDailyMetrics.engine, engine)
+        ))
+        .orderBy(desc(engineDailyMetrics.date));
+    }
+    return await db.select().from(engineDailyMetrics)
+      .where(and(
+        gte(engineDailyMetrics.date, startDate),
+        lte(engineDailyMetrics.date, endDate)
+      ))
+      .orderBy(desc(engineDailyMetrics.date));
+  }
+
+  // Engine Health Alerts
+  async saveEngineHealthAlert(alert: InsertEngineHealthAlert): Promise<EngineHealthAlert> {
+    const [created] = await db.insert(engineHealthAlerts).values(alert as any).returning();
+    return created;
+  }
+
+  async getActiveHealthAlerts(): Promise<EngineHealthAlert[]> {
+    return await db.select().from(engineHealthAlerts)
+      .where(eq(engineHealthAlerts.acknowledged, false))
+      .orderBy(desc(engineHealthAlerts.createdAt));
+  }
+
+  async acknowledgeHealthAlert(id: string, userId: string): Promise<void> {
+    await db.update(engineHealthAlerts)
+      .set({
+        acknowledged: true,
+        acknowledgedBy: userId,
+        acknowledgedAt: new Date().toISOString(),
+      })
+      .where(eq(engineHealthAlerts.id, id));
   }
 }
 

@@ -36,6 +36,7 @@ import { createUser, authenticateUser, sanitizeUser } from "./userAuth";
 import { getTierLimits } from "./tierConfig";
 import { syncDocumentationToNotion } from "./notion-sync";
 import * as paperTradingService from "./paper-trading-service";
+import { telemetryService } from "./telemetry-service";
 import { 
   insertPaperPortfolioSchema, 
   insertPaperPositionSchema,
@@ -2789,6 +2790,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Streaks error:", error);
       res.status(500).json({ error: "Failed to fetch streaks" });
+    }
+  });
+
+  // Engine Health / Telemetry Routes
+  
+  // GET /api/engine-health - Get current engine health dashboard data
+  app.get("/api/engine-health", async (_req, res) => {
+    try {
+      const { format, subDays } = await import("date-fns");
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const sevenDaysAgo = format(subDays(new Date(), 7), 'yyyy-MM-dd');
+      
+      const [todayMetrics, historicalMetrics, activeAlerts] = await Promise.all([
+        telemetryService.calculateDailyMetrics(today),
+        storage.getEngineMetricsRange(sevenDaysAgo, today),
+        storage.getActiveHealthAlerts(),
+      ]);
+      
+      res.json({
+        date: today,
+        todayMetrics,
+        historicalMetrics,
+        activeAlerts,
+      });
+    } catch (error) {
+      logger.error("Engine health error:", error);
+      res.status(500).json({ error: "Failed to fetch engine health data" });
+    }
+  });
+
+  // GET /api/engine-health/scorecard - Get daily scorecard for a specific date
+  app.get("/api/engine-health/scorecard", async (req, res) => {
+    try {
+      const { format } = await import("date-fns");
+      const dateParam = req.query.date as string | undefined;
+      const date = dateParam || format(new Date(), 'yyyy-MM-dd');
+      
+      const metrics = await telemetryService.calculateDailyMetrics(date);
+      
+      res.json({
+        date,
+        metrics,
+      });
+    } catch (error) {
+      logger.error("Engine scorecard error:", error);
+      res.status(500).json({ error: "Failed to fetch engine scorecard" });
+    }
+  });
+
+  // GET /api/engine-health/trends - Get engine performance trends
+  app.get("/api/engine-health/trends", async (req, res) => {
+    try {
+      const { format, subDays } = await import("date-fns");
+      const days = parseInt(req.query.days as string) || 30;
+      const engine = req.query.engine as string | undefined;
+      
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const startDate = format(subDays(new Date(), days), 'yyyy-MM-dd');
+      
+      const metrics = await storage.getEngineMetricsRange(
+        startDate, 
+        today, 
+        engine as any
+      );
+      
+      res.json({
+        startDate,
+        endDate: today,
+        days,
+        engine: engine || 'all',
+        metrics,
+      });
+    } catch (error) {
+      logger.error("Engine trends error:", error);
+      res.status(500).json({ error: "Failed to fetch engine trends" });
+    }
+  });
+
+  // POST /api/engine-health/alerts/:id/acknowledge - Acknowledge an alert
+  app.post("/api/engine-health/alerts/:id/acknowledge", isAuthenticated, async (req: any, res) => {
+    try {
+      const alertId = req.params.id;
+      const userId = req.session?.userId;
+      
+      if (!userId) {
+        return res.status(401).json({ error: "User ID not found in session" });
+      }
+      
+      await storage.acknowledgeHealthAlert(alertId, userId);
+      
+      res.json({ 
+        success: true, 
+        message: `Alert ${alertId} acknowledged by user ${userId}` 
+      });
+    } catch (error) {
+      logger.error("Alert acknowledge error:", error);
+      res.status(500).json({ error: "Failed to acknowledge alert" });
     }
   });
 
