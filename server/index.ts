@@ -694,5 +694,49 @@ app.use((req, res, next) => {
     });
     
     log('📨 Daily Summary started - sending top ideas to Discord at 8:00 AM CT weekdays');
+    
+    // Weekly watchlist summary to Discord on Sunday at 6:00 PM CT
+    let lastWeeklyWatchlistDate = '';
+    cron.default.schedule('*/5 * * * *', async () => {
+      try {
+        const ctTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const dayOfWeek = ctTime.getDay(); // 0 = Sunday
+        const hour = ctTime.getHours();
+        const minute = ctTime.getMinutes();
+        const dateKey = ctTime.toISOString().split('T')[0];
+        
+        // Check if it's Sunday 6:00 PM CT
+        const isWeeklyTime = dayOfWeek === 0 && hour === 18 && minute >= 0 && minute < 5;
+        
+        if (!isWeeklyTime) {
+          return;
+        }
+        
+        // Check if we already sent this week
+        if (lastWeeklyWatchlistDate === dateKey) {
+          return;
+        }
+        
+        lastWeeklyWatchlistDate = dateKey;
+        
+        logger.info('📋 [WEEKLY-WATCHLIST] Sending weekly watchlist to Discord...');
+        
+        // Get all watchlist items
+        const { db } = await import('./db');
+        const { watchlist } = await import('@shared/schema');
+        const watchlistItems = await db.select().from(watchlist);
+        
+        // Send weekly summary
+        const { sendWeeklyWatchlistToDiscord } = await import('./discord-service');
+        await sendWeeklyWatchlistToDiscord(watchlistItems);
+        
+        logger.info('📋 [WEEKLY-WATCHLIST] Weekly watchlist sent successfully');
+        
+      } catch (error: any) {
+        logger.error('📋 [WEEKLY-WATCHLIST] Failed to send weekly watchlist:', error);
+      }
+    });
+    
+    log('📋 Weekly Watchlist started - sending to Discord every Sunday at 6:00 PM CT');
   });
 })();

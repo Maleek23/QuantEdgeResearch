@@ -592,6 +592,94 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
   }
 }
 
+// Send weekly watchlist summary to dedicated channel
+export async function sendWeeklyWatchlistToDiscord(items: Array<{
+  symbol: string;
+  assetType: string;
+  notes?: string | null;
+  entryAlertPrice?: number | null;
+  targetAlertPrice?: number | null;
+  stopAlertPrice?: number | null;
+}>): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_WEEKLYWATCHLISTS;
+  
+  if (!webhookUrl) {
+    logger.info('⚠️ DISCORD_WEBHOOK_WEEKLYWATCHLISTS not configured - skipping watchlist summary');
+    return;
+  }
+  
+  if (items.length === 0) {
+    logger.info('📭 No watchlist items to send');
+    return;
+  }
+  
+  try {
+    // Get current date
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    
+    // Format watchlist items
+    const itemList = items.slice(0, 10).map((item, i) => {
+      const typeIcon = item.assetType === 'crypto' ? '₿' : item.assetType === 'option' ? '📋' : '📈';
+      const entry = item.entryAlertPrice ? `Entry $${item.entryAlertPrice.toFixed(2)}` : '';
+      const target = item.targetAlertPrice ? `Target $${item.targetAlertPrice.toFixed(2)}` : '';
+      const stop = item.stopAlertPrice ? `Stop $${item.stopAlertPrice.toFixed(2)}` : '';
+      const levels = [entry, target, stop].filter(Boolean).join(' • ');
+      return `${i + 1}. ${typeIcon} **${item.symbol}** ${levels ? `→ ${levels}` : ''}`;
+    }).join('\n');
+    
+    // Count by asset type
+    const stocks = items.filter(i => i.assetType === 'stock').length;
+    const options = items.filter(i => i.assetType === 'option').length;
+    const crypto = items.filter(i => i.assetType === 'crypto').length;
+    
+    const embed: DiscordEmbed = {
+      title: `📋 Weekly Watchlist - ${dateStr}`,
+      description: `**${items.length} Items on Radar**\n\n${itemList}`,
+      color: 0x8b5cf6, // Purple
+      fields: [
+        {
+          name: '📊 Breakdown',
+          value: `${stocks} Stocks • ${options} Options • ${crypto} Crypto`,
+          inline: true
+        },
+        {
+          name: '🔔 Alerts Set',
+          value: `${items.filter(i => i.entryAlertPrice || i.targetAlertPrice || i.stopAlertPrice).length}`,
+          inline: true
+        }
+      ],
+      footer: {
+        text: '⚠️ Educational research only - not financial advice | QuantEdge'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    const message: DiscordMessage = {
+      content: `📋 **WEEKLY WATCHLIST** - ${items.length} items being tracked`,
+      embeds: [embed]
+    };
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+    
+    if (response.ok) {
+      logger.info(`✅ Discord weekly watchlist sent: ${items.length} items`);
+    } else {
+      logger.warn(`⚠️ Discord watchlist webhook failed: ${response.status}`);
+    }
+  } catch (error) {
+    logger.error('❌ Failed to send Discord watchlist summary:', error);
+  }
+}
+
 // Send daily summary of top trade ideas (scheduled for 8:00 AM CT)
 export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<void> {
   if (DISCORD_DISABLED) return;
