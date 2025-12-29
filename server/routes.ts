@@ -2942,6 +2942,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Engine vs Confidence Correlation Matrix
+  // Shows win rate for each engine at each confidence level
+  app.get("/api/performance/engine-confidence-correlation", async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Filter: only resolved trades with definitive outcome
+      const resolvedIdeas = allIdeas.filter(idea => 
+        idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop'
+      );
+      
+      // Define engines and confidence bands
+      const engines = ['ai', 'quant', 'hybrid', 'flow_scanner', 'chart_analysis', 'lotto_scanner'];
+      const confidenceBands = [
+        { name: 'High (70+)', min: 70, max: 100 },
+        { name: 'Medium (50-69)', min: 50, max: 69 },
+        { name: 'Low (<50)', min: 0, max: 49 },
+      ];
+      
+      // Build correlation matrix
+      const correlationMatrix: {
+        engine: string;
+        displayName: string;
+        totalTrades: number;
+        totalWins: number;
+        overallWinRate: number;
+        byConfidence: {
+          band: string;
+          trades: number;
+          wins: number;
+          losses: number;
+          winRate: number;
+        }[];
+      }[] = [];
+      
+      engines.forEach(engine => {
+        const engineIdeas = resolvedIdeas.filter(idea => idea.source === engine);
+        
+        if (engineIdeas.length === 0) return; // Skip engines with no data
+        
+        const engineStats = {
+          engine,
+          displayName: engine === 'ai' ? 'AI' : 
+                       engine === 'quant' ? 'Quant' :
+                       engine === 'hybrid' ? 'Hybrid' :
+                       engine === 'flow_scanner' ? 'Flow Scanner' :
+                       engine === 'chart_analysis' ? 'Chart Analysis' :
+                       engine === 'lotto_scanner' ? 'Lotto Scanner' : engine,
+          totalTrades: engineIdeas.length,
+          totalWins: engineIdeas.filter(i => i.outcomeStatus === 'hit_target').length,
+          overallWinRate: 0,
+          byConfidence: [] as any[],
+        };
+        
+        engineStats.overallWinRate = Math.round((engineStats.totalWins / engineStats.totalTrades) * 1000) / 10;
+        
+        // Calculate stats for each confidence band
+        confidenceBands.forEach(band => {
+          const bandIdeas = engineIdeas.filter(idea => {
+            const conf = idea.confidenceScore || 0;
+            return conf >= band.min && conf <= band.max;
+          });
+          
+          const wins = bandIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
+          const losses = bandIdeas.length - wins;
+          const winRate = bandIdeas.length > 0 
+            ? Math.round((wins / bandIdeas.length) * 1000) / 10 
+            : 0;
+          
+          engineStats.byConfidence.push({
+            band: band.name,
+            trades: bandIdeas.length,
+            wins,
+            losses,
+            winRate,
+          });
+        });
+        
+        correlationMatrix.push(engineStats);
+      });
+      
+      // Sort by total trades (most active engines first)
+      correlationMatrix.sort((a, b) => b.totalTrades - a.totalTrades);
+      
+      res.json({
+        correlationMatrix,
+        confidenceBands: confidenceBands.map(b => b.name),
+        summary: {
+          totalEngines: correlationMatrix.length,
+          totalResolvedTrades: resolvedIdeas.length,
+        }
+      });
+    } catch (error) {
+      logger.error("Engine-confidence correlation error:", error);
+      res.status(500).json({ error: "Failed to fetch engine-confidence correlation" });
+    }
+  });
+
   // 5. Streaks - Current streak and historical streaks
   app.get("/api/performance/streaks", async (req, res) => {
     try {

@@ -49,6 +49,28 @@ interface CalibratedStats {
   }>;
 }
 
+interface EngineConfidenceCorrelation {
+  correlationMatrix: Array<{
+    engine: string;
+    displayName: string;
+    totalTrades: number;
+    totalWins: number;
+    overallWinRate: number;
+    byConfidence: Array<{
+      band: string;
+      trades: number;
+      wins: number;
+      losses: number;
+      winRate: number;
+    }>;
+  }>;
+  confidenceBands: string[];
+  summary: {
+    totalEngines: number;
+    totalResolvedTrades: number;
+  };
+}
+
 interface PerformanceStats {
   overall: {
     totalIdeas: number;
@@ -437,6 +459,11 @@ export default function PerformancePage() {
     staleTime: 60000,
   });
 
+  const { data: correlationData } = useQuery<EngineConfidenceCorrelation>({
+    queryKey: ["/api/performance/engine-confidence-correlation"],
+    staleTime: 60000,
+  });
+
   const getAlertCountForEngine = (engineKey: EngineKey): number => {
     return engineHealthData?.activeAlerts?.filter((a) => a.engine === engineKey && !a.acknowledged).length ?? 0;
   };
@@ -766,6 +793,112 @@ export default function PerformancePage() {
                   <span className="text-muted-foreground ml-1">
                     Low confidence trades are exploratory - good for discovery but shouldn't define platform performance. 
                     Official stats use only trades the system was confident about.
+                  </span>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Engine vs Confidence Correlation Matrix */}
+      {correlationData && correlationData.correlationMatrix.length > 0 && (
+        <Card className="glass-card" data-testid="section-engine-confidence-correlation">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-cyan-400" />
+              <CardTitle className="text-lg">Engine × Confidence Correlation</CardTitle>
+              <Badge variant="outline" className="border-purple-500/50 text-purple-400">
+                Win Rate by Engine & Confidence
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Shows which engines perform best at each confidence level. Helps identify which engines to trust at different confidence thresholds.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/50">
+                    <th className="text-left py-2 px-3 font-semibold">Engine</th>
+                    <th className="text-center py-2 px-3 font-semibold">Overall</th>
+                    {correlationData.confidenceBands.map((band) => (
+                      <th key={band} className="text-center py-2 px-3 font-semibold text-xs">
+                        {band}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {correlationData.correlationMatrix.map((engine) => (
+                    <tr key={engine.engine} className="border-b border-border/20 hover:bg-background/50">
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              "text-xs",
+                              engine.engine === 'ai' && "border-amber-500/50 text-amber-400",
+                              engine.engine === 'quant' && "border-cyan-500/50 text-cyan-400",
+                              engine.engine === 'hybrid' && "border-purple-500/50 text-purple-400",
+                              engine.engine === 'flow_scanner' && "border-green-500/50 text-green-400",
+                              engine.engine === 'chart_analysis' && "border-blue-500/50 text-blue-400",
+                              engine.engine === 'lotto_scanner' && "border-pink-500/50 text-pink-400"
+                            )}
+                          >
+                            {engine.displayName}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            ({engine.totalTrades} trades)
+                          </span>
+                        </div>
+                      </td>
+                      <td className="text-center py-3 px-3">
+                        <span className={cn(
+                          "font-mono font-bold",
+                          engine.overallWinRate >= 70 ? "text-green-400" :
+                          engine.overallWinRate >= 50 ? "text-amber-400" :
+                          "text-red-400"
+                        )}>
+                          {engine.overallWinRate.toFixed(1)}%
+                        </span>
+                      </td>
+                      {engine.byConfidence.map((conf) => (
+                        <td key={conf.band} className="text-center py-3 px-3">
+                          {conf.trades > 0 ? (
+                            <div>
+                              <span className={cn(
+                                "font-mono text-sm",
+                                conf.winRate >= 70 ? "text-green-400" :
+                                conf.winRate >= 50 ? "text-amber-400" :
+                                conf.winRate > 0 ? "text-red-400" :
+                                "text-muted-foreground"
+                              )}>
+                                {conf.winRate.toFixed(0)}%
+                              </span>
+                              <div className="text-[10px] text-muted-foreground">
+                                {conf.wins}W/{conf.losses}L
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground/50">—</span>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+              <div className="flex items-start gap-2">
+                <Info className="h-4 w-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <span className="font-semibold text-purple-400">Reading This Table:</span>
+                  <span className="text-muted-foreground ml-1">
+                    Look for engines with high win rates at high confidence levels - those are well-calibrated. 
+                    Engines with low win rates at high confidence need recalibration.
                   </span>
                 </div>
               </div>
