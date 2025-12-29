@@ -175,6 +175,11 @@ export const tradeIdeas = pgTable("trade_ideas", {
   // Lotto Mode - High-risk far-OTM options ($20-70 entry) with 20x potential
   isLottoPlay: boolean("is_lotto_play").default(false), // True for $20-70 options with delta <0.30 (far OTM)
   
+  // 🎓 EDUCATIONAL TRACKING - For missed entries (entry window expired before trade placed)
+  // These fields track what WOULD HAVE happened - separate from real performance metrics
+  missedEntryTheoreticalOutcome: text("missed_entry_theoretical_outcome").$type<'would_have_won' | 'would_have_lost' | 'inconclusive'>(), // What would have happened if entry was made
+  missedEntryTheoreticalGain: real("missed_entry_theoretical_gain"), // Theoretical % gain/loss if trade was entered
+  
   // Research Categorization - For educational framing and filtering
   researchHorizon: text("research_horizon").$type<ResearchHorizon>().default('intraday'), // Time frame: intraday, short_swing, multi_week, thematic_long
   riskProfile: text("risk_profile").$type<RiskProfile>().default('moderate'), // Risk level: conservative, moderate, aggressive, speculative

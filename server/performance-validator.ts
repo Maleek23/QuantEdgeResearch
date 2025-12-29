@@ -294,6 +294,9 @@ interface ValidationResult {
   predictionValidatedAt?: string;
   highestPriceReached?: number;
   lowestPriceReached?: number;
+  // 🎓 EDUCATIONAL FIELDS - For missed entry tracking (separate from real performance)
+  missedEntryTheoreticalOutcome?: 'would_have_won' | 'would_have_lost' | 'inconclusive';
+  missedEntryTheoreticalGain?: number;
 }
 
 export class PerformanceValidator {
@@ -573,8 +576,8 @@ export class PerformanceValidator {
     const holdingTimeMinutes = Math.floor(holdingTimeMs / (1000 * 60));
 
     // 🚨 CRITICAL CHECK: Has the entry window closed?
-    // If entryValidUntil has passed, check if the trade thesis was correct (would have won/lost)
-    // This provides educational value - tracking if the idea was right even if we didn't enter
+    // If entryValidUntil has passed, mark as expired but ALSO track what WOULD have happened (educational)
+    // IMPORTANT: Real metrics (outcomeStatus, percentGain) stay at expired/0 to preserve win rate accuracy
     if (idea.entryValidUntil) {
       try {
         const entryValidUntilDate = this.parseExitByDate(idea.entryValidUntil, createdAt);
@@ -582,8 +585,7 @@ export class PerformanceValidator {
         if (entryValidUntilDate && now > entryValidUntilDate) {
           const hoursPassedSinceEntry = (now.getTime() - entryValidUntilDate.getTime()) / (1000 * 60 * 60);
           
-          // 🎯 FIX: Still check if the trade thesis was correct (educational tracking)
-          // Use current price and historical high/low to determine theoretical outcome
+          // 🎯 Track theoretical outcome for EDUCATIONAL purposes (separate from real metrics)
           const lastKnownPrice = currentPrice || idea.entryPrice;
           const highestPrice = Math.max(
             idea.highestPriceReached || idea.entryPrice,
@@ -594,69 +596,72 @@ export class PerformanceValidator {
             currentPrice || idea.lowestPriceReached || idea.entryPrice
           );
           
-          // 🎯 Check if the trade WOULD HAVE hit target or stop
+          // Determine what WOULD HAVE happened (educational tracking only)
           const normalizedDirection = this.getNormalizedDirection(idea);
           const isLong = normalizedDirection === 'long';
           
-          // Check if target was reached (for educational purposes)
-          let theoreticalOutcome: 'hit_target' | 'hit_stop' | 'expired' = 'expired';
-          let theoreticalGain = 0;
+          // Determine theoretical outcome and gain
+          let missedEntryTheoreticalOutcome: 'would_have_won' | 'would_have_lost' | 'inconclusive' = 'inconclusive';
+          let missedEntryTheoreticalGain = 0;
           let resolutionReason: 'missed_entry_would_have_won' | 'missed_entry_would_have_lost' | 'missed_entry_no_outcome' = 'missed_entry_no_outcome';
           
           if (isLong) {
             // LONG: Win if high reached target, lose if low hit stop
             if (highestPrice >= idea.targetPrice) {
-              theoreticalOutcome = 'hit_target';
-              theoreticalGain = this.calculatePercentGain('long', idea.entryPrice, idea.targetPrice);
+              missedEntryTheoreticalOutcome = 'would_have_won';
+              missedEntryTheoreticalGain = this.calculatePercentGain('long', idea.entryPrice, idea.targetPrice);
               resolutionReason = 'missed_entry_would_have_won';
-              console.log(`📊 [VALIDATION] ${idea.symbol} MISSED ENTRY but WOULD HAVE WON - High $${highestPrice.toFixed(2)} >= Target $${idea.targetPrice.toFixed(2)} (+${theoreticalGain.toFixed(1)}%)`);
+              console.log(`📊 [VALIDATION] ${idea.symbol} MISSED ENTRY but would have WON - High $${highestPrice.toFixed(2)} >= Target $${idea.targetPrice.toFixed(2)} (+${missedEntryTheoreticalGain.toFixed(1)}%)`);
             } else if (lowestPrice <= idea.stopLoss) {
-              theoreticalOutcome = 'hit_stop';
-              theoreticalGain = this.calculatePercentGain('long', idea.entryPrice, idea.stopLoss);
+              missedEntryTheoreticalOutcome = 'would_have_lost';
+              missedEntryTheoreticalGain = this.calculatePercentGain('long', idea.entryPrice, idea.stopLoss);
               resolutionReason = 'missed_entry_would_have_lost';
-              console.log(`📊 [VALIDATION] ${idea.symbol} MISSED ENTRY but WOULD HAVE LOST - Low $${lowestPrice.toFixed(2)} <= Stop $${idea.stopLoss.toFixed(2)} (${theoreticalGain.toFixed(1)}%)`);
+              console.log(`📊 [VALIDATION] ${idea.symbol} MISSED ENTRY but would have LOST - Low $${lowestPrice.toFixed(2)} <= Stop $${idea.stopLoss.toFixed(2)} (${missedEntryTheoreticalGain.toFixed(1)}%)`);
             } else {
-              // Neither target nor stop hit - thesis inconclusive
-              theoreticalGain = this.calculatePercentGain('long', idea.entryPrice, lastKnownPrice);
-              console.log(`⛔ [VALIDATION] ${idea.symbol} MISSED ENTRY - Neither target nor stop hit (Current: $${lastKnownPrice.toFixed(2)})`);
+              missedEntryTheoreticalGain = this.calculatePercentGain('long', idea.entryPrice, lastKnownPrice);
+              console.log(`⛔ [VALIDATION] ${idea.symbol} MISSED ENTRY - outcome inconclusive (neither target nor stop hit)`);
             }
           } else {
             // SHORT: Win if low reached target, lose if high hit stop
             if (lowestPrice <= idea.targetPrice) {
-              theoreticalOutcome = 'hit_target';
-              theoreticalGain = this.calculatePercentGain('short', idea.entryPrice, idea.targetPrice);
+              missedEntryTheoreticalOutcome = 'would_have_won';
+              missedEntryTheoreticalGain = this.calculatePercentGain('short', idea.entryPrice, idea.targetPrice);
               resolutionReason = 'missed_entry_would_have_won';
-              console.log(`📊 [VALIDATION] ${idea.symbol} MISSED ENTRY but WOULD HAVE WON - Low $${lowestPrice.toFixed(2)} <= Target $${idea.targetPrice.toFixed(2)} (+${theoreticalGain.toFixed(1)}%)`);
+              console.log(`📊 [VALIDATION] ${idea.symbol} MISSED ENTRY but would have WON - Low $${lowestPrice.toFixed(2)} <= Target $${idea.targetPrice.toFixed(2)} (+${missedEntryTheoreticalGain.toFixed(1)}%)`);
             } else if (highestPrice >= idea.stopLoss) {
-              theoreticalOutcome = 'hit_stop';
-              theoreticalGain = this.calculatePercentGain('short', idea.entryPrice, idea.stopLoss);
+              missedEntryTheoreticalOutcome = 'would_have_lost';
+              missedEntryTheoreticalGain = this.calculatePercentGain('short', idea.entryPrice, idea.stopLoss);
               resolutionReason = 'missed_entry_would_have_lost';
-              console.log(`📊 [VALIDATION] ${idea.symbol} MISSED ENTRY but WOULD HAVE LOST - High $${highestPrice.toFixed(2)} >= Stop $${idea.stopLoss.toFixed(2)} (${theoreticalGain.toFixed(1)}%)`);
+              console.log(`📊 [VALIDATION] ${idea.symbol} MISSED ENTRY but would have LOST - High $${highestPrice.toFixed(2)} >= Stop $${idea.stopLoss.toFixed(2)} (${missedEntryTheoreticalGain.toFixed(1)}%)`);
             } else {
-              // Neither target nor stop hit - thesis inconclusive
-              theoreticalGain = this.calculatePercentGain('short', idea.entryPrice, lastKnownPrice);
-              console.log(`⛔ [VALIDATION] ${idea.symbol} MISSED ENTRY - Neither target nor stop hit (Current: $${lastKnownPrice.toFixed(2)})`);
+              missedEntryTheoreticalGain = this.calculatePercentGain('short', idea.entryPrice, lastKnownPrice);
+              console.log(`⛔ [VALIDATION] ${idea.symbol} MISSED ENTRY - outcome inconclusive (neither target nor stop hit)`);
             }
           }
           
-          // Prediction was accurate if theoretical outcome was a win
-          const predictionAccurate = theoreticalOutcome === 'hit_target';
+          // 🔒 REAL METRICS: Keep at expired/0 to preserve win rate accuracy
+          // 🎓 EDUCATIONAL FIELDS: Track what would have happened separately
+          // 📊 PREDICTION ACCURACY: Still track if the thesis was correct (for quant model accuracy)
+          const predictionWasAccurate = missedEntryTheoreticalOutcome === 'would_have_won';
           
           return {
             shouldUpdate: true,
-            outcomeStatus: theoreticalOutcome, // Now shows what WOULD HAVE happened
-            exitPrice: theoreticalOutcome === 'hit_target' ? idea.targetPrice : 
-                       theoreticalOutcome === 'hit_stop' ? idea.stopLoss : lastKnownPrice,
-            percentGain: theoreticalGain, // Shows theoretical gain/loss
-            realizedPnL: 0, // Still 0 since we didn't actually trade
-            resolutionReason, // Now indicates missed entry + outcome
+            outcomeStatus: 'expired', // Real status: expired (never entered)
+            exitPrice: idea.entryPrice, // No real exit - use entry price
+            percentGain: 0, // Real gain: 0 (never traded)
+            realizedPnL: 0, // Real P&L: 0 (never traded)
+            resolutionReason, // Describes what would have happened
             exitDate: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
             actualHoldingTimeMinutes: 0, // Never held the position
-            predictionAccurate,
-            predictionAccuracyPercent: predictionAccurate ? 100 : 0,
+            // 📊 Prediction accuracy reflects thesis correctness (even if we didn't trade)
+            predictionAccurate: predictionWasAccurate,
+            predictionAccuracyPercent: predictionWasAccurate ? 100 : (missedEntryTheoreticalOutcome === 'inconclusive' ? 50 : 0),
             predictionValidatedAt: formatInTimeZone(now, timezone, "yyyy-MM-dd'T'HH:mm:ssXXX"),
             highestPriceReached: highestPrice,
             lowestPriceReached: lowestPrice,
+            // 🎓 EDUCATIONAL: Track theoretical outcome separately
+            missedEntryTheoreticalOutcome,
+            missedEntryTheoreticalGain,
           };
         }
       } catch (e) {

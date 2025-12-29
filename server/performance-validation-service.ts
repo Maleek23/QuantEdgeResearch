@@ -135,6 +135,9 @@ class PerformanceValidationService {
             predictionValidatedAt: result.predictionValidatedAt,
             highestPriceReached: result.highestPriceReached,
             lowestPriceReached: result.lowestPriceReached,
+            // 🎓 EDUCATIONAL: Track what would have happened for missed entries
+            missedEntryTheoreticalOutcome: result.missedEntryTheoreticalOutcome,
+            missedEntryTheoreticalGain: result.missedEntryTheoreticalGain,
           });
 
           validated++;
