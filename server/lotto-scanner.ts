@@ -235,16 +235,17 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
     }
 
     const currentPrice = quote.last;
+    // For lotto plays, direction indicates market expectation (call=bullish, put=bearish)
+    // But we're BUYING the option in both cases, so premium target is always 20x
     const direction = candidate.optionType === 'call' ? 'long' : 'short';
     
-    // Calculate lotto targets (20x return)
+    // Calculate lotto targets (20x return on option premium)
     const entryPrice = candidate.lastPrice;
-    const { targetPrice, riskRewardRatio } = calculateLottoTargets(entryPrice, direction);
+    const { targetPrice, riskRewardRatio } = calculateLottoTargets(entryPrice);
     
-    // Calculate stop loss (100% loss on premium - this is lotto plays after all)
-    const stopLoss = direction === 'long' 
-      ? entryPrice * 0.5  // 50% stop for calls
-      : entryPrice * 1.5; // 50% loss tolerance for puts
+    // Calculate stop loss - 50% of premium for all lotto plays
+    // (We're BUYING the option, so stop triggers if premium drops 50%)
+    const stopLoss = entryPrice * 0.5;
 
     // Generate analysis
     const analysis = `🎰 LOTTO PLAY: ${ticker} ${candidate.optionType.toUpperCase()} $${candidate.strike} expiring ${formatInTimeZone(new Date(candidate.expiration), 'America/Chicago', 'MMM dd')} - Far OTM play (Δ ${Math.abs(candidate.delta).toFixed(2)}) targeting 20x return. Entry: $${entryPrice.toFixed(2)}, Target: $${targetPrice.toFixed(2)}. HIGH RISK: Weekly option with ${candidate.daysToExpiry}d until expiry. Sized for small account growth ($0.20-$2.00 entry range).`;

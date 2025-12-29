@@ -55,18 +55,22 @@ export function isLottoCandidate(option: LottoOption): boolean {
 /**
  * Calculate Lotto-specific targets (20x return with adjusted R:R)
  * 
+ * For LOTTO plays, you're always BUYING options (calls or puts).
+ * - BUY CALL: You want call value to increase 20x (when stock goes up)
+ * - BUY PUT: You want put value to increase 20x (when stock goes down)
+ * 
+ * In both cases, the OPTION PREMIUM target is 20x the entry price.
+ * 
  * @param entryPrice - Option premium entry price
- * @param direction - Trade direction ('long' or 'short')
  * @returns Updated target price and R:R ratio for Lotto plays
  */
-export function calculateLottoTargets(entryPrice: number, direction: 'long' | 'short'): {
+export function calculateLottoTargets(entryPrice: number): {
   targetPrice: number;
   riskRewardRatio: number;
 } {
-  // Lotto plays aim for 20x return
-  const targetPrice = direction === 'long' 
-    ? entryPrice * 20 
-    : entryPrice * 0.05; // For shorts, target is 95% drop
+  // Lotto plays aim for 20x return on the option premium
+  // This applies to both calls AND puts since you're BUYING the option
+  const targetPrice = entryPrice * 20;
   
   return {
     targetPrice,
