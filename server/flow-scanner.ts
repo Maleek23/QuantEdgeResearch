@@ -170,7 +170,8 @@ function hasEnoughTradingTime(expirationDate: string, minutesUntilClose: number)
   return { hasTime: true, reason: 'Sufficient trading time', dte: daysToExpiry };
 }
 
-// EXPANDED FLOW SCAN UNIVERSE (100+ tickers) - Including quantum, nuclear, and niche tickers
+// EXPANDED FLOW SCAN UNIVERSE (150+ tickers) - Including quantum, nuclear, healthcare, and penny stocks
+// FOCUS: "Next Big Things" after AI - Quantum Computing, Nuclear Fusion, Healthcare Innovation
 const FLOW_SCAN_TICKERS = [
   // === CORE HIGH-VOLUME TICKERS ===
   'SPY', 'QQQ', 'IWM', 'XLF', 'XLE',  // ETFs
@@ -178,67 +179,165 @@ const FLOW_SCAN_TICKERS = [
   'NFLX', 'DIS', 'BA', 'COIN', 'PLTR', 'SOFI', 'HOOD', 'RIOT', 'MARA', 'MSTR',  // Popular
   
   // === 🔬 QUANTUM COMPUTING (NEXT BIG THING #1) ===
-  'IONQ',   // IonQ - Trapped ion quantum leader
-  'RGTI',   // Rigetti - Superconducting qubits
-  'QUBT',   // Quantum Computing Inc - Photonic quantum
-  'QBTS',   // D-Wave Quantum - Quantum annealing
-  'ARQQ',   // Arqit Quantum - Quantum encryption
+  'IONQ',   // IonQ - Trapped ion quantum leader ($5-15 range)
+  'RGTI',   // Rigetti - Superconducting qubits ($1-10 range - TRUE PENNY LOTTO)
+  'QUBT',   // Quantum Computing Inc - Photonic quantum ($1-5 range - TRUE PENNY LOTTO)
+  'QBTS',   // D-Wave Quantum - Quantum annealing ($3-10 range - PENNY LOTTO)
+  'ARQQ',   // Arqit Quantum - Quantum encryption ($1-5 range - TRUE PENNY LOTTO)
+  'QMCO',   // Quantum-Si - Protein sequencing quantum ($1-3 range - TRUE PENNY LOTTO)
+  'QTUM',   // Defiance Quantum ETF - Quantum basket
+  'FORM',   // FormFactor - Quantum probe cards
   'IBM',    // IBM - Major quantum player
   'GOOG',   // Google - Sycamore processor
+  'HON',    // Honeywell - Quantinuum
   
   // === ⚛️ NUCLEAR FUSION & ADVANCED NUCLEAR (NEXT BIG THING #2) ===
-  'NNE',    // Nano Nuclear Energy - Micro modular reactors
-  'OKLO',   // Oklo - Advanced fission/fusion
-  'SMR',    // NuScale Power - Small modular reactors  
-  'LEU',    // Centrus Energy - Uranium/HALEU
+  'NNE',    // Nano Nuclear Energy - Micro modular reactors ($10-30 range)
+  'OKLO',   // Oklo - Advanced fission/fusion ($10-40 range)
+  'SMR',    // NuScale Power - Small modular reactors ($10-25 range)
+  'LEU',    // Centrus Energy - Uranium/HALEU ($40-80 range)
   'CCJ',    // Cameco - Uranium mining leader
-  'UEC',    // Uranium Energy Corp
-  'UUUU',   // Energy Fuels - Uranium + rare earths
+  'UEC',    // Uranium Energy Corp ($5-10 range)
+  'UUUU',   // Energy Fuels - Uranium + rare earths ($5-10 range)
+  'DNN',    // Denison Mines - Uranium developer ($1-3 range - TRUE PENNY)
+  'NXE',    // NexGen Energy - High-grade uranium
   'BWXT',   // BWX Technologies - Nuclear components
   'CEG',    // Constellation Energy - Nuclear fleet
   'VST',    // Vistra - Nuclear power
+  'URG',    // Ur-Energy - Wyoming uranium ($1-3 range - TRUE PENNY)
+  'UROY',   // Uranium Royalty Corp - Uranium royalties
+  'LTBR',   // Lightbridge Corp - Nuclear fuel tech ($2-5 range - PENNY LOTTO)
   
-  // === 🤖 AI & MACHINE LEARNING ===
-  'SOUN', 'BBAI', 'AI', 'PATH', 'SNOW', 'DDOG', 'MDB',
+  // === 🤖 AI & MACHINE LEARNING (CURRENT BIG THING) ===
+  'SOUN',   // SoundHound AI - Voice AI ($5-15 range)
+  'BBAI',   // BigBear.ai - AI analytics ($1-5 range - TRUE PENNY LOTTO)
+  'AI',     // C3.ai - Enterprise AI
+  'PLTR',   // Palantir - AI/data analytics
+  'PATH',   // UiPath - AI automation
+  'SNOW',   // Snowflake - AI data cloud
+  'DDOG',   // Datadog - AI observability
+  'MDB',    // MongoDB - AI database
+  'ESTC',   // Elastic - AI search
+  'GTLB',   // GitLab - AI DevOps
+  'GFAI',   // Guardforce AI - Security AI ($0.50-2 range - TRUE PENNY LOTTO)
+  'VEEE',   // Twin Vee PowerCats - AI marine ($1-3 range - PENNY)
   
   // === 🚀 SPACE & SATELLITES ===
-  'ASTS', 'RKLB', 'LUNR', 'RDW', 'SPCE', 'IRDM', 'BKSY',
+  'ASTS',   // AST SpaceMobile - Space-based cellular ($10-30 range)
+  'RKLB',   // Rocket Lab - Small satellite launch ($10-25 range)
+  'LUNR',   // Intuitive Machines - Lunar landers ($5-15 range)
+  'RDW',    // Redwire - Space infrastructure ($3-10 range - PENNY LOTTO)
+  'SPCE',   // Virgin Galactic - Space tourism ($1-5 range - TRUE PENNY LOTTO)
+  'BKSY',   // BlackSky - Geospatial ($0.50-2 range - TRUE PENNY LOTTO)
+  'IRDM',   // Iridium - Satellite communications
+  'LLAP',   // Terran Orbital - Satellite manufacturing ($0.50-3 range - TRUE PENNY)
   
-  // === 🧬 BIOTECH/GENE EDITING ===
-  'NVAX', 'MRNA', 'BNTX', 'CRSP', 'EDIT', 'NTLA', 'BEAM',
+  // === 🧬 BIOTECH/GENE EDITING/HEALTHCARE (NEXT BIG THING #3) ===
+  'NVAX',   // Novavax - Vaccines ($5-20 range)
+  'MRNA',   // Moderna - mRNA tech
+  'BNTX',   // BioNTech - mRNA pioneer
+  'CRSP',   // CRISPR Therapeutics - Gene editing ($40-80 range)
+  'EDIT',   // Editas Medicine - Gene editing ($2-10 range - PENNY LOTTO)
+  'NTLA',   // Intellia Therapeutics - CRISPR ($15-40 range)
+  'BEAM',   // Beam Therapeutics - Base editing ($15-40 range)
+  'VERV',   // Verve Therapeutics - Gene editing cardio ($5-20 range)
+  'BLUE',   // bluebird bio - Gene therapy ($0.50-3 range - TRUE PENNY LOTTO)
+  'INO',    // Inovio - DNA medicines ($1-5 range - TRUE PENNY LOTTO)
+  'SRNE',   // Sorrento Therapeutics ($0.20-1 range - ULTRA PENNY LOTTO)
+  'VXRT',   // Vaxart - Oral vaccines ($0.50-3 range - TRUE PENNY LOTTO)
+  'NKTR',   // Nektar Therapeutics - Immuno-oncology ($0.50-2 range - TRUE PENNY)
+  'ADVM',   // Adverum Biotech - Gene therapy ($1-5 range - TRUE PENNY LOTTO)
+  'FATE',   // Fate Therapeutics - Cell therapy ($1-5 range - TRUE PENNY LOTTO)
+  'GRTS',   // Gritstone bio - Cancer vaccines ($0.50-3 range - TRUE PENNY LOTTO)
+  'IMVT',   // Immunovant - Autoimmune ($15-40 range)
+  'RXRX',   // Recursion Pharma - AI drug discovery ($5-15 range)
   
   // === ⚡ CLEAN ENERGY & BATTERIES ===
-  'PLUG', 'FCEL', 'BE', 'ENPH', 'SEDG', 'RUN', 'ENVX', 'QS', 'STEM',
+  'PLUG',   // Plug Power - Green hydrogen ($1-5 range - TRUE PENNY LOTTO)
+  'FCEL',   // FuelCell Energy ($0.50-3 range - TRUE PENNY LOTTO)
+  'BE',     // Bloom Energy - Solid oxide fuel cells
+  'ENPH',   // Enphase - Microinverters
+  'SEDG',   // SolarEdge - Solar inverters
+  'RUN',    // Sunrun - Residential solar
+  'ENVX',   // Enovix - Next-gen batteries ($5-15 range)
+  'QS',     // QuantumScape - Solid-state batteries ($3-10 range - PENNY LOTTO)
+  'STEM',   // Stem Inc - AI energy storage ($0.50-2 range - TRUE PENNY LOTTO)
+  'CLNE',   // Clean Energy Fuels ($2-5 range - TRUE PENNY)
+  'BLDP',   // Ballard Power - Fuel cells ($1-5 range - TRUE PENNY LOTTO)
   
   // === 🚗 EV & AUTONOMOUS ===
-  'RIVN', 'LCID', 'NIO', 'XPEV', 'LI', 'CHPT', 'BLNK',
+  'RIVN',   // Rivian - Electric trucks ($10-20 range)
+  'LCID',   // Lucid - Luxury EV ($2-5 range - TRUE PENNY LOTTO)
+  'NIO',    // NIO - Chinese premium EV ($3-10 range - PENNY LOTTO)
+  'XPEV',   // XPeng - Chinese EV ($5-15 range)
+  'LI',     // Li Auto - Chinese hybrid EV
+  'CHPT',   // ChargePoint - EV charging ($0.50-3 range - TRUE PENNY LOTTO)
+  'BLNK',   // Blink Charging ($1-5 range - TRUE PENNY LOTTO)
+  'EVGO',   // EVgo - Fast charging ($2-8 range - PENNY)
+  'FFIE',   // Faraday Future ($0.01-0.50 range - ULTRA PENNY LOTTO)
+  'GOEV',   // Canoo - EV platform ($0.10-1 range - ULTRA PENNY LOTTO)
+  'NKLA',   // Nikola - Hydrogen trucks ($0.50-3 range - TRUE PENNY LOTTO)
   
   // === 💳 FINTECH ===
-  'UPST', 'AFRM', 'SQ', 'PYPL', 'NU',
+  'UPST',   // Upstart - AI lending ($30-80 range)
+  'AFRM',   // Affirm - BNPL
+  'SQ',     // Block/Square - Payments
+  'PYPL',   // PayPal
+  'NU',     // Nu Holdings - Brazilian fintech
   
   // === 💰 CRYPTO MINERS ===
-  'CLSK', 'BTBT', 'BITF', 'HUT', 'CIFR',
+  'CLSK',   // CleanSpark - BTC mining
+  'BTBT',   // Bit Digital ($2-5 range - TRUE PENNY)
+  'BITF',   // Bitfarms ($1-5 range - TRUE PENNY LOTTO)
+  'HUT',    // Hut 8 Mining
+  'CIFR',   // Cipher Mining ($3-8 range - PENNY LOTTO)
+  'WULF',   // TeraWulf - BTC mining ($3-8 range - PENNY LOTTO)
+  'IREN',   // Iris Energy - BTC mining
   
   // === 🔐 CYBERSECURITY ===
-  'CRWD', 'S', 'ZS', 'PANW', 'NET', 'OKTA',
+  'CRWD',   // CrowdStrike
+  'S',      // SentinelOne
+  'ZS',     // Zscaler
+  'PANW',   // Palo Alto Networks
+  'NET',    // Cloudflare
+  'OKTA',   // Okta - Identity
   
   // === 💎 SEMICONDUCTORS ===
-  'SMCI', 'ARM', 'AVGO', 'MU', 'AEHR', 'WOLF', 'LSCC',
+  'SMCI',   // Super Micro Computer
+  'ARM',    // Arm Holdings
+  'AVGO',   // Broadcom
+  'MU',     // Micron
+  'AEHR',   // Aehr Test Systems ($5-20 range)
+  'WOLF',   // Wolfspeed - SiC ($5-20 range)
+  'LSCC',   // Lattice Semiconductor
   
   // === 🎮 GAMING/METAVERSE ===
-  'RBLX', 'U', 'DKNG',
+  'RBLX',   // Roblox
+  'U',      // Unity Software
+  'DKNG',   // DraftKings
   
   // === 🛡️ DEFENSE & DRONES ===
-  'RCAT', 'JOBY', 'ACHR', 'KTOS', 'AVAV',
+  'RCAT',   // Red Cat Holdings - Drones ($2-8 range - PENNY LOTTO)
+  'JOBY',   // Joby Aviation - eVTOL ($3-10 range - PENNY LOTTO)
+  'ACHR',   // Archer Aviation - eVTOL ($3-10 range - PENNY LOTTO)
+  'KTOS',   // Kratos Defense - Drones
+  'AVAV',   // AeroVironment - Military drones
+  'UAVS',   // AgEagle Aerial - Drone tech ($0.10-1 range - ULTRA PENNY LOTTO)
   
   // === 🌿 CANNABIS ===
-  'TLRY', 'CGC',
+  'TLRY',   // Tilray ($1-5 range - TRUE PENNY LOTTO)
+  'CGC',    // Canopy Growth ($2-10 range - PENNY LOTTO)
+  'SNDL',   // SNDL ($1-3 range - TRUE PENNY LOTTO)
   
   // === ⛏️ COMMODITIES/RARE EARTHS ===
   'MP',     // MP Materials - Rare earths
   'LAC',    // Lithium Americas
   'ALB',    // Albemarle - Lithium
-  'FCX'     // Freeport-McMoRan - Copper
+  'FCX',    // Freeport-McMoRan - Copper
+  'UROY',   // Uranium Royalty Corp
+  'LI',     // Lithium stocks
+  'SLI',    // Standard Lithium ($1-5 range - TRUE PENNY LOTTO)
+  'PLL'     // Piedmont Lithium
 ];
 
 // Unusual activity thresholds (adjusted for Tradier Sandbox limitations)

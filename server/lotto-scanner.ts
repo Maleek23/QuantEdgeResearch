@@ -41,10 +41,75 @@ function isMarketOpen(): { isOpen: boolean; reason: string } {
   return { isOpen: true, reason: 'Market open' };
 }
 
-// High-volatility tickers perfect for lotto plays
+// High-volatility tickers perfect for lotto plays - EXPANDED with Quantum, Nuclear, Healthcare penny stocks
+// These are characterized by extreme volatility, binary catalysts, and retail interest
 const LOTTO_SCAN_TICKERS = [
-  'TSLA', 'NVDA', 'AMD', 'MARA', 'RIOT', 'COIN', 'PLTR', 'SOFI', 'HOOD',
-  'MSTR', 'GME', 'AMC', 'SPY', 'QQQ', 'AAPL', 'MSFT', 'NFLX', 'META', 'GOOGL', 'AMZN'
+  // === CORE HIGH-VOLATILITY ===
+  'TSLA', 'NVDA', 'AMD', 'SPY', 'QQQ', 'AAPL', 'MSFT', 'NFLX', 'META', 'GOOGL', 'AMZN',
+  
+  // === 🔬 QUANTUM COMPUTING PENNY LOTTOS ===
+  'IONQ',   // IonQ - Trapped ion ($5-15)
+  'RGTI',   // Rigetti - Superconducting ($1-10) ⚡ TOP LOTTO
+  'QUBT',   // Quantum Computing Inc ($1-5) ⚡ TOP LOTTO
+  'QBTS',   // D-Wave Quantum ($3-10) ⚡ TOP LOTTO
+  'ARQQ',   // Arqit Quantum ($1-5) ⚡ TOP LOTTO
+  
+  // === ⚛️ NUCLEAR FUSION PENNY LOTTOS ===
+  'NNE',    // Nano Nuclear Energy ($10-30)
+  'OKLO',   // Oklo - Advanced fission ($10-40)
+  'SMR',    // NuScale Power ($10-25)
+  'UEC',    // Uranium Energy ($5-10)
+  'DNN',    // Denison Mines ($1-3) ⚡ TOP LOTTO
+  'URG',    // Ur-Energy ($1-3) ⚡ TOP LOTTO
+  'LTBR',   // Lightbridge ($2-5) ⚡ TOP LOTTO
+  
+  // === 🧬 BIOTECH PENNY LOTTOS ===
+  'NVAX',   // Novavax ($5-20)
+  'EDIT',   // Editas Medicine ($2-10) ⚡ TOP LOTTO
+  'BLUE',   // bluebird bio ($0.50-3) ⚡ ULTRA LOTTO
+  'INO',    // Inovio ($1-5) ⚡ TOP LOTTO
+  'SRNE',   // Sorrento ($0.20-1) ⚡ ULTRA LOTTO
+  'VXRT',   // Vaxart ($0.50-3) ⚡ ULTRA LOTTO
+  'FATE',   // Fate Therapeutics ($1-5) ⚡ TOP LOTTO
+  'GRTS',   // Gritstone bio ($0.50-3) ⚡ ULTRA LOTTO
+  
+  // === 💰 CRYPTO/MEME PENNY LOTTOS ===
+  'MARA', 'RIOT', 'COIN', 'MSTR',
+  'CLSK',   // CleanSpark
+  'BTBT',   // Bit Digital ($2-5) ⚡ TOP LOTTO
+  'BITF',   // Bitfarms ($1-5) ⚡ TOP LOTTO
+  'WULF',   // TeraWulf ($3-8)
+  
+  // === 🚗 EV PENNY LOTTOS ===
+  'LCID',   // Lucid ($2-5) ⚡ TOP LOTTO
+  'NIO',    // NIO ($3-10)
+  'CHPT',   // ChargePoint ($0.50-3) ⚡ ULTRA LOTTO
+  'BLNK',   // Blink ($1-5) ⚡ TOP LOTTO
+  'FFIE',   // Faraday Future ($0.01-0.50) ⚡ ULTRA LOTTO
+  'GOEV',   // Canoo ($0.10-1) ⚡ ULTRA LOTTO
+  'NKLA',   // Nikola ($0.50-3) ⚡ ULTRA LOTTO
+  
+  // === 🚀 SPACE PENNY LOTTOS ===
+  'SPCE',   // Virgin Galactic ($1-5) ⚡ TOP LOTTO
+  'BKSY',   // BlackSky ($0.50-2) ⚡ ULTRA LOTTO
+  'LLAP',   // Terran Orbital ($0.50-3) ⚡ ULTRA LOTTO
+  
+  // === ⚡ CLEAN ENERGY PENNY LOTTOS ===
+  'PLUG',   // Plug Power ($1-5) ⚡ TOP LOTTO
+  'FCEL',   // FuelCell ($0.50-3) ⚡ ULTRA LOTTO
+  'STEM',   // Stem Inc ($0.50-2) ⚡ ULTRA LOTTO
+  'QS',     // QuantumScape ($3-10)
+  
+  // === 🎮 RETAIL/MEME FAVORITES ===
+  'PLTR', 'SOFI', 'HOOD', 'GME', 'AMC',
+  'TLRY',   // Tilray ($1-5) ⚡ TOP LOTTO
+  'CGC',    // Canopy ($2-10)
+  'SNDL',   // SNDL ($1-3) ⚡ TOP LOTTO
+  
+  // === 🤖 AI PENNY LOTTOS ===
+  'SOUN',   // SoundHound ($5-15)
+  'BBAI',   // BigBear.ai ($1-5) ⚡ TOP LOTTO
+  'GFAI'    // Guardforce AI ($0.50-2) ⚡ ULTRA LOTTO
 ];
 
 interface LottoCandidate {
