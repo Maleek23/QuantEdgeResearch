@@ -148,6 +148,98 @@ export async function getTradierQuote(symbol: string, apiKey?: string): Promise<
   }
 }
 
+/**
+ * Build OCC option symbol from components
+ * Format: SYMBOL + YYMMDD + C/P + 8-digit strike (strike * 1000, zero-padded)
+ * Example: AAPL240119C00175000 = AAPL Jan 19 2024 Call $175
+ */
+export function buildOptionSymbol(
+  underlying: string,
+  expiryDate: string,  // YYYY-MM-DD format
+  optionType: 'call' | 'put',
+  strike: number
+): string {
+  // Parse date
+  const [year, month, day] = expiryDate.split('-');
+  const yy = year.slice(-2);
+  const mm = month.padStart(2, '0');
+  const dd = day.padStart(2, '0');
+  
+  // Option type
+  const typeChar = optionType === 'call' ? 'C' : 'P';
+  
+  // Strike price: multiply by 1000 and pad to 8 digits
+  const strikeInt = Math.round(strike * 1000);
+  const strikePadded = strikeInt.toString().padStart(8, '0');
+  
+  return `${underlying.toUpperCase()}${yy}${mm}${dd}${typeChar}${strikePadded}`;
+}
+
+/**
+ * Fetch current option quote (premium/price) from Tradier
+ * Can accept either OCC symbol or individual components
+ */
+export async function getOptionQuote(
+  params: {
+    occSymbol?: string;
+    underlying?: string;
+    expiryDate?: string;
+    optionType?: 'call' | 'put';
+    strike?: number;
+  },
+  apiKey?: string
+): Promise<{ last: number; bid: number; ask: number; mid: number } | null> {
+  const key = apiKey || process.env.TRADIER_API_KEY;
+  if (!key) {
+    logger.error('Tradier API key not found');
+    return null;
+  }
+
+  // Build OCC symbol if not provided
+  let optionSymbol = params.occSymbol;
+  if (!optionSymbol && params.underlying && params.expiryDate && params.optionType && params.strike) {
+    optionSymbol = buildOptionSymbol(params.underlying, params.expiryDate, params.optionType, params.strike);
+  }
+  
+  if (!optionSymbol) {
+    logger.error('Option quote requires either occSymbol or all components (underlying, expiryDate, optionType, strike)');
+    return null;
+  }
+
+  try {
+    const baseUrl = getBaseUrl(key);
+    const response = await fetch(`${baseUrl}/markets/quotes?symbols=${optionSymbol}`, {
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      // Don't log errors for expected cases like expired options
+      return null;
+    }
+
+    const data = await response.json();
+    const quote = data.quotes?.quote;
+    
+    if (!quote) {
+      return null;
+    }
+
+    // Return pricing info
+    const last = quote.last || 0;
+    const bid = quote.bid || 0;
+    const ask = quote.ask || 0;
+    const mid = (bid + ask) / 2;
+    
+    return { last, bid, ask, mid };
+  } catch (error) {
+    // Silent fail for option quotes - they may be expired or invalid
+    return null;
+  }
+}
+
 // Get historical price data
 export async function getTradierHistory(
   symbol: string, 

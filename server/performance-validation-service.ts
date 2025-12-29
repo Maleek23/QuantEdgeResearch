@@ -1,6 +1,7 @@
 import { storage } from "./storage";
 import { PerformanceValidator } from "./performance-validator";
 import { fetchStockPrice, fetchCryptoPrice } from "./market-api";
+import { getOptionQuote } from "./tradier-api";
 import type { TradeIdea } from "@shared/schema";
 
 /**
@@ -167,18 +168,15 @@ class PerformanceValidationService {
   }
 
   /**
-   * Fetch current prices for all symbols
+   * Fetch current prices for all symbols including OPTIONS
    * OPTIMIZED: Deduplicates symbols, batches requests, includes retry logic
    * 
-   * 🚨 CRITICAL FIX: Skip options validation until proper option pricing is implemented
-   * Previous bug: Was fetching STOCK prices for options, comparing stock prices ($252) 
-   * to option premiums ($89), causing false wins (99.4% Flow Scanner win rate was invalid)
+   * ✅ FIXED: Now fetches option premiums from Tradier API for proper validation
    */
   private async fetchCurrentPrices(ideas: TradeIdea[]): Promise<Map<string, number>> {
     const priceMap = new Map<string, number>();
     
     // OPTIMIZATION: Deduplicate symbols first (avoid redundant API calls)
-    // 🚨 FIX: EXCLUDE options - don't fetch prices for them (would be stock prices, not premiums)
     const uniqueStockSymbols = new Set(
       ideas
         .filter(i => i.assetType === 'stock' || i.assetType === 'penny_stock')
@@ -191,13 +189,13 @@ class PerformanceValidationService {
         .map(i => i.symbol)
     );
     
-    const skippedOptionsCount = ideas.filter(i => i.assetType === 'option').length;
+    // Collect unique options (need full option details, not just symbol)
+    const optionIdeas = ideas.filter(i => 
+      i.assetType === 'option' && i.strikePrice && i.expiryDate && i.optionType
+    );
 
-    const totalUnique = uniqueStockSymbols.size + uniqueCryptoSymbols.size;
-    console.log(`  📊 Fetching prices for ${totalUnique} unique symbols (${uniqueStockSymbols.size} stocks, ${uniqueCryptoSymbols.size} crypto)`);
-    if (skippedOptionsCount > 0) {
-      console.log(`  ⚠️  Skipping ${skippedOptionsCount} options (no option pricing implemented yet)`);
-    }
+    const totalUnique = uniqueStockSymbols.size + uniqueCryptoSymbols.size + optionIdeas.length;
+    console.log(`  📊 Fetching prices for ${totalUnique} unique symbols (${uniqueStockSymbols.size} stocks, ${uniqueCryptoSymbols.size} crypto, ${optionIdeas.length} options)`);
 
     // OPTIMIZATION: Fetch all prices in parallel using Promise.all
     const stockPromises = Array.from(uniqueStockSymbols).map(async (symbol) => ({
@@ -211,33 +209,84 @@ class PerformanceValidationService {
       type: 'crypto' as const,
       price: await this.fetchWithRetry(symbol, 'crypto'),
     }));
+    
+    // Fetch option prices from Tradier
+    const optionPromises = optionIdeas.map(async (idea) => {
+      try {
+        const quote = await getOptionQuote({
+          underlying: idea.symbol,
+          expiryDate: idea.expiryDate!,
+          optionType: idea.optionType as 'call' | 'put',
+          strike: idea.strikePrice!,
+        });
+        
+        // Use mid price for fair value (average of bid/ask)
+        const price = quote ? (quote.mid > 0 ? quote.mid : quote.last) : null;
+        
+        return {
+          // Use unique key for each option contract
+          symbol: `${idea.symbol}_${idea.expiryDate}_${idea.optionType}_${idea.strikePrice}`,
+          ideaId: idea.id,
+          type: 'option' as const,
+          price,
+        };
+      } catch {
+        return {
+          symbol: idea.symbol,
+          ideaId: idea.id,
+          type: 'option' as const,
+          price: null,
+        };
+      }
+    });
 
     // Execute all price fetches concurrently
-    const allResults = await Promise.all([...stockPromises, ...cryptoPromises]);
+    const [stockResults, cryptoResults, optionResults] = await Promise.all([
+      Promise.all(stockPromises),
+      Promise.all(cryptoPromises),
+      Promise.all(optionPromises),
+    ]);
 
     // Collect results and track success/failure
     let stockSuccess = 0;
     let stockFailed = 0;
     let cryptoSuccess = 0;
     let cryptoFailed = 0;
+    let optionSuccess = 0;
+    let optionFailed = 0;
 
-    for (const result of allResults) {
+    for (const result of stockResults) {
       if (result.price !== null) {
         priceMap.set(result.symbol, result.price);
-        if (result.type === 'stock') stockSuccess++;
-        else cryptoSuccess++;
+        stockSuccess++;
       } else {
-        // Log which specific symbols failed
-        console.warn(`  ⚠️  Failed to fetch ${result.type} price for ${result.symbol} - skipping validation`);
-        if (result.type === 'stock') stockFailed++;
-        else cryptoFailed++;
+        stockFailed++;
+      }
+    }
+    
+    for (const result of cryptoResults) {
+      if (result.price !== null) {
+        priceMap.set(result.symbol, result.price);
+        cryptoSuccess++;
+      } else {
+        cryptoFailed++;
+      }
+    }
+    
+    // For options, store by idea ID since symbols aren't unique
+    for (const result of optionResults) {
+      if (result.price !== null && result.ideaId) {
+        priceMap.set(`option_${result.ideaId}`, result.price);
+        optionSuccess++;
+      } else {
+        optionFailed++;
       }
     }
 
-    const totalSuccess = stockSuccess + cryptoSuccess;
-    const totalFailed = stockFailed + cryptoFailed;
+    const totalSuccess = stockSuccess + cryptoSuccess + optionSuccess;
+    const totalFailed = stockFailed + cryptoFailed + optionFailed;
     
-    console.log(`  ✓ Fetched ${totalSuccess}/${totalUnique} prices successfully (${stockSuccess} stocks, ${cryptoSuccess} crypto)`);
+    console.log(`  ✓ Fetched ${totalSuccess}/${totalUnique} prices successfully (${stockSuccess} stocks, ${cryptoSuccess} crypto, ${optionSuccess} options)`);
     if (totalFailed > 0) {
       console.warn(`  ⚠️  Failed to fetch ${totalFailed} prices total - those trades will be validated next cycle`);
     }

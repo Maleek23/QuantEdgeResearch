@@ -1191,8 +1191,13 @@ export class PerformanceValidator {
     const results = new Map<string, ValidationResult>();
 
     for (const idea of ideas) {
-      // Get price if available, otherwise undefined (expiry checks don't need price)
-      const currentPrice = priceMap.get(idea.symbol);
+      // Get price - for options, look up by idea ID since premiums are stored that way
+      let currentPrice: number | undefined;
+      if (idea.assetType === 'option') {
+        currentPrice = priceMap.get(`option_${idea.id}`);
+      } else {
+        currentPrice = priceMap.get(idea.symbol);
+      }
       
       // Get futures contract if applicable
       const futuresContract = idea.futuresContractCode && contractsMap 
