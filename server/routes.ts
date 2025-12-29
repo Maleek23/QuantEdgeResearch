@@ -27,7 +27,8 @@ import {
   aiGenerationLimiter, 
   quantGenerationLimiter,
   marketDataLimiter,
-  adminLimiter
+  adminLimiter,
+  researchAssistantLimiter
 } from "./rate-limiter";
 import { requireAdmin, generateAdminToken, verifyAdminToken } from "./auth";
 import { getSession, setupAuth } from "./replitAuth";
@@ -4337,6 +4338,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ error: "Failed to clear chat history" });
+    }
+  });
+
+  // AI Research Assistant - Educational trading/market Q&A powered by Claude
+  app.post("/api/ai/research-assistant", researchAssistantLimiter, async (req, res) => {
+    try {
+      const schema = z.object({
+        question: z.string().min(1, "Question is required").max(2000, "Question too long"),
+        context: z.object({
+          symbol: z.string().optional(),
+          tradeIdeaId: z.number().optional(),
+        }).optional(),
+      });
+      
+      const { question, context } = schema.parse(req.body);
+      
+      // Log usage for telemetry
+      logger.info(`[RESEARCH-ASSISTANT] Question received`, {
+        questionLength: question.length,
+        hasSymbolContext: !!context?.symbol,
+        hasTradeIdeaContext: !!context?.tradeIdeaId,
+      });
+      
+      // Build context string if provided
+      let contextString = "";
+      if (context?.symbol) {
+        contextString += `\n\nUser is asking about ticker symbol: ${context.symbol}`;
+      }
+      if (context?.tradeIdeaId) {
+        const idea = await storage.getTradeIdea(context.tradeIdeaId);
+        if (idea) {
+          contextString += `\n\nRelated trade idea context:
+- Symbol: ${idea.symbol}
+- Direction: ${idea.direction}
+- Entry: $${idea.entryPrice}
+- Target: $${idea.targetPrice}
+- Stop Loss: $${idea.stopLoss}
+- Catalyst: ${idea.catalyst || 'N/A'}`;
+        }
+      }
+      
+      // System prompt emphasizing educational purpose
+      const systemPrompt = `You are an educational research assistant for traders and investors. Your role is to help users understand trading concepts, market dynamics, and investment principles.
+
+CRITICAL GUIDELINES:
+1. You are an EDUCATIONAL resource, NOT a financial advisor
+2. You do NOT provide personalized investment advice or specific trade recommendations
+3. All information is for educational and research purposes only
+4. Explain concepts clearly using examples and analogies
+5. Reference general market principles, historical patterns, and academic research
+6. When discussing specific stocks or assets, focus on explaining the analysis framework rather than giving buy/sell signals
+7. Always remind users to do their own research and consult with licensed financial advisors for personalized advice
+8. Be objective and present multiple perspectives when discussing market views
+9. Explain both risks and opportunities when discussing any trading concept
+
+FORMATTING:
+- Use clear, structured responses
+- Use bullet points for lists
+- Bold key terms when introducing new concepts
+- Keep responses focused and actionable from an educational standpoint`;
+
+      // Get Anthropic client and make the request
+      const Anthropic = (await import('@anthropic-ai/sdk')).default;
+      const anthropic = new Anthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY,
+      });
+      
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [
+          {
+            role: "user",
+            content: `${question}${contextString}`
+          }
+        ],
+      });
+      
+      const responseText = message.content[0].type === 'text' 
+        ? message.content[0].text 
+        : 'Unable to generate response';
+      
+      const disclaimer = "⚠️ EDUCATIONAL DISCLAIMER: This information is for educational and research purposes only. It does not constitute financial advice, investment recommendations, or an offer to buy or sell any securities. Always conduct your own research and consult with a licensed financial advisor before making investment decisions. Past performance does not guarantee future results. Trading involves substantial risk of loss.";
+      
+      logger.info(`[RESEARCH-ASSISTANT] Response generated`, {
+        responseLength: responseText.length,
+        inputTokens: message.usage?.input_tokens,
+        outputTokens: message.usage?.output_tokens,
+      });
+      
+      res.json({
+        response: responseText,
+        disclaimer,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      logger.error("[RESEARCH-ASSISTANT] Error:", error);
+      
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid request format" });
+      }
+      
+      res.status(500).json({ 
+        error: error?.message || "Failed to process research question" 
+      });
     }
   });
 

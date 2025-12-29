@@ -85,6 +85,27 @@ export const marketDataLimiter = rateLimit({
   },
 });
 
+// Research assistant rate limiter - 20 requests per 15 minutes
+export const researchAssistantLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: 'Research assistant limit exceeded. Please wait before asking more questions.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false,
+  handler: (req, res) => {
+    logger.warn('Research assistant rate limit exceeded', {
+      ip: req.ip,
+      path: req.path,
+    });
+    res.status(429).json({
+      error: 'Research assistant limit exceeded',
+      message: 'You have exceeded the research assistant limit. Please wait before asking more questions.',
+      retryAfter: Math.ceil(15 * 60 * 1000 / 1000),
+    });
+  },
+});
+
 // Admin endpoints rate limiter - 30 requests per 15 minutes
 export const adminLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

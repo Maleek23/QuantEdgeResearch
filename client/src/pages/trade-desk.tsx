@@ -26,6 +26,7 @@ import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
 import { WatchlistSpotlight } from "@/components/watchlist-spotlight";
 import { getPerformanceGrade } from "@/lib/performance-grade";
+import { AIResearchPanel } from "@/components/ai-research-panel";
 import { UsageBadge } from "@/components/tier-gate";
 import { useTier } from "@/hooks/useTier";
 import { type TimeframeBucket, TIMEFRAME_LABELS, filterByTimeframe, getTimeframeCounts } from "@/lib/timeframes";
@@ -744,6 +745,9 @@ export default function TradeDeskPage() {
           </div>
         </div>
       </div>
+
+      {/* AI Research Assistant - Claude-powered Q&A */}
+      <AIResearchPanel />
 
       {/* Timeframe Tabs - Glassmorphism */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
