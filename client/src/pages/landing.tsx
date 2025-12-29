@@ -116,8 +116,8 @@ export default function Landing() {
     },
     {
       icon: Calculator,
-      title: "Engine 2: Quantitative Signals",
-      description: "Research-backed quantitative engine using RSI(2), VWAP, volume spike detection, and pattern validation. Generates data-driven analysis with built-in risk parameters."
+      title: "Engine 2: Quantitative Analysis",
+      description: "Research-backed quantitative engine using RSI(2), VWAP, volume spike detection, and pattern validation. Generates data-driven research briefs with built-in risk parameters."
     },
     {
       icon: Sparkles,
@@ -421,12 +421,12 @@ export default function Landing() {
                   <h3 className="text-xl font-bold">Engine 2: Quantitative</h3>
                 </div>
                 <p className="text-muted-foreground mb-6">
-                  RSI(2), VWAP, volume spikes, and pattern validation create mechanical, reproducible signals.
+                  RSI(2), VWAP, volume spikes, and pattern validation create mechanical, reproducible research briefs.
                 </p>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-400" />
-                    <span>Mean Reversion Signals</span>
+                    <span>Mean Reversion Analysis</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-400" />
@@ -434,7 +434,7 @@ export default function Landing() {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check className="h-4 w-4 text-green-400" />
-                    <span>Research-Backed Signals</span>
+                    <span>Research-Backed Methodology</span>
                   </li>
                 </ul>
               </div>
@@ -536,7 +536,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* How Our Signals Are Generated */}
+      {/* How Research Briefs Are Generated */}
       <section className="py-16 md:py-24" id="transparency">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
@@ -545,7 +545,7 @@ export default function Landing() {
               Transparency
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              How Our Signals Are Generated
+              How Research Briefs Are Generated
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               Our dual-engine approach combines proven quantitative methods with AI-powered analysis
@@ -1005,7 +1005,7 @@ export default function Landing() {
             <Accordion type="single" collapsible className="space-y-3">
               <AccordionItem value="accuracy" className="border rounded-xl px-6" data-testid="accordion-faq-accuracy">
                 <AccordionTrigger className="text-left font-medium hover:no-underline py-4" data-testid="trigger-faq-accuracy">
-                  How accurate are the trade signals?
+                  How accurate are the research briefs?
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground pb-4" data-testid="content-faq-accuracy">
                   All research briefs are tracked transparently with actual outcomes visible on the Performance page. 
