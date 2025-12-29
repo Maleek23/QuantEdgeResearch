@@ -741,48 +741,214 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
     // Includes penny stocks ($1-$7), niche small caps, and sector plays
     const pennyStockSymbols = [
       // === NICHE PENNY STOCKS (Under $7) ===
-      // Space & Satellite Tech
-      'ASTS', 'SPCE', 'RKLB', 'LUNR', 'RDW', 'BKSY',
-      // AI & Quantum Computing
-      'QUBT', 'RGTI', 'IONQ', 'QBTS', 'SOUN', 'BBAI',
-      // Biotech/Pharma (catalyst-driven)
-      'NVAX', 'INO', 'SRNE', 'VXRT', 'NKLA', 'GOEV', 'FFIE',
-      // Clean Energy & EV
-      'FCEL', 'PLUG', 'BE', 'CHPT', 'BLNK', 'EVGO', 'PTRA',
-      // Cannabis (high volatility)
-      'TLRY', 'CGC', 'ACB', 'SNDL', 'OGI',
-      // Fintech & DeFi Adjacent
-      'UPST', 'AFRM', 'DAVE', 'PSFE', 'CLOV', 'WISH',
-      // Crypto/Blockchain Plays
-      'MARA', 'RIOT', 'CLSK', 'BTBT', 'BITF', 'HUT', 'CIFR',
+      // ========================================
+      // === NEXT BIG THINGS: QUANTUM + FUSION ===
+      // ========================================
       
-      // === NICHE SMALL CAPS ($7-$30) ===
-      // Cybersecurity
-      'CRWD', 'S', 'ZS', 'NET', 'TENB', 'CYBR',
-      // Healthcare Tech
-      'HIMS', 'DOCS', 'TALK', 'AMWL',
-      // Gaming & Metaverse  
-      'RBLX', 'U', 'SKLZ', 'DKNG',
-      // Streaming/Media Disruptors
-      'FUBO', 'PARA', 'WBD', 'LGF.A',
-      // Semiconductors (not mega-cap)
-      'SMCI', 'AEHR', 'WOLF', 'LSCC', 'SITM',
-      // Defense & Drones
-      'RCAT', 'UAVS', 'JOBY', 'ACHR', 'EVTL',
+      // 🔬 QUANTUM COMPUTING (THE #1 NEXT BIG THING)
+      'IONQ',   // IonQ - Leading trapped ion quantum
+      'RGTI',   // Rigetti Computing - Superconducting qubits  
+      'QUBT',   // Quantum Computing Inc - Photonic quantum
+      'QBTS',   // D-Wave Quantum - Quantum annealing leader
+      'ARQQ',   // Arqit Quantum - Quantum encryption/cybersecurity
+      'QTUM',   // Defiance Quantum ETF - Quantum basket
+      'FORM',   // FormFactor - Quantum probe cards
+      'IBM',    // IBM - Quantum roadmap leader (large cap exposure)
+      'GOOG',   // Google/Alphabet - Sycamore processor
+      'HON',    // Honeywell - Quantinuum (spun off but HON exposure)
       
-      // === INTERNATIONAL ADRs (Hidden gems) ===
-      'GRAB', 'SE', 'BABA', 'PDD', 'JD', 'BIDU', 'NIO', 'XPEV', 'LI',
-      'NU', 'STNE', 'PAGS', 'MELI',
+      // ⚛️ NUCLEAR FUSION & ADVANCED NUCLEAR (THE #2 NEXT BIG THING)
+      'NNE',    // Nano Nuclear Energy - Micro modular reactors
+      'OKLO',   // Oklo Inc - Advanced fission/fusion tech
+      'SMR',    // NuScale Power - Small modular reactors
+      'LEU',    // Centrus Energy - Uranium enrichment, HALEU for fusion
+      'CCJ',    // Cameco - Uranium mining leader
+      'UEC',    // Uranium Energy Corp - US uranium producer
+      'URA',    // Global X Uranium ETF
+      'UUUU',   // Energy Fuels - Uranium + rare earths
+      'DNN',    // Denison Mines - Uranium developer
+      'NXE',    // NexGen Energy - High-grade uranium
+      'BWXT',   // BWX Technologies - Nuclear components
+      'CEG',    // Constellation Energy - Nuclear fleet operator
+      'VST',    // Vistra - Nuclear power generation
       
-      // === ORIGINAL POPULAR STOCKS ===
-      // High liquidity retail favorites
-      'AAL', 'NOK', 'F', 'SNAP', 'CCL', 'NCLH', 'BB',
-      'SOFI', 'PLTR', 'RIVN', 'LCID', 'AMC', 'GME', 'HOOD',
-      // Mega-cap tech (news-driven)
-      'NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN', 'TSLA',
-      'INTC', 'AMD', 'COIN', 'ROKU', 'OPEN',
-      // User-requested
-      'VSEE', 'XHLD', 'BTU', 'KGC', 'VALE', 'UWMC', 'PBF'
+      // 🤖 AI & MACHINE LEARNING (CURRENT BIG THING)
+      'SOUN',   // SoundHound AI - Voice AI
+      'BBAI',   // BigBear.ai - AI analytics
+      'AI',     // C3.ai - Enterprise AI
+      'PLTR',   // Palantir - AI/data analytics
+      'PATH',   // UiPath - AI automation
+      'SNOW',   // Snowflake - AI data cloud
+      'DDOG',   // Datadog - AI observability
+      'MDB',    // MongoDB - AI database
+      'ESTC',   // Elastic - AI search
+      'GTLB',   // GitLab - AI DevOps
+      
+      // 🚀 SPACE & SATELLITE TECH
+      'ASTS',   // AST SpaceMobile - Space-based cellular
+      'SPCE',   // Virgin Galactic - Space tourism
+      'RKLB',   // Rocket Lab - Small satellite launch
+      'LUNR',   // Intuitive Machines - Lunar landers
+      'RDW',    // Redwire - Space infrastructure
+      'BKSY',   // BlackSky - Geospatial intelligence
+      'IRDM',   // Iridium - Satellite communications
+      'VSAT',   // Viasat - Satellite internet
+      'MAXR',   // Maxar Technologies - Earth observation
+      'SATL',   // Satellogic - Earth observation
+      'LLAP',   // Terran Orbital - Satellite manufacturing
+      
+      // 🧬 BIOTECH/PHARMA (CATALYST-DRIVEN)
+      'NVAX',   // Novavax - Vaccines
+      'INO',    // Inovio - DNA medicines
+      'SRNE',   // Sorrento Therapeutics
+      'VXRT',   // Vaxart - Oral vaccines
+      'CRSP',   // CRISPR Therapeutics - Gene editing
+      'EDIT',   // Editas Medicine - Gene editing
+      'NTLA',   // Intellia Therapeutics - CRISPR
+      'BEAM',   // Beam Therapeutics - Base editing
+      'VERV',   // Verve Therapeutics - Gene editing cardio
+      'BLUE',   // bluebird bio - Gene therapy
+      
+      // ⚡ CLEAN ENERGY & EV
+      'FCEL',   // FuelCell Energy
+      'PLUG',   // Plug Power - Green hydrogen
+      'BE',     // Bloom Energy - Solid oxide fuel cells
+      'CHPT',   // ChargePoint - EV charging
+      'BLNK',   // Blink Charging
+      'EVGO',   // EVgo - Fast charging
+      'PTRA',   // Proterra - Electric buses
+      'ENVX',   // Enovix - Next-gen batteries
+      'QS',     // QuantumScape - Solid-state batteries
+      'STEM',   // Stem Inc - AI energy storage
+      'RUN',    // Sunrun - Residential solar
+      'SEDG',   // SolarEdge - Solar inverters
+      'ENPH',   // Enphase - Microinverters
+      
+      // 🚗 EV & AUTONOMOUS VEHICLES
+      'RIVN',   // Rivian - Electric trucks
+      'LCID',   // Lucid - Luxury EV
+      'NIO',    // NIO - Chinese premium EV
+      'XPEV',   // XPeng - Chinese EV
+      'LI',     // Li Auto - Chinese hybrid EV
+      'FSR',    // Fisker - EV startup
+      'NKLA',   // Nikola - Hydrogen trucks
+      'GOEV',   // Canoo - EV platform
+      'FFIE',   // Faraday Future
+      'TSLA',   // Tesla - EV + AI + Energy
+      
+      // 🛡️ DEFENSE & DRONES
+      'RCAT',   // Red Cat Holdings - Drones
+      'UAVS',   // AgEagle Aerial - Drone tech
+      'JOBY',   // Joby Aviation - eVTOL
+      'ACHR',   // Archer Aviation - eVTOL
+      'EVTL',   // Vertical Aerospace - eVTOL
+      'KTOS',   // Kratos Defense - Drones
+      'AVAV',   // AeroVironment - Military drones
+      'AMBA',   // Ambarella - AI vision processors
+      
+      // 💰 CRYPTO/BLOCKCHAIN
+      'MARA',   // Marathon Digital - BTC mining
+      'RIOT',   // Riot Platforms - BTC mining
+      'CLSK',   // CleanSpark - BTC mining
+      'BTBT',   // Bit Digital
+      'BITF',   // Bitfarms
+      'HUT',    // Hut 8 Mining
+      'CIFR',   // Cipher Mining
+      'COIN',   // Coinbase - Crypto exchange
+      'MSTR',   // MicroStrategy - BTC treasury
+      
+      // 🔐 CYBERSECURITY
+      'CRWD',   // CrowdStrike
+      'S',      // SentinelOne
+      'ZS',     // Zscaler
+      'NET',    // Cloudflare
+      'PANW',   // Palo Alto Networks
+      'TENB',   // Tenable
+      'CYBR',   // CyberArk
+      'OKTA',   // Okta - Identity
+      'FTNT',   // Fortinet
+      
+      // 💳 FINTECH
+      'UPST',   // Upstart - AI lending
+      'AFRM',   // Affirm - BNPL
+      'SOFI',   // SoFi - Digital banking
+      'DAVE',   // Dave - Neobank
+      'HOOD',   // Robinhood - Trading app
+      'SQ',     // Block/Square - Payments
+      'PYPL',   // PayPal
+      'NU',     // Nu Holdings - Brazilian fintech
+      
+      // 🎮 GAMING & METAVERSE
+      'RBLX',   // Roblox
+      'U',      // Unity Software
+      'DKNG',   // DraftKings
+      'SKLZ',   // Skillz
+      
+      // 🌿 CANNABIS
+      'TLRY',   // Tilray
+      'CGC',    // Canopy Growth
+      'ACB',    // Aurora Cannabis
+      'SNDL',   // SNDL
+      
+      // 💎 SEMICONDUCTORS (NON MEGA-CAP)
+      'SMCI',   // Super Micro Computer
+      'AEHR',   // Aehr Test Systems
+      'WOLF',   // Wolfspeed - SiC
+      'LSCC',   // Lattice Semiconductor
+      'SITM',   // SiTime - Timing solutions
+      'ARM',    // Arm Holdings
+      'AVGO',   // Broadcom
+      'MU',     // Micron
+      
+      // 🌏 INTERNATIONAL ADRs
+      'GRAB',   // Grab Holdings - SE Asia super app
+      'SE',     // Sea Limited - SE Asia tech
+      'BABA',   // Alibaba
+      'PDD',    // PDD Holdings
+      'JD',     // JD.com
+      'BIDU',   // Baidu - Chinese AI
+      'MELI',   // MercadoLibre - LatAm e-commerce
+      
+      // 📺 STREAMING/MEDIA
+      'FUBO',   // FuboTV
+      'PARA',   // Paramount
+      'WBD',    // Warner Bros Discovery
+      
+      // ✈️ TRAVEL/LEISURE (HIGH BETA)
+      'AAL',    // American Airlines
+      'CCL',    // Carnival Cruise
+      'NCLH',   // Norwegian Cruise
+      'UAL',    // United Airlines
+      'DAL',    // Delta Airlines
+      
+      // 🏠 REAL ESTATE TECH
+      'OPEN',   // Opendoor
+      'Z',      // Zillow
+      'RDFN',   // Redfin
+      
+      // 📱 TECH RETAIL FAVORITES
+      'F',      // Ford
+      'NOK',    // Nokia
+      'BB',     // BlackBerry
+      'SNAP',   // Snapchat
+      'AMC',    // AMC Entertainment
+      'GME',    // GameStop
+      
+      // 🏛️ MEGA-CAP TECH (NEWS-DRIVEN)
+      'NVDA', 'AAPL', 'MSFT', 'GOOGL', 'META', 'AMZN',
+      'INTC', 'AMD', 'ROKU',
+      
+      // ⛏️ COMMODITIES/MATERIALS
+      'BTU',    // Peabody Energy - Coal
+      'KGC',    // Kinross Gold
+      'VALE',   // Vale - Mining
+      'PBF',    // PBF Energy
+      'GOLD',   // Barrick Gold
+      'NEM',    // Newmont Mining
+      'FCX',    // Freeport-McMoRan - Copper
+      'MP',     // MP Materials - Rare earths
+      'LAC',    // Lithium Americas
+      'ALB'     // Albemarle - Lithium
     ];
     
     const pennyStocks: StockGem[] = [];

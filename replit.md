@@ -234,26 +234,55 @@ QuantEdge Research is a professional quantitative trading research platform for 
 
 ---
 
-## Stock Discovery Universe (Expanded)
+## Stock Discovery Universe (Extensively Expanded)
 
 ### Market API Discovery
 - **Price Range:** $0.50 - $500 (covers penny stocks to mid-caps)
 - **Minimum Volume:** 50K shares daily
 - **Minimum Market Cap:** $10M
 - **Yahoo Screener Categories:** Small Cap Gainers, Most Actives, Day Gainers, Aggressive Small Caps, Tech Growth, Day Volume Leaders
-- **Curated Watchlist:** 100+ niche tickers across sectors (Space, AI/Quantum, Biotech, Clean Energy, EV, Fintech, Crypto Miners, Cybersecurity)
+- **Curated Watchlist:** 150+ niche tickers across sectors
 
-### Flow Scanner Universe (70+ tickers)
-- Core ETFs: SPY, QQQ, IWM, XLF, XLE
-- Mega Caps: AAPL, NVDA, TSLA, MSFT, AMZN, META, GOOGL, AMD
-- AI/Quantum: IONQ, RGTI, QUBT, SOUN, BBAI, AI
-- Space: ASTS, RKLB, LUNR, RDW, SPCE
-- Biotech: NVAX, MRNA, BNTX, CRSP, EDIT
-- Clean Energy: PLUG, FCEL, BE, ENPH, SEDG, RUN
-- EV: RIVN, LCID, NIO, XPEV, LI, CHPT, BLNK
-- Fintech: UPST, AFRM, SQ, PYPL, NU
-- Crypto Miners: CLSK, BTBT, BITF, HUT, CIFR, RIOT, MARA
-- Defense/Drones: RCAT, JOBY, ACHR
+### Flow Scanner Universe (100+ tickers)
+
+#### 🔬 QUANTUM COMPUTING (Next Big Thing #1)
+IONQ, RGTI, QUBT, QBTS, ARQQ, QTUM, FORM, IBM, GOOG, HON
+
+#### ⚛️ NUCLEAR FUSION & ADVANCED NUCLEAR (Next Big Thing #2)
+NNE, OKLO, SMR, LEU, CCJ, UEC, URA, UUUU, DNN, NXE, BWXT, CEG, VST
+
+#### 🤖 AI & Machine Learning
+SOUN, BBAI, AI, PLTR, PATH, SNOW, DDOG, MDB, ESTC, GTLB
+
+#### 🚀 Space & Satellites
+ASTS, SPCE, RKLB, LUNR, RDW, BKSY, IRDM, VSAT, MAXR, SATL, LLAP
+
+#### 🧬 Biotech/Gene Editing
+NVAX, MRNA, BNTX, CRSP, EDIT, NTLA, BEAM, VERV, BLUE
+
+#### ⚡ Clean Energy & Batteries
+FCEL, PLUG, BE, CHPT, BLNK, EVGO, ENVX, QS, STEM, RUN, SEDG, ENPH
+
+#### 🚗 EV & Autonomous
+RIVN, LCID, NIO, XPEV, LI, FSR, NKLA, GOEV, FFIE, TSLA
+
+#### 🛡️ Defense & Drones
+RCAT, UAVS, JOBY, ACHR, EVTL, KTOS, AVAV, AMBA
+
+#### 💰 Crypto/Blockchain
+MARA, RIOT, CLSK, BTBT, BITF, HUT, CIFR, COIN, MSTR
+
+#### 🔐 Cybersecurity
+CRWD, S, ZS, NET, PANW, TENB, CYBR, OKTA, FTNT
+
+#### 💳 Fintech
+UPST, AFRM, SOFI, DAVE, HOOD, SQ, PYPL, NU
+
+#### 💎 Semiconductors
+SMCI, AEHR, WOLF, LSCC, SITM, ARM, AVGO, MU
+
+#### ⛏️ Commodities/Rare Earths
+BTU, KGC, VALE, PBF, GOLD, NEM, FCX, MP, LAC, ALB
 
 ---
 

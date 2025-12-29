@@ -170,38 +170,75 @@ function hasEnoughTradingTime(expirationDate: string, minutesUntilClose: number)
   return { hasTime: true, reason: 'Sufficient trading time', dte: daysToExpiry };
 }
 
-// EXPANDED FLOW SCAN UNIVERSE (70+ tickers) - Including niche/hidden gem tickers
+// EXPANDED FLOW SCAN UNIVERSE (100+ tickers) - Including quantum, nuclear, and niche tickers
 const FLOW_SCAN_TICKERS = [
   // === CORE HIGH-VOLUME TICKERS ===
   'SPY', 'QQQ', 'IWM', 'XLF', 'XLE',  // ETFs
   'AAPL', 'NVDA', 'TSLA', 'MSFT', 'AMZN', 'META', 'GOOGL', 'AMD',  // Mega caps
   'NFLX', 'DIS', 'BA', 'COIN', 'PLTR', 'SOFI', 'HOOD', 'RIOT', 'MARA', 'MSTR',  // Popular
   
-  // === NICHE/HIDDEN GEM TICKERS (where unusual flow matters more) ===
-  // AI & Quantum
-  'IONQ', 'RGTI', 'QUBT', 'SOUN', 'BBAI', 'AI',
-  // Space & Satellites
-  'ASTS', 'RKLB', 'LUNR', 'RDW', 'SPCE',
-  // Biotech/Pharma (catalyst-driven)
-  'NVAX', 'MRNA', 'BNTX', 'CRSP', 'EDIT',
-  // Clean Energy
-  'PLUG', 'FCEL', 'BE', 'ENPH', 'SEDG', 'RUN',
-  // EV
+  // === 🔬 QUANTUM COMPUTING (NEXT BIG THING #1) ===
+  'IONQ',   // IonQ - Trapped ion quantum leader
+  'RGTI',   // Rigetti - Superconducting qubits
+  'QUBT',   // Quantum Computing Inc - Photonic quantum
+  'QBTS',   // D-Wave Quantum - Quantum annealing
+  'ARQQ',   // Arqit Quantum - Quantum encryption
+  'IBM',    // IBM - Major quantum player
+  'GOOG',   // Google - Sycamore processor
+  
+  // === ⚛️ NUCLEAR FUSION & ADVANCED NUCLEAR (NEXT BIG THING #2) ===
+  'NNE',    // Nano Nuclear Energy - Micro modular reactors
+  'OKLO',   // Oklo - Advanced fission/fusion
+  'SMR',    // NuScale Power - Small modular reactors  
+  'LEU',    // Centrus Energy - Uranium/HALEU
+  'CCJ',    // Cameco - Uranium mining leader
+  'UEC',    // Uranium Energy Corp
+  'UUUU',   // Energy Fuels - Uranium + rare earths
+  'BWXT',   // BWX Technologies - Nuclear components
+  'CEG',    // Constellation Energy - Nuclear fleet
+  'VST',    // Vistra - Nuclear power
+  
+  // === 🤖 AI & MACHINE LEARNING ===
+  'SOUN', 'BBAI', 'AI', 'PATH', 'SNOW', 'DDOG', 'MDB',
+  
+  // === 🚀 SPACE & SATELLITES ===
+  'ASTS', 'RKLB', 'LUNR', 'RDW', 'SPCE', 'IRDM', 'BKSY',
+  
+  // === 🧬 BIOTECH/GENE EDITING ===
+  'NVAX', 'MRNA', 'BNTX', 'CRSP', 'EDIT', 'NTLA', 'BEAM',
+  
+  // === ⚡ CLEAN ENERGY & BATTERIES ===
+  'PLUG', 'FCEL', 'BE', 'ENPH', 'SEDG', 'RUN', 'ENVX', 'QS', 'STEM',
+  
+  // === 🚗 EV & AUTONOMOUS ===
   'RIVN', 'LCID', 'NIO', 'XPEV', 'LI', 'CHPT', 'BLNK',
-  // Fintech
+  
+  // === 💳 FINTECH ===
   'UPST', 'AFRM', 'SQ', 'PYPL', 'NU',
-  // Crypto miners
+  
+  // === 💰 CRYPTO MINERS ===
   'CLSK', 'BTBT', 'BITF', 'HUT', 'CIFR',
-  // Cybersecurity
-  'CRWD', 'S', 'ZS', 'PANW',
-  // Semiconductors (not mega-cap)
-  'SMCI', 'ARM', 'AVGO', 'MU', 'AEHR',
-  // Gaming/Metaverse
+  
+  // === 🔐 CYBERSECURITY ===
+  'CRWD', 'S', 'ZS', 'PANW', 'NET', 'OKTA',
+  
+  // === 💎 SEMICONDUCTORS ===
+  'SMCI', 'ARM', 'AVGO', 'MU', 'AEHR', 'WOLF', 'LSCC',
+  
+  // === 🎮 GAMING/METAVERSE ===
   'RBLX', 'U', 'DKNG',
-  // Defense & Drones
-  'RCAT', 'JOBY', 'ACHR',
-  // Cannabis
-  'TLRY', 'CGC'
+  
+  // === 🛡️ DEFENSE & DRONES ===
+  'RCAT', 'JOBY', 'ACHR', 'KTOS', 'AVAV',
+  
+  // === 🌿 CANNABIS ===
+  'TLRY', 'CGC',
+  
+  // === ⛏️ COMMODITIES/RARE EARTHS ===
+  'MP',     // MP Materials - Rare earths
+  'LAC',    // Lithium Americas
+  'ALB',    // Albemarle - Lithium
+  'FCX'     // Freeport-McMoRan - Copper
 ];
 
 // Unusual activity thresholds (adjusted for Tradier Sandbox limitations)
