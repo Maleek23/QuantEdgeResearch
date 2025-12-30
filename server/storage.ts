@@ -107,6 +107,99 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+// ========================================
+// 🔧 DATA INTEGRITY: Canonical Trade Filters
+// ========================================
+// These functions provide the single source of truth for counting wins, losses,
+// and filtering trades consistently across all performance endpoints.
+// NEVER duplicate this logic - always import and use these helpers.
+
+export const CANONICAL_LOSS_THRESHOLD = 3; // Minimum % loss to count as "real loss"
+
+/**
+ * Check if a trade is a "real loss" - hit stop with >= 3% loss
+ * Trades that stopped out with < 3% loss are considered "breakeven"
+ */
+export function isRealLoss(idea: any): boolean {
+  const status = (idea.outcomeStatus || '').trim().toLowerCase();
+  if (status !== 'hit_stop') return false;
+  
+  // Check by percentGain if available
+  if (idea.percentGain !== null && idea.percentGain !== undefined) {
+    return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
+  }
+  
+  // Legacy trades without percentGain are counted as losses
+  return true;
+}
+
+/**
+ * Check if a trade is a "real loss" using resolutionReason instead of outcomeStatus
+ * Used by auto-resolved trade endpoints
+ */
+export function isRealLossByResolution(idea: any): boolean {
+  if (idea.resolutionReason !== 'auto_stop_hit') return false;
+  
+  if (idea.percentGain !== null && idea.percentGain !== undefined) {
+    return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
+  }
+  
+  return true;
+}
+
+/**
+ * Filter to current-gen engines only (exclude legacy Quant v1.x/v2.x)
+ */
+export function isCurrentGenEngine(idea: any): boolean {
+  if (!idea.engineVersion) {
+    return true; // No version = current-gen (newly generated)
+  }
+  
+  const version = idea.engineVersion.toLowerCase();
+  if (version.startsWith('v3.')) return true;        // Quant v3.x
+  if (version.startsWith('flow_')) return true;       // Flow Scanner
+  if (version.startsWith('hybrid_')) return true;     // Hybrid
+  if (version.startsWith('ai_')) return true;         // AI
+  
+  return false; // Exclude legacy Quant v1.x and v2.x
+}
+
+/**
+ * Get canonical "decided" trades - wins + real losses only
+ * Excludes expired, breakeven, and legacy engine versions
+ */
+export function getDecidedTrades(ideas: any[], options: { includeAllVersions?: boolean } = {}): any[] {
+  let filtered = ideas;
+  
+  // Apply engine version filter unless explicitly disabled
+  if (!options.includeAllVersions) {
+    filtered = filtered.filter(isCurrentGenEngine);
+  }
+  
+  // Filter to decided trades only (wins + real losses)
+  return filtered.filter(idea => 
+    idea.outcomeStatus === 'hit_target' || isRealLoss(idea)
+  );
+}
+
+/**
+ * Get canonical "decided" trades using resolutionReason
+ * For auto-resolved trade endpoints
+ */
+export function getDecidedTradesByResolution(ideas: any[], options: { includeAllVersions?: boolean } = {}): any[] {
+  let filtered = ideas;
+  
+  // Apply engine version filter unless explicitly disabled
+  if (!options.includeAllVersions) {
+    filtered = filtered.filter(isCurrentGenEngine);
+  }
+  
+  // Filter to decided trades only (auto-resolved wins + real losses)
+  return filtered.filter(idea => 
+    idea.resolutionReason === 'auto_target_hit' || isRealLossByResolution(idea)
+  );
+}
+
 export interface PerformanceStats {
   overall: {
     totalIdeas: number;

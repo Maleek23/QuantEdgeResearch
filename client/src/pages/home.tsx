@@ -26,6 +26,16 @@ import {
 import { format, parseISO, isSameDay, subHours } from "date-fns";
 import { getPerformanceGrade } from "@/lib/performance-grade";
 
+// 🔧 DATA INTEGRITY: Consistent 3% minimum loss threshold (matches server-side getPerformanceStats)
+const MIN_LOSS_THRESHOLD = 3;
+const isRealLoss = (idea: TradeIdea): boolean => {
+  if ((idea.outcomeStatus || '').trim().toLowerCase() !== 'hit_stop') return false;
+  if (idea.percentGain !== null && idea.percentGain !== undefined) {
+    return idea.percentGain <= -MIN_LOSS_THRESHOLD;
+  }
+  return true; // Legacy trades without percentGain count as loss
+};
+
 export default function HomePage() {
   const { toast } = useToast();
 
@@ -65,13 +75,13 @@ export default function HomePage() {
     return ideaDate >= weekStart;
   });
 
-  const closedThisWeek = thisWeekIdeas.filter(i => 
-    ['hit_target', 'hit_stop'].includes((i.outcomeStatus || '').trim().toLowerCase())
-  );
+  // 🔧 DATA INTEGRITY: Use consistent "decided" logic (wins + real losses only, no breakeven/expired)
   const winsThisWeek = thisWeekIdeas.filter(i => 
     (i.outcomeStatus || '').trim().toLowerCase() === 'hit_target'
   ).length;
-  const winRate = closedThisWeek.length > 0 ? (winsThisWeek / closedThisWeek.length) * 100 : 0;
+  const lossesThisWeek = thisWeekIdeas.filter(i => isRealLoss(i)).length;
+  const decidedThisWeek = winsThisWeek + lossesThisWeek;
+  const winRate = decidedThisWeek > 0 ? (winsThisWeek / decidedThisWeek) * 100 : 0;
 
   const weeklyGoal = 200;
   const weeklyPnL = thisWeekIdeas.reduce((sum, i) => sum + (i.realizedPnL || 0), 0);
@@ -181,7 +191,7 @@ export default function HomePage() {
             </div>
           </div>
           <p className="text-sm text-muted-foreground mt-4">
-            <span className="font-semibold text-foreground">{closedThisWeek.length}</span> patterns closed this week
+            <span className="font-semibold text-foreground">{decidedThisWeek}</span> decided this week
           </p>
         </div>
 
