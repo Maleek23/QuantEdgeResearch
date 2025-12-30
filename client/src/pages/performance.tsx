@@ -873,7 +873,7 @@ export default function PerformancePage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* High Confidence */}
+                {/* High Signal Strength */}
                 <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
@@ -1460,9 +1460,9 @@ export default function PerformancePage() {
             </div>
             
             <div className="glass-card rounded-xl p-6">
-              <h2 className="text-xl font-semibold mb-2 text-cyan-400">Confidence Score Calibration</h2>
+              <h2 className="text-xl font-semibold mb-2 text-cyan-400">Signal Strength Calibration</h2>
               <p className="text-sm text-muted-foreground mb-4">
-                Actual win rates by confidence score band {selectedEngine !== 'all' && `for ${selectedEngine.toUpperCase()} engine`}
+                Actual win rates by signal count band {selectedEngine !== 'all' && `for ${selectedEngine.toUpperCase()} engine`}
               </p>
               <Suspense fallback={<ChartSkeleton />}>
                 <ConfidenceCalibration selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
@@ -1470,9 +1470,9 @@ export default function PerformancePage() {
             </div>
             
             <div className="glass-card rounded-xl p-6">
-              <h2 className="text-xl font-semibold mb-2 text-cyan-400">Calibration Accuracy Curve</h2>
+              <h2 className="text-xl font-semibold mb-2 text-cyan-400">Accuracy Curve</h2>
               <p className="text-sm text-muted-foreground mb-4">
-                Predicted confidence vs actual outcome - how accurate are our predictions?
+                Signal count vs actual win rate - how does indicator consensus correlate with outcomes?
               </p>
               <Suspense fallback={<ChartSkeleton />}>
                 <CalibrationCurve />

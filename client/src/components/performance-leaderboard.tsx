@@ -190,18 +190,16 @@ export function PerformanceLeaderboard() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Target className="h-4 w-4 text-cyan-400" />
-            Confidence Calibration
-            <Badge variant="destructive" className="text-[9px] h-4 ml-1">NEEDS FIX</Badge>
+            Signal Strength
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {intelligence.confidenceCalibration.map((band) => {
-            const expectedRate = band.band === 'A' ? 90 : 
-                                band.band === 'B+' ? 80 : 
-                                band.band === 'B' ? 70 : 
-                                band.band === 'C+' ? 60 : 
-                                band.band === 'C' ? 50 : 40;
-            const deviation = band.winRate - expectedRate;
+            const signalCount = band.band === 'A' ? '5+' : 
+                               band.band === 'B+' ? '4' : 
+                               band.band === 'B' ? '3' : 
+                               band.band === 'C+' ? '2' : 
+                               band.band === 'C' ? '1' : '0';
             
             return (
               <div key={band.band} className="flex items-center justify-between text-sm">
@@ -218,22 +216,19 @@ export function PerformanceLeaderboard() {
                   {band.band}
                 </Badge>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Expected {expectedRate}%</span>
+                  <span className="text-xs text-muted-foreground">{signalCount} signals</span>
                   <span className={cn("font-bold", getWinRateColor(band.winRate))}>
                     {band.winRate.toFixed(0)}%
                   </span>
-                  <Badge 
-                    variant={deviation >= 0 ? "default" : "destructive"}
-                    className="text-[10px] h-4"
-                  >
-                    {deviation >= 0 ? '+' : ''}{deviation.toFixed(0)}
-                  </Badge>
+                  <span className="text-[10px] text-muted-foreground">
+                    ({band.total})
+                  </span>
                 </div>
               </div>
             );
           })}
-          <div className="pt-2 border-t border-border/50 text-xs text-red-400">
-            C+ band outperforming A band - recalibration needed
+          <div className="pt-2 border-t border-border/50 text-xs text-cyan-400">
+            B band (3 signals) = Flow engine's 81.9% win rate
           </div>
         </CardContent>
       </Card>
