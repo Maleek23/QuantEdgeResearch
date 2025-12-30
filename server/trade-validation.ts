@@ -163,6 +163,29 @@ export function validateTrade(trade: TradeValidationInput): ValidationResult {
       if (!severity) severity = 'high';
     }
     
+    // CRITICAL: Validate direction/optionType consistency
+    // LONG direction = bullish bet = CALL option (profits when underlying goes UP)
+    // SHORT direction = bearish bet = PUT option (profits when underlying goes DOWN)
+    if (trade.optionType) {
+      const optType = trade.optionType.toLowerCase();
+      if (direction === 'long' && optType === 'put') {
+        errors.push(
+          `Direction/OptionType mismatch: LONG + PUT is contradictory. ` +
+          `LONG means bullish (expecting price UP), but PUT profits when price goes DOWN. ` +
+          `Use CALL for bullish trades, PUT for bearish trades.`
+        );
+        severity = 'critical';
+      }
+      if (direction === 'short' && optType === 'call') {
+        errors.push(
+          `Direction/OptionType mismatch: SHORT + CALL is contradictory. ` +
+          `SHORT means bearish (expecting price DOWN), but CALL profits when price goes UP. ` +
+          `Use PUT for bearish trades, CALL for bullish trades.`
+        );
+        severity = 'critical';
+      }
+    }
+    
     // Smart option premium validation using available data
     // Deep ITM options CAN have high premiums (intrinsic value), so we use a heuristic:
     // If entry premium is > 10x strike, it's almost certainly stock price, not option premium
