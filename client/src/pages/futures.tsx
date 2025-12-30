@@ -184,9 +184,8 @@ export default function FuturesPage() {
   
   const researchMutation = useMutation({
     mutationFn: async (symbol: string) => {
-      const response = await fetch(`/api/futures/${symbol}/research`);
-      if (!response.ok) throw new Error('Failed to generate research');
-      return response.json() as Promise<FuturesResearchBrief>;
+      const response = await apiRequest('GET', `/api/futures/${symbol}/research`);
+      return await response.json() as FuturesResearchBrief;
     },
     onSuccess: (data) => setResearchBrief(data),
   });
