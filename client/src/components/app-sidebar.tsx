@@ -1,7 +1,7 @@
 import { 
   TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, 
   Sun, Moon, Upload, BookOpen, Home, CreditCard, ExternalLink, User, Activity, 
-  LineChart, GraduationCap, FileText, Database, LogOut, Sparkles, Bot
+  LineChart, GraduationCap, FileText, Database, LogOut, Sparkles, Bot, Zap
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -40,6 +40,7 @@ const tradingToolsItems: NavItem[] = [
 
 const analysisItems: NavItem[] = [
   { title: "Chart Analysis", url: "/chart-analysis", icon: Upload, badge: "AI", badgeVariant: "secondary" },
+  { title: "Futures", url: "/futures", icon: Zap, badge: "24h", badgeVariant: "secondary" },
   { title: "Performance", url: "/performance", icon: Target },
   { title: "Market Data", url: "/market", icon: BarChart2 },
   { title: "Chart Database", url: "/chart-database", icon: Database },

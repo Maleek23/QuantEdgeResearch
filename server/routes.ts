@@ -1593,6 +1593,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // FUTURES TRADING ROUTES - 24-hour markets
+  // ============================================
+  
+  app.get("/api/futures", async (_req, res) => {
+    try {
+      const { fetchAllFuturesQuotes } = await import("./market-api");
+      const quotes = await fetchAllFuturesQuotes();
+      res.json(quotes);
+    } catch (error) {
+      logger.error("Error fetching futures quotes:", error);
+      res.status(500).json({ error: "Failed to fetch futures data" });
+    }
+  });
+  
+  app.get("/api/futures/symbols", async (_req, res) => {
+    try {
+      const { getAvailableFuturesSymbols } = await import("./market-api");
+      const symbols = getAvailableFuturesSymbols();
+      res.json(symbols);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get futures symbols" });
+    }
+  });
+  
+  app.get("/api/futures/:symbol", async (req, res) => {
+    try {
+      const { fetchFuturesQuote } = await import("./market-api");
+      const quote = await fetchFuturesQuote(req.params.symbol);
+      if (!quote) {
+        return res.status(404).json({ error: "Futures contract not found" });
+      }
+      res.json(quote);
+    } catch (error) {
+      logger.error(`Error fetching futures quote for ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to fetch futures quote" });
+    }
+  });
+  
+  app.get("/api/futures/:symbol/history", async (req, res) => {
+    try {
+      const { fetchFuturesHistory } = await import("./market-api");
+      const interval = (req.query.interval as '1m' | '5m' | '15m' | '1h' | '1d') || '15m';
+      const range = (req.query.range as '1d' | '5d' | '1mo' | '3mo') || '5d';
+      const history = await fetchFuturesHistory(req.params.symbol, interval, range);
+      res.json(history);
+    } catch (error) {
+      logger.error(`Error fetching futures history for ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to fetch futures history" });
+    }
+  });
+
   app.get("/api/search-symbol/:symbol", async (req, res) => {
     try {
       const symbol = req.params.symbol.toUpperCase();

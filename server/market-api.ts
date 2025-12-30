@@ -1098,3 +1098,244 @@ export async function fetchSymbolEarnings(symbols: string[]): Promise<Map<string
   
   return earningsMap;
 }
+
+// ============================================
+// FUTURES DATA - 24-hour trading
+// ============================================
+
+export interface FuturesQuote {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  high: number;
+  low: number;
+  volume: number;
+  previousClose: number;
+  session: 'pre' | 'rth' | 'post' | 'overnight' | 'closed';
+  lastUpdate: string;
+}
+
+// Yahoo Finance futures symbols
+const FUTURES_SYMBOLS: Record<string, { yahoo: string; name: string; tickSize: number; pointValue: number }> = {
+  'ES': { yahoo: 'ES=F', name: 'E-mini S&P 500', tickSize: 0.25, pointValue: 50 },
+  'NQ': { yahoo: 'NQ=F', name: 'E-mini Nasdaq-100', tickSize: 0.25, pointValue: 20 },
+  'YM': { yahoo: 'YM=F', name: 'E-mini Dow', tickSize: 1, pointValue: 5 },
+  'RTY': { yahoo: 'RTY=F', name: 'E-mini Russell 2000', tickSize: 0.1, pointValue: 50 },
+  'GC': { yahoo: 'GC=F', name: 'Gold', tickSize: 0.1, pointValue: 100 },
+  'SI': { yahoo: 'SI=F', name: 'Silver', tickSize: 0.005, pointValue: 5000 },
+  'CL': { yahoo: 'CL=F', name: 'Crude Oil', tickSize: 0.01, pointValue: 1000 },
+  'NG': { yahoo: 'NG=F', name: 'Natural Gas', tickSize: 0.001, pointValue: 10000 },
+  'ZB': { yahoo: 'ZB=F', name: '30-Year T-Bond', tickSize: 0.03125, pointValue: 1000 },
+  'ZN': { yahoo: 'ZN=F', name: '10-Year T-Note', tickSize: 0.015625, pointValue: 1000 },
+  '6E': { yahoo: '6E=F', name: 'Euro FX', tickSize: 0.00005, pointValue: 125000 },
+  '6J': { yahoo: '6J=F', name: 'Japanese Yen', tickSize: 0.0000005, pointValue: 12500000 },
+};
+
+// Cache for futures quotes (5 second TTL for real-time feel)
+const futuresCache = new Map<string, { quote: FuturesQuote; timestamp: number }>();
+const FUTURES_CACHE_TTL = 5000; // 5 seconds
+
+/**
+ * Determine current futures trading session
+ */
+function getFuturesSession(): 'pre' | 'rth' | 'post' | 'overnight' | 'closed' {
+  const now = new Date();
+  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = etTime.getDay();
+  const hour = etTime.getHours();
+  const minute = etTime.getMinutes();
+  const timeInMinutes = hour * 60 + minute;
+  
+  // Futures closed: Friday 5pm to Sunday 6pm ET
+  if (day === 6 || (day === 5 && timeInMinutes >= 1020) || (day === 0 && timeInMinutes < 1080)) {
+    return 'closed';
+  }
+  
+  // RTH (Regular Trading Hours): 9:30am - 4:00pm ET
+  if (timeInMinutes >= 570 && timeInMinutes < 960) {
+    return 'rth';
+  }
+  
+  // Pre-market: 6:00am - 9:30am ET
+  if (timeInMinutes >= 360 && timeInMinutes < 570) {
+    return 'pre';
+  }
+  
+  // Post-market: 4:00pm - 5:00pm ET (daily close)
+  if (timeInMinutes >= 960 && timeInMinutes < 1020) {
+    return 'post';
+  }
+  
+  // Overnight session (5pm previous day to 6am)
+  return 'overnight';
+}
+
+/**
+ * Fetch single futures quote from Yahoo Finance
+ */
+async function fetchYahooFuturesQuote(symbol: string): Promise<FuturesQuote | null> {
+  const futuresInfo = FUTURES_SYMBOLS[symbol.toUpperCase()];
+  if (!futuresInfo) {
+    logger.warn(`Unknown futures symbol: ${symbol}`);
+    return null;
+  }
+  
+  // Check cache first
+  const cached = futuresCache.get(symbol);
+  if (cached && Date.now() - cached.timestamp < FUTURES_CACHE_TTL) {
+    return cached.quote;
+  }
+  
+  try {
+    const response = await fetch(
+      `${YAHOO_FINANCE_API}/${futuresInfo.yahoo}?interval=1m&range=1d`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      logger.warn(`Yahoo Finance futures error for ${symbol}: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    const result = data?.chart?.result?.[0];
+    
+    if (!result || !result.meta) {
+      return null;
+    }
+    
+    const meta = result.meta;
+    const previousClose = meta.chartPreviousClose || meta.previousClose || meta.regularMarketPrice;
+    const currentPrice = meta.regularMarketPrice;
+    const change = currentPrice - previousClose;
+    const changePercent = previousClose ? (change / previousClose) * 100 : 0;
+    
+    const quote: FuturesQuote = {
+      symbol: symbol.toUpperCase(),
+      name: futuresInfo.name,
+      price: currentPrice,
+      change,
+      changePercent,
+      high: meta.regularMarketDayHigh || currentPrice,
+      low: meta.regularMarketDayLow || currentPrice,
+      volume: meta.regularMarketVolume || 0,
+      previousClose,
+      session: getFuturesSession(),
+      lastUpdate: new Date().toISOString(),
+    };
+    
+    // Update cache
+    futuresCache.set(symbol, { quote, timestamp: Date.now() });
+    
+    logger.info(`✅ Futures quote: ${symbol} @ $${currentPrice.toFixed(2)} (${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%)`);
+    
+    return quote;
+  } catch (error) {
+    logger.error(`Error fetching futures quote for ${symbol}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetch all major futures quotes
+ */
+export async function fetchAllFuturesQuotes(): Promise<FuturesQuote[]> {
+  const symbols = Object.keys(FUTURES_SYMBOLS);
+  const quotes: FuturesQuote[] = [];
+  
+  // Fetch in batches to avoid rate limits
+  for (const symbol of symbols) {
+    const quote = await fetchYahooFuturesQuote(symbol);
+    if (quote) {
+      quotes.push(quote);
+    }
+    // Small delay between requests
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  
+  return quotes;
+}
+
+/**
+ * Fetch specific futures quote
+ */
+export async function fetchFuturesQuote(symbol: string): Promise<FuturesQuote | null> {
+  return fetchYahooFuturesQuote(symbol);
+}
+
+/**
+ * Get list of available futures symbols
+ */
+export function getAvailableFuturesSymbols(): Array<{ symbol: string; name: string; tickSize: number; pointValue: number }> {
+  return Object.entries(FUTURES_SYMBOLS).map(([symbol, info]) => ({
+    symbol,
+    name: info.name,
+    tickSize: info.tickSize,
+    pointValue: info.pointValue,
+  }));
+}
+
+/**
+ * Fetch futures historical data for charting
+ */
+export async function fetchFuturesHistory(
+  symbol: string,
+  interval: '1m' | '5m' | '15m' | '1h' | '1d' = '15m',
+  range: '1d' | '5d' | '1mo' | '3mo' = '5d'
+): Promise<{ timestamp: number; open: number; high: number; low: number; close: number; volume: number }[]> {
+  const futuresInfo = FUTURES_SYMBOLS[symbol.toUpperCase()];
+  if (!futuresInfo) {
+    return [];
+  }
+  
+  try {
+    const response = await fetch(
+      `${YAHOO_FINANCE_API}/${futuresInfo.yahoo}?interval=${interval}&range=${range}`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      return [];
+    }
+    
+    const data = await response.json();
+    const result = data?.chart?.result?.[0];
+    
+    if (!result || !result.timestamp || !result.indicators?.quote?.[0]) {
+      return [];
+    }
+    
+    const timestamps = result.timestamp;
+    const quote = result.indicators.quote[0];
+    
+    const candles: { timestamp: number; open: number; high: number; low: number; close: number; volume: number }[] = [];
+    
+    for (let i = 0; i < timestamps.length; i++) {
+      if (quote.open[i] !== null && quote.close[i] !== null) {
+        candles.push({
+          timestamp: timestamps[i] * 1000,
+          open: quote.open[i],
+          high: quote.high[i],
+          low: quote.low[i],
+          close: quote.close[i],
+          volume: quote.volume[i] || 0,
+        });
+      }
+    }
+    
+    return candles;
+  } catch (error) {
+    logger.error(`Error fetching futures history for ${symbol}:`, error);
+    return [];
+  }
+}
