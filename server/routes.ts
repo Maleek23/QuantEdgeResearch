@@ -3390,6 +3390,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'manual': 'Manual',
       };
       
+      // Outlier protection: clamp percent gains to ±50% to prevent data corruption from skewing averages
+      const OUTLIER_MIN = -50;
+      const OUTLIER_MAX = 50;
+      
       resolvedIdeas.forEach(idea => {
         const engine = (idea.source || 'unknown').toLowerCase();
         const normalizedEngine = engine === 'flow_scanner' ? 'flow' : engine;
@@ -3411,7 +3415,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stats.totalTrades++;
         if (idea.outcomeStatus === 'hit_target') stats.wins++;
         else stats.losses++;
-        stats.totalGain += idea.percentGain || 0;
+        // Clamp outliers to prevent corrupted data from skewing averages
+        const clampedGain = Math.max(OUTLIER_MIN, Math.min(OUTLIER_MAX, idea.percentGain || 0));
+        stats.totalGain += clampedGain;
       });
       
       // Calculate final stats
@@ -5486,7 +5492,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contextString += `\n\nUser is asking about ticker symbol: ${context.symbol}`;
       }
       if (context?.tradeIdeaId) {
-        const idea = await storage.getTradeIdea(context.tradeIdeaId);
+        const idea = await storage.getTradeIdeaById(String(context.tradeIdeaId));
         if (idea) {
           contextString += `\n\nRelated trade idea context:
 - Symbol: ${idea.symbol}

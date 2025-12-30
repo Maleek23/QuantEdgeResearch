@@ -37,9 +37,23 @@ The platform is built with a React 18, TypeScript, and Tailwind CSS frontend, ut
 
 ### API Endpoint: `/api/data-intelligence`
 Provides historical performance analytics from 411+ resolved trades:
-- **Engine Performance**: Flow (81.9%), AI (57.1%), Quant (34.4%)
+- **Engine Performance**: Flow (81.9%), AI (57.1%), Hybrid (40.6%), Quant (34.4%), Chart Analysis (22.2%)
 - **Symbol Performance**: 30+ symbols with 3+ trades tracked
 - **Confidence Calibration**: Bands recalibrated based on actual outcomes
+
+### Engine Performance (Verified Dec 2025)
+| Engine | Trades | W/L | Win Rate | Avg Gain |
+|--------|--------|-----|----------|----------|
+| Flow Scanner | 199 | 163W/36L | 81.9% | +3.11% |
+| AI Engine | 77 | 44W/33L | 57.1% | +1.07% |
+| Hybrid | 32 | 13W/19L | 40.6% | -0.16% |
+| Quant Engine | 93 | 32W/61L | 34.4% | +0.01% |
+| Chart Analysis | 9 | 2W/7L | 22.2% | -0.12% |
+| Manual | 1 | 0W/1L | 0% | -3.58% |
+
+**Data Integrity Notes:**
+- Outlier protection: avgGain calculations clamp values to ±50% to prevent corrupted data from skewing averages
+- Corrupted trades identified and fixed: PINS (ai), TSLY (quant) - marked exclude_from_training=true
 
 ### Confidence Band Thresholds (Calibrated Dec 2025)
 - A band: 90+ confidence score

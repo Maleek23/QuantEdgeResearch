@@ -532,7 +532,7 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
                          idea.holdingPeriod === 'swing' ? 'Swing Trade' : 'Day Trade';
     
     // Get sector if available
-    const sectorText = idea.sectorFocus && idea.sectorFocus !== 'general' ? idea.sectorFocus.toUpperCase() : '';
+    const sectorText = idea.sectorFocus && (idea.sectorFocus as string) !== 'general' ? idea.sectorFocus.toUpperCase() : '';
     
     const embed: DiscordEmbed = {
       title: `🎰 LOTTO: ${idea.symbol} ${(idea.optionType || 'OPT').toUpperCase()} $${idea.strikePrice}`,
