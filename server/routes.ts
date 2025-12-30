@@ -280,14 +280,18 @@ function calculateAIConfidence(
   // Catalyst strength contribution (0-10 points)
   if (isNewsCatalyst) rawScore += 10;
 
-  // 🎯 STEP 2: Engine-specific adjustments based on historical performance
-  // Flow: +15 (81.9% win rate), AI: -5 (57.1%), Quant: -15 (34.4%), Hybrid: 0 (61.9%)
+  // 🎯 STEP 2: Engine-specific adjustments based on ACTUAL historical performance
+  // Verified from database: 411 resolved trades (Dec 2025)
+  // Flow: 81.9% (199 trades) → +20 adjustment
+  // AI: 57.1% (77 trades) → -5 adjustment  
+  // Hybrid: 40.6% (32 trades) → -12 adjustment
+  // Quant: 34.4% (93 trades) → -18 adjustment
   let engineAdjustment = 0;
   const engineLower = source.toLowerCase();
-  if (engineLower === 'flow' || engineLower === 'flow_scanner') engineAdjustment = 15;
-  else if (engineLower === 'ai') engineAdjustment = -5;
-  else if (engineLower === 'quant') engineAdjustment = -15;
-  else if (engineLower === 'hybrid') engineAdjustment = 0;
+  if (engineLower === 'flow' || engineLower === 'flow_scanner') engineAdjustment = 20;  // Best: 81.9%
+  else if (engineLower === 'ai') engineAdjustment = -5;                                  // Mid: 57.1%
+  else if (engineLower === 'hybrid') engineAdjustment = -12;                             // Low: 40.6%
+  else if (engineLower === 'quant') engineAdjustment = -18;                              // Worst: 34.4%
   
   // AI options get extra penalty (historical -150% loss rate)
   if (idea.assetType === 'option' && engineLower === 'ai') {
@@ -3246,6 +3250,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Calibration curve error:", error);
       res.status(500).json({ error: "Failed to generate calibration curve" });
+    }
+  });
+
+  // 🎯 ACTUAL ENGINE PERFORMANCE - Verified from database
+  // This endpoint provides PROOF of engine win rates for display on performance page
+  app.get("/api/performance/engine-actual-stats", async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Filter: only resolved trades (hit_target or hit_stop)
+      const resolvedIdeas = allIdeas.filter(idea => 
+        idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop'
+      );
+      
+      // Group by engine (source)
+      const engineStats = new Map<string, {
+        engine: string;
+        displayName: string;
+        totalTrades: number;
+        wins: number;
+        losses: number;
+        winRate: number;
+        avgGain: number;
+        totalGain: number;
+      }>();
+      
+      const engineDisplayNames: Record<string, string> = {
+        'flow': 'Flow Scanner',
+        'flow_scanner': 'Flow Scanner',
+        'ai': 'AI Engine',
+        'quant': 'Quant Engine',
+        'hybrid': 'Hybrid',
+        'chart_analysis': 'Chart Analysis',
+        'lotto_scanner': 'Lotto Scanner',
+        'manual': 'Manual',
+      };
+      
+      resolvedIdeas.forEach(idea => {
+        const engine = (idea.source || 'unknown').toLowerCase();
+        const normalizedEngine = engine === 'flow_scanner' ? 'flow' : engine;
+        
+        if (!engineStats.has(normalizedEngine)) {
+          engineStats.set(normalizedEngine, {
+            engine: normalizedEngine,
+            displayName: engineDisplayNames[normalizedEngine] || normalizedEngine.toUpperCase(),
+            totalTrades: 0,
+            wins: 0,
+            losses: 0,
+            winRate: 0,
+            avgGain: 0,
+            totalGain: 0,
+          });
+        }
+        
+        const stats = engineStats.get(normalizedEngine)!;
+        stats.totalTrades++;
+        if (idea.outcomeStatus === 'hit_target') stats.wins++;
+        else stats.losses++;
+        stats.totalGain += idea.percentGain || 0;
+      });
+      
+      // Calculate final stats
+      const engines = Array.from(engineStats.values()).map(stats => ({
+        ...stats,
+        winRate: stats.totalTrades > 0 ? Math.round((stats.wins / stats.totalTrades) * 1000) / 10 : 0,
+        avgGain: stats.totalTrades > 0 ? Math.round((stats.totalGain / stats.totalTrades) * 100) / 100 : 0,
+      }));
+      
+      // Sort by win rate descending
+      engines.sort((a, b) => b.winRate - a.winRate);
+      
+      res.json({
+        engines,
+        summary: {
+          totalResolvedTrades: resolvedIdeas.length,
+          bestEngine: engines[0]?.displayName || 'N/A',
+          bestWinRate: engines[0]?.winRate || 0,
+          worstEngine: engines[engines.length - 1]?.displayName || 'N/A',
+          worstWinRate: engines[engines.length - 1]?.winRate || 0,
+          lastUpdated: new Date().toISOString(),
+        }
+      });
+    } catch (error) {
+      logger.error("Engine actual stats error:", error);
+      res.status(500).json({ error: "Failed to fetch engine stats" });
     }
   });
 

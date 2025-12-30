@@ -34,6 +34,7 @@ const TimeOfDayHeatmap = lazy(() => import("@/components/time-of-day-heatmap"));
 const EngineTrendsChart = lazy(() => import("@/components/engine-trends-chart"));
 const ConfidenceCalibration = lazy(() => import("@/components/confidence-calibration"));
 const CalibrationCurve = lazy(() => import("@/components/calibration-curve"));
+const EngineActualPerformance = lazy(() => import("@/components/engine-actual-performance"));
 const StreakTracker = lazy(() => import("@/components/streak-tracker"));
 import { PerformanceLeaderboard } from "@/components/performance-leaderboard";
 
@@ -1241,6 +1242,16 @@ export default function PerformancePage() {
       <div className="space-y-6" data-testid="performance-simplified">
         <TierGate feature="performance" blur>
           <div className="space-y-6" data-testid="section-advanced-analytics">
+            <div className="glass-card rounded-xl p-6">
+              <h2 className="text-xl font-semibold mb-2 text-cyan-400">Actual Engine Performance</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Verified win rates from resolved trades - this is the PROOF
+              </p>
+              <Suspense fallback={<ChartSkeleton />}>
+                <EngineActualPerformance />
+              </Suspense>
+            </div>
+            
             <div className="glass-card rounded-xl p-6">
               <h2 className="text-xl font-semibold mb-4 text-cyan-400">Current Performance Streak</h2>
               <Suspense fallback={<ChartSkeleton />}>
