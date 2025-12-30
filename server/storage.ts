@@ -146,6 +146,48 @@ export function getDecidedTradesByResolution(ideas: any[], options: { includeAll
   );
 }
 
+/**
+ * 🔧 CANONICAL PERFORMANCE FILTERS
+ * Apply the same pre-filters used by /api/performance/stats to ensure
+ * consistent trade counts across all performance analytics endpoints.
+ * 
+ * Filters applied:
+ * 1. Exclude options (no proper pricing yet)
+ * 2. Exclude flow/lotto sources (unvalidatable options)
+ * 3. Optionally exclude buggy/test trades
+ * 
+ * Use this helper BEFORE calling getDecidedTrades or getDecidedTradesByResolution
+ */
+export interface CanonicalFilterOptions {
+  includeOptions?: boolean;      // Include option trades (default: false)
+  includeFlowLotto?: boolean;    // Include flow/lotto sources (default: false)
+  includeBuggyTrades?: boolean;  // Include trades with excludeFromTraining=true (default: false)
+}
+
+export function applyCanonicalPerformanceFilters(
+  ideas: any[], 
+  options: CanonicalFilterOptions = {}
+): any[] {
+  let filtered = ideas;
+  
+  // Step 1: Exclude buggy/test trades (excludeFromTraining=true)
+  if (!options.includeBuggyTrades) {
+    filtered = filtered.filter(idea => !idea.excludeFromTraining);
+  }
+  
+  // Step 2: Exclude options (no proper pricing yet)
+  if (!options.includeOptions) {
+    filtered = filtered.filter(idea => idea.assetType !== 'option');
+  }
+  
+  // Step 3: Exclude flow/lotto sources (unvalidatable options)
+  if (!options.includeFlowLotto) {
+    filtered = filtered.filter(idea => idea.source !== 'flow' && idea.source !== 'lotto');
+  }
+  
+  return filtered;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -2091,33 +2133,18 @@ export class DatabaseStorage implements IStorage {
     let allIdeas = allIdeasRaw.filter(idea => !idea.excludeFromTraining);
     console.log(`[PERF-STATS] After excluding buggy trades: ${allIdeas.length} ideas`);
     
-    // 🎯 ENGINE VERSION FILTERING - RELAXED (Nov 11, 2025)
-    // Previous issue: Excluded 500+ valid trades with NULL/legacy engineVersion
-    // Fix: Default-include all trades to restore accurate performance stats
-    // 
-    // Only filter when explicitly requested via includeAllVersions parameter
-    if (filters?.includeAllVersions === false) {
-      // Explicitly requested to exclude legacy versions (rare case)
+    // 🎯 ENGINE VERSION FILTERING - CONSISTENT (Dec 2025)
+    // Uses canonical isCurrentGenEngine from shared/constants.ts
+    // Excludes legacy v1.x/v2.x engines by default for consistent stats across all endpoints
+    // Set includeAllVersions=true to include legacy engines (for admin/ML analysis)
+    if (filters?.includeAllVersions !== true) {
+      // Default: Exclude legacy engines for consistent stats across endpoints
       const beforeVersionFilter = allIdeas.length;
-      allIdeas = allIdeas.filter(idea => {
-        if (!idea.engineVersion) return true; // NULL version = include
-        
-        const version = idea.engineVersion.toLowerCase();
-        
-        // Include current-gen engines
-        if (version.startsWith('v3.')) return true;
-        if (version.startsWith('flow_')) return true;
-        if (version.startsWith('hybrid_')) return true;
-        if (version.startsWith('ai_')) return true;
-        if (version.startsWith('lotto_')) return true;
-        if (version.startsWith('news_')) return true;
-        
-        return false; // Exclude other versions
-      });
-      console.log(`[PERF-STATS] Engine filter: Explicit legacy exclusion → ${beforeVersionFilter} filtered to ${allIdeas.length}`);
+      allIdeas = allIdeas.filter(idea => isCurrentGenEngine(idea));
+      console.log(`[PERF-STATS] Engine filter: Current-gen only → ${beforeVersionFilter} filtered to ${allIdeas.length}`);
     } else {
-      // Default: Include all versions (NULL, legacy, current-gen)
-      console.log(`[PERF-STATS] Engine filter: Relaxed (all versions included) → ${allIdeas.length} ideas`);
+      // Explicitly requested to include all versions (admin/ML mode)
+      console.log(`[PERF-STATS] Engine filter: All versions included (admin mode) → ${allIdeas.length} ideas`);
     }
     
     // 🚨 OPTIONS FILTER: Exclude options by default until proper option pricing is implemented

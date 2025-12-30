@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storage, isRealLoss, isRealLossByResolution, isCurrentGenEngine, getDecidedTrades, getDecidedTradesByResolution, CANONICAL_LOSS_THRESHOLD } from "./storage";
+import { storage, isRealLoss, isRealLossByResolution, isCurrentGenEngine, getDecidedTrades, getDecidedTradesByResolution, applyCanonicalPerformanceFilters, CANONICAL_LOSS_THRESHOLD } from "./storage";
 import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { generateTradeIdeas, chatWithQuantAI, validateTradeRisk } from "./ai-service";
 import { generateQuantIdeas } from "./quant-ideas-generator";
@@ -2649,7 +2649,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // 🔧 DATA INTEGRITY: Use canonical filters from storage.ts
       // Filter: DECIDED trades only (auto-resolved wins + real losses)
-      let filteredIdeas = getDecidedTradesByResolution(allIdeas, { includeAllVersions: true });
+      let filteredIdeas = getDecidedTradesByResolution(allIdeas, { includeAllVersions: false });
       
       if (engine) {
         filteredIdeas = filteredIdeas.filter(idea => idea.source === engine);
@@ -2867,7 +2867,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // 🔧 DATA INTEGRITY: Use canonical filters from storage.ts
       // Filter: DECIDED trades only (auto-resolved wins + real losses)
-      const filteredIdeas = getDecidedTradesByResolution(allIdeas, { includeAllVersions: true });
+      const filteredIdeas = getDecidedTradesByResolution(allIdeas, { includeAllVersions: false });
       
       // Get date 8 weeks ago
       const eightWeeksAgo = new Date();
@@ -2986,9 +2986,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all trade ideas
       const allIdeas = await storage.getAllTradeIdeas();
       
-      // 🔧 DATA INTEGRITY: Use canonical filters from storage.ts
-      // Filter: DECIDED trades only (auto-resolved wins + real losses)
-      let filteredIdeas = getDecidedTradesByResolution(allIdeas, { includeAllVersions: true });
+      // 🔧 DATA INTEGRITY: Use shared canonical filters for consistency
+      const preFiltered = applyCanonicalPerformanceFilters(allIdeas);
+      
+      // Get decided trades only (auto-resolved wins + real losses)
+      let filteredIdeas = getDecidedTradesByResolution(preFiltered, { includeAllVersions: false });
       
       if (engine) {
         filteredIdeas = filteredIdeas.filter(idea => idea.source === engine);
@@ -3068,9 +3070,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       
-      // 🔧 DATA INTEGRITY: Use canonical isRealLoss from storage.ts
-      // Filter: DECIDED trades only (wins + real losses, excludes breakeven and expired)
-      const resolvedIdeas = getDecidedTrades(allIdeas, { includeAllVersions: true });
+      // 🔧 DATA INTEGRITY: Use shared canonical filters for consistency
+      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas);
+      
+      // Get decided trades only (wins + real losses, excludes breakeven, expired, and legacy engines)
+      const resolvedIdeas = getDecidedTrades(filteredIdeas, { includeAllVersions: false });
       
       // Calculate stats by confidence band - CALIBRATED thresholds (Dec 2025)
       // Matches getProbabilityBand: A (90+), B+ (85-89), B (78-84), C+ (72-77), C (65-71), D (<65)
@@ -3148,10 +3152,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       
-      // Filter: only resolved trades with definitive outcomes
-      const resolvedIdeas = allIdeas.filter(idea => 
-        idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop'
-      );
+      // 🔧 DATA INTEGRITY: Use shared canonical filters for consistency
+      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas);
+      
+      // Get decided trades only (wins + real losses, excludes breakeven and legacy engines)
+      const resolvedIdeas = getDecidedTrades(filteredIdeas, { includeAllVersions: false });
       
       // Create 5-point confidence buckets (20-24, 25-29, 30-34, ..., 95-100)
       const buckets: Map<number, { wins: number; losses: number; totalPnL: number; trades: any[] }> = new Map();
@@ -3403,9 +3408,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       
-      // 🔧 DATA INTEGRITY: Use canonical getDecidedTrades from storage.ts
-      // Filter: DECIDED trades only (wins + real losses, not breakeven)
-      const decidedIdeas = getDecidedTrades(allIdeas, { includeAllVersions: true });
+      // 🔧 DATA INTEGRITY: Use shared canonical filters for consistency
+      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas);
+      
+      // Get decided trades only (wins + real losses, excludes breakeven and legacy engines)
+      const decidedIdeas = getDecidedTrades(filteredIdeas, { includeAllVersions: false });
       
       // Define engines and confidence bands
       const engines = ['ai', 'quant', 'hybrid', 'flow_scanner', 'chart_analysis', 'lotto_scanner'];
@@ -3491,7 +3498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         confidenceBands: confidenceBands.map(b => b.name),
         summary: {
           totalEngines: correlationMatrix.length,
-          totalResolvedTrades: resolvedIdeas.length,
+          totalResolvedTrades: decidedIdeas.length,
         }
       });
     } catch (error) {
