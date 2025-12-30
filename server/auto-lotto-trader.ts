@@ -1,46 +1,58 @@
 import { storage } from "./storage";
 import { executeTradeIdea, checkStopsAndTargets, updatePositionPrices } from "./paper-trading-service";
 import { sendBotTradeEntryToDiscord, sendBotTradeExitToDiscord } from "./discord-service";
-import { TradeIdea, PaperPortfolio } from "@shared/schema";
+import { getTradierQuote, getTradierOptionsChainsByDTE } from "./tradier-api";
+import { calculateLottoTargets, getLottoThresholds } from "./lotto-detector";
+import { getLetterGrade } from "./grading";
+import { formatInTimeZone } from "date-fns-tz";
+import { TradeIdea, PaperPortfolio, InsertTradeIdea } from "@shared/schema";
 import { logger } from "./logger";
 
 const LOTTO_PORTFOLIO_NAME = "Auto-Lotto Bot";
 const SYSTEM_USER_ID = "system-auto-trader";
-const LOTTO_STARTING_CAPITAL = 300; // $300 starting - realistic small account
-const MAX_POSITION_SIZE = 50; // Max $50 per lotto play (realistic for $300 account)
+const LOTTO_STARTING_CAPITAL = 300;
+const MAX_POSITION_SIZE = 50;
 
 let lottoPortfolio: PaperPortfolio | null = null;
 
-/**
- * Get or create the system portfolio for auto-trading lottos
- */
+interface BotDecision {
+  action: 'enter' | 'skip' | 'wait';
+  reason: string;
+  confidence: number;
+  signals: string[];
+}
+
+interface LottoOpportunity {
+  symbol: string;
+  optionType: 'call' | 'put';
+  strike: number;
+  expiration: string;
+  delta: number;
+  price: number;
+  volume: number;
+  daysToExpiry: number;
+}
+
+const BOT_SCAN_TICKERS = [
+  'TSLA', 'NVDA', 'AMD', 'SPY', 'QQQ', 'AAPL', 'META', 'GOOGL', 'AMZN', 'NFLX',
+  'IONQ', 'RGTI', 'QUBT', 'QBTS', 'MARA', 'RIOT', 'COIN', 'SOFI', 'HOOD', 'PLTR'
+];
+
 export async function getLottoPortfolio(): Promise<PaperPortfolio | null> {
   try {
-    // Check cache first
     if (lottoPortfolio) {
       return lottoPortfolio;
     }
 
-    // Try to find existing portfolio
     const portfolios = await storage.getPaperPortfoliosByUser(SYSTEM_USER_ID);
     const existing = portfolios.find(p => p.name === LOTTO_PORTFOLIO_NAME);
     
     if (existing) {
-      // Check if portfolio needs to be updated to new constants
-      const needsUpdate = existing.startingCapital !== LOTTO_STARTING_CAPITAL || 
-                          existing.maxPositionSize !== MAX_POSITION_SIZE;
-      
-      if (needsUpdate) {
-        logger.warn(`🤖 [AUTO-LOTTO] Portfolio has outdated config (starting: $${existing.startingCapital}, max: $${existing.maxPositionSize}) - updating to new constants`);
-        // Note: We've already reset the DB values via SQL, this ensures the cache is correct
-      }
-      
       lottoPortfolio = existing;
-      logger.info(`🤖 [AUTO-LOTTO] Found existing portfolio: ${existing.id} (Balance: $${existing.cashBalance.toFixed(2)}, MaxPos: $${existing.maxPositionSize})`);
+      logger.info(`🤖 [BOT] Found portfolio: ${existing.id} (Balance: $${existing.cashBalance.toFixed(2)})`);
       return existing;
     }
 
-    // Create new portfolio for auto-trading
     const newPortfolio = await storage.createPaperPortfolio({
       userId: SYSTEM_USER_ID,
       name: LOTTO_PORTFOLIO_NAME,
@@ -48,46 +60,390 @@ export async function getLottoPortfolio(): Promise<PaperPortfolio | null> {
       cashBalance: LOTTO_STARTING_CAPITAL,
       totalValue: LOTTO_STARTING_CAPITAL,
       maxPositionSize: MAX_POSITION_SIZE,
-      riskPerTrade: 0.05, // 5% risk per trade (aggressive for lottos)
+      riskPerTrade: 0.05,
     });
 
     lottoPortfolio = newPortfolio;
-    logger.info(`🤖 [AUTO-LOTTO] Created new portfolio: ${newPortfolio.id} with $${LOTTO_STARTING_CAPITAL}`);
+    logger.info(`🤖 [BOT] Created new portfolio: ${newPortfolio.id} with $${LOTTO_STARTING_CAPITAL}`);
     return newPortfolio;
   } catch (error) {
-    logger.error("🤖 [AUTO-LOTTO] Failed to get/create portfolio:", error);
+    logger.error("🤖 [BOT] Failed to get/create portfolio:", error);
     return null;
   }
 }
 
 /**
- * Auto-execute a lotto trade idea in the paper trading portfolio
- * CRITICAL: Only executes ideas with complete option metadata to ensure proper P&L tracking
+ * BOT DECISION ENGINE
+ * The bot evaluates each opportunity and decides whether to enter based on its own criteria
+ */
+function makeBotDecision(
+  quote: {
+    change_percentage: number;
+    volume: number;
+    average_volume: number;
+    last: number;
+    week_52_high: number;
+    week_52_low: number;
+    high: number;
+    low: number;
+  },
+  opportunity: LottoOpportunity
+): BotDecision {
+  const signals: string[] = [];
+  let score = 50;
+  
+  const priceChange = quote.change_percentage || 0;
+  const isCall = opportunity.optionType === 'call';
+  const momentumAligned = isCall ? priceChange > 0 : priceChange < 0;
+  
+  if (momentumAligned) {
+    const absChange = Math.abs(priceChange);
+    if (absChange >= 3) {
+      signals.push(`STRONG_MOMENTUM_${absChange.toFixed(1)}%`);
+      score += 25;
+    } else if (absChange >= 1.5) {
+      signals.push(`GOOD_MOMENTUM_${absChange.toFixed(1)}%`);
+      score += 15;
+    } else if (absChange >= 0.5) {
+      signals.push(`ALIGNED_${absChange.toFixed(1)}%`);
+      score += 8;
+    }
+  } else if (Math.abs(priceChange) >= 1) {
+    signals.push(`COUNTER_MOMENTUM_${priceChange.toFixed(1)}%`);
+    score -= 20;
+  }
+  
+  const relativeVolume = quote.average_volume > 0 
+    ? quote.volume / quote.average_volume 
+    : 1;
+  
+  if (relativeVolume >= 2.0) {
+    signals.push(`HIGH_VOL_${relativeVolume.toFixed(1)}x`);
+    score += 15;
+  } else if (relativeVolume >= 1.3) {
+    signals.push(`ABOVE_AVG_VOL`);
+    score += 8;
+  } else if (relativeVolume < 0.5) {
+    signals.push('LOW_VOLUME');
+    score -= 15;
+  }
+  
+  const range52w = quote.week_52_high - quote.week_52_low;
+  if (range52w > 0) {
+    const positionInRange = (quote.last - quote.week_52_low) / range52w;
+    
+    if (isCall && positionInRange > 0.6) {
+      signals.push('BULLISH_TREND');
+      score += 10;
+    } else if (!isCall && positionInRange < 0.4) {
+      signals.push('BEARISH_TREND');
+      score += 10;
+    } else if (isCall && positionInRange < 0.25) {
+      signals.push('CALLS_AT_LOWS_RISKY');
+      score -= 15;
+    } else if (!isCall && positionInRange > 0.75) {
+      signals.push('PUTS_AT_HIGHS_RISKY');
+      score -= 15;
+    }
+  }
+  
+  const intradayRange = quote.high - quote.low;
+  if (intradayRange > 0) {
+    const intradayPosition = (quote.last - quote.low) / intradayRange;
+    
+    if (isCall && intradayPosition > 0.7) {
+      signals.push('INTRADAY_STRONG');
+      score += 10;
+    } else if (!isCall && intradayPosition < 0.3) {
+      signals.push('INTRADAY_WEAK');
+      score += 10;
+    }
+  }
+  
+  const absDelta = Math.abs(opportunity.delta);
+  if (absDelta >= 0.08 && absDelta <= 0.18) {
+    signals.push(`OPTIMAL_DELTA_${absDelta.toFixed(2)}`);
+    score += 10;
+  } else if (absDelta < 0.05) {
+    signals.push('TOO_FAR_OTM');
+    score -= 10;
+  }
+  
+  if (opportunity.volume >= 500) {
+    signals.push(`OPT_VOL_${opportunity.volume}`);
+    score += 10;
+  } else if (opportunity.volume >= 100) {
+    signals.push('HAS_OPT_VOLUME');
+    score += 5;
+  }
+  
+  if (opportunity.daysToExpiry <= 2) {
+    signals.push('0-2_DTE');
+    if (!signals.some(s => s.includes('STRONG_MOMENTUM'))) {
+      score -= 10;
+    }
+  } else if (opportunity.daysToExpiry <= 7) {
+    signals.push('WEEKLY');
+  }
+  
+  score = Math.max(0, Math.min(100, score));
+  const grade = getLetterGrade(score);
+  
+  const isDayTrade = opportunity.daysToExpiry <= 2;
+  const minScoreForEntry = isDayTrade ? 80 : 70;
+  
+  if (score >= minScoreForEntry) {
+    return {
+      action: 'enter',
+      reason: `${grade} grade (${score}) - ${signals.slice(0, 3).join(', ')}`,
+      confidence: score,
+      signals
+    };
+  } else if (score >= 60) {
+    return {
+      action: 'wait',
+      reason: `${grade} grade (${score}) needs stronger signals`,
+      confidence: score,
+      signals
+    };
+  } else {
+    return {
+      action: 'skip',
+      reason: `${grade} grade (${score}) too weak - ${signals.slice(0, 2).join(', ')}`,
+      confidence: score,
+      signals
+    };
+  }
+}
+
+/**
+ * Bot scans for opportunities and decides what to trade
+ */
+async function scanForOpportunities(ticker: string): Promise<LottoOpportunity[]> {
+  try {
+    const quote = await getTradierQuote(ticker);
+    if (!quote || !quote.last) return [];
+    
+    const currentPrice = quote.last;
+    const thresholds = getLottoThresholds(currentPrice);
+    
+    const optionsData = await getTradierOptionsChainsByDTE(ticker, [0, 7, 14]);
+    if (!optionsData || optionsData.length === 0) return [];
+    
+    const opportunities: LottoOpportunity[] = [];
+    
+    for (const chain of optionsData) {
+      if (!chain.options?.option) continue;
+      
+      for (const opt of chain.options.option) {
+        if (!opt.bid || !opt.ask || opt.bid <= 0) continue;
+        
+        const midPrice = (opt.bid + opt.ask) / 2;
+        const delta = opt.greeks?.delta || 0;
+        const absDelta = Math.abs(delta);
+        
+        if (midPrice < thresholds.minPrice || midPrice > thresholds.maxPrice) continue;
+        if (absDelta < 0.03 || absDelta > 0.25) continue;
+        
+        const expDate = new Date(opt.expiration_date);
+        const now = new Date();
+        const daysToExpiry = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        
+        if (daysToExpiry < 0 || daysToExpiry > 14) continue;
+        
+        opportunities.push({
+          symbol: ticker,
+          optionType: opt.option_type as 'call' | 'put',
+          strike: opt.strike,
+          expiration: opt.expiration_date,
+          delta: delta,
+          price: midPrice,
+          volume: opt.volume || 0,
+          daysToExpiry
+        });
+      }
+    }
+    
+    return opportunities;
+  } catch (error) {
+    logger.error(`🤖 [BOT] Error scanning ${ticker}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Bot creates a trade idea from an opportunity
+ */
+function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): InsertTradeIdea {
+  const now = new Date();
+  const { targetPrice, riskRewardRatio } = calculateLottoTargets(opportunity.price);
+  const stopLoss = opportunity.price * 0.5;
+  const direction = opportunity.optionType === 'call' ? 'long' : 'short';
+  
+  const exitWindowDays = opportunity.daysToExpiry <= 2 ? 1 : Math.min(3, opportunity.daysToExpiry - 1);
+  const exitDate = new Date(now);
+  exitDate.setDate(exitDate.getDate() + exitWindowDays);
+  exitDate.setHours(15, 30, 0, 0);
+  
+  const entryValidUntil = new Date(now.getTime() + 60 * 60 * 1000);
+  
+  return {
+    symbol: opportunity.symbol,
+    assetType: 'option',
+    direction,
+    entryPrice: opportunity.price,
+    targetPrice,
+    stopLoss,
+    riskRewardRatio,
+    confidenceScore: decision.confidence,
+    qualitySignals: decision.signals,
+    probabilityBand: getLetterGrade(decision.confidence),
+    catalyst: `🤖 BOT DECISION: ${opportunity.symbol} ${opportunity.optionType.toUpperCase()} $${opportunity.strike} | ${decision.signals.slice(0, 3).join(' | ')}`,
+    analysis: `Auto-Lotto Bot autonomous trade: ${decision.reason}. Entry $${opportunity.price.toFixed(2)}, Target $${targetPrice.toFixed(2)} (20x), Stop $${stopLoss.toFixed(2)} (50%).`,
+    sessionContext: 'Bot autonomous trading',
+    holdingPeriod: opportunity.daysToExpiry <= 2 ? 'day' : 'swing',
+    source: 'lotto',
+    strikePrice: opportunity.strike,
+    optionType: opportunity.optionType,
+    expiryDate: opportunity.expiration,
+    entryValidUntil: formatInTimeZone(entryValidUntil, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX"),
+    exitBy: formatInTimeZone(exitDate, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX"),
+    isLottoPlay: true,
+    timestamp: formatInTimeZone(now, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX"),
+    sectorFocus: 'momentum',
+    riskProfile: 'speculative',
+    researchHorizon: opportunity.daysToExpiry <= 2 ? 'intraday' : 'week',
+    liquidityWarning: true,
+    engineVersion: 'bot_autonomous_v1.0',
+  };
+}
+
+/**
+ * MAIN BOT FUNCTION: Scans market and makes autonomous trading decisions
+ */
+export async function runAutonomousBotScan(): Promise<void> {
+  try {
+    const now = new Date();
+    const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const day = etTime.getDay();
+    const hour = etTime.getHours();
+    const minute = etTime.getMinutes();
+    const timeInMinutes = hour * 60 + minute;
+    
+    if (day === 0 || day === 6 || timeInMinutes < 570 || timeInMinutes >= 960) {
+      logger.info(`🤖 [BOT] Market closed - skipping autonomous scan`);
+      return;
+    }
+    
+    logger.info(`🤖 [BOT] ========== AUTONOMOUS SCAN STARTED ==========`);
+    
+    const portfolio = await getLottoPortfolio();
+    if (!portfolio) {
+      logger.error(`🤖 [BOT] No portfolio available`);
+      return;
+    }
+    
+    const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+    const openPositions = positions.filter(p => p.status === 'open');
+    
+    if (openPositions.length >= 3) {
+      logger.info(`🤖 [BOT] Already have ${openPositions.length} open positions - waiting for exits`);
+      return;
+    }
+    
+    const openSymbols = new Set(openPositions.map(p => p.symbol));
+    let bestOpportunity: { opp: LottoOpportunity; decision: BotDecision } | null = null;
+    
+    for (const ticker of BOT_SCAN_TICKERS) {
+      if (openSymbols.has(ticker)) continue;
+      
+      const opportunities = await scanForOpportunities(ticker);
+      
+      for (const opp of opportunities) {
+        const quote = await getTradierQuote(ticker);
+        if (!quote) continue;
+        
+        const decision = makeBotDecision(quote, opp);
+        
+        if (decision.action === 'enter') {
+          logger.info(`🤖 [BOT] ✅ ${ticker} ${opp.optionType.toUpperCase()} $${opp.strike}: ${decision.reason}`);
+          
+          if (!bestOpportunity || decision.confidence > bestOpportunity.decision.confidence) {
+            bestOpportunity = { opp, decision };
+          }
+        } else if (decision.action === 'wait') {
+          logger.debug(`🤖 [BOT] ⏳ ${ticker}: ${decision.reason}`);
+        }
+      }
+    }
+    
+    if (bestOpportunity) {
+      const { opp, decision } = bestOpportunity;
+      
+      logger.info(`🤖 [BOT] 🎯 EXECUTING BEST TRADE: ${opp.symbol} ${opp.optionType.toUpperCase()} $${opp.strike} @ $${opp.price.toFixed(2)}`);
+      
+      const ideaData = createTradeIdea(opp, decision);
+      const savedIdea = await storage.createTradeIdea(ideaData);
+      
+      const result = await executeTradeIdea(portfolio.id, savedIdea as TradeIdea);
+      
+      if (result.success && result.position) {
+        logger.info(`🤖 [BOT] ✅ TRADE EXECUTED: ${opp.symbol} x${result.position.quantity} @ $${opp.price.toFixed(2)}`);
+        
+        try {
+          await sendBotTradeEntryToDiscord({
+            symbol: opp.symbol,
+            optionType: opp.optionType,
+            strikePrice: opp.strike,
+            expiryDate: opp.expiration,
+            entryPrice: opp.price,
+            quantity: result.position.quantity,
+            targetPrice: ideaData.targetPrice,
+            stopLoss: ideaData.stopLoss,
+          });
+          logger.info(`🤖 [BOT] 📱 Discord entry notification sent`);
+        } catch (discordError) {
+          logger.warn(`🤖 [BOT] Discord notification failed:`, discordError);
+        }
+        
+        const updated = await storage.getPaperPortfolioById(portfolio.id);
+        if (updated) lottoPortfolio = updated;
+      } else {
+        logger.warn(`🤖 [BOT] ❌ Trade failed: ${result.error}`);
+      }
+    } else {
+      logger.info(`🤖 [BOT] No opportunities met entry criteria`);
+    }
+    
+    logger.info(`🤖 [BOT] ========== AUTONOMOUS SCAN COMPLETE ==========`);
+  } catch (error) {
+    logger.error(`🤖 [BOT] Error in autonomous scan:`, error);
+  }
+}
+
+/**
+ * Auto-execute a trade idea (for backward compatibility with lotto scanner)
  */
 export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
   try {
-    // CRITICAL: Validate option metadata before execution
-    // Without this data, we cannot fetch proper option prices and P&L will be wrong
     if (idea.assetType === 'option') {
       if (!idea.strikePrice || !idea.expiryDate || !idea.optionType) {
-        logger.error(`🤖 [AUTO-LOTTO] ❌ Rejecting ${idea.symbol} - missing option metadata (strike: ${idea.strikePrice}, expiry: ${idea.expiryDate}, type: ${idea.optionType})`);
+        logger.error(`🤖 [BOT] ❌ Rejecting ${idea.symbol} - missing option metadata`);
         return false;
       }
       
-      // Validate entry price is reasonable for an option (should be < $20 typically for lottos)
       if (idea.entryPrice > 20) {
-        logger.warn(`🤖 [AUTO-LOTTO] ⚠️ Rejecting ${idea.symbol} - entry price $${idea.entryPrice} too high for lotto (may be stock price)`);
+        logger.warn(`🤖 [BOT] ⚠️ Rejecting ${idea.symbol} - entry price $${idea.entryPrice} too high for lotto`);
         return false;
       }
     }
     
     const portfolio = await getLottoPortfolio();
     if (!portfolio) {
-      logger.error("🤖 [AUTO-LOTTO] No portfolio available for auto-trading");
+      logger.error("🤖 [BOT] No portfolio available");
       return false;
     }
 
-    // Check if we already have a position for this idea
     const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
     const existingPosition = positions.find(p => 
       p.tradeIdeaId === idea.id || 
@@ -95,17 +451,15 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
     );
 
     if (existingPosition) {
-      logger.info(`🤖 [AUTO-LOTTO] Skipping ${idea.symbol} - already have position`);
+      logger.info(`🤖 [BOT] Skipping ${idea.symbol} - already have position`);
       return false;
     }
 
-    // Execute the trade
     const result = await executeTradeIdea(portfolio.id, idea);
     
     if (result.success && result.position) {
-      logger.info(`🤖 [AUTO-LOTTO] ✅ Executed: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} x${result.position.quantity} @ $${idea.entryPrice.toFixed(2)}`);
+      logger.info(`🤖 [BOT] ✅ Executed: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} x${result.position.quantity} @ $${idea.entryPrice.toFixed(2)}`);
       
-      // 📱 Send Discord notification for trade entry
       try {
         await sendBotTradeEntryToDiscord({
           symbol: idea.symbol,
@@ -117,50 +471,45 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
           targetPrice: idea.targetPrice,
           stopLoss: idea.stopLoss,
         });
+        logger.info(`🤖 [BOT] 📱 Discord entry notification sent`);
       } catch (discordError) {
-        logger.warn(`🤖 [AUTO-LOTTO] Discord entry notification failed:`, discordError);
+        logger.warn(`🤖 [BOT] Discord notification failed:`, discordError);
       }
       
-      // Refresh portfolio cache
       const updated = await storage.getPaperPortfolioById(portfolio.id);
       if (updated) lottoPortfolio = updated;
       
       return true;
     } else {
-      logger.warn(`🤖 [AUTO-LOTTO] ❌ Failed to execute ${idea.symbol}: ${result.error}`);
+      logger.warn(`🤖 [BOT] ❌ Failed to execute ${idea.symbol}: ${result.error}`);
       return false;
     }
   } catch (error) {
-    logger.error(`🤖 [AUTO-LOTTO] Error executing lotto trade:`, error);
+    logger.error(`🤖 [BOT] Error executing trade:`, error);
     return false;
   }
 }
 
 /**
- * Monitor and auto-close lotto positions on stop/target/expiry
+ * Monitor and auto-close positions on stop/target/expiry
  */
 export async function monitorLottoPositions(): Promise<void> {
   try {
     const portfolio = await getLottoPortfolio();
-    if (!portfolio) {
-      return;
-    }
+    if (!portfolio) return;
 
-    // Update prices for all open positions
     await updatePositionPrices(portfolio.id);
     
-    // Check stops and targets, auto-close if hit
     const closedPositions = await checkStopsAndTargets(portfolio.id);
     
     if (closedPositions.length > 0) {
-      logger.info(`🤖 [AUTO-LOTTO] Auto-closed ${closedPositions.length} positions`);
+      logger.info(`🤖 [BOT] Auto-closed ${closedPositions.length} positions`);
       
       for (const pos of closedPositions) {
         const pnl = pos.realizedPnL || 0;
         const emoji = pnl >= 0 ? '🎉' : '💀';
-        logger.info(`${emoji} [AUTO-LOTTO] Closed ${pos.symbol}: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pos.exitReason})`);
+        logger.info(`${emoji} [BOT] Closed ${pos.symbol}: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pos.exitReason})`);
         
-        // 📱 Send Discord notification for trade exit
         try {
           await sendBotTradeExitToDiscord({
             symbol: pos.symbol,
@@ -172,22 +521,22 @@ export async function monitorLottoPositions(): Promise<void> {
             realizedPnL: pos.realizedPnL,
             exitReason: pos.exitReason,
           });
+          logger.info(`🤖 [BOT] 📱 Discord exit notification sent for ${pos.symbol}`);
         } catch (discordError) {
-          logger.warn(`🤖 [AUTO-LOTTO] Discord exit notification failed:`, discordError);
+          logger.warn(`🤖 [BOT] Discord exit notification failed:`, discordError);
         }
       }
       
-      // Refresh portfolio cache
       const updated = await storage.getPaperPortfolioById(portfolio.id);
       if (updated) lottoPortfolio = updated;
     }
   } catch (error) {
-    logger.error("🤖 [AUTO-LOTTO] Error monitoring positions:", error);
+    logger.error("🤖 [BOT] Error monitoring positions:", error);
   }
 }
 
 /**
- * Get current lotto portfolio stats
+ * Get current bot stats
  */
 export async function getLottoStats(): Promise<{
   portfolio: PaperPortfolio | null;
@@ -216,7 +565,7 @@ export async function getLottoStats(): Promise<{
       winRate,
     };
   } catch (error) {
-    logger.error("🤖 [AUTO-LOTTO] Error getting stats:", error);
+    logger.error("🤖 [BOT] Error getting stats:", error);
     return null;
   }
 }

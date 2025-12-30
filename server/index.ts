@@ -672,7 +672,23 @@ app.use((req, res, next) => {
       }
     });
     
-    log('🤖 Auto-Lotto Trader started - monitoring paper positions every 5 minutes during market hours');
+    // Autonomous bot scan every 15 minutes during market hours - bot makes its own trading decisions
+    cron.default.schedule('*/15 * * * *', async () => {
+      try {
+        if (!isMarketHoursForFlow()) {
+          return;
+        }
+        
+        logger.info('🤖 [AUTO-BOT] Starting autonomous market scan...');
+        const { runAutonomousBotScan } = await import('./auto-lotto-trader');
+        await runAutonomousBotScan();
+        
+      } catch (error: any) {
+        logger.error('🤖 [AUTO-BOT-CRON] Autonomous scan failed:', error);
+      }
+    });
+    
+    log('🤖 Auto-Lotto Bot started - autonomous scanning every 15 minutes + position monitoring every 5 minutes during market hours');
     
     // Daily summary to Discord at 8:00 AM CT (before market open)
     let lastDailySummaryDate: string | null = null;
