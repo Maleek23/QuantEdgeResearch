@@ -1,11 +1,6 @@
 import { randomUUID } from "crypto";
 import { formatInTimeZone } from "date-fns-tz";
 
-// 🎯 MINIMUM LOSS THRESHOLD: Losses below this are treated as "breakeven"
-// Aligns with platform stop-loss rules: 5-7% for stocks/crypto
-// Must match the constant in performance-validator.ts
-const MIN_LOSS_THRESHOLD_PERCENT = 3.0;
-
 import type {
   MarketData,
   InsertMarketData,
@@ -1237,7 +1232,7 @@ export class MemStorage implements IStorage {
       if (idea.outcomeStatus !== 'hit_stop') return false;
       // If percentGain is available, check if it exceeds threshold
       if (idea.percentGain !== null && idea.percentGain !== undefined) {
-        return idea.percentGain <= -MIN_LOSS_THRESHOLD_PERCENT;
+        return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
       }
       // If no percentGain data, count as loss by default (legacy trades)
       return true;
@@ -1247,7 +1242,7 @@ export class MemStorage implements IStorage {
     const breakevenIdeas = closedIdeas.filter((idea) => {
       if (idea.outcomeStatus !== 'hit_stop') return false;
       if (idea.percentGain !== null && idea.percentGain !== undefined) {
-        return idea.percentGain > -MIN_LOSS_THRESHOLD_PERCENT;
+        return idea.percentGain > -CANONICAL_LOSS_THRESHOLD;
       }
       return false;
     });
@@ -1259,7 +1254,7 @@ export class MemStorage implements IStorage {
     const decidedIdeas = wonIdeas.length + lostIdeas.length;
     const winRate = decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0;
     
-    console.log(`[PERF-STATS] Win/Loss count: ${wonIdeas.length}W / ${lostIdeas.length}L (${breakevenIdeas.length} breakeven, threshold=${MIN_LOSS_THRESHOLD_PERCENT}%)`);
+    console.log(`[PERF-STATS] Win/Loss count: ${wonIdeas.length}W / ${lostIdeas.length}L (${breakevenIdeas.length} breakeven, threshold=${CANONICAL_LOSS_THRESHOLD}%)`);
     
     // QUANT ACCURACY: Calculate percentage progress toward target (0-100+%)
     // For ALL trades (open + closed), calculate how far price moved toward target
@@ -1352,7 +1347,7 @@ export class MemStorage implements IStorage {
       const lost = ideas.filter((i) => {
         if (i.outcomeStatus !== 'hit_stop') return false;
         if (i.percentGain !== null && i.percentGain !== undefined) {
-          return i.percentGain <= -MIN_LOSS_THRESHOLD_PERCENT;
+          return i.percentGain <= -CANONICAL_LOSS_THRESHOLD;
         }
         return true;
       }).length;
@@ -1389,7 +1384,7 @@ export class MemStorage implements IStorage {
       const lost = ideas.filter((i) => {
         if (i.outcomeStatus !== 'hit_stop') return false;
         if (i.percentGain !== null && i.percentGain !== undefined) {
-          return i.percentGain <= -MIN_LOSS_THRESHOLD_PERCENT;
+          return i.percentGain <= -CANONICAL_LOSS_THRESHOLD;
         }
         return true;
       }).length;
@@ -1428,7 +1423,7 @@ export class MemStorage implements IStorage {
       const lost = ideas.filter((i) => {
         if (i.outcomeStatus !== 'hit_stop') return false;
         if (i.percentGain !== null && i.percentGain !== undefined) {
-          return i.percentGain <= -MIN_LOSS_THRESHOLD_PERCENT;
+          return i.percentGain <= -CANONICAL_LOSS_THRESHOLD;
         }
         return true;
       }).length;
@@ -2158,7 +2153,7 @@ export class DatabaseStorage implements IStorage {
     const lostIdeas = closedIdeas.filter(i => {
       if (i.outcomeStatus !== 'hit_stop') return false;
       if (i.percentGain !== null && i.percentGain !== undefined) {
-        return i.percentGain <= -MIN_LOSS_THRESHOLD_PERCENT;
+        return i.percentGain <= -CANONICAL_LOSS_THRESHOLD;
       }
       return true;
     });
@@ -2170,7 +2165,7 @@ export class DatabaseStorage implements IStorage {
     const isRealLoss = (idea: TradeIdea) => {
       if (idea.outcomeStatus !== 'hit_stop') return false;
       if (idea.percentGain !== null && idea.percentGain !== undefined) {
-        return idea.percentGain <= -MIN_LOSS_THRESHOLD_PERCENT;
+        return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
       }
       return true;
     };

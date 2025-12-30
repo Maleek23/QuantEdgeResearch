@@ -1,11 +1,7 @@
 import { TradeIdea, FuturesContract } from "@shared/schema";
 import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
-
-// 🎯 MINIMUM LOSS THRESHOLD: Losses below this are treated as "breakeven"
-// Aligns with platform stop-loss rules: stocks=3.5%, crypto=5%
-// Losses under 3% are likely noise/tight stops, not proper stop-loss hits
-const MIN_LOSS_THRESHOLD_PERCENT = 3.0; // 3% minimum to count as a real loss
+import { CANONICAL_LOSS_THRESHOLD } from "@shared/constants";
 
 // 📊 REALISTIC TRADING COSTS: Applied to performance calculations
 // These model real-world execution costs that reduce backtest performance
@@ -1063,8 +1059,8 @@ export class PerformanceValidator {
       // If loss is below threshold (e.g., -0.1%, -0.4%), treat as breakeven/expired
       // This prevents noise-level stop-outs from counting as real losses
       const absLoss = Math.abs(percentGain);
-      if (absLoss < MIN_LOSS_THRESHOLD_PERCENT) {
-        console.log(`📊 [VALIDATION] ${idea.symbol} stop touched but loss too small (${percentGain.toFixed(2)}% < ${MIN_LOSS_THRESHOLD_PERCENT}% threshold) - marking as BREAKEVEN`);
+      if (absLoss < CANONICAL_LOSS_THRESHOLD) {
+        console.log(`📊 [VALIDATION] ${idea.symbol} stop touched but loss too small (${percentGain.toFixed(2)}% < ${CANONICAL_LOSS_THRESHOLD}% threshold) - marking as BREAKEVEN`);
         
         const predictionAccurate = this.checkPredictionAccuracy(
           idea,
