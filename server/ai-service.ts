@@ -1228,13 +1228,84 @@ Base your target on the NEAREST visible resistance level, not aspirational price
         return claudeParsed;
         
       } catch (claudeError: any) {
-        logger.error("All AI providers failed for chart analysis:", {
-          gemini: geminiError?.message,
-          openai: openaiError?.message,
-          claude: claudeError?.message
-        });
-        
-        throw new Error("Chart analysis failed. Please try again later.");
+        // Try Grok/xAI as final fallback (uses OpenAI-compatible API)
+        const grokApiKey = process.env.GROK_API_KEY;
+        if (grokApiKey) {
+          try {
+            logger.info("Claude chart analysis failed, trying Grok/xAI...", claudeError);
+            
+            const grokResponse = await fetch("https://api.x.ai/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${grokApiKey}`
+              },
+              body: JSON.stringify({
+                model: "grok-2-vision-1212",
+                messages: [
+                  { role: "system", content: systemPrompt },
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text", text: userPrompt },
+                      {
+                        type: "image_url",
+                        image_url: {
+                          url: `data:image/png;base64,${base64Image}`
+                        }
+                      }
+                    ]
+                  }
+                ],
+                max_tokens: 4096,
+                temperature: 0.3
+              })
+            });
+
+            if (!grokResponse.ok) {
+              const errorText = await grokResponse.text();
+              throw new Error(`Grok API error: ${grokResponse.status} - ${errorText}`);
+            }
+
+            const grokData = await grokResponse.json();
+            const grokContent = grokData.choices?.[0]?.message?.content || '{}';
+            
+            // Parse JSON from Grok response
+            let grokJsonStr = grokContent;
+            const grokMarkdownMatch = grokContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (grokMarkdownMatch) {
+              grokJsonStr = grokMarkdownMatch[1].trim();
+            } else {
+              const grokJsonObjectMatch = grokContent.match(/\{[\s\S]*\}/);
+              if (grokJsonObjectMatch) {
+                grokJsonStr = grokJsonObjectMatch[0];
+              }
+            }
+            grokJsonStr = grokJsonStr.trim();
+            const grokParsed = JSON.parse(grokJsonStr) as ChartAnalysisResult;
+            
+            logger.info("✅ Grok chart analysis complete");
+            return grokParsed;
+            
+          } catch (grokError: any) {
+            logger.error("All AI providers failed for chart analysis:", {
+              gemini: geminiError?.message,
+              openai: openaiError?.message,
+              claude: claudeError?.message,
+              grok: grokError?.message
+            });
+            
+            throw new Error("Chart analysis failed. Please try again later.");
+          }
+        } else {
+          logger.error("All AI providers failed for chart analysis:", {
+            gemini: geminiError?.message,
+            openai: openaiError?.message,
+            claude: claudeError?.message
+          });
+          
+          throw new Error("Chart analysis failed. Please try again later.");
+        }
       }
     }
   }
