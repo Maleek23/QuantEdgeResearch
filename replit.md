@@ -166,3 +166,38 @@ Automated paper trading system that executes lotto plays (high R:R options) to b
 - Win rate with sample size context
 - Recent positions (admin only)
 - "Building Statistical Evidence" banner for non-admin below threshold
+
+## Educational Blog System (Dec 2025)
+
+### Purpose
+The blog is designed as an educational content platform to attract organic traffic and help people learn trading concepts - not platform marketing. Each article teaches a fundamental trading skill.
+
+### Blog Categories with Visual Design
+- **Education** (blue/cyan gradient): Options basics, candlesticks, Greeks, support/resistance
+- **Strategy** (purple/pink gradient): Trading psychology, trading strategies
+- **Risk Management** (green gradient): Position sizing, portfolio management
+- **Market Insights** (orange/amber gradient): Market analysis, sector trends
+
+### Seeded Educational Articles
+1. **Understanding Options: A Beginner's Complete Guide** - Calls, puts, strikes, expiration
+2. **Position Sizing: The Most Important Skill in Trading** - The 2% rule, Kelly criterion
+3. **How to Read Candlestick Charts** - Patterns, timeframes, confirmation
+4. **The Greeks Explained: Delta, Theta, Gamma, Vega** - Options sensitivity measures
+5. **Trading Psychology: How to Control Your Emotions** - Fear, greed, FOMO management
+6. **Support and Resistance: The Foundation of Technical Analysis** - Key levels identification
+
+### API Endpoints
+- `GET /api/blog` - Get all published blog posts
+- `GET /api/blog/:slug` - Get single blog post by slug
+- `POST /api/blog` - Create blog post (admin only)
+- `PATCH /api/blog/:id` - Update blog post (admin only)
+- `DELETE /api/blog/:id` - Delete blog post (admin only)
+- `POST /api/admin/seed-blog` - Seed educational content (admin only)
+
+### Visual Design
+Each blog card uses gradient backgrounds and icons instead of images:
+- Hero section with "Learn to Trade" messaging
+- Category filter pills for content discovery
+- Featured article spotlight
+- Gradient visual cards with lucide-react icons
+- Topic sections for different skill levels
