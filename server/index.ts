@@ -386,6 +386,100 @@ app.use((req, res, next) => {
     
     log('🔀 Hybrid Generator started - will generate ideas at 9:45 AM CT weekdays (15 min after AI/Quant)');
     
+    // Start automated quant idea generation (9:35 AM CT on weekdays - 5 min after AI)
+    let lastQuantRunDate: string | null = null;
+    let isQuantGenerating = false;
+    
+    cron.default.schedule('*/5 * * * *', async () => {
+      try {
+        if (isQuantGenerating) {
+          return;
+        }
+        
+        const now = new Date();
+        const nowCT = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        
+        const hour = nowCT.getHours();
+        const minute = nowCT.getMinutes();
+        const dayOfWeek = nowCT.getDay();
+        const dateKey = nowCT.toISOString().split('T')[0];
+        
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          return;
+        }
+        
+        // Run at 9:35 AM CT and 1:00 PM CT for afternoon opportunities
+        const isQuantTime = (hour === 9 && minute >= 35 && minute < 40) || 
+                            (hour === 13 && minute >= 0 && minute < 5);
+        
+        if (!isQuantTime) {
+          return;
+        }
+        
+        if (lastQuantRunDate === dateKey && hour === 9) {
+          return; // Already ran morning session today
+        }
+        
+        isQuantGenerating = true;
+        if (hour === 9) lastQuantRunDate = dateKey;
+        
+        logger.info(`📊 [QUANT-CRON] Starting automated quant generation at ${hour}:${minute.toString().padStart(2, '0')} CT`);
+        
+        const { generateQuantIdeas } = await import('./quant-ideas-generator');
+        const marketData = await storage.getAllMarketData();
+        const catalysts = await storage.getAllCatalysts();
+        
+        // Generate 10 quant ideas across different sectors
+        const quantIdeas = await generateQuantIdeas(marketData, catalysts, 10, storage, true);
+        
+        const savedIdeas = [];
+        const allExistingIdeas = await storage.getAllTradeIdeas();
+        const existingOpenQuantSymbols = new Set(
+          allExistingIdeas
+            .filter((i: any) => i.outcomeStatus === 'open' && i.source === 'quant')
+            .map((i: any) => i.symbol.toUpperCase())
+        );
+        
+        for (const idea of quantIdeas) {
+          // Skip duplicates
+          if (existingOpenQuantSymbols.has(idea.symbol.toUpperCase())) {
+            logger.info(`⏭️  [QUANT-CRON] Skipped ${idea.symbol} - already has open quant trade`);
+            continue;
+          }
+          
+          // Options are quarantined for quant (performance was -99%)
+          if (idea.assetType === 'option') {
+            logger.warn(`🚫 [QUANT-CRON] Skipped ${idea.symbol} option - options quarantined for quant engine`);
+            continue;
+          }
+          
+          const saved = await storage.createTradeIdea({
+            ...idea,
+            source: 'quant',
+            status: 'published',
+          });
+          savedIdeas.push(saved);
+        }
+        
+        if (savedIdeas.length > 0) {
+          logger.info(`✅ [QUANT-CRON] Generated ${savedIdeas.length} quant trade ideas`);
+          const { sendBatchSummaryToDiscord } = await import('./discord-service');
+          sendBatchSummaryToDiscord(savedIdeas, 'quant').catch(err => 
+            logger.error('[QUANT-CRON] Discord notification failed:', err)
+          );
+        } else {
+          logger.warn('⚠️  [QUANT-CRON] No quant ideas generated');
+        }
+        
+      } catch (error: any) {
+        logger.error('📊 [QUANT-CRON] Quant generation failed:', error);
+      } finally {
+        isQuantGenerating = false;
+      }
+    });
+    
+    log('📊 Quant Generator started - will generate ideas at 9:35 AM CT + 1:00 PM CT weekdays');
+    
     // Start automated news-driven trade generation (every 15 minutes during market hours)
     const { fetchBreakingNews, getNewsServiceStatus } = await import('./news-service');
     const { generateTradeIdeasFromNews } = await import('./ai-service');
