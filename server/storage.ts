@@ -108,7 +108,7 @@ export {
 } from "@shared/constants";
 
 // Import for use in this file
-import { isRealLoss, isRealLossByResolution, isCurrentGenEngine } from "@shared/constants";
+import { CANONICAL_LOSS_THRESHOLD, isRealLoss, isRealLossByResolution, isCurrentGenEngine } from "@shared/constants";
 
 /**
  * Get canonical "decided" trades - wins + real losses only
