@@ -46,7 +46,8 @@ const analysisItems: NavItem[] = [
 ];
 
 const learningItems: NavItem[] = [
-  { title: "Trading Rules", url: "/trading-rules", icon: BookOpen },
+  { title: "Trading Guide", url: "/trading-guide", icon: BookOpen, badge: "New", badgeVariant: "secondary" },
+  { title: "Trading Rules", url: "/trading-rules", icon: Shield },
   { title: "Academy", url: "/academy", icon: GraduationCap },
   { title: "Blog", url: "/blog", icon: FileText },
 ];
