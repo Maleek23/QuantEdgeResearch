@@ -19,6 +19,14 @@ const COINGECKO_API = "https://api.coingecko.com/api/v3";
 const ALPHA_VANTAGE_API = "https://www.alphavantage.co/query";
 const YAHOO_FINANCE_API = "https://query1.finance.yahoo.com/v8/finance/chart";
 
+// Fallback cache for crypto prices when rate limited (stores last known good prices)
+const cryptoPriceCache = new Map<string, { data: ExternalMarketData; timestamp: number }>();
+const CRYPTO_CACHE_TTL = 5 * 60 * 1000; // 5 minutes fallback cache for rate limiting
+
+// Track CoinGecko rate limit status
+let coinGeckoRateLimited = false;
+let rateLimitResetTime = 0;
+
 // Dynamic crypto symbol map with common coins pre-cached
 const CRYPTO_SYMBOL_MAP: Record<string, string> = {
   BTC: "bitcoin",
@@ -111,9 +119,20 @@ async function searchCryptoSymbol(symbol: string): Promise<string | null> {
 
 export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketData | null> {
   const startTime = Date.now();
+  const upperSymbol = symbol.toUpperCase();
+  
+  // Check if we're rate limited and should use cache
+  if (coinGeckoRateLimited && Date.now() < rateLimitResetTime) {
+    const cached = cryptoPriceCache.get(upperSymbol);
+    if (cached && Date.now() - cached.timestamp < CRYPTO_CACHE_TTL) {
+      logger.debug(`[CRYPTO] Using cached price for ${symbol} (rate limited): $${cached.data.currentPrice}`);
+      return cached.data;
+    }
+  }
+  
   try {
     // Try hardcoded map first (fast path for common coins)
-    let coinId: string | undefined = CRYPTO_SYMBOL_MAP[symbol.toUpperCase()];
+    let coinId: string | undefined = CRYPTO_SYMBOL_MAP[upperSymbol];
     
     // If not in map, search dynamically
     if (!coinId) {
@@ -132,18 +151,38 @@ export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketDa
       `${COINGECKO_API}/coins/${coinId}?localization=false&tickers=false&community_data=false&developer_data=false`
     );
 
+    // Handle rate limiting with backoff
+    if (response.status === 429) {
+      coinGeckoRateLimited = true;
+      rateLimitResetTime = Date.now() + 60 * 1000; // Wait 60 seconds before trying again
+      logger.warn(`[CRYPTO] CoinGecko rate limited, backing off for 60s`);
+      
+      // Return cached data if available
+      const cached = cryptoPriceCache.get(upperSymbol);
+      if (cached) {
+        logger.info(`[CRYPTO] Returning cached price for ${symbol}: $${cached.data.currentPrice} (${Math.floor((Date.now() - cached.timestamp) / 1000)}s old)`);
+        return cached.data;
+      }
+      
+      logAPIError('CoinGecko', `/coins/${coinId}`, new Error('HTTP 429 - Rate Limited'));
+      return null;
+    }
+
     if (!response.ok) {
       logAPIError('CoinGecko', `/coins/${coinId}`, new Error(`HTTP ${response.status}`));
       return null;
     }
+
+    // Reset rate limit flag on successful request
+    coinGeckoRateLimited = false;
 
     const data = await response.json();
     const marketData = data.market_data;
 
     logAPISuccess('CoinGecko', `/coins/${coinId}`, Date.now() - startTime);
 
-    return {
-      symbol: symbol.toUpperCase(),
+    const result: ExternalMarketData = {
+      symbol: upperSymbol,
       assetType: "crypto",
       currentPrice: marketData.current_price.usd,
       changePercent: marketData.price_change_percentage_24h || 0,
@@ -152,9 +191,22 @@ export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketDa
       high24h: marketData.high_24h.usd,
       low24h: marketData.low_24h.usd,
     };
+    
+    // Cache the successful result for fallback
+    cryptoPriceCache.set(upperSymbol, { data: result, timestamp: Date.now() });
+    
+    return result;
   } catch (error) {
     logger.error(`Error fetching crypto price for ${symbol}`, { error: error instanceof Error ? error.message : String(error) });
     logAPIError('CoinGecko', `/coins/${symbol}`, error);
+    
+    // Try to return cached data on error
+    const cached = cryptoPriceCache.get(upperSymbol);
+    if (cached && Date.now() - cached.timestamp < CRYPTO_CACHE_TTL) {
+      logger.info(`[CRYPTO] Returning cached price for ${symbol} after error: $${cached.data.currentPrice}`);
+      return cached.data;
+    }
+    
     return null;
   }
 }
