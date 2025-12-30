@@ -5871,7 +5871,8 @@ FORMATTING:
         });
       }
       
-      // 🛡️ LAYER 2: Risk validation (max 5-7% stop distance)
+      // 🛡️ LAYER 2: Risk validation - RELAXED for chart analysis (user-driven trades)
+      // Chart analysis uses 1.5:1 R:R minimum instead of 2:1 since user chose the setup
       const riskValidation = validateTradeRisk({
         symbol: validated.symbol,
         assetType: assetType as 'stock' | 'option' | 'crypto',
@@ -5882,16 +5883,25 @@ FORMATTING:
         catalyst: `Chart Pattern: ${analysis.patterns?.join(', ') || 'Technical Analysis'}`,
         analysis: analysis.analysis || '',
         sessionContext: `Chart analysis - ${analysis.timeframe}`,
+        isNewsCatalyst: true, // Use relaxed R:R (1.5:1 min) for user chart analysis
       });
       
+      // Only reject for truly bad risk (R:R below 1.5:1 or extreme stop distance)
+      // For moderate R:R (1.5-2.0), just warn but allow
       if (!riskValidation.isValid) {
-        logger.warn(`📊 Chart analysis rejected for risk: ${riskValidation.reason}`);
-        return res.status(400).json({
-          error: "Trade exceeds risk limits",
-          reason: riskValidation.reason,
-          metrics: riskValidation.metrics,
-          suggestion: `Max stop distance: 5-7%. Your stop is ${riskValidation.metrics?.maxLossPercent?.toFixed(2)}% from entry.`
-        });
+        const rr = riskValidation.metrics?.riskRewardRatio || 0;
+        // Allow trades with R:R between 1.5 and 2.0 for chart analysis
+        if (rr >= 1.5 && rr < 2.0) {
+          logger.info(`📊 Chart analysis R:R ${rr.toFixed(2)}:1 below 2:1 but acceptable for user-driven trade`);
+        } else {
+          logger.warn(`📊 Chart analysis rejected for risk: ${riskValidation.reason}`);
+          return res.status(400).json({
+            error: "Trade exceeds risk limits",
+            reason: riskValidation.reason,
+            metrics: riskValidation.metrics,
+            suggestion: `Min R:R ratio 1.5:1, max stop 7% (25% for options). Your R:R is ${rr.toFixed(2)}:1`
+          });
+        }
       }
       
       logger.info(`✅ Chart analysis passed validation - Loss:${riskValidation.metrics?.maxLossPercent?.toFixed(2)}% R:R:${riskValidation.metrics?.riskRewardRatio?.toFixed(2)}:1`);

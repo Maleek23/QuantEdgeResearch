@@ -113,14 +113,13 @@ export function validateTradeRisk(idea: AITradeIdea, isNewsCatalyst: boolean = f
   }
   
   // 🚨 GUARDRAIL #2: Minimum Risk/Reward ratio
-  // RESTORED to 2.0:1 - The 1.5:1 setting caused -55% expectancy because small wins
-  // couldn't offset the big losses. Professional standard is 2:1 minimum for options.
-  // Better to generate fewer trades than lose money on bad risk/reward setups.
-  const MIN_RR_RATIO = 2.0;
+  // Default 2.0:1 for auto-generated trades
+  // 1.5:1 for news catalysts and user-driven chart analysis (isNewsCatalyst=true)
+  const MIN_RR_RATIO = isNewsCatalyst ? 1.5 : 2.0;
   if (riskRewardRatio < MIN_RR_RATIO) {
     return {
       isValid: false,
-      reason: `R:R ratio ${riskRewardRatio.toFixed(2)}:1 below minimum ${MIN_RR_RATIO}:1${isNewsCatalyst ? ' (News Catalyst Mode)' : ''} (risk=${maxLossPercent.toFixed(2)}%, reward=${potentialGainPercent.toFixed(2)}%)`,
+      reason: `R:R ratio ${riskRewardRatio.toFixed(2)}:1 below minimum ${MIN_RR_RATIO}:1${isNewsCatalyst ? ' (Relaxed Mode)' : ''} (risk=${maxLossPercent.toFixed(2)}%, reward=${potentialGainPercent.toFixed(2)}%)`,
       metrics: { maxLossPercent, riskRewardRatio, potentialGainPercent }
     };
   }
