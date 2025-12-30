@@ -7,6 +7,7 @@ import { getLetterGrade } from "./grading";
 import { formatInTimeZone } from "date-fns-tz";
 import { TradeIdea, PaperPortfolio, InsertTradeIdea } from "@shared/schema";
 import { logger } from "./logger";
+import { getMarketContext, getEntryTiming, checkDynamicExit, MarketContext } from "./market-context-service";
 
 const LOTTO_PORTFOLIO_NAME = "Auto-Lotto Bot";
 const SYSTEM_USER_ID = "system-auto-trader";
@@ -224,44 +225,39 @@ async function scanForOpportunities(ticker: string): Promise<LottoOpportunity[]>
     const quote = await getTradierQuote(ticker);
     if (!quote || !quote.last) return [];
     
-    const currentPrice = quote.last;
-    const thresholds = getLottoThresholds(currentPrice);
+    const thresholds = getLottoThresholds();
     
-    const optionsData = await getTradierOptionsChainsByDTE(ticker, [0, 7, 14]);
+    const optionsData = await getTradierOptionsChainsByDTE(ticker);
     if (!optionsData || optionsData.length === 0) return [];
     
     const opportunities: LottoOpportunity[] = [];
     
-    for (const chain of optionsData) {
-      if (!chain.options?.option) continue;
+    for (const opt of optionsData) {
+      if (!opt.bid || !opt.ask || opt.bid <= 0) continue;
       
-      for (const opt of chain.options.option) {
-        if (!opt.bid || !opt.ask || opt.bid <= 0) continue;
-        
-        const midPrice = (opt.bid + opt.ask) / 2;
-        const delta = opt.greeks?.delta || 0;
-        const absDelta = Math.abs(delta);
-        
-        if (midPrice < thresholds.minPrice || midPrice > thresholds.maxPrice) continue;
-        if (absDelta < 0.03 || absDelta > 0.25) continue;
-        
-        const expDate = new Date(opt.expiration_date);
-        const now = new Date();
-        const daysToExpiry = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        
-        if (daysToExpiry < 0 || daysToExpiry > 14) continue;
-        
-        opportunities.push({
-          symbol: ticker,
-          optionType: opt.option_type as 'call' | 'put',
-          strike: opt.strike,
-          expiration: opt.expiration_date,
-          delta: delta,
-          price: midPrice,
-          volume: opt.volume || 0,
-          daysToExpiry
-        });
-      }
+      const midPrice = (opt.bid + opt.ask) / 2;
+      const delta = opt.greeks?.delta || 0;
+      const absDelta = Math.abs(delta);
+      
+      if (midPrice < thresholds.LOTTO_ENTRY_MIN || midPrice > thresholds.LOTTO_ENTRY_MAX) continue;
+      if (absDelta < 0.03 || absDelta > thresholds.LOTTO_DELTA_MAX) continue;
+      
+      const expDate = new Date(opt.expiration_date);
+      const now = new Date();
+      const daysToExpiry = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysToExpiry < 0 || daysToExpiry > thresholds.LOTTO_MAX_DTE) continue;
+      
+      opportunities.push({
+        symbol: ticker,
+        optionType: opt.option_type as 'call' | 'put',
+        strike: opt.strike,
+        expiration: opt.expiration_date,
+        delta: delta,
+        price: midPrice,
+        volume: opt.volume || 0,
+        daysToExpiry
+      });
     }
     
     return opportunities;
@@ -337,6 +333,15 @@ export async function runAutonomousBotScan(): Promise<void> {
     
     logger.info(`🤖 [BOT] ========== AUTONOMOUS SCAN STARTED ==========`);
     
+    // 📊 MARKET CONTEXT ANALYSIS - Check overall market conditions before trading
+    const marketContext = await getMarketContext();
+    logger.info(`🤖 [BOT] Market: ${marketContext.regime} | ${marketContext.riskSentiment} | Score: ${marketContext.score}`);
+    
+    if (!marketContext.shouldTrade) {
+      logger.info(`🤖 [BOT] ⛔ MARKET GATE: Skipping trades - ${marketContext.reasons.join(', ')}`);
+      return;
+    }
+    
     const portfolio = await getLottoPortfolio();
     if (!portfolio) {
       logger.error(`🤖 [BOT] No portfolio available`);
@@ -352,7 +357,7 @@ export async function runAutonomousBotScan(): Promise<void> {
     }
     
     const openSymbols = new Set(openPositions.map(p => p.symbol));
-    let bestOpportunity: { opp: LottoOpportunity; decision: BotDecision } | null = null;
+    let bestOpportunity: { opp: LottoOpportunity; decision: BotDecision; entryTiming: { shouldEnterNow: boolean; reason: string } } | null = null;
     
     for (const ticker of BOT_SCAN_TICKERS) {
       if (openSymbols.has(ticker)) continue;
@@ -365,11 +370,14 @@ export async function runAutonomousBotScan(): Promise<void> {
         
         const decision = makeBotDecision(quote, opp);
         
-        if (decision.action === 'enter') {
-          logger.info(`🤖 [BOT] ✅ ${ticker} ${opp.optionType.toUpperCase()} $${opp.strike}: ${decision.reason}`);
+        // 📊 ENTRY TIMING CHECK - Should we enter now or wait?
+        const entryTiming = getEntryTiming(quote, opp.optionType, marketContext);
+        
+        if (decision.action === 'enter' && entryTiming.shouldEnterNow) {
+          logger.info(`🤖 [BOT] ✅ ${ticker} ${opp.optionType.toUpperCase()} $${opp.strike}: ${decision.reason} | ${entryTiming.reason}`);
           
           if (!bestOpportunity || decision.confidence > bestOpportunity.decision.confidence) {
-            bestOpportunity = { opp, decision };
+            bestOpportunity = { opp, decision, entryTiming };
           }
         } else if (decision.action === 'wait') {
           logger.debug(`🤖 [BOT] ⏳ ${ticker}: ${decision.reason}`);
@@ -492,6 +500,7 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
 
 /**
  * Monitor and auto-close positions on stop/target/expiry
+ * Now includes dynamic exits: trailing stops, time decay, momentum fade
  */
 export async function monitorLottoPositions(): Promise<void> {
   try {
@@ -500,6 +509,72 @@ export async function monitorLottoPositions(): Promise<void> {
 
     await updatePositionPrices(portfolio.id);
     
+    // 📊 Get market context for dynamic exit decisions
+    const marketContext = await getMarketContext();
+    
+    // Get open positions to check for dynamic exits
+    const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+    const openPositions = positions.filter(p => p.status === 'open');
+    
+    // Check each position for dynamic exit signals
+    for (const pos of openPositions) {
+      if (!pos.currentPrice || !pos.entryPrice) continue;
+      
+      // Calculate days to expiry for options
+      let daysToExpiry = 7; // Default for non-options
+      if (pos.expiryDate) {
+        const expDate = new Date(pos.expiryDate);
+        const now = new Date();
+        daysToExpiry = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      }
+      
+      const highestPrice = pos.currentPrice; // Track highest price based on current
+      
+      const exitSignal = checkDynamicExit(
+        pos.currentPrice,
+        pos.entryPrice,
+        highestPrice,
+        daysToExpiry,
+        (pos.optionType as 'call' | 'put') || 'call',
+        marketContext
+      );
+      
+      if (exitSignal.shouldExit) {
+        logger.info(`🤖 [BOT] 📊 DYNAMIC EXIT: ${pos.symbol} - ${exitSignal.exitType}: ${exitSignal.reason}`);
+        
+        // Close the position with dynamic exit reason
+        try {
+          const exitPrice = exitSignal.suggestedExitPrice || pos.currentPrice;
+          const pnl = (exitPrice - pos.entryPrice) * pos.quantity * 100;
+          
+          await storage.updatePaperPosition(pos.id, {
+            status: 'closed',
+            exitPrice,
+            exitTime: new Date().toISOString(),
+            exitReason: `${exitSignal.exitType}: ${exitSignal.reason}`,
+            realizedPnL: pnl,
+          });
+          
+          // Send Discord notification
+          await sendBotTradeExitToDiscord({
+            symbol: pos.symbol,
+            optionType: pos.optionType,
+            strikePrice: pos.strikePrice,
+            entryPrice: pos.entryPrice,
+            exitPrice,
+            quantity: pos.quantity,
+            realizedPnL: pnl,
+            exitReason: `${exitSignal.exitType}: ${exitSignal.reason}`,
+          });
+          
+          logger.info(`🤖 [BOT] 📱 Dynamic exit completed: ${pos.symbol} P&L: $${pnl.toFixed(2)}`);
+        } catch (exitError) {
+          logger.error(`🤖 [BOT] Failed to execute dynamic exit for ${pos.symbol}:`, exitError);
+        }
+      }
+    }
+    
+    // Standard stop/target checking (for positions not caught by dynamic exits)
     const closedPositions = await checkStopsAndTargets(portfolio.id);
     
     if (closedPositions.length > 0) {
