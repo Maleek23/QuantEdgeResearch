@@ -6,6 +6,7 @@ import { Newspaper, Calendar, Clock, TrendingUp, Brain, Target, BarChart3, Arrow
 import { format } from "date-fns";
 import { SEOHead } from "@/components/seo-head";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { BlogPost } from "@shared/schema";
 
 export default function Blog() {
@@ -109,7 +110,7 @@ export default function Blog() {
                             <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
                               <div className="flex items-center gap-2">
                                 <Calendar className="h-3 w-3" />
-                                <span>{format(new Date(article.publishedAt), 'MMM d, yyyy')}</span>
+                                <span>{article.publishedAt ? format(new Date(article.publishedAt), 'MMM d, yyyy') : 'Draft'}</span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Clock className="h-3 w-3" />
@@ -117,15 +118,16 @@ export default function Blog() {
                               </div>
                             </div>
 
-                            <Button 
-                              variant="outline" 
-                              className="w-full"
-                              disabled
-                              data-testid={`button-read-article-${article.id}`}
-                            >
-                              <ArrowRight className="h-4 w-4 mr-2" />
-                              Coming Soon
-                            </Button>
+                            <Link href={`/blog/${article.slug}`}>
+                              <Button 
+                                variant="outline" 
+                                className="w-full"
+                                data-testid={`button-read-article-${article.id}`}
+                              >
+                                <ArrowRight className="h-4 w-4 mr-2" />
+                                Read Article
+                              </Button>
+                            </Link>
                           </CardContent>
                         </Card>
                       </div>
@@ -161,20 +163,21 @@ export default function Blog() {
                             <div className="md:col-span-3 flex md:flex-col gap-3 md:items-end">
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Calendar className="h-3 w-3" />
-                                <span>{format(new Date(article.publishedAt), 'MMM d, yyyy')}</span>
+                                <span>{article.publishedAt ? format(new Date(article.publishedAt), 'MMM d, yyyy') : 'Draft'}</span>
                               </div>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Clock className="h-3 w-3" />
                                 <span>6 min read</span>
                               </div>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                disabled
-                                data-testid={`button-read-${article.id}`}
-                              >
-                                Coming Soon
-                              </Button>
+                              <Link href={`/blog/${article.slug}`}>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  data-testid={`button-read-${article.id}`}
+                                >
+                                  Read Article
+                                </Button>
+                              </Link>
                             </div>
                           </div>
                         </CardContent>

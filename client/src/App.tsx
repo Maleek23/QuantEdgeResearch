@@ -33,7 +33,7 @@ const ChartDatabase = lazy(() => import("@/pages/chart-database"));
 const Academy = lazy(() => import("@/pages/academy"));
 const Blog = lazy(() => import("@/pages/blog"));
 const TradingRules = lazy(() => import("@/pages/trading-rules"));
-const TradingGuide = lazy(() => import("@/pages/trading-guide"));
+const BlogPost = lazy(() => import("@/pages/blog-post"));
 const Pricing = lazy(() => import("@/pages/pricing"));
 const LiveTrading = lazy(() => import("@/pages/live-trading"));
 const PaperTrading = lazy(() => import("@/pages/paper-trading"));
@@ -71,12 +71,12 @@ function Router() {
       <Route path="/market" component={MarketPage} />
       
       {/* Research & Community Pages */}
-      <Route path="/trading-guide" component={TradingGuide} />
       <Route path="/trading-rules" component={TradingRules} />
       <Route path="/chart-database" component={ChartDatabase} />
       <Route path="/success-stories" component={SuccessStories} />
       <Route path="/academy" component={Academy} />
       <Route path="/blog" component={Blog} />
+      <Route path="/blog/:slug" component={BlogPost} />
       
       {/* System Pages */}
       <Route path="/settings" component={SettingsPage} />
@@ -108,6 +108,9 @@ function Router() {
       <Route path="/watchlist" component={MarketPage} />
       
       {/* Redirects - Removed Pages */}
+      <Route path="/trading-guide">
+        <Redirect to="/blog/how-to-trade-like-a-pro" />
+      </Route>
       <Route path="/learn-more">
         <Redirect to="/" />
       </Route>
