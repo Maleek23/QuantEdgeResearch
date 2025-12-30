@@ -527,6 +527,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isAdmin = (process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL) || 
                       user.subscriptionTier === 'admin';
       
+      logger.info(`[USER-TIER] User ${userId}: email=${user.email}, subscriptionTier=${user.subscriptionTier}, isAdmin=${isAdmin}`);
+      
       // Admin gets pro tier limits, otherwise use their subscription tier
       const tier = isAdmin ? 'pro' : ((user.subscriptionTier as 'free' | 'advanced' | 'pro') || 'free');
       const limits = normalizeLimits(getTierLimits(tier));
