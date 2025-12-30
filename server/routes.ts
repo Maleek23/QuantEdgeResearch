@@ -95,6 +95,7 @@ interface SymbolLeaderboardEntry {
   winRate: number;
   avgGain: number;
   avgLoss: number;
+  sampleWarning?: boolean; // True if <50 trades - statistically unreliable
 }
 
 interface TimeOfDayHeatmapEntry {
@@ -114,9 +115,10 @@ interface EngineTrendEntry {
   win_rate: number;
 }
 
-interface ConfidenceCalibrationEntry {
-  band: string;
-  bandLabel: string;
+// Signal Strength Analysis - groups trades by indicator consensus (not probability)
+interface SignalStrengthEntry {
+  band: string;       // A, B+, B, C+, C, D
+  bandLabel: string;  // "A (5+ signals)", etc.
   trades: number;
   wins: number;
   losses: number;
@@ -2749,11 +2751,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      // Calculate metrics for each symbol (min 3 trades)
+      // 🔧 SAMPLE SIZE GATING: Min 20 trades required for statistical reliability
+      // Symbols with <50 trades get a warning badge
+      const MIN_TRADES_FOR_DISPLAY = 20;
+      const MIN_TRADES_FOR_CONFIDENCE = 50;
+      
       const leaderboard: SymbolLeaderboardEntry[] = [];
       
       symbolStats.forEach(stats => {
-        if (stats.trades.length < 3) return;
+        // Hide symbols with <20 trades - statistically meaningless
+        if (stats.trades.length < MIN_TRADES_FOR_DISPLAY) return;
         
         const totalTrades = stats.trades.length;
         const winRate = totalTrades > 0 ? (stats.wins / totalTrades) * 100 : 0;
@@ -2778,6 +2785,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           winRate: Math.round(winRate * 10) / 10,
           avgGain: Math.round(avgGainOnWins * 10) / 10,
           avgLoss: Math.round(avgLossOnLosses * 10) / 10,
+          sampleWarning: totalTrades < MIN_TRADES_FOR_CONFIDENCE, // Warn if <50 trades
         });
       });
       
@@ -3044,7 +3052,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 4. Confidence Calibration - Win rate by confidence score band
+  // 4. Signal Strength Analysis - Win rate by actual signal consensus (# of agreeing indicators)
+  // NEW: Groups by qualitySignals array length, NOT legacy confidence percentages
   app.get("/api/performance/confidence-calibration", async (req, res) => {
     try {
       const engine = req.query.engine as string | undefined;
@@ -3062,31 +3071,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filteredIdeas = filteredIdeas.filter(idea => idea.source === engine);
       }
       
-      // Group by confidence band
-      const confidenceBands = ['90-100', '80-89', '70-79', '60-69', '<60'];
+      // NEW: Group by ACTUAL signal count (qualitySignals array length)
+      // Signal Strength Bands: A (5+), B+ (4), B (3), C+ (2), C (1), D (0)
+      const signalBands = ['A', 'B+', 'B', 'C+', 'C', 'D'];
       const bandStats = new Map<string, {
         band: string;
+        signalCount: string;
         trades: typeof filteredIdeas;
         wins: number;
       }>();
       
-      confidenceBands.forEach(band => {
+      signalBands.forEach(band => {
+        const signalCount = band === 'A' ? '5+' : band === 'B+' ? '4' : band === 'B' ? '3' : band === 'C+' ? '2' : band === 'C' ? '1' : '0';
         bandStats.set(band, {
           band,
+          signalCount,
           trades: [],
           wins: 0,
         });
       });
       
       filteredIdeas.forEach(idea => {
-        const confidence = idea.confidenceScore || 0;
+        // Count actual signals from qualitySignals array
+        const signalCount = idea.qualitySignals?.length || 0;
         
+        // Map signal count to band
         let band: string;
-        if (confidence >= 90) band = '90-100';
-        else if (confidence >= 80) band = '80-89';
-        else if (confidence >= 70) band = '70-79';
-        else if (confidence >= 60) band = '60-69';
-        else band = '<60';
+        if (signalCount >= 5) band = 'A';
+        else if (signalCount === 4) band = 'B+';
+        else if (signalCount === 3) band = 'B';
+        else if (signalCount === 2) band = 'C+';
+        else if (signalCount === 1) band = 'C';
+        else band = 'D';
         
         const stats = bandStats.get(band)!;
         stats.trades.push(idea);
@@ -3097,18 +3113,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Calculate win rates
-      const calibration: ConfidenceCalibrationEntry[] = [];
+      const calibration: SignalStrengthEntry[] = [];
       
-      // Band label mapping for display
+      // Band label mapping for display - shows signal count, not fake probability
       const bandLabels: Record<string, string> = {
-        '90-100': '90-100%',
-        '80-89': '80-89%',
-        '70-79': '70-79%',
-        '60-69': '60-69%',
-        '<60': '<60%'
+        'A': 'A (5+ signals)',
+        'B+': 'B+ (4 signals)',
+        'B': 'B (3 signals)',
+        'C+': 'C+ (2 signals)',
+        'C': 'C (1 signal)',
+        'D': 'D (0 signals)'
       };
       
-      bandStats.forEach(stats => {
+      // Return in order from strongest to weakest signal consensus
+      signalBands.forEach(band => {
+        const stats = bandStats.get(band)!;
         const totalTrades = stats.trades.length;
         const losses = totalTrades - stats.wins;
         const winRate = totalTrades > 0 ? (stats.wins / totalTrades) * 100 : 0;
@@ -3123,11 +3142,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       });
       
-      // Return in order from highest to lowest confidence
       res.json(calibration);
     } catch (error) {
-      logger.error("Confidence calibration error:", error);
-      res.status(500).json({ error: "Failed to fetch confidence calibration" });
+      logger.error("Signal strength analysis error:", error);
+      res.status(500).json({ error: "Failed to fetch signal strength analysis" });
     }
   });
 

@@ -26,7 +26,8 @@ import { ValidationResultsDialog } from "@/components/validation-results-dialog"
 import { TierGate } from "@/components/tier-gate";
 import { useAuth } from "@/hooks/useAuth";
 import type { EngineHealthAlert } from "@shared/schema";
-import { ENGINE_LABELS, ENGINE_COLORS, CONFIDENCE_BAND_LABELS } from "@shared/constants";
+import { ENGINE_LABELS, ENGINE_COLORS, SIGNAL_STRENGTH_BAND_LABELS } from "@shared/constants";
+import { RiskDisclosure } from "@/components/risk-disclosure";
 
 // Lazy load heavy visualization components for better initial load performance
 const SymbolLeaderboard = lazy(() => import("@/components/symbol-leaderboard"));
@@ -1532,6 +1533,13 @@ export default function PerformancePage() {
           </div>
         )}
       </div>
+
+      {/* Educational Disclaimer */}
+      <RiskDisclosure 
+        variant="compact" 
+        engineVersion="v3.x" 
+        className="mt-6"
+      />
 
       <ValidationResultsDialog
         open={showValidationDialog}

@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { fetchWithParams } from "@/lib/queryClient";
 
@@ -15,6 +16,7 @@ interface SymbolPerformance {
   winRate: number;
   avgGain: number;
   avgLoss: number;
+  sampleWarning?: boolean; // True if <50 trades - statistically unreliable
 }
 
 interface SymbolLeaderboardData {
@@ -107,7 +109,22 @@ export default function SymbolLeaderboard({ selectedEngine }: SymbolLeaderboardP
                     {symbol.symbol}
                   </TableCell>
                   <TableCell className="text-center font-mono">
-                    {symbol.trades}
+                    <div className="flex items-center justify-center gap-1">
+                      {symbol.trades}
+                      {symbol.sampleWarning && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <AlertTriangle className="w-3 h-3 text-amber-500" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">Low sample size ({symbol.trades} trades)</p>
+                              <p className="text-xs text-muted-foreground">Results may be statistically unreliable</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-center font-mono text-green-500">
                     {symbol.wins}
@@ -144,7 +161,7 @@ export default function SymbolLeaderboard({ selectedEngine }: SymbolLeaderboardP
       <CardHeader>
         <CardTitle>Symbol Leaderboard</CardTitle>
         <CardDescription>
-          Best and worst performing symbols by win rate
+          Best and worst performing symbols by win rate (min 20 trades required)
           {selectedEngine && ` (${selectedEngine.toUpperCase()} engine)`}
         </CardDescription>
       </CardHeader>

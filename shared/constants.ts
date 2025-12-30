@@ -16,20 +16,32 @@ export const ENGINE_LABELS: Record<string, string> = {
 export const ENGINE_KEYS = ['ai', 'quant', 'hybrid', 'flow_scanner', 'chart_analysis', 'lotto_scanner'] as const;
 export type EngineKey = typeof ENGINE_KEYS[number];
 
-// Confidence bands - consistent naming with ranges
+// DEPRECATED: Legacy confidence bands - use SIGNAL_STRENGTH_BANDS instead
+// These are kept for backward compatibility but should not be used for new code
 export const CONFIDENCE_BANDS = {
   HIGH: { key: 'high', label: 'High', range: '70+', min: 70, max: 100 },
   MEDIUM: { key: 'medium', label: 'Medium', range: '50-69', min: 50, max: 69 },
   LOW: { key: 'low', label: 'Low', range: '<50', min: 0, max: 49 },
 } as const;
 
+// DEPRECATED: Use SIGNAL_STRENGTH_BAND_LABELS instead
 export const CONFIDENCE_BAND_LABELS: Record<string, string> = {
   high: 'High (70+)',
   medium: 'Medium (50-69)',
   low: 'Low (<50)',
 };
 
-// Get confidence band for a given score
+// NEW: Signal Strength band labels - based on indicator consensus, not probability
+export const SIGNAL_STRENGTH_BAND_LABELS: Record<string, string> = {
+  'A': 'A (5+ signals)',
+  'B+': 'B+ (4 signals)',
+  'B': 'B (3 signals)',
+  'C+': 'C+ (2 signals)',
+  'C': 'C (1 signal)',
+  'D': 'D (0 signals)',
+};
+
+// DEPRECATED: Get confidence band for a given score - use getSignalStrengthBand instead
 export function getConfidenceBand(score: number): 'high' | 'medium' | 'low' {
   if (score >= 70) return 'high';
   if (score >= 50) return 'medium';
