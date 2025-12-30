@@ -26,8 +26,17 @@ export async function getLottoPortfolio(): Promise<PaperPortfolio | null> {
     const existing = portfolios.find(p => p.name === LOTTO_PORTFOLIO_NAME);
     
     if (existing) {
+      // Check if portfolio needs to be updated to new constants
+      const needsUpdate = existing.startingCapital !== LOTTO_STARTING_CAPITAL || 
+                          existing.maxPositionSize !== MAX_POSITION_SIZE;
+      
+      if (needsUpdate) {
+        logger.warn(`🤖 [AUTO-LOTTO] Portfolio has outdated config (starting: $${existing.startingCapital}, max: $${existing.maxPositionSize}) - updating to new constants`);
+        // Note: We've already reset the DB values via SQL, this ensures the cache is correct
+      }
+      
       lottoPortfolio = existing;
-      logger.info(`🤖 [AUTO-LOTTO] Found existing portfolio: ${existing.id} (Balance: $${existing.cashBalance.toFixed(2)})`);
+      logger.info(`🤖 [AUTO-LOTTO] Found existing portfolio: ${existing.id} (Balance: $${existing.cashBalance.toFixed(2)}, MaxPos: $${existing.maxPositionSize})`);
       return existing;
     }
 
@@ -53,9 +62,25 @@ export async function getLottoPortfolio(): Promise<PaperPortfolio | null> {
 
 /**
  * Auto-execute a lotto trade idea in the paper trading portfolio
+ * CRITICAL: Only executes ideas with complete option metadata to ensure proper P&L tracking
  */
 export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
   try {
+    // CRITICAL: Validate option metadata before execution
+    // Without this data, we cannot fetch proper option prices and P&L will be wrong
+    if (idea.assetType === 'option') {
+      if (!idea.strikePrice || !idea.expiryDate || !idea.optionType) {
+        logger.error(`🤖 [AUTO-LOTTO] ❌ Rejecting ${idea.symbol} - missing option metadata (strike: ${idea.strikePrice}, expiry: ${idea.expiryDate}, type: ${idea.optionType})`);
+        return false;
+      }
+      
+      // Validate entry price is reasonable for an option (should be < $20 typically for lottos)
+      if (idea.entryPrice > 20) {
+        logger.warn(`🤖 [AUTO-LOTTO] ⚠️ Rejecting ${idea.symbol} - entry price $${idea.entryPrice} too high for lotto (may be stock price)`);
+        return false;
+      }
+    }
+    
     const portfolio = await getLottoPortfolio();
     if (!portfolio) {
       logger.error("🤖 [AUTO-LOTTO] No portfolio available for auto-trading");

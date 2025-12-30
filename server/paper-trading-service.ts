@@ -148,18 +148,27 @@ export async function closePosition(
 
 /**
  * Fetch current price for a position
- * For options, we need to fetch the actual option premium, not the underlying stock price
+ * For options, we MUST fetch the actual option premium, NEVER fall back to stock prices
+ * This prevents P&L calculation errors where stock prices are used instead of option premiums
  */
 async function fetchCurrentPrice(
   symbol: string, 
   assetType: AssetType,
-  optionDetails?: { underlying: string; expiryDate: string; optionType: 'call' | 'put'; strike: number }
+  optionDetails?: { underlying: string; expiryDate: string; optionType: 'call' | 'put'; strike: number },
+  fallbackPrice?: number
 ): Promise<number | null> {
   try {
     if (assetType === 'crypto') {
       const data = await fetchCryptoPrice(symbol);
       return data?.currentPrice || null;
-    } else if (assetType === 'option' && optionDetails) {
+    } else if (assetType === 'option') {
+      // CRITICAL: For options, we MUST have option details to get the correct premium
+      // NEVER fall back to stock prices - this causes massively inflated P&L
+      if (!optionDetails) {
+        logger.error(`🚨 [PAPER] Option ${symbol} missing metadata - cannot fetch price. Using fallback: $${fallbackPrice?.toFixed(2) || 'null'}`);
+        return fallbackPrice || null;
+      }
+      
       // Fetch actual option premium from Tradier
       const quote = await getOptionQuote({
         underlying: optionDetails.underlying,
@@ -171,19 +180,23 @@ async function fetchCurrentPrice(
       if (quote) {
         // Use mid price for most accurate current value, fallback to last
         const price = quote.mid > 0 ? quote.mid : quote.last;
-        logger.info(`📊 [PAPER] Option price for ${symbol}: $${price.toFixed(2)} (bid: $${quote.bid}, ask: $${quote.ask})`);
-        return price > 0 ? price : null;
+        if (price > 0) {
+          logger.info(`📊 [PAPER] Option price for ${symbol} ${optionDetails.optionType.toUpperCase()} $${optionDetails.strike}: $${price.toFixed(2)} (bid: $${quote.bid}, ask: $${quote.ask})`);
+          return price;
+        }
       }
       
-      logger.warn(`📊 [PAPER] No option quote available for ${symbol} - may be expired`);
-      return null;
+      // If quote fails, use fallback price (entry price or current price) - NEVER stock price
+      logger.warn(`📊 [PAPER] No option quote for ${symbol} ${optionDetails.optionType?.toUpperCase()} $${optionDetails.strike} exp ${optionDetails.expiryDate} - using fallback: $${fallbackPrice?.toFixed(2) || 'null'}`);
+      return fallbackPrice || null;
     } else {
+      // Only use stock prices for actual stocks
       const data = await fetchStockPrice(symbol);
       return data?.currentPrice || null;
     }
   } catch (error) {
     logger.warn(`Failed to fetch price for ${symbol}`, { error });
-    return null;
+    return fallbackPrice || null;
   }
 }
 
@@ -207,10 +220,16 @@ export async function updatePositionPrices(portfolioId: string): Promise<void> {
         };
       }
       
+      // For options, pass current price as fallback to avoid using stock prices
+      const fallbackPrice = position.assetType === 'option' 
+        ? (position.currentPrice || position.entryPrice) 
+        : undefined;
+      
       const currentPrice = await fetchCurrentPrice(
         position.symbol, 
         position.assetType as AssetType,
-        optionDetails
+        optionDetails,
+        fallbackPrice
       );
       
       if (currentPrice !== null) {
