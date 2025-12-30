@@ -1384,6 +1384,42 @@ export default function AdminPanel() {
                       Analyze losing trades to identify patterns and improve future performance
                     </p>
                   </div>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch('/api/loss-analysis/analyze-all', {
+                          method: 'POST',
+                          headers: { 'x-admin-password': adminPassword }
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          toast({
+                            title: "Analysis Complete",
+                            description: `Analyzed ${data.analyzedCount} losing trades`,
+                          });
+                          queryClient.invalidateQueries({ queryKey: ['/api/loss-analysis'] });
+                        } else {
+                          toast({
+                            title: "Analysis Failed",
+                            description: data.error || "Unknown error",
+                            variant: "destructive",
+                          });
+                        }
+                      } catch (err) {
+                        toast({
+                          title: "Error",
+                          description: "Failed to run loss analysis",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    data-testid="button-analyze-all-losses"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Analyze All Losses
+                  </Button>
                 </div>
                 <Suspense fallback={
                   <div className="h-64 w-full animate-pulse bg-muted/30 rounded-lg flex items-center justify-center">
