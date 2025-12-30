@@ -936,13 +936,37 @@ export async function analyzeChartImage(
   symbol?: string,
   timeframe?: string,
   additionalContext?: string,
-  currentPrice?: number | null
+  currentPrice?: number | null,
+  optionDetails?: {
+    assetType?: 'stock' | 'option';
+    optionType?: 'call' | 'put';
+    strikePrice?: string;
+    expiryDate?: string;
+  }
 ): Promise<ChartAnalysisResult> {
-  logger.info(`📊 Analyzing chart image${symbol ? ` for ${symbol}` : ''}${currentPrice ? ` (current price: $${currentPrice})` : ''}`);
+  logger.info(`📊 Analyzing chart image${symbol ? ` for ${symbol}` : ''}${currentPrice ? ` (current price: $${currentPrice})` : ''}${optionDetails?.assetType === 'option' ? ` (evaluating ${optionDetails.optionType?.toUpperCase()} $${optionDetails.strikePrice} exp ${optionDetails.expiryDate})` : ''}`);
   
   const base64Image = imageBuffer.toString('base64');
   const contextInfo = additionalContext ? `\n\nAdditional context: ${additionalContext}` : '';
   const priceContext = currentPrice ? `\n\n**CRITICAL - CURRENT MARKET PRICE**: The current live price of ${symbol || 'this asset'} is $${currentPrice.toFixed(2)}. Your entry, target, and stop levels MUST be within a reasonable range of this price (typically within 20%). If the chart shows very different price levels, the chart may be zoomed out or showing historical data - in that case, base your trade levels on the CURRENT price of $${currentPrice.toFixed(2)}, not old prices visible in the chart.` : '';
+  
+  // Build option evaluation context if user provided specific option details
+  let optionContext = '';
+  if (optionDetails?.assetType === 'option' && optionDetails.optionType && optionDetails.strikePrice) {
+    const optionTypeLabel = optionDetails.optionType.toUpperCase();
+    const strike = optionDetails.strikePrice;
+    const expiry = optionDetails.expiryDate || 'not specified';
+    optionContext = `\n\n**OPTION PLAY EVALUATION**: The user is considering a specific ${optionTypeLabel} option:
+- Strike Price: $${strike}
+- Expiry Date: ${expiry}
+- Current Price: $${currentPrice?.toFixed(2) || 'unknown'}
+
+Please evaluate this specific option play in your analysis:
+1. Is the strike price ($${strike}) appropriate given the chart pattern and expected move?
+2. Is the ${optionTypeLabel} direction aligned with the chart's sentiment?
+3. Does the expiry date (${expiry}) provide enough time for the setup to play out?
+4. Provide a clear RECOMMENDATION: "TAKE THE TRADE" or "AVOID THIS TRADE" with reasoning.`;
+  }
   
   const systemPrompt = `You are an expert technical analyst specializing in chart pattern recognition and trade setup identification.
 
@@ -989,7 +1013,7 @@ Return your analysis in this EXACT JSON format:
 
 Base your target on the NEAREST visible resistance level, not aspirational prices. Conservative targets with good R:R are better than aggressive targets that rarely hit.
 
-**ANALYSIS LENGTH**: Provide a COMPLETE and THOROUGH analysis in the "analysis" field. Write at least 3-4 full paragraphs explaining all visible patterns, price action, volume (if visible), and your reasoning for the trade setup. Do NOT cut off mid-sentence.${contextInfo}`;
+**ANALYSIS LENGTH**: Provide a COMPLETE and THOROUGH analysis in the "analysis" field. Write at least 3-4 full paragraphs explaining all visible patterns, price action, volume (if visible), and your reasoning for the trade setup. Do NOT cut off mid-sentence.${optionContext}${contextInfo}`;
 
   const userPrompt = symbol 
     ? `Analyze this trading chart for ${symbol}${timeframe ? ` on ${timeframe} timeframe` : ''}. Provide precise technical analysis with entry/exit points.`

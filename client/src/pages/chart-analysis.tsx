@@ -792,6 +792,14 @@ export default function ChartAnalysis() {
     formData.append('symbol', symbol);
     formData.append('timeframe', timeframe);
     formData.append('context', additionalContext);
+    
+    // Include option details if user selected CALL/PUT option
+    if (assetType === 'option') {
+      formData.append('assetType', 'option');
+      formData.append('optionType', optionType);
+      if (strikePrice) formData.append('strikePrice', strikePrice);
+      if (expiryDate) formData.append('expiryDate', expiryDate);
+    }
 
     analysisMutation.mutate(formData);
   };

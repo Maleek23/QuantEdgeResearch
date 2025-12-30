@@ -5717,8 +5717,12 @@ FORMATTING:
         symbol: z.string().optional(),
         timeframe: z.string().optional(),
         context: z.string().optional(),
+        assetType: z.enum(['stock', 'option']).optional(),
+        optionType: z.enum(['call', 'put']).optional(),
+        strikePrice: z.string().optional(),
+        expiryDate: z.string().optional(),
       });
-      const { symbol, timeframe, context } = schema.parse(req.body);
+      const { symbol, timeframe, context, assetType, optionType, strikePrice, expiryDate } = schema.parse(req.body);
       
       logger.info(`📊 Chart analysis request${symbol ? ` for ${symbol}` : ''}`);
       
@@ -5750,7 +5754,9 @@ FORMATTING:
         symbol,
         timeframe,
         context,
-        currentPrice  // Pass current price to AI for validation
+        currentPrice,  // Pass current price to AI for validation
+        // Pass option details if user is evaluating a specific play
+        assetType === 'option' ? { assetType, optionType, strikePrice, expiryDate } : undefined
       );
       
       logger.info(`✅ Chart analysis complete${symbol ? ` for ${symbol}` : ''} - ${analysis.sentiment} sentiment`);
