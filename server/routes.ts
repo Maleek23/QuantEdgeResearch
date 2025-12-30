@@ -55,6 +55,7 @@ import {
   constructWebhookEvent,
   PRICING_PLANS,
 } from "./stripe-service";
+import { getRealtimeQuote, getRealtimeBatchQuotes, type RealtimeQuote, type AssetType as RTAssetType } from './realtime-pricing-service';
 
 // Session-based authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -1590,6 +1591,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(data);
     } catch (error) {
       res.status(400).json({ error: "Invalid market data" });
+    }
+  });
+
+  // ============================================
+  // REAL-TIME QUOTES API - Unified pricing across all asset types
+  // ============================================
+  
+  app.get("/api/realtime-quote/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const assetType = (req.query.assetType as RTAssetType) || 'stock';
+      
+      const quote = await getRealtimeQuote(symbol, assetType);
+      if (!quote) {
+        return res.status(404).json({ error: "Quote not found" });
+      }
+      res.json(quote);
+    } catch (error) {
+      logger.error(`Error fetching realtime quote for ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to fetch quote" });
+    }
+  });
+  
+  app.post("/api/realtime-quotes/batch", async (req, res) => {
+    try {
+      const { requests } = req.body as { requests: Array<{ symbol: string; assetType: RTAssetType }> };
+      
+      if (!requests || !Array.isArray(requests)) {
+        return res.status(400).json({ error: "Invalid request format. Expected { requests: [...] }" });
+      }
+      
+      if (requests.length > 50) {
+        return res.status(400).json({ error: "Maximum 50 quotes per batch request" });
+      }
+      
+      const quotesMap = await getRealtimeBatchQuotes(requests);
+      
+      const quotes: Record<string, RealtimeQuote> = {};
+      quotesMap.forEach((quote, key) => {
+        quotes[key] = quote;
+      });
+      
+      res.json({ quotes, count: Object.keys(quotes).length });
+    } catch (error) {
+      logger.error("Error fetching batch quotes:", error);
+      res.status(500).json({ error: "Failed to fetch batch quotes" });
     }
   });
 
