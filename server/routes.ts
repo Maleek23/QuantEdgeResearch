@@ -3052,8 +3052,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all trade ideas
       const allIdeas = await storage.getAllTradeIdeas();
       
-      // 🔧 DATA INTEGRITY: Use shared canonical filters for consistency
-      const preFiltered = applyCanonicalPerformanceFilters(allIdeas);
+      // 🔧 DATA INTEGRITY: Use shared canonical filters for consistency (include Flow)
+      const preFiltered = applyCanonicalPerformanceFilters(allIdeas, { includeFlowLotto: true });
       
       // Get decided trades only (auto-resolved wins + real losses)
       let filteredIdeas = getDecidedTradesByResolution(preFiltered, { includeAllVersions: false });
@@ -3136,8 +3136,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       
-      // 🔧 DATA INTEGRITY: Use shared canonical filters for consistency
-      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas);
+      // 🔧 DATA INTEGRITY: Use shared canonical filters for consistency (include Flow)
+      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas, { includeFlowLotto: true });
       
       // Get decided trades only (wins + real losses, excludes breakeven, expired, and legacy engines)
       const resolvedIdeas = getDecidedTrades(filteredIdeas, { includeAllVersions: false });
@@ -3256,8 +3256,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       
-      // 🔧 DATA INTEGRITY: Use shared canonical filters for consistency
-      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas);
+      // 🔧 DATA INTEGRITY: Use shared canonical filters for consistency (include Flow)
+      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas, { includeFlowLotto: true });
       
       // Get decided trades only (wins + real losses, excludes breakeven and legacy engines)
       const resolvedIdeas = getDecidedTrades(filteredIdeas, { includeAllVersions: false });
@@ -3512,14 +3512,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       
-      // 🔧 DATA INTEGRITY: Use shared canonical filters for consistency
-      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas);
+      // 🔧 DATA INTEGRITY: Use shared canonical filters for consistency (include Flow)
+      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas, { includeFlowLotto: true });
       
       // Get decided trades only (wins + real losses, excludes breakeven and legacy engines)
       const decidedIdeas = getDecidedTrades(filteredIdeas, { includeAllVersions: false });
       
       // Define engines and confidence bands
-      const engines = ['ai', 'quant', 'hybrid', 'flow_scanner', 'chart_analysis', 'lotto_scanner'];
+      const engines = ['ai', 'quant', 'hybrid', 'flow', 'chart_analysis', 'lotto'];
       const confidenceBands = [
         { name: 'High (70+)', min: 70, max: 100 },
         { name: 'Medium (50-69)', min: 50, max: 69 },
@@ -3555,9 +3555,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           displayName: engine === 'ai' ? 'AI' : 
                        engine === 'quant' ? 'Quant' :
                        engine === 'hybrid' ? 'Hybrid' :
-                       engine === 'flow_scanner' ? 'Flow Scanner' :
+                       engine === 'flow' ? 'Flow' :
                        engine === 'chart_analysis' ? 'Chart Analysis' :
-                       engine === 'lotto_scanner' ? 'Lotto Scanner' : engine,
+                       engine === 'lotto' ? 'Lotto' : engine,
           totalTrades: engineWins + engineLosses,
           totalWins: engineWins,
           overallWinRate: 0,
