@@ -97,12 +97,12 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
       if (minsRemaining <= 0) {
         return { text: 'Entry expired', color: 'text-red-400', urgent: false };
       } else if (minsRemaining <= 15) {
-        return { text: `${minsRemaining}m left to enter`, color: 'text-amber-400', urgent: true };
+        return { text: `${minsRemaining}m left`, color: 'text-amber-400', urgent: true };
       } else if (minsRemaining <= 60) {
-        return { text: `${minsRemaining}m window`, color: 'text-amber-400', urgent: false };
+        return { text: `${minsRemaining}m left`, color: 'text-amber-400', urgent: false };
       } else {
         const hrs = Math.floor(minsRemaining / 60);
-        return { text: `${hrs}h ${minsRemaining % 60}m window`, color: 'text-green-400', urgent: false };
+        return { text: `${hrs}h ${minsRemaining % 60}m`, color: 'text-green-400', urgent: false };
       }
     }
     
