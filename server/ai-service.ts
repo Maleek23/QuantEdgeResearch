@@ -1295,6 +1295,18 @@ Base your target on the NEAREST visible resistance level, not aspirational price
               grok: grokError?.message
             });
             
+            // Provide more helpful error messages based on error types
+            const isQuotaError = [geminiError, openaiError, claudeError, grokError].some(
+              e => e?.message?.toLowerCase().includes('quota') || 
+                   e?.message?.toLowerCase().includes('rate limit') ||
+                   e?.message?.toLowerCase().includes('429') ||
+                   e?.message?.toLowerCase().includes('billing') ||
+                   e?.message?.toLowerCase().includes('credit')
+            );
+            
+            if (isQuotaError) {
+              throw new Error("AI analysis temporarily unavailable - rate limits reached. Please try again in a few minutes, or use the Quant Engine signals on the Trade Desk.");
+            }
             throw new Error("Chart analysis failed. Please try again later.");
           }
         } else {
@@ -1304,6 +1316,18 @@ Base your target on the NEAREST visible resistance level, not aspirational price
             claude: claudeError?.message
           });
           
+          // Provide more helpful error messages based on error types
+          const isQuotaError = [geminiError, openaiError, claudeError].some(
+            e => e?.message?.toLowerCase().includes('quota') || 
+                 e?.message?.toLowerCase().includes('rate limit') ||
+                 e?.message?.toLowerCase().includes('429') ||
+                 e?.message?.toLowerCase().includes('billing') ||
+                 e?.message?.toLowerCase().includes('credit')
+          );
+          
+          if (isQuotaError) {
+            throw new Error("AI analysis temporarily unavailable - rate limits reached. Please try again in a few minutes, or use the Quant Engine signals on the Trade Desk.");
+          }
           throw new Error("Chart analysis failed. Please try again later.");
         }
       }
