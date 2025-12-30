@@ -176,8 +176,16 @@ export function applyCanonicalPerformanceFilters(
   }
   
   // Step 2: Exclude options (no proper pricing yet)
+  // EXCEPTION: When includeFlowLotto is true, keep flow/lotto options (they ARE options)
   if (!options.includeOptions) {
-    filtered = filtered.filter(idea => idea.assetType !== 'option');
+    filtered = filtered.filter(idea => {
+      // Keep non-options
+      if (idea.assetType !== 'option') return true;
+      // If includeFlowLotto is set, keep flow/lotto options
+      if (options.includeFlowLotto && (idea.source === 'flow' || idea.source === 'lotto')) return true;
+      // Otherwise exclude options
+      return false;
+    });
   }
   
   // Step 3: Exclude flow/lotto sources (unvalidatable options)

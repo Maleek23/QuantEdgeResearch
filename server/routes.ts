@@ -3692,8 +3692,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       
-      // 🔧 DATA INTEGRITY: Apply canonical filters for consistency
-      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas);
+      // 🔧 DATA INTEGRITY: Apply canonical filters WITH flow/lotto included
+      // Flow engine has excellent win rate - must show in engine breakdown
+      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas, { includeFlowLotto: true });
       
       // 🔧 DATA INTEGRITY: Use canonical getDecidedTrades from storage.ts
       // Filter to current-gen engines and DECIDED trades (wins + real losses)
