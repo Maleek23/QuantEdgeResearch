@@ -793,9 +793,8 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
       'BKSY',   // BlackSky - Geospatial intelligence
       'IRDM',   // Iridium - Satellite communications
       'VSAT',   // Viasat - Satellite internet
-      'MAXR',   // Maxar Technologies - Earth observation
       'SATL',   // Satellogic - Earth observation
-      'LLAP',   // Terran Orbital - Satellite manufacturing
+      // REMOVED: MAXR (acquired), LLAP (delisted)
       
       // 🧬 BIOTECH/PHARMA (CATALYST-DRIVEN)
       'NVAX',   // Novavax - Vaccines
@@ -806,8 +805,7 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
       'EDIT',   // Editas Medicine - Gene editing
       'NTLA',   // Intellia Therapeutics - CRISPR
       'BEAM',   // Beam Therapeutics - Base editing
-      'VERV',   // Verve Therapeutics - Gene editing cardio
-      'BLUE',   // bluebird bio - Gene therapy
+      // REMOVED: VERV (delisted), BLUE (delisted)
       
       // ⚡ CLEAN ENERGY & EV
       'FCEL',   // FuelCell Energy
@@ -816,7 +814,7 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
       'CHPT',   // ChargePoint - EV charging
       'BLNK',   // Blink Charging
       'EVGO',   // EVgo - Fast charging
-      'PTRA',   // Proterra - Electric buses
+      // REMOVED: PTRA (bankrupt/delisted)
       'ENVX',   // Enovix - Next-gen batteries
       'QS',     // QuantumScape - Solid-state batteries
       'STEM',   // Stem Inc - AI energy storage
@@ -830,10 +828,8 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
       'NIO',    // NIO - Chinese premium EV
       'XPEV',   // XPeng - Chinese EV
       'LI',     // Li Auto - Chinese hybrid EV
-      'FSR',    // Fisker - EV startup
+      // REMOVED: FSR (bankrupt), FFIE (delisted), GOEV (delisted)
       'NKLA',   // Nikola - Hydrogen trucks
-      'GOEV',   // Canoo - EV platform
-      'FFIE',   // Faraday Future
       'TSLA',   // Tesla - EV + AI + Energy
       
       // 🛡️ DEFENSE & DRONES
@@ -874,7 +870,7 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
       'SOFI',   // SoFi - Digital banking
       'DAVE',   // Dave - Neobank
       'HOOD',   // Robinhood - Trading app
-      'SQ',     // Block/Square - Payments
+      'XYZ',    // Block (formerly Square) - Payments
       'PYPL',   // PayPal
       'NU',     // Nu Holdings - Brazilian fintech
       
@@ -911,7 +907,7 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
       
       // 📺 STREAMING/MEDIA
       'FUBO',   // FuboTV
-      'PARA',   // Paramount
+      // REMOVED: PARA (merged/delisted)
       'WBD',    // Warner Bros Discovery
       
       // ✈️ TRAVEL/LEISURE (HIGH BETA)
@@ -924,7 +920,7 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
       // 🏠 REAL ESTATE TECH
       'OPEN',   // Opendoor
       'Z',      // Zillow
-      'RDFN',   // Redfin
+      // REMOVED: RDFN (delisted)
       
       // 📱 TECH RETAIL FAVORITES
       'F',      // Ford

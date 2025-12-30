@@ -236,7 +236,7 @@ const LOTTO_SCAN_TICKERS = [
   // === 🧬 BIOTECH PENNY LOTTOS ===
   'NVAX',   // Novavax ($5-20)
   'EDIT',   // Editas Medicine ($2-10) ⚡ TOP LOTTO
-  'BLUE',   // bluebird bio ($0.50-3) ⚡ ULTRA LOTTO
+  // REMOVED: BLUE (delisted)
   'INO',    // Inovio ($1-5) ⚡ TOP LOTTO
   'SRNE',   // Sorrento ($0.20-1) ⚡ ULTRA LOTTO
   'VXRT',   // Vaxart ($0.50-3) ⚡ ULTRA LOTTO
@@ -255,14 +255,13 @@ const LOTTO_SCAN_TICKERS = [
   'NIO',    // NIO ($3-10)
   'CHPT',   // ChargePoint ($0.50-3) ⚡ ULTRA LOTTO
   'BLNK',   // Blink ($1-5) ⚡ TOP LOTTO
-  'FFIE',   // Faraday Future ($0.01-0.50) ⚡ ULTRA LOTTO
-  'GOEV',   // Canoo ($0.10-1) ⚡ ULTRA LOTTO
+  // REMOVED: FFIE, GOEV (delisted)
   'NKLA',   // Nikola ($0.50-3) ⚡ ULTRA LOTTO
   
   // === 🚀 SPACE PENNY LOTTOS ===
   'SPCE',   // Virgin Galactic ($1-5) ⚡ TOP LOTTO
   'BKSY',   // BlackSky ($0.50-2) ⚡ ULTRA LOTTO
-  'LLAP',   // Terran Orbital ($0.50-3) ⚡ ULTRA LOTTO
+  // REMOVED: LLAP (delisted)
   
   // === ⚡ CLEAN ENERGY PENNY LOTTOS ===
   'PLUG',   // Plug Power ($1-5) ⚡ TOP LOTTO

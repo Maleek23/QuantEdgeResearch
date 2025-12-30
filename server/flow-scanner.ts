@@ -232,7 +232,7 @@ const FLOW_SCAN_TICKERS = [
   'SPCE',   // Virgin Galactic - Space tourism ($1-5 range - TRUE PENNY LOTTO)
   'BKSY',   // BlackSky - Geospatial ($0.50-2 range - TRUE PENNY LOTTO)
   'IRDM',   // Iridium - Satellite communications
-  'LLAP',   // Terran Orbital - Satellite manufacturing ($0.50-3 range - TRUE PENNY)
+  // REMOVED: LLAP (delisted)
   
   // === 🧬 BIOTECH/GENE EDITING/HEALTHCARE (NEXT BIG THING #3) ===
   'NVAX',   // Novavax - Vaccines ($5-20 range)
@@ -242,8 +242,7 @@ const FLOW_SCAN_TICKERS = [
   'EDIT',   // Editas Medicine - Gene editing ($2-10 range - PENNY LOTTO)
   'NTLA',   // Intellia Therapeutics - CRISPR ($15-40 range)
   'BEAM',   // Beam Therapeutics - Base editing ($15-40 range)
-  'VERV',   // Verve Therapeutics - Gene editing cardio ($5-20 range)
-  'BLUE',   // bluebird bio - Gene therapy ($0.50-3 range - TRUE PENNY LOTTO)
+  // REMOVED: VERV, BLUE (delisted)
   'INO',    // Inovio - DNA medicines ($1-5 range - TRUE PENNY LOTTO)
   'SRNE',   // Sorrento Therapeutics ($0.20-1 range - ULTRA PENNY LOTTO)
   'VXRT',   // Vaxart - Oral vaccines ($0.50-3 range - TRUE PENNY LOTTO)
@@ -276,14 +275,13 @@ const FLOW_SCAN_TICKERS = [
   'CHPT',   // ChargePoint - EV charging ($0.50-3 range - TRUE PENNY LOTTO)
   'BLNK',   // Blink Charging ($1-5 range - TRUE PENNY LOTTO)
   'EVGO',   // EVgo - Fast charging ($2-8 range - PENNY)
-  'FFIE',   // Faraday Future ($0.01-0.50 range - ULTRA PENNY LOTTO)
-  'GOEV',   // Canoo - EV platform ($0.10-1 range - ULTRA PENNY LOTTO)
+  // REMOVED: FFIE, GOEV (delisted)
   'NKLA',   // Nikola - Hydrogen trucks ($0.50-3 range - TRUE PENNY LOTTO)
   
   // === 💳 FINTECH ===
   'UPST',   // Upstart - AI lending ($30-80 range)
   'AFRM',   // Affirm - BNPL
-  'SQ',     // Block/Square - Payments
+  'XYZ',    // Block (formerly Square) - Payments
   'PYPL',   // PayPal
   'NU',     // Nu Holdings - Brazilian fintech
   
