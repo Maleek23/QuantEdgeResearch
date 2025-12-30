@@ -127,3 +127,154 @@ export const ENGINE_COLORS: Record<string, { border: string; text: string; bg: s
   chart_analysis: { border: 'border-blue-500/50', text: 'text-blue-400', bg: 'bg-blue-500/10' },
   lotto_scanner: { border: 'border-pink-500/50', text: 'text-pink-400', bg: 'bg-pink-500/10' },
 } as const;
+
+/**
+ * SIGNAL STRENGTH BANDS (Replaces misleading confidence bands)
+ * 
+ * These bands represent SIGNAL CONSENSUS, not probability.
+ * A = Strong consensus (5+ signals agree)
+ * B+ = Good consensus (4 signals)
+ * B = Moderate (3 signals)
+ * C+ = Weak (2 signals)
+ * C = Minimal (1 signal)
+ * D = Conflicting/None (0 signals)
+ */
+export const SIGNAL_STRENGTH_BANDS = {
+  A: { min: 5, label: 'A', description: 'Strong Consensus', color: 'green' },
+  'B+': { min: 4, label: 'B+', description: 'Good Consensus', color: 'green' },
+  B: { min: 3, label: 'B', description: 'Moderate', color: 'cyan' },
+  'C+': { min: 2, label: 'C+', description: 'Weak', color: 'amber' },
+  C: { min: 1, label: 'C', description: 'Minimal', color: 'amber' },
+  D: { min: 0, label: 'D', description: 'Avoid', color: 'red' },
+} as const;
+
+export type SignalStrengthBand = keyof typeof SIGNAL_STRENGTH_BANDS;
+
+/**
+ * Get Signal Strength band from signal count
+ * This is what the A/B/C grades now represent - signal consensus
+ */
+export function getSignalStrengthBand(signalCount: number): SignalStrengthBand {
+  if (signalCount >= 5) return 'A';
+  if (signalCount >= 4) return 'B+';
+  if (signalCount >= 3) return 'B';
+  if (signalCount >= 2) return 'C+';
+  if (signalCount >= 1) return 'C';
+  return 'D';
+}
+
+/**
+ * Get styling classes for signal strength band
+ */
+export function getSignalStrengthStyles(band: SignalStrengthBand): { bg: string; text: string; border: string } {
+  switch (band) {
+    case 'A':
+      return { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/50' };
+    case 'B+':
+      return { bg: 'bg-green-500/15', text: 'text-green-400', border: 'border-green-500/40' };
+    case 'B':
+      return { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/50' };
+    case 'C+':
+      return { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/50' };
+    case 'C':
+      return { bg: 'bg-amber-500/15', text: 'text-amber-400', border: 'border-amber-500/40' };
+    case 'D':
+    default:
+      return { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/50' };
+  }
+}
+
+/**
+ * EXPECTED VALUE CALCULATION
+ * 
+ * Instead of fake probability, show expected return per $1 risked
+ * Formula: EV = (winRate * avgWin) - (lossRate * avgLoss)
+ */
+export interface ExpectedValueData {
+  winRate: number;        // 0-100 percentage
+  avgWin: number;         // Average gain on winning trades (e.g., 3.11%)
+  avgLoss: number;        // Average loss on losing trades (e.g., -2.5%)
+  totalTrades: number;    // Sample size for transparency
+}
+
+/**
+ * Calculate expected value per $1 risked
+ * Returns the expected return for every $1 you risk
+ */
+export function calculateExpectedValue(data: ExpectedValueData): number {
+  const winProb = data.winRate / 100;
+  const lossProb = 1 - winProb;
+  
+  // Expected value = (P(win) * avg_gain) - (P(loss) * avg_loss)
+  // avgLoss is already negative, so we use absolute value
+  const ev = (winProb * data.avgWin) - (lossProb * Math.abs(data.avgLoss));
+  
+  // Convert from percentage to per-dollar return
+  // e.g., EV of 2% means $1.02 returned per $1 risked, or +$0.02 profit
+  return ev / 100;
+}
+
+/**
+ * Format expected value for display
+ * Shows "+$X.XX per $1 risked" or "-$X.XX per $1 risked"
+ */
+export function formatExpectedValue(ev: number): string {
+  const sign = ev >= 0 ? '+' : '';
+  return `${sign}$${ev.toFixed(2)} per $1`;
+}
+
+/**
+ * Historical engine performance data (verified Dec 2025)
+ * Used for calculating expected value when real-time data unavailable
+ */
+export const ENGINE_HISTORICAL_PERFORMANCE: Record<string, ExpectedValueData> = {
+  flow_scanner: { winRate: 81.9, avgWin: 3.11, avgLoss: -2.5, totalTrades: 199 },
+  ai: { winRate: 57.1, avgWin: 1.07, avgLoss: -2.0, totalTrades: 77 },
+  hybrid: { winRate: 40.6, avgWin: 2.0, avgLoss: -2.5, totalTrades: 32 },
+  quant: { winRate: 34.4, avgWin: 2.5, avgLoss: -2.0, totalTrades: 93 },
+  chart_analysis: { winRate: 22.2, avgWin: 2.0, avgLoss: -2.5, totalTrades: 9 },
+  manual: { winRate: 0, avgWin: 0, avgLoss: -3.58, totalTrades: 1 },
+} as const;
+
+/**
+ * Normalize engine name to canonical key
+ * Handles: "Flow Scanner", "flow_scanner", "flow", "FLOW", etc.
+ */
+export function normalizeEngineKey(engine: string): string {
+  const normalized = engine.toLowerCase().trim().replace(/\s+/g, '_');
+  
+  // Map common variations to canonical keys
+  const engineMap: Record<string, string> = {
+    'flow': 'flow_scanner',
+    'flow_scanner': 'flow_scanner',
+    'ai': 'ai',
+    'quant': 'quant',
+    'hybrid': 'hybrid',
+    'chart': 'chart_analysis',
+    'chart_analysis': 'chart_analysis',
+    'manual': 'manual',
+    'lotto': 'lotto_scanner',
+    'lotto_scanner': 'lotto_scanner',
+  };
+  
+  return engineMap[normalized] || normalized;
+}
+
+/**
+ * Get expected value for an engine
+ */
+export function getEngineExpectedValue(engine: string): { ev: number; formatted: string; data: ExpectedValueData } | null {
+  const normalizedEngine = normalizeEngineKey(engine);
+  const data = ENGINE_HISTORICAL_PERFORMANCE[normalizedEngine];
+  
+  if (!data || data.totalTrades < 3) {
+    return null; // Not enough data
+  }
+  
+  const ev = calculateExpectedValue(data);
+  return {
+    ev,
+    formatted: formatExpectedValue(ev),
+    data
+  };
+}

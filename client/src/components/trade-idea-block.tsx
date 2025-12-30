@@ -27,6 +27,7 @@ import { SignalStrengthBars } from "@/components/signal-strength-bars";
 import { EnhancedCountdown } from "@/components/enhanced-countdown";
 import { TimingDisplay } from "@/components/timing-display";
 import { HistoricalPerformanceBadge } from "@/components/historical-performance-badge";
+import { SignalStrengthBadge } from "@/components/signal-strength-badge";
 import { getPerformanceGrade } from "@/lib/performance-grade";
 import type { TradeIdea, Catalyst } from "@shared/schema";
 
@@ -285,22 +286,13 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 </TooltipContent>
               </Tooltip>
 
-              {/* Grade */}
-              {idea.probabilityBand && (
-                <Badge 
-                  variant="outline"
-                  className={cn(
-                    "font-bold text-xs h-6 px-2",
-                    idea.probabilityBand.startsWith('A') ? "bg-green-500/20 text-green-400 border-green-500/50" :
-                    idea.probabilityBand.startsWith('B') ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50" :
-                    idea.probabilityBand.startsWith('C') ? "bg-amber-500/20 text-amber-400 border-amber-500/50" :
-                    "bg-muted/30 text-muted-foreground border-muted"
-                  )}
-                  data-testid={`badge-band-${idea.symbol}`}
-                >
-                  {idea.probabilityBand}
-                </Badge>
-              )}
+              {/* Signal Strength Badge - Shows consensus, not probability */}
+              <SignalStrengthBadge
+                signalCount={idea.qualitySignals?.length || 0}
+                engine={idea.source || 'unknown'}
+                qualitySignals={idea.qualitySignals}
+                compact={true}
+              />
 
               {/* Timing Status - Compact */}
               <div className={cn(

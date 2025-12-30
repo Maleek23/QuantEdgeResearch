@@ -55,13 +55,18 @@ Provides historical performance analytics from 411+ resolved trades:
 - Outlier protection: avgGain calculations clamp values to ±50% to prevent corrupted data from skewing averages
 - Corrupted trades identified and fixed: PINS (ai), TSLY (quant) - marked exclude_from_training=true
 
-### Confidence Band Thresholds (Calibrated Dec 2025)
-- A band: 90+ confidence score
-- B+ band: 85-89 confidence score  
-- B band: 78-84 confidence score
-- C+ band: 72-77 confidence score
-- C band: 65-71 confidence score
-- D band: <65 confidence score
+### Signal Strength Bands (Replaces Misleading Confidence Dec 2025)
+The A/B/C grades now represent **signal consensus**, not probability:
+- **A band**: 5+ signals agreeing (Strong Consensus)
+- **B+ band**: 4 signals agreeing (Good Consensus)
+- **B band**: 3 signals agreeing (Moderate)
+- **C+ band**: 2 signals agreeing (Weak)
+- **C band**: 1 signal only (Minimal)
+- **D band**: 0 signals or conflicting (Avoid)
+
+**Expected Value Display**: Shows "+$X.XX per $1 risked" based on engine historical performance
+- Formula: `EV = (winRate × avgWin) - (lossRate × avgLoss)`
+- Displayed alongside signal strength for honest, data-backed metrics
 
 ### Key Performance Insights
 - **Top Symbols**: AAPL, AMD, SOFI, NFLX, QQQ, AMZN, GOOGL, ETH, HOOD (100% win rate, 3+ trades)

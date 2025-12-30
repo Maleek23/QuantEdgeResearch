@@ -2,7 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
+import { 
+  ENGINE_HISTORICAL_PERFORMANCE, 
+  calculateExpectedValue, 
+  formatExpectedValue,
+  normalizeEngineKey 
+} from "@shared/constants";
 
 interface ConfidenceBand {
   band: string;
@@ -28,7 +34,7 @@ function CustomTooltip({ active, payload }: any) {
     const data = payload[0].payload;
     return (
       <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
-        <p className="font-semibold text-sm">Confidence: {data.bandLabel}</p>
+        <p className="font-semibold text-sm">Signal Band: {data.bandLabel}</p>
         <div className="mt-2 space-y-1 text-xs">
           <p className="text-muted-foreground">
             Trades: <span className="font-mono text-foreground">{data.trades}</span>
@@ -82,35 +88,46 @@ export default function ConfidenceCalibration({ selectedEngine }: ConfidenceCali
 
   if (!data || data.length === 0) {
     return (
-      <Card data-testid="card-confidence-calibration-empty">
+      <Card data-testid="card-signal-analysis-empty">
         <CardHeader>
-          <CardTitle>Confidence Calibration</CardTitle>
+          <CardTitle>Signal Performance Analysis</CardTitle>
           <CardDescription>No data available</CardDescription>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Not enough closed trades with confidence scores to display calibration analysis.
+            Not enough closed trades with signal data to display performance analysis.
           </p>
         </CardContent>
       </Card>
     );
   }
 
+  const normalizedEngine = selectedEngine ? normalizeEngineKey(selectedEngine) : null;
+  const engineEV = normalizedEngine ? ENGINE_HISTORICAL_PERFORMANCE[normalizedEngine] : null;
+  const evValue = engineEV ? calculateExpectedValue(engineEV) : null;
+
   return (
     <Card data-testid="card-confidence-calibration">
       <CardHeader>
-        <CardTitle>Confidence Calibration</CardTitle>
+        <CardTitle>Signal Performance Analysis</CardTitle>
         <CardDescription>
-          Predicted confidence vs actual win rate by confidence band
+          Historical win rate by signal count
           {selectedEngine && ` (${selectedEngine.toUpperCase()} engine)`}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-          <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-          <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
-            Lower confidence scores often perform BETTER - inverse relationship observed
-          </p>
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+          <Info className="h-4 w-4 text-cyan-500 mt-0.5 shrink-0" />
+          <div className="text-sm">
+            <p className="font-medium text-cyan-600 dark:text-cyan-400">
+              Signal Strength = How many indicators agree (not probability)
+            </p>
+            {engineEV && evValue !== null && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {selectedEngine?.toUpperCase()} Expected Value: <span className="font-mono font-bold">{formatExpectedValue(evValue)}</span> based on {engineEV.totalTrades} trades
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="h-80">
@@ -122,7 +139,7 @@ export default function ConfidenceCalibration({ selectedEngine }: ConfidenceCali
                 stroke="hsl(var(--muted-foreground))"
                 fontSize={12}
                 tickLine={false}
-                label={{ value: 'Confidence Band', position: 'insideBottom', offset: -5, style: { fill: 'hsl(var(--muted-foreground))' } }}
+                label={{ value: 'Signal Band', position: 'insideBottom', offset: -5, style: { fill: 'hsl(var(--muted-foreground))' } }}
               />
               <YAxis
                 stroke="hsl(var(--muted-foreground))"

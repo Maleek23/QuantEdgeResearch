@@ -1,8 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { TrendingUp, TrendingDown, Database, Sparkles } from "lucide-react";
+import { TrendingUp, TrendingDown, Database, Sparkles, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useDataIntelligence, getConfidenceBand } from "@/hooks/useDataIntelligence";
+import { useDataIntelligence } from "@/hooks/useDataIntelligence";
+import { getEngineExpectedValue } from "@shared/constants";
 
 interface HistoricalPerformanceBadgeProps {
   symbol: string;
@@ -29,10 +30,9 @@ export function HistoricalPerformanceBadge({
   
   const engineWinRate = lookup.engine[engine];
   const symbolData = lookup.symbol[symbol];
-  const band = confidenceScore ? getConfidenceBand(confidenceScore) : null;
-  const bandWinRate = band ? lookup.band[band] : null;
+  const evData = getEngineExpectedValue(engine);
   
-  const hasData = engineWinRate !== undefined || symbolData !== undefined || bandWinRate !== undefined;
+  const hasData = engineWinRate !== undefined || symbolData !== undefined || evData !== null;
   
   if (!hasData) {
     return null;
@@ -88,11 +88,14 @@ export function HistoricalPerformanceBadge({
                   </span>
                 </div>
               )}
-              {bandWinRate !== null && bandWinRate !== undefined && band && (
+              {evData && (
                 <div className="flex justify-between gap-4">
-                  <span className="text-muted-foreground">{band} Confidence:</span>
-                  <span className={cn("font-bold", getWinRateColor(bandWinRate).split(' ')[0])}>
-                    {bandWinRate.toFixed(1)}% actual
+                  <span className="text-muted-foreground">Expected Value:</span>
+                  <span className={cn(
+                    "font-bold font-mono",
+                    evData.ev >= 0.02 ? "text-green-400" : evData.ev >= 0 ? "text-cyan-400" : "text-red-400"
+                  )}>
+                    {evData.formatted}
                   </span>
                 </div>
               )}
@@ -162,24 +165,26 @@ export function HistoricalPerformanceBadge({
         </Tooltip>
       )}
       
-      {bandWinRate !== null && bandWinRate !== undefined && band && (
+      {evData && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Badge 
               variant="outline" 
               className={cn(
-                "text-[10px] h-5 font-semibold cursor-help",
-                getWinRateColor(bandWinRate)
+                "text-[10px] h-5 font-semibold cursor-help font-mono",
+                evData.ev >= 0.02 ? "text-green-400 bg-green-500/10 border-green-500/30" :
+                evData.ev >= 0 ? "text-cyan-400 bg-cyan-500/10 border-cyan-500/30" :
+                "text-red-400 bg-red-500/10 border-red-500/30"
               )}
-              data-testid={`badge-band-winrate-${band}`}
+              data-testid={`badge-expected-value-${engine}`}
             >
-              <Database className="h-2.5 w-2.5 mr-0.5" />
-              {band}: {bandWinRate.toFixed(0)}%
+              <DollarSign className="h-2.5 w-2.5 mr-0.5" />
+              {evData.formatted}
             </Badge>
           </TooltipTrigger>
           <TooltipContent>
             <p className="text-xs">
-              {band} confidence band actual win rate (vs predicted)
+              Expected return per $1 risked based on {evData.data.totalTrades} {engine} engine trades
             </p>
           </TooltipContent>
         </Tooltip>

@@ -235,11 +235,11 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
           </div>
         )}
 
-        {/* Confidence Score Breakdown */}
+        {/* Signal Strength Breakdown (Honest, not misleading) */}
         <div className="pt-3 border-t">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-muted-foreground">Confidence Breakdown</span>
-            <span className="text-sm font-bold">{idea.confidenceScore}/100</span>
+            <span className="text-sm font-medium text-muted-foreground">Signal Strength</span>
+            <span className="text-sm font-bold">{idea.qualitySignals?.length || 0} signals</span>
           </div>
           {idea.qualitySignals && idea.qualitySignals.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
@@ -255,6 +255,9 @@ export function ExplainabilityPanel({ idea }: ExplainabilityPanelProps) {
               ))}
             </div>
           )}
+          <p className="text-[10px] text-muted-foreground mt-2">
+            Shows how many indicators agree, not probability of success.
+          </p>
         </div>
 
         {/* Data Source Attribution */}
