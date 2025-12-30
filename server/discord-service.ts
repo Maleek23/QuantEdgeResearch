@@ -434,10 +434,11 @@ export async function sendChartAnalysisToDiscord(analysis: {
 }): Promise<boolean> {
   if (DISCORD_DISABLED) return false;
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  // Use dedicated chart analysis webhook, fall back to general webhook
+  const webhookUrl = process.env.DISCORD_WEBHOOK_CHARTANALYSIS || process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
-    logger.info('⚠️ Discord webhook URL not configured - skipping chart analysis alert');
+    logger.info('⚠️ DISCORD_WEBHOOK_CHARTANALYSIS not configured - skipping chart analysis alert');
     return false;
   }
   
