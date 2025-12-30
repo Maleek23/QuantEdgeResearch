@@ -201,3 +201,40 @@ Each blog card uses gradient backgrounds and icons instead of images:
 - Featured article spotlight
 - Gradient visual cards with lucide-react icons
 - Topic sections for different skill levels
+
+## Real-time Pricing Service (Dec 2025)
+
+### Unified Pricing Architecture
+`server/realtime-pricing-service.ts` consolidates all asset types with provider-specific fallbacks:
+- **Stocks**: Tradier (primary) → Yahoo Finance (fallback) - 10s cache TTL
+- **Crypto**: CoinGecko with rate limit handling - 30s cache TTL + 5min fallback cache
+- **Options**: Tradier OCC symbol lookup - 15s cache TTL
+- **Futures**: Yahoo Finance - 5s cache TTL
+
+### API Endpoints
+- `GET /api/realtime-quote/:symbol` - Single quote with asset type detection
+- `POST /api/realtime-quotes/batch` - Batch quotes for multiple symbols
+
+### Rate Limit Handling
+- CoinGecko 429 errors trigger 60s backoff
+- Cached prices (up to 5 minutes old) returned as fallback
+- Prevents empty crypto data during rate limiting
+
+## Markets Page (Dec 2025)
+
+### Overview
+Route: `/markets` - Real-time pricing dashboard for stocks, crypto, and options.
+
+### Features
+- **Stocks Tab**: Live quotes for AAPL, MSFT, GOOGL, AMZN, NVDA, META, TSLA, AMD, NFLX, COIN
+- **Crypto Tab**: Live quotes for BTC, ETH, SOL, DOGE, XRP, ADA, AVAX, LINK
+- **Options Tab**: OCC symbol lookup for specific option contracts
+- Market session indicator (Pre-Market, Regular Hours, After-Hours, Closed)
+- Auto-refresh every 10 seconds
+- Glass card UI with price change highlighting
+
+### Data Flow
+1. Frontend makes POST request to `/api/realtime-quotes/batch`
+2. Backend checks unified cache, fetches fresh data if expired
+3. Returns quotes keyed by raw symbol (e.g., "AAPL", "BTC")
+4. Frontend maps quotes to display cards
