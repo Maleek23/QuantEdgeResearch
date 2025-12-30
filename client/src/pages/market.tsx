@@ -115,11 +115,11 @@ export default function MarketPage() {
 
       {/* Market Summary Cards - Glassmorphism */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="glass-card rounded-xl p-5 border-l-2 border-l-cyan-500">
+        <div className="stat-glass rounded-xl p-5 border-l-2 border-l-cyan-500">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Tracked Assets</p>
-              <p className="text-3xl font-bold font-mono tracking-tight text-cyan-400" data-testid="text-total-assets">{marketData.length}</p>
+              <p className="text-3xl font-bold font-mono tracking-tight text-cyan-400 stat-text" data-testid="text-total-assets">{marketData.length}</p>
             </div>
             <div className="h-10 w-10 rounded-lg glass flex items-center justify-center">
               <Activity className="h-5 w-5" />
@@ -130,11 +130,11 @@ export default function MarketPage() {
           </p>
         </div>
 
-        <div className={`glass-card rounded-xl p-5 ${avgChange >= 0 ? 'border-l-2 border-l-green-500' : 'border-l-2 border-l-red-500'}`}>
+        <div className={`stat-glass rounded-xl p-5 ${avgChange >= 0 ? 'border-l-2 border-l-green-500' : 'border-l-2 border-l-red-500'}`}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Market Sentiment</p>
-              <p className={`text-3xl font-bold font-mono tracking-tight ${avgChange >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-avg-change">
+              <p className={`text-3xl font-bold font-mono tracking-tight stat-text ${avgChange >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-avg-change">
                 {avgChange >= 0 ? '+' : ''}{avgChange.toFixed(2)}%
               </p>
             </div>
@@ -147,11 +147,11 @@ export default function MarketPage() {
           </p>
         </div>
 
-        <div className="glass-card rounded-xl p-5 border-l-2 border-l-amber-500">
+        <div className="stat-glass rounded-xl p-5 border-l-2 border-l-amber-500">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Total Volume</p>
-              <p className="text-3xl font-bold font-mono tracking-tight text-amber-400" data-testid="text-total-volume">
+              <p className="text-3xl font-bold font-mono tracking-tight text-amber-400 stat-text" data-testid="text-total-volume">
                 {totalVolume >= 1e9 ? `${(totalVolume / 1e9).toFixed(1)}B` : `${(totalVolume / 1e6).toFixed(1)}M`}
               </p>
             </div>
@@ -164,11 +164,11 @@ export default function MarketPage() {
           </p>
         </div>
 
-        <div className="glass-card rounded-xl p-5 border-l-2 border-l-cyan-500">
+        <div className="stat-glass rounded-xl p-5 border-l-2 border-l-cyan-500">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Active Catalysts</p>
-              <p className="text-3xl font-bold font-mono tracking-tight text-cyan-400" data-testid="text-catalyst-count">{catalysts.length}</p>
+              <p className="text-3xl font-bold font-mono tracking-tight text-cyan-400 stat-text" data-testid="text-catalyst-count">{catalysts.length}</p>
             </div>
             <div className="h-10 w-10 rounded-lg bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center">
               <Activity className="h-5 w-5 text-cyan-400" />

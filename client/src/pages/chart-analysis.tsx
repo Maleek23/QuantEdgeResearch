@@ -24,6 +24,7 @@ import { TierGate } from "@/components/tier-gate";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 function ConfidenceGauge({ value, sentiment }: { value: number; sentiment: "bullish" | "bearish" | "neutral" }) {
   const color = sentiment === "bullish" ? "#22c55e" : sentiment === "bearish" ? "#ef4444" : "#f59e0b";
@@ -64,7 +65,10 @@ function ConfidenceGauge({ value, sentiment }: { value: number; sentiment: "bull
         <circle cx="50" cy="50" r="3" fill={color} />
       </svg>
       <div className="text-center mt-1">
-        <span className="text-xl font-bold" style={{ color }} data-testid="text-confidence-value">{value}%</span>
+        <span className={cn(
+          "text-xl font-bold stat-text",
+          sentiment === "bullish" ? "text-green-400" : sentiment === "bearish" ? "text-red-400" : "text-amber-400"
+        )} data-testid="text-confidence-value">{value}%</span>
       </div>
     </div>
   );
@@ -113,9 +117,9 @@ function PriceRangeBar({ entry, target, stop, sentiment }: {
         />
       </div>
       <div className="flex justify-between text-xs">
-        <span className="text-red-500" data-testid="text-range-stop">Stop ${stop.toFixed(2)}</span>
+        <span className="text-red-400" data-testid="text-range-stop">Stop ${stop.toFixed(2)}</span>
         <span className="text-primary font-medium" data-testid="text-range-entry">Entry ${entry.toFixed(2)}</span>
-        <span className="text-green-500" data-testid="text-range-target">Target ${target.toFixed(2)}</span>
+        <span className="text-green-400" data-testid="text-range-target">Target ${target.toFixed(2)}</span>
       </div>
     </div>
   );
@@ -174,7 +178,10 @@ function TrendArrow({ sentiment, confidence, gainPercent }: {
         )}
       </svg>
       <div className="text-right flex-1">
-        <span className="text-2xl font-bold block" style={{ color }} data-testid="text-expected-move">
+        <span className={cn(
+          "text-2xl font-bold block stat-text",
+          isBullish ? "text-green-400" : isBearish ? "text-red-400" : "text-muted-foreground"
+        )} data-testid="text-expected-move">
           {isBullish ? "+" : isBearish ? "-" : "±"}{Math.abs(gainPercent).toFixed(1)}%
         </span>
         <p className="text-xs text-muted-foreground">Expected</p>
@@ -268,9 +275,9 @@ function PredictedPathChart({
         <circle cx="15" cy={entryY} r="3" fill="#22d3ee" />
         <circle cx="90" cy={targetY} r="3" fill={pathColor} />
         
-        <text x="97" y={stopY + 1} className="text-[6px] fill-red-500" textAnchor="start">Stop</text>
+        <text x="97" y={stopY + 1} className="text-[6px] fill-red-400" textAnchor="start">Stop</text>
         <text x="97" y={entryY + 1} className="text-[6px] fill-cyan-400" textAnchor="start">Entry</text>
-        <text x="97" y={targetY + 1} className="text-[6px] fill-green-500" textAnchor="start">Target</text>
+        <text x="97" y={targetY + 1} className="text-[6px] fill-green-400" textAnchor="start">Target</text>
       </svg>
       
       <div className="flex justify-between text-xs">
@@ -300,9 +307,9 @@ function SignalMeter({ signals }: { signals: Array<{ signal: string; strength: n
   return (
     <div className="space-y-2" data-testid="visual-signal-meter">
       <div className="flex justify-between text-xs">
-        <span className="text-red-500 font-medium">Bears</span>
+        <span className="text-red-400 font-medium">Bears</span>
         <span className="text-muted-foreground">Signal Balance</span>
-        <span className="text-green-500 font-medium">Bulls</span>
+        <span className="text-green-400 font-medium">Bulls</span>
       </div>
       <div className="relative h-4 bg-muted/30 rounded-full overflow-hidden flex" role="img" aria-label={`Signal balance: ${bullishPercent.toFixed(0)}% bullish`}>
         <div 
@@ -431,9 +438,9 @@ function AnalysisTypeCard({
 
 function QuickStatCard({ label, value, icon: Icon }: { label: string; value: string | number; icon: any }) {
   return (
-    <div className="glass-card rounded-xl p-4 text-center">
+    <div className="glass-card stat-glass rounded-xl p-4 text-center">
       <Icon className="h-5 w-5 text-cyan-400 mx-auto mb-2" />
-      <p className="text-xl font-bold">{value}</p>
+      <p className="text-xl font-bold stat-text">{value}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );
@@ -909,7 +916,17 @@ export default function ChartAnalysis() {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <QuickStatCard label="Charts Analyzed" value={perfStats?.overall?.totalIdeas || 0} icon={BarChart3} />
-        <QuickStatCard label="Win Rate" value={`${Math.min((perfStats?.overall?.winRate || 58), 58).toFixed(0)}%`} icon={Trophy} />
+        <div className="glass-card stat-glass rounded-xl p-4 text-center">
+          <Trophy className="h-5 w-5 text-cyan-400 mx-auto mb-2" />
+          <p className={cn(
+            "text-xl font-bold stat-text",
+            (perfStats?.overall?.winRate || 58) >= 60 ? "text-green-400" : 
+            (perfStats?.overall?.winRate || 58) >= 50 ? "text-amber-400" : "text-red-400"
+          )}>
+            {`${Math.min((perfStats?.overall?.winRate || 58), 58).toFixed(0)}%`}
+          </p>
+          <p className="text-xs text-muted-foreground">Win Rate</p>
+        </div>
         <QuickStatCard label="Analysis Mode" value={analysisMode === "day" ? "Day Trade" : "Swing"} icon={Brain} />
         <QuickStatCard label="Pattern Detection" value="Active" icon={Target} />
       </div>
@@ -1154,18 +1171,23 @@ export default function ChartAnalysis() {
                         "bg-amber-500/10"
                       }`}>
                         {analysisResult.sentiment === "bullish" ? (
-                          <TrendingUp className="h-6 w-6 text-green-500" />
+                          <TrendingUp className="h-6 w-6 text-green-400" />
                         ) : analysisResult.sentiment === "bearish" ? (
-                          <TrendingDown className="h-6 w-6 text-red-500" />
+                          <TrendingDown className="h-6 w-6 text-red-400" />
                         ) : (
-                          <Activity className="h-6 w-6 text-amber-500" />
+                          <Activity className="h-6 w-6 text-amber-400" />
                         )}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-lg">{symbol}</span>
                           <Badge variant="secondary" className="text-[10px]">{timeframe}</Badge>
-                          <Badge variant={analysisResult.sentiment === "bullish" ? "default" : analysisResult.sentiment === "bearish" ? "destructive" : "secondary"} className="text-[10px]">
+                          <Badge variant={analysisResult.sentiment === "bullish" ? "default" : analysisResult.sentiment === "bearish" ? "destructive" : "secondary"} className={cn(
+                            "text-[10px]",
+                            analysisResult.sentiment === "bullish" ? "bg-green-500/10 text-green-400 border-green-500/30" :
+                            analysisResult.sentiment === "bearish" ? "bg-red-500/10 text-red-400 border-red-500/30" :
+                            "bg-muted/10 text-muted-foreground border-muted/30"
+                          )}>
                             {analysisResult.sentiment.toUpperCase()}
                           </Badge>
                         </div>
@@ -1202,35 +1224,35 @@ export default function ChartAnalysis() {
               {/* Price Levels Card */}
               <div className="glass-card rounded-xl p-4">
                 <div className="grid grid-cols-4 gap-3">
-                  <div className="text-center p-3 rounded-lg bg-muted/30">
+                  <div className="text-center p-3 rounded-lg bg-muted/30 stat-glass">
                     <p className="text-xs text-muted-foreground mb-1">Entry</p>
-                    <p className="text-lg font-bold font-mono" data-testid="text-entry-point">
+                    <p className="text-lg font-bold font-mono stat-text" data-testid="text-entry-point">
                       ${analysisResult.entryPoint.toFixed(2)}
                     </p>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-green-500/10">
+                  <div className="text-center p-3 rounded-lg bg-green-500/10 stat-glass">
                     <p className="text-xs text-muted-foreground mb-1">Target</p>
-                    <p className="text-lg font-bold font-mono text-green-500" data-testid="text-target-price">
+                    <p className="text-lg font-bold font-mono text-green-400 stat-text" data-testid="text-target-price">
                       ${analysisResult.targetPrice.toFixed(2)}
                     </p>
-                    <p className="text-xs text-green-500 flex items-center justify-center gap-0.5">
+                    <p className="text-xs text-green-400 flex items-center justify-center gap-0.5">
                       <ArrowUpRight className="h-3 w-3" />
                       +{calculateGainPercent().toFixed(1)}%
                     </p>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-red-500/10">
+                  <div className="text-center p-3 rounded-lg bg-red-500/10 stat-glass">
                     <p className="text-xs text-muted-foreground mb-1">Stop</p>
-                    <p className="text-lg font-bold font-mono text-red-500" data-testid="text-stop-loss">
+                    <p className="text-lg font-bold font-mono text-red-400 stat-text" data-testid="text-stop-loss">
                       ${analysisResult.stopLoss.toFixed(2)}
                     </p>
-                    <p className="text-xs text-red-500 flex items-center justify-center gap-0.5">
+                    <p className="text-xs text-red-400 flex items-center justify-center gap-0.5">
                       <ArrowDownRight className="h-3 w-3" />
                       -{calculateRiskPercent().toFixed(1)}%
                     </p>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-cyan-500/10">
+                  <div className="text-center p-3 rounded-lg bg-cyan-500/10 stat-glass">
                     <p className="text-xs text-muted-foreground mb-1">R:R</p>
-                    <p className="text-lg font-bold font-mono text-cyan-400" data-testid="text-risk-reward">
+                    <p className="text-lg font-bold font-mono text-cyan-400 stat-text" data-testid="text-risk-reward">
                       {analysisResult.riskRewardRatio.toFixed(1)}:1
                     </p>
                   </div>
@@ -1289,7 +1311,7 @@ export default function ChartAnalysis() {
                           <div className="text-center" data-testid="patterns-indicator">
                             <div className="flex items-center justify-center gap-1.5 mb-1">
                               <Target className="h-4 w-4 text-cyan-400" />
-                              <span className="text-lg font-bold text-foreground">
+                              <span className="text-lg font-bold text-foreground stat-text">
                                 {analysisResult.patterns.length}
                               </span>
                             </div>
@@ -1303,7 +1325,7 @@ export default function ChartAnalysis() {
                           <div className="text-center" data-testid="validity-indicator">
                             <div className="flex items-center justify-center gap-1.5 mb-1">
                               <Clock className="h-4 w-4 text-amber-500" />
-                              <span className="text-lg font-bold text-foreground" data-testid="text-validity-duration">
+                              <span className="text-lg font-bold text-foreground stat-text" data-testid="text-validity-duration">
                                 {getAnalysisValidity(timeframe).duration}
                               </span>
                             </div>
@@ -1366,7 +1388,12 @@ export default function ChartAnalysis() {
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-medium">{signal.name}</span>
-                              <Badge variant={signal.signal === "bullish" ? "default" : signal.signal === "bearish" ? "destructive" : "secondary"} className="text-[10px]">
+                              <Badge variant={signal.signal === "bullish" ? "default" : signal.signal === "bearish" ? "destructive" : "secondary"} className={cn(
+                                "text-[10px]",
+                                signal.signal === "bullish" ? "bg-green-500/10 text-green-400 border-green-500/30" :
+                                signal.signal === "bearish" ? "bg-red-500/10 text-red-400 border-red-500/30" :
+                                "bg-muted/10 text-muted-foreground border-muted/30"
+                              )}>
                                 {signal.signal}
                               </Badge>
                             </div>
@@ -1388,28 +1415,28 @@ export default function ChartAnalysis() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Shield className="h-3 w-3 text-green-500" />
+                            <Shield className="h-3 w-3 text-green-400" />
                             Support Levels
                           </Label>
                           <div className="space-y-1">
                             {analysisResult.supportLevels.map((level, i) => (
                               <div key={i} className="flex items-center justify-between p-2 rounded bg-green-500/10">
                                 <span className="text-xs text-muted-foreground">S{i + 1}</span>
-                                <span className="font-mono text-sm text-green-500">${level.toFixed(2)}</span>
+                                <span className="font-mono text-sm text-green-400">${level.toFixed(2)}</span>
                               </div>
                             ))}
                           </div>
                         </div>
                         <div className="space-y-2">
                           <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Target className="h-3 w-3 text-red-500" />
+                            <Target className="h-3 w-3 text-red-400" />
                             Resistance Levels
                           </Label>
                           <div className="space-y-1">
                             {analysisResult.resistanceLevels.map((level, i) => (
                               <div key={i} className="flex items-center justify-between p-2 rounded bg-red-500/10">
                                 <span className="text-xs text-muted-foreground">R{i + 1}</span>
-                                <span className="font-mono text-sm text-red-500">${level.toFixed(2)}</span>
+                                <span className="font-mono text-sm text-red-400">${level.toFixed(2)}</span>
                               </div>
                             ))}
                           </div>
@@ -1474,11 +1501,11 @@ export default function ChartAnalysis() {
                   Upload a chart screenshot and let AI + Quant engines identify patterns, levels, and trade setups.
                 </p>
                 <div className="flex justify-center gap-2">
-                  <Badge variant="secondary" className="text-[10px]">
+                  <Badge variant="secondary" className="text-[10px] bg-purple-500/10 text-purple-400 border-purple-500/30">
                     <Brain className="h-3 w-3 mr-1" />
                     AI Vision
                   </Badge>
-                  <Badge variant="secondary" className="text-[10px]">
+                  <Badge variant="secondary" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30">
                     <Calculator className="h-3 w-3 mr-1" />
                     Quant Engine
                   </Badge>

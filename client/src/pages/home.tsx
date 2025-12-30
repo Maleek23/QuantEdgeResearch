@@ -24,6 +24,7 @@ import {
   Percent
 } from "lucide-react";
 import { format, parseISO, isSameDay, subHours } from "date-fns";
+import { cn } from "@/lib/utils";
 import { getPerformanceGrade } from "@/lib/performance-grade";
 import { isRealLoss } from "@shared/constants";
 
@@ -78,6 +79,15 @@ export default function HomePage() {
   const weeklyPnL = thisWeekIdeas.reduce((sum, i) => sum + (i.realizedPnL || 0), 0);
   const goalProgress = Math.min((weeklyPnL / weeklyGoal) * 100, 100);
   const activeCount = tradeIdeas.filter(i => (i.outcomeStatus || '').toLowerCase() === 'open').length;
+
+  const getEngineColor = (source: string) => {
+    const s = source?.toLowerCase();
+    if (s?.includes('flow')) return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30';
+    if (s?.includes('ai')) return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+    if (s?.includes('quant')) return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+    if (s?.includes('hybrid')) return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+    return 'bg-white/10 text-muted-foreground';
+  };
 
   if (isLoading) {
     return (
@@ -142,15 +152,26 @@ export default function HomePage() {
       {/* Stats Grid - Glassmorphism */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
         {/* Weekly P&L */}
-        <div className={`glass-card rounded-xl p-5 ${weeklyPnL >= 0 ? 'border-l-2 border-l-green-500' : 'border-l-2 border-l-red-500'}`}>
+        <div className={cn(
+          "stat-glass rounded-xl p-5 border-l-2 transition-all",
+          weeklyPnL > 0 ? "border-l-green-500" : weeklyPnL < 0 ? "border-l-red-500" : "border-l-muted"
+        )}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Weekly P&L</p>
-              <p className={`text-3xl font-bold font-mono tracking-tight ${weeklyPnL >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-weekly-pnl">
-                {weeklyPnL >= 0 ? '+' : ''}${Math.abs(weeklyPnL).toFixed(0)}
-              </p>
+              <div className="stat-glass rounded-lg px-2 -ml-2 py-1">
+                <p className={cn(
+                  "text-3xl font-bold font-mono tracking-tight stat-text",
+                  weeklyPnL > 0 ? "text-green-400" : weeklyPnL < 0 ? "text-red-400" : "text-muted-foreground"
+                )} data-testid="text-weekly-pnl">
+                  {weeklyPnL > 0 ? '+' : ''}${Math.abs(weeklyPnL).toFixed(0)}
+                </p>
+              </div>
             </div>
-            <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${weeklyPnL >= 0 ? 'glass-success' : 'glass-danger'}`}>
+            <div className={cn(
+              "h-10 w-10 rounded-lg flex items-center justify-center transition-colors",
+              weeklyPnL > 0 ? "glass-success" : weeklyPnL < 0 ? "glass-danger" : "glass"
+            )}>
               <DollarSign className="h-5 w-5" />
             </div>
           </div>
@@ -161,7 +182,10 @@ export default function HomePage() {
             </div>
             <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div 
-                className={`h-full rounded-full transition-all duration-700 ${weeklyPnL >= 0 ? 'bg-green-500' : 'bg-red-500'}`}
+                className={cn(
+                  "h-full rounded-full transition-all duration-700",
+                  weeklyPnL > 0 ? "bg-green-500" : weeklyPnL < 0 ? "bg-red-500" : "bg-muted"
+                )}
                 style={{ width: `${Math.max(0, goalProgress)}%` }}
               />
             </div>
@@ -169,15 +193,26 @@ export default function HomePage() {
         </div>
 
         {/* Win Rate */}
-        <div className="glass-card rounded-xl p-5 border-l-2 border-l-cyan-500">
+        <div className={cn(
+          "stat-glass rounded-xl p-5 border-l-2 transition-all",
+          winRate >= 60 ? "border-l-green-500" : winRate >= 50 ? "border-l-amber-500" : "border-l-red-500"
+        )}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Win Rate</p>
-              <p className="text-3xl font-bold font-mono tracking-tight text-cyan-400" data-testid="text-win-rate">
-                {winRate.toFixed(0)}%
-              </p>
+              <div className="stat-glass rounded-lg px-2 -ml-2 py-1">
+                <p className={cn(
+                  "text-3xl font-bold font-mono tracking-tight stat-text",
+                  winRate >= 60 ? "text-green-400" : winRate >= 50 ? "text-amber-400" : "text-red-400"
+                )} data-testid="text-win-rate">
+                  {winRate.toFixed(0)}%
+                </p>
+              </div>
             </div>
-            <div className="h-10 w-10 rounded-lg glass flex items-center justify-center">
+            <div className={cn(
+              "h-10 w-10 rounded-lg flex items-center justify-center transition-colors",
+              winRate >= 60 ? "glass-success" : winRate >= 50 ? "glass-warning" : "glass-danger"
+            )}>
               <Percent className="h-5 w-5" />
             </div>
           </div>
@@ -187,16 +222,18 @@ export default function HomePage() {
         </div>
 
         {/* Active Ideas */}
-        <div className="glass-card rounded-xl p-5 border-l-2 border-l-amber-500">
+        <div className="stat-glass rounded-xl p-5 border-l-2 border-l-purple-500">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Active Ideas</p>
-              <p className="text-3xl font-bold font-mono tracking-tight text-amber-400" data-testid="text-active-ideas">
-                {activeCount}
-              </p>
+              <div className="stat-glass rounded-lg px-2 -ml-2 py-1">
+                <p className="text-3xl font-bold font-mono tracking-tight text-purple-400 stat-text" data-testid="text-active-ideas">
+                  {activeCount}
+                </p>
+              </div>
             </div>
-            <div className="h-10 w-10 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
-              <BarChart3 className="h-5 w-5 text-amber-400" />
+            <div className="h-10 w-10 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center">
+              <BarChart3 className="h-5 w-5 text-purple-400" />
             </div>
           </div>
           <p className="text-sm text-muted-foreground mt-4">
@@ -269,14 +306,21 @@ export default function HomePage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="font-bold text-lg tracking-tight">{idea.symbol}</span>
+                            <span className={cn(
+                              "text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider",
+                              getEngineColor(idea.source || '')
+                            )}>
+                              {idea.source || 'HYBRID'}
+                            </span>
                             <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-muted-foreground">
                               {idea.assetType}
                             </span>
-                            <span className={`text-xs px-2 py-0.5 rounded font-semibold ${
-                              grade.grade === 'A+' || grade.grade === 'A' 
+                            <span className={cn(
+                              "text-xs px-2 py-0.5 rounded font-semibold",
+                              (grade.grade === 'A+' || grade.grade === 'A')
                                 ? 'bg-green-500/20 text-green-400' 
                                 : 'bg-white/10 text-muted-foreground'
-                            }`}>
+                            )}>
                               {grade.grade}
                             </span>
                           </div>

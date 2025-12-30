@@ -215,30 +215,30 @@ type EngineKey = keyof typeof ENGINE_CONFIG;
 
 function getWinRateColor(winRate: number | null): string {
   if (winRate === null) return "text-muted-foreground";
-  if (winRate >= 60) return "text-green-500";
-  if (winRate >= 50) return "text-yellow-500";
-  return "text-red-500";
+  if (winRate >= 60) return "text-green-400";
+  if (winRate >= 50) return "text-amber-400";
+  return "text-red-400";
 }
 
 function getSeverityIcon(severity: string) {
   switch (severity) {
     case "critical":
-      return <AlertCircle className="h-4 w-4 text-red-500" />;
+      return <AlertCircle className="h-4 w-4 text-red-400" />;
     case "warning":
-      return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+      return <AlertTriangle className="h-4 w-4 text-amber-400" />;
     default:
-      return <Info className="h-4 w-4 text-blue-500" />;
+      return <Info className="h-4 w-4 text-blue-400" />;
   }
 }
 
 function getSeverityBadgeClass(severity: string): string {
   switch (severity) {
     case "critical":
-      return "bg-red-500/20 text-red-400 border-red-500/30";
+      return "bg-red-400/20 text-red-400 border-red-400/30";
     case "warning":
-      return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+      return "bg-amber-400/20 text-amber-400 border-amber-400/30";
     default:
-      return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+      return "bg-blue-400/20 text-blue-400 border-blue-400/30";
   }
 }
 
@@ -315,7 +315,7 @@ function EngineSummaryCard({
             <p
               className={cn(
                 "text-lg font-mono font-bold",
-                expectancy !== null && expectancy > 0 ? "text-green-500" : expectancy !== null && expectancy < 0 ? "text-red-500" : "text-muted-foreground"
+                expectancy !== null && expectancy > 0 ? "text-green-400" : expectancy !== null && expectancy < 0 ? "text-red-400" : "text-muted-foreground"
               )}
               data-testid={`text-expectancy-${engineKey}`}
             >
@@ -361,7 +361,7 @@ function HealthAlertsSection({
     return (
       <div className="glass-card rounded-xl p-4" data-testid="card-alerts-empty">
         <div className="flex items-center gap-2 text-muted-foreground">
-          <CheckCircle className="h-5 w-5 text-green-500" />
+          <CheckCircle className="h-5 w-5 text-green-400" />
           <p>No active alerts. All engines are operating normally.</p>
         </div>
       </div>
@@ -387,10 +387,10 @@ function HealthAlertsSection({
               className={cn(
                 "flex items-start gap-3 p-3 rounded-lg border",
                 alert.severity === "critical"
-                  ? "border-red-500/30 bg-red-500/10"
+                  ? "border-red-400/30 bg-red-400/10"
                   : alert.severity === "warning"
-                  ? "border-yellow-500/30 bg-yellow-500/10"
-                  : "border-blue-500/30 bg-blue-500/10"
+                  ? "border-amber-400/30 bg-amber-400/10"
+                  : "border-blue-400/30 bg-blue-400/10"
               )}
               data-testid={`alert-item-${alert.id}`}
             >
@@ -423,7 +423,7 @@ function HealthAlertsSection({
                 </Button>
               )}
               {alert.acknowledged && (
-                <Badge variant="outline" className="text-xs text-green-500 border-green-500/30">
+                <Badge variant="outline" className="text-xs text-green-400 border-green-400/30">
                   <CheckCircle className="h-3 w-3 mr-1" />
                   Acknowledged
                 </Badge>

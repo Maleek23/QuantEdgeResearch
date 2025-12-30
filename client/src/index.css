@@ -314,6 +314,19 @@
   box-shadow: 0 6px 24px rgba(52, 199, 89, 0.25);
 }
 
+.glass-warning {
+  background: rgba(255, 159, 10, 0.20);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 159, 10, 0.30);
+  box-shadow: 0 4px 16px rgba(255, 159, 10, 0.15);
+}
+
+.glass-warning:hover {
+  background: rgba(255, 159, 10, 0.30);
+  box-shadow: 0 6px 24px rgba(255, 159, 10, 0.25);
+}
+
 .glass-card {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(20px);
