@@ -1645,6 +1645,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/futures/:symbol/research", async (req, res) => {
+    try {
+      const { generateFuturesResearch } = await import("./futures-research-service");
+      const brief = await generateFuturesResearch(req.params.symbol);
+      if (!brief) {
+        return res.status(404).json({ error: "Unable to generate research for this contract" });
+      }
+      res.json(brief);
+    } catch (error) {
+      logger.error(`Error generating futures research for ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to generate futures research" });
+    }
+  });
+
   app.get("/api/search-symbol/:symbol", async (req, res) => {
     try {
       const symbol = req.params.symbol.toUpperCase();
