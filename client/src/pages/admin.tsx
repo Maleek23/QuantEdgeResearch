@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Suspense, lazy } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,8 +37,11 @@ import {
   Edit,
   RefreshCw,
   Archive,
-  Gauge
+  Gauge,
+  TrendingDown
 } from "lucide-react";
+
+const LossPatternsDashboard = lazy(() => import("@/components/loss-patterns-dashboard").then(m => ({ default: m.LossPatternsDashboard })));
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -777,7 +780,7 @@ export default function AdminPanel() {
         <Card className="glass-card">
           <Tabs defaultValue="users" className="w-full">
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-7">
+              <TabsList className="grid w-full grid-cols-8">
                 <TabsTrigger value="users" data-testid="tab-users">
                   <Users className="h-4 w-4 mr-2" />
                   Users
@@ -785,6 +788,10 @@ export default function AdminPanel() {
                 <TabsTrigger value="system" data-testid="tab-system-health">
                   <Activity className="h-4 w-4 mr-2" />
                   System Health
+                </TabsTrigger>
+                <TabsTrigger value="loss-analysis" data-testid="tab-loss-analysis">
+                  <TrendingDown className="h-4 w-4 mr-2" />
+                  Loss Analysis
                 </TabsTrigger>
                 <TabsTrigger value="alerts" data-testid="tab-alerts">
                   <AlertCircle className="h-4 w-4 mr-2" />
@@ -1005,6 +1012,7 @@ export default function AdminPanel() {
                       <p className="text-sm">Checking AI providers...</p>
                     </div>
                   ) : (
+                    <>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       {['anthropic', 'openai', 'gemini'].map((provider) => {
                         const providerData = (aiProviderStatus as any)?.providers?.[provider];
@@ -1113,6 +1121,7 @@ export default function AdminPanel() {
                         )}
                       </div>
                     )}
+                    </>
                   )}
                 </div>
 
@@ -1359,6 +1368,30 @@ export default function AdminPanel() {
                     )}
                   </div>
                 </div>
+              </CardContent>
+            </TabsContent>
+
+            {/* Loss Analysis Tab */}
+            <TabsContent value="loss-analysis">
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <TrendingDown className="h-5 w-5 text-red-400" />
+                      Loss Pattern Analysis
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Analyze losing trades to identify patterns and improve future performance
+                    </p>
+                  </div>
+                </div>
+                <Suspense fallback={
+                  <div className="h-64 w-full animate-pulse bg-muted/30 rounded-lg flex items-center justify-center">
+                    <span className="text-muted-foreground text-sm">Loading loss analysis...</span>
+                  </div>
+                }>
+                  <LossPatternsDashboard />
+                </Suspense>
               </CardContent>
             </TabsContent>
 
