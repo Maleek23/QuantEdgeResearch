@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,9 +18,17 @@ import {
   BarChart3,
   DollarSign,
   Fuel,
-  Coins
+  Coins,
+  Brain,
+  Target,
+  ShieldAlert,
+  Sparkles,
+  ArrowUpRight,
+  ArrowDownRight,
+  Loader2
 } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
+import { apiRequest } from "@/lib/queryClient";
 
 interface FuturesQuote {
   symbol: string;
@@ -41,6 +49,32 @@ interface FuturesSymbolInfo {
   name: string;
   tickSize: number;
   pointValue: number;
+}
+
+interface FuturesResearchBrief {
+  symbol: string;
+  name: string;
+  currentPrice: number;
+  session: string;
+  generatedAt: string;
+  bias: 'bullish' | 'bearish' | 'neutral';
+  biasStrength: 'strong' | 'moderate' | 'weak';
+  keyLevels: {
+    resistance: number[];
+    support: number[];
+    pivot: number;
+  };
+  technicalSummary: string;
+  sessionContext: string;
+  catalysts: string[];
+  riskFactors: string[];
+  tradingIdea?: {
+    direction: 'long' | 'short';
+    entry: number;
+    target: number;
+    stop: number;
+    rationale: string;
+  };
 }
 
 const SESSION_LABELS: Record<string, { label: string; color: string; icon: any }> = {
@@ -137,6 +171,7 @@ function SessionIndicator({ session }: { session: string }) {
 export default function FuturesPage() {
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [researchBrief, setResearchBrief] = useState<FuturesResearchBrief | null>(null);
   
   const { data: quotes = [], isLoading, refetch, isFetching } = useQuery<FuturesQuote[]>({
     queryKey: ['/api/futures'],
@@ -145,6 +180,15 @@ export default function FuturesPage() {
   
   const { data: symbols = [] } = useQuery<FuturesSymbolInfo[]>({
     queryKey: ['/api/futures/symbols'],
+  });
+  
+  const researchMutation = useMutation({
+    mutationFn: async (symbol: string) => {
+      const response = await fetch(`/api/futures/${symbol}/research`);
+      if (!response.ok) throw new Error('Failed to generate research');
+      return response.json() as Promise<FuturesResearchBrief>;
+    },
+    onSuccess: (data) => setResearchBrief(data),
   });
   
   useEffect(() => {
@@ -164,7 +208,13 @@ export default function FuturesPage() {
   const currencyFutures = quotes.filter(q => ['6E', '6J'].includes(q.symbol));
   
   const handleCardClick = (symbol: string) => {
-    setSelectedSymbol(symbol === selectedSymbol ? null : symbol);
+    if (symbol === selectedSymbol) {
+      setSelectedSymbol(null);
+      setResearchBrief(null);
+    } else {
+      setSelectedSymbol(symbol);
+      setResearchBrief(null);
+    }
   };
   
   const selectedQuote = quotes.find(q => q.symbol === selectedSymbol);
@@ -301,7 +351,7 @@ export default function FuturesPage() {
 
       {selectedQuote && selectedInfo && (
         <Card className="glass-card" data-testid="card-futures-detail">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${selectedQuote.changePercent >= 0 ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
                 {CATEGORY_ICONS[selectedQuote.symbol] ? 
@@ -311,8 +361,21 @@ export default function FuturesPage() {
               </div>
               {selectedQuote.symbol} - {selectedQuote.name}
             </CardTitle>
+            <Button
+              onClick={() => researchMutation.mutate(selectedQuote.symbol)}
+              disabled={researchMutation.isPending}
+              className="gap-2"
+              data-testid="button-generate-research"
+            >
+              {researchMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Brain className="h-4 w-4" />
+              )}
+              {researchMutation.isPending ? 'Analyzing...' : 'AI Research'}
+            </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
               <div>
                 <div className="text-sm text-muted-foreground">Current Price</div>
@@ -350,7 +413,7 @@ export default function FuturesPage() {
               </div>
             </div>
             
-            <div className="mt-6 p-4 rounded-lg bg-muted/30 border border-border/50">
+            <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
               <h4 className="font-semibold mb-2">Quick Math</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -373,6 +436,117 @@ export default function FuturesPage() {
                 </div>
               </div>
             </div>
+
+            {researchBrief && researchBrief.symbol === selectedSymbol && (
+              <div className="space-y-4" data-testid="panel-futures-research">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-purple-400" />
+                    AI Research Brief
+                  </h4>
+                  <Badge 
+                    variant="outline" 
+                    className={
+                      researchBrief.bias === 'bullish' 
+                        ? 'border-green-500/30 text-green-400' 
+                        : researchBrief.bias === 'bearish' 
+                        ? 'border-red-500/30 text-red-400' 
+                        : 'border-yellow-500/30 text-yellow-400'
+                    }
+                    data-testid="badge-research-bias"
+                  >
+                    {researchBrief.bias === 'bullish' && <ArrowUpRight className="h-3 w-3 mr-1" />}
+                    {researchBrief.bias === 'bearish' && <ArrowDownRight className="h-3 w-3 mr-1" />}
+                    {researchBrief.biasStrength.toUpperCase()} {researchBrief.bias.toUpperCase()}
+                  </Badge>
+                </div>
+
+                <div className="p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                  <p className="text-sm" data-testid="text-technical-summary">{researchBrief.technicalSummary}</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="text-xs text-muted-foreground mb-1">Key Resistance</div>
+                    <div className="font-medium text-red-400">
+                      {researchBrief.keyLevels.resistance.map(r => '$' + r.toFixed(2)).join(', ')}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="text-xs text-muted-foreground mb-1">Pivot Point</div>
+                    <div className="font-medium text-yellow-400">${researchBrief.keyLevels.pivot.toFixed(2)}</div>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="text-xs text-muted-foreground mb-1">Key Support</div>
+                    <div className="font-medium text-green-400">
+                      {researchBrief.keyLevels.support.map(s => '$' + s.toFixed(2)).join(', ')}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                      <Target className="h-3 w-3 text-cyan-400" />
+                      Catalysts
+                    </div>
+                    <ul className="text-sm space-y-1">
+                      {researchBrief.catalysts.map((c, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-cyan-400 mt-0.5">•</span>
+                          {c}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                      <ShieldAlert className="h-3 w-3 text-orange-400" />
+                      Risk Factors
+                    </div>
+                    <ul className="text-sm space-y-1">
+                      {researchBrief.riskFactors.map((r, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-orange-400 mt-0.5">•</span>
+                          {r}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {researchBrief.tradingIdea && (
+                  <div className={`p-4 rounded-lg border ${researchBrief.tradingIdea.direction === 'long' ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Badge variant={researchBrief.tradingIdea.direction === 'long' ? 'default' : 'destructive'}>
+                        {researchBrief.tradingIdea.direction === 'long' ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
+                        {researchBrief.tradingIdea.direction.toUpperCase()}
+                      </Badge>
+                      <span className="text-sm font-medium">Trade Idea</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 mb-3 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Entry: </span>
+                        <span className="font-medium">${researchBrief.tradingIdea.entry.toFixed(2)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Target: </span>
+                        <span className="font-medium text-green-400">${researchBrief.tradingIdea.target.toFixed(2)}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Stop: </span>
+                        <span className="font-medium text-red-400">${researchBrief.tradingIdea.stop.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{researchBrief.tradingIdea.rationale}</p>
+                  </div>
+                )}
+
+                <div className="text-xs text-muted-foreground text-right">
+                  Generated: {new Date(researchBrief.generatedAt).toLocaleString()}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
