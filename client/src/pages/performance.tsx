@@ -33,6 +33,7 @@ const SymbolLeaderboard = lazy(() => import("@/components/symbol-leaderboard"));
 const TimeOfDayHeatmap = lazy(() => import("@/components/time-of-day-heatmap"));
 const EngineTrendsChart = lazy(() => import("@/components/engine-trends-chart"));
 const ConfidenceCalibration = lazy(() => import("@/components/confidence-calibration"));
+const CalibrationCurve = lazy(() => import("@/components/calibration-curve"));
 const StreakTracker = lazy(() => import("@/components/streak-tracker"));
 import { PerformanceLeaderboard } from "@/components/performance-leaderboard";
 
@@ -1274,6 +1275,16 @@ export default function PerformancePage() {
               </p>
               <Suspense fallback={<ChartSkeleton />}>
                 <ConfidenceCalibration selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
+              </Suspense>
+            </div>
+            
+            <div className="glass-card rounded-xl p-6">
+              <h2 className="text-xl font-semibold mb-2 text-cyan-400">Calibration Accuracy Curve</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Predicted confidence vs actual outcome - how accurate are our predictions?
+              </p>
+              <Suspense fallback={<ChartSkeleton />}>
+                <CalibrationCurve />
               </Suspense>
             </div>
           </div>
