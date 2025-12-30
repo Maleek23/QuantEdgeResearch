@@ -97,12 +97,17 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
         inline: true
       },
       {
-        name: '📋 Type',
-        value: idea.assetType === 'option' 
-          ? `${(idea.optionType || 'option').toUpperCase()}${idea.strikePrice ? ` $${idea.strikePrice}` : ''}${idea.expiryDate ? ` ${idea.expiryDate}` : ''}`
-          : idea.assetType === 'crypto' 
-            ? 'Crypto' 
-            : 'Shares',
+        name: '📶 Signals',
+        value: idea.qualitySignals?.length 
+          ? `${idea.qualitySignals.length}/5 indicators`
+          : '0 indicators',
+        inline: true
+      },
+      {
+        name: '⏱️ Trade Type',
+        value: idea.holdingPeriod === 'day' ? '🏃 Day Trade' : 
+               idea.holdingPeriod === 'swing' ? '📅 Swing Trade' : 
+               idea.holdingPeriod === 'position' ? '📊 Position Trade' : 'Day Trade',
         inline: true
       }
     ],
