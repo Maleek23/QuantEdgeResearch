@@ -1001,3 +1001,120 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
     logger.error('❌ Failed to send Discord daily summary:', error);
   }
 }
+
+/**
+ * 💰 Send Gains Notification to Discord
+ * Posts winning trades to the DISCORD_WEBHOOK_GAINS channel
+ */
+export async function sendGainsToDiscord(trade: {
+  symbol: string;
+  direction: 'long' | 'short';
+  assetType: string;
+  entryPrice: number;
+  exitPrice: number;
+  percentGain: number;
+  source?: string;
+  optionType?: string;
+  strikePrice?: number;
+  expiryDate?: string;
+  holdingPeriod?: string;
+}): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_GAINS;
+  
+  if (!webhookUrl) {
+    logger.info('⚠️ DISCORD_WEBHOOK_GAINS not configured - skipping gains alert');
+    return;
+  }
+  
+  try {
+    const gainEmoji = trade.percentGain >= 50 ? '🚀' : trade.percentGain >= 20 ? '🔥' : trade.percentGain >= 10 ? '💰' : '✅';
+    const sourceIcon = trade.source === 'ai' ? '🧠 AI' : 
+                       trade.source === 'quant' ? '✨ Quant' : 
+                       trade.source === 'hybrid' ? '🎯 Hybrid' : 
+                       trade.source === 'flow' ? '📊 Flow' :
+                       trade.source === 'lotto' ? '🎰 Lotto' : '📝 Manual';
+    
+    // Build asset label
+    let assetLabel: string;
+    if (trade.assetType === 'option') {
+      const optType = trade.optionType?.toUpperCase() || 'OPT';
+      const strike = trade.strikePrice ? `$${trade.strikePrice}` : '';
+      const exp = trade.expiryDate ? trade.expiryDate.substring(5).replace('-', '/') : '';
+      assetLabel = `${optType} ${strike} ${exp}`.trim();
+    } else if (trade.assetType === 'crypto') {
+      assetLabel = 'CRYPTO';
+    } else {
+      assetLabel = 'SHARES';
+    }
+    
+    // Calculate dollar gain (assuming $100 position for display)
+    const dollarGainPer100 = (trade.percentGain / 100) * 100;
+    
+    const embed: DiscordEmbed = {
+      title: `${gainEmoji} WINNER: ${trade.symbol} +${trade.percentGain.toFixed(1)}%`,
+      description: `**${assetLabel}**\n\n${sourceIcon} Signal Hit Target!`,
+      color: 0x22c55e, // Green
+      fields: [
+        {
+          name: '📥 Entry',
+          value: `$${trade.entryPrice.toFixed(2)}`,
+          inline: true
+        },
+        {
+          name: '📤 Exit',
+          value: `$${trade.exitPrice.toFixed(2)}`,
+          inline: true
+        },
+        {
+          name: '💵 Gain',
+          value: `+${trade.percentGain.toFixed(1)}%`,
+          inline: true
+        },
+        {
+          name: '💰 Per $100',
+          value: `+$${dollarGainPer100.toFixed(2)}`,
+          inline: true
+        },
+        {
+          name: '📊 Engine',
+          value: sourceIcon,
+          inline: true
+        },
+        {
+          name: '⏱️ Type',
+          value: trade.holdingPeriod === 'day' ? 'Day Trade' : 
+                 trade.holdingPeriod === 'swing' ? 'Swing' : 
+                 trade.holdingPeriod === 'position' ? 'Position' : 'Day Trade',
+          inline: true
+        }
+      ],
+      footer: {
+        text: 'QuantEdge Research • Paper Trading Results'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    const message: DiscordMessage = {
+      content: `${gainEmoji} **${trade.symbol}** hit target! **+${trade.percentGain.toFixed(1)}%** gain`,
+      embeds: [embed]
+    };
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+    
+    if (response.ok) {
+      logger.info(`✅ Discord gains alert sent: ${trade.symbol} +${trade.percentGain.toFixed(1)}%`);
+    } else {
+      logger.error(`❌ Discord gains webhook failed: ${response.status}`);
+    }
+  } catch (error) {
+    logger.error('❌ Failed to send Discord gains alert:', error);
+  }
+}

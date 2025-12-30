@@ -3,6 +3,7 @@ import { PerformanceValidator } from "./performance-validator";
 import { fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { getOptionQuote } from "./tradier-api";
 import { analyzeLoss } from "./loss-analyzer";
+import { sendGainsToDiscord } from "./discord-service";
 import type { TradeIdea, InsertTradePriceSnapshot, PriceSnapshotEventType } from "@shared/schema";
 
 /**
@@ -144,7 +145,29 @@ class PerformanceValidationService {
           validated++;
           const idea = openIdeas.find(i => i.id === ideaId);
           
-          if (result.outcomeStatus === 'hit_target') winners++;
+          if (result.outcomeStatus === 'hit_target') {
+            winners++;
+            // 💰 Send gains notification to Discord
+            if (idea && result.percentGain && result.percentGain > 0) {
+              try {
+                await sendGainsToDiscord({
+                  symbol: idea.symbol,
+                  direction: idea.direction as 'long' | 'short',
+                  assetType: idea.assetType,
+                  entryPrice: idea.entryPrice,
+                  exitPrice: result.exitPrice || idea.targetPrice,
+                  percentGain: result.percentGain,
+                  source: idea.source || undefined,
+                  optionType: idea.optionType || undefined,
+                  strikePrice: idea.strikePrice || undefined,
+                  expiryDate: idea.expiryDate || undefined,
+                  holdingPeriod: idea.holdingPeriod || undefined,
+                });
+              } catch (err) {
+                console.warn(`  ⚠️  Failed to send gains to Discord for ${idea.symbol}:`, err);
+              }
+            }
+          }
           else if (result.outcomeStatus === 'hit_stop') {
             losers++;
             // 📉 Automatic loss analysis - understand why this trade failed
