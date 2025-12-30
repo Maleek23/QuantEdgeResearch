@@ -996,7 +996,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Manual Auto-Generation Trigger (Admin Testing)
+  // Manual Auto-Generation Trigger (Admin Testing) - AI ideas
   app.post("/api/admin/trigger-auto-gen", requireAdmin, async (_req, res) => {
     try {
       const { autoIdeaGenerator } = await import('./auto-idea-generator');
@@ -1004,12 +1004,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const status = autoIdeaGenerator.getStatus();
       res.json({ 
         success: true, 
-        message: 'Auto-generation triggered manually',
+        message: 'AI auto-generation triggered manually',
         status 
       });
     } catch (error: any) {
       logger.error('Manual auto-gen trigger failed', { error });
       res.status(500).json({ error: error?.message || "Failed to trigger auto-generation" });
+    }
+  });
+
+  // Manual Quant Generation Trigger (Admin Testing)
+  app.post("/api/admin/trigger-quant", requireAdmin, async (_req, res) => {
+    try {
+      logger.info('📊 [QUANT-MANUAL] Manual quant generation triggered');
+      
+      // Fetch market data for quant analysis
+      const marketData = await storage.getAllMarketData();
+      const catalysts = await storage.getAllCatalysts();
+      
+      // Generate with skipTimeCheck=true for manual triggers
+      const quantIdeas = await generateQuantIdeas(marketData, catalysts, 8, storage, true);
+      
+      const savedIdeas = [];
+      for (const idea of quantIdeas) {
+        // Skip validation for manual trigger - we want to see what quant generates
+        const saved = await storage.createTradeIdea({
+          ...idea,
+          source: 'quant',
+          status: 'published',
+        });
+        savedIdeas.push(saved);
+      }
+      
+      res.json({ 
+        success: true, 
+        message: `Quant generation complete: ${savedIdeas.length} ideas saved`,
+        savedCount: savedIdeas.length,
+        ideas: savedIdeas.map(i => ({ symbol: i.symbol, direction: i.direction, assetType: i.assetType }))
+      });
+    } catch (error: any) {
+      logger.error('Manual quant trigger failed', { error });
+      res.status(500).json({ error: error?.message || "Failed to trigger quant generation" });
+    }
+  });
+
+  // Manual Hybrid Generation Trigger (Admin Testing)
+  app.post("/api/admin/trigger-hybrid", requireAdmin, async (_req, res) => {
+    try {
+      logger.info('🔀 [HYBRID-MANUAL] Manual hybrid generation triggered');
+      const { generateHybridIdeas } = await import('./ai-service');
+      const hybridIdeas = await generateHybridIdeas("Market conditions with quant + AI fusion - manual trigger");
+      
+      const savedIdeas = [];
+      for (const idea of hybridIdeas) {
+        // Ensure all required fields are present
+        const timestamp = new Date().toISOString();
+        const { entryPrice, targetPrice, stopLoss, direction } = idea;
+        const riskRewardRatio = direction === 'long'
+          ? (targetPrice - entryPrice) / (entryPrice - stopLoss)
+          : (entryPrice - targetPrice) / (stopLoss - entryPrice);
+        
+        const saved = await storage.createTradeIdea({
+          ...idea,
+          timestamp,
+          riskRewardRatio: Math.abs(riskRewardRatio),
+          source: 'hybrid',
+          status: 'published',
+        });
+        savedIdeas.push(saved);
+      }
+      
+      res.json({ 
+        success: true, 
+        message: `Hybrid generation complete: ${savedIdeas.length} ideas saved`,
+        savedCount: savedIdeas.length,
+        ideas: savedIdeas.map(i => ({ symbol: i.symbol, direction: i.direction, assetType: i.assetType }))
+      });
+    } catch (error: any) {
+      logger.error('Manual hybrid trigger failed', { error });
+      res.status(500).json({ error: error?.message || "Failed to trigger hybrid generation" });
+    }
+  });
+
+  // Manual Flow Scanner Trigger (Admin Testing)
+  app.post("/api/admin/trigger-flow", requireAdmin, async (_req, res) => {
+    try {
+      logger.info('📊 [FLOW-MANUAL] Manual flow scan triggered');
+      const flowIdeas = await scanUnusualOptionsFlow();
+      
+      res.json({ 
+        success: true, 
+        message: `Flow scan complete: ${flowIdeas.length} ideas generated`,
+        ideas: flowIdeas.map(i => ({ symbol: i.symbol, direction: i.direction, entryPrice: i.entryPrice, isLotto: (i as any).isLottoPlay }))
+      });
+    } catch (error: any) {
+      logger.error('Manual flow trigger failed', { error });
+      res.status(500).json({ error: error?.message || "Failed to trigger flow scan" });
     }
   });
 

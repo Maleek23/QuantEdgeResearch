@@ -930,6 +930,9 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
     riskProfile,
     researchHorizon,
     liquidityWarning: isPennyStock(ticker, currentPrice),
+    // 🔓 Flow is considered a catalyst (unusual activity = market signal)
+    // This allows 1.5:1 R:R minimum instead of 2:1 in validateTradeRisk
+    isNewsCatalyst: true,
   };
 }
 
