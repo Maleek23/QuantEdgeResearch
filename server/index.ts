@@ -480,6 +480,63 @@ app.use((req, res, next) => {
     
     log('📊 Quant Generator started - will generate ideas at 9:35 AM CT + 1:00 PM CT weekdays');
     
+    // ONE-TIME STARTUP TRIGGER: Generate quant ideas immediately on server start
+    // This ensures fresh ideas are available even outside scheduled times
+    (async () => {
+      try {
+        logger.info('🚀 [QUANT-STARTUP] Running one-time quant generation on server startup...');
+        
+        const { generateQuantIdeas } = await import('./quant-ideas-generator');
+        const { storage: quantStorage } = await import('./storage');
+        const marketData = await quantStorage.getAllMarketData();
+        const catalysts = await quantStorage.getAllCatalysts();
+        
+        // Generate 15 quant ideas across different sectors
+        const quantIdeas = await generateQuantIdeas(marketData, catalysts, 15, quantStorage, true);
+        
+        const savedIdeas = [];
+        const allExistingIdeas = await quantStorage.getAllTradeIdeas();
+        const existingOpenQuantSymbols = new Set(
+          allExistingIdeas
+            .filter((i: any) => i.outcomeStatus === 'open' && i.source === 'quant')
+            .map((i: any) => i.symbol.toUpperCase())
+        );
+        
+        for (const idea of quantIdeas) {
+          // Skip duplicates
+          if (existingOpenQuantSymbols.has(idea.symbol.toUpperCase())) {
+            logger.info(`⏭️  [QUANT-STARTUP] Skipped ${idea.symbol} - already has open quant trade`);
+            continue;
+          }
+          
+          // Options are quarantined for quant (performance was -99%)
+          if (idea.assetType === 'option') {
+            logger.warn(`🚫 [QUANT-STARTUP] Skipped ${idea.symbol} option - options quarantined`);
+            continue;
+          }
+          
+          const saved = await quantStorage.createTradeIdea({
+            ...idea,
+            source: 'quant',
+            status: 'open',
+          });
+          savedIdeas.push(saved);
+        }
+        
+        if (savedIdeas.length > 0) {
+          logger.info(`✅ [QUANT-STARTUP] Generated ${savedIdeas.length} fresh quant trade ideas on startup`);
+          const { sendBatchSummaryToDiscord } = await import('./discord-service');
+          sendBatchSummaryToDiscord(savedIdeas, 'quant').catch(err => 
+            logger.error('[QUANT-STARTUP] Discord notification failed:', err)
+          );
+        } else {
+          logger.warn('⚠️  [QUANT-STARTUP] No new quant ideas generated (may be filtered or duplicates)');
+        }
+      } catch (error: any) {
+        logger.error('🚀 [QUANT-STARTUP] Startup quant generation failed:', error);
+      }
+    })();
+    
     // Start automated news-driven trade generation (every 15 minutes during market hours)
     const { fetchBreakingNews, getNewsServiceStatus } = await import('./news-service');
     const { generateTradeIdeasFromNews } = await import('./ai-service');

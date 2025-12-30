@@ -313,9 +313,11 @@ async function analyzeMultiTimeframe(
 // - RSI divergence: 0% win rate in live testing (caught falling knives)
 // - Complex scoring: Research says keep it simple, rule-based
 function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantSignal | null {
-  // Require sufficient historical data for 200-day MA calculation
-  if (historicalPrices.length < 200) {
-    logger.info(`  ${data.symbol}: Insufficient data (${historicalPrices.length} days < 200 required)`);
+  // Require minimum 30 days of data for basic technical analysis
+  // (Previously required 200 but Tradier free tier only provides ~40 days)
+  const MIN_HISTORY_DAYS = 30;
+  if (historicalPrices.length < MIN_HISTORY_DAYS) {
+    logger.info(`  ${data.symbol}: Insufficient data (${historicalPrices.length} days < ${MIN_HISTORY_DAYS} required)`);
     return null;
   }
 
@@ -428,24 +430,15 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   }
   
   // 🆕 v3.2: SIGNAL CONFIDENCE VOTING - Modified for SHORT trades
-  // Research shows single signals have ~55-65% win rate, but 2+ signals = 70%+ win rate
-  // EXCEPTION: Allow single RSI(2) SHORT signals (high-conviction bearish setups)
-  const hasShortSignal = detectedSignals.includes('RSI2_SHORT_REVERSION');
-  const isHighConvictionShort = hasShortSignal && primarySignal?.strength === 'strong';
-  
-  if (detectedSignals.length < 2 && !isHighConvictionShort) {
-    if (detectedSignals.length === 1) {
-      logger.info(`  ${data.symbol}: Only 1 signal (${detectedSignals[0]}) - need 2+ for confidence (or high-conviction SHORT)`);
-    }
+  // Research shows single signals have ~55-65% win rate, but we need to generate trades
+  // RELAXED: Allow single signals to ensure idea generation (previously required 2+)
+  // We can still mark single-signal trades as lower confidence
+  if (detectedSignals.length === 0) {
     return null;
   }
   
-  // Log the signal agreement for transparency
-  if (isHighConvictionShort && detectedSignals.length === 1) {
-    logger.info(`  ${data.symbol}: ✅ HIGH-CONVICTION SHORT signal: ${detectedSignals[0]} (ADX ${adx.toFixed(1)}, RSI ${primarySignal?.rsiValue?.toFixed(1)})`);
-  } else {
-    logger.info(`  ${data.symbol}: ✅ ${detectedSignals.length} signals agree: ${detectedSignals.join(' + ')} (ADX ${adx.toFixed(1)})`);
-  }
+  // Log signal count for monitoring
+  logger.info(`  ${data.symbol}: ✅ ${detectedSignals.length} signal(s): ${detectedSignals.join(' + ')} (ADX ${adx.toFixed(1)})`);
   
   return primarySignal;
 }
@@ -948,11 +941,11 @@ export async function generateQuantIdeas(
     );
     const probabilityBand = getProbabilityBand(confidenceScore);
 
-    // 🚫 QUALITY FILTER: FINAL BALANCED filtering (v2.5.2) - Practical threshold
-    // Analysis: Even TSLA scores only 80.4 in current market, 92+ generates zero trades
-    // 1. Confidence score must be >= 85 (solid A grade) - generates SOME trades with quality
-    if (confidenceScore < 85) {
-      logger.info(`Filtered out ${getProbabilityBand(confidenceScore)}-grade idea for ${data.symbol} (score: ${confidenceScore}) - below solid A grade`);
+    // 🚫 QUALITY FILTER: RELAXED for idea generation
+    // v3.4: Confidence scores now range 45-65 (recalibrated from old 70-100 scale)
+    // Accept anything with confidence >= 50 (C+ or better) to ensure ideas are generated
+    if (confidenceScore < 50) {
+      logger.info(`Filtered out ${getProbabilityBand(confidenceScore)}-grade idea for ${data.symbol} (score: ${confidenceScore}) - below minimum threshold`);
       dataQuality.lowQuality++;
       continue;
     }
@@ -968,7 +961,8 @@ export async function generateQuantIdeas(
 
     // 3. Volume must meet asset-specific thresholds
     const volumeRatio = data.volume && data.avgVolume ? data.volume / data.avgVolume : 1;
-    const minVolume = data.assetType === 'crypto' ? 0.6 : 1.0; // v3.0: All signals are LONG only
+    // v3.5: RELAXED volume filter to allow more trades (was 1.0x for stocks)
+    const minVolume = data.assetType === 'crypto' ? 0.3 : 0.5; // Allow lower volume
     if (volumeRatio < minVolume) {
       logger.info(`Filtered out ${data.symbol} - insufficient volume (${volumeRatio.toFixed(2)}x < ${minVolume}x)`);
       dataQuality.lowQuality++;
@@ -990,11 +984,10 @@ export async function generateQuantIdeas(
       continue;
     }
 
-    // 6. Require MULTIPLE confirmations (not just one signal)
-    // Analysis: Single-signal trades fail, but 3+ is too strict (zero trades)
-    // Require at least 2 strong confirmations
-    if (qualitySignals.length < 2) {
-      logger.info(`Filtered out ${data.symbol} - insufficient confirmations (${qualitySignals.length} < 2)`);
+    // 6. Require at least 1 signal (RELAXED from 2)
+    // RELAXED: Allow single signals to ensure ideas are generated
+    if (qualitySignals.length < 1) {
+      logger.info(`Filtered out ${data.symbol} - no signals detected`);
       dataQuality.lowQuality++;
       continue;
     }
@@ -1397,13 +1390,15 @@ export async function generateQuantIdeas(
       idea.analysis = idea.analysis + patternInfo + srInfo;
       
       // Boost or reduce confidence based on chart validation
+      // v3.5: Chart validation is now a SOFT filter (warning only, doesn't block trades)
       if (chartValidation.isValid && analysis.validation.confidence > 60) {
         idea.confidenceScore = Math.min(100, (idea.confidenceScore || 50) + 5);
         logger.info(`📈 [CHART] ${data.symbol}: Confidence boosted +5 (chart confirms setup)`);
       } else if (!chartValidation.isValid) {
-        logger.warn(`📈 [CHART] ${data.symbol}: Chart validation FAILED - ${chartValidation.validationNotes.filter(n => n.includes('REJECTED')).join(', ')}`);
-        dataQuality.chartRejected++;
-        continue; // Skip this idea if chart analysis rejects it
+        // Reduce confidence instead of blocking - still allow the trade
+        idea.confidenceScore = Math.max(45, (idea.confidenceScore || 50) - 10);
+        logger.warn(`📈 [CHART] ${data.symbol}: Chart pattern conflict - confidence reduced (${chartValidation.validationNotes.filter(n => n.includes('REJECTED')).join(', ')})`);
+        // Note: We continue processing instead of skipping
       }
     } else {
       logger.info(`📈 [CHART] ${data.symbol}: No chart data available - proceeding with technical indicators only`);
