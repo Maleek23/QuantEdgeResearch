@@ -2483,6 +2483,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 📊 FILTER BREAKDOWN: Shows exactly how we get from raw count → filtered count
+  // This endpoint explains the data pipeline for transparency
+  app.get("/api/performance/filter-breakdown", async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Count at each filter stage
+      const totalRaw = allIdeas.length;
+      
+      // Stage 1: Exclude buggy/test trades
+      const afterBuggyFilter = allIdeas.filter(idea => !idea.excludeFromTraining);
+      const buggyExcluded = totalRaw - afterBuggyFilter.length;
+      
+      // Stage 2: Exclude options
+      const afterOptionsFilter = afterBuggyFilter.filter(idea => idea.assetType !== 'option');
+      const optionsExcluded = afterBuggyFilter.length - afterOptionsFilter.length;
+      
+      // Stage 3: Exclude flow/lotto sources
+      const afterFlowFilter = afterOptionsFilter.filter(idea => idea.source !== 'flow' && idea.source !== 'lotto');
+      const flowLottoExcluded = afterOptionsFilter.length - afterFlowFilter.length;
+      
+      // Stage 4: Exclude legacy engines
+      const afterEngineFilter = afterFlowFilter.filter(isCurrentGenEngine);
+      const legacyExcluded = afterFlowFilter.length - afterEngineFilter.length;
+      
+      // Final: Get decided trades (wins + real losses)
+      const decidedTrades = getDecidedTrades(afterEngineFilter, { includeAllVersions: true });
+      const wins = decidedTrades.filter(idea => idea.outcomeStatus === 'hit_target').length;
+      const losses = decidedTrades.length - wins;
+      
+      // Also count open/expired for context
+      const openTrades = afterEngineFilter.filter(idea => idea.outcomeStatus === 'open').length;
+      const expiredTrades = afterEngineFilter.filter(idea => idea.outcomeStatus === 'expired').length;
+      const breakeven = afterEngineFilter.filter(idea => 
+        idea.outcomeStatus === 'hit_stop' && !isRealLoss(idea)
+      ).length;
+      
+      res.json({
+        rawTotal: totalRaw,
+        filterStages: [
+          { stage: 'Raw Database Total', count: totalRaw, excluded: 0, reason: 'All trade ideas in database' },
+          { stage: 'After Buggy/Test Filter', count: afterBuggyFilter.length, excluded: buggyExcluded, reason: 'Exclude trades marked as buggy or test data' },
+          { stage: 'After Options Filter', count: afterOptionsFilter.length, excluded: optionsExcluded, reason: 'Exclude options (no proper pricing yet)' },
+          { stage: 'After Flow/Lotto Filter', count: afterFlowFilter.length, excluded: flowLottoExcluded, reason: 'Exclude flow scanner and lotto trades' },
+          { stage: 'After Legacy Engine Filter', count: afterEngineFilter.length, excluded: legacyExcluded, reason: 'Exclude legacy v1.x/v2.x engines' },
+        ],
+        filteredTotal: afterEngineFilter.length,
+        breakdown: {
+          open: openTrades,
+          expired: expiredTrades,
+          breakeven: breakeven,
+          decidedWins: wins,
+          decidedLosses: losses,
+          decidedTotal: decidedTrades.length,
+        },
+        winRate: decidedTrades.length > 0 
+          ? Math.round((wins / decidedTrades.length) * 1000) / 10 
+          : 0,
+        explanation: `From ${totalRaw} raw trades → ${afterEngineFilter.length} filtered → ${decidedTrades.length} decided (${wins}W/${losses}L)`,
+      });
+    } catch (error) {
+      logger.error("Filter breakdown error:", error);
+      res.status(500).json({ error: "Failed to fetch filter breakdown" });
+    }
+  });
+
   // Performance stats cache (5-minute TTL) - separate cache per filter combination
   const performanceStatsCache = new Map<string, { data: any; timestamp: number }>();
   const PERF_STATS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -3126,6 +3192,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? Math.round((bestBand.wins / (bestBand.wins + bestBand.losses)) * 1000) / 10
         : 0;
       
+      // Calculate HIGH CONFIDENCE (A + B+ bands only) win rate
+      const highConfBands = bands.filter(b => b.min >= 85); // A (90+) and B+ (85-89)
+      const highConfWins = highConfBands.reduce((sum, b) => sum + b.wins, 0);
+      const highConfTotal = highConfBands.reduce((sum, b) => sum + b.wins + b.losses, 0);
+      const highConfWinRate = highConfTotal > 0 
+        ? Math.round((highConfWins / highConfTotal) * 1000) / 10 
+        : 0;
+      
+      // Calculate MEDIUM+ (A + B+ + B bands) win rate
+      const mediumPlusBands = bands.filter(b => b.min >= 78); // A, B+, B
+      const mediumPlusWins = mediumPlusBands.reduce((sum, b) => sum + b.wins, 0);
+      const mediumPlusTotal = mediumPlusBands.reduce((sum, b) => sum + b.wins + b.losses, 0);
+      const mediumPlusWinRate = mediumPlusTotal > 0 
+        ? Math.round((mediumPlusWins / mediumPlusTotal) * 1000) / 10 
+        : 0;
+      
       // Use OVERALL as the "calibrated" rate (since D band with Flow signals is our best performer)
       res.json({
         calibratedWinRate: overallWinRate,  // Show overall as main metric
@@ -3138,6 +3220,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bestBandWinRate,
         excludedLowConfidence: 0,  // No longer excluding any band
         confidenceBreakdown,
+        // NEW: Confidence comparison
+        highConfidence: {
+          bands: 'A + B+ (85+)',
+          trades: highConfTotal,
+          wins: highConfWins,
+          losses: highConfTotal - highConfWins,
+          winRate: highConfWinRate,
+        },
+        mediumPlusConfidence: {
+          bands: 'A + B+ + B (78+)',
+          trades: mediumPlusTotal,
+          wins: mediumPlusWins,
+          losses: mediumPlusTotal - mediumPlusWins,
+          winRate: mediumPlusWinRate,
+        },
+        allConfidence: {
+          bands: 'All Bands (A-D)',
+          trades: allTotal,
+          wins: allWins,
+          losses: allTotal - allWins,
+          winRate: overallWinRate,
+        },
       });
     } catch (error) {
       logger.error("Calibrated stats error:", error);

@@ -63,6 +63,48 @@ interface CalibratedStats {
     losses: number;
     winRate: number;
   }>;
+  highConfidence?: {
+    bands: string;
+    trades: number;
+    wins: number;
+    losses: number;
+    winRate: number;
+  };
+  mediumPlusConfidence?: {
+    bands: string;
+    trades: number;
+    wins: number;
+    losses: number;
+    winRate: number;
+  };
+  allConfidence?: {
+    bands: string;
+    trades: number;
+    wins: number;
+    losses: number;
+    winRate: number;
+  };
+}
+
+interface FilterBreakdown {
+  rawTotal: number;
+  filterStages: Array<{
+    stage: string;
+    count: number;
+    excluded: number;
+    reason: string;
+  }>;
+  filteredTotal: number;
+  breakdown: {
+    open: number;
+    expired: number;
+    breakeven: number;
+    decidedWins: number;
+    decidedLosses: number;
+    decidedTotal: number;
+  };
+  winRate: number;
+  explanation: string;
 }
 
 interface EngineConfidenceCorrelation {
@@ -475,6 +517,11 @@ export default function PerformancePage() {
     staleTime: 60000,
   });
 
+  const { data: filterBreakdown } = useQuery<FilterBreakdown>({
+    queryKey: ["/api/performance/filter-breakdown"],
+    staleTime: 60000,
+  });
+
   const { data: correlationData } = useQuery<EngineConfidenceCorrelation>({
     queryKey: ["/api/performance/engine-confidence-correlation"],
     staleTime: 60000,
@@ -751,6 +798,138 @@ export default function PerformancePage() {
           </Badge>
         </div>
         <PerformanceLeaderboard />
+      </div>
+
+      {/* Data Pipeline Transparency & Confidence Comparison */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Filter Breakdown - Explains where the numbers come from */}
+        {filterBreakdown && (
+          <Card className="glass-card" data-testid="section-filter-breakdown">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <Filter className="h-5 w-5 text-purple-400" />
+                <CardTitle className="text-lg">Data Pipeline Transparency</CardTitle>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                {filterBreakdown.explanation}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {filterBreakdown.filterStages.map((stage, idx) => (
+                  <div 
+                    key={stage.stage}
+                    className={cn(
+                      "flex items-center justify-between p-2 rounded-lg text-sm",
+                      idx === filterBreakdown.filterStages.length - 1 
+                        ? "bg-cyan-500/10 border border-cyan-500/30" 
+                        : "bg-background/50"
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-muted-foreground w-6">{idx + 1}.</span>
+                      <span>{stage.stage}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {stage.excluded > 0 && (
+                        <span className="text-xs text-red-400">-{stage.excluded}</span>
+                      )}
+                      <span className="font-mono font-bold">{stage.count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 pt-3 border-t border-border/50">
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div>
+                    <div className="font-mono text-cyan-400">{filterBreakdown.breakdown.open}</div>
+                    <div className="text-muted-foreground">Open</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-amber-400">{filterBreakdown.breakdown.expired}</div>
+                    <div className="text-muted-foreground">Expired</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-green-400">{filterBreakdown.breakdown.decidedTotal}</div>
+                    <div className="text-muted-foreground">Decided</div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Confidence Comparison - High vs All Bands */}
+        {calibratedStats?.highConfidence && calibratedStats?.allConfidence && (
+          <Card className="glass-card" data-testid="section-confidence-comparison">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-cyan-400" />
+                <CardTitle className="text-lg">Confidence Band Comparison</CardTitle>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                Compare win rates: High confidence (A/B+) vs All bands (A-D)
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* High Confidence */}
+                <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-amber-500/20 text-amber-400 border-amber-500/50">
+                        HIGH
+                      </Badge>
+                      <span className="text-sm font-medium">{calibratedStats.highConfidence.bands}</span>
+                    </div>
+                    <span className={cn(
+                      "text-2xl font-bold font-mono",
+                      calibratedStats.highConfidence.winRate >= 60 ? "text-green-400" : 
+                      calibratedStats.highConfidence.winRate >= 50 ? "text-amber-400" : "text-red-400"
+                    )}>
+                      {calibratedStats.highConfidence.winRate.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {calibratedStats.highConfidence.wins}W / {calibratedStats.highConfidence.losses}L from {calibratedStats.highConfidence.trades} trades
+                  </div>
+                </div>
+
+                {/* All Bands */}
+                <div className="p-4 rounded-lg bg-cyan-500/10 border border-cyan-500/30">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-cyan-500/20 text-cyan-400 border-cyan-500/50">
+                        ALL
+                      </Badge>
+                      <span className="text-sm font-medium">{calibratedStats.allConfidence.bands}</span>
+                    </div>
+                    <span className={cn(
+                      "text-2xl font-bold font-mono",
+                      calibratedStats.allConfidence.winRate >= 60 ? "text-green-400" : 
+                      calibratedStats.allConfidence.winRate >= 50 ? "text-amber-400" : "text-red-400"
+                    )}>
+                      {calibratedStats.allConfidence.winRate.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {calibratedStats.allConfidence.wins}W / {calibratedStats.allConfidence.losses}L from {calibratedStats.allConfidence.trades} trades
+                  </div>
+                </div>
+
+                {/* Insight */}
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-background/50 border border-border/50">
+                  <Info className="h-4 w-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-muted-foreground">
+                    {calibratedStats.allConfidence.winRate > calibratedStats.highConfidence.winRate 
+                      ? "Lower confidence bands outperform due to Flow engine's high win rate at moderate confidence levels."
+                      : "High confidence trades outperform as expected - confidence scores are well calibrated."}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Confidence Breakdown - Transparency */}
