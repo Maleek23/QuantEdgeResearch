@@ -3692,10 +3692,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       
+      // 🔧 DATA INTEGRITY: Apply canonical filters for consistency
+      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas);
+      
       // 🔧 DATA INTEGRITY: Use canonical getDecidedTrades from storage.ts
       // Filter to current-gen engines and DECIDED trades (wins + real losses)
       // Excludes: expired, breakeven (<3% loss), and legacy v1.x/v2.x
-      const resolvedIdeas = getDecidedTrades(allIdeas);
+      const resolvedIdeas = getDecidedTrades(filteredIdeas);
       
       // 1. Engine Performance Map
       const engineStats = new Map<string, { wins: number; losses: number; total: number }>();
