@@ -1,5 +1,6 @@
 import { storage } from "./storage";
 import { searchSymbol, fetchCryptoPrice, fetchStockPrice } from "./market-api";
+import { getOptionQuote } from "./tradier-api";
 import { logger } from "./logger";
 import type {
   TradeIdea,
@@ -145,11 +146,37 @@ export async function closePosition(
   }
 }
 
-async function fetchCurrentPrice(symbol: string, assetType: AssetType): Promise<number | null> {
+/**
+ * Fetch current price for a position
+ * For options, we need to fetch the actual option premium, not the underlying stock price
+ */
+async function fetchCurrentPrice(
+  symbol: string, 
+  assetType: AssetType,
+  optionDetails?: { underlying: string; expiryDate: string; optionType: 'call' | 'put'; strike: number }
+): Promise<number | null> {
   try {
     if (assetType === 'crypto') {
       const data = await fetchCryptoPrice(symbol);
       return data?.currentPrice || null;
+    } else if (assetType === 'option' && optionDetails) {
+      // Fetch actual option premium from Tradier
+      const quote = await getOptionQuote({
+        underlying: optionDetails.underlying,
+        expiryDate: optionDetails.expiryDate,
+        optionType: optionDetails.optionType,
+        strike: optionDetails.strike,
+      });
+      
+      if (quote) {
+        // Use mid price for most accurate current value, fallback to last
+        const price = quote.mid > 0 ? quote.mid : quote.last;
+        logger.info(`📊 [PAPER] Option price for ${symbol}: $${price.toFixed(2)} (bid: $${quote.bid}, ask: $${quote.ask})`);
+        return price > 0 ? price : null;
+      }
+      
+      logger.warn(`📊 [PAPER] No option quote available for ${symbol} - may be expired`);
+      return null;
     } else {
       const data = await fetchStockPrice(symbol);
       return data?.currentPrice || null;
@@ -168,7 +195,23 @@ export async function updatePositionPrices(portfolioId: string): Promise<void> {
     const now = new Date().toISOString();
 
     for (const position of openPositions) {
-      const currentPrice = await fetchCurrentPrice(position.symbol, position.assetType as AssetType);
+      // Build option details if this is an option position
+      let optionDetails: { underlying: string; expiryDate: string; optionType: 'call' | 'put'; strike: number } | undefined;
+      
+      if (position.assetType === 'option' && position.strikePrice && position.optionType && position.expiryDate) {
+        optionDetails = {
+          underlying: position.symbol,
+          expiryDate: position.expiryDate,
+          optionType: position.optionType as 'call' | 'put',
+          strike: position.strikePrice,
+        };
+      }
+      
+      const currentPrice = await fetchCurrentPrice(
+        position.symbol, 
+        position.assetType as AssetType,
+        optionDetails
+      );
       
       if (currentPrice !== null) {
         const multiplier = position.assetType === 'option' ? 100 : 1;

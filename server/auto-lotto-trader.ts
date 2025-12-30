@@ -1,12 +1,13 @@
 import { storage } from "./storage";
 import { executeTradeIdea, checkStopsAndTargets, updatePositionPrices } from "./paper-trading-service";
+import { sendBotTradeEntryToDiscord, sendBotTradeExitToDiscord } from "./discord-service";
 import { TradeIdea, PaperPortfolio } from "@shared/schema";
 import { logger } from "./logger";
 
 const LOTTO_PORTFOLIO_NAME = "Auto-Lotto Bot";
 const SYSTEM_USER_ID = "system-auto-trader";
-const LOTTO_STARTING_CAPITAL = 10000; // $10K for lotto plays
-const MAX_POSITION_SIZE = 500; // Max $500 per lotto play
+const LOTTO_STARTING_CAPITAL = 300; // $300 starting - realistic small account
+const MAX_POSITION_SIZE = 50; // Max $50 per lotto play (realistic for $300 account)
 
 let lottoPortfolio: PaperPortfolio | null = null;
 
@@ -79,6 +80,22 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
     if (result.success && result.position) {
       logger.info(`🤖 [AUTO-LOTTO] ✅ Executed: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} x${result.position.quantity} @ $${idea.entryPrice.toFixed(2)}`);
       
+      // 📱 Send Discord notification for trade entry
+      try {
+        await sendBotTradeEntryToDiscord({
+          symbol: idea.symbol,
+          optionType: idea.optionType,
+          strikePrice: idea.strikePrice,
+          expiryDate: idea.expiryDate,
+          entryPrice: idea.entryPrice,
+          quantity: result.position.quantity,
+          targetPrice: idea.targetPrice,
+          stopLoss: idea.stopLoss,
+        });
+      } catch (discordError) {
+        logger.warn(`🤖 [AUTO-LOTTO] Discord entry notification failed:`, discordError);
+      }
+      
       // Refresh portfolio cache
       const updated = await storage.getPaperPortfolioById(portfolio.id);
       if (updated) lottoPortfolio = updated;
@@ -117,6 +134,22 @@ export async function monitorLottoPositions(): Promise<void> {
         const pnl = pos.realizedPnL || 0;
         const emoji = pnl >= 0 ? '🎉' : '💀';
         logger.info(`${emoji} [AUTO-LOTTO] Closed ${pos.symbol}: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pos.exitReason})`);
+        
+        // 📱 Send Discord notification for trade exit
+        try {
+          await sendBotTradeExitToDiscord({
+            symbol: pos.symbol,
+            optionType: pos.optionType,
+            strikePrice: pos.strikePrice,
+            entryPrice: pos.entryPrice,
+            exitPrice: pos.exitPrice,
+            quantity: pos.quantity,
+            realizedPnL: pos.realizedPnL,
+            exitReason: pos.exitReason,
+          });
+        } catch (discordError) {
+          logger.warn(`🤖 [AUTO-LOTTO] Discord exit notification failed:`, discordError);
+        }
       }
       
       // Refresh portfolio cache

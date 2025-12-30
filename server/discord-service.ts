@@ -635,6 +635,176 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
   }
 }
 
+// Send bot trade entry notification to Discord
+export async function sendBotTradeEntryToDiscord(position: {
+  symbol: string;
+  optionType?: string | null;
+  strikePrice?: number | null;
+  expiryDate?: string | null;
+  entryPrice: number;
+  quantity: number;
+  targetPrice?: number | null;
+  stopLoss?: number | null;
+}): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  
+  // Use LOTTO webhook or main webhook
+  const webhookUrl = process.env.DISCORD_WEBHOOK_LOTTO || process.env.DISCORD_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    return;
+  }
+  
+  try {
+    const isCall = position.optionType === 'call';
+    const color = isCall ? 0x22c55e : 0xef4444;
+    const contractCost = position.entryPrice * position.quantity * 100;
+    
+    const embed: DiscordEmbed = {
+      title: `🤖 BOT ENTRY: ${position.symbol} ${(position.optionType || 'OPT').toUpperCase()} $${position.strikePrice}`,
+      description: `Auto-Lotto Bot opened a new position`,
+      color,
+      fields: [
+        {
+          name: '💰 Entry Price',
+          value: `$${position.entryPrice.toFixed(2)}`,
+          inline: true
+        },
+        {
+          name: '📦 Contracts',
+          value: `${position.quantity}`,
+          inline: true
+        },
+        {
+          name: '💵 Position Cost',
+          value: `$${contractCost.toFixed(2)}`,
+          inline: true
+        },
+        {
+          name: '🎯 Target',
+          value: position.targetPrice ? `$${position.targetPrice.toFixed(2)}` : 'N/A',
+          inline: true
+        },
+        {
+          name: '🛡️ Stop',
+          value: position.stopLoss ? `$${position.stopLoss.toFixed(2)}` : 'N/A',
+          inline: true
+        },
+        {
+          name: '📅 Expiry',
+          value: position.expiryDate || 'N/A',
+          inline: true
+        }
+      ],
+      footer: {
+        text: '🤖 Auto-Lotto Bot | Paper Trading'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    const message: DiscordMessage = {
+      content: `🤖 **BOT ENTRY** → ${position.symbol} ${(position.optionType || '').toUpperCase()} $${position.strikePrice} x${position.quantity} @ $${position.entryPrice.toFixed(2)}`,
+      embeds: [embed]
+    };
+    
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    });
+    
+    logger.info(`✅ Discord bot entry notification sent: ${position.symbol}`);
+  } catch (error) {
+    logger.error('❌ Failed to send Discord bot entry notification:', error);
+  }
+}
+
+// Send bot trade exit notification to Discord
+export async function sendBotTradeExitToDiscord(position: {
+  symbol: string;
+  optionType?: string | null;
+  strikePrice?: number | null;
+  entryPrice: number;
+  exitPrice?: number | null;
+  quantity: number;
+  realizedPnL?: number | null;
+  exitReason?: string | null;
+}): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_LOTTO || process.env.DISCORD_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    return;
+  }
+  
+  try {
+    const pnl = position.realizedPnL || 0;
+    const isWin = pnl > 0;
+    const color = isWin ? 0x22c55e : 0xef4444;
+    const emoji = isWin ? '🎉' : '💀';
+    const pnlPercent = position.entryPrice > 0 
+      ? ((position.exitPrice || 0) - position.entryPrice) / position.entryPrice * 100 
+      : 0;
+    
+    const reasonText = position.exitReason === 'target_hit' ? 'Target Hit' :
+                       position.exitReason === 'stop_hit' ? 'Stop Hit' :
+                       position.exitReason === 'expired' ? 'Expired' : 'Closed';
+    
+    const embed: DiscordEmbed = {
+      title: `${emoji} BOT EXIT: ${position.symbol} ${(position.optionType || 'OPT').toUpperCase()} $${position.strikePrice}`,
+      description: `Auto-Lotto Bot closed position - **${reasonText}**`,
+      color,
+      fields: [
+        {
+          name: '💰 Entry',
+          value: `$${position.entryPrice.toFixed(2)}`,
+          inline: true
+        },
+        {
+          name: '🚪 Exit',
+          value: `$${(position.exitPrice || 0).toFixed(2)}`,
+          inline: true
+        },
+        {
+          name: '📊 P&L',
+          value: `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(1)}%)`,
+          inline: true
+        },
+        {
+          name: '📦 Contracts',
+          value: `${position.quantity}`,
+          inline: true
+        },
+        {
+          name: '📋 Reason',
+          value: reasonText,
+          inline: true
+        }
+      ],
+      footer: {
+        text: '🤖 Auto-Lotto Bot | Paper Trading'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    const message: DiscordMessage = {
+      content: `${emoji} **BOT EXIT** → ${position.symbol} | ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | ${reasonText}`,
+      embeds: [embed]
+    };
+    
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    });
+    
+    logger.info(`✅ Discord bot exit notification sent: ${position.symbol} P&L: $${pnl.toFixed(2)}`);
+  } catch (error) {
+    logger.error('❌ Failed to send Discord bot exit notification:', error);
+  }
+}
+
 // Send weekly watchlist summary to dedicated channel
 export async function sendWeeklyWatchlistToDiscord(items: Array<{
   symbol: string;
