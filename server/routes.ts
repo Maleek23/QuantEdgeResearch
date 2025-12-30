@@ -3149,33 +3149,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Calibrated Win Rate - Only counts Medium+ (50+) confidence trades
+  // Signal Strength Stats - Uses ACTUAL signal counts from qualitySignals array
+  // HONEST DATA: No more fake probability percentages
   app.get("/api/performance/calibrated-stats", async (req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       
-      // 🔧 DATA INTEGRITY: Use shared canonical filters for consistency (include Flow)
+      // Use shared canonical filters for consistency (include Flow)
       const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas, { includeFlowLotto: true });
       
       // Get decided trades only (wins + real losses, excludes breakeven, expired, and legacy engines)
       const resolvedIdeas = getDecidedTrades(filteredIdeas, { includeAllVersions: false });
       
-      // Calculate stats by confidence band - CALIBRATED thresholds (Dec 2025)
-      // Matches getProbabilityBand: A (90+), B+ (85-89), B (78-84), C+ (72-77), C (65-71), D (<65)
+      // NEW: Group by ACTUAL signal count (qualitySignals.length), not fake confidence scores
+      // Signal Strength Bands: A (5+), B+ (4), B (3), C+ (2), C (1), D (0)
       const bands = [
-        { name: 'A Band (90+)', min: 90, max: 100, wins: 0, losses: 0 },
-        { name: 'B+ Band (85-89)', min: 85, max: 89, wins: 0, losses: 0 },
-        { name: 'B Band (78-84)', min: 78, max: 84, wins: 0, losses: 0 },
-        { name: 'C+ Band (72-77)', min: 72, max: 77, wins: 0, losses: 0 },
-        { name: 'C Band (65-71)', min: 65, max: 71, wins: 0, losses: 0 },
-        { name: 'D Band (<65)', min: 0, max: 64, wins: 0, losses: 0 },
+        { name: 'A (5+ signals)', key: 'A', minSignals: 5, maxSignals: 999, wins: 0, losses: 0 },
+        { name: 'B+ (4 signals)', key: 'B+', minSignals: 4, maxSignals: 4, wins: 0, losses: 0 },
+        { name: 'B (3 signals)', key: 'B', minSignals: 3, maxSignals: 3, wins: 0, losses: 0 },
+        { name: 'C+ (2 signals)', key: 'C+', minSignals: 2, maxSignals: 2, wins: 0, losses: 0 },
+        { name: 'C (1 signal)', key: 'C', minSignals: 1, maxSignals: 1, wins: 0, losses: 0 },
+        { name: 'D (0 signals)', key: 'D', minSignals: 0, maxSignals: 0, wins: 0, losses: 0 },
       ];
       
       resolvedIdeas.forEach(idea => {
-        const confidence = idea.confidenceScore || 0;
+        // Use ACTUAL signal count from qualitySignals array
+        const signalCount = idea.qualitySignals?.length || 0;
         const isWin = idea.outcomeStatus === 'hit_target';
         
-        const band = bands.find(b => confidence >= b.min && confidence <= b.max);
+        const band = bands.find(b => signalCount >= b.minSignals && signalCount <= b.maxSignals);
         if (band) {
           if (isWin) band.wins++;
           else band.losses++;
@@ -3193,7 +3195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           : 0,
       }));
       
-      // Calculate OVERALL win rate (all bands - this is the true performance)
+      // Calculate OVERALL win rate (all bands)
       const allWins = bands.reduce((sum, b) => sum + b.wins, 0);
       const allTotal = bands.reduce((sum, b) => sum + b.wins + b.losses, 0);
       const overallWinRate = allTotal > 0 
@@ -3201,34 +3203,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : 0;
       
       // Best performing band (for highlighting)
-      const bestBand = [...bands].sort((a, b) => {
+      const sortedBands = [...bands].filter(b => b.wins + b.losses >= 5).sort((a, b) => {
         const aRate = a.wins + a.losses > 0 ? a.wins / (a.wins + a.losses) : 0;
         const bRate = b.wins + b.losses > 0 ? b.wins / (b.wins + b.losses) : 0;
         return bRate - aRate;
-      })[0];
+      });
+      const bestBand = sortedBands[0];
       const bestBandWinRate = bestBand && (bestBand.wins + bestBand.losses) > 0
         ? Math.round((bestBand.wins / (bestBand.wins + bestBand.losses)) * 1000) / 10
         : 0;
       
-      // Calculate HIGH CONFIDENCE (A + B+ bands only) win rate
-      const highConfBands = bands.filter(b => b.min >= 85); // A (90+) and B+ (85-89)
-      const highConfWins = highConfBands.reduce((sum, b) => sum + b.wins, 0);
-      const highConfTotal = highConfBands.reduce((sum, b) => sum + b.wins + b.losses, 0);
-      const highConfWinRate = highConfTotal > 0 
-        ? Math.round((highConfWins / highConfTotal) * 1000) / 10 
+      // Calculate HIGH signal strength (A + B+ = 4+ signals)
+      const highSignalBands = bands.filter(b => b.minSignals >= 4);
+      const highSignalWins = highSignalBands.reduce((sum, b) => sum + b.wins, 0);
+      const highSignalTotal = highSignalBands.reduce((sum, b) => sum + b.wins + b.losses, 0);
+      const highSignalWinRate = highSignalTotal > 0 
+        ? Math.round((highSignalWins / highSignalTotal) * 1000) / 10 
         : 0;
       
-      // Calculate MEDIUM+ (A + B+ + B bands) win rate
-      const mediumPlusBands = bands.filter(b => b.min >= 78); // A, B+, B
+      // Calculate MEDIUM+ (3+ signals: A, B+, B)
+      const mediumPlusBands = bands.filter(b => b.minSignals >= 3);
       const mediumPlusWins = mediumPlusBands.reduce((sum, b) => sum + b.wins, 0);
       const mediumPlusTotal = mediumPlusBands.reduce((sum, b) => sum + b.wins + b.losses, 0);
       const mediumPlusWinRate = mediumPlusTotal > 0 
         ? Math.round((mediumPlusWins / mediumPlusTotal) * 1000) / 10 
         : 0;
       
-      // Use OVERALL as the "calibrated" rate (since D band with Flow signals is our best performer)
       res.json({
-        calibratedWinRate: overallWinRate,  // Show overall as main metric
+        calibratedWinRate: overallWinRate,
         calibratedTrades: allTotal,
         calibratedWins: allWins,
         overallWinRate,
@@ -3236,18 +3238,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         overallWins: allWins,
         bestBand: bestBand?.name || 'N/A',
         bestBandWinRate,
-        excludedLowConfidence: 0,  // No longer excluding any band
+        excludedLowConfidence: 0,
         confidenceBreakdown,
-        // NEW: Confidence comparison
+        // Signal strength comparison (renamed from confidence)
         highConfidence: {
-          bands: 'A + B+ (85+)',
-          trades: highConfTotal,
-          wins: highConfWins,
-          losses: highConfTotal - highConfWins,
-          winRate: highConfWinRate,
+          bands: 'A + B+ (4+ signals)',
+          trades: highSignalTotal,
+          wins: highSignalWins,
+          losses: highSignalTotal - highSignalWins,
+          winRate: highSignalWinRate,
         },
         mediumPlusConfidence: {
-          bands: 'A + B+ + B (78+)',
+          bands: 'A + B+ + B (3+ signals)',
           trades: mediumPlusTotal,
           wins: mediumPlusWins,
           losses: mediumPlusTotal - mediumPlusWins,
@@ -3262,8 +3264,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
     } catch (error) {
-      logger.error("Calibrated stats error:", error);
-      res.status(500).json({ error: "Failed to fetch calibrated stats" });
+      logger.error("Signal strength stats error:", error);
+      res.status(500).json({ error: "Failed to fetch signal strength stats" });
     }
   });
 
@@ -3530,24 +3532,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Engine vs Confidence Correlation Matrix
-  // Shows win rate for each engine at each confidence level
+  // Engine vs Signal Strength Correlation Matrix
+  // Shows win rate for each engine at each signal strength level
+  // HONEST DATA: Uses actual qualitySignals.length, not fake confidence scores
   app.get("/api/performance/engine-confidence-correlation", async (req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       
-      // 🔧 DATA INTEGRITY: Use shared canonical filters for consistency (include Flow)
+      // Use shared canonical filters for consistency (include Flow)
       const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas, { includeFlowLotto: true });
       
       // Get decided trades only (wins + real losses, excludes breakeven and legacy engines)
       const decidedIdeas = getDecidedTrades(filteredIdeas, { includeAllVersions: false });
       
-      // Define engines and confidence bands
+      // Define engines and SIGNAL STRENGTH bands (using actual signal count)
       const engines = ['ai', 'quant', 'hybrid', 'flow', 'chart_analysis', 'lotto'];
-      const confidenceBands = [
-        { name: 'High (70+)', min: 70, max: 100 },
-        { name: 'Medium (50-69)', min: 50, max: 69 },
-        { name: 'Low (<50)', min: 0, max: 49 },
+      const signalBands = [
+        { name: 'High (3+ signals)', minSignals: 3, maxSignals: 999 },
+        { name: 'Medium (1-2 signals)', minSignals: 1, maxSignals: 2 },
+        { name: 'Low (0 signals)', minSignals: 0, maxSignals: 0 },
       ];
       
       // Build correlation matrix
@@ -3592,11 +3595,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? Math.round((engineStats.totalWins / engineStats.totalTrades) * 1000) / 10 
           : 0;
         
-        // Calculate stats for each confidence band
-        confidenceBands.forEach(band => {
+        // Calculate stats for each SIGNAL STRENGTH band (using actual signal count)
+        signalBands.forEach(band => {
           const bandIdeas = engineIdeas.filter(idea => {
-            const conf = idea.confidenceScore || 0;
-            return conf >= band.min && conf <= band.max;
+            const signalCount = idea.qualitySignals?.length || 0;
+            return signalCount >= band.minSignals && signalCount <= band.maxSignals;
           });
           
           const wins = bandIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
@@ -3623,15 +3626,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         correlationMatrix,
-        confidenceBands: confidenceBands.map(b => b.name),
+        confidenceBands: signalBands.map(b => b.name),
         summary: {
           totalEngines: correlationMatrix.length,
           totalResolvedTrades: decidedIdeas.length,
         }
       });
     } catch (error) {
-      logger.error("Engine-confidence correlation error:", error);
-      res.status(500).json({ error: "Failed to fetch engine-confidence correlation" });
+      logger.error("Engine-signal correlation error:", error);
+      res.status(500).json({ error: "Failed to fetch engine-signal correlation" });
     }
   });
 
