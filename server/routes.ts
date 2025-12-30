@@ -208,29 +208,60 @@ function detectNewsCatalyst(catalyst: string, analysis: string): boolean {
   return false;
 }
 
-// 🎯 ENGINE PERFORMANCE MULTIPLIERS (Dec 2025 calibration from 411 resolved trades)
-// These multipliers adjust raw confidence scores based on actual engine win rates
-// Goal: High confidence should mean high probability of success, regardless of engine
-const ENGINE_PERFORMANCE = {
-  // Engine win rates from historical data
-  flow: { winRate: 81.9, multiplier: 1.35 },    // Best performer: boost significantly
-  ai: { winRate: 57.1, multiplier: 0.94 },      // Slightly below average: small penalty
-  hybrid: { winRate: 61.9, multiplier: 1.02 },  // Average: neutral
-  quant: { winRate: 34.4, multiplier: 0.57 },   // Poor performer: significant penalty
-  default: { winRate: 50.0, multiplier: 0.82 }  // Unknown: conservative
-} as const;
+// 🎯 CALIBRATION LOOKUP TABLE (built from 411 resolved trades - Dec 2025)
+// Maps raw confidence scores to ACTUAL historical win rates
+// THIS IS THE REAL DATA from /api/performance/calibration-curve
+// Format: { rawScore: actualWinRate }
+const CALIBRATION_LOOKUP: Record<number, number> = {
+  // Raw score -> Actual win rate (from calibration curve API)
+  // Data shows INVERSION: low scores outperform high scores historically
+  // This is because Flow engine (82% win rate) uses conservative scoring
+  20: 68,   // Actual: 68.1% (72 trades) - mostly Flow signals
+  25: 68,   // Interpolated
+  30: 68,   // Interpolated  
+  35: 68,   // Interpolated
+  40: 67,   // Interpolated
+  45: 67,   // Actual: 67.3% (52 trades)
+  50: 60,   // Actual: 60.0% (15 trades)
+  55: 88,   // Actual: 88.5% (26 trades) - high performing bucket
+  60: 77,   // Actual: 76.5% (34 trades)
+  65: 56,   // Actual: 55.6% (36 trades)
+  70: 68,   // Actual: 68.0% (25 trades)
+  75: 55,   // Actual: 55.0% (40 trades)
+  80: 25,   // Actual: 25.0% (16 trades) - WARNING: high conf = low actual
+  85: 22,   // Actual: 22.2% (18 trades) - WARNING: overconfident
+  90: 36,   // Actual: 36.4% (33 trades) - WARNING: overconfident
+  95: 57,   // Actual: 57.1% (7 trades)
+  100: 78   // Actual: 78.4% (37 trades)
+};
 
-// 📊 CONFIDENCE CALCULATION: Engine-weighted confidence scoring
-// Applies performance multiplier so high confidence = high win probability
+// Get calibrated confidence from raw score
+// Uses linear interpolation between lookup points
+function getCalibratedConfidence(rawScore: number): number {
+  const clampedScore = Math.max(20, Math.min(100, rawScore));
+  const lowerKey = Math.floor(clampedScore / 5) * 5;
+  const upperKey = Math.min(100, lowerKey + 5);
+  
+  const lowerVal = CALIBRATION_LOOKUP[lowerKey] || 60;
+  const upperVal = CALIBRATION_LOOKUP[upperKey] || 60;
+  
+  // Linear interpolation
+  const fraction = (clampedScore - lowerKey) / 5;
+  return Math.round(lowerVal + fraction * (upperVal - lowerVal));
+}
+
+// 📊 CONFIDENCE CALCULATION: Data-driven confidence scoring
+// Step 1: Calculate raw signal strength
+// Step 2: Apply engine-specific adjustments
+// Step 3: Calibrate to match historical accuracy
 function calculateAIConfidence(
   idea: any,
   validationMetrics: any,
   isNewsCatalyst: boolean,
   source: string = 'ai'
 ): number {
-  // 🎯 UNIFIED BASE SCORING: Same base for all engines (50 points)
-  // The engine multiplier at the end adjusts for actual performance
-  let rawScore = 50;
+  // 🎯 STEP 1: Calculate raw signal strength (same for all engines)
+  let rawScore = 50; // Base score
 
   // R:R ratio contribution (0-20 points)
   const rrRatio = validationMetrics?.riskRewardRatio || 0;
@@ -245,27 +276,33 @@ function calculateAIConfidence(
   else if (idea.assetType === 'stock' && idea.entryPrice >= 10) rawScore += 10;
   else if (idea.assetType === 'stock' && idea.entryPrice >= 5) rawScore += 5;
   else if (idea.assetType === 'option') rawScore += 8;
-  // Penny stocks get no bonus
 
   // Catalyst strength contribution (0-10 points)
   if (isNewsCatalyst) rawScore += 10;
 
-  // 🚫 OPTIONS PENALTY for AI only (historically poor)
-  if (idea.assetType === 'option' && source === 'ai') {
-    rawScore -= 15;
-    logger.info(`📉 [CONFIDENCE] AI option ${idea.symbol} - applied -15 penalty (historical -150% loss rate)`);
+  // 🎯 STEP 2: Engine-specific adjustments based on historical performance
+  // Flow: +15 (81.9% win rate), AI: -5 (57.1%), Quant: -15 (34.4%), Hybrid: 0 (61.9%)
+  let engineAdjustment = 0;
+  const engineLower = source.toLowerCase();
+  if (engineLower === 'flow' || engineLower === 'flow_scanner') engineAdjustment = 15;
+  else if (engineLower === 'ai') engineAdjustment = -5;
+  else if (engineLower === 'quant') engineAdjustment = -15;
+  else if (engineLower === 'hybrid') engineAdjustment = 0;
+  
+  // AI options get extra penalty (historical -150% loss rate)
+  if (idea.assetType === 'option' && engineLower === 'ai') {
+    engineAdjustment -= 10;
   }
+  
+  const adjustedRaw = Math.max(20, Math.min(100, rawScore + engineAdjustment));
+  
+  // 🎯 STEP 3: Calibrate to match historical accuracy
+  // This ensures the confidence score = actual expected win rate
+  const calibratedScore = getCalibratedConfidence(adjustedRaw);
 
-  // 🎯 APPLY ENGINE PERFORMANCE MULTIPLIER
-  // This is the key: adjust score based on how well this engine actually performs
-  const engineKey = source.toLowerCase() as keyof typeof ENGINE_PERFORMANCE;
-  const engineData = ENGINE_PERFORMANCE[engineKey] || ENGINE_PERFORMANCE.default;
-  const adjustedScore = rawScore * engineData.multiplier;
+  logger.info(`📊 [CONFIDENCE] ${idea.symbol} [${source.toUpperCase()}]: raw=${rawScore}, adj=${engineAdjustment}, calibrated=${calibratedScore}%`);
 
-  logger.info(`📊 [CONFIDENCE] ${idea.symbol} [${source.toUpperCase()}]: raw=${rawScore}, multiplier=${engineData.multiplier}x, final=${Math.round(adjustedScore)}`);
-
-  // Cap at 100, floor at 20
-  return Math.min(100, Math.max(20, Math.round(adjustedScore)));
+  return calibratedScore;
 }
 
 // 🎯 PROBABILITY BAND MAPPING: Calibrated from actual historical performance
@@ -3103,6 +3140,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Calibrated stats error:", error);
       res.status(500).json({ error: "Failed to fetch calibrated stats" });
+    }
+  });
+
+  // 🎯 TRUE CALIBRATION CURVE: Actual win rate for each confidence score
+  // This is the DATA-DRIVEN calibration - shows what ACTUALLY happens at each confidence level
+  // Use this to recalibrate future confidence scores so predicted = actual
+  app.get("/api/performance/calibration-curve", async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Filter: only resolved trades with definitive outcomes
+      const resolvedIdeas = allIdeas.filter(idea => 
+        idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop'
+      );
+      
+      // Create 5-point confidence buckets (20-24, 25-29, 30-34, ..., 95-100)
+      const buckets: Map<number, { wins: number; losses: number; totalPnL: number; trades: any[] }> = new Map();
+      
+      // Initialize buckets from 20 to 100 in 5-point increments
+      for (let i = 20; i <= 100; i += 5) {
+        buckets.set(i, { wins: 0, losses: 0, totalPnL: 0, trades: [] });
+      }
+      
+      resolvedIdeas.forEach(idea => {
+        const confidence = idea.confidenceScore || 0;
+        // Round down to nearest 5 (e.g., 67 -> 65)
+        const bucketKey = Math.max(20, Math.min(100, Math.floor(confidence / 5) * 5));
+        
+        const bucket = buckets.get(bucketKey);
+        if (bucket) {
+          const isWin = idea.outcomeStatus === 'hit_target';
+          if (isWin) bucket.wins++;
+          else bucket.losses++;
+          bucket.totalPnL += idea.percentGain || 0;
+          bucket.trades.push({
+            symbol: idea.symbol,
+            source: idea.source,
+            confidence: idea.confidenceScore,
+            outcome: idea.outcomeStatus,
+            pnl: idea.percentGain
+          });
+        }
+      });
+      
+      // Build calibration curve
+      const calibrationCurve: {
+        confidenceRange: string;
+        midpoint: number;
+        predicted: number; // What we said (midpoint of range)
+        actual: number;    // What actually happened (win rate)
+        trades: number;
+        wins: number;
+        losses: number;
+        avgPnL: number;
+        calibrationError: number; // How far off we were (predicted - actual)
+        isCalibrated: boolean;    // Within 10% of prediction
+      }[] = [];
+      
+      buckets.forEach((data, bucketStart) => {
+        const totalTrades = data.wins + data.losses;
+        if (totalTrades === 0) return; // Skip empty buckets
+        
+        const midpoint = bucketStart + 2.5; // e.g., 65-69 -> 67.5
+        const actualWinRate = Math.round((data.wins / totalTrades) * 1000) / 10;
+        const avgPnL = Math.round((data.totalPnL / totalTrades) * 10) / 10;
+        const error = Math.round((midpoint - actualWinRate) * 10) / 10;
+        
+        calibrationCurve.push({
+          confidenceRange: `${bucketStart}-${bucketStart + 4}`,
+          midpoint,
+          predicted: midpoint,
+          actual: actualWinRate,
+          trades: totalTrades,
+          wins: data.wins,
+          losses: data.losses,
+          avgPnL,
+          calibrationError: error,
+          isCalibrated: Math.abs(error) <= 10
+        });
+      });
+      
+      // Sort by confidence range
+      calibrationCurve.sort((a, b) => a.midpoint - b.midpoint);
+      
+      // Calculate overall calibration quality
+      const totalError = calibrationCurve.reduce((sum, c) => sum + Math.abs(c.calibrationError), 0);
+      const avgError = calibrationCurve.length > 0 ? Math.round(totalError / calibrationCurve.length * 10) / 10 : 0;
+      const calibratedBuckets = calibrationCurve.filter(c => c.isCalibrated).length;
+      const calibrationQuality = calibrationCurve.length > 0 
+        ? Math.round((calibratedBuckets / calibrationCurve.length) * 100) 
+        : 0;
+      
+      res.json({
+        calibrationCurve,
+        summary: {
+          totalTrades: resolvedIdeas.length,
+          avgCalibrationError: avgError,
+          calibratedBuckets,
+          totalBuckets: calibrationCurve.length,
+          calibrationQuality: `${calibrationQuality}%`,
+          status: avgError <= 15 ? 'WELL_CALIBRATED' : avgError <= 25 ? 'NEEDS_ADJUSTMENT' : 'POORLY_CALIBRATED'
+        }
+      });
+    } catch (error) {
+      logger.error("Calibration curve error:", error);
+      res.status(500).json({ error: "Failed to generate calibration curve" });
     }
   });
 
