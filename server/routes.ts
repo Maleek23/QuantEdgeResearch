@@ -7984,6 +7984,703 @@ FORMATTING:
     }
   });
 
+  // POST /api/admin/seed-blog - Seed educational blog content (admin only)
+  app.post("/api/admin/seed-blog", requireAdmin, async (_req: Request, res: Response) => {
+    try {
+      const educationalPosts = [
+        {
+          slug: "understanding-options-basics",
+          title: "Understanding Options: A Beginner's Complete Guide",
+          excerpt: "Learn the fundamentals of options trading - calls, puts, strikes, and expiration dates explained in plain English.",
+          category: "education" as const,
+          author: "QuantEdge Research",
+          status: "published" as const,
+          content: `# Understanding Options: A Beginner's Complete Guide
+
+Options trading can seem intimidating at first, but once you understand the basics, it opens up a whole new world of trading possibilities. This guide will walk you through everything you need to know to get started.
+
+## What Are Options?
+
+An option is a contract that gives you the **right** (but not the obligation) to buy or sell a stock at a specific price before a certain date.
+
+Think of it like a reservation. When you make a dinner reservation, you have the right to dine at that restaurant, but you're not obligated to show up. Options work similarly.
+
+## The Two Types of Options
+
+### Call Options
+A **call option** gives you the right to **BUY** a stock at a specific price (the strike price) before the expiration date.
+
+**When to buy calls:** When you think a stock will go UP.
+
+**Example:** You buy a $100 call option on AAPL expiring in 2 weeks. If AAPL rises to $110, your option becomes valuable because you can buy shares at $100 when they're worth $110.
+
+### Put Options
+A **put option** gives you the right to **SELL** a stock at a specific price before the expiration date.
+
+**When to buy puts:** When you think a stock will go DOWN.
+
+**Example:** You buy a $100 put option on AAPL. If AAPL drops to $90, your option is valuable because you can sell shares at $100 when they're only worth $90.
+
+## Key Terms You Need to Know
+
+### Strike Price
+The price at which you can buy (call) or sell (put) the underlying stock.
+
+### Expiration Date
+The date when your option expires. After this date, the option becomes worthless if it hasn't been exercised.
+
+### Premium
+The price you pay to buy an option. This is your maximum risk - you can never lose more than the premium you paid.
+
+### In-the-Money (ITM)
+- For calls: When the stock price is ABOVE the strike price
+- For puts: When the stock price is BELOW the strike price
+
+### Out-of-the-Money (OTM)
+- For calls: When the stock price is BELOW the strike price
+- For puts: When the stock price is ABOVE the strike price
+
+### At-the-Money (ATM)
+When the stock price equals the strike price.
+
+## Why Trade Options?
+
+1. **Leverage**: Control more shares with less capital
+2. **Defined Risk**: Your maximum loss is the premium paid
+3. **Flexibility**: Profit from up, down, or sideways moves
+4. **Income**: Sell options to collect premium
+
+## Common Mistakes to Avoid
+
+1. **Not understanding time decay**: Options lose value as they approach expiration
+2. **Buying too far OTM**: Cheap options often expire worthless
+3. **Ignoring implied volatility**: High IV means expensive options
+4. **Not having an exit plan**: Know your stop loss and profit target before entering
+
+## Getting Started
+
+Start small. Paper trade first. Learn one strategy well before moving to others. Focus on liquid options with tight bid-ask spreads.
+
+Remember: options can go to zero. Only trade with money you can afford to lose.
+
+---
+
+*This content is for educational purposes only and does not constitute financial advice.*`
+        },
+        {
+          slug: "position-sizing-risk-management",
+          title: "Position Sizing: The Most Important Skill in Trading",
+          excerpt: "Learn how to size your positions correctly so one bad trade doesn't blow up your account.",
+          category: "risk-management" as const,
+          author: "QuantEdge Research",
+          status: "published" as const,
+          content: `# Position Sizing: The Most Important Skill in Trading
+
+You can have the best trading strategy in the world, but without proper position sizing, you'll still lose money. This is the skill that separates professional traders from gamblers.
+
+## The 2% Rule
+
+Never risk more than 2% of your trading account on any single trade.
+
+**Example:**
+- Account size: $10,000
+- Maximum risk per trade: $200 (2%)
+
+This means if your stop loss is hit, you should only lose $200 maximum.
+
+## Calculating Position Size
+
+Here's the formula:
+
+**Position Size = (Account Risk %) / (Trade Risk %)**
+
+### Example Calculation
+
+- Account: $10,000
+- Risk per trade: 2% = $200
+- Option price: $2.00 per contract
+- Stop loss: 50% of premium = $1.00 loss per contract
+
+**Maximum contracts = $200 / $100 = 2 contracts**
+
+(Each contract represents 100 shares, so a $1.00 loss = $100 per contract)
+
+## Why This Matters
+
+Let's compare two traders with $10,000 accounts:
+
+### Trader A (No Risk Management)
+- Risks 20% per trade ($2,000)
+- 5 losing trades in a row = -$10,000 (account blown)
+
+### Trader B (2% Risk Rule)
+- Risks 2% per trade ($200)
+- 5 losing trades in a row = -$1,000 (account intact)
+- Still has $9,000 to recover
+
+Losing streaks are inevitable. The question is: will you survive them?
+
+## Adjusting for Win Rate
+
+If you know your win rate, you can calculate optimal position size:
+
+- 50% win rate: Keep risk at 1-2%
+- 60% win rate: Can consider 2-3%
+- 40% win rate: Reduce to 1% or less
+
+## The Kelly Criterion (Advanced)
+
+**Kelly % = Win Rate - (Loss Rate / Average Win-Loss Ratio)**
+
+Most traders use "Half Kelly" or "Quarter Kelly" for safety.
+
+## Common Position Sizing Mistakes
+
+1. **Revenge trading**: Doubling down after losses
+2. **Overconfidence**: Increasing size after wins
+3. **FOMO sizing**: Going big on "sure things"
+4. **Ignoring correlation**: Multiple positions in same sector
+
+## Practical Tips
+
+1. **Calculate before you trade**: Know your position size before entering
+2. **Use position size calculators**: Many are free online
+3. **Keep a trading journal**: Track your sizing decisions
+4. **Scale into positions**: Start with half size, add on confirmation
+
+## The Bottom Line
+
+Professional traders focus on risk management first, profits second. Master position sizing, and you'll already be ahead of 90% of retail traders.
+
+---
+
+*This content is for educational purposes only and does not constitute financial advice.*`
+        },
+        {
+          slug: "reading-candlestick-charts",
+          title: "How to Read Candlestick Charts: A Visual Guide",
+          excerpt: "Master the art of reading price action with candlestick charts - the most popular charting method used by traders worldwide.",
+          category: "education" as const,
+          author: "QuantEdge Research",
+          status: "published" as const,
+          content: `# How to Read Candlestick Charts: A Visual Guide
+
+Candlestick charts originated in 18th century Japan for rice trading. Today, they're the most popular way to visualize price action. Here's how to read them.
+
+## Anatomy of a Candlestick
+
+Each candlestick shows four pieces of information:
+- **Open**: Where the price started
+- **High**: The highest price reached
+- **Low**: The lowest price reached
+- **Close**: Where the price ended
+
+### Green (Bullish) Candles
+- Close is HIGHER than Open
+- Price went UP during this period
+- Body shows the range from open (bottom) to close (top)
+
+### Red (Bearish) Candles
+- Close is LOWER than Open
+- Price went DOWN during this period
+- Body shows the range from open (top) to close (bottom)
+
+### Wicks (Shadows)
+The thin lines above and below the body show the high and low.
+- Upper wick = rejection of higher prices
+- Lower wick = rejection of lower prices
+
+## Important Candlestick Patterns
+
+### Single Candle Patterns
+
+**Doji**: Open and close are nearly the same
+- Shows indecision in the market
+- Often signals a potential reversal
+
+**Hammer**: Small body at top, long lower wick
+- Bullish reversal pattern
+- Shows buyers rejected lower prices
+
+**Shooting Star**: Small body at bottom, long upper wick
+- Bearish reversal pattern
+- Shows sellers rejected higher prices
+
+### Two Candle Patterns
+
+**Engulfing Pattern**: Second candle completely engulfs the first
+- Bullish engulfing: Green candle engulfs red (potential upside)
+- Bearish engulfing: Red candle engulfs green (potential downside)
+
+### Three Candle Patterns
+
+**Morning Star**: Bearish candle, small candle, bullish candle
+- Bullish reversal pattern at bottom of downtrend
+
+**Evening Star**: Bullish candle, small candle, bearish candle
+- Bearish reversal pattern at top of uptrend
+
+## What Candlesticks Tell Us
+
+### Strong Bullish Signs
+- Long green bodies (strong buying pressure)
+- No upper wicks (buyers in control all day)
+- Increasing volume on green candles
+
+### Strong Bearish Signs
+- Long red bodies (strong selling pressure)
+- No lower wicks (sellers in control all day)
+- Increasing volume on red candles
+
+### Indecision/Weakness
+- Small bodies (dojis)
+- Long wicks on both sides
+- Decreasing volume
+
+## Timeframes Matter
+
+The same pattern means different things on different timeframes:
+
+- **1-minute chart**: Short-term noise, useful for day traders
+- **1-hour chart**: Intraday swings
+- **4-hour chart**: Good for swing trades
+- **Daily chart**: Significant levels, trend direction
+- **Weekly chart**: Major trend, long-term view
+
+**Rule**: Higher timeframes are more reliable than lower timeframes.
+
+## Combining with Other Analysis
+
+Candlesticks work best when combined with:
+1. **Support/Resistance levels**: Patterns at key levels are more reliable
+2. **Volume**: Confirm patterns with volume
+3. **Trend**: Trade patterns in direction of the trend
+
+## Practice Tips
+
+1. Start with daily charts (less noise)
+2. Focus on 2-3 patterns first
+3. Look for patterns at key levels
+4. Always wait for confirmation
+5. Use a trading journal to track what works
+
+---
+
+*This content is for educational purposes only and does not constitute financial advice.*`
+        },
+        {
+          slug: "options-greeks-explained",
+          title: "The Greeks Explained: Delta, Theta, Gamma, Vega",
+          excerpt: "Understand how Delta, Theta, Gamma, and Vega affect your options positions and how to use them to your advantage.",
+          category: "education" as const,
+          author: "QuantEdge Research",
+          status: "published" as const,
+          content: `# The Greeks Explained: Delta, Theta, Gamma, Vega
+
+The Greeks are measurements that tell you how sensitive your option is to various factors. Understanding them is essential for managing risk and maximizing profits.
+
+## Delta (Δ) - Directional Exposure
+
+**What it measures**: How much the option price changes for each $1 move in the stock.
+
+### Key Points
+- Calls have positive delta (0 to 1)
+- Puts have negative delta (-1 to 0)
+- At-the-money options have ~0.50 delta
+- Deep ITM options have ~1.0 delta (move like stock)
+- Far OTM options have ~0.05 delta (barely move)
+
+### Practical Use
+- Delta 0.50 = 50% chance of expiring ITM
+- Use delta to estimate your position's directional exposure
+- Higher delta = more expensive but higher probability
+
+**Example**: A 0.30 delta call will gain ~$0.30 if the stock rises $1.
+
+## Theta (Θ) - Time Decay
+
+**What it measures**: How much value your option loses each day due to time passing.
+
+### Key Points
+- Options lose value every day (time decay)
+- Theta is NEGATIVE for option buyers
+- Theta accelerates as expiration approaches
+- ATM options have the highest theta
+- Deep ITM/OTM options have lower theta
+
+### The Theta Curve
+- 30+ days out: Slow decay
+- 14-30 days: Moderate decay
+- 7-14 days: Accelerating decay
+- 0-7 days: Rapid decay (danger zone)
+
+**Example**: If theta is -0.05, your option loses $5 per contract per day.
+
+### Strategy Implications
+- Option buyers: Give yourself time (buy 2x the time you need)
+- Option sellers: Collect theta by selling options
+
+## Gamma (Γ) - Delta's Rate of Change
+
+**What it measures**: How fast delta changes as the stock moves.
+
+### Key Points
+- Gamma is highest for ATM options near expiration
+- High gamma = delta changes quickly (volatile position)
+- Low gamma = delta is stable
+- Gamma can work for or against you
+
+### The Gamma Trap
+Near expiration, ATM options have extreme gamma. A small stock move causes huge delta swings, making positions unpredictable.
+
+**Example**: A 0DTE ATM option might go from 0.50 delta to 0.80 delta with a small move, then back to 0.30 delta if it reverses.
+
+### Practical Use
+- Short-term traders: High gamma = fast profits or losses
+- Swing traders: Avoid high gamma (stay away from near-expiry ATM)
+
+## Vega (ν) - Volatility Sensitivity
+
+**What it measures**: How much the option price changes with a 1% change in implied volatility.
+
+### Key Points
+- Higher vega = more sensitive to volatility changes
+- ATM options have the highest vega
+- Longer-dated options have higher vega
+- Vega matters most around earnings/events
+
+### Volatility Crush
+Before earnings, IV is high (options expensive). After earnings, IV drops (volatility crush), and option values drop even if the stock moves in your favor.
+
+**Example**: You buy calls before earnings. Stock goes up 3%, but your calls lose money because IV dropped 40%.
+
+### Strategy Implications
+- Buy options when IV is low
+- Sell options when IV is high
+- Be aware of IV crush around events
+
+## Putting It All Together
+
+### Example Position Analysis
+- Long AAPL $180 call, 14 days to expiry
+- Delta: 0.45 (moves $0.45 per $1 stock move)
+- Theta: -0.08 (loses $8/day per contract)
+- Gamma: 0.04 (delta increases 0.04 per $1 move)
+- Vega: 0.15 (gains $15 per 1% IV increase)
+
+**Risk Assessment**: You need AAPL to move up quickly to overcome theta decay. A 14-day timeline with moderate theta is manageable, but you need a catalyst.
+
+## Quick Reference
+
+| Greek | What it Measures | Buyer Wants | Seller Wants |
+|-------|-----------------|-------------|--------------|
+| Delta | Direction | High for direction | Low for neutral |
+| Theta | Time Decay | Low theta | High theta |
+| Gamma | Delta speed | Depends | Low gamma |
+| Vega | Volatility | High before events | Low or negative |
+
+---
+
+*This content is for educational purposes only and does not constitute financial advice.*`
+        },
+        {
+          slug: "trading-psychology-emotions",
+          title: "Trading Psychology: How to Control Your Emotions",
+          excerpt: "Learn how to manage fear, greed, and FOMO - the three emotions that destroy most traders.",
+          category: "strategy" as const,
+          author: "QuantEdge Research",
+          status: "published" as const,
+          content: `# Trading Psychology: How to Control Your Emotions
+
+The hardest part of trading isn't finding good setups - it's managing your own psychology. Here's how to master the mental game.
+
+## The Three Deadly Emotions
+
+### 1. Fear
+**How it manifests:**
+- Closing winning trades too early
+- Not taking valid setups
+- Moving stop losses wider
+- Freezing during volatile moves
+
+**The Fix:**
+- Pre-define your exit rules
+- Accept that losses are part of the game
+- Trade smaller until confidence builds
+- Focus on the process, not the outcome
+
+### 2. Greed
+**How it manifests:**
+- Holding winners too long
+- Increasing position size after wins
+- "Let it ride" mentality
+- Not taking profits at targets
+
+**The Fix:**
+- Set profit targets before entering
+- Take partial profits at milestones
+- Remember: pigs get slaughtered
+- Use trailing stops to lock in gains
+
+### 3. FOMO (Fear of Missing Out)
+**How it manifests:**
+- Chasing entries after moves start
+- Buying at the top
+- Entering without a plan
+- Taking low-quality setups
+
+**The Fix:**
+- There's always another trade
+- Wait for your setup, not just any setup
+- If you missed it, you missed it
+- The best trades come to those who wait
+
+## Building Mental Discipline
+
+### Create a Trading Plan
+Write down your rules before the market opens:
+- What setups will you take?
+- What position size?
+- Where's your stop loss?
+- Where's your profit target?
+- Under what conditions will you not trade?
+
+### Keep a Trading Journal
+After every trade, record:
+- Why you entered
+- How you felt during the trade
+- What you did well
+- What you could improve
+- Your emotional state
+
+### Develop a Pre-Trade Routine
+- Check market conditions
+- Review your rules
+- Ensure you're in the right mindset
+- Take a break if you're emotional
+
+## Common Psychological Traps
+
+### Revenge Trading
+After a loss, you immediately take another trade to "make it back."
+
+**Solution**: Walk away after a losing trade. Cool down. Review what happened. Only trade again when you're calm.
+
+### Overconfidence After Wins
+A winning streak makes you feel invincible. You increase size. Then you give it all back.
+
+**Solution**: Treat every trade the same. Don't let wins inflate your ego. Stay humble.
+
+### Analysis Paralysis
+You study charts for hours but can't pull the trigger.
+
+**Solution**: Accept uncertainty. No trade is guaranteed. If it meets your criteria, take it.
+
+### Anchoring
+You keep referencing a price where you "should have" bought or sold.
+
+**Solution**: Focus on current price action. The past is irrelevant. What matters is now.
+
+## Practical Techniques
+
+### The 10-Second Rule
+Before clicking buy or sell, pause for 10 seconds. Ask yourself:
+1. Does this follow my plan?
+2. Am I emotional right now?
+3. Would I tell a friend to take this trade?
+
+### Physical State Matters
+- Get enough sleep
+- Exercise regularly
+- Avoid trading when tired, angry, or anxious
+- Take breaks during the trading day
+
+### Size Down When Struggling
+If you're in a slump:
+- Cut your position size in half
+- Trade with paper money
+- Focus on rebuilding confidence
+- Only increase size when back on track
+
+## The Mindset of a Pro
+
+Professional traders think differently:
+- They focus on **risk** first, **reward** second
+- They accept **losses** as business expenses
+- They play the **long game**
+- They **don't need** any single trade to work
+- They follow their **system** regardless of feelings
+
+## Key Takeaways
+
+1. Your biggest enemy is yourself
+2. Have a plan and follow it
+3. Keep a journal to identify patterns
+4. Size down when emotional
+5. The goal is consistency, not home runs
+
+Remember: Mastering your psychology is a journey, not a destination. Keep working at it.
+
+---
+
+*This content is for educational purposes only and does not constitute financial advice.*`
+        },
+        {
+          slug: "support-resistance-levels",
+          title: "Support and Resistance: The Foundation of Technical Analysis",
+          excerpt: "Learn how to identify key support and resistance levels where price is likely to react.",
+          category: "education" as const,
+          author: "QuantEdge Research",
+          status: "published" as const,
+          content: `# Support and Resistance: The Foundation of Technical Analysis
+
+Support and resistance are the most fundamental concepts in technical analysis. Master these, and you'll have a framework for analyzing any chart.
+
+## What is Support?
+
+**Support** is a price level where buying pressure is strong enough to stop a downtrend.
+
+Think of it as a floor - price bounces off it because buyers step in.
+
+### Why Support Forms
+- Previous lows that held
+- Round numbers ($100, $50)
+- Moving averages
+- High volume price areas
+- Previous resistance that became support
+
+## What is Resistance?
+
+**Resistance** is a price level where selling pressure is strong enough to stop an uptrend.
+
+Think of it as a ceiling - price bounces down from it because sellers step in.
+
+### Why Resistance Forms
+- Previous highs that held
+- Round numbers
+- Moving averages
+- All-time highs
+- Previous support that became resistance
+
+## The Psychology Behind S/R
+
+### At Support
+- Buyers remember: "I wish I bought here before"
+- Short sellers: "Time to cover"
+- Sellers who sold too early: "I want back in"
+
+### At Resistance
+- Sellers remember: "I should have sold here"
+- Buyers who held too long: "I'll sell if it gets back here"
+- Short sellers: "Good entry point"
+
+## How to Identify Key Levels
+
+### 1. Look for Multiple Touches
+The more times a level has been tested, the more significant it is.
+- 2 touches = minor level
+- 3+ touches = significant level
+
+### 2. Use Multiple Timeframes
+A level that appears on the daily AND weekly chart is more important than one only on the 5-minute chart.
+
+### 3. Note the Strength of Reactions
+A strong bounce (large candle, high volume) indicates a stronger level than a weak bounce.
+
+### 4. Round Numbers
+Psychological levels like $100, $150, $200 often act as S/R.
+
+## Support Becomes Resistance (and Vice Versa)
+
+This is one of the most powerful concepts in technical analysis.
+
+### When Support Breaks
+- Old support often becomes new resistance
+- Buyers who bought at support are now underwater
+- They'll sell to "break even" when price returns
+
+### When Resistance Breaks
+- Old resistance often becomes new support
+- Sellers who sold at resistance were wrong
+- Buyers now have a floor to lean against
+
+## Trading Support and Resistance
+
+### Bounce Strategy
+1. Identify a strong S/R level
+2. Wait for price to approach the level
+3. Look for confirmation (reversal candle, volume)
+4. Enter with stop on the other side of the level
+5. Target the next S/R level
+
+### Breakout Strategy
+1. Identify a level that's been tested multiple times
+2. Wait for a strong close beyond the level
+3. Enter on the breakout or the retest
+4. Stop below the level (for long) / above (for short)
+5. Target the next S/R level
+
+## Common Mistakes
+
+### 1. Drawing Too Many Lines
+Keep it simple. Focus on the most obvious levels that any trader can see.
+
+### 2. Expecting Exact Touches
+S/R is a zone, not an exact price. Give yourself a buffer.
+
+### 3. Ignoring Context
+A support level in an uptrend is different from support in a downtrend.
+
+### 4. Trading Against Strong Trends
+In a strong trend, S/R levels often break. Don't fight the trend.
+
+## Practical Tips
+
+1. **Start with daily charts**: Identify major levels first
+2. **Mark zones, not lines**: Use rectangles instead of single lines
+3. **Update regularly**: Levels change as new price action develops
+4. **Combine with other analysis**: Use volume, patterns, indicators for confirmation
+5. **Be patient**: Wait for price to reach your levels
+
+## Advanced Concepts
+
+### Confluence Zones
+When multiple factors align at one level (moving average + horizontal S/R + trendline), the level is more significant.
+
+### Volume Profile
+Areas of high trading volume often act as S/R because many traders have positions there.
+
+### Fibonacci Retracements
+Common retracement levels (38.2%, 50%, 61.8%) often align with S/R.
+
+---
+
+*This content is for educational purposes only and does not constitute financial advice.*`
+        }
+      ];
+
+      let created = 0;
+      for (const post of educationalPosts) {
+        try {
+          // Check if post with this slug already exists
+          const existing = await storage.getBlogPostBySlug(post.slug);
+          if (!existing) {
+            await storage.createBlogPost(post);
+            created++;
+            logger.info("Blog post created: " + post.slug);
+          }
+        } catch (error) {
+          logger.warn("Could not create blog post " + post.slug + ":", error);
+        }
+      }
+
+      res.json({ success: true, message: "Seeded " + created + " new blog posts" });
+    } catch (error: any) {
+      logger.error("Error seeding blog posts", { error });
+      res.status(500).json({ error: "Failed to seed blog posts" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

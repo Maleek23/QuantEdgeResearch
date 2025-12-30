@@ -1,51 +1,93 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Newspaper, Calendar, Clock, TrendingUp, Brain, Target, BarChart3, ArrowRight } from "lucide-react";
+import { 
+  Newspaper, Calendar, Clock, TrendingUp, Brain, Target, BarChart3, 
+  ArrowRight, BookOpen, Shield, Zap, DollarSign, LineChart, 
+  Lightbulb, GraduationCap, Users, ChevronRight
+} from "lucide-react";
 import { format } from "date-fns";
 import { SEOHead } from "@/components/seo-head";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { BlogPost } from "@shared/schema";
+import { useState } from "react";
+
+const CATEGORIES = [
+  { id: 'all', label: 'All Articles', icon: BookOpen },
+  { id: 'education', label: 'Education', icon: GraduationCap },
+  { id: 'strategy', label: 'Strategy', icon: Target },
+  { id: 'risk-management', label: 'Risk Management', icon: Shield },
+  { id: 'market-commentary', label: 'Market Insights', icon: LineChart },
+];
+
+const CATEGORY_VISUALS: Record<string, { gradient: string; icon: any; pattern: string }> = {
+  'education': { 
+    gradient: 'from-blue-600 via-cyan-500 to-teal-400', 
+    icon: GraduationCap,
+    pattern: 'radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(20, 184, 166, 0.3) 0%, transparent 50%)'
+  },
+  'strategy': { 
+    gradient: 'from-purple-600 via-violet-500 to-pink-400', 
+    icon: Target,
+    pattern: 'radial-gradient(circle at 30% 70%, rgba(147, 51, 234, 0.3) 0%, transparent 50%), radial-gradient(circle at 70% 30%, rgba(236, 72, 153, 0.3) 0%, transparent 50%)'
+  },
+  'risk-management': { 
+    gradient: 'from-emerald-600 via-green-500 to-lime-400', 
+    icon: Shield,
+    pattern: 'radial-gradient(circle at 25% 75%, rgba(16, 185, 129, 0.3) 0%, transparent 50%), radial-gradient(circle at 75% 25%, rgba(163, 230, 53, 0.3) 0%, transparent 50%)'
+  },
+  'market-commentary': { 
+    gradient: 'from-orange-600 via-amber-500 to-yellow-400', 
+    icon: LineChart,
+    pattern: 'radial-gradient(circle at 20% 80%, rgba(234, 88, 12, 0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(250, 204, 21, 0.3) 0%, transparent 50%)'
+  },
+  'news': { 
+    gradient: 'from-red-600 via-rose-500 to-pink-400', 
+    icon: Zap,
+    pattern: 'radial-gradient(circle at 30% 70%, rgba(220, 38, 38, 0.3) 0%, transparent 50%), radial-gradient(circle at 70% 30%, rgba(244, 114, 182, 0.3) 0%, transparent 50%)'
+  },
+  'platform-updates': { 
+    gradient: 'from-cyan-600 via-blue-500 to-indigo-400', 
+    icon: Lightbulb,
+    pattern: 'radial-gradient(circle at 25% 75%, rgba(8, 145, 178, 0.3) 0%, transparent 50%), radial-gradient(circle at 75% 25%, rgba(99, 102, 241, 0.3) 0%, transparent 50%)'
+  },
+};
+
+function getVisualForCategory(category: string) {
+  return CATEGORY_VISUALS[category] || CATEGORY_VISUALS['education'];
+}
+
+function estimateReadTime(content: string): number {
+  const wordsPerMinute = 200;
+  const words = content?.split(/\s+/).length || 0;
+  return Math.max(3, Math.ceil(words / wordsPerMinute));
+}
 
 export default function Blog() {
+  const [activeCategory, setActiveCategory] = useState('all');
+  
   const { data: articles = [], isLoading } = useQuery<BlogPost[]>({
     queryKey: ["/api/blog"],
   });
 
-  const featuredArticles = articles.slice(0, 2);
-  const regularArticles = articles.slice(2);
+  const filteredArticles = activeCategory === 'all' 
+    ? articles 
+    : articles.filter(a => a.category === activeCategory);
 
-  const getIcon = (category: string) => {
-    switch (category) {
-      case "AI Trading": return Brain;
-      case "Quantitative Analysis": return Target;
-      case "Risk Management": return BarChart3;
-      case "Trading Psychology": return TrendingUp;
-      case "Platform Features": return Brain;
-      case "Options Trading": return Target;
-      default: return Newspaper;
-    }
-  };
+  const featuredArticle = filteredArticles[0];
+  const regularArticles = filteredArticles.slice(1);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <div className="min-h-screen bg-background">
         <SEOHead pageKey="blog" />
-        <div className="container mx-auto max-w-7xl">
-          <div className="mb-8">
-            <Skeleton className="h-10 w-48 mb-2" />
-            <Skeleton className="h-6 w-96" />
-          </div>
-          <div className="grid md:grid-cols-2 gap-6 mb-12">
-            {[1, 2].map((i) => (
-              <Skeleton key={i} className="h-64 w-full rounded-xl" />
-            ))}
-          </div>
-          <div className="space-y-4">
+        <div className="container mx-auto max-w-7xl px-4 py-8">
+          <Skeleton className="h-[400px] w-full rounded-2xl mb-8" />
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-32 w-full rounded-xl" />
+              <Skeleton key={i} className="h-80 w-full rounded-xl" />
             ))}
           </div>
         </div>
@@ -54,156 +96,324 @@ export default function Blog() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen bg-background">
       <SEOHead pageKey="blog" />
-      <div className="container mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Newspaper className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold">Blog</h1>
+      
+      {/* Hero Section */}
+      <div className="relative overflow-hidden border-b border-border/50">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10" />
+        <div className="absolute inset-0" style={{ 
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0)',
+          backgroundSize: '40px 40px'
+        }} />
+        
+        <div className="container mx-auto max-w-7xl px-4 py-12 md:py-16 relative">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+              <BookOpen className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold">Trading Insights</h1>
+              <p className="text-muted-foreground">Learn. Grow. Trade Smarter.</p>
+            </div>
           </div>
-          <p className="text-lg text-muted-foreground">
-            Trading insights, market analysis, and platform updates
+          
+          <p className="text-lg text-muted-foreground max-w-2xl mb-8">
+            Free educational content to help you understand options trading, risk management, 
+            and market analysis. Written by traders, for traders.
           </p>
-        </div>
-
-        {articles.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-xl text-muted-foreground">Coming Soon</p>
+          
+          {/* Category Tabs */}
+          <div className="flex flex-wrap gap-2">
+            {CATEGORIES.map((cat) => {
+              const isActive = activeCategory === cat.id;
+              return (
+                <Button
+                  key={cat.id}
+                  variant={isActive ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={isActive ? "bg-cyan-600 hover:bg-cyan-700" : ""}
+                  data-testid={`category-${cat.id}`}
+                >
+                  <cat.icon className="h-4 w-4 mr-2" />
+                  {cat.label}
+                </Button>
+              );
+            })}
           </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto max-w-7xl px-4 py-8">
+        {articles.length === 0 ? (
+          <EmptyBlogState />
         ) : (
           <>
-            {/* Featured Articles */}
-            {featuredArticles.length > 0 && (
+            {/* Featured Article */}
+            {featuredArticle && (
               <div className="mb-12">
-                <h2 className="text-2xl font-bold mb-6">Featured Articles</h2>
-                <div className="grid md:grid-cols-2 gap-6">
-                  {featuredArticles.map((article, index) => {
-                    const Icon = getIcon(article.category);
-                    return (
-                      <div
-                        key={article.id}
-                        className="gradient-border-card card-tilt"
-                        data-testid={`featured-article-${index}`}
-                      >
-                        <Card className="border-0 bg-transparent h-full">
-                          <CardHeader>
-                            <div className="flex items-center gap-3 mb-4">
-                              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center spotlight">
-                                <Icon className="h-6 w-6 text-primary" />
-                              </div>
-                              <Badge variant="secondary" className="neon-accent">
-                                Featured
-                              </Badge>
-                            </div>
-                            <CardTitle className="text-2xl mb-2">{article.title}</CardTitle>
-                            <Badge variant="outline" className="w-fit mb-2">
-                              {article.category}
-                            </Badge>
-                          </CardHeader>
-                          <CardContent>
-                            <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
-                              {article.excerpt}
-                            </p>
-                            
-                            <div className="flex items-center justify-between text-xs text-muted-foreground mb-4">
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-3 w-3" />
-                                <span>{article.publishedAt ? format(new Date(article.publishedAt), 'MMM d, yyyy') : 'Draft'}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Clock className="h-3 w-3" />
-                                <span>8 min read</span>
-                              </div>
-                            </div>
-
-                            <Link href={`/blog/${article.slug}`}>
-                              <Button 
-                                variant="outline" 
-                                className="w-full"
-                                data-testid={`button-read-article-${article.id}`}
-                              >
-                                <ArrowRight className="h-4 w-4 mr-2" />
-                                Read Article
-                              </Button>
-                            </Link>
-                          </CardContent>
-                        </Card>
-                      </div>
-                    );
-                  })}
-                </div>
+                <FeaturedArticleCard article={featuredArticle} />
               </div>
             )}
 
-            {/* Recent Articles */}
+            {/* Article Grid */}
             {regularArticles.length > 0 && (
-              <div className="mb-12">
-                <h2 className="text-2xl font-bold mb-6">Recent Articles</h2>
-                <div className="space-y-4">
-                  {regularArticles.map((article, index) => {
-                    const Icon = getIcon(article.category);
-                    return (
-                      <Card key={article.id} className="hover-elevate" data-testid={`article-${index}`}>
-                        <CardContent className="p-6">
-                          <div className="grid md:grid-cols-12 gap-6 items-center">
-                            <div className="md:col-span-1">
-                              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center spotlight">
-                                <Icon className="h-7 w-7 text-primary" />
-                              </div>
-                            </div>
-                            <div className="md:col-span-8">
-                              <Badge variant="outline" className="mb-2">{article.category}</Badge>
-                              <h3 className="text-xl font-bold mb-2">{article.title}</h3>
-                              <p className="text-sm text-muted-foreground leading-relaxed">
-                                {article.excerpt}
-                              </p>
-                            </div>
-                            <div className="md:col-span-3 flex md:flex-col gap-3 md:items-end">
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Calendar className="h-3 w-3" />
-                                <span>{article.publishedAt ? format(new Date(article.publishedAt), 'MMM d, yyyy') : 'Draft'}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                <span>6 min read</span>
-                              </div>
-                              <Link href={`/blog/${article.slug}`}>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  data-testid={`button-read-${article.id}`}
-                                >
-                                  Read Article
-                                </Button>
-                              </Link>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                {regularArticles.map((article) => (
+                  <ArticleCard key={article.id} article={article} />
+                ))}
               </div>
             )}
           </>
         )}
 
-        {/* Newsletter Signup CTA */}
-        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-accent/5">
-          <CardContent className="p-8 text-center">
-            <Newspaper className="h-12 w-12 text-primary mx-auto mb-4" />
-            <h3 className="text-2xl font-bold mb-2">Stay Updated</h3>
-            <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-              Get the latest trading insights, platform updates, and market analysis delivered to your inbox
-            </p>
-            <Button variant="glass" disabled data-testid="button-subscribe-newsletter">
-              Subscribe to Newsletter (Coming Soon)
-            </Button>
-          </CardContent>
-        </Card>
+        {/* Educational Topics Section */}
+        <TopicsSection />
+        
+        {/* Newsletter CTA */}
+        <NewsletterCTA />
       </div>
     </div>
+  );
+}
+
+function FeaturedArticleCard({ article }: { article: BlogPost }) {
+  const visual = getVisualForCategory(article.category);
+  const Icon = visual.icon;
+  const readTime = estimateReadTime(article.content);
+
+  return (
+    <Link href={`/blog/${article.slug}`}>
+      <Card className="overflow-hidden hover-elevate cursor-pointer group" data-testid="featured-article">
+        <div className="grid md:grid-cols-2 gap-0">
+          {/* Visual Side */}
+          <div 
+            className="relative h-64 md:h-auto min-h-[280px] overflow-hidden"
+            style={{ background: visual.pattern }}
+          >
+            <div className={`absolute inset-0 bg-gradient-to-br ${visual.gradient} opacity-80`} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="relative">
+                <div className="absolute inset-0 blur-3xl bg-white/20 rounded-full scale-150" />
+                <Icon className="h-24 w-24 text-white/90 relative z-10 group-hover:scale-110 transition-transform duration-300" />
+              </div>
+            </div>
+            <Badge className="absolute top-4 left-4 bg-white/20 text-white border-white/30 backdrop-blur-sm">
+              Featured
+            </Badge>
+          </div>
+          
+          {/* Content Side */}
+          <CardContent className="p-6 md:p-8 flex flex-col justify-center">
+            <Badge variant="outline" className="w-fit mb-3 capitalize">
+              {article.category.replace('-', ' ')}
+            </Badge>
+            <h2 className="text-2xl md:text-3xl font-bold mb-3 group-hover:text-cyan-400 transition-colors">
+              {article.title}
+            </h2>
+            <p className="text-muted-foreground mb-4 leading-relaxed line-clamp-3">
+              {article.excerpt}
+            </p>
+            
+            <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>{article.publishedAt ? format(new Date(article.publishedAt), 'MMM d, yyyy') : 'Draft'}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Clock className="h-4 w-4" />
+                  <span>{readTime} min read</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-cyan-500 font-medium text-sm group-hover:gap-2 transition-all">
+                Read more <ArrowRight className="h-4 w-4" />
+              </div>
+            </div>
+          </CardContent>
+        </div>
+      </Card>
+    </Link>
+  );
+}
+
+function ArticleCard({ article }: { article: BlogPost }) {
+  const visual = getVisualForCategory(article.category);
+  const Icon = visual.icon;
+  const readTime = estimateReadTime(article.content);
+
+  return (
+    <Link href={`/blog/${article.slug}`}>
+      <Card className="overflow-hidden h-full hover-elevate cursor-pointer group" data-testid={`article-${article.id}`}>
+        {/* Visual Header */}
+        <div 
+          className="relative h-40 overflow-hidden"
+          style={{ background: visual.pattern }}
+        >
+          <div className={`absolute inset-0 bg-gradient-to-br ${visual.gradient} opacity-70`} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Icon className="h-16 w-16 text-white/80 group-hover:scale-110 transition-transform duration-300" />
+          </div>
+        </div>
+        
+        {/* Content */}
+        <CardContent className="p-5">
+          <Badge variant="outline" className="mb-3 capitalize text-xs">
+            {article.category.replace('-', ' ')}
+          </Badge>
+          <h3 className="font-bold text-lg mb-2 line-clamp-2 group-hover:text-cyan-400 transition-colors">
+            {article.title}
+          </h3>
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+            {article.excerpt}
+          </p>
+          
+          <div className="flex items-center justify-between text-xs text-muted-foreground pt-3 border-t border-border/50">
+            <div className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span>{readTime} min</span>
+            </div>
+            <div className="flex items-center gap-1 text-cyan-500 font-medium group-hover:gap-2 transition-all">
+              Read <ChevronRight className="h-3 w-3" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+function TopicsSection() {
+  const topics = [
+    { 
+      title: 'Options Basics', 
+      desc: 'Learn calls, puts, strikes, and expiration dates',
+      icon: BookOpen,
+      color: 'from-blue-500 to-cyan-500'
+    },
+    { 
+      title: 'Risk Management', 
+      desc: 'Position sizing, stop losses, and portfolio protection',
+      icon: Shield,
+      color: 'from-green-500 to-emerald-500'
+    },
+    { 
+      title: 'Chart Analysis', 
+      desc: 'Support, resistance, trends, and patterns',
+      icon: BarChart3,
+      color: 'from-purple-500 to-pink-500'
+    },
+    { 
+      title: 'Trading Psychology', 
+      desc: 'Discipline, emotions, and building good habits',
+      icon: Brain,
+      color: 'from-orange-500 to-amber-500'
+    },
+  ];
+
+  return (
+    <div className="mb-12">
+      <div className="flex items-center gap-2 mb-6">
+        <GraduationCap className="h-5 w-5 text-cyan-500" />
+        <h2 className="text-xl font-bold">Popular Topics</h2>
+      </div>
+      
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {topics.map((topic) => (
+          <Card key={topic.title} className="hover-elevate cursor-pointer group overflow-hidden">
+            <CardContent className="p-4 text-center">
+              <div className={`h-12 w-12 rounded-xl bg-gradient-to-br ${topic.color} flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform`}>
+                <topic.icon className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="font-semibold text-sm mb-1">{topic.title}</h3>
+              <p className="text-xs text-muted-foreground">{topic.desc}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EmptyBlogState() {
+  return (
+    <Card className="text-center py-16">
+      <CardContent>
+        <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mx-auto mb-6">
+          <Newspaper className="h-10 w-10 text-cyan-500" />
+        </div>
+        <h2 className="text-2xl font-bold mb-2">Content Coming Soon</h2>
+        <p className="text-muted-foreground max-w-md mx-auto mb-6">
+          We're working on creating helpful educational content about options trading, 
+          risk management, and market analysis.
+        </p>
+        <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            <span>Trading Guides</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            <span>Strategy Deep-Dives</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            <span>Risk Tips</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function NewsletterCTA() {
+  return (
+    <Card className="bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10 border-cyan-500/20">
+      <CardContent className="p-8 md:p-12">
+        <div className="grid md:grid-cols-2 gap-8 items-center">
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                <Users className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold">Join Our Community</h3>
+            </div>
+            <p className="text-muted-foreground mb-4">
+              Get weekly trading insights, educational content, and market analysis 
+              delivered straight to your inbox. No spam, just valuable content.
+            </p>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-green-500" />
+                Weekly market recaps and analysis
+              </li>
+              <li className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-blue-500" />
+                Educational articles and trading tips
+              </li>
+              <li className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-amber-500" />
+                Trade ideas and setup breakdowns
+              </li>
+            </ul>
+          </div>
+          <div className="flex flex-col items-center md:items-end">
+            <Button 
+              size="lg"
+              variant="outline"
+              disabled
+              className="w-full md:w-auto"
+              data-testid="button-subscribe-newsletter"
+            >
+              Newsletter Coming Soon
+            </Button>
+            <p className="text-xs text-muted-foreground mt-2">
+              Free forever. Unsubscribe anytime.
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
