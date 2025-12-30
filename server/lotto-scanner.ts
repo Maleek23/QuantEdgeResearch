@@ -9,6 +9,174 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { storage } from './storage';
 import { isLottoCandidate, calculateLottoTargets, getLottoThresholds } from './lotto-detector';
 import { sendLottoToDiscord } from './discord-service';
+import { getLetterGrade } from './grading';
+
+/**
+ * Calculate quality signals for lotto plays based on underlying momentum and option characteristics
+ * Returns an array of signals and a confidence score (0-100)
+ */
+interface LottoQualityResult {
+  signals: string[];
+  score: number;
+  grade: string;
+  isValidForDayTrade: boolean;
+  isValidForSwingTrade: boolean;
+}
+
+function calculateLottoQuality(
+  quote: { 
+    change_percentage: number; 
+    volume: number; 
+    average_volume: number;
+    last: number;
+    week_52_high: number;
+    week_52_low: number;
+    high: number;
+    low: number;
+    open: number;
+  },
+  candidate: LottoCandidate
+): LottoQualityResult {
+  const signals: string[] = [];
+  let score = 50; // Start at neutral
+  
+  // 1. MOMENTUM CHECK: Price change alignment with option direction
+  const priceChange = quote.change_percentage || 0;
+  const isCallOption = candidate.optionType === 'call';
+  const momentumAligned = isCallOption ? priceChange > 0 : priceChange < 0;
+  
+  if (momentumAligned) {
+    const absChange = Math.abs(priceChange);
+    if (absChange >= 3) {
+      signals.push(`strong_momentum_${absChange.toFixed(1)}%`);
+      score += 20;
+    } else if (absChange >= 1) {
+      signals.push(`momentum_aligned_${absChange.toFixed(1)}%`);
+      score += 10;
+    } else {
+      signals.push(`weak_momentum_${absChange.toFixed(1)}%`);
+      score += 5;
+    }
+  } else if (Math.abs(priceChange) < 0.5) {
+    signals.push('neutral_momentum');
+    // No penalty for neutral
+  } else {
+    // Momentum against position
+    signals.push(`counter_momentum_${priceChange.toFixed(1)}%`);
+    score -= 15;
+  }
+  
+  // 2. VOLUME CHECK: Relative volume vs average
+  const relativeVolume = quote.average_volume > 0 
+    ? quote.volume / quote.average_volume 
+    : 1;
+  
+  if (relativeVolume >= 2.0) {
+    signals.push(`high_volume_${relativeVolume.toFixed(1)}x`);
+    score += 15;
+  } else if (relativeVolume >= 1.2) {
+    signals.push(`above_avg_volume_${relativeVolume.toFixed(1)}x`);
+    score += 8;
+  } else if (relativeVolume < 0.5) {
+    signals.push('low_volume');
+    score -= 10;
+  }
+  
+  // 3. RANGE POSITION: Where is price in 52-week range?
+  const range52w = quote.week_52_high - quote.week_52_low;
+  if (range52w > 0) {
+    const positionInRange = (quote.last - quote.week_52_low) / range52w;
+    
+    if (isCallOption && positionInRange < 0.3) {
+      signals.push('near_52w_low_call_risky');
+      score -= 10; // Calls near lows are risky
+    } else if (!isCallOption && positionInRange > 0.7) {
+      signals.push('near_52w_high_put_risky');
+      score -= 10; // Puts near highs are risky
+    } else if (isCallOption && positionInRange > 0.5) {
+      signals.push('bullish_range_position');
+      score += 5;
+    } else if (!isCallOption && positionInRange < 0.5) {
+      signals.push('bearish_range_position');
+      score += 5;
+    }
+  }
+  
+  // 4. INTRADAY STRENGTH: Price vs intraday range
+  const intradayRange = quote.high - quote.low;
+  if (intradayRange > 0) {
+    const intradayPosition = (quote.last - quote.low) / intradayRange;
+    
+    if (isCallOption && intradayPosition > 0.7) {
+      signals.push('intraday_strength');
+      score += 8;
+    } else if (!isCallOption && intradayPosition < 0.3) {
+      signals.push('intraday_weakness');
+      score += 8;
+    } else if (isCallOption && intradayPosition < 0.3) {
+      signals.push('intraday_weak_for_call');
+      score -= 5;
+    } else if (!isCallOption && intradayPosition > 0.7) {
+      signals.push('intraday_strong_for_put');
+      score -= 5;
+    }
+  }
+  
+  // 5. DELTA CHECK: Optimal delta range for lotto plays (0.05-0.20)
+  const absDelta = Math.abs(candidate.delta);
+  if (absDelta >= 0.08 && absDelta <= 0.15) {
+    signals.push(`optimal_delta_${absDelta.toFixed(2)}`);
+    score += 10;
+  } else if (absDelta < 0.05) {
+    signals.push('very_far_otm');
+    score -= 5; // Too far OTM, unlikely to hit
+  } else if (absDelta > 0.20) {
+    signals.push('close_to_money');
+    score += 5; // More likely to hit but smaller R:R
+  }
+  
+  // 6. DTE PREMIUM: Short DTE needs stronger signals
+  if (candidate.daysToExpiry <= 2) {
+    signals.push('day_trade_dte');
+    // Day trades need extra conviction - penalty if momentum not strong
+    if (!signals.some(s => s.includes('strong_momentum'))) {
+      score -= 10;
+    }
+  } else if (candidate.daysToExpiry <= 7) {
+    signals.push('weekly_dte');
+  }
+  
+  // 7. OPTION VOLUME: Check if option itself has volume
+  if (candidate.volume >= 1000) {
+    signals.push(`option_volume_${candidate.volume}`);
+    score += 8;
+  } else if (candidate.volume >= 100) {
+    signals.push('option_has_volume');
+    score += 3;
+  } else if (candidate.volume === 0) {
+    signals.push('no_option_volume');
+    score -= 5;
+  }
+  
+  // Clamp score to 0-100
+  score = Math.max(0, Math.min(100, score));
+  
+  const grade = getLetterGrade(score);
+  
+  // Minimum grade requirements:
+  // - Day trades (0-2 DTE): Require B grade (80+) - high risk needs strong conviction
+  // - Swing trades (3+ DTE): Require C grade (70+) - more time to work
+  const isValidForDayTrade = score >= 80; // B- or better
+  const isValidForSwingTrade = score >= 70; // C- or better
+  
+  return {
+    signals,
+    score,
+    grade,
+    isValidForDayTrade,
+    isValidForSwingTrade
+  };
+}
 
 // US Market Holidays 2025-2026 (options don't expire on holidays)
 const MARKET_HOLIDAYS = new Set([
@@ -221,7 +389,7 @@ async function scanForLottoPlays(ticker: string): Promise<LottoCandidate[]> {
 }
 
 /**
- * Generate trade idea from lotto candidate
+ * Generate trade idea from lotto candidate with quality checks
  */
 async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<InsertTradeIdea | null> {
   try {
@@ -233,6 +401,23 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
       logger.error(`🎰 [LOTTO] Failed to get quote for ${ticker}`);
       return null;
     }
+
+    // 🔍 QUALITY CHECK: Calculate quality signals and score
+    const quality = calculateLottoQuality(quote, candidate);
+    const isDayTrade = candidate.daysToExpiry <= 2;
+    
+    // 🚫 FILTER: Reject low-quality ideas based on DTE
+    if (isDayTrade && !quality.isValidForDayTrade) {
+      logger.info(`🎰 [LOTTO] ❌ REJECTED ${ticker} day trade - Grade ${quality.grade} (${quality.score}) below B minimum. Signals: ${quality.signals.join(', ')}`);
+      return null;
+    }
+    
+    if (!isDayTrade && !quality.isValidForSwingTrade) {
+      logger.info(`🎰 [LOTTO] ❌ REJECTED ${ticker} swing trade - Grade ${quality.grade} (${quality.score}) below C minimum. Signals: ${quality.signals.join(', ')}`);
+      return null;
+    }
+    
+    logger.info(`🎰 [LOTTO] ✅ QUALITY CHECK PASSED: ${ticker} Grade ${quality.grade} (${quality.score}). Signals: ${quality.signals.join(', ')}`);
 
     const currentPrice = quote.last;
     // For lotto plays, direction indicates market expectation (call=bullish, put=bearish)
@@ -250,10 +435,11 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
     // Determine option type label based on DTE
     const optionTypeLabel = candidate.daysToExpiry <= 7 ? 'weekly' : candidate.daysToExpiry <= 30 ? 'monthly' : candidate.daysToExpiry <= 365 ? 'long-dated' : 'LEAPS';
     // 0-2 DTE = day trade, 3-14 DTE = swing trade, 15+ DTE = position trade
-    const holdingTypeLabel = candidate.daysToExpiry <= 2 ? 'Day trade' : candidate.daysToExpiry <= 14 ? 'Swing trade' : 'Position trade';
+    const holdingTypeLabel = isDayTrade ? 'Day trade' : candidate.daysToExpiry <= 14 ? 'Swing trade' : 'Position trade';
     
-    // Generate analysis
-    const analysis = `🎰 LOTTO PLAY: ${ticker} ${candidate.optionType.toUpperCase()} $${candidate.strike} expiring ${formatInTimeZone(new Date(candidate.expiration), 'America/Chicago', 'MMM dd, yyyy')} - Far OTM play (Δ ${Math.abs(candidate.delta).toFixed(2)}) targeting 20x return. Entry: $${entryPrice.toFixed(2)}, Target: $${targetPrice.toFixed(2)}. HIGH RISK: ${optionTypeLabel} option with ${candidate.daysToExpiry}d until expiry. ${holdingTypeLabel} - sized for small account growth ($0.20-$2.00 entry range).`;
+    // Generate analysis with quality context
+    const qualityContext = `[${quality.grade}] ${quality.signals.slice(0, 3).join(', ')}`;
+    const analysis = `🎰 LOTTO PLAY: ${ticker} ${candidate.optionType.toUpperCase()} $${candidate.strike} expiring ${formatInTimeZone(new Date(candidate.expiration), 'America/Chicago', 'MMM dd, yyyy')} - Far OTM play (Δ ${Math.abs(candidate.delta).toFixed(2)}) targeting 20x return. Entry: $${entryPrice.toFixed(2)}, Target: $${targetPrice.toFixed(2)}. Quality: ${qualityContext}. HIGH RISK: ${optionTypeLabel} option with ${candidate.daysToExpiry}d until expiry. ${holdingTypeLabel} - sized for small account growth ($0.20-$2.00 entry range).`;
 
     // Get entry/exit windows based on DTE (days to expiry)
     const now = new Date();
@@ -331,8 +517,10 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
       targetPrice,
       stopLoss,
       riskRewardRatio,
-      confidenceScore: 40, // Lower confidence for lotto plays (high risk)
-      catalyst: `🎰 ${ticker} ${candidate.optionType.toUpperCase()} $${candidate.strike} | Δ${Math.abs(candidate.delta).toFixed(2)} | ${dte}d DTE | ${holdingPeriod} trade`,
+      confidenceScore: quality.score, // Dynamic confidence based on quality signals
+      qualitySignals: quality.signals, // Store actual quality signals
+      probabilityBand: quality.grade, // Store the calculated grade
+      catalyst: `🎰 ${ticker} ${candidate.optionType.toUpperCase()} $${candidate.strike} | ${quality.grade} | Δ${Math.abs(candidate.delta).toFixed(2)} | ${dte}d DTE | ${holdingPeriod} trade`,
       analysis,
       sessionContext: `Market hours - Lotto play on ${ticker} (${holdingPeriod} trade)`,
       holdingPeriod,
@@ -348,6 +536,7 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
       riskProfile,
       researchHorizon,
       liquidityWarning: true, // All lotto plays get liquidity warning
+      engineVersion: 'lotto_v3.1.0_quality_gated', // Track quality-gated version
     };
 
     // Basic validation: ensure prices make sense
@@ -360,7 +549,7 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
       return null;
     }
 
-    logger.info(`🎰 [LOTTO] ✅ Generated lotto play: ${ticker} ${candidate.optionType.toUpperCase()} $${candidate.strike} - Entry $${entryPrice.toFixed(2)}, Target $${targetPrice.toFixed(2)} (20x)`);
+    logger.info(`🎰 [LOTTO] ✅ Generated lotto play: ${ticker} ${candidate.optionType.toUpperCase()} $${candidate.strike} [${quality.grade}] - Entry $${entryPrice.toFixed(2)}, Target $${targetPrice.toFixed(2)} (20x)`);
     return idea;
   } catch (error) {
     logger.error(`🎰 [LOTTO] Error generating trade idea for ${candidate.underlying}:`, error);
