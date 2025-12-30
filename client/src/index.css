@@ -321,6 +321,22 @@
   border: 1px solid rgba(255, 255, 255, 0.10);
 }
 
+/* Crisp text rendering for statistics over glass backgrounds */
+.stat-text {
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+/* Inner stat container with solid background for better contrast */
+.stat-glass {
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 @layer base {
   * {
     @apply border-border;

@@ -649,13 +649,13 @@ export default function PerformancePage() {
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center glass rounded-lg p-4 relative">
+            <div className="text-center stat-glass rounded-lg p-4 relative">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div>
                       <div className={cn(
-                        "text-4xl font-bold font-mono",
+                        "text-4xl font-bold font-mono stat-text",
                         (calibratedStats?.calibratedWinRate ?? stats.overall.winRate) >= 60 ? "text-green-400" : 
                         (calibratedStats?.calibratedWinRate ?? stats.overall.winRate) >= 50 ? "text-amber-400" : 
                         (calibratedStats?.calibratedWinRate ?? stats.overall.winRate) > 0 ? "text-red-400" : "text-muted-foreground"
@@ -684,9 +684,9 @@ export default function PerformancePage() {
                 </Tooltip>
               </TooltipProvider>
             </div>
-            <div className="text-center glass rounded-lg p-4">
+            <div className="text-center stat-glass rounded-lg p-4">
               <div className={cn(
-                "text-4xl font-bold font-mono",
+                "text-4xl font-bold font-mono stat-text",
                 stats.overall.expectancy > 0 ? "text-green-400" : 
                 stats.overall.expectancy < 0 ? "text-red-400" : "text-muted-foreground"
               )} data-testid="text-headline-expectancy">
@@ -695,9 +695,9 @@ export default function PerformancePage() {
               <div className="text-xs text-muted-foreground mt-1">Expectancy</div>
               <div className="text-xs text-muted-foreground">Per Trade</div>
             </div>
-            <div className="text-center glass rounded-lg p-4">
+            <div className="text-center stat-glass rounded-lg p-4">
               <div className={cn(
-                "text-4xl font-bold font-mono",
+                "text-4xl font-bold font-mono stat-text",
                 stats.overall.profitFactor >= 1.5 ? "text-green-400" : 
                 stats.overall.profitFactor >= 1 ? "text-amber-400" : "text-red-400"
               )} data-testid="text-headline-profitfactor">
@@ -706,8 +706,8 @@ export default function PerformancePage() {
               <div className="text-xs text-muted-foreground mt-1">Profit Factor</div>
               <div className="text-xs text-muted-foreground">Gains / Losses</div>
             </div>
-            <div className="text-center glass rounded-lg p-4">
-              <div className="text-4xl font-bold font-mono text-cyan-400" data-testid="text-headline-open">
+            <div className="text-center stat-glass rounded-lg p-4">
+              <div className="text-4xl font-bold font-mono stat-text text-cyan-400" data-testid="text-headline-open">
                 {stats.overall.openIdeas}
               </div>
               <div className="text-xs text-muted-foreground mt-1">Open Positions</div>
