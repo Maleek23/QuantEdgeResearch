@@ -677,9 +677,9 @@ export default function PerformancePage() {
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-xs">
-                    <p className="font-semibold">Calibrated Win Rate (50%+ Confidence)</p>
+                    <p className="font-semibold">Overall Win Rate (All Signal Bands)</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Only counts Medium and High confidence trades. Low confidence trades ({calibratedStats?.excludedLowConfidence || 0}) excluded from official stats.
+                      Includes all signal strength bands (A-D). Based on actual qualitySignals count, not probability.
                     </p>
                   </TooltipContent>
                 </Tooltip>
@@ -859,16 +859,16 @@ export default function PerformancePage() {
           </Card>
         )}
 
-        {/* Confidence Comparison - High vs All Bands */}
+        {/* Signal Strength Comparison - High vs All Bands */}
         {calibratedStats?.highConfidence && calibratedStats?.allConfidence && (
           <Card className="glass-card" data-testid="section-confidence-comparison">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-cyan-400" />
-                <CardTitle className="text-lg">Confidence Band Comparison</CardTitle>
+                <CardTitle className="text-lg">Signal Strength Comparison</CardTitle>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Compare win rates: High confidence (A/B+) vs All bands (A-D)
+                Compare win rates: High signal strength vs All bands (based on indicator consensus count)
               </p>
             </CardHeader>
             <CardContent>
@@ -922,8 +922,8 @@ export default function PerformancePage() {
                   <Info className="h-4 w-4 text-cyan-400 mt-0.5 flex-shrink-0" />
                   <p className="text-xs text-muted-foreground">
                     {calibratedStats.allConfidence.winRate > calibratedStats.highConfidence.winRate 
-                      ? "Lower confidence bands outperform due to Flow engine's high win rate at moderate confidence levels."
-                      : "High confidence trades outperform as expected - confidence scores are well calibrated."}
+                      ? "Lower signal bands outperform because B band (3 signals) captures Flow engine's 81.9% win rate."
+                      : "High signal strength trades outperform - more indicator agreement correlates with better performance."}
                   </p>
                 </div>
               </div>
@@ -932,31 +932,31 @@ export default function PerformancePage() {
         )}
       </div>
 
-      {/* Confidence Breakdown - Transparency */}
+      {/* Signal Strength Breakdown - Transparency */}
       {calibratedStats && (
         <Card className="glass-card" data-testid="section-confidence-breakdown">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-amber-400" />
-              <CardTitle className="text-lg">Confidence Band Performance (Calibrated Dec 2025)</CardTitle>
+              <CardTitle className="text-lg">Signal Strength Performance (Honest Data)</CardTitle>
               {(() => {
-                // Check if A band outperforms D band (proper calibration)
-                const aBand = calibratedStats.confidenceBreakdown.find(b => b.level.includes('A Band'));
-                const dBand = calibratedStats.confidenceBreakdown.find(b => b.level.includes('D Band'));
-                const isCalibrated = aBand && dBand && aBand.winRate >= dBand.winRate;
-                return isCalibrated ? (
-                  <Badge variant="outline" className="border-green-500/50 text-green-400">
-                    Well Calibrated
+                // Check if B band (3 signals / Flow) is best performer
+                const bBand = calibratedStats.confidenceBreakdown.find(b => b.level.includes('B (3'));
+                const aBand = calibratedStats.confidenceBreakdown.find(b => b.level.includes('A (5'));
+                const bIsBest = bBand && aBand && bBand.winRate > aBand.winRate;
+                return bIsBest ? (
+                  <Badge variant="outline" className="border-cyan-500/50 text-cyan-400">
+                    B Band (3 signals) = Best
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="border-cyan-500/50 text-cyan-400">
-                    Flow Engine Dominates D Band
+                  <Badge variant="outline" className="border-green-500/50 text-green-400">
+                    High Signal = Best
                   </Badge>
                 );
               })()}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Actual win rates by confidence band. D band often outperforms due to Flow engine (81.9% win rate) generating moderate-confidence signals.
+              Actual win rates by signal count. Higher signal count does NOT mean better performance - B band (3 signals) dominates due to Flow engine.
             </p>
           </CardHeader>
           <CardContent>
@@ -1013,10 +1013,10 @@ export default function PerformancePage() {
               <div className="flex items-start gap-2">
                 <Info className="h-4 w-4 text-cyan-400 mt-0.5 flex-shrink-0" />
                 <div className="text-sm">
-                  <span className="font-semibold text-cyan-400">Why D Band Often Outperforms</span>
+                  <span className="font-semibold text-cyan-400">Why B Band Dominates</span>
                   <span className="text-muted-foreground ml-1">
-                    The Flow engine (81.9% historical win rate) generates most of its signals with moderate confidence scores that fall into the D band. 
-                    This is expected behavior - Flow's conservative scoring means its high-quality signals appear in lower bands.
+                    The Flow engine (81.9% win rate) generates trades with exactly 3 quality signals (B band). 
+                    A band (5+ signals) has only 48.8% win rate - more signals does NOT equal better performance.
                   </span>
                 </div>
               </div>
@@ -1025,16 +1025,16 @@ export default function PerformancePage() {
         </Card>
       )}
 
-      {/* Engine vs Confidence Correlation Matrix */}
+      {/* Engine vs Signal Strength Correlation Matrix */}
       {correlationData && correlationData.correlationMatrix.length > 0 && (
         <Card className="glass-card" data-testid="section-engine-confidence-correlation">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-cyan-400" />
-              <CardTitle className="text-lg">Engine × Confidence Correlation</CardTitle>
+              <CardTitle className="text-lg">Engine × Signal Strength</CardTitle>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Win rate breakdown by engine and confidence level. Green = well-calibrated, Red = needs recalibration.
+              Win rate by engine and signal count. Based on actual qualitySignals array length.
             </p>
           </CardHeader>
           <CardContent>
@@ -1143,11 +1143,11 @@ export default function PerformancePage() {
             <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
               <div className="flex items-center gap-2 p-2 rounded bg-green-500/10">
                 <div className="w-3 h-3 rounded-full bg-green-500" />
-                <span className="text-muted-foreground">Calibrated: High conf &gt; Low conf</span>
+                <span className="text-muted-foreground">Expected: High signals &gt; Low signals</span>
               </div>
               <div className="flex items-center gap-2 p-2 rounded bg-red-500/10">
                 <div className="w-3 h-3 rounded-full bg-red-500" />
-                <span className="text-muted-foreground">Inverted: Low conf beats High conf</span>
+                <span className="text-muted-foreground">Inverted: Low signals beats High signals</span>
               </div>
               <div className="flex items-center gap-2 p-2 rounded bg-muted/20">
                 <div className="w-3 h-3 rounded-full bg-muted-foreground/50" />
