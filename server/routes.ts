@@ -2026,6 +2026,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 🛡️ COMPLIANCE: Minimum paper trades required before live trading
   const REQUIRED_PAPER_TRADES = 20;
 
+  // Get auto-lotto trading bot stats (public endpoint)
+  app.get("/api/auto-lotto/stats", async (_req: any, res) => {
+    try {
+      const { getLottoStats } = await import('./auto-lotto-trader');
+      const stats = await getLottoStats();
+      
+      if (!stats) {
+        return res.json({
+          active: false,
+          message: "Auto-lotto trader not yet initialized. Will start on first lotto scan.",
+          portfolio: null,
+          openPositions: 0,
+          closedPositions: 0,
+          totalPnL: 0,
+          winRate: 0,
+        });
+      }
+      
+      res.json({
+        active: true,
+        portfolio: {
+          id: stats.portfolio?.id,
+          name: stats.portfolio?.name,
+          cashBalance: stats.portfolio?.cashBalance,
+          startingCapital: stats.portfolio?.startingCapital,
+          totalValue: stats.portfolio?.totalValue,
+        },
+        openPositions: stats.openPositions,
+        closedPositions: stats.closedPositions,
+        totalPnL: stats.totalPnL,
+        winRate: stats.winRate,
+      });
+    } catch (error) {
+      logger.error("Failed to get auto-lotto stats:", error);
+      res.status(500).json({ error: "Failed to fetch auto-lotto stats" });
+    }
+  });
+
   // Check paper trading status for live trading access
   app.get("/api/paper-trading/status", isAuthenticated, async (req: any, res) => {
     try {

@@ -645,6 +645,23 @@ app.use((req, res, next) => {
     
     log('🎰 Lotto Scanner started - hunting for cheap far-OTM weeklies every 15 minutes during market hours (9:30 AM-4:00 PM ET)');
     
+    // Monitor lotto paper trading positions every 5 minutes during market hours
+    cron.default.schedule('*/5 * * * *', async () => {
+      try {
+        if (!isMarketHoursForFlow()) {
+          return;
+        }
+        
+        const { monitorLottoPositions } = await import('./auto-lotto-trader');
+        await monitorLottoPositions();
+        
+      } catch (error: any) {
+        logger.error('🤖 [AUTO-LOTTO-CRON] Position monitoring failed:', error);
+      }
+    });
+    
+    log('🤖 Auto-Lotto Trader started - monitoring paper positions every 5 minutes during market hours');
+    
     // Daily summary to Discord at 8:00 AM CT (before market open)
     let lastDailySummaryDate: string | null = null;
     

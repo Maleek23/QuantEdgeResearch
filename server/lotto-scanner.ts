@@ -436,6 +436,14 @@ export async function runLottoScanner(): Promise<void> {
         } catch (discordError) {
           logger.warn(`🎰 [LOTTO] Discord notification failed for ${candidate.underlying}:`, discordError);
         }
+        
+        // Auto-execute in paper trading portfolio
+        try {
+          const { autoExecuteLotto } = await import('./auto-lotto-trader');
+          await autoExecuteLotto(createdIdea as TradeIdea);
+        } catch (autoTradeError) {
+          logger.warn(`🎰 [LOTTO] Auto-trade failed for ${candidate.underlying}:`, autoTradeError);
+        }
       }
     }
 
