@@ -136,3 +136,33 @@ All performance endpoints now use unified logic for counting wins, losses, and c
 - **Decided**: hit_target + real losses (excludes expired, breakeven)
 - **Real Loss**: hit_stop with percentGain <= -3%
 - **Breakeven**: hit_stop with percentGain > -3%
+
+## Auto-Lotto Bot (Dec 2025)
+
+### Overview
+Automated paper trading system that executes lotto plays (high R:R options) to build verifiable performance data before showing win rates to users.
+
+### Sample Size Gating
+**All performance metrics are hidden until 20 trades are completed:**
+- Non-admin users see "Pending" or "Hidden" for all P&L, win/loss counts, and win rates
+- Only the trade count progress is shown (e.g., "2/20 trades")
+- This prevents misleading statistics from low sample sizes
+
+### API Endpoint: `/api/auto-lotto-bot`
+- **Authentication**: Required (session-based)
+- **Admin access**: Full data including individual positions
+- **Non-admin access**: Only aggregated stats after 20 trades, no position details
+
+### Bot Configuration
+- **Portfolio**: "Auto-Lotto Bot" with system user "system-auto-trader"
+- **Max position size**: $500 per trade
+- **Risk per trade**: 5%
+- **Check frequency**: Every 5 minutes during market hours
+- **Targets**: Lotto ideas with R:R >= 2:1
+
+### UI Page
+`/watchlist-bot` - Shows bot dashboard with:
+- Portfolio value and P&L (if admin or 20+ trades)
+- Win rate with sample size context
+- Recent positions (admin only)
+- "Building Statistical Evidence" banner for non-admin below threshold

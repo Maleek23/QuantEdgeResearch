@@ -7234,6 +7234,114 @@ FORMATTING:
   });
 
   // ==========================================
+  // AUTO-LOTTO BOT API (Authenticated)
+  // ==========================================
+  
+  // GET /api/auto-lotto-bot - Get the auto-lotto bot's portfolio and stats
+  // Returns aggregated stats publicly, detailed positions only for admin
+  app.get("/api/auto-lotto-bot", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const { getLottoPortfolio } = await import("./auto-lotto-trader");
+      const portfolio = await getLottoPortfolio();
+      
+      if (!portfolio) {
+        return res.json({
+          portfolio: null,
+          positions: [],
+          stats: null,
+          message: "Auto-Lotto Bot not yet initialized"
+        });
+      }
+      
+      const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+      
+      // Calculate stats
+      const openPositions = positions.filter(p => p.status === 'open');
+      const closedPositions = positions.filter(p => p.status === 'closed');
+      const wins = closedPositions.filter(p => (p.realizedPnL || 0) > 0).length;
+      const losses = closedPositions.filter(p => (p.realizedPnL || 0) < 0).length;
+      const totalRealizedPnL = closedPositions.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
+      const totalUnrealizedPnL = openPositions.reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0);
+      
+      // Check if user is admin for detailed access
+      const userId = req.session?.userId;
+      const user = userId ? await storage.getUser(userId) : null;
+      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      
+      // Sample size gating: require minimum 20 trades for ALL metrics
+      const MINIMUM_SAMPLE_SIZE = 20;
+      const hasStatisticalValidity = closedPositions.length >= MINIMUM_SAMPLE_SIZE;
+      
+      // For admin: show all data
+      // For non-admin: only show data once minimum sample size is met
+      if (isAdmin) {
+        // Admin gets full access
+        res.json({
+          portfolio: {
+            name: portfolio.name,
+            totalValue: portfolio.totalValue,
+            totalPnL: portfolio.totalPnL,
+            createdAt: portfolio.createdAt,
+          },
+          positions: positions.slice(0, 50),
+          stats: {
+            openPositions: openPositions.length,
+            closedPositions: closedPositions.length,
+            wins,
+            losses,
+            winRate: closedPositions.length > 0 ? (wins / closedPositions.length * 100).toFixed(1) : '0',
+            winRateNote: null,
+            totalRealizedPnL,
+            totalUnrealizedPnL,
+            sampleSize: closedPositions.length,
+            hasStatisticalValidity: true,
+          },
+          botStatus: 'running',
+          isAdmin: true,
+        });
+      } else {
+        // Non-admin: sample size gating on ALL metrics
+        res.json({
+          portfolio: {
+            name: portfolio.name,
+            createdAt: portfolio.createdAt,
+          },
+          positions: [], // Never show positions to non-admin
+          stats: hasStatisticalValidity ? {
+            openPositions: openPositions.length,
+            closedPositions: closedPositions.length,
+            wins,
+            losses,
+            winRate: (wins / closedPositions.length * 100).toFixed(1),
+            winRateNote: null,
+            totalRealizedPnL,
+            totalUnrealizedPnL,
+            sampleSize: closedPositions.length,
+            hasStatisticalValidity: true,
+          } : {
+            // Below sample threshold: show only that bot exists, no performance data
+            openPositions: null,
+            closedPositions: closedPositions.length,
+            wins: null,
+            losses: null,
+            winRate: null,
+            winRateNote: `Performance data available after ${MINIMUM_SAMPLE_SIZE} trades (${closedPositions.length}/${MINIMUM_SAMPLE_SIZE})`,
+            totalRealizedPnL: null,
+            totalUnrealizedPnL: null,
+            sampleSize: closedPositions.length,
+            hasStatisticalValidity: false,
+          },
+          botStatus: 'running',
+          isAdmin: false,
+        });
+      }
+    } catch (error: any) {
+      logger.error("Error fetching auto-lotto bot data", { error });
+      res.status(500).json({ error: "Failed to fetch bot data" });
+    }
+  });
+
+  // ==========================================
   // WALLET TRACKER API ENDPOINTS
   // ==========================================
 
