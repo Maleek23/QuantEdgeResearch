@@ -523,7 +523,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      const tier = (user.subscriptionTier as 'free' | 'advanced' | 'pro') || 'free';
+      // Check if user is admin (by email match OR by subscription tier)
+      const isAdmin = (process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL) || 
+                      user.subscriptionTier === 'admin';
+      
+      // Admin gets pro tier limits, otherwise use their subscription tier
+      const tier = isAdmin ? 'pro' : ((user.subscriptionTier as 'free' | 'advanced' | 'pro') || 'free');
       const limits = normalizeLimits(getTierLimits(tier));
       const today = new Date().toISOString().split('T')[0];
       const usage = await storage.getDailyUsage(userId, today);
@@ -535,7 +540,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           tradeIdeas: usage?.ideasViewed || 0,
           chartAnalysis: usage?.chartAnalyses || 0
         },
-        isAdmin: process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL
+        isAdmin
       });
     } catch (error) {
       logError(error as Error, { context: 'user/tier' });
