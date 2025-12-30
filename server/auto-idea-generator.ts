@@ -75,23 +75,28 @@ class AutoIdeaGenerator {
       return;
     }
 
-    // Check if it's 9:30 AM CT (hour = 9, minute = 30-34 to catch the window)
-    const isMarketOpen = hour === 9 && minute >= 30 && minute < 35;
+    // Generate ideas at multiple times during market hours:
+    // 9:30 AM (market open), 11:00 AM (mid-morning), 1:30 PM (afternoon)
+    // This ensures we don't miss opportunities if server restarts
+    const generationWindows = [
+      { hour: 9, minStart: 30, minEnd: 35 },   // 9:30-9:35 AM CT - Market open
+      { hour: 11, minStart: 0, minEnd: 5 },    // 11:00-11:05 AM CT - Mid-morning
+      { hour: 13, minStart: 30, minEnd: 35 },  // 1:30-1:35 PM CT - Afternoon
+    ];
     
-    if (!isMarketOpen) {
+    const isGenerationWindow = generationWindows.some(
+      window => hour === window.hour && minute >= window.minStart && minute < window.minEnd
+    );
+    
+    if (!isGenerationWindow) {
       return;
     }
 
-    // Check if we already ran today
+    // Check if we already ran in this window (within last 2 hours)
     if (this.lastRunTime) {
-      const lastRunCT = new Date(this.lastRunTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
-      const isSameDay = 
-        lastRunCT.getFullYear() === nowCT.getFullYear() &&
-        lastRunCT.getMonth() === nowCT.getMonth() &&
-        lastRunCT.getDate() === nowCT.getDate();
-      
-      if (isSameDay && this.lastRunSuccess) {
-        return; // Already ran successfully today
+      const hoursSinceLastRun = (now.getTime() - this.lastRunTime.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLastRun < 2 && this.lastRunSuccess) {
+        return; // Already ran recently
       }
     }
 
@@ -108,13 +113,16 @@ class AutoIdeaGenerator {
 
     try {
       const nowCT = new Date(this.lastRunTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
-      logger.info(`🎯 [AUTO-GEN] Generating fresh AI ideas for ${nowCT.toLocaleDateString('en-US')} at 9:30 AM CT`);
+      const hour = nowCT.getHours();
+      const timeLabel = hour === 9 ? '9:30 AM' : hour === 11 ? '11:00 AM' : '1:30 PM';
+      logger.info(`🎯 [AUTO-GEN] Generating fresh AI ideas for ${nowCT.toLocaleDateString('en-US')} at ${timeLabel} CT`);
 
-      // 🚫 DEDUPLICATION: Get existing open symbols
+      // 🚫 DEDUPLICATION: Only block symbols that have open AI-generated ideas
+      // Allow different engines (lotto, flow, quant) to have ideas for same symbol
       const allIdeas = await storage.getAllTradeIdeas();
-      const existingOpenSymbols = new Set(
+      const existingOpenAiSymbols = new Set(
         allIdeas
-          .filter((idea: any) => idea.outcomeStatus === 'open')
+          .filter((idea: any) => idea.outcomeStatus === 'open' && idea.source === 'ai')
           .map((idea: any) => idea.symbol.toUpperCase())
       );
 
@@ -126,9 +134,9 @@ class AutoIdeaGenerator {
       const rejectedIdeas: Array<{symbol: string, reason: string}> = [];
 
       for (const aiIdea of aiIdeas) {
-        // 🚫 Skip if symbol already has an open trade
-        if (existingOpenSymbols.has(aiIdea.symbol.toUpperCase())) {
-          logger.info(`⏭️  [AUTO-GEN] Skipped ${aiIdea.symbol} - already has open trade`);
+        // 🚫 Skip if symbol already has an open AI-generated trade
+        if (existingOpenAiSymbols.has(aiIdea.symbol.toUpperCase())) {
+          logger.info(`⏭️  [AUTO-GEN] Skipped ${aiIdea.symbol} - already has open AI trade`);
           continue;
         }
 
