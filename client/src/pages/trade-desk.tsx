@@ -30,16 +30,7 @@ import { AIResearchPanel } from "@/components/ai-research-panel";
 import { UsageBadge } from "@/components/tier-gate";
 import { useTier } from "@/hooks/useTier";
 import { type TimeframeBucket, TIMEFRAME_LABELS, filterByTimeframe, getTimeframeCounts } from "@/lib/timeframes";
-
-// 🔧 DATA INTEGRITY: Consistent 3% minimum loss threshold (matches server-side getPerformanceStats)
-const MIN_LOSS_THRESHOLD = 3;
-const isRealLoss = (idea: TradeIdea): boolean => {
-  if ((idea.outcomeStatus || '').trim().toLowerCase() !== 'hit_stop') return false;
-  if (idea.percentGain !== null && idea.percentGain !== undefined) {
-    return idea.percentGain <= -MIN_LOSS_THRESHOLD;
-  }
-  return true; // Legacy trades without percentGain count as loss
-};
+import { isRealLoss } from "@shared/constants";
 
 export default function TradeDeskPage() {
   const { canGenerateTradeIdea } = useTier();

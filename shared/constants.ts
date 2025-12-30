@@ -66,6 +66,58 @@ export const PERFORMANCE_THRESHOLDS = {
   WIN_RATE_WARNING: 45,
 } as const;
 
+/**
+ * Canonical loss threshold - use this instead of hardcoding "3"
+ * Trades that hit stop with less than this loss are considered "breakeven"
+ */
+export const CANONICAL_LOSS_THRESHOLD = PERFORMANCE_THRESHOLDS.MIN_LOSS_PERCENT;
+
+/**
+ * Check if a trade is a "real loss" - hit stop with >= 3% loss
+ * Works with any object that has outcomeStatus and percentGain properties
+ */
+export function isRealLoss(idea: { outcomeStatus?: string | null; percentGain?: number | null }): boolean {
+  const status = (idea.outcomeStatus || '').trim().toLowerCase();
+  if (status !== 'hit_stop') return false;
+  
+  if (idea.percentGain !== null && idea.percentGain !== undefined) {
+    return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
+  }
+  
+  return true;
+}
+
+/**
+ * Check if a trade is a "real loss" using resolutionReason instead of outcomeStatus
+ * Used by auto-resolved trade endpoints
+ */
+export function isRealLossByResolution(idea: { resolutionReason?: string | null; percentGain?: number | null }): boolean {
+  if (idea.resolutionReason !== 'auto_stop_hit') return false;
+  
+  if (idea.percentGain !== null && idea.percentGain !== undefined) {
+    return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
+  }
+  
+  return true;
+}
+
+/**
+ * Filter to current-gen engines only (exclude legacy Quant v1.x/v2.x)
+ */
+export function isCurrentGenEngine(idea: { engineVersion?: string | null }): boolean {
+  if (!idea.engineVersion) {
+    return true;
+  }
+  
+  const version = idea.engineVersion.toLowerCase();
+  if (version.startsWith('v3.')) return true;
+  if (version.startsWith('flow_')) return true;
+  if (version.startsWith('hybrid_')) return true;
+  if (version.startsWith('ai_')) return true;
+  
+  return false;
+}
+
 // Engine colors for consistent styling
 export const ENGINE_COLORS: Record<string, { border: string; text: string; bg: string }> = {
   ai: { border: 'border-amber-500/50', text: 'text-amber-400', bg: 'bg-amber-500/10' },
