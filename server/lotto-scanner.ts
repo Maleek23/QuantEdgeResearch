@@ -249,7 +249,8 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
 
     // Determine option type label based on DTE
     const optionTypeLabel = candidate.daysToExpiry <= 7 ? 'weekly' : candidate.daysToExpiry <= 30 ? 'monthly' : candidate.daysToExpiry <= 365 ? 'long-dated' : 'LEAPS';
-    const holdingTypeLabel = candidate.daysToExpiry <= 7 ? 'Day trade' : candidate.daysToExpiry <= 90 ? 'Swing trade' : 'Position trade';
+    // 0-2 DTE = day trade, 3-14 DTE = swing trade, 15+ DTE = position trade
+    const holdingTypeLabel = candidate.daysToExpiry <= 2 ? 'Day trade' : candidate.daysToExpiry <= 14 ? 'Swing trade' : 'Position trade';
     
     // Generate analysis
     const analysis = `🎰 LOTTO PLAY: ${ticker} ${candidate.optionType.toUpperCase()} $${candidate.strike} expiring ${formatInTimeZone(new Date(candidate.expiration), 'America/Chicago', 'MMM dd, yyyy')} - Far OTM play (Δ ${Math.abs(candidate.delta).toFixed(2)}) targeting 20x return. Entry: $${entryPrice.toFixed(2)}, Target: $${targetPrice.toFixed(2)}. HIGH RISK: ${optionTypeLabel} option with ${candidate.daysToExpiry}d until expiry. ${holdingTypeLabel} - sized for small account growth ($0.20-$2.00 entry range).`;
@@ -286,9 +287,14 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
     let exitWindowDays: number;
     let holdingPeriod: 'day' | 'swing' | 'position';
     
-    if (dte <= 7) {
+    if (dte <= 2) {
+      // 0-2 DTE: True day trade - exit same/next day
       exitWindowDays = 1;
       holdingPeriod = 'day';
+    } else if (dte <= 7) {
+      // 3-7 DTE: Weekly swing trade - hold 2-3 days
+      exitWindowDays = Math.min(3, dte - 1); // Exit at least 1 day before expiry
+      holdingPeriod = 'swing';
     } else if (dte <= 30) {
       exitWindowDays = Math.min(7, Math.floor(dte * 0.5)); // 50% of DTE, max 7 days
       holdingPeriod = 'swing';
@@ -329,7 +335,7 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
       catalyst: `🎰 ${ticker} ${candidate.optionType.toUpperCase()} $${candidate.strike} | Δ${Math.abs(candidate.delta).toFixed(2)} | ${dte}d DTE | ${holdingPeriod} trade`,
       analysis,
       sessionContext: `Market hours - Lotto play on ${ticker} (${holdingPeriod} trade)`,
-      holdingPeriod: holdingPeriod as const,
+      holdingPeriod,
       source: 'lotto',
       strikePrice: candidate.strike,
       optionType: candidate.optionType,
