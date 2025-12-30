@@ -208,65 +208,64 @@ function detectNewsCatalyst(catalyst: string, analysis: string): boolean {
   return false;
 }
 
-// 📊 CONFIDENCE CALCULATION: Calculate confidence score for AI/Hybrid trades
-// NOTE: AI engine has historically poor performance (22% win rate on "high confidence" trades)
-// This function is now calibrated based on actual backtest data
+// 🎯 ENGINE PERFORMANCE MULTIPLIERS (Dec 2025 calibration from 411 resolved trades)
+// These multipliers adjust raw confidence scores based on actual engine win rates
+// Goal: High confidence should mean high probability of success, regardless of engine
+const ENGINE_PERFORMANCE = {
+  // Engine win rates from historical data
+  flow: { winRate: 81.9, multiplier: 1.35 },    // Best performer: boost significantly
+  ai: { winRate: 57.1, multiplier: 0.94 },      // Slightly below average: small penalty
+  hybrid: { winRate: 61.9, multiplier: 1.02 },  // Average: neutral
+  quant: { winRate: 34.4, multiplier: 0.57 },   // Poor performer: significant penalty
+  default: { winRate: 50.0, multiplier: 0.82 }  // Unknown: conservative
+} as const;
+
+// 📊 CONFIDENCE CALCULATION: Engine-weighted confidence scoring
+// Applies performance multiplier so high confidence = high win probability
 function calculateAIConfidence(
   idea: any,
   validationMetrics: any,
   isNewsCatalyst: boolean,
   source: string = 'ai'
 ): number {
-  // 🎯 SOURCE-BASED BASE CONFIDENCE (calibrated from historical data)
-  // AI: 76.8% overall win rate - but high confidence trades underperform
-  // Hybrid: 61.9% overall win rate - solid performance
-  // Quant: 53.7% overall win rate - moderate
-  // Flow: 81.9% overall, 96.6% on high confidence - excellent
-  let confidence: number;
-  
-  if (source === 'ai') {
-    confidence = 35; // AI overall good, but high conf trades underperform
-  } else if (source === 'hybrid') {
-    confidence = 45; // Hybrid has solid 61.9% win rate
-  } else if (source === 'flow') {
-    confidence = 55; // Flow has excellent historical accuracy
-  } else {
-    confidence = 35; // Default conservative
-  }
+  // 🎯 UNIFIED BASE SCORING: Same base for all engines (50 points)
+  // The engine multiplier at the end adjusts for actual performance
+  let rawScore = 50;
 
-  // 🚫 OPTIONS PENALTY: AI options have -150% avg loss (expire worthless)
-  // Severe penalty for AI-generated options only - they should NOT be high confidence
-  // Hybrid options excluded as they use different analysis methodology
+  // R:R ratio contribution (0-20 points)
+  const rrRatio = validationMetrics?.riskRewardRatio || 0;
+  if (rrRatio >= 3.0) rawScore += 20;
+  else if (rrRatio >= 2.5) rawScore += 16;
+  else if (rrRatio >= 2.0) rawScore += 12;
+  else if (rrRatio >= 1.5) rawScore += 8;
+  else if (rrRatio >= 1.0) rawScore += 4;
+
+  // Asset type contribution (0-15 points)
+  if (idea.assetType === 'crypto') rawScore += 15;
+  else if (idea.assetType === 'stock' && idea.entryPrice >= 10) rawScore += 10;
+  else if (idea.assetType === 'stock' && idea.entryPrice >= 5) rawScore += 5;
+  else if (idea.assetType === 'option') rawScore += 8;
+  // Penny stocks get no bonus
+
+  // Catalyst strength contribution (0-10 points)
+  if (isNewsCatalyst) rawScore += 10;
+
+  // 🚫 OPTIONS PENALTY for AI only (historically poor)
   if (idea.assetType === 'option' && source === 'ai') {
-    confidence -= 15; // Penalty for AI options
+    rawScore -= 15;
     logger.info(`📉 [CONFIDENCE] AI option ${idea.symbol} - applied -15 penalty (historical -150% loss rate)`);
   }
 
-  // R:R ratio contribution (0-15 points for AI, 0-25 for Flow)
-  // Reduced for AI since good R:R doesn't equal good predictions
-  const rrRatio = validationMetrics?.riskRewardRatio || 0;
-  const rrBonus = source === 'flow' ? 25 : 15; // Flow gets full bonus, AI gets less
-  
-  if (rrRatio >= 3.0) confidence += rrBonus;
-  else if (rrRatio >= 2.5) confidence += Math.round(rrBonus * 0.8);
-  else if (rrRatio >= 2.0) confidence += Math.round(rrBonus * 0.6);
-  else if (rrRatio >= 1.5) confidence += Math.round(rrBonus * 0.4);
-  else if (rrRatio >= 1.0) confidence += Math.round(rrBonus * 0.2);
+  // 🎯 APPLY ENGINE PERFORMANCE MULTIPLIER
+  // This is the key: adjust score based on how well this engine actually performs
+  const engineKey = source.toLowerCase() as keyof typeof ENGINE_PERFORMANCE;
+  const engineData = ENGINE_PERFORMANCE[engineKey] || ENGINE_PERFORMANCE.default;
+  const adjustedScore = rawScore * engineData.multiplier;
 
-  // Asset type contribution (0-10 points for AI, 0-15 for Flow)
-  const assetBonus = source === 'flow' ? 15 : 10;
-  
-  if (idea.assetType === 'crypto') confidence += assetBonus;
-  else if (idea.assetType === 'stock' && idea.entryPrice >= 10) confidence += Math.round(assetBonus * 0.7);
-  else if (idea.assetType === 'stock' && idea.entryPrice >= 5) confidence += Math.round(assetBonus * 0.3);
-  else if (idea.assetType === 'penny_stock' || idea.entryPrice < 5) confidence += 0;
+  logger.info(`📊 [CONFIDENCE] ${idea.symbol} [${source.toUpperCase()}]: raw=${rawScore}, multiplier=${engineData.multiplier}x, final=${Math.round(adjustedScore)}`);
 
-  // Catalyst strength contribution (0-10 points)
-  // News catalyst still helps - market-moving events are more predictable
-  if (isNewsCatalyst) confidence += 10;
-
-  // Cap at 100, floor at 10
-  return Math.min(100, Math.max(10, confidence));
+  // Cap at 100, floor at 20
+  return Math.min(100, Math.max(20, Math.round(adjustedScore)));
 }
 
 // 🎯 PROBABILITY BAND MAPPING: Calibrated from actual historical performance
