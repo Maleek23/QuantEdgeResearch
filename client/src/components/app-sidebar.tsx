@@ -1,6 +1,6 @@
 import { 
   TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, 
-  Sun, Moon, Upload, BookOpen, Home, CreditCard, ExternalLink, User, Activity, 
+  Sun, Moon, Upload, BookOpen, Home, CreditCard, ExternalLink, User, 
   LineChart, GraduationCap, FileText, Database, LogOut, Sparkles, Bot, Zap
 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -34,7 +34,6 @@ interface NavItem {
 const tradingToolsItems: NavItem[] = [
   { title: "Dashboard", url: "/home", icon: Home },
   { title: "Research Desk", url: "/trade-desk", icon: TrendingUp, badge: "Popular", badgeVariant: "default" },
-  { title: "Live Trading", url: "/live-trading", icon: Activity },
   { title: "Auto-Lotto Bot", url: "/watchlist-bot", icon: Bot, badge: "New", badgeVariant: "secondary" },
 ];
 

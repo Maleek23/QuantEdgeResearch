@@ -35,14 +35,12 @@ const Blog = lazy(() => import("@/pages/blog"));
 const TradingRules = lazy(() => import("@/pages/trading-rules"));
 const BlogPost = lazy(() => import("@/pages/blog-post"));
 const Pricing = lazy(() => import("@/pages/pricing"));
-const LiveTrading = lazy(() => import("@/pages/live-trading"));
 const PaperTrading = lazy(() => import("@/pages/paper-trading"));
 const WalletTracker = lazy(() => import("@/pages/wallet-tracker"));
 const CTTracker = lazy(() => import("@/pages/ct-tracker"));
 const TradeAudit = lazy(() => import("@/pages/trade-audit"));
 const WatchlistBot = lazy(() => import("@/pages/watchlist-bot"));
 const FuturesPage = lazy(() => import("@/pages/futures"));
-const MarketsPage = lazy(() => import("@/pages/markets"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function PageLoader() {
@@ -62,7 +60,6 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/trade-desk" component={TradeDeskPage} />
-      <Route path="/live-trading" component={LiveTrading} />
       <Route path="/paper-trading" component={PaperTrading} />
       <Route path="/wallet-tracker" component={WalletTracker} />
       <Route path="/ct-tracker" component={CTTracker} />
@@ -71,7 +68,6 @@ function Router() {
       <Route path="/performance" component={PerformancePage} />
       <Route path="/trade-ideas/:id/audit" component={TradeAudit} />
       <Route path="/market" component={MarketPage} />
-      <Route path="/markets" component={MarketsPage} />
       <Route path="/futures" component={FuturesPage} />
       
       {/* Research & Community Pages */}
