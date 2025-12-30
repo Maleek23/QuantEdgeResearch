@@ -36,6 +36,7 @@ const ConfidenceCalibration = lazy(() => import("@/components/confidence-calibra
 const CalibrationCurve = lazy(() => import("@/components/calibration-curve"));
 const EngineActualPerformance = lazy(() => import("@/components/engine-actual-performance"));
 const StreakTracker = lazy(() => import("@/components/streak-tracker"));
+const LossPatternsDashboard = lazy(() => import("@/components/loss-patterns-dashboard").then(m => ({ default: m.LossPatternsDashboard })));
 import { PerformanceLeaderboard } from "@/components/performance-leaderboard";
 
 // Loading fallback for lazy components
@@ -1258,6 +1259,11 @@ export default function PerformancePage() {
                 <StreakTracker selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
               </Suspense>
             </div>
+            
+            {/* Loss Analysis Dashboard */}
+            <Suspense fallback={<ChartSkeleton />}>
+              <LossPatternsDashboard />
+            </Suspense>
             
             <div className="glass-card rounded-xl p-6">
               <h2 className="text-xl font-semibold mb-2 text-cyan-400">Symbol Performance Leaderboard</h2>

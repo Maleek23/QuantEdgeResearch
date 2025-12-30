@@ -54,3 +54,37 @@ Provides historical performance analytics from 411+ resolved trades:
 - **Avoid**: SOL, AAVE, SMCI, CLF, USAR (0% win rate)
 - **Flow Engine Dominance**: Best performer at 81.9% win rate
 - **Historical Badges**: Trade cards show engine/symbol performance via HistoricalPerformanceBadge component
+
+## Loss Analysis System
+
+### Automatic Post-Mortem
+When trades hit their stop loss, the system automatically analyzes why the trade failed and stores the analysis in the `loss_analysis` table. This provides:
+- **What went wrong**: Detailed explanation of the failure
+- **Lessons learned**: What to do differently next time
+- **Prevention strategy**: How to avoid similar losses
+
+### 15 Loss Reason Categories
+- market_reversal, sector_weakness, bad_timing, news_catalyst_failed
+- stop_too_tight, overconfident_signal, low_volume_trap, gap_down_open
+- trend_exhaustion, fundamental_miss, technical_breakdown
+- options_decay, volatility_crush, correlation_blindspot, unknown
+
+### Severity Levels
+- Minor: >= -2% loss
+- Moderate: -2% to -5% loss
+- Significant: -5% to -10% loss
+- Severe: < -10% loss
+
+### API Endpoints
+- GET `/api/loss-analysis/summary` - Summary with top reasons, worst symbols, engine breakdown
+- GET `/api/loss-analysis` - All loss analyses
+- GET `/api/loss-analysis/patterns` - Loss patterns grouped by reason
+- GET `/api/loss-analysis/trade/:tradeId` - Analysis for specific trade
+- POST `/api/loss-analysis/analyze-all` - Admin trigger to analyze historical losses
+
+### UI Component
+`LossPatternsDashboard` in the Performance page shows:
+- Summary stats (total losses, avg loss, total lost)
+- Top loss reasons with visual progress bars
+- Worst performing symbols
+- Engine breakdown by loss count

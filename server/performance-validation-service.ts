@@ -2,7 +2,8 @@ import { storage } from "./storage";
 import { PerformanceValidator } from "./performance-validator";
 import { fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { getOptionQuote } from "./tradier-api";
-import type { TradeIdea, InsertTradePriceSnapshot, PriceSnapshotEvent } from "@shared/schema";
+import { analyzeLoss } from "./loss-analyzer";
+import type { TradeIdea, InsertTradePriceSnapshot, PriceSnapshotEventType } from "@shared/schema";
 
 /**
  * Automated Performance Validation Service
@@ -141,18 +142,33 @@ class PerformanceValidationService {
           });
 
           validated++;
-          if (result.outcomeStatus === 'hit_target') winners++;
-          else if (result.outcomeStatus === 'hit_stop') losers++;
-          else if (result.outcomeStatus === 'expired') expired++;
-
           const idea = openIdeas.find(i => i.id === ideaId);
+          
+          if (result.outcomeStatus === 'hit_target') winners++;
+          else if (result.outcomeStatus === 'hit_stop') {
+            losers++;
+            // 📉 Automatic loss analysis - understand why this trade failed
+            if (idea) {
+              try {
+                const updatedIdea = { ...idea, outcomeStatus: result.outcomeStatus as any, percentGain: result.percentGain ?? null, exitPrice: result.exitPrice ?? null, actualHoldingTimeMinutes: result.actualHoldingTimeMinutes ?? null };
+                const lossAnalysis = await analyzeLoss(updatedIdea);
+                if (lossAnalysis) {
+                  await storage.createLossAnalysis(lossAnalysis);
+                  console.log(`  📉 Loss analyzed: ${idea.symbol} - ${lossAnalysis.lossReason}`);
+                }
+              } catch (err) {
+                console.warn(`  ⚠️  Failed to analyze loss for ${idea?.symbol}:`, err);
+              }
+            }
+          }
+          else if (result.outcomeStatus === 'expired') expired++;
           if (idea) {
             console.log(`  ✓ ${idea.symbol}: ${result.outcomeStatus} at $${result.exitPrice?.toFixed(2)} (${result.percentGain?.toFixed(1)}%)`);
             
             // 📸 Save price snapshot for audit trail
             const currentPrice = priceMap.get(idea.symbol) || result.exitPrice;
             if (currentPrice) {
-              const eventType: PriceSnapshotEvent = 
+              const eventType: PriceSnapshotEventType = 
                 result.outcomeStatus === 'hit_target' ? 'target_hit' :
                 result.outcomeStatus === 'hit_stop' ? 'stop_hit' :
                 result.outcomeStatus === 'expired' ? 'expired' : 'validation_check';
@@ -168,7 +184,7 @@ class PerformanceValidationService {
                 distanceToTargetPercent: result.percentGain ? Math.abs(result.percentGain) : null,
                 distanceToStopPercent: null,
                 pnlAtSnapshot: result.percentGain ?? null,
-                validatorVersion: PerformanceValidator.VERSION,
+                validatorVersion: 'v1.0',
                 dataSource: 'validation',
               };
               

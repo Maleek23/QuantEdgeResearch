@@ -39,6 +39,7 @@ import { getTierLimits } from "./tierConfig";
 import { syncDocumentationToNotion } from "./notion-sync";
 import * as paperTradingService from "./paper-trading-service";
 import { telemetryService } from "./telemetry-service";
+import { analyzeLoss, analyzeAllLosses, getLossSummary } from "./loss-analyzer";
 import { getReliabilityGrade, getLetterGrade } from "./grading";
 import { 
   insertPaperPortfolioSchema, 
@@ -3335,6 +3336,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Engine actual stats error:", error);
       res.status(500).json({ error: "Failed to fetch engine stats" });
+    }
+  });
+
+  // 🔍 LOSS ANALYSIS ENDPOINTS - Post-Mortem for Failed Trades
+  
+  // Get loss summary with patterns and insights
+  app.get("/api/loss-analysis/summary", async (req, res) => {
+    try {
+      const summary = await getLossSummary();
+      res.json(summary);
+    } catch (error) {
+      logger.error("Loss summary error:", error);
+      res.status(500).json({ error: "Failed to fetch loss summary" });
+    }
+  });
+
+  // Get all loss analyses
+  app.get("/api/loss-analysis", async (req, res) => {
+    try {
+      const analyses = await storage.getAllLossAnalyses();
+      res.json(analyses);
+    } catch (error) {
+      logger.error("Loss analysis list error:", error);
+      res.status(500).json({ error: "Failed to fetch loss analyses" });
+    }
+  });
+
+  // Get loss patterns grouped by reason
+  app.get("/api/loss-analysis/patterns", async (req, res) => {
+    try {
+      const patterns = await storage.getLossPatterns();
+      res.json(patterns);
+    } catch (error) {
+      logger.error("Loss patterns error:", error);
+      res.status(500).json({ error: "Failed to fetch loss patterns" });
+    }
+  });
+
+  // Analyze all unanalyzed losses (admin trigger)
+  app.post("/api/loss-analysis/analyze-all", requireAdmin, async (req, res) => {
+    try {
+      const count = await analyzeAllLosses();
+      res.json({ 
+        success: true, 
+        message: `Analyzed ${count} losses`,
+        analyzedCount: count 
+      });
+    } catch (error) {
+      logger.error("Analyze all losses error:", error);
+      res.status(500).json({ error: "Failed to analyze losses" });
+    }
+  });
+
+  // Get loss analysis for a specific trade
+  app.get("/api/loss-analysis/trade/:tradeId", async (req, res) => {
+    try {
+      const { tradeId } = req.params;
+      const analysis = await storage.getLossAnalysisByTradeId(tradeId);
+      if (!analysis) {
+        return res.status(404).json({ error: "No analysis found for this trade" });
+      }
+      res.json(analysis);
+    } catch (error) {
+      logger.error("Trade loss analysis error:", error);
+      res.status(500).json({ error: "Failed to fetch trade analysis" });
     }
   });
 

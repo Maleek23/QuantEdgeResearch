@@ -95,6 +95,9 @@ import {
   engineHealthAlerts,
   tradePriceSnapshots,
   blogPosts,
+  lossAnalysis,
+  InsertLossAnalysis,
+  LossAnalysis,
 } from "@shared/schema";
 
 export interface ChatMessage {
@@ -321,6 +324,12 @@ export interface IStorage {
   createBlogPost(post: InsertBlogPost): Promise<BlogPost>;
   updateBlogPost(id: string, post: Partial<InsertBlogPost>): Promise<BlogPost | null>;
   deleteBlogPost(id: string): Promise<boolean>;
+
+  // Loss Analysis - Post-Mortem for Failed Trades
+  createLossAnalysis(analysis: InsertLossAnalysis): Promise<LossAnalysis>;
+  getLossAnalysisByTradeId(tradeIdeaId: string): Promise<LossAnalysis | null>;
+  getAllLossAnalyses(): Promise<LossAnalysis[]>;
+  getLossPatterns(): Promise<{ pattern: string; count: number; avgLoss: number }[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -1788,6 +1797,23 @@ export class MemStorage implements IStorage {
   async deleteBlogPost(_id: string): Promise<boolean> {
     throw new Error("Blog not supported in MemStorage");
   }
+
+  // Loss Analysis (stub)
+  async createLossAnalysis(_analysis: InsertLossAnalysis): Promise<LossAnalysis> {
+    throw new Error("Loss analysis not supported in MemStorage");
+  }
+
+  async getLossAnalysisByTradeId(_tradeIdeaId: string): Promise<LossAnalysis | null> {
+    throw new Error("Loss analysis not supported in MemStorage");
+  }
+
+  async getAllLossAnalyses(): Promise<LossAnalysis[]> {
+    throw new Error("Loss analysis not supported in MemStorage");
+  }
+
+  async getLossPatterns(): Promise<{ pattern: string; count: number; avgLoss: number }[]> {
+    throw new Error("Loss analysis not supported in MemStorage");
+  }
 }
 
 // Database Storage Implementation (from javascript_database blueprint)
@@ -3184,6 +3210,40 @@ export class DatabaseStorage implements IStorage {
   async deleteBlogPost(id: string): Promise<boolean> {
     await db.delete(blogPosts).where(eq(blogPosts.id, id));
     return true;
+  }
+
+  // Loss Analysis - Post-Mortem for Failed Trades
+  async createLossAnalysis(analysis: InsertLossAnalysis): Promise<LossAnalysis> {
+    const [created] = await db.insert(lossAnalysis).values(analysis as any).returning();
+    return created;
+  }
+
+  async getLossAnalysisByTradeId(tradeIdeaId: string): Promise<LossAnalysis | null> {
+    const [result] = await db.select().from(lossAnalysis)
+      .where(eq(lossAnalysis.tradeIdeaId, tradeIdeaId));
+    return result || null;
+  }
+
+  async getAllLossAnalyses(): Promise<LossAnalysis[]> {
+    return await db.select().from(lossAnalysis)
+      .orderBy(desc(lossAnalysis.createdAt));
+  }
+
+  async getLossPatterns(): Promise<{ pattern: string; count: number; avgLoss: number }[]> {
+    const results = await db.select({
+      pattern: lossAnalysis.lossReason,
+      count: drizzleSql<number>`count(*)::int`,
+      avgLoss: drizzleSql<number>`avg(${lossAnalysis.percentLoss})::float`,
+    })
+    .from(lossAnalysis)
+    .groupBy(lossAnalysis.lossReason)
+    .orderBy(desc(drizzleSql`count(*)`));
+    
+    return results.map(r => ({
+      pattern: r.pattern || 'unknown',
+      count: r.count,
+      avgLoss: r.avgLoss || 0,
+    }));
   }
 }
 

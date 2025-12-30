@@ -1067,3 +1067,83 @@ export const testimonials = pgTable("testimonials", {
 export const insertTestimonialSchema = createInsertSchema(testimonials).omit({ id: true, createdAt: true });
 export type InsertTestimonial = z.infer<typeof insertTestimonialSchema>;
 export type Testimonial = typeof testimonials.$inferSelect;
+
+// ============================================================================
+// LOSS ANALYSIS - Post-Mortem Analysis of Failed Trades
+// ============================================================================
+
+// Loss Reason Categories
+export type LossReasonCategory = 
+  | 'market_reversal'      // Broad market turned against position
+  | 'sector_weakness'      // Sector-specific headwind
+  | 'bad_timing'           // Entry at wrong time (extended, exhaustion)
+  | 'news_catalyst_failed' // Expected catalyst didn't materialize
+  | 'stop_too_tight'       // Stop loss was too close to entry
+  | 'overconfident_signal' // Engine gave high confidence but was wrong
+  | 'low_volume_trap'      // Got trapped in illiquid name
+  | 'gap_down_open'        // Overnight gap destroyed position
+  | 'trend_exhaustion'     // Trend was already extended
+  | 'fundamental_miss'     // Missed fundamental red flag
+  | 'technical_breakdown'  // Key support/resistance failed
+  | 'options_decay'        // Theta decay killed options position
+  | 'volatility_crush'     // IV crush after event
+  | 'correlation_blindspot'// Didn't account for correlated assets
+  | 'unknown';             // Unable to determine cause
+
+// Loss Severity
+export type LossSeverity = 'minor' | 'moderate' | 'significant' | 'severe';
+
+export const lossAnalysis = pgTable("loss_analysis", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tradeIdeaId: varchar("trade_idea_id").notNull(), // Reference to the failed trade
+  
+  // Trade Context at Time of Loss
+  symbol: text("symbol").notNull(),
+  engine: text("engine").notNull(), // ai, quant, flow, hybrid
+  assetType: text("asset_type").notNull(), // stock, option, crypto
+  direction: text("direction").notNull(), // long, short
+  confidenceScore: real("confidence_score"), // What confidence was given
+  probabilityBand: text("probability_band"), // A, B, C, D band
+  
+  // Loss Details
+  entryPrice: real("entry_price").notNull(),
+  exitPrice: real("exit_price").notNull(),
+  percentLoss: real("percent_loss").notNull(), // Negative number
+  dollarLoss: real("dollar_loss"), // If position size known
+  holdingTimeMinutes: integer("holding_time_minutes"),
+  
+  // Analysis Fields
+  lossReason: text("loss_reason").$type<LossReasonCategory>().notNull().default('unknown'),
+  severity: text("severity").$type<LossSeverity>().notNull().default('moderate'),
+  
+  // Context Factors
+  marketConditionAtEntry: text("market_condition_at_entry"), // bullish, bearish, choppy
+  vixLevelAtEntry: real("vix_level_at_entry"),
+  sectorPerformance: text("sector_performance"), // sector was up/down
+  timeOfDay: text("time_of_day"), // opening, mid-day, closing
+  dayOfWeek: text("day_of_week"),
+  
+  // What Went Wrong
+  whatWentWrong: text("what_went_wrong").notNull(), // Detailed explanation
+  lessonsLearned: text("lessons_learned"), // What to do differently
+  preventionStrategy: text("prevention_strategy"), // How to avoid in future
+  
+  // Pattern Detection
+  isPatternMatch: boolean("is_pattern_match").default(false), // Matches a known failure pattern
+  patternType: text("pattern_type"), // e.g., "extended_entry", "news_fade"
+  similarLosses: text("similar_losses").array(), // IDs of similar past losses
+  
+  // AI Analysis (if available)
+  aiAnalysis: text("ai_analysis"), // Claude's detailed post-mortem
+  aiRecommendations: text("ai_recommendations").array(), // List of AI suggestions
+  
+  // Metadata
+  analyzedAt: timestamp("analyzed_at").defaultNow(),
+  analyzedBy: text("analyzed_by").default('system'), // 'system' or 'manual'
+  reviewedByUser: boolean("reviewed_by_user").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertLossAnalysisSchema = createInsertSchema(lossAnalysis).omit({ id: true, createdAt: true, analyzedAt: true });
+export type InsertLossAnalysis = z.infer<typeof insertLossAnalysisSchema>;
+export type LossAnalysis = typeof lossAnalysis.$inferSelect;
