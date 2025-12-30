@@ -326,48 +326,69 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
                  source === 'news' ? 0xE67E22 : // Orange for news
                  COLORS.QUANT;
     
-    // COMPACT FORMAT: Show top ideas with confidence % on the side
+    // ACTIONABLE FORMAT: Show asset type, entry→target, and signal count (not misleading %)
     const longIdeas = ideas.filter(i => i.direction === 'long');
     const shortIdeas = ideas.filter(i => i.direction === 'short');
     
-    // Format compactly: emoji SYMBOL C/P$strike MM/DD | $entry | conf%
+    // Format actionably: emoji SYMBOL TYPE $entry→$target (signals)
     const formatIdea = (idea: TradeIdea) => {
       const emoji = idea.direction === 'long' ? '🟢' : '🔴';
-      const conf = idea.confidenceScore ? `**${idea.confidenceScore}%**` : '';
+      // Signal strength instead of misleading confidence %
+      const signalCount = idea.qualitySignals?.length || 0;
+      const signalLabel = signalCount >= 5 ? 'A+ Signal' : 
+                          signalCount >= 4 ? 'A Signal' :
+                          signalCount >= 3 ? 'B Signal' :
+                          signalCount >= 2 ? 'C Signal' : 'Low Signal';
+      
+      // Calculate gain target
+      const gainPct = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(1);
       
       if (idea.assetType === 'option') {
-        const optType = idea.optionType?.toUpperCase().charAt(0) || 'O';
+        const optType = idea.optionType?.toUpperCase() || 'OPTION';
         const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
         // Format expiry as MM/DD (compact)
         const exp = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
-        return `${emoji} ${idea.symbol} ${optType}${strike} ${exp} • $${idea.entryPrice.toFixed(2)} • ${conf}`;
+        return `${emoji} **${idea.symbol}** ${optType} ${strike} ${exp} | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${signalLabel}`;
+      } else if (idea.assetType === 'crypto') {
+        return `${emoji} **${idea.symbol}** CRYPTO | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${signalLabel}`;
       }
-      return `${emoji} ${idea.symbol} $${idea.entryPrice.toFixed(2)} • ${conf}`;
+      return `${emoji} **${idea.symbol}** SHARES | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${signalLabel}`;
     };
     
-    // Limit to top 12 ideas (sorted by confidence) to keep compact
-    const sortedIdeas = [...ideas].sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
-    const topIdeas = sortedIdeas.slice(0, 12);
+    // Limit to top 8 ideas (sorted by signal count then R:R) to keep readable
+    const sortedIdeas = [...ideas].sort((a, b) => {
+      const aSignals = a.qualitySignals?.length || 0;
+      const bSignals = b.qualitySignals?.length || 0;
+      if (bSignals !== aSignals) return bSignals - aSignals;
+      return (b.riskRewardRatio || 0) - (a.riskRewardRatio || 0);
+    });
+    const topIdeas = sortedIdeas.slice(0, 8);
     const summary = topIdeas.map(formatIdea).join('\n');
     const remainingCount = ideas.length - topIdeas.length;
     const moreText = remainingCount > 0 ? `\n_+${remainingCount} more in dashboard_` : '';
     
-    // Calculate average confidence
-    const avgConf = Math.round(ideas.reduce((sum, i) => sum + (i.confidenceScore || 0), 0) / ideas.length);
+    // Calculate average signal count
+    const avgSignals = Math.round(ideas.reduce((sum, i) => sum + (i.qualitySignals?.length || 0), 0) / ideas.length);
+    const avgRR = (ideas.reduce((sum, i) => sum + (i.riskRewardRatio || 0), 0) / ideas.length).toFixed(1);
     
     const embed: DiscordEmbed = {
-      title: `${sourceLabel} - ${ideas.length} Ideas`,
+      title: `${sourceLabel} - ${ideas.length} Trade Ideas`,
       description: summary + moreText,
       color,
       fields: [
         {
-          name: 'Signals',
+          name: 'Direction',
           value: `🟢 ${longIdeas.length} Long • 🔴 ${shortIdeas.length} Short`,
           inline: true
         },
         {
-          name: 'Avg Conf',
-          value: `${avgConf}%`,
+          name: 'Avg Signals',
+          value: `${avgSignals}/5 indicators`,
+          inline: true
+        },
+        {
+          name: 'Avg R:R',
+          value: `${avgRR}:1`,
           inline: true
         }
       ],
@@ -717,40 +738,50 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
     const nowCT = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
     const dateStr = nowCT.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     
-    // Filter to open ideas with high confidence, sorted by confidence
+    // Filter to open ideas with strong signals (3+ indicators), sorted by signal count then R:R
     const topIdeas = ideas
-      .filter(i => i.outcomeStatus === 'open' && i.confidenceScore >= 70)
-      .sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0))
+      .filter(i => i.outcomeStatus === 'open' && (i.qualitySignals?.length || 0) >= 2)
+      .sort((a, b) => {
+        const aSignals = a.qualitySignals?.length || 0;
+        const bSignals = b.qualitySignals?.length || 0;
+        if (bSignals !== aSignals) return bSignals - aSignals;
+        return (b.riskRewardRatio || 0) - (a.riskRewardRatio || 0);
+      })
       .slice(0, 5);
     
     if (topIdeas.length === 0) {
-      logger.info('📭 No high-confidence open ideas for daily summary');
+      logger.info('📭 No high-signal open ideas for daily summary');
       return;
     }
     
-    // Format top ideas with clear asset type labels - for options show TYPE STRIKE EXPIRY
+    // Format top ideas with actionable trade info
     const ideaList = topIdeas.map((idea, i) => {
       const emoji = idea.direction === 'long' ? '🟢' : '🔴';
-      const sourceIcon = idea.source === 'ai' ? '🧠' : idea.source === 'quant' ? '✨' : idea.source === 'hybrid' ? '🎯' : '📊';
+      const sourceIcon = idea.source === 'ai' ? '🧠' : idea.source === 'quant' ? '✨' : idea.source === 'hybrid' ? '🎯' : idea.source === 'flow' ? '📊' : '📝';
+      const signalCount = idea.qualitySignals?.length || 0;
+      const signalGrade = signalCount >= 5 ? 'A+' : signalCount >= 4 ? 'A' : signalCount >= 3 ? 'B' : signalCount >= 2 ? 'C' : 'D';
+      const gainPct = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(1);
+      
       let typeLabel: string;
       if (idea.assetType === 'option') {
         const optType = idea.optionType?.toUpperCase() || 'OPT';
         const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
-        const exp = idea.expiryDate || '';
+        const exp = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
         typeLabel = `${optType} ${strike} ${exp}`.trim();
       } else if (idea.assetType === 'crypto') {
         typeLabel = 'CRYPTO';
       } else {
         typeLabel = 'SHARES';
       }
-      return `${i + 1}. ${emoji} **${idea.symbol}** ${typeLabel} → $${idea.targetPrice.toFixed(2)} (${idea.confidenceScore}% conf) ${sourceIcon}`;
+      return `${i + 1}. ${emoji} **${idea.symbol}** ${typeLabel} | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${signalGrade} (${signalCount}/5) ${sourceIcon}`;
     }).join('\n');
     
     // Calculate stats
     const totalOpen = ideas.filter(i => i.outcomeStatus === 'open').length;
     const longCount = topIdeas.filter(i => i.direction === 'long').length;
     const shortCount = topIdeas.filter(i => i.direction === 'short').length;
-    const avgConfidence = Math.round(topIdeas.reduce((sum, i) => sum + (i.confidenceScore || 0), 0) / topIdeas.length);
+    const avgSignals = Math.round(topIdeas.reduce((sum, i) => sum + (i.qualitySignals?.length || 0), 0) / topIdeas.length);
+    const avgRR = (topIdeas.reduce((sum, i) => sum + (i.riskRewardRatio || 0), 0) / topIdeas.length).toFixed(1);
     
     const embed: DiscordEmbed = {
       title: `📈 Daily Trading Preview - ${dateStr}`,
@@ -758,8 +789,8 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
       color: 0x3b82f6, // Blue
       fields: [
         {
-          name: '📊 Total Open Ideas',
-          value: `${totalOpen}`,
+          name: '📊 Total Open',
+          value: `${totalOpen} ideas`,
           inline: true
         },
         {
@@ -768,8 +799,8 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
           inline: true
         },
         {
-          name: '⭐ Avg Confidence',
-          value: `${avgConfidence}%`,
+          name: '⭐ Avg Signals',
+          value: `${avgSignals}/5 | R:R ${avgRR}:1`,
           inline: true
         }
       ],

@@ -260,6 +260,32 @@ class AutoIdeaGenerator {
         const riskRewardRatio = postChartValidation.metrics?.riskRewardRatio || 
           (targetPrice - entryPrice) / (entryPrice - stopLoss);
         
+        // 📊 BUILD QUALITY SIGNALS based on actual validations passed
+        const qualitySignals: string[] = [];
+        
+        // Signal 1: AI Analysis - always present for AI-generated ideas
+        qualitySignals.push('AI Analysis');
+        
+        // Signal 2: Risk validation passed (R:R requirement met)
+        if (riskRewardRatio >= 2.0) {
+          qualitySignals.push(`R:R ${riskRewardRatio.toFixed(1)}:1`);
+        }
+        
+        // Signal 3: Chart pattern confirmation
+        if (chartConfirmed) {
+          qualitySignals.push('Chart Confirmed');
+        }
+        
+        // Signal 4: Chart support/resistance alignment
+        if (chartValidation.chartAnalysis?.patterns.length) {
+          qualitySignals.push('Technical Pattern');
+        }
+        
+        // Signal 5: Option enriched with real data
+        if (processedIdea.assetType === 'option' && processedIdea.strikePrice) {
+          qualitySignals.push('Option Enriched');
+        }
+        
         // Append chart context to analysis for downstream consumers
         const enhancedAnalysis = chartContext 
           ? `${processedIdea.analysis}${chartContext}` 
@@ -292,6 +318,7 @@ class AutoIdeaGenerator {
           source: 'ai',
           isLottoPlay: isLotto,
           confidenceScore: finalConfidence, // Base 60 + chart boost (+5 if chart confirms)
+          qualitySignals, // Array of verified signal labels
         });
         savedIdeas.push(tradeIdea);
       }

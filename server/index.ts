@@ -278,6 +278,17 @@ app.use((req, res, next) => {
           // 📊 Calculate confidence score (simplified for CRON - use base 55 for hybrid)
           const confidenceScore = 55 + (validation.metrics?.riskRewardRatio ? Math.min(10, validation.metrics.riskRewardRatio * 5) : 0);
           
+          // 📊 BUILD QUALITY SIGNALS based on validations
+          const qualitySignals: string[] = [];
+          qualitySignals.push('Hybrid (AI+Quant)'); // Always present
+          if (riskRewardRatio >= 2.0) {
+            qualitySignals.push(`R:R ${riskRewardRatio.toFixed(1)}:1`);
+          }
+          // Copy any existing signals from the hybrid idea
+          if ((hybridIdea as any).qualitySignals?.length) {
+            qualitySignals.push(...(hybridIdea as any).qualitySignals.slice(0, 3));
+          }
+          
           // 🕐 TIMING INTELLIGENCE: Derive trade-specific timing windows
           const timingWindows = deriveTimingWindows({
             symbol: hybridIdea.symbol,
@@ -309,10 +320,11 @@ app.use((req, res, next) => {
             entryValidUntil: timingWindows.entryValidUntil,
             exitBy: timingWindows.exitBy,
             expiryDate: hybridIdea.expiryDate || null,
-            strikePrice: hybridIdea.assetType === 'option' ? (hybridIdea.strikePrice || hybridIdea.entryPrice * (hybridIdea.direction === 'long' ? 1.02 : 0.98)) : null,
-            optionType: hybridIdea.assetType === 'option' ? (hybridIdea.optionType || (hybridIdea.direction === 'long' ? 'call' : 'put')) : null,
+            strikePrice: hybridIdea.assetType === 'option' ? ((hybridIdea as any).strikePrice || hybridIdea.entryPrice * (hybridIdea.direction === 'long' ? 1.02 : 0.98)) : null,
+            optionType: hybridIdea.assetType === 'option' ? ((hybridIdea as any).optionType || (hybridIdea.direction === 'long' ? 'call' : 'put')) : null,
             source: 'hybrid',
             confidenceScore,
+            qualitySignals, // Array of verified signal labels
             volatilityRegime: timingWindows.volatilityRegime,
             sessionPhase: timingWindows.sessionPhase,
             trendStrength: timingWindows.trendStrength,
