@@ -294,16 +294,16 @@ export default function HomePage() {
             </div>
           </Card>
 
-          {/* Risk Notice */}
+          {/* Educational Notice */}
           <Card className="p-4 border-l-2 border-l-amber-500 border-border/50">
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
               <div>
-                <p className="font-medium text-sm mb-1">Risk Reminder</p>
+                <p className="font-medium text-sm mb-1">Educational Research Only</p>
                 <p className="text-sm text-muted-foreground">
-                  Max 10% capital per trade. Stops: 50% for options, 3.5% for stocks.{' '}
+                  This platform provides research analysis for educational purposes. Always do your own due diligence.{' '}
                   <Link href="/trading-rules" className="text-cyan-500 hover:underline">
-                    View rules
+                    Learn more
                   </Link>
                 </p>
               </div>

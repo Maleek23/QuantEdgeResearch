@@ -691,8 +691,8 @@ export default function Landing() {
                   How do you handle risk management?
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-risk">
-                  Every research brief includes stop-loss levels, position sizing suggestions, and risk/reward ratios. 
-                  We emphasize paper trading first and never risking more than 2% per trade.
+                  Research briefs display calculated risk/reward ratios and suggested exit levels for educational context. 
+                  We provide paper trading tools so users can learn risk management concepts without capital at risk.
                 </AccordionContent>
               </AccordionItem>
 
