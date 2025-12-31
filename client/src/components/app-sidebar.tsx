@@ -34,7 +34,7 @@ interface NavItem {
 const tradingToolsItems: NavItem[] = [
   { title: "Dashboard", url: "/home", icon: Home },
   { title: "Research Desk", url: "/trade-desk", icon: TrendingUp, badge: "Popular", badgeVariant: "default" },
-  { title: "Research Desk (Futures)", url: "/futures-research", icon: Zap, badge: "24h", badgeVariant: "secondary" },
+  { title: "Research Desk (Futures)", url: "/futures", icon: Zap, badge: "24h", badgeVariant: "secondary" },
   { title: "Auto-Lotto Bot", url: "/watchlist-bot", icon: Bot, badge: "New", badgeVariant: "secondary" },
 ];
 
@@ -42,7 +42,6 @@ const analysisItems: NavItem[] = [
   { title: "Chart Analysis", url: "/chart-analysis", icon: Upload, badge: "AI", badgeVariant: "secondary" },
   { title: "Performance", url: "/performance", icon: Target },
   { title: "Market Data", url: "/market", icon: BarChart2 },
-  { title: "Futures Quotes", url: "/futures", icon: LineChart },
   { title: "Chart Database", url: "/chart-database", icon: Database },
 ];
 
