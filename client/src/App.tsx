@@ -41,6 +41,7 @@ const CTTracker = lazy(() => import("@/pages/ct-tracker"));
 const TradeAudit = lazy(() => import("@/pages/trade-audit"));
 const WatchlistBot = lazy(() => import("@/pages/watchlist-bot"));
 const FuturesPage = lazy(() => import("@/pages/futures"));
+const Features = lazy(() => import("@/pages/features"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function PageLoader() {
@@ -56,6 +57,7 @@ function Router() {
       <Switch>
         {/* Core Pages */}
         <Route path="/" component={Landing} />
+      <Route path="/features" component={Features} />
       <Route path="/home" component={HomePage} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
@@ -180,7 +182,7 @@ function App() {
   };
 
   // Show public landing pages without sidebar (admin page handles its own layout)
-  const publicPages = ['/', '/login', '/signup', '/admin', '/privacy', '/terms'];
+  const publicPages = ['/', '/features', '/login', '/signup', '/admin', '/privacy', '/terms'];
   if (publicPages.includes(location)) {
     return (
       <QueryClientProvider client={queryClient}>

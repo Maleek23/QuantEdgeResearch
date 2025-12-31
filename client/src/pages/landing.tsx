@@ -18,9 +18,6 @@ import {
   TrendingUp, 
   Brain, 
   Calculator, 
-  Bell, 
-  BarChart3, 
-  Shield,
   Check,
   ArrowRight,
   ChevronLeft,
@@ -31,22 +28,13 @@ import {
   Linkedin,
   Github,
   Activity,
-  Sparkles,
-  Zap,
   Bot,
-  Database,
-  BookOpen,
-  MessageSquare,
   Target,
   Coins,
   CandlestickChart,
   PieChart,
-  FileSearch,
-  AlertTriangle,
-  ClipboardList,
   GraduationCap,
-  Newspaper,
-  Users
+  Sparkles
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
@@ -131,20 +119,13 @@ export default function Landing() {
             </Link>
 
             <nav className="hidden md:flex items-center gap-6">
-              <button 
-                onClick={() => scrollToSection('engine-matrix')} 
+              <Link 
+                href="/features" 
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 data-testid="link-features"
               >
                 Features
-              </button>
-              <button 
-                onClick={() => scrollToSection('engine-matrix')} 
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                data-testid="link-performance"
-              >
-                Engines
-              </button>
+              </Link>
               <button 
                 onClick={() => scrollToSection('pricing')} 
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -158,6 +139,13 @@ export default function Landing() {
                 data-testid="link-academy"
               >
                 Academy
+              </Link>
+              <Link 
+                href="/blog" 
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                data-testid="link-blog"
+              >
+                Blog
               </Link>
             </nav>
 
@@ -366,362 +354,63 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Engine Outcomes Matrix - Two Column */}
+      {/* Platform Highlights Section */}
       <section className="py-10 lg:py-16" id="features" data-testid="section-features">
         <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
+          <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              What You Get
+              Complete Platform
             </p>
-            <h2 className="text-2xl font-semibold">Engine → Outcome</h2>
+            <h2 className="text-2xl font-semibold">Everything You Need</h2>
           </div>
           
-          <div className="max-w-3xl mx-auto">
-            {/* Table Header */}
-            <div className="grid grid-cols-2 gap-4 mb-4 px-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Engine Capability</p>
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Trader Outcome</p>
+          {/* Quick Feature Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-8">
+            <div className="glass-card rounded-lg p-4 text-center">
+              <Target className="h-6 w-6 text-cyan-400 mx-auto mb-2" />
+              <span className="text-sm">Chart Analysis</span>
             </div>
-            
-            {/* Row 1 */}
-            <div className="glass-card rounded-lg p-4 mb-3" data-testid="row-outcome-0">
-              <div className="grid grid-cols-2 gap-4 items-center">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                    <Brain className="h-4 w-4 text-purple-400" />
-                  </div>
-                  <span className="text-sm">AI fundamental analysis</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <ArrowRight className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                  <span className="text-sm text-muted-foreground">Skip hours of manual research</span>
-                </div>
-              </div>
+            <div className="glass-card rounded-lg p-4 text-center">
+              <Bot className="h-6 w-6 text-green-400 mx-auto mb-2" />
+              <span className="text-sm">Auto-Lotto Bot</span>
             </div>
-            
-            {/* Row 2 */}
-            <div className="glass-card rounded-lg p-4 mb-3" data-testid="row-outcome-1">
-              <div className="grid grid-cols-2 gap-4 items-center">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                    <Calculator className="h-4 w-4 text-blue-400" />
-                  </div>
-                  <span className="text-sm">Quantitative validation</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <ArrowRight className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                  <span className="text-sm text-muted-foreground">Remove emotional decisions</span>
-                </div>
-              </div>
+            <div className="glass-card rounded-lg p-4 text-center">
+              <PieChart className="h-6 w-6 text-purple-400 mx-auto mb-2" />
+              <span className="text-sm">Performance Analytics</span>
             </div>
-            
-            {/* Row 3 */}
-            <div className="glass-card rounded-lg p-4 mb-3" data-testid="row-outcome-2">
-              <div className="grid grid-cols-2 gap-4 items-center">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                    <Zap className="h-4 w-4 text-cyan-400" />
-                  </div>
-                  <span className="text-sm">Dual-engine consensus</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <ArrowRight className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                  <span className="text-sm text-muted-foreground">Higher-conviction setups</span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Row 4 */}
-            <div className="glass-card rounded-lg p-4 mb-3" data-testid="row-outcome-3">
-              <div className="grid grid-cols-2 gap-4 items-center">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                    <Shield className="h-4 w-4 text-green-400" />
-                  </div>
-                  <span className="text-sm">Built-in risk parameters</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <ArrowRight className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                  <span className="text-sm text-muted-foreground">Proper position sizing</span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Row 5 */}
-            <div className="glass-card rounded-lg p-4" data-testid="row-outcome-4">
-              <div className="grid grid-cols-2 gap-4 items-center">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                    <BarChart3 className="h-4 w-4 text-amber-400" />
-                  </div>
-                  <span className="text-sm">Auditable performance</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <ArrowRight className="h-4 w-4 text-cyan-400 flex-shrink-0" />
-                  <span className="text-sm text-muted-foreground">Full transparency, no hidden losses</span>
-                </div>
-              </div>
+            <div className="glass-card rounded-lg p-4 text-center">
+              <GraduationCap className="h-6 w-6 text-blue-400 mx-auto mb-2" />
+              <span className="text-sm">Trading Academy</span>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Research Tools Section */}
-      <section className="py-10 lg:py-16 border-t border-slate-800" data-testid="section-research-tools">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Research Suite
-            </p>
-            <h2 className="text-2xl font-semibold">Research Tools</h2>
-            <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-              Educational research tools for studying market patterns and strategies
-            </p>
+          {/* Market Coverage Badges */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+            <Badge variant="outline" className="border-cyan-500/30 text-cyan-400">
+              <TrendingUp className="h-3 w-3 mr-1" /> Stocks
+            </Badge>
+            <Badge variant="outline" className="border-purple-500/30 text-purple-400">
+              <LineChart className="h-3 w-3 mr-1" /> Options
+            </Badge>
+            <Badge variant="outline" className="border-amber-500/30 text-amber-400">
+              <Coins className="h-3 w-3 mr-1" /> Crypto
+            </Badge>
+            <Badge variant="outline" className="border-blue-500/30 text-blue-400">
+              <CandlestickChart className="h-3 w-3 mr-1" /> Futures
+            </Badge>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
-            {/* Chart Analysis */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-cyan-500/50" data-testid="card-chart-analysis">
-              <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
-                <Target className="h-5 w-5 text-cyan-400" />
-              </div>
-              <h3 className="font-semibold mb-2">Chart Analysis</h3>
-              <p className="text-sm text-muted-foreground">
-                Multi-timeframe chart annotations with AI-powered pattern recognition for educational study
-              </p>
-            </div>
-            
-            {/* Chart Database */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-purple-500/50" data-testid="card-chart-database">
-              <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
-                <Database className="h-5 w-5 text-purple-400" />
-              </div>
-              <h3 className="font-semibold mb-2">Chart Database</h3>
-              <p className="text-sm text-muted-foreground">
-                Historical trade pattern library with backtesting capabilities for research purposes
-              </p>
-            </div>
-            
-            {/* Futures Terminal */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-blue-500/50" data-testid="card-futures-terminal">
-              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
-                <CandlestickChart className="h-5 w-5 text-blue-400" />
-              </div>
-              <h3 className="font-semibold mb-2">Futures Terminal</h3>
-              <p className="text-sm text-muted-foreground">
-                Real-time NQ, GC futures data for market research and educational analysis
-              </p>
-            </div>
-            
-            {/* Auto-Lotto Bot */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-green-500/50" data-testid="card-auto-lotto">
-              <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center mb-4">
-                <Bot className="h-5 w-5 text-green-400" />
-              </div>
-              <h3 className="font-semibold mb-2">Auto-Lotto Bot</h3>
-              <p className="text-sm text-muted-foreground">
-                Autonomous paper trading system that tests high R:R strategies in simulation
-              </p>
-            </div>
+          {/* See All Features CTA */}
+          <div className="text-center">
+            <Button 
+              variant="outline" 
+              className="border-slate-700"
+              onClick={() => setLocation('/features')}
+              data-testid="button-see-features"
+            >
+              See All Features <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           </div>
-        </div>
-      </section>
-
-      {/* Market Coverage Section */}
-      <section className="py-10 lg:py-16 border-t border-slate-800" data-testid="section-market-coverage">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Coverage
-            </p>
-            <h2 className="text-2xl font-semibold">Multi-Market Research</h2>
-            <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-              Educational research across major asset classes
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
-            {/* Stocks */}
-            <div className="glass-card rounded-lg p-6 text-center" data-testid="card-market-stocks">
-              <div className="h-12 w-12 rounded-lg bg-cyan-500/10 flex items-center justify-center mx-auto mb-3">
-                <TrendingUp className="h-6 w-6 text-cyan-400" />
-              </div>
-              <h3 className="font-semibold mb-1">Stocks</h3>
-              <p className="text-xs text-muted-foreground">US equities</p>
-            </div>
-            
-            {/* Options */}
-            <div className="glass-card rounded-lg p-6 text-center" data-testid="card-market-options">
-              <div className="h-12 w-12 rounded-lg bg-purple-500/10 flex items-center justify-center mx-auto mb-3">
-                <LineChart className="h-6 w-6 text-purple-400" />
-              </div>
-              <h3 className="font-semibold mb-1">Options</h3>
-              <p className="text-xs text-muted-foreground">Full chain + Greeks</p>
-            </div>
-            
-            {/* Crypto */}
-            <div className="glass-card rounded-lg p-6 text-center" data-testid="card-market-crypto">
-              <div className="h-12 w-12 rounded-lg bg-amber-500/10 flex items-center justify-center mx-auto mb-3">
-                <Coins className="h-6 w-6 text-amber-400" />
-              </div>
-              <h3 className="font-semibold mb-1">Crypto</h3>
-              <p className="text-xs text-muted-foreground">BTC, ETH, altcoins</p>
-            </div>
-            
-            {/* Futures */}
-            <div className="glass-card rounded-lg p-6 text-center" data-testid="card-market-futures">
-              <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center mx-auto mb-3">
-                <CandlestickChart className="h-6 w-6 text-blue-400" />
-              </div>
-              <h3 className="font-semibold mb-1">Futures</h3>
-              <p className="text-xs text-muted-foreground">NQ, GC contracts</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Analytics & Risk Section */}
-      <section className="py-10 lg:py-16 border-t border-slate-800" data-testid="section-analytics-risk">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Intelligence
-            </p>
-            <h2 className="text-2xl font-semibold">Analytics & Risk</h2>
-            <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-              Track performance and study patterns for educational improvement
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
-            {/* Performance Analytics */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-cyan-500/50" data-testid="card-performance-analytics">
-              <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
-                <PieChart className="h-5 w-5 text-cyan-400" />
-              </div>
-              <h3 className="font-semibold mb-2">Performance Analytics</h3>
-              <p className="text-sm text-muted-foreground">
-                Win rates, drawdowns, and engine comparisons for studying signal effectiveness
-              </p>
-            </div>
-            
-            {/* Loss Analysis */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-red-500/50" data-testid="card-loss-analysis">
-              <div className="h-10 w-10 rounded-lg bg-red-500/10 flex items-center justify-center mb-4">
-                <AlertTriangle className="h-5 w-5 text-red-400" />
-              </div>
-              <h3 className="font-semibold mb-2">Loss Analysis</h3>
-              <p className="text-sm text-muted-foreground">
-                Automatic post-mortem on losing trades with pattern detection for learning
-              </p>
-            </div>
-            
-            {/* Paper Trading Journal */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-purple-500/50" data-testid="card-paper-journal">
-              <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
-                <ClipboardList className="h-5 w-5 text-purple-400" />
-              </div>
-              <h3 className="font-semibold mb-2">Paper Trading Journal</h3>
-              <p className="text-sm text-muted-foreground">
-                Track and audit hypothetical trades in a risk-free paper environment
-              </p>
-            </div>
-            
-            {/* Trade Audit */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-blue-500/50" data-testid="card-trade-audit">
-              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
-                <FileSearch className="h-5 w-5 text-blue-400" />
-              </div>
-              <h3 className="font-semibold mb-2">Trade Audit</h3>
-              <p className="text-sm text-muted-foreground">
-                Full transparency on every research brief with complete audit trail
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Data Providers Trust Strip */}
-      <div className="border-y border-slate-800 bg-slate-900/30 py-8" data-testid="section-data-providers">
-        <div className="container mx-auto px-6">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground text-center mb-4">
-            Data Sources
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-6">
-            <span className="text-sm text-slate-500 font-mono">Yahoo Finance</span>
-            <span className="text-slate-700">|</span>
-            <span className="text-sm text-slate-500 font-mono">Tradier</span>
-            <span className="text-slate-700">|</span>
-            <span className="text-sm text-slate-500 font-mono">CoinGecko</span>
-            <span className="text-slate-700">|</span>
-            <span className="text-sm text-slate-500 font-mono">Alpha Vantage</span>
-            <span className="text-slate-700">|</span>
-            <span className="text-sm text-slate-500 font-mono">Databento</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Education & Community Section */}
-      <section className="py-10 lg:py-16" data-testid="section-education-community">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Learn & Connect
-            </p>
-            <h2 className="text-2xl font-semibold">Education & Community</h2>
-            <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-              Expand your trading knowledge with structured educational content
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {/* Academy */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-cyan-500/50" data-testid="card-academy">
-              <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
-                <GraduationCap className="h-5 w-5 text-cyan-400" />
-              </div>
-              <h3 className="font-semibold mb-2">Academy</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Structured trading courses covering options basics, position sizing, risk management, and more
-              </p>
-              <Link href="/academy" className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors" data-testid="link-academy-section">
-                Browse Courses <ArrowRight className="inline h-3 w-3 ml-1" />
-              </Link>
-            </div>
-            
-            {/* Educational Blog */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-purple-500/50" data-testid="card-blog">
-              <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
-                <Newspaper className="h-5 w-5 text-purple-400" />
-              </div>
-              <h3 className="font-semibold mb-2">Educational Blog</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Weekly articles on trading concepts, market analysis techniques, and educational insights
-              </p>
-              <Link href="/blog" className="text-sm text-purple-400 hover:text-purple-300 transition-colors" data-testid="link-blog-section">
-                Read Articles <ArrowRight className="inline h-3 w-3 ml-1" />
-              </Link>
-            </div>
-            
-            {/* Discord Alerts */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-blue-500/50" data-testid="card-discord">
-              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
-                <MessageSquare className="h-5 w-5 text-blue-400" />
-              </div>
-              <h3 className="font-semibold mb-2">Discord Alerts</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Real-time notifications for new research briefs and community discussion (paid plans)
-              </p>
-              <Badge className="text-xs bg-blue-500/10 text-blue-400 border-blue-500/30">
-                Advanced + Pro
-              </Badge>
-            </div>
-          </div>
-          
-          <p className="text-xs text-muted-foreground text-center mt-8 max-w-2xl mx-auto">
-            All content is for educational purposes only. Past performance does not guarantee future results. 
-            This is not financial advice.
-          </p>
         </div>
       </section>
 
