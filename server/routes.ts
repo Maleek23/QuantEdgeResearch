@@ -353,10 +353,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Apply general rate limiting to all API routes
   app.use('/api/', generalApiLimiter);
   
-  // Setup session middleware for traditional email/password auth
-  app.use(getSession());
+  // NOTE: Session middleware is initialized ONCE inside setupAuth() - do not add it here
+  // This prevents duplicate session handling which can cause login persistence issues
   
   // Setup Replit Auth (Google OAuth) - registers /api/login, /api/callback, /api/logout
+  // This also initializes session middleware and passport
   await setupAuth(app);
   
   // Setup Direct Google OAuth - registers /api/auth/google and /api/auth/google/callback
