@@ -11,7 +11,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import type { TradeIdea } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 import { SEOHead } from "@/components/seo-head";
 import { 
@@ -20,23 +19,18 @@ import {
   Calculator, 
   Check,
   ArrowRight,
-  ChevronLeft,
-  ChevronRight,
   Clock,
   LineChart,
   Twitter,
   Linkedin,
   Github,
   Activity,
-  Bot,
   Target,
   Coins,
   CandlestickChart,
-  PieChart,
-  GraduationCap,
   Sparkles
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 import { HeroProductPanel } from "@/components/hero-product-panel";
 
@@ -61,46 +55,12 @@ interface PerformanceStatsResponse {
 
 export default function Landing() {
   const [, setLocation] = useLocation();
-  const [carouselIndex, setCarouselIndex] = useState(0);
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const { isAuthenticated } = useAuth();
 
   const { data: perfStats, isLoading: statsLoading } = useQuery<PerformanceStatsResponse>({
     queryKey: ['/api/performance/stats'],
   });
-
-  const { data: allIdeas, isLoading: ideasLoading } = useQuery<TradeIdea[]>({
-    queryKey: ['/api/trade-ideas'],
-  });
-
-  const recentTrades = (allIdeas || [])
-    .filter(idea => idea.outcomeStatus && ['hit_target', 'hit_stop', 'expired'].includes(idea.outcomeStatus))
-    .sort((a, b) => {
-      const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-      const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-      return dateB - dateA;
-    })
-    .slice(0, 5);
-
-  useEffect(() => {
-    if (carouselIndex >= recentTrades.length) {
-      setCarouselIndex(0);
-    }
-  }, [recentTrades.length, carouselIndex]);
-
-  const activeTrade = recentTrades.length > 0 && carouselIndex < recentTrades.length
-    ? recentTrades[carouselIndex]
-    : null;
-
-  const nextTrade = () => {
-    if (recentTrades.length === 0) return;
-    setCarouselIndex((prev) => (prev + 1) % recentTrades.length);
-  };
-
-  const prevTrade = () => {
-    if (recentTrades.length === 0) return;
-    setCarouselIndex((prev) => (prev - 1 + recentTrades.length) % recentTrades.length);
-  };
 
   const scrollToSection = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
@@ -231,10 +191,10 @@ export default function Landing() {
       </section>
 
       {/* Stats Strip - Terminal Style */}
-      <div className="border-y border-slate-800 bg-slate-900/50 py-6" data-testid="stats-strip">
+      <div className="border-y border-slate-800 bg-slate-950 py-6" data-testid="stats-strip">
         <div className="container mx-auto px-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-            <div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="stat-glass rounded-lg p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Ideas</p>
               <p className="text-2xl font-bold font-mono tabular-nums text-foreground">
                 {statsLoading ? (
@@ -244,7 +204,7 @@ export default function Landing() {
                 )}
               </p>
             </div>
-            <div>
+            <div className="stat-glass rounded-lg p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Active</p>
               <p className="text-2xl font-bold font-mono tabular-nums text-cyan-400">
                 {statsLoading ? (
@@ -256,11 +216,11 @@ export default function Landing() {
                 )}
               </p>
             </div>
-            <div>
+            <div className="stat-glass rounded-lg p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Engines</p>
               <p className="text-2xl font-bold font-mono tabular-nums text-foreground">3</p>
             </div>
-            <div>
+            <div className="stat-glass rounded-lg p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Markets</p>
               <p className="text-2xl font-bold font-mono tabular-nums text-foreground">4</p>
             </div>
@@ -275,7 +235,7 @@ export default function Landing() {
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
               Signal Generation
             </p>
-            <h2 className="text-2xl font-semibold">Three Engines, One Edge</h2>
+            <h2 className="text-xl font-semibold">Three Engines, One Edge</h2>
           </div>
           
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
@@ -354,48 +314,82 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Platform Highlights Section */}
-      <section className="py-10 lg:py-16" id="features" data-testid="section-features">
+      {/* Engine → Outcome Matrix */}
+      <section className="py-10 lg:py-16 bg-slate-900/30" id="features" data-testid="section-features">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Complete Platform
+              Platform Capabilities
             </p>
-            <h2 className="text-2xl font-semibold">Everything You Need</h2>
+            <h2 className="text-xl font-semibold">Engine → Outcome</h2>
           </div>
           
-          {/* Quick Feature Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-8">
-            <div className="glass-card rounded-lg p-4 text-center">
-              <Target className="h-6 w-6 text-cyan-400 mx-auto mb-2" />
-              <span className="text-sm">Chart Analysis</span>
-            </div>
-            <div className="glass-card rounded-lg p-4 text-center">
-              <Bot className="h-6 w-6 text-green-400 mx-auto mb-2" />
-              <span className="text-sm">Auto-Lotto Bot</span>
-            </div>
-            <div className="glass-card rounded-lg p-4 text-center">
-              <PieChart className="h-6 w-6 text-purple-400 mx-auto mb-2" />
-              <span className="text-sm">Performance Analytics</span>
-            </div>
-            <div className="glass-card rounded-lg p-4 text-center">
-              <GraduationCap className="h-6 w-6 text-blue-400 mx-auto mb-2" />
-              <span className="text-sm">Trading Academy</span>
+          {/* Two-column Engine/Outcome Matrix */}
+          <div className="max-w-3xl mx-auto">
+            <div className="glass-card rounded-lg overflow-hidden">
+              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-700/50">
+                <div className="p-3 bg-slate-800/30">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Engine</p>
+                </div>
+                <div className="p-3 bg-slate-800/30">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">What It Does</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
+                <div className="p-4 flex items-center gap-3">
+                  <Brain className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">AI Engine</span>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground">Fundamental analysis via multi-LLM consensus. Parses news, earnings, SEC filings.</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
+                <div className="p-4 flex items-center gap-3">
+                  <Calculator className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Quant Engine</span>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground">RSI(2), VWAP, volume spike detection. Technical signals with statistical edge.</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
+                <div className="p-4 flex items-center gap-3">
+                  <Activity className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Flow Scanner</span>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground">Detects unusual institutional activity. Sweeps, blocks, dark pool prints.</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-[1fr_2fr]">
+                <div className="p-4 flex items-center gap-3">
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Chart Analysis</span>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground">Upload screenshots for AI pattern recognition. Support/resistance levels.</p>
+                </div>
+              </div>
             </div>
           </div>
-
-          {/* Market Coverage Badges */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-            <Badge variant="outline" className="border-cyan-500/30 text-cyan-400">
+          
+          {/* Market Coverage - Minimal */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mt-8 mb-6">
+            <Badge variant="outline" className="border-slate-700 text-muted-foreground">
               <TrendingUp className="h-3 w-3 mr-1" /> Stocks
             </Badge>
-            <Badge variant="outline" className="border-purple-500/30 text-purple-400">
+            <Badge variant="outline" className="border-slate-700 text-muted-foreground">
               <LineChart className="h-3 w-3 mr-1" /> Options
             </Badge>
-            <Badge variant="outline" className="border-amber-500/30 text-amber-400">
+            <Badge variant="outline" className="border-slate-700 text-muted-foreground">
               <Coins className="h-3 w-3 mr-1" /> Crypto
             </Badge>
-            <Badge variant="outline" className="border-blue-500/30 text-blue-400">
+            <Badge variant="outline" className="border-slate-700 text-muted-foreground">
               <CandlestickChart className="h-3 w-3 mr-1" /> Futures
             </Badge>
           </div>
@@ -421,7 +415,7 @@ export default function Landing() {
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
               Pricing Plans
             </p>
-            <h2 className="text-2xl font-semibold mb-4">Choose Your Plan</h2>
+            <h2 className="text-xl font-semibold mb-4">Choose Your Plan</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
               Start free and upgrade as you grow
             </p>
@@ -461,7 +455,7 @@ export default function Landing() {
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-2">Free</h3>
                   <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-3xl font-bold font-mono">$0</span>
+                    <span className="text-3xl font-bold font-mono tabular-nums">$0</span>
                     <span className="text-muted-foreground text-sm">/month</span>
                   </div>
                   <p className="text-xs text-muted-foreground">Preview the platform</p>
@@ -502,13 +496,13 @@ export default function Landing() {
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-2">Advanced</h3>
                   <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-3xl font-bold font-mono text-cyan-400">
+                    <span className="text-3xl font-bold font-mono tabular-nums text-cyan-400">
                       ${billingPeriod === 'monthly' ? '39' : '33'}
                     </span>
                     <span className="text-muted-foreground text-sm">/month</span>
                   </div>
                   {billingPeriod === 'yearly' && (
-                    <p className="text-xs text-green-400">Billed $390/year (save $78)</p>
+                    <p className="text-xs text-cyan-400 font-mono tabular-nums">Billed $390/year (save $78)</p>
                   )}
                   <p className="text-xs text-muted-foreground">Full stock & crypto access</p>
                 </div>
@@ -548,9 +542,9 @@ export default function Landing() {
             </Card>
 
             {/* Pro Tier */}
-            <Card className="glass-card border-amber-500/30" data-testid="card-pricing-pro">
+            <Card className="glass-card border-slate-700" data-testid="card-pricing-pro">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30">
+                <Badge variant="outline" className="border-slate-600 text-muted-foreground bg-slate-900">
                   <Clock className="h-3 w-3 mr-1" />
                   Coming Soon
                 </Badge>
@@ -559,7 +553,7 @@ export default function Landing() {
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-2">Pro</h3>
                   <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-3xl font-bold font-mono text-amber-400">$79</span>
+                    <span className="text-3xl font-bold font-mono tabular-nums text-muted-foreground">$79</span>
                     <span className="text-muted-foreground text-sm">/month</span>
                   </div>
                   <p className="text-xs text-muted-foreground">Institutional-grade tools</p>
@@ -567,26 +561,26 @@ export default function Landing() {
                 
                 <ul className="space-y-3 mb-6 flex-1">
                   <li className="flex items-center gap-2 text-sm font-medium">
-                    <Check className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                    <Check className="h-4 w-4 text-cyan-400 flex-shrink-0" />
                     Everything in Advanced
                   </li>
                   <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4 text-amber-500/60 flex-shrink-0" />
+                    <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     Futures trading
                   </li>
                   <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4 text-amber-500/60 flex-shrink-0" />
+                    <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     REST API access
                   </li>
                   <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4 text-amber-500/60 flex-shrink-0" />
+                    <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     Backtesting module
                   </li>
                 </ul>
                 
                 <Button 
                   variant="outline"
-                  className="w-full border-amber-500/30 text-amber-400"
+                  className="w-full border-slate-700"
                   data-testid="button-pricing-pro"
                 >
                   <Clock className="h-4 w-4 mr-2" />
@@ -605,7 +599,7 @@ export default function Landing() {
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
               FAQ
             </p>
-            <h2 className="text-2xl font-semibold">Frequently Asked Questions</h2>
+            <h2 className="text-xl font-semibold">Frequently Asked Questions</h2>
           </div>
 
           <div className="max-w-3xl mx-auto">
@@ -696,7 +690,7 @@ export default function Landing() {
       <section className="py-10 lg:py-12" data-testid="section-cta">
         <div className="container mx-auto px-6">
           <div className="glass-card rounded-lg p-8 text-center max-w-3xl mx-auto">
-            <h2 className="text-xl font-semibold mb-3">
+            <h2 className="text-lg font-semibold mb-3">
               Ready to Trade with Precision?
             </h2>
             <p className="text-sm text-muted-foreground max-w-xl mx-auto mb-6">

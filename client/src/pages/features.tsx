@@ -122,7 +122,7 @@ export default function Features() {
             <Badge variant="outline" className="mb-4 border-cyan-500/30 text-cyan-400">
               Complete Platform Overview
             </Badge>
-            <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-4">
+            <h1 className="text-2xl sm:text-3xl font-semibold mb-4">
               Everything You Get with QuantEdge
             </h1>
             <p className="text-lg text-muted-foreground">
@@ -134,13 +134,13 @@ export default function Features() {
       </section>
 
       {/* Three Engines Section */}
-      <section className="py-12" id="engines" data-testid="section-engines">
+      <section className="py-12 lg:py-16" id="engines" data-testid="section-engines">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
               Core Research Engines
             </p>
-            <h2 className="text-2xl font-semibold">Three Engines, One Edge</h2>
+            <h2 className="text-xl font-semibold">Three Engines, One Edge</h2>
             <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
               Each engine specializes in a different aspect of market analysis. 
               When signals align, conviction increases.
@@ -242,13 +242,13 @@ export default function Features() {
       </section>
 
       {/* Research Tools Section */}
-      <section className="py-12 bg-slate-900/30" id="research-tools" data-testid="section-research-tools">
+      <section className="py-12 lg:py-16 bg-slate-900/30" id="research-tools" data-testid="section-research-tools">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
               Research Workbench
             </p>
-            <h2 className="text-2xl font-semibold">Professional-Grade Tools</h2>
+            <h2 className="text-xl font-semibold">Professional-Grade Tools</h2>
             <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
               Everything you need for comprehensive market research in one platform.
             </p>
@@ -285,15 +285,15 @@ export default function Features() {
               </p>
             </div>
             
-            <div className="glass-card rounded-lg p-5 border-l-2 border-green-500/50" data-testid="card-auto-lotto-bot">
-              <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center mb-4">
-                <Bot className="h-5 w-5 text-green-400" />
+            <div className="glass-card rounded-lg p-5 border-l-2 border-cyan-500/50" data-testid="card-auto-lotto-bot">
+              <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
+                <Bot className="h-5 w-5 text-cyan-400" />
               </div>
               <h3 className="font-semibold mb-2">Auto-Lotto Bot</h3>
               <p className="text-sm text-muted-foreground">
                 Autonomous paper trading system that tests high R:R strategies with full transparency.
               </p>
-              <Badge variant="outline" className="mt-2 text-xs border-amber-500/30 text-amber-400">
+              <Badge variant="outline" className="mt-2 text-xs border-cyan-500/30 text-cyan-400">
                 Paper Trading Only
               </Badge>
             </div>
@@ -302,13 +302,13 @@ export default function Features() {
       </section>
 
       {/* Market Coverage Section */}
-      <section className="py-12" id="market-coverage" data-testid="section-market-coverage">
+      <section className="py-12 lg:py-16" id="market-coverage" data-testid="section-market-coverage">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
               Full Market Coverage
             </p>
-            <h2 className="text-2xl font-semibold">Research Any Market</h2>
+            <h2 className="text-xl font-semibold">Research Any Market</h2>
             <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
               Comprehensive coverage across all major asset classes.
             </p>
@@ -332,8 +332,8 @@ export default function Features() {
             </div>
             
             <div className="glass-card rounded-lg p-6 text-center" data-testid="badge-crypto">
-              <div className="h-12 w-12 rounded-full bg-amber-500/10 flex items-center justify-center mx-auto mb-3">
-                <Coins className="h-6 w-6 text-amber-400" />
+              <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center mx-auto mb-3">
+                <Coins className="h-6 w-6 text-cyan-400" />
               </div>
               <h3 className="font-semibold">Crypto</h3>
               <p className="text-xs text-muted-foreground mt-1">BTC, ETH, Altcoins</p>
@@ -351,13 +351,13 @@ export default function Features() {
       </section>
 
       {/* Analytics & Risk Section */}
-      <section className="py-12 bg-slate-900/30" id="analytics" data-testid="section-analytics">
+      <section className="py-12 lg:py-16 bg-slate-900/30" id="analytics" data-testid="section-analytics">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
               Full Transparency
             </p>
-            <h2 className="text-2xl font-semibold">Analytics & Risk Controls</h2>
+            <h2 className="text-xl font-semibold">Analytics & Risk Controls</h2>
             <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
               Every outcome tracked. Every loss analyzed. Complete audit trail.
             </p>
@@ -374,9 +374,9 @@ export default function Features() {
               </p>
             </div>
             
-            <div className="glass-card rounded-lg p-5 border-l-2 border-red-500/50" data-testid="card-loss-analysis">
-              <div className="h-10 w-10 rounded-lg bg-red-500/10 flex items-center justify-center mb-4">
-                <AlertTriangle className="h-5 w-5 text-red-400" />
+            <div className="glass-card rounded-lg p-5 border-l-2 border-cyan-500/50" data-testid="card-loss-analysis">
+              <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
+                <AlertTriangle className="h-5 w-5 text-muted-foreground" />
               </div>
               <h3 className="font-semibold mb-2">Loss Analysis</h3>
               <p className="text-sm text-muted-foreground">
@@ -408,15 +408,15 @@ export default function Features() {
       </section>
 
       {/* Data Intelligence Section */}
-      <section className="py-12" id="data-intelligence" data-testid="section-data-intelligence">
+      <section className="py-12 lg:py-16" id="data-intelligence" data-testid="section-data-intelligence">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
               Historical Intelligence
             </p>
-            <h2 className="text-2xl font-semibold">Data-Driven Insights</h2>
+            <h2 className="text-xl font-semibold">Data-Driven Insights</h2>
             <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-              411+ resolved trades analyzed for patterns and performance calibration.
+              <span className="font-mono tabular-nums">411+</span> resolved trades analyzed for patterns and performance calibration.
             </p>
           </div>
           
@@ -437,7 +437,7 @@ export default function Features() {
               </div>
               <h3 className="font-semibold mb-2">Symbol Tracking</h3>
               <p className="text-sm text-muted-foreground">
-                30+ symbols with 3+ trades tracked for pattern recognition.
+                <span className="font-mono tabular-nums">30+</span> symbols with <span className="font-mono tabular-nums">3+</span> trades tracked for pattern recognition.
               </p>
             </div>
             
@@ -455,13 +455,13 @@ export default function Features() {
       </section>
 
       {/* Education Section */}
-      <section className="py-12 bg-slate-900/30" id="education" data-testid="section-education">
+      <section className="py-12 lg:py-16 bg-slate-900/30" id="education" data-testid="section-education">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
               Learn & Grow
             </p>
-            <h2 className="text-2xl font-semibold">Education & Community</h2>
+            <h2 className="text-xl font-semibold">Education & Community</h2>
             <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
               Structured learning resources to build your trading knowledge.
             </p>
@@ -534,7 +534,7 @@ export default function Features() {
       <section className="py-16" data-testid="section-cta">
         <div className="container mx-auto px-6">
           <div className="glass-card rounded-lg p-8 md:p-12 text-center max-w-3xl mx-auto border border-cyan-500/20">
-            <h2 className="text-2xl font-semibold mb-4">Ready to Start Your Research?</h2>
+            <h2 className="text-xl font-semibold mb-4">Ready to Start Your Research?</h2>
             <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
               Join thousands of traders using QuantEdge for educational market research. 
               Free tier available.
