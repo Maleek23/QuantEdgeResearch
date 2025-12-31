@@ -324,8 +324,9 @@ export default function Landing() {
             <h2 className="text-xl font-semibold">Engine → Outcome</h2>
           </div>
           
-          {/* Two-column Engine/Outcome Matrix */}
-          <div className="max-w-3xl mx-auto">
+          {/* Two-column Engine/Outcome Matrix - Research Engines */}
+          <div className="max-w-3xl mx-auto mb-8">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Research Engines</p>
             <div className="glass-card rounded-lg overflow-hidden">
               <div className="grid grid-cols-[1fr_2fr] border-b border-slate-700/50">
                 <div className="p-3 bg-slate-800/30">
@@ -338,7 +339,7 @@ export default function Landing() {
               
               <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
                 <div className="p-4 flex items-center gap-3">
-                  <Brain className="h-4 w-4 text-muted-foreground" />
+                  <Brain className="h-4 w-4 text-purple-400" />
                   <span className="text-sm font-medium">AI Engine</span>
                 </div>
                 <div className="p-4">
@@ -348,7 +349,7 @@ export default function Landing() {
               
               <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
                 <div className="p-4 flex items-center gap-3">
-                  <Calculator className="h-4 w-4 text-muted-foreground" />
+                  <Calculator className="h-4 w-4 text-blue-400" />
                   <span className="text-sm font-medium">Quant Engine</span>
                 </div>
                 <div className="p-4">
@@ -358,7 +359,7 @@ export default function Landing() {
               
               <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
                 <div className="p-4 flex items-center gap-3">
-                  <Activity className="h-4 w-4 text-muted-foreground" />
+                  <Activity className="h-4 w-4 text-cyan-400" />
                   <span className="text-sm font-medium">Flow Scanner</span>
                 </div>
                 <div className="p-4">
@@ -366,13 +367,69 @@ export default function Landing() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-[1fr_2fr]">
+              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
                 <div className="p-4 flex items-center gap-3">
-                  <Target className="h-4 w-4 text-muted-foreground" />
+                  <Target className="h-4 w-4 text-amber-400" />
                   <span className="text-sm font-medium">Chart Analysis</span>
                 </div>
                 <div className="p-4">
-                  <p className="text-sm text-muted-foreground">Upload screenshots for AI pattern recognition. Support/resistance levels.</p>
+                  <p className="text-sm text-muted-foreground">Upload screenshots for AI pattern recognition. Support/resistance, key levels.</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-[1fr_2fr]">
+                <div className="p-4 flex items-center gap-3">
+                  <CandlestickChart className="h-4 w-4 text-green-400" />
+                  <span className="text-sm font-medium">Futures Engine</span>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground">NQ and GC futures analysis. CME contract specs, tick-based targets, margin calculations.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Tools & Analytics */}
+          <div className="max-w-3xl mx-auto mb-8">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Tools & Analytics</p>
+            <div className="glass-card rounded-lg overflow-hidden">
+              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
+                <div className="p-4 flex items-center gap-3">
+                  <Sparkles className="h-4 w-4 text-pink-400" />
+                  <span className="text-sm font-medium">Auto-Lotto Bot</span>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground">Autonomous paper trading bot. Scans for high R:R setups and executes automatically.</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
+                <div className="p-4 flex items-center gap-3">
+                  <LineChart className="h-4 w-4 text-cyan-400" />
+                  <span className="text-sm font-medium">Performance Analytics</span>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground">Win rates by engine, symbol leaderboards, confidence calibration. Every trade tracked.</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
+                <div className="p-4 flex items-center gap-3">
+                  <Target className="h-4 w-4 text-red-400" />
+                  <span className="text-sm font-medium">Loss Analysis</span>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground">Automatic post-mortem on losses. Identifies patterns, worst symbols, lessons learned.</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-[1fr_2fr]">
+                <div className="p-4 flex items-center gap-3">
+                  <TrendingUp className="h-4 w-4 text-green-400" />
+                  <span className="text-sm font-medium">Paper Trading</span>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground">Practice with virtual portfolios. Track P&L, manage positions, learn without risk.</p>
                 </div>
               </div>
             </div>
@@ -390,7 +447,7 @@ export default function Landing() {
               <Coins className="h-3 w-3 mr-1" /> Crypto
             </Badge>
             <Badge variant="outline" className="border-slate-700 text-muted-foreground">
-              <CandlestickChart className="h-3 w-3 mr-1" /> Futures
+              <CandlestickChart className="h-3 w-3 mr-1" /> Futures (NQ, GC)
             </Badge>
           </div>
           
