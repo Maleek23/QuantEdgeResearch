@@ -46,16 +46,16 @@
 
   --sidebar-border: 220 13% 90%;
 
-  /* Professional blue accent */
-  --sidebar-primary: 217 91% 55%;
+  /* Cyan accent for quant platform */
+  --sidebar-primary: 188 94% 43%;
 
-  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-primary-foreground: 220 15% 10%;
 
-  --sidebar-accent: 217 40% 94%;
+  --sidebar-accent: 188 40% 94%;
 
-  --sidebar-accent-foreground: 217 91% 50%;
+  --sidebar-accent-foreground: 188 94% 35%;
 
-  --sidebar-ring: 217 91% 55%;
+  --sidebar-ring: 188 94% 43%;
 
   --popover: 0 0% 100%;
 
@@ -63,10 +63,10 @@
 
   --popover-border: 220 13% 88%;
 
-  /* Blue primary for trading actions */
-  --primary: 217 91% 55%;
+  /* Cyan primary for trading actions */
+  --primary: 188 94% 43%;
 
-  --primary-foreground: 0 0% 100%;
+  --primary-foreground: 220 15% 10%;
 
   /* Dark gray secondary */
   --secondary: 220 13% 91%;
@@ -79,9 +79,9 @@
   --muted-foreground: 220 10% 45%;
 
   /* Soft accent for highlights */
-  --accent: 217 40% 94%;
+  --accent: 188 40% 94%;
 
-  --accent-foreground: 217 91% 45%;
+  --accent-foreground: 188 94% 35%;
 
   /* Clear red for destructive actions */
   --destructive: 0 72% 51%;
@@ -89,8 +89,8 @@
   --destructive-foreground: 0 0% 100%;
 
   --input: 220 13% 88%;
-  --ring: 217 91% 55%;
-  --chart-1: 217 91% 55%;
+  --ring: 188 94% 43%;
+  --chart-1: 188 94% 43%;
   --chart-2: 142 76% 40%;
   --chart-3: 45 93% 50%;
   --chart-4: 262 83% 58%;
@@ -188,15 +188,15 @@
 
   --sidebar-border: 220 12% 20%;
 
-  --sidebar-primary: 217 91% 60%;
+  --sidebar-primary: 188 94% 43%;
 
-  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-primary-foreground: 220 15% 8%;
 
   --sidebar-accent: 220 15% 16%;
 
-  --sidebar-accent-foreground: 217 91% 60%;
+  --sidebar-accent-foreground: 188 94% 50%;
 
-  --sidebar-ring: 217 91% 60%;
+  --sidebar-ring: 188 94% 43%;
 
   --popover: 220 15% 10%;
 
@@ -204,9 +204,9 @@
 
   --popover-border: 220 12% 24%;
 
-  --primary: 217 91% 60%;
+  --primary: 188 94% 43%;
 
-  --primary-foreground: 0 0% 100%;
+  --primary-foreground: 220 15% 8%;
 
   --secondary: 220 15% 20%;
 
@@ -218,15 +218,15 @@
 
   --accent: 220 15% 18%;
 
-  --accent-foreground: 217 91% 60%;
+  --accent-foreground: 188 94% 50%;
 
   --destructive: 0 72% 55%;
 
   --destructive-foreground: 0 0% 100%;
 
   --input: 220 12% 20%;
-  --ring: 217 91% 60%;
-  --chart-1: 217 91% 60%;
+  --ring: 188 94% 43%;
+  --chart-1: 188 94% 43%;
   --chart-2: 142 76% 45%;
   --chart-3: 45 93% 58%;
   --chart-4: 0 72% 55%;
@@ -248,11 +248,11 @@
   --tracking-normal: -0.01em;
 
   /* Premium Aurora Gradients */
-  --aurora-1: 217 91% 60%;
+  --aurora-1: 188 94% 50%;
   --aurora-2: 280 70% 60%;
   --aurora-3: 142 76% 45%;
-  --neon-cyan: 180 100% 50%;
-  --neon-blue: 217 91% 60%;
+  --neon-cyan: 188 100% 50%;
+  --neon-blue: 188 94% 50%;
   --neon-purple: 280 70% 60%;
 }
 
