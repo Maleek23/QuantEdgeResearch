@@ -1706,6 +1706,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // =====================================================
+  // FUTURES RESEARCH DESK - Stored Research Briefs
+  // =====================================================
+  
+  // Get all active futures research briefs
+  app.get("/api/futures-research/briefs", async (_req, res) => {
+    try {
+      const briefs = await storage.getActiveFuturesResearchBriefs();
+      res.json(briefs);
+    } catch (error) {
+      logger.error("Error fetching futures research briefs:", error);
+      res.status(500).json({ error: "Failed to fetch futures research briefs" });
+    }
+  });
+
+  // Get brief for a specific symbol
+  app.get("/api/futures-research/briefs/:symbol", async (req, res) => {
+    try {
+      const brief = await storage.getFuturesResearchBriefBySymbol(req.params.symbol);
+      if (!brief) {
+        return res.status(404).json({ error: "No research brief found for this symbol" });
+      }
+      res.json(brief);
+    } catch (error) {
+      logger.error(`Error fetching futures research brief for ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to fetch futures research brief" });
+    }
+  });
+
+  // Generate and store a new research brief for a symbol
+  app.post("/api/futures-research/generate/:symbol", async (req, res) => {
+    try {
+      const symbol = req.params.symbol.toUpperCase();
+      const { generateFuturesResearch } = await import("./futures-research-service");
+      
+      // Generate AI research
+      const aiResult = await generateFuturesResearch(symbol);
+      if (!aiResult) {
+        return res.status(404).json({ error: "Unable to generate research for this contract" });
+      }
+      
+      // Deactivate old briefs for this symbol
+      await storage.deactivateOldFuturesResearchBriefs(symbol);
+      
+      // Store the new brief
+      const newBrief = await storage.createFuturesResearchBrief({
+        symbol: aiResult.symbol,
+        name: aiResult.name,
+        currentPrice: aiResult.currentPrice,
+        session: aiResult.session as 'rth' | 'pre' | 'post' | 'overnight' | 'closed',
+        bias: aiResult.bias,
+        biasStrength: aiResult.biasStrength,
+        technicalSummary: aiResult.technicalSummary,
+        sessionContext: aiResult.sessionContext,
+        resistanceLevels: aiResult.keyLevels.resistance.map(String),
+        supportLevels: aiResult.keyLevels.support.map(String),
+        pivotLevel: aiResult.keyLevels.pivot,
+        catalysts: aiResult.catalysts,
+        riskFactors: aiResult.riskFactors,
+        tradeDirection: aiResult.tradingIdea?.direction,
+        tradeEntry: aiResult.tradingIdea?.entry,
+        tradeTarget: aiResult.tradingIdea?.target,
+        tradeStop: aiResult.tradingIdea?.stop,
+        tradeRationale: aiResult.tradingIdea?.rationale,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // Expires in 1 hour
+        source: 'ai',
+        isActive: true,
+      });
+      
+      res.json(newBrief);
+    } catch (error) {
+      logger.error(`Error generating futures research for ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to generate futures research" });
+    }
+  });
+
+  // Generate research briefs for all main futures contracts
+  app.post("/api/futures-research/generate-all", async (_req, res) => {
+    try {
+      const { generateFuturesResearch } = await import("./futures-research-service");
+      const symbols = ['NQ', 'ES', 'GC', 'CL', 'SI', 'YM', 'RTY'];
+      const results: any[] = [];
+      const errors: string[] = [];
+      
+      for (const symbol of symbols) {
+        try {
+          const aiResult = await generateFuturesResearch(symbol);
+          if (aiResult) {
+            await storage.deactivateOldFuturesResearchBriefs(symbol);
+            const newBrief = await storage.createFuturesResearchBrief({
+              symbol: aiResult.symbol,
+              name: aiResult.name,
+              currentPrice: aiResult.currentPrice,
+              session: aiResult.session as 'rth' | 'pre' | 'post' | 'overnight' | 'closed',
+              bias: aiResult.bias,
+              biasStrength: aiResult.biasStrength,
+              technicalSummary: aiResult.technicalSummary,
+              sessionContext: aiResult.sessionContext,
+              resistanceLevels: aiResult.keyLevels.resistance.map(String),
+              supportLevels: aiResult.keyLevels.support.map(String),
+              pivotLevel: aiResult.keyLevels.pivot,
+              catalysts: aiResult.catalysts,
+              riskFactors: aiResult.riskFactors,
+              tradeDirection: aiResult.tradingIdea?.direction,
+              tradeEntry: aiResult.tradingIdea?.entry,
+              tradeTarget: aiResult.tradingIdea?.target,
+              tradeStop: aiResult.tradingIdea?.stop,
+              tradeRationale: aiResult.tradingIdea?.rationale,
+              expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+              source: 'ai',
+              isActive: true,
+            });
+            results.push(newBrief);
+          }
+        } catch (err) {
+          errors.push(`${symbol}: ${(err as Error).message}`);
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        generated: results.length, 
+        total: symbols.length,
+        errors: errors.length > 0 ? errors : undefined
+      });
+    } catch (error) {
+      logger.error("Error generating all futures research:", error);
+      res.status(500).json({ error: "Failed to generate futures research" });
+    }
+  });
+
   app.get("/api/search-symbol/:symbol", async (req, res) => {
     try {
       const symbol = req.params.symbol.toUpperCase();

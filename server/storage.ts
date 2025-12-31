@@ -20,6 +20,8 @@ import type {
   User,
   UpsertUser,
   FuturesContract,
+  FuturesResearchBrief,
+  InsertFuturesResearchBrief,
   DailyUsage,
   InsertDailyUsage,
   ActiveTrade,
@@ -93,6 +95,7 @@ import {
   lossAnalysis,
   InsertLossAnalysis,
   LossAnalysis,
+  futuresResearchBriefs,
 } from "@shared/schema";
 
 // ========================================
@@ -316,6 +319,15 @@ export interface IStorage {
   getFuturesContractsByRoot(rootSymbol: string): Promise<FuturesContract[]>;
   getActiveFuturesContract(rootSymbol: string): Promise<FuturesContract | null>;
   updateFuturesContract(contractCode: string, updates: Partial<FuturesContract>): Promise<FuturesContract>;
+
+  // Futures Research Briefs
+  getAllFuturesResearchBriefs(): Promise<FuturesResearchBrief[]>;
+  getActiveFuturesResearchBriefs(): Promise<FuturesResearchBrief[]>;
+  getFuturesResearchBriefBySymbol(symbol: string): Promise<FuturesResearchBrief | null>;
+  createFuturesResearchBrief(brief: InsertFuturesResearchBrief): Promise<FuturesResearchBrief>;
+  updateFuturesResearchBrief(id: string, updates: Partial<FuturesResearchBrief>): Promise<FuturesResearchBrief | null>;
+  deactivateFuturesResearchBrief(id: string): Promise<boolean>;
+  deactivateOldFuturesResearchBriefs(symbol: string): Promise<void>;
 
   // Chat Messages
   getChatHistory(): Promise<ChatMessage[]>;
@@ -1707,6 +1719,35 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
+  // Futures Research Briefs (stub - not persisted in MemStorage)
+  async getAllFuturesResearchBriefs(): Promise<FuturesResearchBrief[]> {
+    return [];
+  }
+
+  async getActiveFuturesResearchBriefs(): Promise<FuturesResearchBrief[]> {
+    return [];
+  }
+
+  async getFuturesResearchBriefBySymbol(_symbol: string): Promise<FuturesResearchBrief | null> {
+    return null;
+  }
+
+  async createFuturesResearchBrief(_brief: InsertFuturesResearchBrief): Promise<FuturesResearchBrief> {
+    throw new Error("Futures Research Briefs not supported in MemStorage");
+  }
+
+  async updateFuturesResearchBrief(_id: string, _updates: Partial<FuturesResearchBrief>): Promise<FuturesResearchBrief | null> {
+    return null;
+  }
+
+  async deactivateFuturesResearchBrief(_id: string): Promise<boolean> {
+    return false;
+  }
+
+  async deactivateOldFuturesResearchBriefs(_symbol: string): Promise<void> {
+    // No-op in MemStorage
+  }
+
   // 🔐 Model Cards Methods (Stub - not persisted in MemStorage)
   async getAllModelCards(): Promise<ModelCard[]> {
     return [];
@@ -2649,6 +2690,61 @@ export class DatabaseStorage implements IStorage {
     }
     
     return updated;
+  }
+
+  // Futures Research Briefs Methods
+  async getAllFuturesResearchBriefs(): Promise<FuturesResearchBrief[]> {
+    return await db.select()
+      .from(futuresResearchBriefs)
+      .orderBy(desc(futuresResearchBriefs.generatedAt));
+  }
+
+  async getActiveFuturesResearchBriefs(): Promise<FuturesResearchBrief[]> {
+    return await db.select()
+      .from(futuresResearchBriefs)
+      .where(eq(futuresResearchBriefs.isActive, true))
+      .orderBy(desc(futuresResearchBriefs.generatedAt));
+  }
+
+  async getFuturesResearchBriefBySymbol(symbol: string): Promise<FuturesResearchBrief | null> {
+    const [brief] = await db.select()
+      .from(futuresResearchBriefs)
+      .where(and(
+        eq(futuresResearchBriefs.symbol, symbol),
+        eq(futuresResearchBriefs.isActive, true)
+      ))
+      .orderBy(desc(futuresResearchBriefs.generatedAt))
+      .limit(1);
+    return brief || null;
+  }
+
+  async createFuturesResearchBrief(brief: InsertFuturesResearchBrief): Promise<FuturesResearchBrief> {
+    const [created] = await db.insert(futuresResearchBriefs)
+      .values(brief)
+      .returning();
+    return created;
+  }
+
+  async updateFuturesResearchBrief(id: string, updates: Partial<FuturesResearchBrief>): Promise<FuturesResearchBrief | null> {
+    const [updated] = await db.update(futuresResearchBriefs)
+      .set(updates)
+      .where(eq(futuresResearchBriefs.id, id))
+      .returning();
+    return updated || null;
+  }
+
+  async deactivateFuturesResearchBrief(id: string): Promise<boolean> {
+    const [updated] = await db.update(futuresResearchBriefs)
+      .set({ isActive: false })
+      .where(eq(futuresResearchBriefs.id, id))
+      .returning();
+    return !!updated;
+  }
+
+  async deactivateOldFuturesResearchBriefs(symbol: string): Promise<void> {
+    await db.update(futuresResearchBriefs)
+      .set({ isActive: false })
+      .where(eq(futuresResearchBriefs.symbol, symbol));
   }
 
   // 🔐 Model Cards Methods (Governance & Auditability)

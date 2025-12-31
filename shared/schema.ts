@@ -337,6 +337,53 @@ export const insertFuturesContractSchema = createInsertSchema(futuresContracts).
 export type InsertFuturesContract = z.infer<typeof insertFuturesContractSchema>;
 export type FuturesContract = typeof futuresContracts.$inferSelect;
 
+// Futures Research Briefs - AI-generated analysis for futures contracts
+export type FuturesBias = 'bullish' | 'bearish' | 'neutral';
+export type FuturesBiasStrength = 'strong' | 'moderate' | 'weak';
+export type FuturesSession = 'rth' | 'pre' | 'post' | 'overnight' | 'closed';
+
+export const futuresResearchBriefs = pgTable("futures_research_briefs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  symbol: text("symbol").notNull(), // 'NQ', 'ES', 'GC', 'CL'
+  name: text("name").notNull(), // 'E-mini Nasdaq-100', 'Gold'
+  
+  // Current Market State
+  currentPrice: real("current_price").notNull(),
+  session: text("session").notNull().$type<FuturesSession>(),
+  
+  // AI Analysis
+  bias: text("bias").notNull().$type<FuturesBias>(),
+  biasStrength: text("bias_strength").notNull().$type<FuturesBiasStrength>(),
+  technicalSummary: text("technical_summary").notNull(),
+  sessionContext: text("session_context").notNull(),
+  
+  // Key Levels (stored as JSON)
+  resistanceLevels: text("resistance_levels").array(), // e.g., ['21500', '21600']
+  supportLevels: text("support_levels").array(), // e.g., ['21300', '21200']
+  pivotLevel: real("pivot_level"),
+  
+  // Catalysts & Risks
+  catalysts: text("catalysts").array(),
+  riskFactors: text("risk_factors").array(),
+  
+  // Trading Idea (optional)
+  tradeDirection: text("trade_direction").$type<'long' | 'short'>(),
+  tradeEntry: real("trade_entry"),
+  tradeTarget: real("trade_target"),
+  tradeStop: real("trade_stop"),
+  tradeRationale: text("trade_rationale"),
+  
+  // Metadata
+  generatedAt: timestamp("generated_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // When this brief should be refreshed
+  source: text("source").default('ai'), // 'ai' | 'quant' | 'manual'
+  isActive: boolean("is_active").default(true),
+});
+
+export const insertFuturesResearchBriefSchema = createInsertSchema(futuresResearchBriefs).omit({ id: true, generatedAt: true });
+export type InsertFuturesResearchBrief = z.infer<typeof insertFuturesResearchBriefSchema>;
+export type FuturesResearchBrief = typeof futuresResearchBriefs.$inferSelect;
+
 // Watchlist
 export const watchlist = pgTable("watchlist", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

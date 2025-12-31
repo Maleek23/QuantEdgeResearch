@@ -25,10 +25,15 @@ import {
   Sparkles,
   ArrowUpRight,
   ArrowDownRight,
-  Loader2
+  Loader2,
+  FileText,
+  Zap
 } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
-import { apiRequest } from "@/lib/queryClient";
+import { format } from "date-fns";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { FuturesResearchBrief } from "@shared/schema";
 
 interface FuturesQuote {
   symbol: string;
@@ -49,32 +54,6 @@ interface FuturesSymbolInfo {
   name: string;
   tickSize: number;
   pointValue: number;
-}
-
-interface FuturesResearchBrief {
-  symbol: string;
-  name: string;
-  currentPrice: number;
-  session: string;
-  generatedAt: string;
-  bias: 'bullish' | 'bearish' | 'neutral';
-  biasStrength: 'strong' | 'moderate' | 'weak';
-  keyLevels: {
-    resistance: number[];
-    support: number[];
-    pivot: number;
-  };
-  technicalSummary: string;
-  sessionContext: string;
-  catalysts: string[];
-  riskFactors: string[];
-  tradingIdea?: {
-    direction: 'long' | 'short';
-    entry: number;
-    target: number;
-    stop: number;
-    rationale: string;
-  };
 }
 
 const SESSION_LABELS: Record<string, { label: string; color: string; icon: any }> = {
@@ -168,12 +147,167 @@ function SessionIndicator({ session }: { session: string }) {
   );
 }
 
+function BiasIndicator({ bias, biasStrength }: { bias: string; biasStrength: string }) {
+  const getBiasColor = () => {
+    if (bias === 'bullish') return 'bg-green-500/20 text-green-400 border-green-500/30';
+    if (bias === 'bearish') return 'bg-red-500/20 text-red-400 border-red-500/30';
+    return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+  };
+
+  return (
+    <Badge variant="outline" className={`${getBiasColor()} border gap-1.5`} data-testid="badge-bias">
+      {bias === 'bullish' && <ArrowUpRight className="h-3 w-3" />}
+      {bias === 'bearish' && <ArrowDownRight className="h-3 w-3" />}
+      {bias === 'neutral' && <Activity className="h-3 w-3" />}
+      {biasStrength.toUpperCase()} {bias.toUpperCase()}
+    </Badge>
+  );
+}
+
+function ResearchBriefCard({ 
+  brief, 
+  onGenerateResearch,
+  isGenerating 
+}: { 
+  brief: FuturesResearchBrief; 
+  onGenerateResearch: (symbol: string) => void;
+  isGenerating: boolean;
+}) {
+  const Icon = CATEGORY_ICONS[brief.symbol] || Activity;
+  const generatedDate = brief.generatedAt ? new Date(brief.generatedAt) : null;
+  
+  const resistanceLevels = brief.resistanceLevels || [];
+  const supportLevels = brief.supportLevels || [];
+
+  return (
+    <Card className="glass-card" data-testid={`card-research-brief-${brief.symbol}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-purple-500/20">
+              <Icon className="h-5 w-5 text-purple-400" />
+            </div>
+            <div>
+              <CardTitle className="text-lg" data-testid={`text-brief-symbol-${brief.symbol}`}>
+                {brief.symbol}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">{brief.name}</p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onGenerateResearch(brief.symbol)}
+            disabled={isGenerating}
+            data-testid={`button-refresh-research-${brief.symbol}`}
+          >
+            {isGenerating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="text-xl font-bold font-mono" data-testid={`text-brief-price-${brief.symbol}`}>
+            ${brief.currentPrice?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || 'N/A'}
+          </div>
+          <SessionIndicator session={brief.session || 'closed'} />
+          <BiasIndicator bias={brief.bias} biasStrength={brief.biasStrength} />
+        </div>
+
+        <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+          <p className="text-sm" data-testid={`text-brief-summary-${brief.symbol}`}>
+            {brief.technicalSummary}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <div className="p-2 rounded-lg bg-muted/30 border border-border/50">
+            <div className="text-xs text-muted-foreground mb-1">Resistance</div>
+            <div className="text-sm font-medium text-red-400" data-testid={`text-brief-resistance-${brief.symbol}`}>
+              {resistanceLevels.length > 0 
+                ? resistanceLevels.slice(0, 2).map(r => '$' + parseFloat(r).toFixed(2)).join(', ')
+                : 'N/A'}
+            </div>
+          </div>
+          <div className="p-2 rounded-lg bg-muted/30 border border-border/50">
+            <div className="text-xs text-muted-foreground mb-1">Pivot</div>
+            <div className="text-sm font-medium text-yellow-400" data-testid={`text-brief-pivot-${brief.symbol}`}>
+              {brief.pivotLevel ? '$' + brief.pivotLevel.toFixed(2) : 'N/A'}
+            </div>
+          </div>
+          <div className="p-2 rounded-lg bg-muted/30 border border-border/50">
+            <div className="text-xs text-muted-foreground mb-1">Support</div>
+            <div className="text-sm font-medium text-green-400" data-testid={`text-brief-support-${brief.symbol}`}>
+              {supportLevels.length > 0 
+                ? supportLevels.slice(0, 2).map(s => '$' + parseFloat(s).toFixed(2)).join(', ')
+                : 'N/A'}
+            </div>
+          </div>
+        </div>
+
+        {brief.tradeDirection && (
+          <div className={`p-3 rounded-lg border ${brief.tradeDirection === 'long' ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}
+               data-testid={`panel-trade-idea-${brief.symbol}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <Badge variant={brief.tradeDirection === 'long' ? 'default' : 'destructive'}>
+                {brief.tradeDirection === 'long' ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
+                {brief.tradeDirection.toUpperCase()}
+              </Badge>
+              <span className="text-xs font-medium">Trade Idea</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div>
+                <span className="text-muted-foreground">Entry: </span>
+                <span className="font-medium" data-testid={`text-trade-entry-${brief.symbol}`}>
+                  ${brief.tradeEntry?.toFixed(2) || 'N/A'}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Target: </span>
+                <span className="font-medium text-green-400" data-testid={`text-trade-target-${brief.symbol}`}>
+                  ${brief.tradeTarget?.toFixed(2) || 'N/A'}
+                </span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Stop: </span>
+                <span className="font-medium text-red-400" data-testid={`text-trade-stop-${brief.symbol}`}>
+                  ${brief.tradeStop?.toFixed(2) || 'N/A'}
+                </span>
+              </div>
+            </div>
+            {brief.tradeRationale && (
+              <p className="text-xs text-muted-foreground mt-2" data-testid={`text-trade-rationale-${brief.symbol}`}>
+                {brief.tradeRationale}
+              </p>
+            )}
+          </div>
+        )}
+
+        {generatedDate && (
+          <div className="text-xs text-muted-foreground flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            <span data-testid={`text-brief-timestamp-${brief.symbol}`}>
+              Updated {format(generatedDate, 'MMM d, h:mm a')}
+            </span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function FuturesPage() {
+  const { toast } = useToast();
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [researchBrief, setResearchBrief] = useState<FuturesResearchBrief | null>(null);
+  const [activeTab, setActiveTab] = useState<'research' | 'quotes'>('research');
+  const [generatingSymbol, setGeneratingSymbol] = useState<string | null>(null);
   
-  const { data: quotes = [], isLoading, refetch, isFetching } = useQuery<FuturesQuote[]>({
+  const { data: quotes = [], isLoading: quotesLoading, refetch: refetchQuotes, isFetching: isFetchingQuotes } = useQuery<FuturesQuote[]>({
     queryKey: ['/api/futures'],
     refetchInterval: 10000,
   });
@@ -181,13 +315,53 @@ export default function FuturesPage() {
   const { data: symbols = [] } = useQuery<FuturesSymbolInfo[]>({
     queryKey: ['/api/futures/symbols'],
   });
-  
-  const researchMutation = useMutation({
-    mutationFn: async (symbol: string) => {
-      const response = await apiRequest('GET', `/api/futures/${symbol}/research`);
-      return await response.json() as FuturesResearchBrief;
+
+  const { data: researchBriefs = [], isLoading: briefsLoading, refetch: refetchBriefs } = useQuery<FuturesResearchBrief[]>({
+    queryKey: ['/api/futures-research/briefs'],
+    refetchInterval: 60000,
+  });
+
+  const generateAllMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/futures-research/generate-all');
     },
-    onSuccess: (data) => setResearchBrief(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/futures-research/briefs'] });
+      toast({
+        title: "Research Generated",
+        description: "All futures research briefs have been generated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate research briefs",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const generateSingleMutation = useMutation({
+    mutationFn: async (symbol: string) => {
+      setGeneratingSymbol(symbol);
+      return await apiRequest('POST', `/api/futures-research/generate/${symbol}`);
+    },
+    onSuccess: (_data, symbol) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/futures-research/briefs'] });
+      toast({
+        title: "Research Updated",
+        description: `Research brief for ${symbol} has been regenerated.`,
+      });
+      setGeneratingSymbol(null);
+    },
+    onError: (error: any, symbol) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || `Failed to generate research for ${symbol}`,
+        variant: "destructive",
+      });
+      setGeneratingSymbol(null);
+    },
   });
   
   useEffect(() => {
@@ -209,10 +383,8 @@ export default function FuturesPage() {
   const handleCardClick = (symbol: string) => {
     if (symbol === selectedSymbol) {
       setSelectedSymbol(null);
-      setResearchBrief(null);
     } else {
       setSelectedSymbol(symbol);
-      setResearchBrief(null);
     }
   };
   
@@ -226,10 +398,10 @@ export default function FuturesPage() {
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3" data-testid="text-page-title">
-              <Activity className="h-8 w-8 text-purple-400" />
-              Futures Trading
+              <Brain className="h-8 w-8 text-purple-400" />
+              Futures Research Desk
             </h1>
-            <p className="text-muted-foreground mt-1">24-hour markets - Trade anytime</p>
+            <p className="text-muted-foreground mt-1">AI-powered futures analysis - 24-hour markets</p>
             <div className="flex items-center gap-3 mt-3 flex-wrap">
               <SessionIndicator session={currentSession} />
               <div className="flex items-center gap-2 glass rounded-lg px-3 py-1.5">
@@ -243,16 +415,35 @@ export default function FuturesPage() {
             </div>
           </div>
           
-          <Button
-            variant="glass"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
-            data-testid="button-refresh-futures"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => generateAllMutation.mutate()}
+              disabled={generateAllMutation.isPending}
+              className="gap-2"
+              data-testid="button-generate-all-research"
+            >
+              {generateAllMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {generateAllMutation.isPending ? 'Generating...' : 'Generate All Research'}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                refetchQuotes();
+                refetchBriefs();
+              }}
+              disabled={isFetchingQuotes}
+              data-testid="button-refresh-futures"
+            >
+              <RefreshCw className={`h-4 w-4 ${isFetchingQuotes ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -277,296 +468,224 @@ export default function FuturesPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList className="glass mb-4" data-testid="tabs-futures-categories">
-          <TabsTrigger value="all" data-testid="tab-all">All</TabsTrigger>
-          <TabsTrigger value="indices" data-testid="tab-indices">Indices</TabsTrigger>
-          <TabsTrigger value="metals" data-testid="tab-metals">Metals</TabsTrigger>
-          <TabsTrigger value="energy" data-testid="tab-energy">Energy</TabsTrigger>
-          <TabsTrigger value="bonds" data-testid="tab-bonds">Bonds</TabsTrigger>
-          <TabsTrigger value="currencies" data-testid="tab-currencies">Currencies</TabsTrigger>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'research' | 'quotes')} className="w-full">
+        <TabsList className="glass mb-4" data-testid="tabs-futures-main">
+          <TabsTrigger value="research" className="gap-2" data-testid="tab-research-briefs">
+            <FileText className="h-4 w-4" />
+            Research Briefs
+            {researchBriefs.length > 0 && (
+              <Badge variant="secondary" className="ml-1">{researchBriefs.length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="quotes" className="gap-2" data-testid="tab-live-quotes">
+            <Zap className="h-4 w-4" />
+            Live Quotes
+          </TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="all" className="space-y-6">
-          {isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[...Array(8)].map((_, i) => (
-                <Skeleton key={i} className="h-[180px] rounded-xl" />
+
+        <TabsContent value="research" className="space-y-6">
+          {briefsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-[350px] rounded-xl" />
               ))}
             </div>
+          ) : researchBriefs.length === 0 ? (
+            <Card className="glass-card">
+              <CardContent className="p-12 text-center">
+                <Brain className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Research Briefs Yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  Generate AI-powered research briefs for all main futures contracts.
+                </p>
+                <Button
+                  onClick={() => generateAllMutation.mutate()}
+                  disabled={generateAllMutation.isPending}
+                  className="gap-2"
+                  data-testid="button-generate-first-research"
+                >
+                  {generateAllMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  {generateAllMutation.isPending ? 'Generating...' : 'Generate Research Briefs'}
+                </Button>
+              </CardContent>
+            </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {quotes.map((quote) => (
-                <FuturesCard 
-                  key={quote.symbol} 
-                  quote={quote} 
-                  onClick={() => handleCardClick(quote.symbol)}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {researchBriefs.map((brief) => (
+                <ResearchBriefCard
+                  key={brief.id}
+                  brief={brief}
+                  onGenerateResearch={(symbol) => generateSingleMutation.mutate(symbol)}
+                  isGenerating={generatingSymbol === brief.symbol}
                 />
               ))}
             </div>
           )}
         </TabsContent>
-        
-        <TabsContent value="indices">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {indexFutures.map((quote) => (
-              <FuturesCard key={quote.symbol} quote={quote} onClick={() => handleCardClick(quote.symbol)} />
-            ))}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="metals">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {metalsFutures.map((quote) => (
-              <FuturesCard key={quote.symbol} quote={quote} onClick={() => handleCardClick(quote.symbol)} />
-            ))}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="energy">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {energyFutures.map((quote) => (
-              <FuturesCard key={quote.symbol} quote={quote} onClick={() => handleCardClick(quote.symbol)} />
-            ))}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="bonds">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {bondFutures.map((quote) => (
-              <FuturesCard key={quote.symbol} quote={quote} onClick={() => handleCardClick(quote.symbol)} />
-            ))}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="currencies">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {currencyFutures.map((quote) => (
-              <FuturesCard key={quote.symbol} quote={quote} onClick={() => handleCardClick(quote.symbol)} />
-            ))}
-          </div>
+
+        <TabsContent value="quotes" className="space-y-6">
+          <Tabs defaultValue="all" className="w-full">
+            <TabsList className="glass mb-4" data-testid="tabs-futures-categories">
+              <TabsTrigger value="all" data-testid="tab-all">All</TabsTrigger>
+              <TabsTrigger value="indices" data-testid="tab-indices">Indices</TabsTrigger>
+              <TabsTrigger value="metals" data-testid="tab-metals">Metals</TabsTrigger>
+              <TabsTrigger value="energy" data-testid="tab-energy">Energy</TabsTrigger>
+              <TabsTrigger value="bonds" data-testid="tab-bonds">Bonds</TabsTrigger>
+              <TabsTrigger value="currencies" data-testid="tab-currencies">Currencies</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="all" className="space-y-6">
+              {quotesLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[...Array(8)].map((_, i) => (
+                    <Skeleton key={i} className="h-[180px] rounded-xl" />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {quotes.map((quote) => (
+                    <FuturesCard 
+                      key={quote.symbol} 
+                      quote={quote} 
+                      onClick={() => handleCardClick(quote.symbol)}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="indices">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {indexFutures.map((quote) => (
+                  <FuturesCard key={quote.symbol} quote={quote} onClick={() => handleCardClick(quote.symbol)} />
+                ))}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="metals">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {metalsFutures.map((quote) => (
+                  <FuturesCard key={quote.symbol} quote={quote} onClick={() => handleCardClick(quote.symbol)} />
+                ))}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="energy">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {energyFutures.map((quote) => (
+                  <FuturesCard key={quote.symbol} quote={quote} onClick={() => handleCardClick(quote.symbol)} />
+                ))}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="bonds">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {bondFutures.map((quote) => (
+                  <FuturesCard key={quote.symbol} quote={quote} onClick={() => handleCardClick(quote.symbol)} />
+                ))}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="currencies">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {currencyFutures.map((quote) => (
+                  <FuturesCard key={quote.symbol} quote={quote} onClick={() => handleCardClick(quote.symbol)} />
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          {selectedQuote && selectedInfo && (
+            <Card className="glass-card" data-testid="card-futures-detail">
+              <CardHeader className="flex flex-row items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${selectedQuote.changePercent >= 0 ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+                    {CATEGORY_ICONS[selectedQuote.symbol] ? 
+                      (() => { const Icon = CATEGORY_ICONS[selectedQuote.symbol]; return <Icon className="h-5 w-5 text-foreground" />; })() : 
+                      <Activity className="h-5 w-5" />
+                    }
+                  </div>
+                  {selectedQuote.symbol} - {selectedQuote.name}
+                </CardTitle>
+                <Button
+                  onClick={() => setSelectedSymbol(null)}
+                  variant="ghost"
+                  size="sm"
+                  data-testid="button-close-detail"
+                >
+                  Close
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Current Price</div>
+                    <div className="text-2xl font-bold">${selectedQuote.price.toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Change</div>
+                    <div className={`text-xl font-bold ${selectedQuote.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {selectedQuote.changePercent >= 0 ? '+' : ''}{selectedQuote.changePercent.toFixed(2)}%
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Tick Size</div>
+                    <div className="text-xl font-bold">${selectedInfo.tickSize}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Point Value</div>
+                    <div className="text-xl font-bold">${selectedInfo.pointValue.toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Day High</div>
+                    <div className="text-lg font-semibold">${selectedQuote.high.toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Day Low</div>
+                    <div className="text-lg font-semibold">${selectedQuote.low.toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Previous Close</div>
+                    <div className="text-lg font-semibold">${selectedQuote.previousClose.toLocaleString()}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Volume</div>
+                    <div className="text-lg font-semibold">{selectedQuote.volume.toLocaleString()}</div>
+                  </div>
+                </div>
+                
+                <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
+                  <h4 className="font-semibold mb-2">Quick Math</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">1 Tick Move = </span>
+                      <span className="font-medium">${(selectedInfo.tickSize * selectedInfo.pointValue).toFixed(2)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">1 Point Move = </span>
+                      <span className="font-medium">${selectedInfo.pointValue.toLocaleString()}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Day Range = </span>
+                      <span className="font-medium">${(selectedQuote.high - selectedQuote.low).toFixed(2)} pts</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Day P&L (1 lot) = </span>
+                      <span className={`font-medium ${selectedQuote.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {selectedQuote.change >= 0 ? '+' : ''}${(selectedQuote.change * selectedInfo.pointValue).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
-
-      {selectedQuote && selectedInfo && (
-        <Card className="glass-card" data-testid="card-futures-detail">
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <CardTitle className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${selectedQuote.changePercent >= 0 ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-                {CATEGORY_ICONS[selectedQuote.symbol] ? 
-                  (() => { const Icon = CATEGORY_ICONS[selectedQuote.symbol]; return <Icon className="h-5 w-5 text-foreground" />; })() : 
-                  <Activity className="h-5 w-5" />
-                }
-              </div>
-              {selectedQuote.symbol} - {selectedQuote.name}
-            </CardTitle>
-            <Button
-              onClick={() => researchMutation.mutate(selectedQuote.symbol)}
-              disabled={researchMutation.isPending}
-              className="gap-2"
-              data-testid="button-generate-research"
-            >
-              {researchMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Brain className="h-4 w-4" />
-              )}
-              {researchMutation.isPending ? 'Analyzing...' : 'AI Research'}
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-              <div>
-                <div className="text-sm text-muted-foreground">Current Price</div>
-                <div className="text-2xl font-bold">${selectedQuote.price.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Change</div>
-                <div className={`text-xl font-bold ${selectedQuote.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {selectedQuote.changePercent >= 0 ? '+' : ''}{selectedQuote.changePercent.toFixed(2)}%
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Tick Size</div>
-                <div className="text-xl font-bold">${selectedInfo.tickSize}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Point Value</div>
-                <div className="text-xl font-bold">${selectedInfo.pointValue.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Day High</div>
-                <div className="text-lg font-semibold">${selectedQuote.high.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Day Low</div>
-                <div className="text-lg font-semibold">${selectedQuote.low.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Previous Close</div>
-                <div className="text-lg font-semibold">${selectedQuote.previousClose.toLocaleString()}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Volume</div>
-                <div className="text-lg font-semibold">{selectedQuote.volume.toLocaleString()}</div>
-              </div>
-            </div>
-            
-            <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-              <h4 className="font-semibold mb-2">Quick Math</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">1 Tick Move = </span>
-                  <span className="font-medium">${(selectedInfo.tickSize * selectedInfo.pointValue).toFixed(2)}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">1 Point Move = </span>
-                  <span className="font-medium">${selectedInfo.pointValue.toLocaleString()}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Day Range = </span>
-                  <span className="font-medium">${(selectedQuote.high - selectedQuote.low).toFixed(2)} pts</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Day P&L (1 lot) = </span>
-                  <span className={`font-medium ${selectedQuote.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {selectedQuote.change >= 0 ? '+' : ''}${(selectedQuote.change * selectedInfo.pointValue).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {researchBrief && researchBrief.symbol === selectedSymbol && (
-              <div className="space-y-4" data-testid="panel-futures-research">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-semibold flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-purple-400" />
-                    AI Research Brief
-                  </h4>
-                  <Badge 
-                    variant="outline" 
-                    className={
-                      researchBrief.bias === 'bullish' 
-                        ? 'border-green-500/30 text-green-400' 
-                        : researchBrief.bias === 'bearish' 
-                        ? 'border-red-500/30 text-red-400' 
-                        : 'border-yellow-500/30 text-yellow-400'
-                    }
-                    data-testid="badge-research-bias"
-                  >
-                    {researchBrief.bias === 'bullish' && <ArrowUpRight className="h-3 w-3 mr-1" />}
-                    {researchBrief.bias === 'bearish' && <ArrowDownRight className="h-3 w-3 mr-1" />}
-                    {researchBrief.biasStrength.toUpperCase()} {researchBrief.bias.toUpperCase()}
-                  </Badge>
-                </div>
-
-                <div className="p-4 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                  <p className="text-sm" data-testid="text-technical-summary">{researchBrief.technicalSummary}</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
-                    <div className="text-xs text-muted-foreground mb-1">Key Resistance</div>
-                    <div className="font-medium text-red-400">
-                      {researchBrief.keyLevels.resistance.map(r => '$' + r.toFixed(2)).join(', ')}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
-                    <div className="text-xs text-muted-foreground mb-1">Pivot Point</div>
-                    <div className="font-medium text-yellow-400">${researchBrief.keyLevels.pivot.toFixed(2)}</div>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
-                    <div className="text-xs text-muted-foreground mb-1">Key Support</div>
-                    <div className="font-medium text-green-400">
-                      {researchBrief.keyLevels.support.map(s => '$' + s.toFixed(2)).join(', ')}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                      <Target className="h-3 w-3 text-cyan-400" />
-                      Catalysts
-                    </div>
-                    <ul className="text-sm space-y-1">
-                      {researchBrief.catalysts.map((c, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="text-cyan-400 mt-0.5">•</span>
-                          {c}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                      <ShieldAlert className="h-3 w-3 text-orange-400" />
-                      Risk Factors
-                    </div>
-                    <ul className="text-sm space-y-1">
-                      {researchBrief.riskFactors.map((r, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="text-orange-400 mt-0.5">•</span>
-                          {r}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-
-                {researchBrief.tradingIdea && (
-                  <div className={`p-4 rounded-lg border ${researchBrief.tradingIdea.direction === 'long' ? 'bg-green-500/10 border-green-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Badge variant={researchBrief.tradingIdea.direction === 'long' ? 'default' : 'destructive'}>
-                        {researchBrief.tradingIdea.direction === 'long' ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
-                        {researchBrief.tradingIdea.direction.toUpperCase()}
-                      </Badge>
-                      <span className="text-sm font-medium">Trade Idea</span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 mb-3 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Entry: </span>
-                        <span className="font-medium">${researchBrief.tradingIdea.entry.toFixed(2)}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Target: </span>
-                        <span className="font-medium text-green-400">${researchBrief.tradingIdea.target.toFixed(2)}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Stop: </span>
-                        <span className="font-medium text-red-400">${researchBrief.tradingIdea.stop.toFixed(2)}</span>
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{researchBrief.tradingIdea.rationale}</p>
-                  </div>
-                )}
-
-                <div className="text-xs text-muted-foreground text-right">
-                  Generated: {new Date(researchBrief.generatedAt).toLocaleString()}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      <Card className="glass-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-yellow-400" />
-            Educational Disclaimer
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Futures trading involves substantial risk of loss and is not suitable for all investors. 
-            The leverage in futures can work against you as well as for you. This information is for 
-            educational purposes only and should not be considered investment advice. Past performance 
-            is not indicative of future results. Always consult with a qualified financial advisor 
-            before making trading decisions.
-          </p>
-        </CardContent>
-      </Card>
     </div>
   );
 }
