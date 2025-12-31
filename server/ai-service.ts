@@ -931,6 +931,107 @@ export interface ChartAnalysisResult {
   timeframe: string;
 }
 
+// Validation helper for chart analysis results - ensures stops, targets, and R:R are reasonable
+function validateChartAnalysisResult(parsed: ChartAnalysisResult): ChartAnalysisResult {
+  // Calculate distances as percentages
+  const stopDistance = Math.abs(parsed.entryPoint - parsed.stopLoss) / parsed.entryPoint * 100;
+  const targetDistance = Math.abs(parsed.targetPrice - parsed.entryPoint) / parsed.entryPoint * 100;
+  
+  // Recalculate R:R to ensure accuracy
+  const actualRR = targetDistance / stopDistance;
+  if (Math.abs(actualRR - parsed.riskRewardRatio) > 0.3) {
+    parsed.riskRewardRatio = Math.round(actualRR * 10) / 10;
+  }
+  
+  let validationWarnings: string[] = [];
+  
+  // VALIDATION 1: Stop loss too tight (less than 0.5% is almost certainly noise)
+  if (stopDistance < 0.5) {
+    validationWarnings.push(
+      `⚠️ STOP LOSS WARNING: Stop distance of ${stopDistance.toFixed(2)}% is extremely tight and will likely trigger on normal price volatility. For intraday trades, use at least 0.8-1.5% stops. For swing trades, use 1.5-3% stops.`
+    );
+  } else if (stopDistance < 1.0) {
+    validationWarnings.push(
+      `⚠️ TIGHT STOP NOTICE: Stop distance of ${stopDistance.toFixed(2)}% is on the tighter side. This may work for scalping but consider a wider stop (1-2%) for day trades to avoid being stopped out on noise.`
+    );
+  }
+  
+  // VALIDATION 2: R:R ratio below minimum
+  if (parsed.riskRewardRatio < 1.5) {
+    validationWarnings.push(
+      `⚠️ R:R WARNING: Risk/Reward ratio of ${parsed.riskRewardRatio.toFixed(1)}:1 is below the recommended 2:1 minimum. Consider a tighter stop or more conservative target for better risk management.`
+    );
+  }
+  
+  // VALIDATION 3: Timeframe-based target validation
+  const tf = parsed.timeframe?.toLowerCase() || '';
+  let expectedMinTarget = 0;
+  let expectedMaxTarget = 100;
+  let timeframeLabel = '';
+  
+  if (tf.includes('1m') || tf.includes('5m') || tf === 'scalp' || tf === 'scalping') {
+    expectedMinTarget = 0.1;
+    expectedMaxTarget = 0.5;
+    timeframeLabel = '1m-5m (scalping)';
+  } else if (tf.includes('15m') || tf.includes('30m')) {
+    expectedMinTarget = 0.3;
+    expectedMaxTarget = 1.0;
+    timeframeLabel = '15m-30m (intraday)';
+  } else if (tf.includes('1h') || tf.includes('60m') || tf.includes('hourly')) {
+    expectedMinTarget = 0.5;
+    expectedMaxTarget = 2.0;
+    timeframeLabel = '1H (day trade)';
+  } else if (tf.includes('4h')) {
+    expectedMinTarget = 1.0;
+    expectedMaxTarget = 4.0;
+    timeframeLabel = '4H (swing)';
+  } else if (tf.includes('daily') || tf.includes('1d') || tf === 'd') {
+    expectedMinTarget = 2.0;
+    expectedMaxTarget = 8.0;
+    timeframeLabel = 'Daily (position)';
+  } else if (tf.includes('weekly') || tf.includes('1w') || tf === 'w') {
+    expectedMinTarget = 5.0;
+    expectedMaxTarget = 20.0;
+    timeframeLabel = 'Weekly (longer-term)';
+  }
+  
+  if (timeframeLabel && targetDistance > expectedMaxTarget * 1.5) {
+    validationWarnings.push(
+      `⚠️ TARGET WARNING: Target of ${targetDistance.toFixed(1)}% may be too aggressive for ${timeframeLabel} timeframe. Expected range: ${expectedMinTarget}-${expectedMaxTarget}%. Consider a more conservative target near visible resistance.`
+    );
+  }
+  
+  // VALIDATION 4: Confidence vs pattern count sanity check
+  if (parsed.confidence >= 80 && parsed.patterns.length < 2) {
+    validationWarnings.push(
+      `⚠️ CONFIDENCE NOTICE: High confidence (${parsed.confidence}%) with only ${parsed.patterns.length} pattern(s) detected. Typically 80%+ confidence requires 3+ confirming signals.`
+    );
+  }
+  
+  // VALIDATION 5: Price relationship sanity (long vs short direction)
+  const isLongSetup = parsed.targetPrice > parsed.entryPoint;
+  const stopBelowEntry = parsed.stopLoss < parsed.entryPoint;
+  
+  if (isLongSetup && !stopBelowEntry) {
+    validationWarnings.push(
+      `⚠️ SETUP ERROR: Long setup detected (target > entry) but stop loss ($${parsed.stopLoss.toFixed(2)}) is above entry ($${parsed.entryPoint.toFixed(2)}). Stop should be below entry for long trades.`
+    );
+  } else if (!isLongSetup && stopBelowEntry) {
+    validationWarnings.push(
+      `⚠️ SETUP ERROR: Short setup detected (target < entry) but stop loss ($${parsed.stopLoss.toFixed(2)}) is below entry ($${parsed.entryPoint.toFixed(2)}). Stop should be above entry for short trades.`
+    );
+  }
+  
+  // Append all warnings to analysis
+  if (validationWarnings.length > 0) {
+    parsed.analysis += '\n\n---\n**VALIDATION ALERTS:**\n' + validationWarnings.join('\n\n');
+  }
+  
+  logger.info(`📊 Chart analysis validation: stopDist=${stopDistance.toFixed(2)}%, targetDist=${targetDistance.toFixed(2)}%, R:R=${parsed.riskRewardRatio.toFixed(1)}, warnings=${validationWarnings.length}`);
+  
+  return parsed;
+}
+
 export async function analyzeChartImage(
   imageBuffer: Buffer,
   symbol?: string,
@@ -968,7 +1069,7 @@ Please evaluate this specific option play in your analysis:
 4. Provide a clear RECOMMENDATION: "TAKE THE TRADE" or "AVOID THIS TRADE" with reasoning.`;
   }
   
-  const systemPrompt = `You are an expert technical analyst specializing in chart pattern recognition and trade setup identification.
+  const systemPrompt = `You are an expert technical analyst specializing in chart pattern recognition and trade setup identification. Your goal is to provide INSTITUTIONAL-GRADE analysis with 99% accuracy.
 
 **CRITICAL FIRST STEP**: Before analyzing patterns, you MUST:
 1. Look at the Y-axis (price axis) on the chart to understand the ACTUAL price scale
@@ -986,6 +1087,65 @@ Analyze the provided trading chart image and provide a comprehensive technical a
 7. **Confidence**: Your confidence level in this analysis (0-100)
 8. **Analysis**: Detailed explanation of your findings and reasoning${priceContext}
 
+---
+**PATTERN DETECTION REQUIREMENTS (MANDATORY)**:
+Each pattern you identify MUST have 3+ confirmation points. Do NOT identify patterns without validation:
+
+- **Trend Patterns**: Require 3+ touches of trendline, not just 2 points
+- **Head & Shoulders**: Must have clear left shoulder, head, right shoulder with neckline visible
+- **Double Top/Bottom**: Peaks/troughs must be within 3% of each other with clear middle pullback
+- **Triangles**: Need at least 4 touch points (2 on each boundary line)
+- **Flags/Pennants**: Must follow a strong pole move (5%+ in stocks, 3%+ in crypto)
+
+**CANDLESTICK PATTERN DETECTION**:
+Look for these at key support/resistance levels:
+- **Doji**: Open and close within 0.1% of each other, indicates indecision
+- **Hammer/Inverted Hammer**: Small body at top/bottom, long wick 2x+ body size
+- **Engulfing**: Current candle body completely engulfs previous candle body
+- **Shooting Star**: Small body at bottom with long upper wick (bearish at resistance)
+- **Morning/Evening Star**: 3-candle reversal pattern at key levels
+
+**VOLUME CONFIRMATION** (if volume bars visible):
+- Breakouts should have volume 50%+ above average
+- Pullbacks should show declining volume
+- Volume spikes at support/resistance increase pattern reliability
+
+---
+**STOP LOSS VALIDATION (CRITICAL)**:
+Your stop loss MUST be at least 1.0 ATR (Average True Range) away from entry. Stops tighter than 1 ATR will trigger on normal price noise.
+- For DAY TRADES: Stop should be 0.8-1.5% from entry minimum
+- For SWING TRADES: Stop should be 1.5-3% from entry (1.5-2x ATR)
+- **WARNING**: If your calculated stop is less than 0.5% from entry, this is ALMOST CERTAINLY too tight and will get stopped out on noise. You MUST warn about this in your analysis.
+
+---
+**MULTI-TIMEFRAME TARGET VALIDATION**:
+ALWAYS validate that your targets match the timeframe being analyzed:
+- 1m-5m charts: Target 0.1-0.3% moves (scalping)
+- 15m-30m charts: Target 0.3-0.8% moves (intraday)
+- 1H charts: Target 0.5-1.5% moves (day trade)
+- 4H charts: Target 1-3% moves (swing trade)
+- Daily charts: Target 2-5% moves (position trade)
+- Weekly/Monthly: Target 5-15% moves (longer-term)
+
+If you identify a 15m chart but set a 5% target, that is INCORRECT. ALWAYS validate timeframe matches expected move size.
+
+---
+**CONFIDENCE CALIBRATION (STRICT SCORING)**:
+- **80-100%**: Requires 3+ confirming patterns, price at key level, volume confirmation visible, clear trend direction
+- **60-79%**: Requires 2 patterns aligning with price action, at least 1 confirmation signal
+- **40-59%**: Conflicting signals present - use NEUTRAL sentiment, warn about mixed signals
+- **Below 40%**: Chart is unclear or no valid setup - recommend NO TRADE
+
+---
+**REQUIRED ANALYSIS STRUCTURE**:
+Your "analysis" field MUST include ALL of the following:
+1. **Primary Pattern**: Named pattern with specific price points where it forms (e.g., "Double bottom at $45.20 and $45.35")
+2. **Volume Analysis**: If volume visible, describe what it shows. If not visible, state "Volume data not visible on chart"
+3. **Key Levels**: Exact support ($X.XX) and resistance ($X.XX) levels with justification
+4. **Candlestick Patterns**: Any significant candlestick patterns at key levels
+5. **Risk Assessment**: Clear statement of what could invalidate this setup and warning if R:R is poor
+
+---
 Return your analysis in this EXACT JSON format:
 {
   "patterns": ["pattern1", "pattern2"],
@@ -996,22 +1156,14 @@ Return your analysis in this EXACT JSON format:
   "stopLoss": number,
   "riskRewardRatio": number,
   "sentiment": "bullish" | "bearish" | "neutral",
-  "analysis": "detailed analysis text",
+  "analysis": "detailed analysis text following the required structure above",
   "confidence": number (0-100),
   "timeframe": "detected timeframe or ${timeframe || 'unknown'}"
 }
 
 **IMPORTANT**: All price levels (entry, target, stop, support, resistance) must be realistic values that you can actually SEE on the chart's Y-axis. Do not guess or hallucinate prices.
 
-**REALISTIC TARGETS BY TIMEFRAME**: Your target price must be achievable within the timeframe:
-- 1m-5m charts: Target 0.1-0.3% moves (scalping)
-- 15m-30m charts: Target 0.3-0.8% moves (intraday)
-- 1H charts: Target 0.5-1.5% moves (day trade)
-- 4H charts: Target 1-3% moves (swing trade)
-- Daily charts: Target 2-5% moves (position trade)
-- Weekly/Monthly: Target 5-15% moves (longer-term)
-
-Base your target on the NEAREST visible resistance level, not aspirational prices. Conservative targets with good R:R are better than aggressive targets that rarely hit.
+Base your target on the NEAREST visible resistance level, not aspirational prices. Conservative targets with good R:R (2:1 minimum preferred) are better than aggressive targets that rarely hit.
 
 **ANALYSIS LENGTH**: Provide a COMPLETE and THOROUGH analysis in the "analysis" field. Write at least 3-4 full paragraphs explaining all visible patterns, price action, volume (if visible), and your reasoning for the trade setup. Do NOT cut off mid-sentence.${optionContext}${contextInfo}`;
 
@@ -1146,7 +1298,7 @@ Base your target on the NEAREST visible resistance level, not aspirational price
     }
     
     logger.info("✅ Gemini chart analysis complete");
-    return parsed;
+    return validateChartAnalysisResult(parsed);
     
   } catch (geminiError: any) {
     logger.info("Gemini chart analysis failed, trying OpenAI...", geminiError);
@@ -1178,7 +1330,7 @@ Base your target on the NEAREST visible resistance level, not aspirational price
       const parsed = JSON.parse(content) as ChartAnalysisResult;
       
       logger.info("✅ OpenAI chart analysis complete");
-      return parsed;
+      return validateChartAnalysisResult(parsed);
       
     } catch (openaiError: any) {
       logger.info("OpenAI chart analysis failed, trying Claude...", openaiError);
@@ -1225,7 +1377,7 @@ Base your target on the NEAREST visible resistance level, not aspirational price
         const claudeParsed = JSON.parse(claudeJsonStr) as ChartAnalysisResult;
         
         logger.info("✅ Claude chart analysis complete");
-        return claudeParsed;
+        return validateChartAnalysisResult(claudeParsed);
         
       } catch (claudeError: any) {
         // Try Grok/xAI as final fallback (uses OpenAI-compatible API)
@@ -1285,7 +1437,7 @@ Base your target on the NEAREST visible resistance level, not aspirational price
             const grokParsed = JSON.parse(grokJsonStr) as ChartAnalysisResult;
             
             logger.info("✅ Grok chart analysis complete");
-            return grokParsed;
+            return validateChartAnalysisResult(grokParsed);
             
           } catch (grokError: any) {
             logger.error("All AI providers failed for chart analysis:", {
