@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
+import { EngineConvergence } from "@/components/engine-convergence";
 
 interface AssetTypeStats {
   assetType: string;
@@ -181,38 +182,48 @@ export default function Landing() {
         <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
         
         <div className="container mx-auto px-6 relative z-10">
-          <div className="inline-flex items-center gap-2 glass-subtle rounded-full px-4 py-2 mb-6">
-            <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
-            <span className="text-sm font-mono text-cyan-400">LIVE</span>
-          </div>
-          
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4" data-testid="text-hero-headline">
-            Multiple Engines<span className="text-cyan-400">.</span>
-            <br />
-            One Edge<span className="text-cyan-400">.</span>
-          </h1>
-          
-          <p className="text-lg text-muted-foreground max-w-xl mb-8" data-testid="text-hero-subheadline">
-            Dual-engine research platform. AI analysis meets quantitative validation.
-            Every signal verified. Every outcome tracked.
-          </p>
-          
-          <div className="flex flex-wrap gap-4">
-            <Button 
-              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
-              onClick={() => setLocation('/signup')}
-              data-testid="button-start-research"
-            >
-              Start Research <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-            <Button 
-              variant="outline" 
-              className="border-slate-700"
-              onClick={() => scrollToSection('recent-performance')}
-              data-testid="button-view-performance"
-            >
-              View Performance
-            </Button>
+          <div className="grid lg:grid-cols-2 gap-8 items-center">
+            {/* Left: Copy */}
+            <div>
+              <div className="inline-flex items-center gap-2 glass-subtle rounded-full px-4 py-2 mb-6">
+                <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+                <span className="text-sm font-mono text-cyan-400">LIVE</span>
+              </div>
+              
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4" data-testid="text-hero-headline">
+                Multiple Engines<span className="text-cyan-400">.</span>
+                <br />
+                One Edge<span className="text-cyan-400">.</span>
+              </h1>
+              
+              <p className="text-lg text-muted-foreground max-w-xl mb-8" data-testid="text-hero-subheadline">
+                Three-engine research platform. AI, Quant, and Flow signals converge for higher-conviction setups.
+                Every signal verified. Every outcome tracked.
+              </p>
+              
+              <div className="flex flex-wrap gap-4">
+                <Button 
+                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                  onClick={() => setLocation('/signup')}
+                  data-testid="button-start-research"
+                >
+                  Start Research <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="border-slate-700"
+                  onClick={() => scrollToSection('recent-performance')}
+                  data-testid="button-view-performance"
+                >
+                  View Performance
+                </Button>
+              </div>
+            </div>
+            
+            {/* Right: Convergence Graphic */}
+            <div className="hidden lg:flex justify-center">
+              <EngineConvergence className="w-full max-w-sm" />
+            </div>
           </div>
         </div>
       </section>
@@ -255,21 +266,26 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* Engine Matrix - Clean Two-Column */}
+      {/* Engine Matrix - Three Engines */}
       <section className="py-16 lg:py-24" id="engine-matrix" data-testid="engine-matrix">
         <div className="container mx-auto px-6">
-          <h2 className="text-2xl font-semibold mb-12 text-center">The Dual-Engine Approach</h2>
+          <div className="text-center mb-12">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+              Signal Generation
+            </p>
+            <h2 className="text-2xl font-semibold">Three Engines, One Edge</h2>
+          </div>
           
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {/* AI Engine */}
-            <div className="glass-card rounded-lg p-6">
+            <div className="glass-card rounded-lg p-6 border-l-2 border-purple-500/50">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
                   <Brain className="h-5 w-5 text-purple-400" />
                 </div>
                 <div>
                   <h3 className="font-semibold">AI Engine</h3>
-                  <p className="text-xs text-muted-foreground">Claude, GPT-4, Gemini</p>
+                  <p className="text-xs font-mono text-purple-400">57% WIN</p>
                 </div>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
@@ -277,34 +293,58 @@ export default function Landing() {
                   <Check className="h-4 w-4 text-cyan-400" /> Fundamental analysis
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> News catalyst detection
+                  <Check className="h-4 w-4 text-cyan-400" /> News catalysts
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Context-aware research
+                  <Check className="h-4 w-4 text-cyan-400" /> Multi-LLM consensus
                 </li>
               </ul>
             </div>
             
             {/* Quant Engine */}
-            <div className="glass-card rounded-lg p-6">
+            <div className="glass-card rounded-lg p-6 border-l-2 border-blue-500/50">
               <div className="flex items-center gap-3 mb-4">
                 <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
                   <Calculator className="h-5 w-5 text-blue-400" />
                 </div>
                 <div>
                   <h3 className="font-semibold">Quant Engine</h3>
-                  <p className="text-xs text-muted-foreground">RSI, VWAP, Volume</p>
+                  <p className="text-xs font-mono text-blue-400">34% WIN</p>
                 </div>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Technical validation
+                  <Check className="h-4 w-4 text-cyan-400" /> RSI(2) mean reversion
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Statistical signals
+                  <Check className="h-4 w-4 text-cyan-400" /> VWAP flow analysis
                 </li>
                 <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Risk parameters
+                  <Check className="h-4 w-4 text-cyan-400" /> Volume spike detection
+                </li>
+              </ul>
+            </div>
+            
+            {/* Flow Scanner */}
+            <div className="glass-card rounded-lg p-6 border-l-2 border-cyan-500/50">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                  <Activity className="h-5 w-5 text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Flow Scanner</h3>
+                  <p className="text-xs font-mono text-cyan-400">82% WIN</p>
+                </div>
+              </div>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Institutional flow
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Unusual activity
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Real-time scanning
                 </li>
               </ul>
             </div>
