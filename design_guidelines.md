@@ -36,24 +36,43 @@
 
 ## Color System
 
-**Dark-First Palette**:
+### Dark Mode Palette (Default)
 ```
-Background:     slate-950 (#020617)
+Background:     slate-950 (#020617) / hsl(0 0% 4%)
 Surface 1:      slate-900 (#0f172a)
 Surface 2:      slate-800 (#1e293b)
 Border:         slate-700 (#334155)
 Border Subtle:  slate-800 (#1e293b)
+Text Primary:   slate-50 (#f8fafc)
+Text Muted:     slate-400 (#94a3b8)
 ```
 
-**Accent Colors** (use sparingly):
+### Light Mode Palette
+```
+Background:     slate-50 (#f8fafc) / hsl(220 14% 96%)
+Surface 1:      white (#ffffff)
+Surface 2:      slate-100 (#f1f5f9)
+Border:         slate-200 (#e2e8f0) / hsl(220 13% 88%)
+Border Subtle:  slate-100 (#f1f5f9)
+Text Primary:   slate-900 (#0f172a) / hsl(220 15% 15%)
+Text Muted:     slate-500 (#64748b) / hsl(220 10% 45%)
+```
+
+### Accent Colors (Both Modes)
 ```
 Primary:        cyan-500 (#06b6d4) - CTAs, active states, links
-Primary Hover:  cyan-400 (#22d3ee)
-Success:        green-400 (#4ade80) - Positive values, wins
-Danger:         red-400 (#f87171) - Negative values, losses
-Warning:        amber-400 (#fbbf24) - Caution, pending
-Muted:          slate-400 (#94a3b8) - Secondary text
+Primary Hover:  cyan-400 (#22d3ee) dark / cyan-600 (#0891b2) light
+Success:        green-400 (#4ade80) dark / green-600 (#16a34a) light
+Danger:         red-400 (#f87171) dark / red-600 (#dc2626) light
+Warning:        amber-400 (#fbbf24) dark / amber-600 (#d97706) light
 ```
+
+### Light Mode Guidelines
+- Use semantic color tokens (`bg-background`, `text-foreground`) rather than hardcoded colors
+- Shadows are more visible in light mode - use `shadow-sm` instead of `shadow-md`
+- Glass effects: reduce opacity (bg-white/60 instead of bg-slate-900/60)
+- Borders are more prominent - use `border-slate-200` or `border` default
+- Engine colors remain the same (purple, blue, cyan) but may need darker variants for contrast
 
 **Data Visualization**:
 - Bullish: `text-green-400` / `bg-green-500/10`

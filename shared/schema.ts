@@ -1081,7 +1081,7 @@ export const blogPosts = pgTable("blog_posts", {
   category: text("category").$type<BlogCategory>().notNull().default('market-commentary'),
   tags: text("tags").array(), // Array of tags
   authorId: varchar("author_id"), // Link to users table
-  authorName: varchar("author_name").notNull().default('QuantEdge Team'),
+  authorName: varchar("author_name").notNull().default('Trading Education Team'),
   status: text("status").$type<BlogPostStatus>().notNull().default('draft'),
   metaDescription: text("meta_description"), // SEO meta description
   metaKeywords: text("meta_keywords"), // SEO keywords

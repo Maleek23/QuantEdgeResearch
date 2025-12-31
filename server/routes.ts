@@ -8332,7 +8332,7 @@ FORMATTING:
           title: "Understanding Options: A Beginner's Complete Guide",
           excerpt: "Learn the fundamentals of options trading - calls, puts, strikes, and expiration dates explained in plain English.",
           category: "education" as const,
-          author: "QuantEdge Research",
+          authorName: "Trading Education Team",
           status: "published" as const,
           content: `# Understanding Options: A Beginner's Complete Guide
 
@@ -8411,7 +8411,7 @@ Remember: options can go to zero. Only trade with money you can afford to lose.
           title: "Position Sizing: The Most Important Skill in Trading",
           excerpt: "Learn how to size your positions correctly so one bad trade doesn't blow up your account.",
           category: "risk-management" as const,
-          author: "QuantEdge Research",
+          authorName: "Trading Education Team",
           status: "published" as const,
           content: `# Position Sizing: The Most Important Skill in Trading
 
@@ -8500,7 +8500,7 @@ Professional traders focus on risk management first, profits second. Master posi
           title: "How to Read Candlestick Charts: A Visual Guide",
           excerpt: "Master the art of reading price action with candlestick charts - the most popular charting method used by traders worldwide.",
           category: "education" as const,
-          author: "QuantEdge Research",
+          authorName: "Trading Education Team",
           status: "published" as const,
           content: `# How to Read Candlestick Charts: A Visual Guide
 
@@ -8612,7 +8612,7 @@ Candlesticks work best when combined with:
           title: "The Greeks Explained: Delta, Theta, Gamma, Vega",
           excerpt: "Understand how Delta, Theta, Gamma, and Vega affect your options positions and how to use them to your advantage.",
           category: "education" as const,
-          author: "QuantEdge Research",
+          authorName: "Trading Education Team",
           status: "published" as const,
           content: `# The Greeks Explained: Delta, Theta, Gamma, Vega
 
@@ -8727,7 +8727,7 @@ Before earnings, IV is high (options expensive). After earnings, IV drops (volat
           title: "Trading Psychology: How to Control Your Emotions",
           excerpt: "Learn how to manage fear, greed, and FOMO - the three emotions that destroy most traders.",
           category: "strategy" as const,
-          author: "QuantEdge Research",
+          authorName: "Trading Education Team",
           status: "published" as const,
           content: `# Trading Psychology: How to Control Your Emotions
 
@@ -8869,7 +8869,7 @@ Remember: Mastering your psychology is a journey, not a destination. Keep workin
           title: "Support and Resistance: The Foundation of Technical Analysis",
           excerpt: "Learn how to identify key support and resistance levels where price is likely to react.",
           category: "education" as const,
-          author: "QuantEdge Research",
+          authorName: "Trading Education Team",
           status: "published" as const,
           content: `# Support and Resistance: The Foundation of Technical Analysis
 
@@ -8995,6 +8995,206 @@ Common retracement levels (38.2%, 50%, 61.8%) often align with S/R.
 ---
 
 *This content is for educational purposes only and does not constitute financial advice.*`
+        },
+        {
+          slug: "tradingview-technical-analysis-guide",
+          title: "Step-by-Step Guide to Technical Analysis in TradingView",
+          excerpt: "Learn how to set up TradingView for professional technical analysis - from chart settings to indicator stacking and alert creation.",
+          category: "education" as const,
+          authorName: "Trading Education Team",
+          status: "published" as const,
+          content: `# Step-by-Step Guide to Technical Analysis in TradingView
+
+TradingView is the most popular charting platform for retail traders. This guide will walk you through setting it up for professional-level technical analysis.
+
+## Step 1: Setting Up Your Workspace
+
+### Create Your Layout
+1. Go to [TradingView.com](https://tradingview.com) and create a free account
+2. Click "Chart" in the top menu to open the charting interface
+3. Click the "Layout" dropdown (top right) → Save Layout → Name it "My Trading Setup"
+
+### Chart Settings (Right-Click on Chart)
+- **Symbol**: Choose your preferred ticker format (e.g., NASDAQ:AAPL)
+- **Time zone**: Set to your local time or market time (EST/ET for US markets)
+- **Session**: Show extended hours if you trade pre/post market
+
+### Recommended Display Settings
+1. Click the gear icon (Settings)
+2. **Scales**: Enable "Auto scale" and "Lock Price to Bar Ratio"
+3. **Trading**: Enable if you want to connect a broker
+4. **Events**: Turn on Earnings and Dividends if trading stocks
+
+## Step 2: Chart Hygiene - Clean Up Your Charts
+
+Less is more. Cluttered charts lead to bad decisions.
+
+### Recommended Clean Setup
+- **Chart type**: Candlesticks (most information)
+- **Colors**: Dark theme with green/red or blue/red candles
+- **Grid lines**: Off or very faint
+- **Watermarks**: Off
+
+### Timeframe Selection
+For swing trading, use this multi-timeframe approach:
+- **Weekly**: Identify the major trend
+- **Daily**: Find entry zones
+- **4-Hour**: Confirm timing
+- **1-Hour**: Fine-tune entries (optional)
+
+**Pro tip**: Click the timeframe dropdown and add your favorites to the toolbar for quick switching.
+
+## Step 3: Essential Indicators (The Only Ones You Need)
+
+Don't overload your charts. These 4-5 indicators cover 90% of what you need:
+
+### 1. Volume (Built-in)
+- Add via Indicators → Built-ins → Volume
+- Shows buying/selling pressure
+- Look for volume confirmation on breakouts
+
+### 2. Moving Averages
+Add these two EMAs for trend direction:
+- **20 EMA** (short-term trend) - Set color to blue
+- **50 EMA** (medium-term trend) - Set color to orange
+
+**How to add:**
+1. Indicators → Search "EMA"
+2. Add Exponential Moving Average
+3. Click Settings → Change "Length" to 20
+4. Repeat for 50 EMA
+
+### 3. RSI (Relative Strength Index)
+- Add via Indicators → RSI
+- Default 14-period is fine
+- Look for overbought (>70) and oversold (<30) conditions
+
+### 4. VWAP (Volume Weighted Average Price)
+- Add via Indicators → VWAP
+- Essential for intraday trading
+- Price above VWAP = bullish, below = bearish
+
+### 5. ATR (Average True Range) - Optional
+- Helps with stop loss placement
+- ATR × 2 = common stop distance
+
+## Step 4: Drawing Support and Resistance
+
+### Horizontal Lines
+1. Click the horizontal line tool (left toolbar) or press "H"
+2. Click at major swing highs/lows
+3. Color code: Green for support, Red for resistance
+
+### Trendlines
+1. Click trendline tool or press "T"
+2. Connect at least 2 swing lows (uptrend) or highs (downtrend)
+3. Extend the line to see where price might react
+
+### Fibonacci Retracements
+1. Click Fib Retracement tool
+2. Click from swing low to swing high (for uptrend pullback levels)
+3. Key levels: 0.382, 0.5, 0.618
+
+## Step 5: Creating a Watchlist
+
+### Build Your Watchlist
+1. Click "+" in the watchlist panel (right side)
+2. Add symbols you're tracking
+3. Organize into sections (e.g., "Tech Stocks", "Crypto", "Setups")
+
+### Watchlist Columns
+Right-click on column headers to add:
+- % Change (today's move)
+- Volume (current volume)
+- 52W High/Low (position in range)
+
+## Step 6: Setting Alerts
+
+Alerts let you step away from the screen while TradingView watches for you.
+
+### Price Alerts
+1. Right-click on chart at your target price
+2. Select "Add Alert"
+3. Choose "Crossing" or "Crossing Up/Down"
+4. Set notification: Email, Push, or SMS
+
+### Indicator Alerts
+1. Click on an indicator (like RSI)
+2. Right-click → Add Alert on RSI
+3. Set condition (e.g., "RSI crosses below 30")
+
+### Pro Tips for Alerts
+- Name your alerts clearly: "AAPL breakout above $200"
+- Set expiration dates if trading short-term setups
+- Use webhook alerts if you want automated notifications
+
+## Step 7: Saving Your Analysis
+
+### Save Your Work
+1. **Templates**: Save indicator setups as templates
+   - Right-click chart → Save Template
+   - Name it "My Trading Template"
+   
+2. **Snapshots**: Save chart images for your journal
+   - Click camera icon (top right)
+   - Creates a link to share
+
+3. **Ideas**: Publish your analysis (optional)
+   - Click "Publish" to share trade ideas publicly or privately
+
+## Checklist: Before Every Trade
+
+Use this checklist before entering any trade:
+
+### Multi-Timeframe Analysis
+- [ ] Weekly trend direction identified
+- [ ] Daily chart shows clear setup
+- [ ] 4H/1H confirms entry timing
+
+### Technical Confirmation
+- [ ] Price at key support/resistance level
+- [ ] Volume confirms the move
+- [ ] RSI not extreme (or showing divergence)
+- [ ] Moving averages aligned with trade direction
+
+### Risk Management
+- [ ] Stop loss level identified (below support/above resistance)
+- [ ] Position size calculated (1-2% risk max)
+- [ ] Risk:Reward ratio is at least 2:1
+- [ ] Alerts set for entry, stop, and target
+
+## Advanced Features (Free Tier)
+
+### Multiple Charts
+- Split your screen into 2 charts (free) or more (paid)
+- Sync symbols across charts with the chain icon
+
+### Replay Mode
+- Practice with historical data
+- Click "Replay" button → Select date → Practice your analysis
+
+### Pine Script
+- Create custom indicators
+- Backtest strategies
+- Access the script editor from the bottom panel
+
+## Common Mistakes to Avoid
+
+1. **Too many indicators**: Pick 3-5 and master them
+2. **Ignoring volume**: Always confirm moves with volume
+3. **Wrong timeframe**: Match timeframe to your trading style
+4. **No trading plan**: Have entry, stop, and target before you trade
+5. **Chasing alerts**: Alerts notify you - still analyze before acting
+
+## Practice Routine
+
+1. **Daily (10 min)**: Review your watchlist, update key levels
+2. **Weekly (30 min)**: Analyze higher timeframes, find new setups
+3. **Monthly (1 hour)**: Review your trades, refine your process
+
+---
+
+*This content is for educational purposes only and does not constitute financial advice. TradingView is a third-party platform not affiliated with this content.*`
         }
       ];
 
