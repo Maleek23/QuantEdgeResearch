@@ -22,6 +22,7 @@ import { format, parseISO, isSameDay, subHours } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getPerformanceGrade } from "@/lib/performance-grade";
 import { isRealLoss } from "@shared/constants";
+import { RiskDisclosure } from "@/components/risk-disclosure";
 
 export default function HomePage() {
   const { toast } = useToast();
@@ -93,7 +94,9 @@ export default function HomePage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-0">
+      <RiskDisclosure variant="banner" />
+      <div className="p-4 sm:p-6 space-y-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -307,6 +310,7 @@ export default function HomePage() {
             </div>
           </Card>
         </div>
+      </div>
       </div>
     </div>
   );
