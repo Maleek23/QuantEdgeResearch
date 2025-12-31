@@ -243,12 +243,12 @@ export default function Landing() {
               </p>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Win Rate</p>
-              <p className="text-2xl font-bold font-mono tabular-nums text-green-400">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Active</p>
+              <p className="text-2xl font-bold font-mono tabular-nums text-cyan-400">
                 {statsLoading ? (
                   <Skeleton className="h-8 w-16" />
-                ) : perfStats?.overall?.winRate ? (
-                  `${perfStats.overall.winRate.toFixed(0)}%`
+                ) : perfStats?.overall?.openIdeas ? (
+                  perfStats.overall.openIdeas
                 ) : (
                   '—'
                 )}
@@ -285,7 +285,7 @@ export default function Landing() {
                 </div>
                 <div>
                   <h3 className="font-semibold">AI Engine</h3>
-                  <p className="text-xs font-mono text-purple-400">57% WIN</p>
+                  <p className="text-xs text-muted-foreground">Fundamental Analysis</p>
                 </div>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
@@ -309,7 +309,7 @@ export default function Landing() {
                 </div>
                 <div>
                   <h3 className="font-semibold">Quant Engine</h3>
-                  <p className="text-xs font-mono text-blue-400">34% WIN</p>
+                  <p className="text-xs text-muted-foreground">Technical Signals</p>
                 </div>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">
@@ -333,7 +333,7 @@ export default function Landing() {
                 </div>
                 <div>
                   <h3 className="font-semibold">Flow Scanner</h3>
-                  <p className="text-xs font-mono text-cyan-400">82% WIN</p>
+                  <p className="text-xs text-muted-foreground">Institutional Activity</p>
                 </div>
               </div>
               <ul className="space-y-2 text-sm text-muted-foreground">

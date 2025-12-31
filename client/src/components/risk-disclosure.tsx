@@ -4,12 +4,40 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
 interface RiskDisclosureProps {
-  variant?: 'full' | 'compact';
+  variant?: 'full' | 'compact' | 'banner' | 'micro';
   engineVersion?: string;
   className?: string;
 }
 
 export function RiskDisclosure({ variant = 'compact', engineVersion, className = '' }: RiskDisclosureProps) {
+  if (variant === 'micro') {
+    return (
+      <div 
+        className={`flex items-center gap-1.5 text-[10px] text-amber-200/70 ${className}`}
+        data-testid="risk-disclosure-micro"
+      >
+        <AlertTriangle className="h-3 w-3 text-amber-500 flex-shrink-0" />
+        <span>Educational research only. Not financial advice.</span>
+      </div>
+    );
+  }
+
+  if (variant === 'banner') {
+    return (
+      <div 
+        className={`bg-amber-500/5 border-b border-amber-500/20 py-2 px-4 ${className}`}
+        data-testid="risk-disclosure-banner"
+      >
+        <div className="container mx-auto flex items-center justify-center gap-2 text-xs text-amber-200/80">
+          <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+          <span>
+            <strong>Educational research only.</strong> Not financial advice. Past performance does not guarantee future results.
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   if (variant === 'compact') {
     return (
       <Alert className={`border-amber-500/30 bg-amber-500/5 ${className}`} data-testid="alert-risk-disclosure">

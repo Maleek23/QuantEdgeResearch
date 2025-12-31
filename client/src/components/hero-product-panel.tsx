@@ -79,28 +79,6 @@ export function HeroProductPanel({ className = "" }: { className?: string }) {
           </div>
         </div>
 
-        {/* Historical Data Stats (with context) */}
-        <div className="flex items-center justify-center gap-6 text-center" data-testid="historical-stats">
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Research Briefs</p>
-            {isLoading ? (
-              <Skeleton className="h-5 w-12 mx-auto mt-1" />
-            ) : (
-              <p className="font-mono font-bold text-foreground">{perfStats?.overall?.totalIdeas || '—'}</p>
-            )}
-          </div>
-          <div className="h-8 w-px bg-slate-700" />
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Engines</p>
-            <p className="font-mono font-bold text-foreground">3</p>
-          </div>
-          <div className="h-8 w-px bg-slate-700" />
-          <div>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Markets</p>
-            <p className="font-mono font-bold text-foreground">4</p>
-          </div>
-        </div>
-
         {/* Educational Disclaimer */}
         <div 
           className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/5 border border-amber-500/20 max-w-sm mx-auto"
