@@ -64,7 +64,7 @@ function SidebarHeaderContent() {
   return (
     <div className="py-4 px-2">
       <button 
-        onClick={() => setLocation("/home")} 
+        onClick={() => setLocation("/")} 
         data-testid="nav-logo" 
         className="flex items-center gap-3 cursor-pointer w-full"
       >
