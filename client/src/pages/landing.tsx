@@ -125,11 +125,11 @@ export default function Landing() {
                 Features
               </button>
               <button 
-                onClick={() => scrollToSection('recent-performance')} 
+                onClick={() => scrollToSection('engine-matrix')} 
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                 data-testid="link-performance"
               >
-                Performance
+                Engines
               </button>
               <button 
                 onClick={() => scrollToSection('pricing')} 
@@ -212,10 +212,10 @@ export default function Landing() {
                 <Button 
                   variant="outline" 
                   className="border-slate-700"
-                  onClick={() => scrollToSection('recent-performance')}
-                  data-testid="button-view-performance"
+                  onClick={() => scrollToSection('engine-matrix')}
+                  data-testid="button-view-engines"
                 >
-                  View Performance
+                  View Engines
                 </Button>
               </div>
             </div>
@@ -463,152 +463,6 @@ export default function Landing() {
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Recent Performance */}
-      <section className="py-16 lg:py-24 bg-slate-900/30" id="recent-performance" data-testid="section-performance">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Transparent Tracking
-            </p>
-            <h2 className="text-2xl font-semibold mb-4">Recent Performance</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              All research briefs are tracked for transparency. Results include both successful and unsuccessful patterns.
-            </p>
-          </div>
-
-          {ideasLoading ? (
-            <div className="max-w-4xl mx-auto">
-              <Skeleton className="h-64 w-full rounded-lg" data-testid="skeleton-recent-trades" />
-            </div>
-          ) : activeTrade ? (
-            <div className="max-w-4xl mx-auto relative">
-              <div className="flex items-center justify-between gap-4">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={prevTrade}
-                  disabled={recentTrades.length <= 1}
-                  className="border-slate-700"
-                  data-testid="button-carousel-prev"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-
-                <Card className="flex-1 glass-card" data-testid={`card-recent-trade-${carouselIndex}`}>
-                  <CardContent className="p-8">
-                    <div className="flex items-start justify-between gap-4 mb-6">
-                      <div className="flex items-center gap-3">
-                        <div className={`h-12 w-12 rounded-lg flex items-center justify-center ${
-                          activeTrade.outcomeStatus === 'hit_target' 
-                            ? 'bg-green-500/10' 
-                            : 'bg-red-500/10'
-                        }`}>
-                          <TrendingUp className={`h-6 w-6 ${
-                            activeTrade.outcomeStatus === 'hit_target' 
-                              ? 'text-green-400' 
-                              : 'text-red-400'
-                          }`} />
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-bold font-mono" data-testid="text-trade-symbol">
-                            {activeTrade.symbol}
-                          </h3>
-                          <Badge 
-                            variant={activeTrade.direction === 'long' ? 'default' : 'secondary'}
-                            className="text-xs"
-                            data-testid="badge-trade-direction"
-                          >
-                            {activeTrade.direction.toUpperCase()}
-                          </Badge>
-                        </div>
-                      </div>
-                      <Badge 
-                        className={activeTrade.outcomeStatus === 'hit_target' 
-                          ? 'bg-green-500/10 text-green-400 border-green-500/30' 
-                          : 'bg-red-500/10 text-red-400 border-red-500/30'}
-                        data-testid="badge-trade-outcome"
-                      >
-                        {activeTrade.outcomeStatus === 'hit_target' ? 'Win' : 'Loss'}
-                      </Badge>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-6">
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Entry</p>
-                        <p className="text-lg font-bold font-mono tabular-nums" data-testid="text-trade-entry">
-                          ${activeTrade.entryPrice?.toFixed(2) || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Exit</p>
-                        <p className="text-lg font-bold font-mono tabular-nums" data-testid="text-trade-exit">
-                          ${activeTrade.exitPrice?.toFixed(2) || 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Result</p>
-                        <p className={`text-lg font-bold font-mono tabular-nums ${
-                          (activeTrade.percentGain || 0) >= 0 
-                            ? 'text-green-400' 
-                            : 'text-red-400'
-                        }`} data-testid="text-trade-result">
-                          {(activeTrade.percentGain || 0) >= 0 ? '+' : ''}{activeTrade.percentGain?.toFixed(1) || '0.0'}%
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={nextTrade}
-                  disabled={recentTrades.length <= 1}
-                  className="border-slate-700"
-                  data-testid="button-carousel-next"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              </div>
-
-              {recentTrades.length > 1 && (
-                <div className="flex justify-center gap-2 mt-6">
-                  {recentTrades.map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setCarouselIndex(idx)}
-                      className={`h-2 rounded-full transition-all ${
-                        idx === carouselIndex ? 'w-8 bg-cyan-500' : 'w-2 bg-slate-700'
-                      }`}
-                      data-testid={`button-carousel-indicator-${idx}`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="max-w-2xl mx-auto">
-              <Card className="glass-card">
-                <CardContent className="p-12 text-center">
-                  <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-semibold mb-2">Pattern Tracking</h3>
-                  <p className="text-muted-foreground mb-6">
-                    All research briefs are tracked for transparency. View historical outcomes—both wins and losses.
-                  </p>
-                  <Button 
-                    onClick={() => setLocation('/trade-desk')} 
-                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
-                    data-testid="button-view-trades-cta"
-                  >
-                    View Research <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          )}
         </div>
       </section>
 
