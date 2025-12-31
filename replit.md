@@ -3,6 +3,35 @@
 ## Overview
 QuantEdge Research is a dual-engine quantitative trading research platform (AI Analysis + Quantitative Signals) for US equities, options, crypto, and futures markets. Its purpose is to provide educational, research-grade market analysis with robust risk parameters and real-time data, emphasizing strong risk controls, educational disclaimers, and a dark-themed UI for rapid data scanning. The platform is designed for research and educational purposes only and does not provide financial advice.
 
+**Tagline**: "Multiple Engines, One Edge"
+
+## Design System
+
+### Philosophy: Tech-Minimalist
+Terminal-inspired institutional trading interface with surgical precision. Bloomberg Terminal meets Linear's restraint meets Vercel's clean engineering aesthetic.
+
+### Core Principles
+1. **Data-Dense, Not Cluttered**: Maximum information, minimum decoration
+2. **Monospace Authority**: JetBrains Mono for ALL numerical content
+3. **Surgical Cyan Accents**: One primary accent color, used sparingly
+4. **Restrained Glass**: Subtle depth effects, never distracting
+5. **Transparency = Trust**: Performance data always visible, auditable
+
+### Design Documentation
+- **Primary**: `design_guidelines.md` - Complete visual spec, typography, colors, components
+- **Process**: When making UI changes, always update design_guidelines.md change log
+- **Consistency**: Apply same patterns across all pages (landing, dashboard, trade desk, etc.)
+
+### Typography
+- **Primary Font**: Inter (readability)
+- **Data/Code Font**: JetBrains Mono (all numbers, prices, percentages)
+
+### Color Palette
+- Background: slate-950 → slate-900 → slate-800
+- Primary Accent: cyan-500/cyan-400
+- Success: green-400 | Danger: red-400 | Warning: amber-400
+- Engine Colors: AI=purple-400, Quant=blue-400, Flow=cyan-400
+
 ## User Preferences
 - All timestamps displayed in **America/Chicago (CT)** timezone with market session context
 - Dark/light theme toggle (dark mode is primary)

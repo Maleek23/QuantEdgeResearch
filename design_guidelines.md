@@ -1,126 +1,261 @@
 # QuantEdge Research Design Guidelines
 
-## Design Approach
-**Reference-Based**: Linear's precision engineering + Stripe's sophisticated restraint + Bloomberg Terminal's data density. Dark-first institutional aesthetic with strategic glassmorphism for depth and modern fintech credibility.
+## Brand Identity
+**Tagline**: "Multiple Engines, One Edge"
+**Mission**: Dual-engine quantitative research platform combining AI analysis with quantitative validation for transparent, auditable trading research.
+
+## Design Philosophy: Tech-Minimalist
+
+**Core Aesthetic**: Terminal-inspired institutional trading interface with surgical precision. Think Bloomberg Terminal meets Linear's restraint meets Vercel's clean engineering aesthetic.
+
+**Guiding Principles**:
+1. **Data-Dense, Not Cluttered**: Maximum information, minimum decoration
+2. **Monospace Authority**: Numbers demand JetBrains Mono - no exceptions
+3. **Surgical Cyan Accents**: One primary accent color, used sparingly
+4. **Restrained Glass**: Subtle depth, never distracting
+5. **Grid Discipline**: Align everything to an invisible 8px grid
+6. **Transparency = Trust**: Performance data always visible, always auditable
 
 ## Typography
-- **Primary**: Inter (Google Fonts) - exceptional readability for extended screen time
-- **Data/Monospace**: JetBrains Mono for all numerical content, charts, metrics, tables
-- **Hierarchy**:
-  - Hero/H1: text-5xl font-bold tracking-tight
-  - H2: text-3xl font-semibold
-  - H3: text-xl font-medium
-  - Body: text-base leading-relaxed
-  - Data/Metrics: text-sm md:text-base font-mono tabular-nums
-  - Small labels: text-xs font-medium uppercase tracking-wide
+
+**Font Stack**:
+- **Primary**: Inter - clean, professional, exceptional readability
+- **Data/Code**: JetBrains Mono - ALL numerical content, metrics, prices, percentages
+
+**Hierarchy** (use consistently across all pages):
+| Element | Class | Usage |
+|---------|-------|-------|
+| Hero/H1 | `text-4xl sm:text-5xl font-bold tracking-tight` | Landing hero only |
+| Page Title | `text-2xl sm:text-3xl font-semibold` | Dashboard headers |
+| Section Title | `text-xl font-semibold` | Card headers, sections |
+| Body | `text-base leading-relaxed` | Paragraphs, descriptions |
+| Data Large | `text-2xl font-bold font-mono tabular-nums` | Key metrics |
+| Data Medium | `text-lg font-semibold font-mono` | Secondary metrics |
+| Data Small | `text-sm font-mono` | Table cells, inline data |
+| Label | `text-xs font-medium uppercase tracking-wider text-muted-foreground` | Metric labels |
 
 ## Color System
 
-**Background Palette**:
-- Primary: slate-950 (deep charcoal base)
-- Secondary: slate-900 (card backgrounds)
-- Tertiary: slate-800 (elevated surfaces)
+**Dark-First Palette**:
+```
+Background:     slate-950 (#020617)
+Surface 1:      slate-900 (#0f172a)
+Surface 2:      slate-800 (#1e293b)
+Border:         slate-700 (#334155)
+Border Subtle:  slate-800 (#1e293b)
+```
 
-**Data Visualization Colors**:
-- Bullish/Positive: green-400 (primary), green-500 (intense)
-- Bearish/Negative: red-400 (primary), red-500 (intense)
-- Neutral/Info: cyan-400 (primary accent)
-- Secondary Accent: purple-400 (alerts, highlights)
+**Accent Colors** (use sparingly):
+```
+Primary:        cyan-500 (#06b6d4) - CTAs, active states, links
+Primary Hover:  cyan-400 (#22d3ee)
+Success:        green-400 (#4ade80) - Positive values, wins
+Danger:         red-400 (#f87171) - Negative values, losses
+Warning:        amber-400 (#fbbf24) - Caution, pending
+Muted:          slate-400 (#94a3b8) - Secondary text
+```
 
-**Interactive States**:
-- Primary CTA: cyan-500 background with cyan-400 glow on hover
-- Borders: slate-700 (default), slate-600 (hover), cyan-500 (focus/active)
-- Text: slate-100 (primary), slate-400 (secondary), slate-500 (disabled)
+**Data Visualization**:
+- Bullish: `text-green-400` / `bg-green-500/10`
+- Bearish: `text-red-400` / `bg-red-500/10`
+- Neutral: `text-cyan-400` / `bg-cyan-500/10`
+- AI Engine: `text-purple-400` / `bg-purple-500/10`
+- Quant Engine: `text-blue-400` / `bg-blue-500/10`
+- Flow Engine: `text-cyan-400` / `bg-cyan-500/10`
 
-**Glassmorphism Layers**:
-- **glass-card**: bg-slate-900/40 backdrop-blur-xl border-slate-700/50 shadow-2xl shadow-cyan-500/10
-- **glass-elevated**: bg-slate-800/30 backdrop-blur-lg border-slate-600/30
-- **glass-subtle**: bg-slate-900/20 backdrop-blur-md border-slate-700/30
+## Glass Effects (Restrained)
+
+Use glass effects for depth hierarchy, not decoration:
+
+```css
+/* Primary cards - subtle blur */
+.glass-card: bg-slate-900/60 backdrop-blur-md border border-slate-700/50
+
+/* Elevated surfaces - light glass */
+.glass-elevated: bg-slate-800/40 backdrop-blur-sm border border-slate-700/30
+
+/* Stats containers - minimal */
+.stat-glass: bg-slate-800/30 border border-slate-700/40
+
+/* Subtle backgrounds */
+.glass-subtle: bg-slate-900/30 backdrop-blur-sm
+```
+
+**Rules**:
+- Never stack multiple glass layers
+- Glass blur should be subtle (md or less)
+- Avoid heavy shadows on glass elements
 
 ## Layout System
 
-**Sidebar Architecture**:
-- Collapsed: w-16, icon-only navigation
-- Expanded: w-64, icon + label
-- Transition: duration-300 ease-in-out on all states
-- Main content margin: ml-16 (collapsed), ml-64 (expanded) with matching transition
+**Spacing Scale** (8px base):
+- `gap-2` (8px): Tight inline elements
+- `gap-4` (16px): Related items, card content
+- `gap-6` (24px): Card to card, sections
+- `gap-8` (32px): Major section breaks
+- `p-4`: Compact cards
+- `p-6`: Standard cards
+- `py-12 lg:py-16`: Page sections
 
-**Grid Primitives**:
-- Dashboard: grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6
-- Chart Analysis: grid-cols-1 lg:grid-cols-3 (2-col main + 1-col sidebar)
-- Data Tables: Full-width with horizontal scroll on mobile
+**Grid System**:
+```
+Dashboard:      grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6
+Data Tables:    Full-width, overflow-x-auto on mobile
+Split View:     grid-cols-1 lg:grid-cols-3 (main 2 + sidebar 1)
+Metrics Strip:  grid-cols-2 sm:grid-cols-4 gap-4
+```
 
-**Spacing Scale**: 2, 4, 6, 8, 12, 16
-- Component padding: p-6
-- Section spacing: py-12 lg:py-16
-- Card gaps: gap-4 md:gap-6
-- Tight data: gap-2
+**Responsive Breakpoints**:
+- Mobile: < 640px (stack everything)
+- Tablet: 640-1024px (2-column grids)
+- Desktop: > 1024px (full layouts)
 
-## Component Library
+## Component Patterns
 
-**Navigation**:
-- Top bar: Fixed h-16, glass-card, logo left, search center, profile/notifications right
-- Sidebar: Full-height fixed, glass-elevated, section dividers with slate-700/50
-- Active states: bg-cyan-500/10 with border-l-2 border-cyan-500, subtle cyan glow
+### Cards
+```tsx
+<Card className="glass-card rounded-lg p-6">
+  <div className="flex items-center justify-between mb-4">
+    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+      Label
+    </span>
+    <Icon className="h-4 w-4 text-muted-foreground" />
+  </div>
+  <p className="text-2xl font-bold font-mono tabular-nums">
+    Value
+  </p>
+</Card>
+```
 
-**Data Cards**:
-- Base: glass-card rounded-xl p-6
-- Header: flex justify-between items-center mb-4
-- Metrics: Large mono numbers (text-3xl font-bold font-mono) with small uppercase labels
-- Color-coded by sentiment: green-400 (up), red-400 (down), cyan-400 (neutral)
-- Sparklines: Inline mini-charts with matching sentiment colors
+### Metric Display
+```tsx
+<div className="stat-glass rounded-lg p-4">
+  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+    Win Rate
+  </p>
+  <p className="text-2xl font-bold font-mono text-green-400">
+    65.2%
+  </p>
+</div>
+```
 
-**Chart Containers**:
-- glass-card p-6, min-h-[400px]
-- Responsive heights: h-64 md:h-96 lg:h-[500px]
-- Dark gridlines (slate-700/30), cyan accent lines for significant levels
-- Tooltips: glass-subtle with backdrop-blur-md
+### Engine Badges
+```tsx
+// AI Engine
+<Badge className="bg-purple-500/10 text-purple-400 border-purple-500/30">
+  AI
+</Badge>
 
-**Tables**:
-- glass-elevated base, striped rows (odd:bg-slate-800/20)
-- Sticky header: bg-slate-800/80 backdrop-blur-lg top-0
-- Mono font for all numbers, right-aligned columns
-- Color-coded cells based on value sentiment
-- Row hover: bg-slate-700/20
+// Quant Engine
+<Badge className="bg-blue-500/10 text-blue-400 border-blue-500/30">
+  Quant
+</Badge>
 
-**Buttons**:
-- Primary: bg-cyan-500 hover:bg-cyan-400 with cyan glow (shadow-lg shadow-cyan-500/30)
-- Secondary: glass-elevated border-cyan-500/50 hover:border-cyan-400
-- Destructive: bg-red-500/90 hover:bg-red-500
-- Success: bg-green-500/90 hover:bg-green-500
-- Hero overlay: backdrop-blur-md bg-slate-900/50 (no hover effects on these)
+// Flow Engine
+<Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
+  Flow
+</Badge>
+```
 
-**Forms**:
-- Inputs: glass-subtle border-slate-600 focus:border-cyan-500 focus:ring-2 ring-cyan-500/20
-- Mono font for numeric/code inputs
-- Labels: text-sm font-medium text-slate-300 mb-2
+### Buttons
+```tsx
+// Primary - Cyan accent
+<Button className="bg-cyan-500 hover:bg-cyan-400 text-slate-950">
+  Action
+</Button>
 
-**Status Indicators**:
-- Live: w-2 h-2 rounded-full bg-green-400 animate-pulse
-- Processing: bg-yellow-400
-- Inactive: bg-slate-500
-- Pair with text labels in matching colors
+// Secondary - Outline
+<Button variant="outline" className="border-slate-700 hover:border-cyan-500">
+  Secondary
+</Button>
 
-## Images
+// Ghost - Minimal
+<Button variant="ghost">
+  Ghost
+</Button>
+```
 
-**Hero Section**: Yes - Large, immersive
-- Dimensions: h-[600px] desktop, h-[400px] mobile
-- Treatment: Dark gradient overlay (from-slate-900/85 to-slate-950)
-- Suggested image: Abstract financial data visualization with glowing cyan/purple data points, volumetric lighting, depth of field, dark futuristic aesthetic
-- Content: Centered headline + subheadline + CTA buttons with backdrop-blur backgrounds
+## Landing Page Structure
 
-**Supporting Images**:
-- Feature cards: Trading terminal screenshots with glass-card frames and subtle cyan border glow
-- Dashboard previews: Abstract chart visualizations (w-full h-48 rounded-lg)
-- Trust/credibility: Data provider logos on glass-subtle backgrounds
-- About section: Team photos with professional glass-card treatments
+**Hero Section**:
+- Tagline: "Multiple Engines, One Edge"
+- Subline: Brief value proposition (1 line)
+- Stats strip: 3-4 key metrics in mono font
+- CTAs: Primary "Get Started" + Secondary "View Performance"
+- Background: Subtle grid pattern or vector lines (no heavy images)
 
-## Animations
-**Minimal, Performance-First**:
-- Sidebar: transform and margin transitions only
-- Card hover: translateY(-2px) + shadow intensify
-- Number changes: Counter animation for live metrics
-- Chart interactions: Crosshair + tooltip fade-in
-- Avoid: Heavy JS animations, excessive motion, color transitions
+**Trust Section** (required on all public pages):
+- Data sources: Yahoo Finance, Tradier, CoinGecko, Alpha Vantage
+- Compliance badge: "Educational Research Only"
+- Performance transparency note
 
-All transitions use GPU-accelerated properties (transform, opacity) with duration-200 to duration-300.
+**Features**:
+- Two-column "Engine | Outcome" matrix
+- Monochrome icons (lucide-react)
+- Brief descriptions, no marketing fluff
+
+## Required Elements
+
+**Every Page Must Have**:
+1. Consistent header with "QuantEdge" branding
+2. Theme toggle (light/dark)
+3. Educational disclaimer (footer or prominent placement)
+4. Consistent spacing and typography
+
+**Dashboard Pages Must Have**:
+1. Page title with current date/context
+2. Key metrics visible above fold
+3. Clear data hierarchy (most important first)
+4. Loading states (skeleton components)
+
+**Data Display Rules**:
+1. All numbers use `font-mono tabular-nums`
+2. Positive values: `text-green-400`
+3. Negative values: `text-red-400`
+4. Percentages include % symbol
+5. Currency includes $ symbol
+6. Large numbers use compact notation (1.2K, 3.5M)
+
+## Animation Guidelines
+
+**Allowed**:
+- `transition-colors duration-200` for hover states
+- `transition-opacity duration-300` for fade-in
+- Skeleton loading animations
+- Subtle pulse for live indicators (`animate-pulse`)
+
+**Forbidden**:
+- Heavy JS animations
+- Bouncing or scaling effects
+- Color gradient animations
+- Auto-playing carousels
+- Excessive motion
+
+## Accessibility
+
+- All interactive elements: min 44x44px touch target
+- Color contrast: WCAG AA minimum (4.5:1 for text)
+- Focus states: visible `ring-2 ring-cyan-500`
+- Screen reader labels on icon-only buttons
+- Semantic HTML (nav, main, article, section)
+
+---
+
+## Change Log
+
+| Date | Change | Impacted Views |
+|------|--------|----------------|
+| 2025-12-31 | Tech-minimalist redesign, established brand guidelines | All pages |
+| 2025-12-31 | Added "Multiple Engines, One Edge" tagline | Landing, Headers |
+| 2025-12-31 | Standardized typography hierarchy | All pages |
+| 2025-12-31 | Defined engine color system | Trade cards, badges |
+
+---
+
+## Documentation Process
+
+When making UI changes:
+1. Check this file for existing patterns
+2. Apply consistent styling from guidelines
+3. Update Change Log with date, change, and impacted views
+4. Update replit.md if architectural changes made
