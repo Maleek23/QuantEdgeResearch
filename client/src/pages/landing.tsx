@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
-import heroVisualization from "@assets/generated_images/signal_convergence_fintech_visualization.png";
+import { HeroProductPanel } from "@/components/hero-product-panel";
 
 interface AssetTypeStats {
   assetType: string;
@@ -220,14 +220,9 @@ export default function Landing() {
               </div>
             </div>
             
-            {/* Right: Signal Convergence Visualization */}
-            <div className="hidden lg:flex justify-center">
-              <img 
-                src={heroVisualization} 
-                alt="AI, Quant, and Flow signals converging into a unified trading edge"
-                className="w-full max-w-md rounded-lg"
-                data-testid="img-hero-visualization"
-              />
+            {/* Right: Product Preview Panel */}
+            <div className="hidden lg:block">
+              <HeroProductPanel className="w-full" />
             </div>
           </div>
         </div>
