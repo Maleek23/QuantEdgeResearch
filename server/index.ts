@@ -518,7 +518,7 @@ app.use((req, res, next) => {
           const saved = await quantStorage.createTradeIdea({
             ...idea,
             source: 'quant',
-            status: 'open',
+            status: 'published', // Content status (published/draft), not trade outcome
           });
           savedIdeas.push(saved);
         }

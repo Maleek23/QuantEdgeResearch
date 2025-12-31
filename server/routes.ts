@@ -1943,8 +1943,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Trade Ideas Routes
   app.get("/api/trade-ideas", async (req: any, res) => {
     try {
-      // Get user from session
-      const userId = req.session?.userId;
+      // Get user from session OR Replit Auth (same pattern as /api/auth/me)
+      let userId = req.session?.userId;
+      
+      // Check Replit Auth if no session userId
+      if (!userId && req.user) {
+        const replitUser = req.user as any;
+        userId = replitUser.claims?.sub;
+        logger.info(`[TRADE-IDEAS] Using Replit Auth userId: ${userId}`);
+      }
+      
+      logger.info(`[TRADE-IDEAS] Auth state: sessionUserId=${req.session?.userId}, replitUser=${!!req.user}, finalUserId=${userId}`);
+      
       const adminEmail = process.env.ADMIN_EMAIL || "";
       
       // Check if current user is admin (owner)
@@ -1954,12 +1964,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isAdmin = adminEmail !== "" && user?.email === adminEmail;
       }
       
-      // Admin sees all ideas, regular users only see their own
+      // Admin sees all ideas, logged-in users see system-generated ideas + their own
+      // System-generated ideas have user_id = NULL and should be visible to all users
       const ideas = isAdmin 
         ? await storage.getAllTradeIdeas()
         : userId 
-          ? await storage.getTradeIdeasByUser(userId)
+          ? await storage.getTradeIdeasForUser(userId) // Gets system ideas + user's own
           : [];
+      
+      logger.info(`[TRADE-IDEAS] Fetched ${ideas.length} ideas (isAdmin=${isAdmin}, userId=${userId ? 'present' : 'null'})`);
+      
       const marketData = await storage.getAllMarketData();
       const now = new Date();
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -2090,7 +2104,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedIdeas = isAdmin 
         ? await storage.getAllTradeIdeas()
         : userId 
-          ? await storage.getTradeIdeasByUser(userId)
+          ? await storage.getTradeIdeasForUser(userId)
           : [];
       
       // Add current prices and dynamically recalculated exit times to response

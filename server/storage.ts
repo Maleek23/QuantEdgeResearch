@@ -64,7 +64,7 @@ import type {
   BlogPostStatus,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, gte, lte, desc, sql as drizzleSql } from "drizzle-orm";
+import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
 import {
   tradeIdeas,
   marketData as marketDataTable,
@@ -340,6 +340,7 @@ export interface IStorage {
   
   // User-filtered Trade Ideas
   getTradeIdeasByUser(userId: string): Promise<TradeIdea[]>;
+  getTradeIdeasForUser(userId: string): Promise<TradeIdea[]>; // System ideas + user's own
   
   // Active Trades (Live Position Tracking)
   getActiveTrades(userId: string): Promise<ActiveTrade[]>;
@@ -1783,6 +1784,11 @@ export class MemStorage implements IStorage {
     return Array.from(this.tradeIdeas.values());
   }
 
+  async getTradeIdeasForUser(_userId: string): Promise<TradeIdea[]> {
+    // In MemStorage, return all ideas (no filtering)
+    return Array.from(this.tradeIdeas.values());
+  }
+
   // Active Trades (stub - not persisted in MemStorage)
   async getActiveTrades(_userId: string): Promise<ActiveTrade[]> {
     return [];
@@ -2819,6 +2825,16 @@ export class DatabaseStorage implements IStorage {
   async getTradeIdeasByUser(userId: string): Promise<TradeIdea[]> {
     return await db.select().from(tradeIdeas)
       .where(eq(tradeIdeas.userId, userId))
+      .orderBy(desc(tradeIdeas.timestamp));
+  }
+
+  // Get system-generated ideas (userId is NULL) plus user's own ideas
+  async getTradeIdeasForUser(userId: string): Promise<TradeIdea[]> {
+    return await db.select().from(tradeIdeas)
+      .where(or(
+        isNull(tradeIdeas.userId),  // System-generated ideas
+        eq(tradeIdeas.userId, userId)  // User's own ideas
+      ))
       .orderBy(desc(tradeIdeas.timestamp));
   }
 
