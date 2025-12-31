@@ -66,8 +66,8 @@ function ConfidenceGauge({ value, sentiment }: { value: number; sentiment: "bull
       </svg>
       <div className="text-center mt-1">
         <span className={cn(
-          "text-xl font-bold stat-text",
-          sentiment === "bullish" ? "text-green-400" : sentiment === "bearish" ? "text-red-400" : "text-amber-400"
+          "text-xl font-bold font-mono tabular-nums",
+          sentiment === "bullish" ? "text-green-500" : sentiment === "bearish" ? "text-red-500" : "text-amber-500"
         )} data-testid="text-confidence-value">{value}%</span>
       </div>
     </div>
@@ -117,9 +117,9 @@ function PriceRangeBar({ entry, target, stop, sentiment }: {
         />
       </div>
       <div className="flex justify-between text-xs">
-        <span className="text-red-400" data-testid="text-range-stop">Stop ${stop.toFixed(2)}</span>
+        <span className="text-red-500" data-testid="text-range-stop">Stop ${stop.toFixed(2)}</span>
         <span className="text-primary font-medium" data-testid="text-range-entry">Entry ${entry.toFixed(2)}</span>
-        <span className="text-green-400" data-testid="text-range-target">Target ${target.toFixed(2)}</span>
+        <span className="text-green-500" data-testid="text-range-target">Target ${target.toFixed(2)}</span>
       </div>
     </div>
   );
@@ -179,8 +179,8 @@ function TrendArrow({ sentiment, confidence, gainPercent }: {
       </svg>
       <div className="text-right flex-1">
         <span className={cn(
-          "text-2xl font-bold block stat-text",
-          isBullish ? "text-green-400" : isBearish ? "text-red-400" : "text-muted-foreground"
+          "text-2xl font-bold block font-mono tabular-nums",
+          isBullish ? "text-green-500" : isBearish ? "text-red-500" : "text-muted-foreground"
         )} data-testid="text-expected-move">
           {isBullish ? "+" : isBearish ? "-" : "±"}{Math.abs(gainPercent).toFixed(1)}%
         </span>
@@ -307,9 +307,9 @@ function SignalMeter({ signals }: { signals: Array<{ signal: string; strength: n
   return (
     <div className="space-y-2" data-testid="visual-signal-meter">
       <div className="flex justify-between text-xs">
-        <span className="text-red-400 font-medium">Bears</span>
+        <span className="text-red-500 font-medium">Bears</span>
         <span className="text-muted-foreground">Signal Balance</span>
-        <span className="text-green-400 font-medium">Bulls</span>
+        <span className="text-green-500 font-medium">Bulls</span>
       </div>
       <div className="relative h-4 bg-muted/30 rounded-full overflow-hidden flex" role="img" aria-label={`Signal balance: ${bullishPercent.toFixed(0)}% bullish`}>
         <div 
@@ -410,7 +410,7 @@ function AnalysisTypeCard({
   return (
     <div 
       onClick={onClick}
-      className={`glass-card rounded-xl p-5 cursor-pointer transition-all hover-elevate ${
+      className={`border border-border/50 rounded-xl bg-card p-5 cursor-pointer transition-all hover-elevate ${
         isActive ? 'ring-2 ring-cyan-400/50 bg-cyan-500/5' : ''
       }`}
       data-testid={`card-analysis-${title.toLowerCase().replace(/ /g, '-')}`}
@@ -419,7 +419,7 @@ function AnalysisTypeCard({
         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
           isActive ? 'bg-cyan-500/20' : 'bg-muted/50'
         }`}>
-          <Icon className={`h-5 w-5 ${isActive ? 'text-cyan-400' : 'text-muted-foreground'}`} />
+          <Icon className={`h-5 w-5 ${isActive ? 'text-cyan-500' : 'text-muted-foreground'}`} />
         </div>
         {badge && (
           <Badge variant={badgeVariant} className="text-[10px]">
@@ -430,7 +430,7 @@ function AnalysisTypeCard({
       <h3 className="font-semibold text-sm mb-1">{title}</h3>
       <p className="text-xs text-muted-foreground mb-3">{description}</p>
       {stats && (
-        <p className="text-xs text-cyan-400">{stats}</p>
+        <p className="text-xs text-cyan-500">{stats}</p>
       )}
     </div>
   );
@@ -438,9 +438,9 @@ function AnalysisTypeCard({
 
 function QuickStatCard({ label, value, icon: Icon }: { label: string; value: string | number; icon: any }) {
   return (
-    <div className="glass-card stat-glass rounded-xl p-4 text-center">
-      <Icon className="h-5 w-5 text-cyan-400 mx-auto mb-2" />
-      <p className="text-xl font-bold stat-text">{value}</p>
+    <div className="border border-border/50 rounded-xl bg-card p-4 text-center">
+      <Icon className="h-5 w-5 text-muted-foreground mx-auto mb-2" />
+      <p className="text-xl font-bold font-mono tabular-nums">{value}</p>
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );
@@ -874,21 +874,18 @@ export default function ChartAnalysis() {
 
   return (
     <TierGate feature="chart-analysis">
-    <div className="container mx-auto p-4 md:p-6 max-w-7xl space-y-6" data-testid="page-chart-analysis">
-      {/* Hero Header */}
-      <div className="relative overflow-hidden rounded-xl glass-card p-6 sm:p-8">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/5" />
-        <div className="relative z-10">
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase mb-1">
-            {format(new Date(), 'EEEE, MMMM d')}
-          </p>
-          <h1 className="text-2xl sm:text-3xl font-bold mb-2">
-            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {userName}!
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Your AI-powered chart analysis command center
-          </p>
-        </div>
+    <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6" data-testid="page-chart-analysis">
+      {/* Header */}
+      <div>
+        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase mb-1">
+          {format(new Date(), 'EEEE, MMMM d')}
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight mb-1">
+          Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {userName}!
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          AI-powered chart analysis
+        </p>
       </div>
 
       {/* Analysis Type Cards */}
@@ -924,12 +921,12 @@ export default function ChartAnalysis() {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <QuickStatCard label="Charts Analyzed" value={perfStats?.overall?.totalIdeas || 0} icon={BarChart3} />
-        <div className="glass-card stat-glass rounded-xl p-4 text-center">
-          <Trophy className="h-5 w-5 text-cyan-400 mx-auto mb-2" />
+        <div className="border border-border/50 rounded-xl bg-card p-4 text-center">
+          <Trophy className="h-5 w-5 text-cyan-500 mx-auto mb-2" />
           <p className={cn(
-            "text-xl font-bold stat-text",
-            (perfStats?.overall?.winRate || 58) >= 60 ? "text-green-400" : 
-            (perfStats?.overall?.winRate || 58) >= 50 ? "text-amber-400" : "text-red-400"
+            "text-xl font-bold font-mono tabular-nums",
+            (perfStats?.overall?.winRate || 58) >= 60 ? "text-green-500" : 
+            (perfStats?.overall?.winRate || 58) >= 50 ? "text-amber-500" : "text-red-500"
           )}>
             {`${Math.min((perfStats?.overall?.winRate || 58), 58).toFixed(0)}%`}
           </p>
@@ -942,10 +939,10 @@ export default function ChartAnalysis() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 min-w-0">
         {/* Upload Section - Left Column */}
         <div className="lg:col-span-2 space-y-4 min-w-0">
-          <div className="glass-card rounded-xl overflow-hidden">
+          <div className="border border-border/50 rounded-xl bg-card overflow-hidden">
             <div className="p-4 pb-3 border-b border-border/50">
               <h3 className="text-base font-semibold flex items-center gap-2">
-                <Upload className="h-4 w-4 text-cyan-400" />
+                <Upload className="h-4 w-4 text-cyan-500" />
                 Upload Chart
               </h3>
               <p className="text-xs text-muted-foreground mt-1">
@@ -978,7 +975,7 @@ export default function ChartAnalysis() {
                   ) : (
                     <div className="py-8 space-y-3">
                       <div className="w-14 h-14 mx-auto rounded-full bg-cyan-500/10 flex items-center justify-center">
-                        <ImageIcon className="h-7 w-7 text-cyan-400" />
+                        <ImageIcon className="h-7 w-7 text-cyan-500" />
                       </div>
                       <div>
                         <p className="font-medium text-sm">Drop chart here or click to upload</p>
@@ -1030,7 +1027,7 @@ export default function ChartAnalysis() {
                     type="button"
                     className={`rounded-full px-3 py-1 text-xs cursor-pointer transition-colors ${
                       timeframe === tf.value 
-                        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' 
+                        ? 'bg-cyan-500/20 text-cyan-500 border border-cyan-500/50' 
                         : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
                     }`}
                     onClick={() => setTimeframe(tf.value)}
@@ -1052,11 +1049,11 @@ export default function ChartAnalysis() {
                       : 'bg-cyan-500/10 border border-cyan-500/30'
                   }`}>
                     <div className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-cyan-400" />
+                      <Sparkles className="h-5 w-5 text-cyan-500" />
                       <span className={`text-lg font-bold ${
                         aiSuggestion.assetType === 'option'
-                          ? aiSuggestion.optionType === 'call' ? 'text-green-400' : 'text-red-400'
-                          : 'text-cyan-400'
+                          ? aiSuggestion.optionType === 'call' ? 'text-green-500' : 'text-red-500'
+                          : 'text-cyan-500'
                       }`}>
                         {aiSuggestion.assetType === 'option' 
                           ? `${aiSuggestion.optionType.toUpperCase()} Option` 
@@ -1114,7 +1111,7 @@ export default function ChartAnalysis() {
               {/* Action Buttons */}
               <div className="flex gap-2 pt-2">
                 <Button
-                  variant="glass"
+                  variant="outline"
                   onClick={handleSubmit}
                   disabled={!selectedFile || !symbol || analysisMutation.isPending}
                   className="flex-1"
@@ -1142,11 +1139,11 @@ export default function ChartAnalysis() {
           </div>
 
           {/* Trading Tip Card */}
-          <div className="glass-card rounded-xl p-4 border-l-2 border-l-amber-400">
+          <div className="border border-border/50 rounded-xl bg-card p-4 border-l-2 border-l-amber-400">
             <div className="flex items-start gap-3">
-              <Lightbulb className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+              <Lightbulb className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-amber-400 mb-1">
+                <p className="text-sm font-medium text-amber-500 mb-1">
                   {analysisMode === "day" ? "Day Trading Tip" : "Swing Trading Tip"}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -1165,7 +1162,7 @@ export default function ChartAnalysis() {
           {analysisResult ? (
             <>
               {/* Summary Banner */}
-              <div className={`glass-card rounded-xl overflow-hidden border-l-2 ${
+              <div className={`border border-border/50 rounded-xl bg-card overflow-hidden border-l-2 ${
                 analysisResult.sentiment === "bullish" ? "border-l-green-400" :
                 analysisResult.sentiment === "bearish" ? "border-l-red-400" :
                 "border-l-amber-400"
@@ -1179,11 +1176,11 @@ export default function ChartAnalysis() {
                         "bg-amber-500/10"
                       }`}>
                         {analysisResult.sentiment === "bullish" ? (
-                          <TrendingUp className="h-6 w-6 text-green-400" />
+                          <TrendingUp className="h-6 w-6 text-green-500" />
                         ) : analysisResult.sentiment === "bearish" ? (
-                          <TrendingDown className="h-6 w-6 text-red-400" />
+                          <TrendingDown className="h-6 w-6 text-red-500" />
                         ) : (
-                          <Activity className="h-6 w-6 text-amber-400" />
+                          <Activity className="h-6 w-6 text-amber-500" />
                         )}
                       </div>
                       <div>
@@ -1192,8 +1189,8 @@ export default function ChartAnalysis() {
                           <Badge variant="secondary" className="text-[10px]">{timeframe}</Badge>
                           <Badge variant={analysisResult.sentiment === "bullish" ? "default" : analysisResult.sentiment === "bearish" ? "destructive" : "secondary"} className={cn(
                             "text-[10px]",
-                            analysisResult.sentiment === "bullish" ? "bg-green-500/10 text-green-400 border-green-500/30" :
-                            analysisResult.sentiment === "bearish" ? "bg-red-500/10 text-red-400 border-red-500/30" :
+                            analysisResult.sentiment === "bullish" ? "bg-green-500/10 text-green-500 border-green-500/30" :
+                            analysisResult.sentiment === "bearish" ? "bg-red-500/10 text-red-500 border-red-500/30" :
                             "bg-muted/10 text-muted-foreground border-muted/30"
                           )}>
                             {analysisResult.sentiment.toUpperCase()}
@@ -1216,7 +1213,7 @@ export default function ChartAnalysis() {
 
               {/* Price Discrepancy Warning */}
               {analysisResult.priceDiscrepancyWarning && (
-                <div className="glass-card rounded-xl border-l-2 border-l-amber-400 p-4">
+                <div className="border border-border/50 rounded-xl bg-card border-l-2 border-l-amber-400 p-4">
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
                     <div className="space-y-2 flex-1">
@@ -1230,37 +1227,37 @@ export default function ChartAnalysis() {
               )}
 
               {/* Price Levels Card */}
-              <div className="glass-card rounded-xl p-4">
+              <div className="border border-border/50 rounded-xl bg-card p-4">
                 <div className="grid grid-cols-4 gap-3">
-                  <div className="text-center p-3 rounded-lg bg-muted/30 stat-glass">
+                  <div className="text-center p-3 rounded-lg bg-muted/30 bg-muted/30">
                     <p className="text-xs text-muted-foreground mb-1">Entry</p>
-                    <p className="text-lg font-bold font-mono stat-text" data-testid="text-entry-point">
+                    <p className="text-lg font-bold font-mono font-mono tabular-nums" data-testid="text-entry-point">
                       ${analysisResult.entryPoint.toFixed(2)}
                     </p>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-green-500/10 stat-glass">
+                  <div className="text-center p-3 rounded-lg bg-green-500/10 bg-muted/30">
                     <p className="text-xs text-muted-foreground mb-1">Target</p>
-                    <p className="text-lg font-bold font-mono text-green-400 stat-text" data-testid="text-target-price">
+                    <p className="text-lg font-bold font-mono text-green-500 font-mono tabular-nums" data-testid="text-target-price">
                       ${analysisResult.targetPrice.toFixed(2)}
                     </p>
-                    <p className="text-xs text-green-400 flex items-center justify-center gap-0.5">
+                    <p className="text-xs text-green-500 flex items-center justify-center gap-0.5">
                       <ArrowUpRight className="h-3 w-3" />
                       +{calculateGainPercent().toFixed(1)}%
                     </p>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-red-500/10 stat-glass">
+                  <div className="text-center p-3 rounded-lg bg-red-500/10 bg-muted/30">
                     <p className="text-xs text-muted-foreground mb-1">Stop</p>
-                    <p className="text-lg font-bold font-mono text-red-400 stat-text" data-testid="text-stop-loss">
+                    <p className="text-lg font-bold font-mono text-red-500 font-mono tabular-nums" data-testid="text-stop-loss">
                       ${analysisResult.stopLoss.toFixed(2)}
                     </p>
-                    <p className="text-xs text-red-400 flex items-center justify-center gap-0.5">
+                    <p className="text-xs text-red-500 flex items-center justify-center gap-0.5">
                       <ArrowDownRight className="h-3 w-3" />
                       -{calculateRiskPercent().toFixed(1)}%
                     </p>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-cyan-500/10 stat-glass">
+                  <div className="text-center p-3 rounded-lg bg-cyan-500/10 bg-muted/30">
                     <p className="text-xs text-muted-foreground mb-1">R:R</p>
-                    <p className="text-lg font-bold font-mono text-cyan-400 stat-text" data-testid="text-risk-reward">
+                    <p className="text-lg font-bold font-mono text-cyan-500 font-mono tabular-nums" data-testid="text-risk-reward">
                       {analysisResult.riskRewardRatio.toFixed(1)}:1
                     </p>
                   </div>
@@ -1269,11 +1266,11 @@ export default function ChartAnalysis() {
 
               {/* Validation Warnings */}
               {validationWarnings.length > 0 && (
-                <div className="glass-card rounded-xl border-l-2 border-l-amber-400 p-3">
+                <div className="border border-border/50 rounded-xl bg-card border-l-2 border-l-amber-400 p-3">
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
                     <div className="space-y-1">
-                      <p className="text-sm font-medium text-amber-400">Validation Alerts</p>
+                      <p className="text-sm font-medium text-amber-500">Validation Alerts</p>
                       <ul className="text-xs text-muted-foreground space-y-0.5">
                         {validationWarnings.map((warning, i) => (
                           <li key={i}>• {warning}</li>
@@ -1285,7 +1282,7 @@ export default function ChartAnalysis() {
               )}
 
               {/* Tabbed Analysis */}
-              <div className="glass-card rounded-xl">
+              <div className="border border-border/50 rounded-xl bg-card">
                 <Tabs defaultValue="ai" className="w-full">
                   <div className="p-4 pb-0">
                     <TabsList className="grid w-full grid-cols-3">
@@ -1318,8 +1315,8 @@ export default function ChartAnalysis() {
                           <Label className="text-xs text-muted-foreground mb-2 block text-center">Patterns Found</Label>
                           <div className="text-center" data-testid="patterns-indicator">
                             <div className="flex items-center justify-center gap-1.5 mb-1">
-                              <Target className="h-4 w-4 text-cyan-400" />
-                              <span className="text-lg font-bold text-foreground stat-text">
+                              <Target className="h-4 w-4 text-cyan-500" />
+                              <span className="text-lg font-bold text-foreground font-mono tabular-nums">
                                 {analysisResult.patterns.length}
                               </span>
                             </div>
@@ -1333,7 +1330,7 @@ export default function ChartAnalysis() {
                           <div className="text-center" data-testid="validity-indicator">
                             <div className="flex items-center justify-center gap-1.5 mb-1">
                               <Clock className="h-4 w-4 text-amber-500" />
-                              <span className="text-lg font-bold text-foreground stat-text" data-testid="text-validity-duration">
+                              <span className="text-lg font-bold text-foreground font-mono tabular-nums" data-testid="text-validity-duration">
                                 {getAnalysisValidity(timeframe).duration}
                               </span>
                             </div>
@@ -1398,8 +1395,8 @@ export default function ChartAnalysis() {
                               <span className="text-sm font-medium">{signal.name}</span>
                               <Badge variant={signal.signal === "bullish" ? "default" : signal.signal === "bearish" ? "destructive" : "secondary"} className={cn(
                                 "text-[10px]",
-                                signal.signal === "bullish" ? "bg-green-500/10 text-green-400 border-green-500/30" :
-                                signal.signal === "bearish" ? "bg-red-500/10 text-red-400 border-red-500/30" :
+                                signal.signal === "bullish" ? "bg-green-500/10 text-green-500 border-green-500/30" :
+                                signal.signal === "bearish" ? "bg-red-500/10 text-red-500 border-red-500/30" :
                                 "bg-muted/10 text-muted-foreground border-muted/30"
                               )}>
                                 {signal.signal}
@@ -1423,28 +1420,28 @@ export default function ChartAnalysis() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Shield className="h-3 w-3 text-green-400" />
+                            <Shield className="h-3 w-3 text-green-500" />
                             Support Levels
                           </Label>
                           <div className="space-y-1">
                             {analysisResult.supportLevels.map((level, i) => (
                               <div key={i} className="flex items-center justify-between p-2 rounded bg-green-500/10">
                                 <span className="text-xs text-muted-foreground">S{i + 1}</span>
-                                <span className="font-mono text-sm text-green-400">${level.toFixed(2)}</span>
+                                <span className="font-mono text-sm text-green-500">${level.toFixed(2)}</span>
                               </div>
                             ))}
                           </div>
                         </div>
                         <div className="space-y-2">
                           <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Target className="h-3 w-3 text-red-400" />
+                            <Target className="h-3 w-3 text-red-500" />
                             Resistance Levels
                           </Label>
                           <div className="space-y-1">
                             {analysisResult.resistanceLevels.map((level, i) => (
                               <div key={i} className="flex items-center justify-between p-2 rounded bg-red-500/10">
                                 <span className="text-xs text-muted-foreground">R{i + 1}</span>
-                                <span className="font-mono text-sm text-red-400">${level.toFixed(2)}</span>
+                                <span className="font-mono text-sm text-red-500">${level.toFixed(2)}</span>
                               </div>
                             ))}
                           </div>
@@ -1459,7 +1456,7 @@ export default function ChartAnalysis() {
               <div className="flex gap-2">
                 {savedTradeIdeaId && (
                   <>
-                    <Button asChild variant="glass" className="flex-1" data-testid="button-view-trade-desk">
+                    <Button asChild variant="outline" className="flex-1" data-testid="button-view-trade-desk">
                       <Link href="/trade-desk">
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Research Desk
@@ -1500,9 +1497,9 @@ export default function ChartAnalysis() {
           ) : (
             /* Empty State - Feature Cards */
             <div className="space-y-4">
-              <div className="glass-card rounded-xl p-6 text-center">
+              <div className="border border-border/50 rounded-xl bg-card p-6 text-center">
                 <div className="w-16 h-16 mx-auto rounded-full bg-cyan-500/10 flex items-center justify-center mb-4">
-                  <BarChart3 className="h-8 w-8 text-cyan-400" />
+                  <BarChart3 className="h-8 w-8 text-cyan-500" />
                 </div>
                 <h3 className="font-semibold text-lg mb-2">Ready to Analyze</h3>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-4">
@@ -1523,9 +1520,9 @@ export default function ChartAnalysis() {
               {/* Quick Links */}
               <div className="grid grid-cols-2 gap-3">
                 <Link href="/chart-database">
-                  <div className="glass-card rounded-xl p-4 hover-elevate cursor-pointer">
+                  <div className="border border-border/50 rounded-xl bg-card p-4 hover-elevate cursor-pointer">
                     <div className="flex items-center gap-3">
-                      <Database className="h-5 w-5 text-cyan-400" />
+                      <Database className="h-5 w-5 text-cyan-500" />
                       <div>
                         <p className="text-sm font-medium">Chart Database</p>
                         <p className="text-xs text-muted-foreground">Browse past analyses</p>
@@ -1535,9 +1532,9 @@ export default function ChartAnalysis() {
                   </div>
                 </Link>
                 <Link href="/academy">
-                  <div className="glass-card rounded-xl p-4 hover-elevate cursor-pointer">
+                  <div className="border border-border/50 rounded-xl bg-card p-4 hover-elevate cursor-pointer">
                     <div className="flex items-center gap-3">
-                      <BookOpen className="h-5 w-5 text-cyan-400" />
+                      <BookOpen className="h-5 w-5 text-cyan-500" />
                       <div>
                         <p className="text-sm font-medium">Learning Center</p>
                         <p className="text-xs text-muted-foreground">Master chart patterns</p>
@@ -1549,7 +1546,7 @@ export default function ChartAnalysis() {
               </div>
 
               {/* Features List */}
-              <div className="glass-card rounded-xl p-4">
+              <div className="border border-border/50 rounded-xl bg-card p-4">
                 <h4 className="text-sm font-medium mb-3">What You'll Get</h4>
                 <div className="space-y-2">
                   {[
@@ -1559,7 +1556,7 @@ export default function ChartAnalysis() {
                     { icon: Calculator, text: "Risk/reward ratio calculations" },
                   ].map((item, i) => (
                     <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <item.icon className="h-4 w-4 text-cyan-400" />
+                      <item.icon className="h-4 w-4 text-cyan-500" />
                       <span>{item.text}</span>
                     </div>
                   ))}
@@ -1613,15 +1610,15 @@ export default function ChartAnalysis() {
             <div className="grid grid-cols-3 gap-3">
               <div className="text-center p-3 rounded-lg bg-cyan-500/10">
                 <p className="text-xs text-muted-foreground mb-1">Entry</p>
-                <p className="font-mono font-bold text-cyan-400">${analysisResult.entryPoint.toFixed(2)}</p>
+                <p className="font-mono font-bold text-cyan-500">${analysisResult.entryPoint.toFixed(2)}</p>
               </div>
               <div className="text-center p-3 rounded-lg bg-green-500/10">
                 <p className="text-xs text-muted-foreground mb-1">Target</p>
-                <p className="font-mono font-bold text-green-400">${analysisResult.targetPrice.toFixed(2)}</p>
+                <p className="font-mono font-bold text-green-500">${analysisResult.targetPrice.toFixed(2)}</p>
               </div>
               <div className="text-center p-3 rounded-lg bg-red-500/10">
                 <p className="text-xs text-muted-foreground mb-1">Stop</p>
-                <p className="font-mono font-bold text-red-400">${analysisResult.stopLoss.toFixed(2)}</p>
+                <p className="font-mono font-bold text-red-500">${analysisResult.stopLoss.toFixed(2)}</p>
               </div>
             </div>
             
@@ -1642,12 +1639,12 @@ export default function ChartAnalysis() {
             {/* Stats Row */}
             <div className="flex justify-between text-sm bg-muted/30 rounded-lg p-3">
               <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-cyan-400" />
+                <Target className="h-4 w-4 text-cyan-500" />
                 <span className="text-muted-foreground">R:R Ratio</span>
                 <span className="font-bold">{analysisResult.riskRewardRatio.toFixed(1)}:1</span>
               </div>
               <div className="flex items-center gap-2">
-                <Gauge className="h-4 w-4 text-cyan-400" />
+                <Gauge className="h-4 w-4 text-cyan-500" />
                 <span className="text-muted-foreground">Confidence</span>
                 <span className="font-bold">{analysisResult.confidence}%</span>
               </div>
@@ -1656,7 +1653,7 @@ export default function ChartAnalysis() {
             {/* Action Buttons */}
             <div className="flex gap-3 pt-2">
               <Button
-                variant="glass"
+                variant="outline"
                 className="flex-1"
                 onClick={() => {
                   setShowSuccessModal(false);

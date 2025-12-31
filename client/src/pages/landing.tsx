@@ -165,7 +165,7 @@ export default function Landing() {
                   </Button>
                   <Button 
                     onClick={() => setLocation('/signup')}
-                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                    className="bg-cyan-500 text-slate-950"
                     data-testid="button-signup"
                   >
                     Sign Up
@@ -203,7 +203,7 @@ export default function Landing() {
               
               <div className="flex flex-wrap gap-4">
                 <Button 
-                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                  className="bg-cyan-500 text-slate-950"
                   onClick={() => setLocation('/signup')}
                   data-testid="button-start-research"
                 >
@@ -575,7 +575,7 @@ export default function Landing() {
                 </ul>
                 
                 <Button 
-                  className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                  className="w-full bg-cyan-500 text-slate-950"
                   onClick={() => setLocation('/signup')}
                   data-testid="button-pricing-advanced"
                 >
@@ -742,7 +742,7 @@ export default function Landing() {
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <Button 
-                className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                className="bg-cyan-500 text-slate-950"
                 onClick={() => setLocation('/signup')} 
                 data-testid="button-cta-signup"
               >

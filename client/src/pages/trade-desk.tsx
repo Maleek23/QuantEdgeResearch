@@ -631,46 +631,43 @@ export default function TradeDeskPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-4">
-      {/* Glassmorphism Header */}
-      <div className="relative overflow-hidden rounded-xl glass-card p-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase mb-1">
-              {format(new Date(), 'EEEE, MMM d')}
-            </p>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-3" data-testid="text-page-title">Research Desk</h1>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 glass-success rounded-lg px-3 py-1.5">
-                <Activity className="h-4 w-4" />
-                <span className="text-sm font-medium">{activeIdeas.length} Active Briefs</span>
-              </div>
-              {newIdeasCount > 0 && (
-                <div className="flex items-center gap-2 glass rounded-lg px-3 py-1.5">
-                  <Sparkles className="h-4 w-4" />
-                  <span className="text-sm font-medium">{newIdeasCount} Fresh</span>
-                </div>
-              )}
-            </div>
+    <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <p className="text-xs text-muted-foreground font-medium tracking-wide uppercase mb-1">
+            {format(new Date(), 'EEEE, MMM d')}
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-page-title">Research Desk</h1>
+          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Activity className="h-4 w-4" />
+              <span className="font-medium text-foreground">{activeIdeas.length}</span> active
+            </span>
+            {newIdeasCount > 0 && (
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-cyan-500" />
+                <span className="font-medium text-foreground">{newIdeasCount}</span> fresh
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="glass-secondary"
-              size="icon"
-              onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] })}
-              title="Refresh research briefs"
-              data-testid="button-refresh-ideas"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-            <UsageBadge className="mr-1" data-testid="badge-usage-remaining" />
-            <DropdownMenu>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] })}
+            title="Refresh"
+            data-testid="button-refresh-ideas"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <UsageBadge className="mr-1" data-testid="badge-usage-remaining" />
+          <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
-                variant="glass"
+                className="bg-cyan-500 text-slate-950 gap-2"
                 size="default"
-                className="gap-2"
                 disabled={!canGenerateTradeIdea()}
                 data-testid="button-generate-ideas"
               >
@@ -743,45 +740,44 @@ export default function TradeDeskPage() {
             </DropdownMenuItem>
           </DropdownMenuContent>
           </DropdownMenu>
-          </div>
         </div>
       </div>
 
       {/* AI Research Assistant - Claude-powered Q&A */}
       <AIResearchPanel />
 
-      {/* Timeframe Tabs - Glassmorphism */}
+      {/* Timeframe Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 border border-border/50 rounded-lg p-1">
           {(['all', 'today_tomorrow', 'few_days', 'next_week', 'next_month'] as TimeframeBucket[]).map((timeframe) => (
             <Button
               key={timeframe}
-              variant={activeTimeframe === timeframe ? 'glass' : 'glass-secondary'}
+              variant={activeTimeframe === timeframe ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setActiveTimeframe(timeframe)}
               className={cn(
                 "gap-1.5 whitespace-nowrap",
-                activeTimeframe === timeframe && "shadow-sm"
+                activeTimeframe === timeframe 
+                  ? "bg-cyan-500/10 text-cyan-500" 
+                  : "text-muted-foreground"
               )}
               data-testid={`tab-timeframe-${timeframe}`}
             >
-              {timeframe === 'today_tomorrow' && <CalendarClock className="h-3.5 w-3.5" />}
               {TIMEFRAME_LABELS[timeframe]}
-              <span className="ml-0.5 bg-white/10 rounded px-1.5 py-0 text-[10px] font-medium">
+              <span className="ml-0.5 text-[10px] font-mono opacity-70">
                 {timeframeCounts[timeframe]}
               </span>
             </Button>
           ))}
         </div>
         
-        {/* Generate for selected timeframe */}
         {activeTimeframe !== 'all' && canGenerateTradeIdea() && (
           <Button
-            variant="glass-secondary"
+            variant="outline"
             size="sm"
             onClick={() => generateTimeframeIdeas.mutate(activeTimeframe)}
             disabled={generateTimeframeIdeas.isPending}
-            className="gap-1.5 whitespace-nowrap border-dashed"
+            className="gap-1.5 whitespace-nowrap"
             data-testid="button-generate-timeframe"
           >
             {generateTimeframeIdeas.isPending ? (
@@ -789,25 +785,25 @@ export default function TradeDeskPage() {
             ) : (
               <Sparkles className="h-3.5 w-3.5" />
             )}
-            Generate {TIMEFRAME_LABELS[activeTimeframe]}
+            Generate
           </Button>
         )}
       </div>
 
-      {/* Simple Search + Filter Bar - Glassmorphism */}
-      <div className="glass-card rounded-xl p-3 flex items-center gap-3">
-        <div className="relative flex-1">
+      {/* Search + Filters */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
             placeholder="Search symbols..."
             value={symbolSearch}
             onChange={(e) => setSymbolSearch(e.target.value.toUpperCase())}
-            className="pl-10 bg-white/5 border-white/10"
+            className="pl-10"
             data-testid="filter-symbol-search"
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[130px] bg-white/5 border-white/10" data-testid="filter-status">
+          <SelectTrigger className="w-[120px]" data-testid="filter-status">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -819,7 +815,7 @@ export default function TradeDeskPage() {
         </Select>
         {(symbolSearch || statusFilter !== 'all') && (
           <Button
-            variant="glass-secondary"
+            variant="ghost"
             size="icon"
             onClick={() => {
               setSymbolSearch('');
@@ -832,14 +828,12 @@ export default function TradeDeskPage() {
         )}
       </div>
 
-      {/* Weekend Notice - Glassmorphism */}
+      {/* Weekend Notice */}
       {isWeekend() && (
-        <div className="glass-card rounded-xl p-4 flex items-center gap-3 border-l-2 border-l-amber-500" data-testid="weekend-preview-section">
-          <div className="h-10 w-10 rounded-lg glass flex items-center justify-center">
-            <Clock className="h-5 w-5 text-amber-400" />
-          </div>
+        <div className="flex items-center gap-3 p-4 rounded-lg border border-amber-500/30 bg-amber-500/5" data-testid="weekend-preview-section">
+          <Clock className="h-5 w-5 text-amber-500" />
           <p className="text-sm text-muted-foreground">
-            Markets open <span className="text-cyan-400 font-medium">{format(getNextTradingWeekStart(), 'EEEE, MMM d')}</span> at 9:30 AM CT
+            Markets open <span className="text-foreground font-medium">{format(getNextTradingWeekStart(), 'EEEE, MMM d')}</span> at 9:30 AM CT
           </p>
         </div>
       )}

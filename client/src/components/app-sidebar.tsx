@@ -1,7 +1,7 @@
 import { 
-  TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, 
-  Sun, Moon, Upload, Home, CreditCard, 
-  GraduationCap, FileText, Database, Bot, Zap
+  TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
+  Sun, Moon, Upload, Home, 
+  GraduationCap, FileText, Database, Bot, Zap, Shield
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -18,42 +18,42 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/theme-provider";
+import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 
 interface NavItem {
   title: string;
   url: string;
   icon: any;
-  badge?: string;
-  badgeVariant?: "default" | "secondary" | "destructive" | "outline";
 }
 
-const tradingToolsItems: NavItem[] = [
+const mainItems: NavItem[] = [
   { title: "Dashboard", url: "/home", icon: Home },
-  { title: "Research Desk", url: "/trade-desk", icon: TrendingUp, badge: "Popular", badgeVariant: "default" },
-  { title: "Research Desk (Futures)", url: "/futures", icon: Zap, badge: "24h", badgeVariant: "secondary" },
-  { title: "Auto-Lotto Bot", url: "/watchlist-bot", icon: Bot, badge: "New", badgeVariant: "secondary" },
+  { title: "Research Desk", url: "/trade-desk", icon: TrendingUp },
+  { title: "Futures", url: "/futures", icon: Zap },
+  { title: "Auto-Lotto Bot", url: "/watchlist-bot", icon: Bot },
 ];
 
 const analysisItems: NavItem[] = [
-  { title: "Chart Analysis", url: "/chart-analysis", icon: Upload, badge: "AI", badgeVariant: "secondary" },
+  { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
   { title: "Performance", url: "/performance", icon: Target },
   { title: "Market Data", url: "/market", icon: BarChart2 },
   { title: "Chart Database", url: "/chart-database", icon: Database },
 ];
 
-const learningItems: NavItem[] = [
+const resourceItems: NavItem[] = [
   { title: "Trading Rules", url: "/trading-rules", icon: Shield },
   { title: "Academy", url: "/academy", icon: GraduationCap },
   { title: "Blog", url: "/blog", icon: FileText },
 ];
 
-const accountItems: NavItem[] = [
-  { title: "Pricing", url: "/pricing", icon: CreditCard },
+const settingsItems: NavItem[] = [
   { title: "Settings", url: "/settings", icon: Settings },
-  { title: "Admin", url: "/admin", icon: Shield, badge: "Admin" },
+];
+
+const adminItems: NavItem[] = [
+  { title: "Admin", url: "/admin", icon: Shield },
 ];
 
 function SidebarHeaderContent() {
@@ -62,25 +62,21 @@ function SidebarHeaderContent() {
   const isCollapsed = state === "collapsed";
 
   return (
-    <div className="py-3 flex justify-center">
+    <div className="py-4 px-2">
       <button 
         onClick={() => setLocation("/home")} 
         data-testid="nav-logo" 
-        className="flex items-center justify-center cursor-pointer"
+        className="flex items-center gap-3 cursor-pointer w-full"
       >
-        {isCollapsed ? (
-          <div className="h-7 w-7 rounded bg-cyan-500 flex items-center justify-center">
-            <span className="text-xs font-bold text-black">QE</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded bg-cyan-500 flex items-center justify-center flex-shrink-0">
-              <span className="text-xs font-bold text-black">QE</span>
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-foreground">QuantEdge</div>
-              <div className="text-[9px] font-mono text-cyan-400 tracking-wider">MULTIPLE ENGINES • ONE EDGE</div>
-            </div>
+        <img 
+          src={quantEdgeLogoUrl} 
+          alt="QuantEdge" 
+          className="h-8 w-8 object-contain flex-shrink-0" 
+        />
+        {!isCollapsed && (
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-foreground tracking-tight">QuantEdge</span>
+            <span className="text-[10px] text-muted-foreground">Research Platform</span>
           </div>
         )}
       </button>
@@ -95,18 +91,15 @@ function SidebarToggleButton() {
   return (
     <Button
       variant="ghost"
-      size="sm"
+      size="icon"
       onClick={toggleSidebar}
-      className="w-full justify-start gap-2"
+      className="h-8 w-8"
       data-testid="button-toggle-sidebar"
     >
       {isCollapsed ? (
         <PanelLeft className="h-4 w-4" />
       ) : (
-        <>
-          <PanelLeftClose className="h-4 w-4" />
-          <span>Collapse</span>
-        </>
+        <PanelLeftClose className="h-4 w-4" />
       )}
     </Button>
   );
@@ -121,7 +114,7 @@ function ThemeToggleButton() {
       size="icon"
       onClick={() => setTheme(theme === "light" ? "dark" : "light")}
       data-testid="button-theme-toggle-sidebar"
-      className="shrink-0"
+      className="h-8 w-8"
     >
       <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
       <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -135,61 +128,51 @@ function NavSection({
   items, 
   location, 
   onNavigate,
-  showAdminOnly = false,
-  isAdmin = false
 }: { 
   label: string; 
   items: NavItem[]; 
   location: string; 
   onNavigate: (url: string) => void;
-  showAdminOnly?: boolean;
-  isAdmin?: boolean;
 }) {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
-  
-  const filteredItems = items.filter(item => {
-    if (item.badge === "Admin") {
-      return isAdmin;
-    }
-    return true;
-  });
 
-  if (filteredItems.length === 0) return null;
+  if (items.length === 0) return null;
 
   return (
-    <SidebarGroup className="py-2 px-3">
+    <SidebarGroup className="py-2 px-2">
       {!isCollapsed && (
-        <SidebarGroupLabel className="mb-1 px-0 text-[11px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+        <SidebarGroupLabel className="mb-1 px-2 text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
           {label}
         </SidebarGroupLabel>
       )}
       <SidebarGroupContent>
         <SidebarMenu className="gap-0.5">
-          {filteredItems.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton 
-                isActive={location === item.url}
-                onClick={() => onNavigate(item.url)}
-                data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
-                tooltip={item.title}
-                className="group/item"
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                {!isCollapsed && (
-                  <span className="flex-1 truncate">{item.title}</span>
-                )}
-                {!isCollapsed && item.badge && (
-                  <Badge 
-                    variant={item.badgeVariant || "secondary"} 
-                    className="text-[10px] px-1.5 py-0 h-4 font-medium"
-                  >
-                    {item.badge}
-                  </Badge>
-                )}
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
+          {items.map((item) => {
+            const isActive = location === item.url;
+            return (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton 
+                  isActive={isActive}
+                  onClick={() => onNavigate(item.url)}
+                  data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
+                  tooltip={item.title}
+                  className={`
+                    h-9 px-2 rounded-md transition-colors
+                    ${isActive 
+                      ? 'bg-cyan-500/10 text-cyan-500 dark:text-cyan-400' 
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    }
+                  `}
+                >
+                  <item.icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-cyan-500 dark:text-cyan-400' : ''}`} />
+                  {!isCollapsed && (
+                    <span className="flex-1 truncate text-sm">{item.title}</span>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
@@ -209,48 +192,52 @@ export function AppSidebar() {
   const isAdmin = !!(user as any)?.isAdmin;
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b border-sidebar-border">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarHeaderContent />
-          </SidebarMenuItem>
-        </SidebarMenu>
+    <Sidebar collapsible="icon" className="border-r border-border/40">
+      <SidebarHeader className="border-b border-border/40">
+        <SidebarHeaderContent />
       </SidebarHeader>
       
-      <SidebarContent className="gap-0 py-1">
+      <SidebarContent className="gap-0 py-2">
         <NavSection 
-          label="Trading Tools" 
-          items={tradingToolsItems} 
+          label="Research" 
+          items={mainItems} 
           location={location} 
           onNavigate={handleNavigation}
         />
         
         <NavSection 
-          label="Analysis & Research" 
+          label="Analysis" 
           items={analysisItems} 
           location={location} 
           onNavigate={handleNavigation}
         />
         
         <NavSection 
-          label="Learning" 
-          items={learningItems} 
+          label="Learn" 
+          items={resourceItems} 
           location={location} 
           onNavigate={handleNavigation}
         />
         
         <NavSection 
           label="Account" 
-          items={accountItems} 
+          items={settingsItems} 
           location={location} 
           onNavigate={handleNavigation}
-          isAdmin={isAdmin}
         />
+        
+        {isAdmin && (
+          <NavSection 
+            label="Admin" 
+            items={adminItems} 
+            location={location} 
+            onNavigate={handleNavigation}
+          />
+        )}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-slate-800/50 p-2 mt-auto">
-        <div className="flex items-center gap-1">
+      <SidebarFooter className="border-t border-border/40 p-2 mt-auto">
+        <div className={`flex items-center ${isCollapsed ? 'flex-col gap-1' : 'justify-between'}`}>
           <SidebarToggleButton />
           <ThemeToggleButton />
         </div>

@@ -133,7 +133,7 @@ export default function Blog() {
                   variant={isActive ? "default" : "outline"}
                   size="sm"
                   onClick={() => setActiveCategory(cat.id)}
-                  className={isActive ? "bg-cyan-600 hover:bg-cyan-700" : ""}
+                  className={isActive ? "bg-cyan-500 text-slate-950" : ""}
                   data-testid={`category-${cat.id}`}
                 >
                   <cat.icon className="h-4 w-4 mr-2" />
