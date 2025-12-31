@@ -85,32 +85,51 @@ export const PERFORMANCE_THRESHOLDS = {
 export const CANONICAL_LOSS_THRESHOLD = PERFORMANCE_THRESHOLDS.MIN_LOSS_PERCENT;
 
 /**
- * Check if a trade is a "real loss" - hit stop with >= 3% loss
+ * Check if a trade is a "real loss" - hit stop OR expired with >= 3% loss
  * Works with any object that has outcomeStatus and percentGain properties
+ * 
+ * A trade is a real loss if:
+ * 1. It hit stop AND lost >= 3%, OR
+ * 2. It expired AND lost >= 3% (e.g., a trade that expired with -22% is still a loss)
  */
 export function isRealLoss(idea: { outcomeStatus?: string | null; percentGain?: number | null }): boolean {
   const status = (idea.outcomeStatus || '').trim().toLowerCase();
-  if (status !== 'hit_stop') return false;
   
+  // Only count hit_stop and expired as potential losses
+  if (status !== 'hit_stop' && status !== 'expired') return false;
+  
+  // Check if the loss exceeds the threshold
   if (idea.percentGain !== null && idea.percentGain !== undefined) {
     return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
   }
   
-  return true;
+  // For hit_stop without percentGain data, count as loss (legacy behavior)
+  // For expired without percentGain data, don't count as loss (could be neutral expiry)
+  return status === 'hit_stop';
 }
 
 /**
  * Check if a trade is a "real loss" using resolutionReason instead of outcomeStatus
  * Used by auto-resolved trade endpoints
+ * 
+ * A trade is a real loss if:
+ * 1. It was auto-resolved by stop hit AND lost >= 3%, OR
+ * 2. It expired AND lost >= 3%
  */
 export function isRealLossByResolution(idea: { resolutionReason?: string | null; percentGain?: number | null }): boolean {
-  if (idea.resolutionReason !== 'auto_stop_hit') return false;
+  const reason = idea.resolutionReason;
   
+  // Only count stop hits and expired as potential losses
+  if (reason !== 'auto_stop_hit' && reason !== 'expired') return false;
+  
+  // Check if the loss exceeds the threshold
   if (idea.percentGain !== null && idea.percentGain !== undefined) {
     return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
   }
   
-  return true;
+  // For stop hit without percentGain data, count as loss (legacy behavior)
+  // For expired without percentGain data, don't count as loss
+  return reason === 'auto_stop_hit';
 }
 
 /**

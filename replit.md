@@ -143,9 +143,10 @@ When trades hit their stop loss, the system automatically analyzes why the trade
 All performance endpoints now use unified logic for counting wins, losses, and calculating win rates:
 
 **Unified Rules:**
-1. **3% Minimum Loss Threshold**: Trades that hit stop with < 3% loss are "breakeven", not counted as losses
-2. **Decided Trades Only**: Win rate = wins / (wins + real losses). Excludes expired and breakeven trades
-3. **Engine Version Filter**: Only current-gen engines (v3.x, Flow, Hybrid, AI). Excludes legacy v1.x/v2.x
+1. **3% Minimum Loss Threshold**: Trades with < 3% loss are "breakeven", not counted as losses
+2. **Expired Trades with Losses**: Expired trades with >= 3% loss ARE counted as real losses (fixed Dec 2025)
+3. **Decided Trades Only**: Win rate = wins / (wins + real losses). Excludes breakeven trades
+4. **Engine Version Filter**: Only current-gen engines (v3.x, Flow, Hybrid, AI). Excludes legacy v1.x/v2.x
 
 **Endpoints Using Unified Logic:**
 - `/api/performance/stats` - Main performance stats (source of truth)
@@ -162,8 +163,8 @@ All performance endpoints now use unified logic for counting wins, losses, and c
 
 ### Terminology
 - **Closed**: All non-open trades (includes hit_target, hit_stop, expired)
-- **Decided**: hit_target + real losses (excludes expired, breakeven)
-- **Real Loss**: hit_stop with percentGain <= -3%
+- **Decided**: hit_target + real losses (excludes breakeven)
+- **Real Loss**: (hit_stop OR expired) with percentGain <= -3%
 - **Breakeven**: hit_stop with percentGain > -3%
 
 ## Auto-Lotto Bot (Dec 2025)
