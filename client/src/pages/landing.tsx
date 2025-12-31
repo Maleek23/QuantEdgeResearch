@@ -109,7 +109,7 @@ export default function Landing() {
       <SEOHead pageKey="landing" />
       
       {/* Sticky Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-slate-800" data-testid="navbar">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-transparent backdrop-blur-sm" data-testid="navbar">
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16 gap-4">
             <Link href="/" className="flex-shrink-0" data-testid="link-logo">
@@ -884,7 +884,7 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800 py-12" data-testid="footer">
+      <footer className="py-12" data-testid="footer">
         <div className="container mx-auto px-6">
           <div className="grid md:grid-cols-4 gap-8 mb-12">
             <div className="md:col-span-1">
