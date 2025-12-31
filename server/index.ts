@@ -834,12 +834,27 @@ app.use((req, res, next) => {
         const { runAutonomousBotScan } = await import('./auto-lotto-trader');
         await runAutonomousBotScan();
         
+        // Also scan for futures opportunities (NQ, GC)
+        logger.info('🔮 [FUTURES-AUTO] Starting automated futures scan...');
+        const { generateFuturesIdeas } = await import('./quantitative-engine');
+        const futuresIdeas = await generateFuturesIdeas(); // Uses market hours check internally
+        if (futuresIdeas.length > 0) {
+          for (const idea of futuresIdeas) {
+            await storage.createTradeIdea(idea);
+          }
+          logger.info(`🔮 [FUTURES-AUTO] Generated ${futuresIdeas.length} futures ideas`);
+          
+          // Send Discord notification
+          const { sendBatchSummaryToDiscord } = await import('./discord-service');
+          await sendBatchSummaryToDiscord(futuresIdeas as any, 'quant');
+        }
+        
       } catch (error: any) {
         logger.error('🤖 [AUTO-BOT-CRON] Autonomous scan failed:', error);
       }
     });
     
-    log('🤖 Auto-Lotto Bot started - autonomous scanning every 15 minutes + position monitoring every 5 minutes during market hours');
+    log('🤖 Auto-Lotto Bot started - autonomous scanning every 15 minutes + position monitoring every 5 minutes + futures scanning during market hours');
     
     // Daily summary to Discord at 8:00 AM CT (before market open)
     let lastDailySummaryDate: string | null = null;

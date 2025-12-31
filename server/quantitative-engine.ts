@@ -401,19 +401,25 @@ function calculateFuturesTimeWindows(): { entryValidUntil: string; exitBy: strin
 
 /**
  * Generate futures trade ideas for NQ and GC
+ * @param forceGenerate - Bypass market hours checks for manual generation
  * @returns Array of futures trade ideas
  */
-export async function generateFuturesIdeas(): Promise<InsertTradeIdea[]> {
-  logger.info('🎯 [FUTURES-ENGINE] Starting futures trade idea generation...');
+export async function generateFuturesIdeas(forceGenerate: boolean = false): Promise<InsertTradeIdea[]> {
+  logger.info(`🎯 [FUTURES-ENGINE] Starting futures trade idea generation...${forceGenerate ? ' [FORCED]' : ''}`);
   
   // Check if CME market is open (RTH only for now)
-  if (!isCMEMarketOpen()) {
+  // Can be bypassed with forceGenerate=true for manual generation
+  if (!isCMEMarketOpen() && !forceGenerate) {
     logger.info('[FUTURES-ENGINE] CME market closed - skipping generation');
     return [];
   }
+  if (!isCMEMarketOpen() && forceGenerate) {
+    logger.info('[FUTURES-ENGINE] CME market closed but force=true - proceeding (data may be stale)');
+  }
   
   // Check if we're in optimal trading window
-  if (!isOptimalTradingWindow()) {
+  // Can be bypassed with forceGenerate=true for manual generation
+  if (!isOptimalTradingWindow() && !forceGenerate) {
     logger.info('[FUTURES-ENGINE] Outside optimal trading window - skipping generation');
     return [];
   }

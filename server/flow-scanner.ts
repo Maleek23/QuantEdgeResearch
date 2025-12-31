@@ -943,15 +943,19 @@ export const FLOW_DTE_RANGES: Record<string, { min: number; max: number; label: 
 };
 
 // Main flow scanner function
-export async function scanUnusualOptionsFlow(holdingPeriod?: string): Promise<InsertTradeIdea[]> {
+export async function scanUnusualOptionsFlow(holdingPeriod?: string, forceGenerate: boolean = false): Promise<InsertTradeIdea[]> {
   const dteRange = FLOW_DTE_RANGES[holdingPeriod || 'all'] || FLOW_DTE_RANGES['all'];
-  logger.info(`📊 [FLOW] Starting flow scan - ${dteRange.label} (DTE: ${dteRange.min}-${dteRange.max})`);
+  logger.info(`📊 [FLOW] Starting flow scan - ${dteRange.label} (DTE: ${dteRange.min}-${dteRange.max})${forceGenerate ? ' [FORCED]' : ''}`);
   
   // 🔒 MARKET HOURS CHECK: Only scan when market is open (data is stale otherwise)
+  // Can be bypassed with forceGenerate=true for manual generation
   const marketStatus = isMarketOpen();
-  if (!marketStatus.isOpen) {
+  if (!marketStatus.isOpen && !forceGenerate) {
     logger.info(`📊 [FLOW] Skipping scan - ${marketStatus.reason}. Data would be stale.`);
     return [];
+  }
+  if (!marketStatus.isOpen && forceGenerate) {
+    logger.info(`📊 [FLOW] Market closed but force=true - proceeding with scan (data may be stale)`);
   }
   
   // 🚫 DEDUPLICATION: Get existing open symbols to avoid duplicate trades

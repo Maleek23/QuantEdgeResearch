@@ -1091,7 +1091,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/trigger-flow", requireAdmin, async (_req, res) => {
     try {
       logger.info('📊 [FLOW-MANUAL] Manual flow scan triggered');
-      const flowIdeas = await scanUnusualOptionsFlow();
+      const flowIdeas = await scanUnusualOptionsFlow(undefined, true);
       
       res.json({ 
         success: true, 
@@ -5138,8 +5138,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       logger.info('🔮 [FUTURES] Manual futures generation triggered');
       
-      // Generate futures ideas (NQ and GC)
-      const futuresIdeas = await generateFuturesIdeas();
+      // Generate futures ideas (NQ and GC) - force=true for manual generation
+      const futuresIdeas = await generateFuturesIdeas(true);
       
       // Save ideas to storage
       const savedIdeas = [];
@@ -5189,7 +5189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       logger.info(`📊 [FLOW] Manual flow scan triggered${holdingPeriod ? ` (holding period: ${holdingPeriod})` : ''}`);
       
       // Scan for unusual options activity (filtered by holding period if specified)
-      const flowIdeas = await scanUnusualOptionsFlow(holdingPeriod);
+      const flowIdeas = await scanUnusualOptionsFlow(holdingPeriod, true);
       
       // Save ideas to storage with validation and send Discord alerts
       const savedIdeas = [];
