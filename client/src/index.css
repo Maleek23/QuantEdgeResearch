@@ -334,6 +334,27 @@
   border: 1px solid rgba(255, 255, 255, 0.10);
 }
 
+/* Graph Grid Background - Tech-minimalist pattern */
+.graph-grid {
+  background-image: 
+    linear-gradient(rgba(6, 182, 212, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(6, 182, 212, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.graph-grid-subtle {
+  background-image: 
+    linear-gradient(rgba(6, 182, 212, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(6, 182, 212, 0.02) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Glass subtle - for badges/pills */
+.glass-subtle {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 /* Crisp text rendering for statistics over glass backgrounds */
 .stat-text {
   text-rendering: geometricPrecision;

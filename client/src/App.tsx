@@ -140,31 +140,28 @@ function AuthHeader() {
   const userData = user as { email?: string; firstName?: string } | null;
   
   return (
-    <header className="flex items-center justify-between gap-2 px-4 py-3 border-b border-white/10 glass-card rounded-none">
+    <header className="flex items-center justify-between gap-2 px-4 py-2 border-b border-slate-800/50">
       <div className="flex items-center gap-3">
         <SidebarTrigger data-testid="button-mobile-menu" className="lg:hidden" />
-        <h1 className="text-lg font-semibold lg:hidden">QuantEdge</h1>
-        <span className="hidden lg:flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-          Market Closed
+        <span className="hidden lg:flex items-center gap-2 text-xs font-mono text-muted-foreground">
+          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+          MARKET CLOSED
         </span>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {isAuthenticated && userData && (
           <>
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 text-sm">
-              <User className="h-4 w-4 text-cyan-400" />
-              <span className="text-muted-foreground">{userData.email || userData.firstName || 'User'}</span>
-            </div>
+            <span className="hidden sm:inline text-xs font-mono text-muted-foreground">
+              {userData.email || userData.firstName || 'User'}
+            </span>
             <Button 
-              variant="glass-secondary" 
-              size="sm" 
+              variant="ghost" 
+              size="icon"
               onClick={handleLogout}
               data-testid="button-logout"
-              className="gap-1"
+              className="h-8 w-8"
             >
               <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Logout</span>
             </Button>
           </>
         )}
@@ -224,7 +221,7 @@ function MainContentWrapper() {
   
   return (
     <div 
-      className="flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-200"
+      className="flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-200 graph-grid"
     >
       <AuthHeader />
       <div className="flex-1 overflow-auto flex flex-col">
