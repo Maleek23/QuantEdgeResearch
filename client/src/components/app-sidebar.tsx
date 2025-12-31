@@ -1,7 +1,7 @@
 import { 
   TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
   Sun, Moon, Upload, Home, 
-  GraduationCap, FileText, Database, Bot, Zap, Shield
+  GraduationCap, FileText, Database, Bot, Zap, Shield, ExternalLink
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -64,7 +64,7 @@ function SidebarHeaderContent() {
   return (
     <div className="py-4 px-2">
       <button 
-        onClick={() => setLocation("/")} 
+        onClick={() => setLocation("/home")} 
         data-testid="nav-logo" 
         className="flex items-center gap-3 cursor-pointer w-full"
       >
@@ -239,7 +239,19 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-border/40 p-2 mt-auto">
         <div className={`flex items-center ${isCollapsed ? 'flex-col gap-1' : 'justify-between'}`}>
           <SidebarToggleButton />
-          <ThemeToggleButton />
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleNavigation("/")}
+              className="h-8 w-8"
+              data-testid="button-landing-page"
+              title="View Landing Page"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+            <ThemeToggleButton />
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>
