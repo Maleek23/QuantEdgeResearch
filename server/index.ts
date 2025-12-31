@@ -839,14 +839,16 @@ app.use((req, res, next) => {
         const { generateFuturesIdeas } = await import('./quantitative-engine');
         const futuresIdeas = await generateFuturesIdeas(); // Uses market hours check internally
         if (futuresIdeas.length > 0) {
+          const savedFuturesIdeas = [];
           for (const idea of futuresIdeas) {
-            await storage.createTradeIdea(idea);
+            const saved = await storage.createTradeIdea(idea);
+            savedFuturesIdeas.push(saved);
           }
           logger.info(`🔮 [FUTURES-AUTO] Generated ${futuresIdeas.length} futures ideas`);
           
-          // Send Discord notification
-          const { sendBatchSummaryToDiscord } = await import('./discord-service');
-          await sendBatchSummaryToDiscord(futuresIdeas as any, 'quant');
+          // Send to dedicated futures Discord channel
+          const { sendFuturesTradesToDiscord } = await import('./discord-service');
+          await sendFuturesTradesToDiscord(savedFuturesIdeas);
         }
         
       } catch (error: any) {

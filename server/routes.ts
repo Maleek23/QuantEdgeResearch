@@ -5158,11 +5158,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         savedIdeas.push(tradeIdea);
       }
       
-      // Send Discord notification for batch
+      // Send Discord notification to dedicated futures channel
       if (savedIdeas.length > 0) {
-        const { sendBatchSummaryToDiscord } = await import("./discord-service");
-        sendBatchSummaryToDiscord(savedIdeas, 'quant').catch(err => 
-          console.error('Discord notification failed:', err)
+        const { sendFuturesTradesToDiscord } = await import("./discord-service");
+        sendFuturesTradesToDiscord(savedIdeas).catch(err => 
+          console.error('Discord futures notification failed:', err)
         );
       }
       

@@ -419,6 +419,91 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
   }
 }
 
+// Send futures trade ideas to dedicated Discord channel
+export async function sendFuturesTradesToDiscord(ideas: TradeIdea[]): Promise<void> {
+  logger.info(`📨 Discord futures trades called: ${ideas.length} ideas`);
+  
+  if (DISCORD_DISABLED) {
+    logger.warn('⚠️ Discord is DISABLED - skipping futures notification');
+    return;
+  }
+  
+  // Use dedicated futures webhook, fall back to general webhook
+  const webhookUrl = process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    logger.warn('⚠️ No DISCORD_WEBHOOK_FUTURE_TRADES configured - skipping futures notification');
+    return;
+  }
+  
+  if (ideas.length === 0) {
+    logger.info('📨 No futures ideas to send to Discord');
+    return;
+  }
+  
+  try {
+    // Format each futures idea
+    const formatFuturesIdea = (idea: TradeIdea) => {
+      const emoji = idea.direction === 'long' ? '🟢' : '🔴';
+      const gainPct = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(2);
+      const riskPct = ((idea.entryPrice - idea.stopLoss) / idea.entryPrice * 100).toFixed(2);
+      
+      // Show contract code if available
+      const contractInfo = idea.futuresContractCode || idea.symbol;
+      const rootSymbol = idea.futuresRootSymbol || idea.symbol.substring(0, 2);
+      
+      return `${emoji} **${rootSymbol}** (${contractInfo}) ${idea.direction.toUpperCase()}\n` +
+             `Entry: $${idea.entryPrice.toFixed(2)} → Target: $${idea.targetPrice.toFixed(2)} (+${gainPct}%)\n` +
+             `Stop: $${idea.stopLoss.toFixed(2)} (-${riskPct}%) | R:R ${idea.riskRewardRatio?.toFixed(1) || 'N/A'}:1`;
+    };
+    
+    const description = ideas.map(formatFuturesIdea).join('\n\n');
+    
+    const embed: DiscordEmbed = {
+      title: `🔮 Futures Trade Ideas - ${ideas.length} Setups`,
+      description,
+      color: 0x8B5CF6, // Purple for futures
+      fields: [
+        {
+          name: 'Direction',
+          value: `🟢 ${ideas.filter(i => i.direction === 'long').length} Long • 🔴 ${ideas.filter(i => i.direction === 'short').length} Short`,
+          inline: true
+        },
+        {
+          name: 'Contracts',
+          value: ideas.map(i => i.futuresRootSymbol || i.symbol.substring(0, 2)).join(', '),
+          inline: true
+        }
+      ],
+      footer: {
+        text: 'QuantEdge Futures • Educational Research Only'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    const message: DiscordMessage = {
+      content: `🔮 **${ideas.length} Futures Trade Ideas**`,
+      embeds: [embed]
+    };
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+    
+    if (response.ok) {
+      logger.info(`✅ Discord futures trades sent: ${ideas.length} ideas`);
+    } else {
+      logger.error(`❌ Discord futures webhook failed: ${response.status} ${response.statusText}`);
+    }
+  } catch (error) {
+    logger.error('❌ Failed to send Discord futures trades:', error);
+  }
+}
+
 // Send chart analysis to Discord
 export async function sendChartAnalysisToDiscord(analysis: {
   symbol: string;
