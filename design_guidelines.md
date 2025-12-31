@@ -252,6 +252,11 @@ Metrics Strip:  grid-cols-2 sm:grid-cols-4 gap-4
 | 2025-12-31 | Replaced features grid with Engine→Outcome matrix | Landing page |
 | 2025-12-31 | Added grid background pattern to hero | Landing page |
 | 2025-12-31 | Created terminal-style stats strip | Landing page |
+| 2025-12-31 | Added .graph-grid CSS utility for platform-wide use | All pages |
+| 2025-12-31 | Simplified AuthHeader (removed glass styling) | App layout |
+| 2025-12-31 | Simplified Footer (minimal, monospace) | App layout |
+| 2025-12-31 | Simplified Sidebar header (QE badge + tagline) | App sidebar |
+| 2025-12-31 | Applied graph-grid background to MainContentWrapper | All authenticated pages |
 
 ---
 

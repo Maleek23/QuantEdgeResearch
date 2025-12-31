@@ -1,7 +1,7 @@
 import { 
   TrendingUp, BarChart2, Target, Shield, Settings, PanelLeftClose, PanelLeft, 
-  Sun, Moon, Upload, BookOpen, Home, CreditCard, ExternalLink, User, 
-  LineChart, GraduationCap, FileText, Database, LogOut, Sparkles, Bot, Zap
+  Sun, Moon, Upload, Home, CreditCard, 
+  GraduationCap, FileText, Database, Bot, Zap
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -21,7 +21,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/theme-provider";
-import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 
 interface NavItem {
   title: string;
@@ -63,28 +62,24 @@ function SidebarHeaderContent() {
   const isCollapsed = state === "collapsed";
 
   return (
-    <div className="py-4 flex justify-center">
+    <div className="py-3 flex justify-center">
       <button 
         onClick={() => setLocation("/home")} 
         data-testid="nav-logo" 
         className="flex items-center justify-center cursor-pointer"
       >
         {isCollapsed ? (
-          <img 
-            src={quantEdgeLogoUrl} 
-            alt="QuantEdge" 
-            className="h-8 w-8 object-contain"
-          />
+          <div className="h-7 w-7 rounded bg-cyan-500 flex items-center justify-center">
+            <span className="text-xs font-bold text-black">QE</span>
+          </div>
         ) : (
-          <div className="flex flex-col items-center gap-1">
-            <img 
-              src={quantEdgeLogoUrl} 
-              alt="QuantEdge" 
-              className="h-12 w-12 object-contain"
-            />
-            <div className="text-center">
-              <div className="text-sm font-bold text-foreground">QuantEdge</div>
-              <div className="text-[10px] text-cyan-400 tracking-wider font-medium">2 Engines. 1 Edge.</div>
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded bg-cyan-500 flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-bold text-black">QE</span>
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-foreground">QuantEdge</div>
+              <div className="text-[9px] font-mono text-cyan-400 tracking-wider">MULTIPLE ENGINES • ONE EDGE</div>
             </div>
           </div>
         )}
@@ -203,7 +198,7 @@ function NavSection({
 
 export function AppSidebar() {
   const [location, setLocation] = useLocation();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user } = useAuth();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
@@ -211,14 +206,7 @@ export function AppSidebar() {
     setLocation(url);
   };
 
-  const handleLogout = async () => {
-    await logout();
-    setLocation("/");
-  };
-
   const isAdmin = !!(user as any)?.isAdmin;
-  const userName = String((user as any)?.firstName || (user as any)?.email?.split('@')[0] || 'User');
-  const userEmail = String((user as any)?.email || '');
 
   return (
     <Sidebar collapsible="icon">
@@ -261,63 +249,9 @@ export function AppSidebar() {
         />
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border/50 p-2 mt-auto">
-        {isAuthenticated && user && (
-          <div className="mb-2">
-            {!isCollapsed ? (
-              <div className="flex items-center gap-2 px-2 py-2 rounded-lg bg-sidebar-accent/30">
-                <div className="h-8 w-8 rounded-full bg-cyan-500/20 flex items-center justify-center">
-                  <User className="h-4 w-4 text-cyan-400" />
-                </div>
-                <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-xs font-medium truncate" data-testid="text-user-name">
-                    {userName}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground truncate" data-testid="text-user-email">
-                    {userEmail}
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleLogout}
-                  className="h-7 w-7 shrink-0"
-                  data-testid="button-logout"
-                >
-                  <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex justify-center">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleLogout}
-                  className="h-8 w-8"
-                  data-testid="button-logout"
-                >
-                  <LogOut className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-        
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleNavigation("/")}
-          className="w-full justify-start gap-2 mb-2 text-muted-foreground hover:text-foreground"
-          data-testid="nav-landing-page"
-        >
-          <ExternalLink className="h-4 w-4" />
-          {!isCollapsed && <span>Back to Site</span>}
-        </Button>
-        
-        <div className="flex items-center gap-2">
-          <div className="flex-1">
-            <SidebarToggleButton />
-          </div>
+      <SidebarFooter className="border-t border-slate-800/50 p-2 mt-auto">
+        <div className="flex items-center gap-1">
+          <SidebarToggleButton />
           <ThemeToggleButton />
         </div>
       </SidebarFooter>
