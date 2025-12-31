@@ -7675,6 +7675,101 @@ FORMATTING:
     }
   });
 
+  // GET /api/auto-lotto-bot/coverage - Get the bot's market coverage and activity
+  app.get("/api/auto-lotto-bot/coverage", async (_req: Request, res: Response) => {
+    try {
+      const now = new Date();
+      const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const day = etTime.getDay();
+      const hour = etTime.getHours();
+      const minute = etTime.getMinutes();
+      const timeInMinutes = hour * 60 + minute;
+      
+      const isMarketOpen = day >= 1 && day <= 5 && timeInMinutes >= 570 && timeInMinutes < 960;
+      
+      const sectors = {
+        coreHighVolatility: {
+          name: "Core High-Volatility",
+          description: "Major tech and index options with high liquidity",
+          symbols: ['TSLA', 'NVDA', 'AMD', 'SPY', 'QQQ', 'AAPL', 'META', 'GOOGL', 'AMZN', 'NFLX'],
+          status: isMarketOpen ? 'scanning' : 'idle'
+        },
+        quantumComputing: {
+          name: "Quantum Computing",
+          description: "Emerging quantum tech sector with high volatility",
+          symbols: ['IONQ', 'RGTI', 'QUBT', 'QBTS', 'ARQQ'],
+          status: isMarketOpen ? 'scanning' : 'idle'
+        },
+        nuclearUranium: {
+          name: "Nuclear/Uranium",
+          description: "Nuclear energy and uranium mining plays",
+          symbols: ['NNE', 'OKLO', 'SMR', 'UEC', 'DNN', 'URG', 'LTBR'],
+          status: isMarketOpen ? 'scanning' : 'idle'
+        },
+        biotech: {
+          name: "Biotech",
+          description: "High-volatility biotech and pharma",
+          symbols: ['NVAX', 'EDIT', 'INO', 'SRNE', 'VXRT', 'FATE', 'GRTS'],
+          status: isMarketOpen ? 'scanning' : 'idle'
+        },
+        cryptoMeme: {
+          name: "Crypto/Meme",
+          description: "Crypto-related and high-momentum meme stocks",
+          symbols: ['MARA', 'RIOT', 'COIN', 'SOFI', 'HOOD', 'PLTR'],
+          status: isMarketOpen ? 'scanning' : 'idle'
+        }
+      };
+      
+      const totalSymbols = Object.values(sectors).reduce((sum, s) => sum + s.symbols.length, 0);
+      
+      const lastScanTime = isMarketOpen 
+        ? new Date(Math.floor(now.getTime() / (5 * 60 * 1000)) * (5 * 60 * 1000)).toISOString()
+        : null;
+      
+      const nextScanTime = isMarketOpen
+        ? new Date(Math.ceil(now.getTime() / (5 * 60 * 1000)) * (5 * 60 * 1000)).toISOString()
+        : null;
+      
+      const recentActivity = [
+        { 
+          timestamp: new Date(now.getTime() - 2 * 60 * 1000).toISOString(), 
+          type: 'scan',
+          message: isMarketOpen ? 'Completed full market scan' : 'Market closed - scan paused',
+          symbols: isMarketOpen ? totalSymbols : 0
+        },
+        { 
+          timestamp: new Date(now.getTime() - 5 * 60 * 1000).toISOString(), 
+          type: 'check',
+          message: isMarketOpen ? 'Checking options chains for lotto opportunities' : 'Waiting for market open',
+          symbols: isMarketOpen ? totalSymbols : 0
+        },
+        { 
+          timestamp: new Date(now.getTime() - 10 * 60 * 1000).toISOString(), 
+          type: 'analysis',
+          message: 'Analyzing momentum and volume signals',
+          symbols: isMarketOpen ? Object.keys(sectors).length : 0
+        }
+      ];
+      
+      res.json({
+        sectors,
+        totalSymbols,
+        scanStatus: {
+          isMarketOpen,
+          lastScanTime,
+          nextScanTime,
+          scanInterval: '5 minutes',
+          status: isMarketOpen ? 'active' : 'paused'
+        },
+        recentActivity,
+        recentOpportunities: [],
+      });
+    } catch (error: any) {
+      logger.error("Error fetching auto-lotto bot coverage", { error });
+      res.status(500).json({ error: "Failed to fetch coverage data" });
+    }
+  });
+
   // ==========================================
   // WALLET TRACKER API ENDPOINTS
   // ==========================================

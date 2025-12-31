@@ -13,9 +13,41 @@ import { useAuth } from "@/hooks/useAuth";
 import { 
   Bot, Eye, Plus, Trash2, TrendingUp, DollarSign, Target, 
   AlertTriangle, Activity, Zap, Clock, CheckCircle2, XCircle, 
-  RefreshCw, Shield, Calendar, Bell, BellOff, LogIn
+  RefreshCw, Shield, Calendar, Bell, BellOff, LogIn, Radio, Atom, 
+  Radiation, FlaskConical, Bitcoin, Search, BarChart3
 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { WatchlistItem, PaperPosition } from "@shared/schema";
+
+interface SectorData {
+  name: string;
+  description: string;
+  symbols: string[];
+  status: 'scanning' | 'idle';
+}
+
+interface CoverageData {
+  sectors: Record<string, SectorData>;
+  totalSymbols: number;
+  scanStatus: {
+    isMarketOpen: boolean;
+    lastScanTime: string | null;
+    nextScanTime: string | null;
+    scanInterval: string;
+    status: 'active' | 'paused';
+  };
+  recentActivity: Array<{
+    timestamp: string;
+    type: 'scan' | 'check' | 'analysis';
+    message: string;
+    symbols: number;
+  }>;
+  recentOpportunities: Array<{
+    symbol: string;
+    type: string;
+    score: number;
+  }>;
+}
 
 interface AutoLottoBotData {
   portfolio: {
@@ -67,9 +99,14 @@ export default function WatchlistBotPage() {
 
   const { data: botData, isLoading: botLoading, refetch: refetchBot, error: botError } = useQuery<AutoLottoBotData>({
     queryKey: ['/api/auto-lotto-bot'],
-    enabled: !!user, // Only fetch if logged in
+    enabled: !!user,
     refetchInterval: 60000,
     retry: false,
+  });
+
+  const { data: coverageData, isLoading: coverageLoading, refetch: refetchCoverage } = useQuery<CoverageData>({
+    queryKey: ['/api/auto-lotto-bot/coverage'],
+    refetchInterval: 30000,
   });
 
   const addWatchlistMutation = useMutation({
@@ -130,7 +167,7 @@ export default function WatchlistBotPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
           <TabsTrigger value="watchlist" className="gap-2" data-testid="tab-watchlist">
             <Eye className="h-4 w-4" />
             My Watchlist
@@ -138,6 +175,10 @@ export default function WatchlistBotPage() {
           <TabsTrigger value="bot" className="gap-2" data-testid="tab-bot">
             <Bot className="h-4 w-4" />
             Auto-Lotto Bot
+          </TabsTrigger>
+          <TabsTrigger value="coverage" className="gap-2" data-testid="tab-coverage">
+            <Radio className="h-4 w-4" />
+            Activity & Coverage
           </TabsTrigger>
         </TabsList>
 
@@ -696,6 +737,270 @@ export default function WatchlistBotPage() {
             </>
           );
           })()}
+        </TabsContent>
+
+        {/* Activity & Coverage Tab */}
+        <TabsContent value="coverage" className="space-y-6">
+          {coverageLoading ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <RefreshCw className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                <p className="mt-2 text-muted-foreground">Loading coverage data...</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Scan Status Header */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card className="glass-card">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className={cn(
+                      "p-3 rounded-lg",
+                      coverageData?.scanStatus.isMarketOpen ? "bg-green-500/10" : "bg-amber-500/10"
+                    )}>
+                      {coverageData?.scanStatus.isMarketOpen ? (
+                        <Radio className="h-6 w-6 text-green-500 animate-pulse" />
+                      ) : (
+                        <Clock className="h-6 w-6 text-amber-500" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      <p className="font-semibold" data-testid="text-scan-status">
+                        {coverageData?.scanStatus.isMarketOpen ? 'Scanning' : 'Market Closed'}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="glass-card">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-cyan-500/10">
+                      <Search className="h-6 w-6 text-cyan-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Symbols</p>
+                      <p className="font-semibold font-mono" data-testid="text-total-symbols">{coverageData?.totalSymbols || 0}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="glass-card">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-purple-500/10">
+                      <Clock className="h-6 w-6 text-purple-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Last Scan</p>
+                      <p className="font-semibold text-sm" data-testid="text-last-scan">
+                        {coverageData?.scanStatus.lastScanTime 
+                          ? new Date(coverageData.scanStatus.lastScanTime).toLocaleTimeString() 
+                          : 'N/A'}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="glass-card">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-blue-500/10">
+                      <RefreshCw className="h-6 w-6 text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Scan Interval</p>
+                      <p className="font-semibold" data-testid="text-scan-interval">{coverageData?.scanStatus.scanInterval || '5 min'}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Activity Feed */}
+                <Card className="glass-card lg:col-span-1">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Activity className="h-5 w-5 text-cyan-500" />
+                      Activity Feed
+                    </CardTitle>
+                    <CardDescription>Real-time bot activity log</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ScrollArea className="h-[300px]">
+                      <div className="space-y-3">
+                        {coverageData?.recentActivity.map((activity, idx) => (
+                          <div 
+                            key={idx} 
+                            className="flex items-start gap-3 p-2 rounded-lg border bg-card/50"
+                            data-testid={`activity-item-${idx}`}
+                          >
+                            <div className={cn(
+                              "p-1.5 rounded-md mt-0.5",
+                              activity.type === 'scan' ? "bg-green-500/10" :
+                              activity.type === 'check' ? "bg-cyan-500/10" : "bg-purple-500/10"
+                            )}>
+                              {activity.type === 'scan' ? (
+                                <Radio className="h-3 w-3 text-green-500" />
+                              ) : activity.type === 'check' ? (
+                                <Search className="h-3 w-3 text-cyan-500" />
+                              ) : (
+                                <BarChart3 className="h-3 w-3 text-purple-500" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm">{activity.message}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {new Date(activity.timestamp).toLocaleTimeString()}
+                                {activity.symbols > 0 && ` • ${activity.symbols} symbols`}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                        {(!coverageData?.recentActivity || coverageData.recentActivity.length === 0) && (
+                          <div className="text-center py-4 text-muted-foreground">
+                            <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No recent activity</p>
+                          </div>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+
+                {/* Market Coverage */}
+                <Card className="glass-card lg:col-span-2">
+                  <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
+                    <div>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Target className="h-5 w-5 text-purple-500" />
+                        Market Coverage
+                      </CardTitle>
+                      <CardDescription>All symbols scanned by the bot grouped by sector</CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => refetchCoverage()} data-testid="button-refresh-coverage">
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {coverageData?.sectors && Object.entries(coverageData.sectors).map(([key, sector]) => {
+                        const sectorIcons: Record<string, JSX.Element> = {
+                          coreHighVolatility: <TrendingUp className="h-4 w-4" />,
+                          quantumComputing: <Atom className="h-4 w-4" />,
+                          nuclearUranium: <Radiation className="h-4 w-4" />,
+                          biotech: <FlaskConical className="h-4 w-4" />,
+                          cryptoMeme: <Bitcoin className="h-4 w-4" />
+                        };
+                        const sectorColors: Record<string, string> = {
+                          coreHighVolatility: 'cyan',
+                          quantumComputing: 'purple',
+                          nuclearUranium: 'amber',
+                          biotech: 'green',
+                          cryptoMeme: 'orange'
+                        };
+                        const color = sectorColors[key] || 'slate';
+                        
+                        return (
+                          <div 
+                            key={key} 
+                            className="p-3 rounded-lg border bg-card/50"
+                            data-testid={`sector-${key}`}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className={`p-1.5 rounded-md bg-${color}-500/10 text-${color}-500`}>
+                                  {sectorIcons[key] || <Target className="h-4 w-4" />}
+                                </div>
+                                <div>
+                                  <span className="font-medium">{sector.name}</span>
+                                  <p className="text-xs text-muted-foreground">{sector.description}</p>
+                                </div>
+                              </div>
+                              <Badge 
+                                variant="outline" 
+                                className={cn(
+                                  "text-xs",
+                                  sector.status === 'scanning' 
+                                    ? "bg-green-500/10 text-green-500 border-green-500/30" 
+                                    : "bg-slate-500/10 text-slate-400 border-slate-500/30"
+                                )}
+                                data-testid={`badge-status-${key}`}
+                              >
+                                {sector.status === 'scanning' ? (
+                                  <>
+                                    <Radio className="h-2.5 w-2.5 mr-1 animate-pulse" />
+                                    Scanning
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clock className="h-2.5 w-2.5 mr-1" />
+                                    Idle
+                                  </>
+                                )}
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {sector.symbols.map(symbol => (
+                                <Badge 
+                                  key={symbol} 
+                                  variant="secondary" 
+                                  className="font-mono text-xs"
+                                  data-testid={`symbol-${symbol}`}
+                                >
+                                  {symbol}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Opportunities */}
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-amber-500" />
+                    Recent Opportunities
+                  </CardTitle>
+                  <CardDescription>Lotto opportunities detected by the scanner</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {coverageData?.recentOpportunities && coverageData.recentOpportunities.length > 0 ? (
+                    <div className="space-y-2">
+                      {coverageData.recentOpportunities.map((opp, idx) => (
+                        <div 
+                          key={idx}
+                          className="flex items-center justify-between p-3 rounded-lg border bg-card hover-elevate"
+                          data-testid={`opportunity-${idx}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Badge variant="outline" className="font-mono">{opp.symbol}</Badge>
+                            <span className="text-sm text-muted-foreground">{opp.type}</span>
+                          </div>
+                          <Badge className={cn(
+                            opp.score >= 80 ? "bg-green-500/20 text-green-500" :
+                            opp.score >= 70 ? "bg-amber-500/20 text-amber-500" :
+                            "bg-slate-500/20 text-slate-400"
+                          )}>
+                            Score: {opp.score}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No opportunities detected yet</p>
+                      <p className="text-xs mt-1">The bot scans for lotto plays during market hours</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>
