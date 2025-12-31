@@ -267,7 +267,7 @@ export default function Landing() {
       </div>
 
       {/* Engine Matrix - Three Engines */}
-      <section className="py-16 lg:py-24" id="engine-matrix" data-testid="engine-matrix">
+      <section className="py-10 lg:py-16" id="engine-matrix" data-testid="engine-matrix">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
@@ -352,22 +352,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Trust Section - Minimalist */}
-      <section className="py-12 border-y border-slate-800" data-testid="trust-section">
-        <div className="container mx-auto px-6">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground text-center mb-6">
-            Data Sources
-          </p>
-          <div className="flex flex-wrap justify-center gap-6">
-            {['Yahoo Finance', 'Tradier', 'CoinGecko', 'Alpha Vantage'].map(source => (
-              <span key={source} className="text-sm text-muted-foreground">{source}</span>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Engine Outcomes Matrix - Two Column */}
-      <section className="py-16 lg:py-24" id="features" data-testid="section-features">
+      <section className="py-10 lg:py-16" id="features" data-testid="section-features">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
@@ -467,7 +453,7 @@ export default function Landing() {
       </section>
 
       {/* Pricing Section */}
-      <section className="py-16 lg:py-24" id="pricing" data-testid="section-pricing">
+      <section className="py-10 lg:py-16" id="pricing" data-testid="section-pricing">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
@@ -651,54 +637,92 @@ export default function Landing() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-16 lg:py-24 border-t border-slate-800" id="faq" data-testid="section-faq">
+      <section className="py-10 lg:py-16 border-t border-slate-800" id="faq" data-testid="section-faq">
         <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
               FAQ
             </p>
-            <h2 className="text-2xl font-semibold mb-4">Frequently Asked Questions</h2>
+            <h2 className="text-2xl font-semibold">Frequently Asked Questions</h2>
           </div>
 
           <div className="max-w-3xl mx-auto">
-            <Accordion type="single" collapsible className="space-y-3">
-              <AccordionItem value="accuracy" className="border border-slate-800 rounded-lg px-6" data-testid="accordion-faq-accuracy">
-                <AccordionTrigger className="text-left font-medium hover:no-underline py-4" data-testid="trigger-faq-accuracy">
+            <Accordion type="single" collapsible className="space-y-2">
+              <AccordionItem value="accuracy" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-accuracy">
+                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-accuracy">
                   How accurate are the research briefs?
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4" data-testid="content-faq-accuracy">
+                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-accuracy">
                   All research briefs are tracked transparently with actual outcomes visible on the Performance page. 
-                  Past patterns do not guarantee future results. This is educational research only—you make your own trading decisions.
+                  Past patterns do not guarantee future results. This is educational research only.
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="markets" className="border border-slate-800 rounded-lg px-6" data-testid="accordion-faq-markets">
-                <AccordionTrigger className="text-left font-medium hover:no-underline py-4" data-testid="trigger-faq-markets">
+              <AccordionItem value="markets" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-markets">
+                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-markets">
                   What markets does QuantEdge cover?
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4" data-testid="content-faq-markets">
-                  QuantEdge analyzes US equities, options, cryptocurrencies, and futures contracts. 
-                  Real-time data is sourced from Yahoo Finance, Alpha Vantage, Tradier, and CoinGecko.
+                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-markets">
+                  US equities, options, cryptocurrencies, and futures contracts. Data sourced from Yahoo Finance, Alpha Vantage, Tradier, and CoinGecko.
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="dual-engine" className="border border-slate-800 rounded-lg px-6" data-testid="accordion-faq-dual-engine">
-                <AccordionTrigger className="text-left font-medium hover:no-underline py-4" data-testid="trigger-faq-dual-engine">
-                  How does the dual-engine system work?
+              <AccordionItem value="three-engine" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-engine">
+                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-engine">
+                  How does the three-engine system work?
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4" data-testid="content-faq-dual-engine">
-                  Our AI Engine uses multi-provider LLMs for contextual insights. The Quantitative Engine runs research-backed technical strategies. 
-                  When both engines agree on a trade, you get confluence from multiple analysis perspectives.
+                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-engine">
+                  AI Engine uses multi-provider LLMs for fundamental analysis. Quant Engine runs RSI, VWAP, and volume strategies. 
+                  Flow Scanner detects institutional activity. When engines agree, you get higher-conviction setups.
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="premium" className="border border-slate-800 rounded-lg px-6" data-testid="accordion-faq-premium">
-                <AccordionTrigger className="text-left font-medium hover:no-underline py-4" data-testid="trigger-faq-premium">
-                  What's the difference between the plans?
+              <AccordionItem value="premium" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-premium">
+                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-premium">
+                  What's included in each plan?
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4" data-testid="content-faq-premium">
-                  <strong>Free</strong> gives you 5 research briefs per day with delayed market data to preview the platform. 
-                  <strong>Advanced</strong> ($39/mo) unlocks unlimited research briefs, real-time data, chart analysis, Discord alerts, and full performance history.
+                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-premium">
+                  <strong>Free:</strong> 5 briefs/day, delayed data. <strong>Advanced ($39/mo):</strong> Unlimited briefs, real-time data, chart analysis, Discord alerts, full history.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="risk" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-risk">
+                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-risk">
+                  How do you handle risk management?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-risk">
+                  Every research brief includes stop-loss levels, position sizing suggestions, and risk/reward ratios. 
+                  We emphasize paper trading first and never risking more than 2% per trade.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="paper" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-paper">
+                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-paper">
+                  What is paper trading?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-paper">
+                  Paper trading is simulated trading with fake money. It lets you test strategies without real capital. 
+                  QuantEdge includes a built-in paper trading journal to track your hypothetical trades.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="data" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-data">
+                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-data">
+                  Where does the market data come from?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-data">
+                  Real-time quotes from Tradier (stocks/options), CoinGecko (crypto), Yahoo Finance (equities), and Alpha Vantage (news/earnings). 
+                  All data is refreshed every few seconds during market hours.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="advice" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-advice">
+                <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-advice">
+                  Is QuantEdge financial advice?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-advice">
+                  No. QuantEdge is an educational research platform. We provide analysis tools and pattern recognition—not recommendations. 
+                  You make all trading decisions yourself. Trading involves substantial risk of loss.
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
@@ -707,16 +731,16 @@ export default function Landing() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 lg:py-24" data-testid="section-cta">
+      <section className="py-10 lg:py-12" data-testid="section-cta">
         <div className="container mx-auto px-6">
-          <div className="glass-card rounded-lg p-12 text-center max-w-4xl mx-auto">
-            <h2 className="text-2xl font-semibold mb-4">
+          <div className="glass-card rounded-lg p-8 text-center max-w-3xl mx-auto">
+            <h2 className="text-xl font-semibold mb-3">
               Ready to Trade with Precision?
             </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
+            <p className="text-sm text-muted-foreground max-w-xl mx-auto mb-6">
               Research platform for self-directed traders. Paper trade first, risk second.
             </p>
-            <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex flex-wrap justify-center gap-3">
               <Button 
                 className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
                 onClick={() => setLocation('/signup')} 
@@ -737,131 +761,43 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12" data-testid="footer">
+      {/* Footer - Compact */}
+      <footer className="py-6 border-t border-slate-800" data-testid="footer">
         <div className="container mx-auto px-6">
-          <div className="grid md:grid-cols-4 gap-8 mb-12">
-            <div className="md:col-span-1">
-              <div className="flex items-center gap-2 mb-4">
-                <img src={quantEdgeLogoUrl} alt="QuantEdge" className="h-8 w-8 object-contain" />
-                <span className="font-semibold">QuantEdge</span>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Research tools for self-directed traders. Education, not advice.
-              </p>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="link-social-twitter">
-                  <Twitter className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="link-social-linkedin">
-                  <Linkedin className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="link-social-github">
-                  <Github className="h-4 w-4" />
-                </Button>
-              </div>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <img src={quantEdgeLogoUrl} alt="QuantEdge" className="h-6 w-6 object-contain" />
+              <span className="font-semibold text-sm">QuantEdge</span>
+              <span className="text-xs text-muted-foreground hidden sm:inline">Research tools for self-directed traders</span>
             </div>
-
-            <div>
-              <h4 className="font-semibold mb-4 text-sm">Product</h4>
-              <ul className="space-y-2">
-                <li>
-                  <button 
-                    onClick={() => scrollToSection('engine-matrix')} 
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    data-testid="footer-link-features"
-                  >
-                    Features
-                  </button>
-                </li>
-                <li>
-                  <Link 
-                    href="/trade-desk" 
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    data-testid="footer-link-dashboard"
-                  >
-                    Dashboard
-                  </Link>
-                </li>
-                <li>
-                  <button 
-                    onClick={() => scrollToSection('pricing')} 
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    data-testid="footer-link-pricing"
-                  >
-                    Pricing
-                  </button>
-                </li>
-              </ul>
+            <div className="flex flex-wrap items-center gap-4 text-xs">
+              <Link href="/trade-desk" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-link-dashboard">Dashboard</Link>
+              <Link href="/academy" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-link-academy">Academy</Link>
+              <button onClick={() => scrollToSection('pricing')} className="text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-link-pricing">Pricing</button>
+              <Link href="/terms-of-service" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-link-terms">Terms</Link>
+              <Link href="/privacy-policy" className="text-muted-foreground hover:text-foreground transition-colors" data-testid="footer-link-privacy">Privacy</Link>
             </div>
+          </div>
 
-            <div>
-              <h4 className="font-semibold mb-4 text-sm">Resources</h4>
-              <ul className="space-y-2">
-                <li>
-                  <Link 
-                    href="/academy" 
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    data-testid="footer-link-academy"
-                  >
-                    Academy
-                  </Link>
-                </li>
-                <li>
-                  <Link 
-                    href="/terms-of-service" 
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    data-testid="footer-link-terms"
-                  >
-                    Terms of Service
-                  </Link>
-                </li>
-                <li>
-                  <Link 
-                    href="/privacy-policy" 
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    data-testid="footer-link-privacy"
-                  >
-                    Privacy Policy
-                  </Link>
-                </li>
-              </ul>
-            </div>
+          <div className="bg-red-500/10 border border-red-500/20 rounded px-3 py-2 text-center mb-4">
+            <p className="text-xs text-red-400">
+              <strong>NOT FINANCIAL ADVICE</strong> — Educational research only. Trading involves substantial risk.
+            </p>
+          </div>
 
-            <div>
-              <h4 className="font-semibold mb-4 text-sm">Get Started</h4>
-              <p className="text-sm text-muted-foreground mb-4">
-                Start analyzing charts with AI precision today.
-              </p>
-              <Button 
-                onClick={() => setLocation('/signup')} 
-                className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950" 
-                data-testid="footer-button-signup"
-              >
-                Create Free Account
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-muted-foreground">
+            <p>© {new Date().getFullYear()} QuantEdge Research</p>
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" className="h-6 w-6" data-testid="link-social-twitter">
+                <Twitter className="h-3 w-3" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" data-testid="link-social-linkedin">
+                <Linkedin className="h-3 w-3" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" data-testid="link-social-github">
+                <Github className="h-3 w-3" />
               </Button>
             </div>
-          </div>
-
-          <div className="border-t border-slate-800 pt-8 mb-6">
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-center">
-              <p className="text-sm font-medium text-red-400 mb-1">
-                NOT FINANCIAL ADVICE
-              </p>
-              <p className="text-xs text-muted-foreground">
-                QuantEdge is an educational research platform. Trading involves substantial risk of loss. 
-                Past performance does not guarantee future results. You could lose your entire investment.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} QuantEdge Research. All rights reserved.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Research platform for self-directed traders. Education, not advice.
-            </p>
           </div>
         </div>
       </footer>
