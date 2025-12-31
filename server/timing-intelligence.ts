@@ -273,12 +273,19 @@ export function deriveTimingWindows(
     holdingPeriodType = 'day';
   }
   
-  // 6. Adjust for high confidence + low volatility → potentially longer holds
-  // (High conviction trades can be swing trades even for stocks)
-  if (confidenceScore >= 60 && volatilityInfo.regime === 'low') {
-    if (input.assetType === 'stock') {
+  // 6. Adjust for swing trades when high confidence + low volatility (conservative)
+  // Only convert to swing when there's strong conviction:
+  // - High confidence (>= 65) AND low volatility → swing trade (high conviction plays)
+  // This preserves day trade generation while still producing swing trades when appropriate
+  if (input.assetType === 'stock' || input.assetType === 'penny_stock') {
+    if (confidenceScore >= 65 && volatilityInfo.regime === 'low') {
       baseExitWindow = 1440; // 24 hours (swing trade)
       holdingPeriodType = 'swing';
+      
+      // Very high confidence = even longer hold potential
+      if (confidenceScore >= 75) {
+        baseExitWindow = 2880; // 48 hours (2-day swing)
+      }
     }
   }
   

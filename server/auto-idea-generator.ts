@@ -299,12 +299,29 @@ class AutoIdeaGenerator {
           ? `${processedIdea.analysis}${chartContext}` 
           : processedIdea.analysis;
 
-        // AI ideas default to day trades unless they're crypto (which can be position trades)
-        const holdingPeriod: 'day' | 'swing' | 'position' = processedIdea.assetType === 'crypto' ? 'position' : 'day';
-
         // Calculate base confidence + chart boost (AI ideas start at 60 base confidence)
         const baseConfidence = 60;
         const finalConfidence = Math.min(100, baseConfidence + confidenceBoost);
+
+        // AI ideas: choose holding period based on confidence and catalyst type
+        // High confidence (>= 65) → swing trade (more conviction = hold longer)
+        // Intraday catalysts → day trade
+        // Default → day trade (preserves existing behavior)
+        const catalystLower = (processedIdea.catalyst || '').toLowerCase();
+        const hasIntradayCatalyst = catalystLower.includes('earnings today') ||
+                                     catalystLower.includes('breaking:') ||
+                                     catalystLower.includes('intraday');
+        
+        let holdingPeriod: 'day' | 'swing' | 'position';
+        if (processedIdea.assetType === 'crypto') {
+          holdingPeriod = 'position'; // Crypto → position trades (24/7 market)
+        } else if (hasIntradayCatalyst) {
+          holdingPeriod = 'day'; // Urgent catalysts → day trade
+        } else if (finalConfidence >= 65) {
+          holdingPeriod = 'swing'; // High confidence → swing trade
+        } else {
+          holdingPeriod = 'day'; // Default to day trade
+        }
         
         const tradeIdea = await storage.createTradeIdea({
           symbol: processedIdea.symbol,

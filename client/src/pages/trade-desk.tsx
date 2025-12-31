@@ -50,6 +50,10 @@ export default function TradeDeskPage() {
   // Timeframe tabs for temporal filtering
   const [activeTimeframe, setActiveTimeframe] = useState<TimeframeBucket>('all');
   
+  // Trade Type filter (Day vs Swing) - defaults to 'all' to show all trades
+  // Users can manually select 'swing' if they want PDT-friendly filtering
+  const [tradeTypeFilter, setTradeTypeFilter] = useState<'all' | 'day' | 'swing'>('all');
+  
   // Filter state for new filter toolbar
   const [expiryFilter, setExpiryFilter] = useState<string>('all');
   const [assetTypeFilter, setAssetTypeFilter] = useState<string>('all');
@@ -64,7 +68,7 @@ export default function TradeDeskPage() {
   // Reset pagination when filters change
   useEffect(() => {
     setVisibleCount(50);
-  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, activeGrade, sourceTab, statusView, activeTimeframe]);
+  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, activeGrade, sourceTab, statusView, activeTimeframe, tradeTypeFilter]);
   
   const { toast } = useToast();
 
@@ -362,11 +366,11 @@ export default function TradeDeskPage() {
     }
   })();
 
-  // Filter ideas by search, direction, source, asset type, grade, date range, sourceTab, and statusView
+  // Filter ideas by search, direction, source, asset type, grade, date range, sourceTab, statusView, and trade type
   const filteredIdeas = tradeIdeas.filter(idea => {
     const matchesSearch = !tradeIdeaSearch || 
       idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase()) ||
-      idea.catalyst.toLowerCase().includes(tradeIdeaSearch.toLowerCase());
+      (idea.catalyst || '').toLowerCase().includes(tradeIdeaSearch.toLowerCase());
     
     const isDayTrade = idea.holdingPeriod === 'day';
     const matchesDirection = activeDirection === "all" || 
@@ -387,8 +391,37 @@ export default function TradeDeskPage() {
     const ideaStatus = idea.status || 'published';
     const matchesStatusView = statusView === 'all' || ideaStatus === statusView;
     
-    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesSourceTab && matchesStatusView;
+    // Trade Type filter: day trades vs swing trades (PDT-friendly)
+    // 'day' = holdingPeriod 'day', 'swing' = 'swing', 'position', or 'week-ending'
+    const matchesTradeType = tradeTypeFilter === 'all' || 
+      (tradeTypeFilter === 'day' && idea.holdingPeriod === 'day') ||
+      (tradeTypeFilter === 'swing' && ['swing', 'position', 'week-ending'].includes(idea.holdingPeriod));
+    
+    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesSourceTab && matchesStatusView && matchesTradeType;
   });
+
+  // Trade type counts - computed from ALL ideas (before trade type filter is applied)
+  // This allows the toggle to show accurate counts even when filtered
+  const tradeTypeCounts = useMemo(() => {
+    // Count from ideas BEFORE trade type filter
+    const baseFiltered = tradeIdeas.filter(idea => {
+      const matchesSearch = !tradeIdeaSearch || 
+        idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase()) ||
+        (idea.catalyst || '').toLowerCase().includes(tradeIdeaSearch.toLowerCase());
+      const matchesSourceTab = sourceTab === "all" || idea.source === sourceTab;
+      const ideaStatus = idea.status || 'published';
+      const matchesStatusView = statusView === 'all' || ideaStatus === statusView;
+      const status = (idea.outcomeStatus || '').trim().toLowerCase();
+      const isActive = status === 'open' || status === '';
+      return matchesSearch && matchesSourceTab && matchesStatusView && isActive;
+    });
+    
+    return {
+      all: baseFiltered.length,
+      day: baseFiltered.filter(i => i.holdingPeriod === 'day').length,
+      swing: baseFiltered.filter(i => ['swing', 'position', 'week-ending'].includes(i.holdingPeriod)).length,
+    };
+  }, [tradeIdeas, tradeIdeaSearch, sourceTab, statusView]);
 
   // Timeframe counts - computed from ACTIVE ideas only (outcomeStatus === 'open')
   // This ensures tabs show actionable plays, not old historical data
@@ -746,8 +779,44 @@ export default function TradeDeskPage() {
       {/* AI Research Assistant - Claude-powered Q&A */}
       <AIResearchPanel />
 
-      {/* Timeframe Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      {/* Trade Type + Timeframe Filter Bar */}
+      <div className="flex flex-wrap items-center gap-4">
+        {/* Trade Type Toggle - Day vs Swing (PDT-friendly default) */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Trade Type</span>
+          <div className="flex items-center gap-1 border border-border/50 rounded-lg p-1">
+            {([
+              { value: 'swing', label: 'Swing', tooltip: '1-5 day holds (PDT-friendly)' },
+              { value: 'day', label: 'Day', tooltip: 'Same-day trades' },
+              { value: 'all', label: 'All', tooltip: 'Show all trades' },
+            ] as const).map(({ value, label, tooltip }) => (
+              <Button
+                key={value}
+                variant={tradeTypeFilter === value ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setTradeTypeFilter(value)}
+                className={cn(
+                  "gap-1.5 whitespace-nowrap",
+                  tradeTypeFilter === value 
+                    ? value === 'swing' 
+                      ? "bg-cyan-500/10 text-cyan-500"
+                      : "bg-amber-500/10 text-amber-500"
+                    : "text-muted-foreground"
+                )}
+                title={tooltip}
+                data-testid={`tab-tradetype-${value}`}
+              >
+                {label}
+                <span className="ml-0.5 text-[10px] font-mono opacity-70">
+                  {tradeTypeCounts[value]}
+                </span>
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Timeframe Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
         <div className="flex items-center gap-1 border border-border/50 rounded-lg p-1">
           {(['all', 'today_tomorrow', 'few_days', 'next_week', 'next_month'] as TimeframeBucket[]).map((timeframe) => (
             <Button
@@ -788,6 +857,7 @@ export default function TradeDeskPage() {
             Generate
           </Button>
         )}
+        </div>
       </div>
 
       {/* Search + Filters */}
