@@ -249,6 +249,9 @@ Metrics Strip:  grid-cols-2 sm:grid-cols-4 gap-4
 | 2025-12-31 | Added "Multiple Engines, One Edge" tagline | Landing, Headers |
 | 2025-12-31 | Standardized typography hierarchy | All pages |
 | 2025-12-31 | Defined engine color system | Trade cards, badges |
+| 2025-12-31 | Replaced features grid with Engine→Outcome matrix | Landing page |
+| 2025-12-31 | Added grid background pattern to hero | Landing page |
+| 2025-12-31 | Created terminal-style stats strip | Landing page |
 
 ---
 
