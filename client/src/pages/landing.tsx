@@ -113,32 +113,38 @@ export default function Landing() {
     {
       icon: Brain,
       title: "Engine 1: AI Analysis",
-      description: "Multi-provider AI (Claude, GPT, Gemini) for fundamental analysis, news catalysts, and comprehensive market insights. Generates context-aware research briefs."
+      description: "Multi-provider AI (Claude, GPT, Gemini) for fundamental analysis, news catalysts, and comprehensive market insights. Generates context-aware research briefs.",
+      solves: "Hours of manual research"
     },
     {
       icon: Calculator,
       title: "Engine 2: Quantitative Analysis",
-      description: "Research-backed quantitative engine using RSI(2), VWAP, volume spike detection, and pattern validation. Generates data-driven research briefs with built-in risk parameters."
+      description: "Research-backed quantitative engine using RSI(2), VWAP, volume spike detection, and pattern validation. Generates data-driven research briefs with built-in risk parameters.",
+      solves: "Emotional trading decisions"
     },
     {
       icon: Sparkles,
       title: "Hybrid Decision System",
-      description: "Both engines work together: Quant finds technical setups, AI validates fundamental strength. Get the best of both—mechanical precision plus market context."
+      description: "Both engines work together: Quant finds technical setups, AI validates fundamental strength. Get the best of both—mechanical precision plus market context.",
+      solves: "Conflicting signals"
     },
     {
       icon: Upload,
       title: "Chart Pattern Recognition",
-      description: "Upload any trading chart and get instant AI analysis with technical pattern detection, support/resistance levels, and key price zones to watch."
+      description: "Upload any trading chart and get instant AI analysis with technical pattern detection, support/resistance levels, and key price zones to watch.",
+      solves: "Missing key patterns"
     },
     {
       icon: Bell,
       title: "Instant Alerts",
-      description: "Get instant Discord notifications for new research briefs from both engines with key levels, risk parameters, and pattern analysis."
+      description: "Get instant Discord notifications for new research briefs from both engines with key levels, risk parameters, and pattern analysis.",
+      solves: "Missed opportunities"
     },
     {
       icon: Shield,
       title: "Risk Parameters",
-      description: "Built-in risk modeling with suggested stop zones, reward/risk ratios, and trade structure validation for your own decision-making."
+      description: "Built-in risk modeling with suggested stop zones, reward/risk ratios, and trade structure validation for your own decision-making.",
+      solves: "Poor position sizing"
     }
   ];
 
@@ -245,10 +251,19 @@ export default function Landing() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-24 pb-16 md:pt-32 md:pb-24 overflow-hidden">
+      <section className="relative pt-24 pb-16 md:pt-32 md:pb-24 overflow-hidden" data-testid="section-hero">
         {/* Clean Gradient Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+        
+        {/* Animated Pulsing Data Nodes */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-2 h-2 rounded-full bg-cyan-500/40 animate-pulse" />
+          <div className="absolute top-1/3 right-1/3 w-3 h-3 rounded-full bg-cyan-400/30 animate-pulse" style={{ animationDelay: '0.5s' }} />
+          <div className="absolute bottom-1/3 left-1/3 w-2 h-2 rounded-full bg-green-400/30 animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/2 right-1/4 w-2 h-2 rounded-full bg-amber-400/30 animate-pulse" style={{ animationDelay: '1.5s' }} />
+          <div className="absolute bottom-1/4 right-1/2 w-3 h-3 rounded-full bg-cyan-500/20 animate-pulse" style={{ animationDelay: '2s' }} />
+        </div>
         
         <div className="container relative mx-auto px-6">
           <div className="max-w-4xl mx-auto text-center">
@@ -265,99 +280,179 @@ export default function Landing() {
               <img 
                 src={quantEdgeLogoUrl} 
                 alt="QuantEdge Research" 
-                className="h-40 w-40 md:h-48 md:w-48 object-contain drop-shadow-lg hover:drop-shadow-xl transition-all"
+                className="h-32 w-32 md:h-40 md:w-40 object-contain drop-shadow-lg hover:drop-shadow-xl transition-all"
               />
             </div>
 
-            {/* Headline */}
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight" data-testid="text-hero-headline">
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-amber-500 to-primary">2 Engines. 1 Edge.</span>
+            {/* Pain-Focused Headline */}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight" data-testid="text-hero-headline">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-primary to-cyan-400">
+                Stop Trading Blind.
+              </span>
+              <br />
+              <span className="text-foreground">Start Trading Smart.</span>
             </h1>
 
             {/* Subheadline */}
-            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6" data-testid="text-hero-subheadline">
-              AI Analysis + Quantitative Signals working together. Market research briefs with key levels, risk parameters, and pattern analysis—for education, not advice.
+            <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8" data-testid="text-hero-subheadline">
+              AI-powered research meets quantitative validation. Every setup validated, every risk calculated, every outcome tracked.
             </p>
 
-            {/* Validated Stats */}
-            <div className="flex justify-center mb-10">
-              <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary/10 border border-primary/20">
-                <TrendingUp className="h-5 w-5 text-green-500" />
-                <span className="text-lg font-semibold">
-                  {statsLoading ? (
-                    <Skeleton className="h-5 w-24 inline-block" />
-                  ) : perfStats?.overall?.totalIdeas ? (
-                    `${perfStats.overall.totalIdeas.toLocaleString()}+ Research Briefs Generated`
-                  ) : (
-                    "Real Performance Data"
-                  )}
-                </span>
+            {/* Proof Metrics Strip */}
+            <div className="glass-card rounded-xl p-4 md:p-6 mb-10 max-w-3xl mx-auto" data-testid="proof-metrics-strip">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                <div className="text-center stat-glass rounded-lg p-3" data-testid="metric-total-ideas">
+                  <div className="text-xl md:text-2xl font-bold font-mono text-cyan-400 mb-1">
+                    {statsLoading ? (
+                      <Skeleton className="h-7 w-16 mx-auto" />
+                    ) : perfStats?.overall?.totalIdeas ? (
+                      `${perfStats.overall.totalIdeas.toLocaleString()}+`
+                    ) : (
+                      "—"
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Ideas Generated</div>
+                </div>
+                <div className="text-center stat-glass rounded-lg p-3" data-testid="metric-win-rate">
+                  <div className="text-xl md:text-2xl font-bold font-mono text-green-400 mb-1">
+                    {statsLoading ? (
+                      <Skeleton className="h-7 w-16 mx-auto" />
+                    ) : perfStats?.overall?.winRate ? (
+                      `${Math.round(perfStats.overall.winRate)}%`
+                    ) : (
+                      "—"
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Win Rate</div>
+                </div>
+                <div className="text-center stat-glass rounded-lg p-3" data-testid="metric-assets">
+                  <div className="text-xl md:text-2xl font-bold font-mono text-amber-400 mb-1">4</div>
+                  <div className="text-xs text-muted-foreground">Asset Classes</div>
+                </div>
+                <div className="text-center stat-glass rounded-lg p-3" data-testid="metric-asset-types">
+                  <div className="flex flex-wrap justify-center gap-1">
+                    <Badge variant="outline" className="text-xs px-1.5 py-0">Stocks</Badge>
+                    <Badge variant="outline" className="text-xs px-1.5 py-0">Options</Badge>
+                    <Badge variant="outline" className="text-xs px-1.5 py-0">Futures</Badge>
+                    <Badge variant="outline" className="text-xs px-1.5 py-0">Crypto</Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">Assets Covered</div>
+                </div>
               </div>
             </div>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-wrap justify-center gap-4">
+            {/* Dual CTA Buttons */}
+            <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4">
               <Button 
                 size="lg"
-                variant="glass"
-                onClick={() => setLocation('/chart-analysis')}
-                data-testid="button-start-analyzing"
+                className="bg-cyan-500 hover:bg-cyan-400 text-white shadow-lg shadow-cyan-500/30"
+                onClick={() => setLocation('/home')}
+                data-testid="button-start-free-research"
               >
-                <Upload className="h-5 w-5 mr-2" />
-                Start Analyzing
+                <Zap className="h-5 w-5 mr-2" />
+                Start Free Research
               </Button>
               <Button 
                 size="lg"
                 variant="glass-secondary"
-                onClick={() => scrollToSection('pricing')}
-                data-testid="button-view-pricing"
+                onClick={() => scrollToSection('recent-performance')}
+                data-testid="button-see-performance"
               >
-                View Pricing
+                <BarChart3 className="h-5 w-5 mr-2" />
+                See Our Performance
               </Button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Platform Stats */}
-      <section className="border-y glass-card py-12">
+      {/* Trust Section */}
+      <section className="border-y glass-card py-12 md:py-16" id="trust" data-testid="section-trust">
         <div className="container mx-auto px-6">
-          <div className="grid grid-cols-3 gap-6 max-w-3xl mx-auto">
-            <div className="text-center" data-testid="stat-total-ideas">
-              <div className="text-2xl md:text-3xl font-bold text-cyan-400 mb-1">
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-16 mx-auto" />
-                ) : perfStats?.overall?.totalIdeas ? (
-                  `${perfStats.overall.totalIdeas.toLocaleString()}+`
-                ) : (
-                  "—"
-                )}
-              </div>
-              <div className="text-xs md:text-sm text-muted-foreground">Research Briefs</div>
+          <div className="max-w-4xl mx-auto">
+            {/* Section Header */}
+            <div className="text-center mb-10">
+              <Badge variant="secondary" className="mb-4">
+                <CheckCircle2 className="h-3 w-3 mr-1 text-green-400" />
+                100% Verified
+              </Badge>
+              <h2 className="text-2xl md:text-3xl font-bold mb-3" data-testid="text-trust-headline">
+                Transparent Performance
+              </h2>
+              <p className="text-muted-foreground max-w-xl mx-auto">
+                100% Transparency: Every trade tracked. Every outcome visible.
+              </p>
             </div>
-            <div className="text-center" data-testid="stat-win-rate">
-              <div className="text-2xl md:text-3xl font-bold text-amber-500 mb-1">
-                {statsLoading ? (
-                  <Skeleton className="h-8 w-16 mx-auto" />
-                ) : perfStats?.overall?.winRate ? (
-                  `${Math.round(perfStats.overall.winRate)}%`
-                ) : (
-                  "—"
-                )}
+
+            {/* Trust Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
+              <div className="glass-elevated rounded-xl p-4 text-center" data-testid="trust-stat-win-rate">
+                <div className="text-2xl md:text-3xl font-bold font-mono text-green-400 mb-1">
+                  {statsLoading ? (
+                    <Skeleton className="h-8 w-16 mx-auto" />
+                  ) : perfStats?.overall?.winRate ? (
+                    `${Math.round(perfStats.overall.winRate)}%`
+                  ) : (
+                    "—"
+                  )}
+                </div>
+                <div className="text-xs md:text-sm text-muted-foreground">Verified Win Rate</div>
               </div>
-              <div className="text-xs md:text-sm text-muted-foreground">Historical Accuracy*</div>
-            </div>
-            <div className="text-center" data-testid="stat-rr-ratio">
-              <div className="text-2xl md:text-3xl font-bold text-green-400 mb-1">
-                2:1
+              <div className="glass-elevated rounded-xl p-4 text-center" data-testid="trust-stat-tracked">
+                <div className="text-2xl md:text-3xl font-bold font-mono text-cyan-400 mb-1">
+                  {statsLoading ? (
+                    <Skeleton className="h-8 w-16 mx-auto" />
+                  ) : perfStats?.overall?.totalIdeas ? (
+                    `${perfStats.overall.totalIdeas.toLocaleString()}`
+                  ) : (
+                    "—"
+                  )}
+                </div>
+                <div className="text-xs md:text-sm text-muted-foreground">Trades Tracked</div>
               </div>
-              <div className="text-xs md:text-sm text-muted-foreground">Min R:R Ratio</div>
+              <div className="glass-elevated rounded-xl p-4 text-center col-span-2 md:col-span-1" data-testid="trust-stat-auditable">
+                <div className="text-2xl md:text-3xl font-bold font-mono text-amber-400 mb-1">100%</div>
+                <div className="text-xs md:text-sm text-muted-foreground">Auditable Data</div>
+              </div>
             </div>
+
+            {/* Data Sources */}
+            <div className="text-center mb-8">
+              <p className="text-xs text-muted-foreground mb-3">Powered by trusted data sources</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                <Badge variant="outline" className="glass-elevated" data-testid="badge-yahoo">
+                  <Activity className="h-3 w-3 mr-1" />
+                  Yahoo Finance
+                </Badge>
+                <Badge variant="outline" className="glass-elevated" data-testid="badge-tradier">
+                  <BarChart3 className="h-3 w-3 mr-1" />
+                  Tradier
+                </Badge>
+                <Badge variant="outline" className="glass-elevated" data-testid="badge-coingecko">
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  CoinGecko
+                </Badge>
+                <Badge variant="outline" className="glass-elevated" data-testid="badge-alphavantage">
+                  <LineChart className="h-3 w-3 mr-1" />
+                  Alpha Vantage
+                </Badge>
+              </div>
+            </div>
+
+            {/* Risk Disclaimer Card */}
+            <Card className="glass-card border-amber-500/20" data-testid="card-risk-disclaimer">
+              <CardContent className="p-4 text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Shield className="h-4 w-4 text-amber-400" />
+                  <span className="text-sm font-semibold text-amber-400">Important Notice</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Educational research only. Not financial advice. All performance data is auditable. 
+                  Past performance does not guarantee future results. You make your own trading decisions.
+                </p>
+              </CardContent>
+            </Card>
           </div>
-          <p className="text-center text-xs text-muted-foreground mt-4">
-            *Historical accuracy based on pattern analysis. Past patterns do not guarantee future results. 
-            Educational research platform only — NOT financial advice. You make your own trading decisions.
-          </p>
         </div>
       </section>
 
@@ -499,18 +594,18 @@ export default function Landing() {
       </section>
 
       {/* Features Grid */}
-      <section className="py-16 md:py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent" id="features">
+      <section className="py-16 md:py-24 bg-gradient-to-b from-transparent via-primary/5 to-transparent" id="features" data-testid="section-features">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <Badge variant="secondary" className="mb-4">
               <Sparkles className="h-3 w-3 mr-1" />
               Platform Features
             </Badge>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Everything You Need
+            <h2 className="text-3xl md:text-4xl font-bold mb-4" data-testid="text-features-headline">
+              Your Research Edge
             </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              Professional-grade tools for discovering and analyzing trading opportunities
+            <p className="text-muted-foreground max-w-2xl mx-auto" data-testid="text-features-subheadline">
+              Traditional trading leaves you guessing. QuantEdge gives you the full picture.
             </p>
           </div>
 
@@ -523,7 +618,11 @@ export default function Landing() {
                     <Icon className="h-6 w-6 text-cyan-400" />
                   </div>
                   <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">{feature.description}</p>
+                  <p className="text-sm text-muted-foreground mb-3">{feature.description}</p>
+                  <div className="flex items-center gap-2 mb-4 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+                    <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
+                    <span className="text-xs font-medium text-green-400">Solves: {feature.solves}</span>
+                  </div>
                   <button 
                     className="text-sm text-cyan-400 hover:underline"
                     onClick={() => scrollToSection('pricing')}
