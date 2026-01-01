@@ -22,7 +22,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, IdeaSource, MarketData, Catalyst } from "@shared/schema";
 import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock, Info, Activity, Newspaper, Bot, AlertTriangle, FileText, Eye, ArrowUpDown } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, subYears, isAfter, isBefore } from "date-fns";
-import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
+import { isWeekend, getNextTradingWeekStart, cn, getMarketStatus } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
 import { WatchlistSpotlight } from "@/components/watchlist-spotlight";
 import { getPerformanceGrade } from "@/lib/performance-grade";
@@ -71,6 +71,9 @@ export default function TradeDeskPage() {
   }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, activeGrade, sourceTab, statusView, activeTimeframe, tradeTypeFilter]);
   
   const { toast } = useToast();
+  
+  // Memoize market status to avoid recalculating on every render
+  const marketStatus = useMemo(() => getMarketStatus(), []);
 
   const { data: tradeIdeas = [], isLoading: ideasLoading } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
@@ -684,6 +687,19 @@ export default function TradeDeskPage() {
               </span>
             )}
           </div>
+          {/* Market Status Banner - shows when market is not open */}
+          {marketStatus.session !== 'open' && (
+            <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-sm" data-testid="banner-market-status">
+              <Clock className="h-4 w-4 text-amber-400 flex-shrink-0" />
+              <span className="text-muted-foreground">
+                <span className="text-amber-400 font-medium">{marketStatus.label}</span>
+                {marketStatus.nextOpen && <span className="mx-1">·</span>}
+                {marketStatus.nextOpen && <span>Opens {marketStatus.nextOpen}</span>}
+                <span className="hidden sm:inline mx-1">·</span>
+                <span className="hidden sm:inline">{marketStatus.message}</span>
+              </span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button

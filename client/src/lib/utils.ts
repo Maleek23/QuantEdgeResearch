@@ -48,6 +48,73 @@ export function isWeekend(): boolean {
   return day === 0 || day === 6;
 }
 
+export type MarketSession = 'open' | 'pre_market' | 'after_hours' | 'closed';
+
+export interface MarketStatus {
+  session: MarketSession;
+  label: string;
+  nextOpen: string | null;
+  message: string;
+}
+
+export function getMarketStatus(): MarketStatus {
+  const now = new Date();
+  const etTimezone = "America/New_York";
+  const zonedNow = toZonedTime(now, etTimezone);
+  const day = zonedNow.getDay();
+  const hours = zonedNow.getHours();
+  const minutes = zonedNow.getMinutes();
+  const timeDecimal = hours + minutes / 60;
+  
+  // Weekend check
+  if (day === 0 || day === 6) {
+    return {
+      session: 'closed',
+      label: 'Market Closed',
+      nextOpen: 'Monday 9:30 AM ET',
+      message: 'Review recent research briefs and prepare watchlists for next week.'
+    };
+  }
+  
+  // Market hours: 9:30 AM - 4:00 PM ET
+  if (timeDecimal >= 9.5 && timeDecimal < 16) {
+    return {
+      session: 'open',
+      label: 'Market Open',
+      nextOpen: null,
+      message: 'Live trading session in progress.'
+    };
+  }
+  
+  // Pre-market: 4:00 AM - 9:30 AM ET
+  if (timeDecimal >= 4 && timeDecimal < 9.5) {
+    return {
+      session: 'pre_market',
+      label: 'Pre-Market',
+      nextOpen: '9:30 AM ET',
+      message: 'Pre-market session active. Fresh ideas will be generated at market open.'
+    };
+  }
+  
+  // After-hours: 4:00 PM - 8:00 PM ET
+  if (timeDecimal >= 16 && timeDecimal < 20) {
+    return {
+      session: 'after_hours',
+      label: 'After-Hours',
+      nextOpen: 'Tomorrow 9:30 AM ET',
+      message: 'After-hours trading. Review recent briefs and plan tomorrow\'s trades.'
+    };
+  }
+  
+  // Overnight: 8:00 PM - 4:00 AM ET
+  return {
+    session: 'closed',
+    label: 'Market Closed',
+    nextOpen: timeDecimal >= 20 ? 'Tomorrow 9:30 AM ET' : '9:30 AM ET',
+    message: 'Market closed. Recent research briefs are shown below for planning.'
+  };
+}
+
 export function getNextTradingWeekStart(): Date {
   const now = new Date();
   const timezone = "America/Chicago";

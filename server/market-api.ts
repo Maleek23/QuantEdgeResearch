@@ -131,8 +131,14 @@ export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketDa
   const startTime = Date.now();
   const upperSymbol = symbol.toUpperCase();
   
-  // Check if we're rate limited - use extended cache TTL and Yahoo fallback
-  if (coinGeckoRateLimited && Date.now() < rateLimitResetTime) {
+  // Check if rate limit window has expired - reset flag if so
+  if (coinGeckoRateLimited && Date.now() >= rateLimitResetTime) {
+    coinGeckoRateLimited = false;
+    logger.info('[CRYPTO] CoinGecko rate limit window expired, resuming normal requests');
+  }
+  
+  // Check if we're still rate limited - use extended cache TTL and Yahoo fallback
+  if (coinGeckoRateLimited) {
     // Try extended cache first (30 min instead of 5 min when rate limited)
     const cached = cryptoPriceCache.get(upperSymbol);
     if (cached && Date.now() - cached.timestamp < CRYPTO_FALLBACK_CACHE_TTL) {
@@ -145,6 +151,8 @@ export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketDa
       logger.info(`[CRYPTO] Using Yahoo backup for ${symbol} (CoinGecko rate limited)`);
       return yahooResult;
     }
+    // If Yahoo also fails, still try CoinGecko (might be back online)
+    logger.info(`[CRYPTO] Yahoo fallback unavailable for ${symbol}, attempting CoinGecko anyway`);
   }
   
   try {
