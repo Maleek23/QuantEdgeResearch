@@ -456,3 +456,259 @@ export function determineMarketRegime(adx: number): {
     };
   }
 }
+
+// ============================================
+// ADVANCED PATTERN DETECTION (technicalindicators)
+// ============================================
+
+import * as TI from 'technicalindicators';
+
+export interface CandleData {
+  open: number[];
+  high: number[];
+  low: number[];
+  close: number[];
+}
+
+export interface PatternResult {
+  name: string;
+  type: 'bullish' | 'bearish' | 'neutral';
+  strength: 'strong' | 'moderate' | 'weak';
+  detected: boolean;
+}
+
+/**
+ * Detect all candlestick patterns using technicalindicators library
+ * Returns an array of detected patterns with their strength
+ */
+export function detectCandlestickPatterns(candles: CandleData): PatternResult[] {
+  const patterns: PatternResult[] = [];
+  
+  // Bullish patterns
+  const bullishPatterns = [
+    { fn: TI.bullishengulfingpattern, name: 'Bullish Engulfing', strength: 'strong' as const },
+    { fn: TI.bullishhammerstick, name: 'Hammer', strength: 'moderate' as const },
+    { fn: TI.morningstar, name: 'Morning Star', strength: 'strong' as const },
+    { fn: TI.threewhitesoldiers, name: 'Three White Soldiers', strength: 'strong' as const },
+    { fn: TI.piercinglinerpattern || TI.piercingline, name: 'Piercing Line', strength: 'moderate' as const },
+    { fn: TI.tweezerbottom, name: 'Tweezer Bottom', strength: 'moderate' as const },
+  ];
+  
+  // Bearish patterns
+  const bearishPatterns = [
+    { fn: TI.bearishengulfingpattern, name: 'Bearish Engulfing', strength: 'strong' as const },
+    { fn: TI.shootingstar, name: 'Shooting Star', strength: 'moderate' as const },
+    { fn: TI.eveningstar, name: 'Evening Star', strength: 'strong' as const },
+    { fn: TI.threeblackcrows, name: 'Three Black Crows', strength: 'strong' as const },
+    { fn: TI.hangingman, name: 'Hanging Man', strength: 'moderate' as const },
+    { fn: TI.tweezertop, name: 'Tweezer Top', strength: 'moderate' as const },
+  ];
+  
+  // Neutral patterns
+  const neutralPatterns = [
+    { fn: TI.doji, name: 'Doji', strength: 'weak' as const },
+    { fn: TI.dragonflydoji, name: 'Dragonfly Doji', strength: 'moderate' as const },
+    { fn: TI.gravestonedoji, name: 'Gravestone Doji', strength: 'moderate' as const },
+  ];
+  
+  // Check bullish patterns
+  for (const pattern of bullishPatterns) {
+    if (pattern.fn) {
+      try {
+        const result = pattern.fn(candles);
+        if (result === true || (Array.isArray(result) && result[result.length - 1])) {
+          patterns.push({ name: pattern.name, type: 'bullish', strength: pattern.strength, detected: true });
+        }
+      } catch (e) { /* Pattern not applicable */ }
+    }
+  }
+  
+  // Check bearish patterns
+  for (const pattern of bearishPatterns) {
+    if (pattern.fn) {
+      try {
+        const result = pattern.fn(candles);
+        if (result === true || (Array.isArray(result) && result[result.length - 1])) {
+          patterns.push({ name: pattern.name, type: 'bearish', strength: pattern.strength, detected: true });
+        }
+      } catch (e) { /* Pattern not applicable */ }
+    }
+  }
+  
+  // Check neutral patterns
+  for (const pattern of neutralPatterns) {
+    if (pattern.fn) {
+      try {
+        const result = pattern.fn(candles);
+        if (result === true || (Array.isArray(result) && result[result.length - 1])) {
+          patterns.push({ name: pattern.name, type: 'neutral', strength: pattern.strength, detected: true });
+        }
+      } catch (e) { /* Pattern not applicable */ }
+    }
+  }
+  
+  return patterns;
+}
+
+/**
+ * Calculate Stochastic RSI - More sensitive than regular RSI
+ */
+export function calculateStochRSI(
+  prices: number[],
+  rsiPeriod: number = 14,
+  stochPeriod: number = 14,
+  kPeriod: number = 3,
+  dPeriod: number = 3
+): { k: number; d: number } | null {
+  if (prices.length < rsiPeriod + stochPeriod) {
+    return null;
+  }
+  
+  try {
+    const result = TI.StochasticRSI.calculate({
+      values: prices,
+      rsiPeriod,
+      stochasticPeriod: stochPeriod,
+      kPeriod,
+      dPeriod
+    });
+    
+    if (result.length > 0) {
+      const last = result[result.length - 1];
+      return { k: last.k, d: last.d };
+    }
+  } catch (e) {
+    return null;
+  }
+  
+  return null;
+}
+
+/**
+ * Calculate Ichimoku Cloud components
+ */
+export function calculateIchimoku(
+  high: number[],
+  low: number[],
+  close: number[],
+  conversionPeriod: number = 9,
+  basePeriod: number = 26,
+  spanPeriod: number = 52,
+  displacement: number = 26
+): { tenkan: number; kijun: number; senkouA: number; senkouB: number; chikou: number } | null {
+  if (high.length < spanPeriod) {
+    return null;
+  }
+  
+  try {
+    const result = TI.IchimokuCloud.calculate({
+      high,
+      low,
+      conversionPeriod,
+      basePeriod,
+      spanPeriod,
+      displacement
+    });
+    
+    if (result.length > 0) {
+      const last = result[result.length - 1];
+      return {
+        tenkan: last.conversion,
+        kijun: last.base,
+        senkouA: last.spanA,
+        senkouB: last.spanB,
+        chikou: close[close.length - displacement] || close[close.length - 1]
+      };
+    }
+  } catch (e) {
+    return null;
+  }
+  
+  return null;
+}
+
+/**
+ * Enhanced signal scoring using multiple indicators
+ * This is the "Qbot-style" multi-indicator approach
+ */
+export function calculateEnhancedSignalScore(
+  prices: number[],
+  high: number[],
+  low: number[],
+  volume: number[]
+): {
+  score: number;
+  signals: string[];
+  direction: 'bullish' | 'bearish' | 'neutral';
+  confidence: number;
+} {
+  const signals: string[] = [];
+  let bullishScore = 0;
+  let bearishScore = 0;
+  
+  // 1. RSI Analysis
+  const rsi = calculateRSI(prices, 14);
+  const rsi2 = calculateRSI(prices, 2);
+  
+  if (rsi < 30) { bullishScore += 15; signals.push('RSI14 Oversold'); }
+  else if (rsi > 70) { bearishScore += 15; signals.push('RSI14 Overbought'); }
+  
+  if (rsi2 < 10) { bullishScore += 20; signals.push('RSI2 Extreme Oversold'); }
+  else if (rsi2 > 90) { bearishScore += 20; signals.push('RSI2 Extreme Overbought'); }
+  
+  // 2. MACD Analysis
+  const macd = calculateMACD(prices);
+  if (macd.histogram > 0 && macd.macd > 0) { bullishScore += 10; signals.push('MACD Bullish'); }
+  else if (macd.histogram < 0 && macd.macd < 0) { bearishScore += 10; signals.push('MACD Bearish'); }
+  
+  // 3. Bollinger Bands
+  const bb = calculateBollingerBands(prices);
+  const currentPrice = prices[prices.length - 1];
+  if (currentPrice < bb.lower) { bullishScore += 15; signals.push('Below Lower BB'); }
+  else if (currentPrice > bb.upper) { bearishScore += 15; signals.push('Above Upper BB'); }
+  
+  // 4. Volume Spike
+  if (volume.length >= 20) {
+    const avgVolume = volume.slice(-20).reduce((a, b) => a + b, 0) / 20;
+    const currentVolume = volume[volume.length - 1];
+    if (currentVolume > avgVolume * 2) {
+      const priceChange = (prices[prices.length - 1] - prices[prices.length - 2]) / prices[prices.length - 2];
+      if (priceChange > 0) { bullishScore += 10; signals.push('Volume Spike Up'); }
+      else { bearishScore += 10; signals.push('Volume Spike Down'); }
+    }
+  }
+  
+  // 5. ADX Trend Strength
+  const adx = calculateADX(high, low, prices);
+  if (adx > 25) {
+    signals.push(`Strong Trend (ADX ${adx.toFixed(0)})`);
+  }
+  
+  // 6. Candlestick Patterns
+  if (prices.length >= 5) {
+    const candles: CandleData = {
+      open: prices.slice(-5, -1),
+      high: high.slice(-5),
+      low: low.slice(-5),
+      close: prices.slice(-5)
+    };
+    const patterns = detectCandlestickPatterns(candles);
+    for (const p of patterns) {
+      if (p.type === 'bullish') { bullishScore += p.strength === 'strong' ? 15 : 8; signals.push(p.name); }
+      else if (p.type === 'bearish') { bearishScore += p.strength === 'strong' ? 15 : 8; signals.push(p.name); }
+    }
+  }
+  
+  // Calculate final score and direction
+  const totalScore = bullishScore + bearishScore;
+  const netScore = bullishScore - bearishScore;
+  const direction = netScore > 10 ? 'bullish' : netScore < -10 ? 'bearish' : 'neutral';
+  const confidence = Math.min(100, Math.abs(netScore) + (signals.length * 5));
+  
+  return {
+    score: Math.max(bullishScore, bearishScore),
+    signals,
+    direction,
+    confidence
+  };
+}
