@@ -21,7 +21,17 @@ const YAHOO_FINANCE_API = "https://query1.finance.yahoo.com/v8/finance/chart";
 
 // Fallback cache for crypto prices when rate limited (stores last known good prices)
 const cryptoPriceCache = new Map<string, { data: ExternalMarketData; timestamp: number }>();
-const CRYPTO_CACHE_TTL = 5 * 60 * 1000; // 5 minutes fallback cache for rate limiting
+const CRYPTO_CACHE_TTL = 5 * 60 * 1000; // 5 minutes for normal operations
+const CRYPTO_FALLBACK_CACHE_TTL = 30 * 60 * 1000; // 30 minutes when rate limited (extended fallback)
+
+// Yahoo Finance crypto symbols for backup data source
+const YAHOO_CRYPTO_MAP: Record<string, string> = {
+  'BTC': 'BTC-USD', 'ETH': 'ETH-USD', 'SOL': 'SOL-USD', 'BNB': 'BNB-USD',
+  'XRP': 'XRP-USD', 'ADA': 'ADA-USD', 'DOGE': 'DOGE-USD', 'DOT': 'DOT-USD',
+  'AVAX': 'AVAX-USD', 'LINK': 'LINK-USD', 'MATIC': 'MATIC-USD', 'SHIB': 'SHIB-USD',
+  'LTC': 'LTC-USD', 'UNI': 'UNI-USD', 'AAVE': 'AAVE-USD', 'ATOM': 'ATOM-USD',
+  'NEAR': 'NEAR-USD', 'APT': 'APT-USD', 'FIL': 'FIL-USD', 'INJ': 'INJ-USD'
+};
 
 // Track CoinGecko rate limit status
 let coinGeckoRateLimited = false;
@@ -121,12 +131,19 @@ export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketDa
   const startTime = Date.now();
   const upperSymbol = symbol.toUpperCase();
   
-  // Check if we're rate limited and should use cache
+  // Check if we're rate limited - use extended cache TTL and Yahoo fallback
   if (coinGeckoRateLimited && Date.now() < rateLimitResetTime) {
+    // Try extended cache first (30 min instead of 5 min when rate limited)
     const cached = cryptoPriceCache.get(upperSymbol);
-    if (cached && Date.now() - cached.timestamp < CRYPTO_CACHE_TTL) {
+    if (cached && Date.now() - cached.timestamp < CRYPTO_FALLBACK_CACHE_TTL) {
       logger.debug(`[CRYPTO] Using cached price for ${symbol} (rate limited): $${cached.data.currentPrice}`);
       return cached.data;
+    }
+    // Try Yahoo Finance as backup for major cryptos
+    const yahooResult = await fetchCryptoPriceFromYahoo(symbol);
+    if (yahooResult) {
+      logger.info(`[CRYPTO] Using Yahoo backup for ${symbol} (CoinGecko rate limited)`);
+      return yahooResult;
     }
   }
   
@@ -157,11 +174,18 @@ export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketDa
       rateLimitResetTime = Date.now() + 60 * 1000; // Wait 60 seconds before trying again
       logger.warn(`[CRYPTO] CoinGecko rate limited, backing off for 60s`);
       
-      // Return cached data if available
+      // Return cached data if available (use extended TTL when rate limited)
       const cached = cryptoPriceCache.get(upperSymbol);
-      if (cached) {
+      if (cached && Date.now() - cached.timestamp < CRYPTO_FALLBACK_CACHE_TTL) {
         logger.info(`[CRYPTO] Returning cached price for ${symbol}: $${cached.data.currentPrice} (${Math.floor((Date.now() - cached.timestamp) / 1000)}s old)`);
         return cached.data;
+      }
+      
+      // Try Yahoo Finance as backup for major cryptos
+      const yahooBackup = await fetchCryptoPriceFromYahoo(symbol);
+      if (yahooBackup) {
+        logger.info(`[CRYPTO] Using Yahoo backup for ${symbol} after rate limit`);
+        return yahooBackup;
       }
       
       logAPIError('CoinGecko', `/coins/${coinId}`, new Error('HTTP 429 - Rate Limited'));
@@ -200,13 +224,57 @@ export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketDa
     logger.error(`Error fetching crypto price for ${symbol}`, { error: error instanceof Error ? error.message : String(error) });
     logAPIError('CoinGecko', `/coins/${symbol}`, error);
     
-    // Try to return cached data on error
+    // Try to return cached data on error (use extended TTL)
     const cached = cryptoPriceCache.get(upperSymbol);
-    if (cached && Date.now() - cached.timestamp < CRYPTO_CACHE_TTL) {
+    if (cached && Date.now() - cached.timestamp < CRYPTO_FALLBACK_CACHE_TTL) {
       logger.info(`[CRYPTO] Returning cached price for ${symbol} after error: $${cached.data.currentPrice}`);
       return cached.data;
     }
     
+    // Last resort: try Yahoo Finance for major cryptos
+    const yahooFallback = await fetchCryptoPriceFromYahoo(symbol);
+    if (yahooFallback) return yahooFallback;
+    
+    return null;
+  }
+}
+
+// Yahoo Finance backup for crypto when CoinGecko is rate limited
+export async function fetchCryptoPriceFromYahoo(symbol: string): Promise<ExternalMarketData | null> {
+  const upperSymbol = symbol.toUpperCase();
+  const yahooSymbol = YAHOO_CRYPTO_MAP[upperSymbol];
+  if (!yahooSymbol) return null;
+  
+  try {
+    const response = await fetch(`${YAHOO_FINANCE_API}/${yahooSymbol}?interval=1d&range=1d`);
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    const result = data?.chart?.result?.[0];
+    if (!result?.meta) return null;
+    
+    const meta = result.meta;
+    const previousClose = meta.chartPreviousClose || meta.previousClose;
+    const changePercent = previousClose 
+      ? ((meta.regularMarketPrice - previousClose) / previousClose) * 100 
+      : 0;
+    
+    const marketData: ExternalMarketData = {
+      symbol: upperSymbol,
+      assetType: 'crypto',
+      currentPrice: meta.regularMarketPrice,
+      changePercent,
+      volume: meta.regularMarketVolume || 0,
+      high24h: meta.regularMarketDayHigh,
+      low24h: meta.regularMarketDayLow,
+    };
+    
+    // Cache this result too for future fallback
+    cryptoPriceCache.set(upperSymbol, { data: marketData, timestamp: Date.now() });
+    logger.info(`[CRYPTO-YAHOO] Backup fetch ${symbol}: $${marketData.currentPrice.toFixed(2)}`);
+    
+    return marketData;
+  } catch (error) {
     return null;
   }
 }
