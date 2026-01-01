@@ -57,23 +57,27 @@ interface FuturesOpportunity {
 }
 
 function isCMEMarketOpen(): boolean {
+  // CME Globex hours: Sunday 5:00 PM CT to Friday 4:00 PM CT (nearly 24 hours)
+  // Daily maintenance break: 4:00 PM - 5:00 PM CT (Mon-Thu)
   const now = new Date();
   const ctTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
-  const day = ctTime.getDay();
+  const day = ctTime.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
   const hour = ctTime.getHours();
-  const minute = ctTime.getMinutes();
   
+  // Saturday = CLOSED all day
   if (day === 6) return false;
-  if (day === 0 && hour < 17) return false;
   
+  // Sunday = CLOSED until 5:00 PM CT, then OPEN
+  if (day === 0) return hour >= 17;
+  
+  // Friday = OPEN until 4:00 PM CT, then CLOSED
+  if (day === 5) return hour < 16;
+  
+  // Monday-Thursday = OPEN except 4:00 PM - 5:00 PM CT daily break
   if (day >= 1 && day <= 4) {
-    if ((hour === 16 && minute >= 0 && minute < 15) || (hour === 17 && minute < 0)) {
-      return false;
-    }
-    return true;
+    if (hour === 16) return false; // 4:00 PM - 4:59 PM = maintenance break
+    return true; // All other hours = OPEN
   }
-  
-  if (day === 5 && hour >= 16) return false;
   
   return true;
 }
