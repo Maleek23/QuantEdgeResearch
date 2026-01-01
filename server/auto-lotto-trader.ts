@@ -672,6 +672,10 @@ export async function monitorLottoPositions(): Promise<void> {
     // 📊 Get market context for dynamic exit decisions
     const marketContext = await getMarketContext();
     
+    // Import market status check
+    const { isOptionsMarketOpen } = await import("./paper-trading-service");
+    const marketStatus = isOptionsMarketOpen();
+    
     // Get open positions to check for dynamic exits
     const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
     const openPositions = positions.filter(p => p.status === 'open');
@@ -679,6 +683,15 @@ export async function monitorLottoPositions(): Promise<void> {
     // Check each position for dynamic exit signals
     for (const pos of openPositions) {
       if (!pos.currentPrice || !pos.entryPrice) continue;
+      
+      // Skip dynamic exit checks if market is closed (prices may be stale)
+      const isOption = pos.assetType === 'option';
+      const priceIsStale = isOption && Math.abs(pos.currentPrice - pos.entryPrice) < 0.001;
+      
+      if (isOption && (!marketStatus.isOpen || priceIsStale)) {
+        logger.debug(`🤖 [BOT] Skipping dynamic exit for ${pos.symbol} - ${marketStatus.reason}${priceIsStale ? ', stale price' : ''}`);
+        continue;
+      }
       
       // Calculate days to expiry for options
       let daysToExpiry = 7; // Default for non-options

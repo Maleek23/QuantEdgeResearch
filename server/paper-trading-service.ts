@@ -11,6 +11,42 @@ import type {
   AssetType,
 } from "@shared/schema";
 
+// Market holidays for 2025-2026
+const MARKET_HOLIDAYS = new Set([
+  '2025-01-01', '2025-01-20', '2025-02-17', '2025-04-18', '2025-05-26',
+  '2025-06-19', '2025-07-04', '2025-09-01', '2025-11-27', '2025-12-25',
+  '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25',
+  '2026-06-19', '2026-07-03', '2026-09-07', '2026-11-26', '2026-12-25',
+]);
+
+// Check if US stock market is open (for option pricing)
+export function isOptionsMarketOpen(): { isOpen: boolean; reason: string } {
+  const now = new Date();
+  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const day = etTime.getDay();
+  const hour = etTime.getHours();
+  const minute = etTime.getMinutes();
+  const timeInMinutes = hour * 60 + minute;
+  const dateStr = etTime.toISOString().split('T')[0];
+  
+  if (day === 0 || day === 6) {
+    return { isOpen: false, reason: 'Weekend' };
+  }
+  
+  if (MARKET_HOLIDAYS.has(dateStr)) {
+    return { isOpen: false, reason: `Holiday (${dateStr})` };
+  }
+  
+  const marketOpen = 9 * 60 + 30; // 9:30 AM
+  const marketClose = 16 * 60; // 4:00 PM
+  
+  if (timeInMinutes < marketOpen || timeInMinutes >= marketClose) {
+    return { isOpen: false, reason: 'Outside trading hours' };
+  }
+  
+  return { isOpen: true, reason: 'Market open' };
+}
+
 export interface ExecuteTradeResult {
   success: boolean;
   position?: PaperPosition;
@@ -260,6 +296,9 @@ export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPo
   try {
     const positions = await storage.getPaperPositionsByPortfolio(portfolioId);
     const openPositions = positions.filter(p => p.status === 'open');
+    
+    // Check if market is open for options - needed for valid price-based closures
+    const marketStatus = isOptionsMarketOpen();
 
     for (const position of openPositions) {
       if (!position.currentPrice) continue;
@@ -267,28 +306,46 @@ export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPo
       const isLong = position.direction === 'long';
       let shouldClose = false;
       let exitReason = '';
+      
+      // For options, only check stops/targets if market is open (real prices available)
+      const isOption = position.assetType === 'option';
+      const canUsePrice = !isOption || marketStatus.isOpen;
+      
+      // Check if current price is stale (equals entry price, suggesting no real update)
+      const priceIsStale = isOption && 
+        Math.abs(position.currentPrice - position.entryPrice) < 0.001;
 
-      if (position.targetPrice) {
-        if ((isLong && position.currentPrice >= position.targetPrice) ||
-            (!isLong && position.currentPrice <= position.targetPrice)) {
-          shouldClose = true;
-          exitReason = 'target_hit';
+      // Only check price-based exits if we have real prices (not stale)
+      if (canUsePrice && !priceIsStale) {
+        if (position.targetPrice) {
+          if ((isLong && position.currentPrice >= position.targetPrice) ||
+              (!isLong && position.currentPrice <= position.targetPrice)) {
+            shouldClose = true;
+            exitReason = 'target_hit';
+          }
+        }
+
+        if (!shouldClose && position.stopLoss) {
+          if ((isLong && position.currentPrice <= position.stopLoss) ||
+              (!isLong && position.currentPrice >= position.stopLoss)) {
+            shouldClose = true;
+            exitReason = 'stop_hit';
+          }
         }
       }
 
-      if (!shouldClose && position.stopLoss) {
-        if ((isLong && position.currentPrice <= position.stopLoss) ||
-            (!isLong && position.currentPrice >= position.stopLoss)) {
-          shouldClose = true;
-          exitReason = 'stop_hit';
-        }
-      }
-
-      if (position.assetType === 'option' && position.expiryDate) {
+      // For expiry, only close if market is open (so we have real exit prices)
+      if (isOption && position.expiryDate) {
         const today = new Date().toISOString().split('T')[0];
         if (position.expiryDate <= today) {
-          shouldClose = true;
-          exitReason = 'expired';
+          if (marketStatus.isOpen && !priceIsStale) {
+            // Market is open and we have real prices - close normally
+            shouldClose = true;
+            exitReason = 'expired';
+          } else {
+            // Market closed or stale price - log but don't close with bad prices
+            logger.info(`📊 [PAPER] Skipping expired option close for ${position.symbol} - ${marketStatus.reason}, will close when market opens with real prices`);
+          }
         }
       }
 
