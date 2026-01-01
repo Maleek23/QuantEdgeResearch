@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   X,
   Bell,
+  Activity,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -157,7 +158,7 @@ function AddWalletDialog({ onSuccess }: { onSuccess: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="glass" data-testid="button-add-wallet">
+        <Button className="bg-cyan-500 hover:bg-cyan-400 text-slate-950" data-testid="button-add-wallet">
           <Plus className="h-4 w-4 mr-2" />
           Add Wallet
         </Button>
@@ -208,7 +209,7 @@ function AddWalletDialog({ onSuccess }: { onSuccess: () => void }) {
             Cancel
           </Button>
           <Button
-            variant="glass"
+            className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
             onClick={handleSubmit}
             disabled={addWalletMutation.isPending}
             data-testid="button-submit-wallet"
@@ -260,7 +261,7 @@ function CreateAlertDialog({ wallets, onSuccess }: { wallets: TrackedWallet[]; o
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" data-testid="button-create-alert">
+        <Button variant="outline" className="border-slate-700" data-testid="button-create-alert">
           <Bell className="h-4 w-4 mr-2" />
           Create Alert
         </Button>
@@ -317,7 +318,7 @@ function CreateAlertDialog({ wallets, onSuccess }: { wallets: TrackedWallet[]; o
             Cancel
           </Button>
           <Button
-            variant="glass"
+            className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
             onClick={handleSubmit}
             disabled={createAlertMutation.isPending || !walletId}
             data-testid="button-submit-alert"
@@ -351,7 +352,9 @@ function HoldingsModal({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Wallet className="h-5 w-5" />
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center">
+              <Wallet className="h-4 w-4 text-white" />
+            </div>
             Holdings: {wallet.alias || shortenAddress(wallet.address)}
           </DialogTitle>
           <DialogDescription>
@@ -370,7 +373,7 @@ function HoldingsModal({
               {holdings.map((holding, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                  className="flex items-center justify-between p-3 rounded-lg glass-subtle hover-elevate"
                   data-testid={`holding-row-${idx}`}
                 >
                   <div>
@@ -378,8 +381,8 @@ function HoldingsModal({
                     <p className="text-sm text-muted-foreground">{holding.tokenName}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-mono">{formatNumber(holding.balance)}</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="font-mono tabular-nums">{formatNumber(holding.balance)}</p>
+                    <p className="text-sm text-muted-foreground font-mono">
                       {formatCurrency(holding.usdValue)}
                     </p>
                   </div>
@@ -414,27 +417,35 @@ function WalletCard({
   isSyncing: boolean;
 }) {
   return (
-    <Card data-testid={`card-wallet-${wallet.id}`}>
+    <Card className="glass-card hover-elevate" data-testid={`card-wallet-${wallet.id}`}>
       <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "h-10 w-10 rounded-lg flex items-center justify-center",
+            wallet.chain === "ethereum"
+              ? "bg-gradient-to-br from-cyan-500 to-blue-500"
+              : "bg-gradient-to-br from-amber-500 to-orange-500"
+          )}>
+            <Wallet className="h-5 w-5 text-white" />
+          </div>
+          <div className="min-w-0">
             <CardTitle className="text-lg truncate">
               {wallet.alias || shortenAddress(wallet.address)}
             </CardTitle>
-            <ChainBadge chain={wallet.chain} />
+            {wallet.alias && (
+              <CardDescription className="truncate font-mono text-xs">
+                {shortenAddress(wallet.address)}
+              </CardDescription>
+            )}
           </div>
-          {wallet.alias && (
-            <CardDescription className="truncate font-mono text-xs">
-              {shortenAddress(wallet.address)}
-            </CardDescription>
-          )}
         </div>
+        <ChainBadge chain={wallet.chain} />
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           <div>
-            <p className="text-sm text-muted-foreground">Total Value</p>
-            <p className="text-2xl font-bold font-mono" data-testid={`text-value-${wallet.id}`}>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Value</p>
+            <p className="text-2xl font-bold font-mono tabular-nums" data-testid={`text-value-${wallet.id}`}>
               {formatCurrency(wallet.totalValue)}
             </p>
           </div>
@@ -444,11 +455,11 @@ function WalletCard({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={onViewHoldings} data-testid={`button-view-holdings-${wallet.id}`}>
+            <Button size="sm" variant="outline" className="border-slate-700" onClick={onViewHoldings} data-testid={`button-view-holdings-${wallet.id}`}>
               <Eye className="h-4 w-4 mr-1" />
               Holdings
             </Button>
-            <Button size="sm" variant="outline" onClick={onSync} disabled={isSyncing} data-testid={`button-sync-${wallet.id}`}>
+            <Button size="sm" variant="outline" className="border-slate-700" onClick={onSync} disabled={isSyncing} data-testid={`button-sync-${wallet.id}`}>
               <RefreshCw className={cn("h-4 w-4 mr-1", isSyncing && "animate-spin")} />
               Sync
             </Button>
@@ -533,8 +544,16 @@ export default function WalletTracker() {
     <div className="container max-w-7xl mx-auto p-6 space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold" data-testid="text-page-title">Whale Wallet Tracker</h1>
-          <p className="text-muted-foreground">Monitor smart money movements on ETH & Solana</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+            Crypto Intelligence
+          </p>
+          <h1 className="text-2xl sm:text-3xl font-semibold flex items-center gap-3" data-testid="text-page-title">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500 to-teal-500 flex items-center justify-center">
+              <Wallet className="h-5 w-5 text-white" />
+            </div>
+            Whale Wallet Tracker
+          </h1>
+          <p className="text-muted-foreground mt-1">Monitor smart money movements on ETH & Solana</p>
         </div>
         <AddWalletDialog onSuccess={() => queryClient.invalidateQueries({ queryKey: ["/api/wallets"] })} />
       </div>
@@ -542,7 +561,7 @@ export default function WalletTracker() {
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <section>
-            <h2 className="text-xl font-semibold mb-4">Tracked Wallets</h2>
+            <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">Tracked Wallets</h2>
             {walletsLoading ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 {[1, 2].map((i) => (
@@ -563,19 +582,26 @@ export default function WalletTracker() {
                 ))}
               </div>
             ) : (
-              <Card className="p-8 text-center" data-testid="empty-wallets">
-                <Wallet className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No wallets tracked yet</p>
+              <Card className="glass-card p-8 text-center" data-testid="empty-wallets">
+                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500/20 to-teal-500/20 flex items-center justify-center mx-auto mb-4">
+                  <Wallet className="h-6 w-6 text-cyan-400" />
+                </div>
+                <p className="text-foreground font-medium">No wallets tracked yet</p>
                 <p className="text-sm text-muted-foreground">Add a wallet to start monitoring</p>
               </Card>
             )}
           </section>
 
           <section>
-            <h2 className="text-xl font-semibold mb-4">Whale Activity Feed</h2>
-            <Card>
+            <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">Whale Activity Feed</h2>
+            <Card className="glass-card">
               <CardHeader className="pb-2">
-                <CardDescription>Large transactions (&gt;$100K) • Auto-refreshes every 30s</CardDescription>
+                <div className="flex items-center gap-2">
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                    <Activity className="h-4 w-4 text-white" />
+                  </div>
+                  <CardDescription>Large transactions (&gt;$100K) • Auto-refreshes every 30s</CardDescription>
+                </div>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[300px]">
@@ -590,15 +616,15 @@ export default function WalletTracker() {
                       {whaleActivity.map((activity) => (
                         <div
                           key={activity.id}
-                          className="flex items-center gap-3 p-3 rounded-lg bg-muted/50"
+                          className="flex items-center gap-3 p-3 rounded-lg glass-subtle hover-elevate"
                           data-testid={`activity-row-${activity.id}`}
                         >
                           <div
                             className={cn(
                               "p-2 rounded-full",
                               activity.direction === "in"
-                                ? "bg-green-500/20 text-green-500"
-                                : "bg-red-500/20 text-red-500"
+                                ? "bg-green-500/20 text-green-400"
+                                : "bg-red-500/20 text-red-400"
                             )}
                           >
                             {activity.direction === "in" ? (
@@ -618,7 +644,7 @@ export default function WalletTracker() {
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-mono font-medium">{formatCurrency(activity.amount)}</p>
+                            <p className="font-mono font-medium tabular-nums">{formatCurrency(activity.amount)}</p>
                             <p className="text-xs text-muted-foreground">{activity.token}</p>
                           </div>
                         </div>
@@ -639,7 +665,7 @@ export default function WalletTracker() {
         <div className="space-y-6">
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Alerts</h2>
+              <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Alerts</h2>
               {wallets && wallets.length > 0 && (
                 <CreateAlertDialog
                   wallets={wallets}
@@ -647,7 +673,7 @@ export default function WalletTracker() {
                 />
               )}
             </div>
-            <Card>
+            <Card className="glass-card">
               <CardContent className="pt-4">
                 <ScrollArea className="h-[400px]">
                   {alertsLoading ? (
@@ -661,14 +687,14 @@ export default function WalletTracker() {
                       {alerts.map((alert) => (
                         <div
                           key={alert.id}
-                          className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                          className="flex items-center justify-between p-3 rounded-lg glass-subtle hover-elevate"
                           data-testid={`alert-row-${alert.id}`}
                         >
                           <div className="space-y-1">
                             <p className="font-medium text-sm">{alert.walletAlias || "Wallet"}</p>
                             <div className="flex items-center gap-2">
                               <AlertTypeBadge type={alert.alertType} />
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-xs text-muted-foreground font-mono">
                                 &gt;{formatCurrency(alert.threshold)}
                               </span>
                             </div>
@@ -686,7 +712,9 @@ export default function WalletTracker() {
                     </div>
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
-                      <Bell className="h-8 w-8 mx-auto mb-2" />
+                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center mx-auto mb-2">
+                        <Bell className="h-5 w-5 text-amber-400" />
+                      </div>
                       <p>No active alerts</p>
                       {wallets && wallets.length > 0 && (
                         <p className="text-sm">Create an alert to get notified</p>

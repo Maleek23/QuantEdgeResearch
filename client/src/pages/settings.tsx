@@ -75,12 +75,15 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      {/* Header - Glassmorphism */}
+      {/* Header - Glassmorphism with gradient */}
       <div className="relative overflow-hidden rounded-xl glass-card p-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10" />
         <div className="relative z-10">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3" data-testid="text-page-title">
-            <div className="h-10 w-10 rounded-lg glass flex items-center justify-center">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+            Configuration
+          </p>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight flex items-center gap-3" data-testid="text-page-title">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center">
               <Settings className="h-5 w-5 text-cyan-400" />
             </div>
             Settings
@@ -92,30 +95,41 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="trading" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 glass" data-testid="tabs-settings">
-          <TabsTrigger value="trading" data-testid="tab-trading">
-            <DollarSign className="h-4 w-4 mr-2" />
+        <TabsList className="grid w-full grid-cols-4 glass-card" data-testid="tabs-settings">
+          <TabsTrigger value="trading" className="data-[state=active]:bg-cyan-500/10" data-testid="tab-trading">
+            <div className="h-6 w-6 rounded-md bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center mr-2">
+              <DollarSign className="h-3.5 w-3.5 text-green-400" />
+            </div>
             Trading
           </TabsTrigger>
-          <TabsTrigger value="display" data-testid="tab-display">
-            <Eye className="h-4 w-4 mr-2" />
+          <TabsTrigger value="display" className="data-[state=active]:bg-cyan-500/10" data-testid="tab-display">
+            <div className="h-6 w-6 rounded-md bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center mr-2">
+              <Eye className="h-3.5 w-3.5 text-blue-400" />
+            </div>
             Display
           </TabsTrigger>
-          <TabsTrigger value="notifications" data-testid="tab-notifications">
-            <Bell className="h-4 w-4 mr-2" />
+          <TabsTrigger value="notifications" className="data-[state=active]:bg-cyan-500/10" data-testid="tab-notifications">
+            <div className="h-6 w-6 rounded-md bg-gradient-to-br from-green-500/20 to-teal-500/20 flex items-center justify-center mr-2">
+              <Bell className="h-3.5 w-3.5 text-green-400" />
+            </div>
             Alerts
           </TabsTrigger>
-          <TabsTrigger value="advanced" data-testid="tab-advanced">
-            <Zap className="h-4 w-4 mr-2" />
+          <TabsTrigger value="advanced" className="data-[state=active]:bg-cyan-500/10" data-testid="tab-advanced">
+            <div className="h-6 w-6 rounded-md bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center mr-2">
+              <Zap className="h-3.5 w-3.5 text-purple-400" />
+            </div>
             Advanced
           </TabsTrigger>
         </TabsList>
 
         {/* Trading Preferences */}
         <TabsContent value="trading" className="space-y-4">
-          <div className="glass-card rounded-xl border-l-2 border-l-cyan-500">
+          <div className="glass-card rounded-xl border-l-2 border-l-green-500">
             <div className="p-5 pb-3">
-              <h3 className="text-lg font-semibold text-cyan-400">Trading Account Settings</h3>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                Account Configuration
+              </p>
+              <h3 className="text-lg font-semibold text-green-400">Trading Account Settings</h3>
               <p className="text-sm text-muted-foreground mt-1">Configure your trading parameters and risk management</p>
             </div>
             <div className="px-5 pb-5 space-y-4">
@@ -202,9 +216,12 @@ export default function SettingsPage() {
 
         {/* Display Preferences */}
         <TabsContent value="display" className="space-y-4">
-          <div className="glass-card rounded-xl border-l-2 border-l-cyan-500">
+          <div className="glass-card rounded-xl border-l-2 border-l-blue-500">
             <div className="p-5 pb-3">
-              <h3 className="text-lg font-semibold text-cyan-400">Display Preferences</h3>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                Interface Settings
+              </p>
+              <h3 className="text-lg font-semibold text-blue-400">Display Preferences</h3>
               <p className="text-sm text-muted-foreground mt-1">Customize how information is presented</p>
             </div>
             <div className="px-5 pb-5 space-y-4">
@@ -249,7 +266,7 @@ export default function SettingsPage() {
 
               <Separator className="bg-white/10" />
 
-              <div className="flex items-center justify-between p-3 rounded-lg glass">
+              <div className="flex items-center justify-between gap-4 p-3 rounded-lg glass-card hover-elevate cursor-pointer">
                 <div className="space-y-0.5">
                   <Label htmlFor="compact-mode">Compact Mode</Label>
                   <p className="text-xs text-muted-foreground">Reduce spacing for more information density</p>
@@ -262,7 +279,7 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-lg glass">
+              <div className="flex items-center justify-between gap-4 p-3 rounded-lg glass-card hover-elevate cursor-pointer">
                 <div className="space-y-0.5">
                   <Label htmlFor="auto-refresh">Auto Refresh</Label>
                   <p className="text-xs text-muted-foreground">Automatically refresh prices and data</p>
@@ -282,6 +299,9 @@ export default function SettingsPage() {
         <TabsContent value="notifications" className="space-y-4">
           <div className="glass-card rounded-xl border-l-2 border-l-green-500">
             <div className="p-5 pb-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                Notifications
+              </p>
               <h3 className="text-lg font-semibold text-green-400">Alert Preferences</h3>
               <p className="text-sm text-muted-foreground mt-1">Configure Discord notifications and alerts</p>
             </div>
@@ -305,7 +325,7 @@ export default function SettingsPage() {
               <Separator className="bg-white/10" />
 
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 rounded-lg glass">
+                <div className="flex items-center justify-between gap-4 p-3 rounded-lg glass-card hover-elevate cursor-pointer">
                   <div className="space-y-0.5">
                     <Label htmlFor="trade-alerts">New Research Brief Alerts</Label>
                     <p className="text-xs text-muted-foreground">Get notified when new ideas are generated</p>
@@ -318,7 +338,7 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg glass">
+                <div className="flex items-center justify-between gap-4 p-3 rounded-lg glass-card hover-elevate cursor-pointer">
                   <div className="space-y-0.5">
                     <Label htmlFor="price-alerts">Watchlist Price Alerts</Label>
                     <p className="text-xs text-muted-foreground">Alert when watchlist prices hit targets</p>
@@ -331,7 +351,7 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg glass">
+                <div className="flex items-center justify-between gap-4 p-3 rounded-lg glass-card hover-elevate cursor-pointer">
                   <div className="space-y-0.5">
                     <Label htmlFor="performance-alerts">Performance Updates</Label>
                     <p className="text-xs text-muted-foreground">Alert when ideas hit targets or stops</p>
@@ -344,7 +364,7 @@ export default function SettingsPage() {
                   />
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded-lg glass">
+                <div className="flex items-center justify-between gap-4 p-3 rounded-lg glass-card hover-elevate cursor-pointer">
                   <div className="space-y-0.5">
                     <Label htmlFor="weekly-report">Weekly Performance Report</Label>
                     <p className="text-xs text-muted-foreground">Sunday recap of week's performance</p>
@@ -363,9 +383,12 @@ export default function SettingsPage() {
 
         {/* Advanced Settings */}
         <TabsContent value="advanced" className="space-y-4">
-          <div className="glass-card rounded-xl border-l-2 border-l-cyan-500">
+          <div className="glass-card rounded-xl border-l-2 border-l-purple-500">
             <div className="p-5 pb-3">
-              <h3 className="text-lg font-semibold text-cyan-400">Advanced Settings</h3>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                Filters & Defaults
+              </p>
+              <h3 className="text-lg font-semibold text-purple-400">Advanced Settings</h3>
               <p className="text-sm text-muted-foreground mt-1">Default filters and preferences</p>
             </div>
             <div className="px-5 pb-5 space-y-4">
@@ -413,10 +436,13 @@ export default function SettingsPage() {
 
           <div className="glass-card rounded-xl p-5 border-l-2 border-l-amber-500">
             <div className="flex items-start gap-4">
-              <div className="h-10 w-10 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
                 <AlertTriangle className="h-5 w-5 text-amber-400" />
               </div>
               <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                  Legal Notice
+                </p>
                 <h3 className="text-lg font-semibold text-amber-400">Disclaimer</h3>
                 <p className="text-sm text-muted-foreground mt-2">
                   QuantEdge Research is for <strong className="text-foreground">educational and research purposes only</strong>. 
@@ -432,17 +458,18 @@ export default function SettingsPage() {
       {/* Save Button */}
       <div className="flex justify-end gap-3">
         <Button
-          variant="glass-secondary"
+          variant="outline"
           onClick={() => setFormData(preferences || {})}
           disabled={saveMutation.isPending}
+          className="border-slate-700"
           data-testid="button-reset-settings"
         >
           Reset
         </Button>
         <Button
-          variant="glass"
           onClick={handleSave}
           disabled={saveMutation.isPending}
+          className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
           data-testid="button-save-settings"
         >
           {saveMutation.isPending ? "Saving..." : "Save Changes"}

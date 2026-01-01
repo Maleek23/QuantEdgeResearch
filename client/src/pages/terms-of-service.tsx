@@ -4,26 +4,33 @@ import { FileText, AlertTriangle, Shield, Scale } from "lucide-react";
 export default function TermsOfService() {
   return (
     <div className="container mx-auto p-6 space-y-6 max-w-4xl">
-      <div className="relative overflow-hidden border-b aurora-hero rounded-xl -mx-6 px-6 pb-6 mb-8">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
-        <div className="relative pt-6">
-          <div className="flex items-center gap-3">
-            <FileText className="h-8 w-8 text-primary" />
+      <div className="relative overflow-hidden rounded-xl mb-8">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(100,116,139,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(100,116,139,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
+        <div className="relative py-8 px-6">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
+            Legal
+          </p>
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg shadow-slate-500/20">
+              <FileText className="h-6 w-6 text-white" />
+            </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Terms of Service</h1>
+              <h1 className="text-2xl sm:text-3xl font-semibold">Terms of Service</h1>
               <p className="text-sm text-muted-foreground mt-1">
                 Last updated: October 21, 2025
               </p>
             </div>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
+        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-slate-500/30 to-transparent" />
       </div>
 
-      <Card className="border-amber-500/30 bg-amber-500/5">
+      <Card className="glass-card border-amber-500/30 bg-amber-500/5">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-amber-500">
-            <AlertTriangle className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-3 text-amber-500">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <AlertTriangle className="h-5 w-5 text-white" />
+            </div>
             Educational Research Platform Only
           </CardTitle>
         </CardHeader>
@@ -41,10 +48,12 @@ export default function TermsOfService() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="glass-card hover-elevate">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Scale className="h-5 w-5 text-primary" />
+          <CardTitle className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg shadow-slate-500/20">
+              <Scale className="h-5 w-5 text-white" />
+            </div>
             Acceptance of Terms
           </CardTitle>
         </CardHeader>
@@ -60,8 +69,11 @@ export default function TermsOfService() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="glass-card hover-elevate">
         <CardHeader>
+          <CardTitle className="flex items-center gap-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Section</p>
+          </CardTitle>
           <CardTitle>Platform Services</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-muted-foreground">
@@ -80,7 +92,7 @@ export default function TermsOfService() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="glass-card hover-elevate">
         <CardHeader>
           <CardTitle>User Responsibilities</CardTitle>
         </CardHeader>
@@ -98,7 +110,7 @@ export default function TermsOfService() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="glass-card hover-elevate">
         <CardHeader>
           <CardTitle>Disclaimer of Warranties</CardTitle>
         </CardHeader>
@@ -120,7 +132,7 @@ export default function TermsOfService() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="glass-card hover-elevate">
         <CardHeader>
           <CardTitle>Limitation of Liability</CardTitle>
         </CardHeader>
@@ -134,16 +146,19 @@ export default function TermsOfService() {
             <li>We are not liable for indirect, consequential, or punitive damages</li>
             <li>Our total liability shall not exceed the amount you paid for premium services (if any)</li>
           </ul>
-          <p className="text-amber-500 text-xs mt-4">
-            ⚠️ You assume all risk when using this platform for trading research.
-          </p>
+          <div className="flex items-center gap-2 text-amber-500 text-xs mt-4">
+            <AlertTriangle className="h-4 w-4" />
+            <span>You assume all risk when using this platform for trading research.</span>
+          </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="glass-card hover-elevate">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
+          <CardTitle className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg shadow-slate-500/20">
+              <Shield className="h-5 w-5 text-white" />
+            </div>
             Intellectual Property
           </CardTitle>
         </CardHeader>
@@ -163,7 +178,7 @@ export default function TermsOfService() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="glass-card hover-elevate">
         <CardHeader>
           <CardTitle>Termination</CardTitle>
         </CardHeader>
@@ -181,9 +196,11 @@ export default function TermsOfService() {
         </CardContent>
       </Card>
 
-      <Card className="border-primary/20">
+      <Card className="glass-card border-slate-500/20">
         <CardContent className="pt-6 space-y-2 text-sm">
-          <p className="font-semibold">Contact & Governing Law</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+            Contact & Governing Law
+          </p>
           <p className="text-muted-foreground">
             These terms are governed by applicable laws. For questions or concerns, 
             contact us through our Discord community or support channels.

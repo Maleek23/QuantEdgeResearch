@@ -181,17 +181,17 @@ export default function Pricing() {
         <div className="relative overflow-hidden rounded-xl glass-card p-6 sm:p-8 mb-12">
           <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
           <div className="relative z-10 text-center">
-            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase mb-1">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
               Research Platform
             </p>
             <h1 
-              className="text-2xl sm:text-3xl font-bold mb-3"
+              className="text-2xl sm:text-3xl font-semibold mb-3"
               data-testid="text-pricing-header"
             >
               Choose Your Plan
             </h1>
             <p 
-              className="text-muted-foreground max-w-2xl mx-auto"
+              className="text-muted-foreground max-w-2xl mx-auto leading-relaxed"
               data-testid="text-pricing-subtext"
             >
               Start with Free to explore the research platform, then upgrade to Advanced for unlimited access and real-time data.
@@ -234,10 +234,10 @@ export default function Pricing() {
             return (
               <div 
                 key={plan.id}
-                className={`relative flex flex-col glass-card rounded-xl p-6 ${
+                className={`relative flex flex-col glass-card rounded-lg p-6 hover-elevate transition-all duration-200 ${
                   plan.popular 
                     ? 'border-l-2 border-l-cyan-500' 
-                    : 'border border-white/10'
+                    : 'border border-slate-700/50'
                 }`}
                 data-testid={`card-plan-${plan.id}`}
               >
@@ -266,10 +266,28 @@ export default function Pricing() {
                 
                 {/* Plan Header */}
                 <div className="text-center pb-4 pt-2">
-                  <div className="mx-auto mb-3 p-3 rounded-full glass w-fit">
-                    <Icon className="w-6 h-6 text-cyan-400" />
+                  <div className={`mx-auto mb-3 h-12 w-12 rounded-lg flex items-center justify-center ${
+                    plan.id === 'free' 
+                      ? 'bg-gradient-to-br from-slate-500/20 to-slate-400/10' 
+                      : plan.id === 'advanced'
+                      ? 'bg-gradient-to-br from-cyan-500/20 to-cyan-400/10'
+                      : 'bg-gradient-to-br from-purple-500/20 to-purple-400/10'
+                  }`}>
+                    <Icon className={`w-6 h-6 ${
+                      plan.id === 'free' 
+                        ? 'text-slate-400' 
+                        : plan.id === 'advanced'
+                        ? 'text-cyan-400'
+                        : 'text-purple-400'
+                    }`} />
                   </div>
-                  <h3 className="text-xl font-bold text-cyan-400" data-testid={`text-plan-name-${plan.id}`}>
+                  <h3 className={`text-xl font-semibold ${
+                    plan.id === 'free' 
+                      ? 'text-foreground' 
+                      : plan.id === 'advanced'
+                      ? 'text-cyan-400'
+                      : 'text-purple-400'
+                  }`} data-testid={`text-plan-name-${plan.id}`}>
                     {plan.name}
                   </h3>
                   <p className="text-sm text-muted-foreground mt-1" data-testid={`text-plan-description-${plan.id}`}>
@@ -282,17 +300,17 @@ export default function Pricing() {
                   <div className="text-center mb-6">
                     <div className="flex items-baseline justify-center gap-1">
                       <span 
-                        className="text-4xl font-bold text-foreground"
+                        className="text-4xl font-bold font-mono tabular-nums text-foreground"
                         data-testid={`text-plan-price-${plan.id}`}
                       >
                         {formatPrice(plan.monthlyPrice, plan.yearlyPrice)}
                       </span>
-                      <span className="text-muted-foreground text-sm">
+                      <span className="text-muted-foreground text-sm font-mono">
                         {getPeriod(plan.monthlyPrice)}
                       </span>
                     </div>
                     {isYearly && savings && (
-                      <p className="text-sm text-green-400 mt-1" data-testid={`text-savings-${plan.id}`}>
+                      <p className="text-sm text-green-400 font-mono mt-1" data-testid={`text-savings-${plan.id}`}>
                         Save {savings}% vs monthly
                       </p>
                     )}
@@ -303,18 +321,18 @@ export default function Pricing() {
                     {plan.features.map((feature, index) => (
                       <li 
                         key={index}
-                        className="flex items-start gap-3"
+                        className="flex items-start gap-3 text-sm"
                         data-testid={`feature-${plan.id}-${index}`}
                       >
                         {feature.included ? (
-                          <Check className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
+                          <Check className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
                         ) : (
-                          <X className="w-5 h-5 text-muted-foreground/50 shrink-0 mt-0.5" />
+                          <X className="w-4 h-4 text-muted-foreground/40 shrink-0 mt-0.5" />
                         )}
-                        <span className={`flex items-center gap-2 ${feature.included ? '' : 'text-muted-foreground/50'}`}>
+                        <span className={`flex items-center gap-2 ${feature.included ? 'text-foreground' : 'text-muted-foreground/40'}`}>
                           {feature.name}
                           {feature.comingSoon && (
-                            <span className="bg-white/10 text-amber-400 rounded px-1.5 py-0 text-[10px]">
+                            <span className="bg-amber-500/10 text-amber-400 rounded px-1.5 py-0.5 text-[10px] font-medium">
                               Soon
                             </span>
                           )}

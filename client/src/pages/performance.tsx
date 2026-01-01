@@ -206,10 +206,34 @@ interface EngineHealthData {
 }
 
 const ENGINE_CONFIG = {
-  flow: { label: "Flow Scanner", icon: Activity, color: "hsl(142, 76%, 45%)" },
-  lotto: { label: "Lotto Detector", icon: Zap, color: "hsl(45, 93%, 58%)" },
-  quant: { label: "Quant Engine", icon: BarChart3, color: "hsl(280, 70%, 60%)" },
-  ai: { label: "AI Engine", icon: Brain, color: "hsl(217, 91%, 60%)" },
+  flow: { 
+    label: "Flow Scanner", 
+    icon: Activity, 
+    bgClass: "bg-cyan-500/10",
+    textClass: "text-cyan-400",
+    borderClass: "border-cyan-500/30"
+  },
+  quant: { 
+    label: "Quant Engine", 
+    icon: BarChart3, 
+    bgClass: "bg-blue-500/10",
+    textClass: "text-blue-400",
+    borderClass: "border-blue-500/30"
+  },
+  ai: { 
+    label: "AI Engine", 
+    icon: Brain, 
+    bgClass: "bg-purple-500/10",
+    textClass: "text-purple-400",
+    borderClass: "border-purple-500/30"
+  },
+  lotto: { 
+    label: "Lotto Detector", 
+    icon: Zap, 
+    bgClass: "bg-amber-500/10",
+    textClass: "text-amber-400",
+    borderClass: "border-amber-500/30"
+  },
 } as const;
 
 type EngineKey = keyof typeof ENGINE_CONFIG;
@@ -263,14 +287,11 @@ function EngineSummaryCard({
   const expectancy = weekMetrics?.expectancy ?? null;
 
   return (
-    <Card className="border-border/50" data-testid={`card-engine-${engineKey}`}>
+    <Card className="glass-card hover-elevate" data-testid={`card-engine-${engineKey}`}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
         <div className="flex items-center gap-2">
-          <div
-            className="p-2 rounded-lg"
-            style={{ backgroundColor: `${config.color}20` }}
-          >
-            <Icon className="h-4 w-4" style={{ color: config.color }} />
+          <div className={cn("p-2 rounded-lg", config.bgClass)}>
+            <Icon className={cn("h-4 w-4", config.textClass)} />
           </div>
           <CardTitle className="text-base font-semibold">{config.label}</CardTitle>
         </div>
@@ -287,35 +308,35 @@ function EngineSummaryCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Today</p>
-            <p className="text-lg font-mono font-semibold" data-testid={`text-today-ideas-${engineKey}`}>
+          <div className="stat-glass rounded-lg p-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Today</p>
+            <p className="text-lg font-mono font-bold tabular-nums" data-testid={`text-today-ideas-${engineKey}`}>
               {todayIdeas}
             </p>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">7 Days</p>
-            <p className="text-lg font-mono font-semibold" data-testid={`text-week-ideas-${engineKey}`}>
+          <div className="stat-glass rounded-lg p-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">7 Days</p>
+            <p className="text-lg font-mono font-bold tabular-nums" data-testid={`text-week-ideas-${engineKey}`}>
               {weekIdeas}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center justify-between pt-2 border-t border-border/50">
+        <div className="flex items-center justify-between gap-4 pt-2 border-t border-border/50">
           <div>
-            <p className="text-xs text-muted-foreground">Win Rate</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Win Rate</p>
             <p
-              className={cn("text-lg font-mono font-bold", getWinRateColor(winRate))}
+              className={cn("text-lg font-mono font-bold tabular-nums", getWinRateColor(winRate))}
               data-testid={`text-win-rate-${engineKey}`}
             >
               {winRate !== null ? `${winRate.toFixed(1)}%` : "N/A"}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-xs text-muted-foreground">Expectancy</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Expectancy</p>
             <p
               className={cn(
-                "text-lg font-mono font-bold",
+                "text-lg font-mono font-bold tabular-nums",
                 expectancy !== null && expectancy > 0 ? "text-green-400" : expectancy !== null && expectancy < 0 ? "text-red-400" : "text-muted-foreground"
               )}
               data-testid={`text-expectancy-${engineKey}`}
@@ -360,7 +381,7 @@ function HealthAlertsSection({
 
   if (alerts.length === 0) {
     return (
-      <div className="border border-border/50 rounded-xl bg-card p-4" data-testid="card-alerts-empty">
+      <div className="glass-card rounded-lg p-4" data-testid="card-alerts-empty">
         <div className="flex items-center gap-2 text-muted-foreground">
           <CheckCircle className="h-5 w-5 text-green-400" />
           <p>No active alerts. All engines are operating normally.</p>
@@ -370,8 +391,9 @@ function HealthAlertsSection({
   }
 
   return (
-    <Card className="border-border/50" data-testid="card-health-alerts">
+    <Card className="glass-card" data-testid="card-health-alerts">
       <CardHeader className="pb-3">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">System Status</p>
         <div className="flex items-center gap-2">
           <Bell className="h-5 w-5 text-cyan-400" />
           <CardTitle className="text-lg">Active Health Alerts</CardTitle>
@@ -607,7 +629,7 @@ export default function PerformancePage() {
   if (!stats) {
     return (
       <div className="max-w-6xl mx-auto p-4 sm:p-6">
-        <Card className="border-border/50 p-6">
+        <Card className="glass-card p-6">
           <h2 className="text-xl font-bold">No Performance Data</h2>
           <p className="text-muted-foreground mt-2">
             Start generating research briefs to see performance metrics
@@ -620,11 +642,12 @@ export default function PerformancePage() {
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
       {/* Executive Summary - Most Important Info First */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" data-testid="section-executive-summary">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" data-testid="section-executive-summary">
         {/* Headline KPIs */}
-        <Card className="lg:col-span-2 border-border/50 p-6">
+        <Card className="lg:col-span-2 glass-card p-6">
           <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
             <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Research Analytics</p>
               <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-performance-title">Platform Performance</h1>
               <p className="text-sm text-muted-foreground">{stats.overall.totalIdeas} total briefs • {stats.overall.closedIdeas} closed</p>
             </div>
@@ -650,7 +673,7 @@ export default function PerformancePage() {
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center bg-muted/30 rounded-lg p-4 relative">
+            <div className="text-center stat-glass rounded-lg p-4 relative">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -718,7 +741,8 @@ export default function PerformancePage() {
         </Card>
 
         {/* Quick Engine Pulse */}
-        <Card className="border-border/50 p-4" data-testid="section-engine-pulse">
+        <Card className="glass-card p-4" data-testid="section-engine-pulse">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Quick View</p>
           <div className="flex items-center gap-2 mb-3">
             <Activity className="h-4 w-4 text-cyan-400" />
             <h3 className="font-semibold text-sm">Engine Pulse (7d)</h3>
@@ -778,7 +802,7 @@ export default function PerformancePage() {
               })}
             </div>
           )}
-        </div>
+        </Card>
       </div>
 
       {/* Health Alerts (if any) */}
@@ -804,8 +828,9 @@ export default function PerformancePage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Filter Breakdown - Explains where the numbers come from */}
         {filterBreakdown && (
-          <Card className="border-border/50" data-testid="section-filter-breakdown">
+          <Card className="glass-card" data-testid="section-filter-breakdown">
             <CardHeader className="pb-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Data Quality</p>
               <div className="flex items-center gap-2">
                 <Filter className="h-5 w-5 text-purple-400" />
                 <CardTitle className="text-lg">Data Pipeline Transparency</CardTitle>
@@ -861,8 +886,9 @@ export default function PerformancePage() {
 
         {/* Signal Strength Comparison - High vs All Bands */}
         {calibratedStats?.highConfidence && calibratedStats?.allConfidence && (
-          <Card className="border-border/50" data-testid="section-confidence-comparison">
+          <Card className="glass-card" data-testid="section-confidence-comparison">
             <CardHeader className="pb-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Confidence Analysis</p>
               <div className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-cyan-400" />
                 <CardTitle className="text-lg">Signal Strength Comparison</CardTitle>
@@ -934,8 +960,9 @@ export default function PerformancePage() {
 
       {/* Signal Strength Breakdown - Transparency */}
       {calibratedStats && (
-        <Card className="border-border/50" data-testid="section-confidence-breakdown">
+        <Card className="glass-card" data-testid="section-confidence-breakdown">
           <CardHeader className="pb-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Signal Bands</p>
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-amber-400" />
               <CardTitle className="text-lg">Signal Strength Performance (Honest Data)</CardTitle>
@@ -1027,8 +1054,9 @@ export default function PerformancePage() {
 
       {/* Engine vs Signal Strength Correlation Matrix */}
       {correlationData && correlationData.correlationMatrix.length > 0 && (
-        <Card className="border-border/50" data-testid="section-engine-confidence-correlation">
+        <Card className="glass-card" data-testid="section-engine-confidence-correlation">
           <CardHeader className="pb-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Correlation Matrix</p>
             <div className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5 text-cyan-400" />
               <CardTitle className="text-lg">Engine × Signal Strength</CardTitle>
@@ -1159,8 +1187,8 @@ export default function PerformancePage() {
       )}
 
       {/* Detailed Engine Cards - Expandable */}
-      <details className="border border-border/50 rounded-xl bg-card" data-testid="section-engine-health">
-        <summary className="p-4 cursor-pointer hover-elevate rounded-xl flex items-center gap-2">
+      <details className="glass-card rounded-lg" data-testid="section-engine-health">
+        <summary className="p-4 cursor-pointer hover-elevate rounded-lg flex items-center gap-2">
           <Activity className="h-5 w-5 text-cyan-400" />
           <span className="font-semibold">Detailed Engine Metrics</span>
           <span className="text-xs text-muted-foreground ml-2">(click to expand)</span>
@@ -1188,7 +1216,8 @@ export default function PerformancePage() {
         </div>
       </details>
 
-      <div className="border border-border/50 rounded-xl bg-card p-6">
+      <div className="glass-card rounded-lg p-6">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">Filters</p>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-muted-foreground" />
@@ -1257,7 +1286,7 @@ export default function PerformancePage() {
       </div>
 
       {todayStats && todayStats.overall.totalIdeas > 0 && dateRange === 'today' && (
-        <div className="border border-border/50 rounded-xl bg-card p-6 border-l-2 border-l-cyan-500">
+        <div className="glass-card rounded-lg p-6 border-l-2 border-l-cyan-500">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-xl font-bold flex items-center gap-2">
@@ -1357,7 +1386,8 @@ export default function PerformancePage() {
       )}
 
       {dateRange === 'all' && (
-        <div className="border border-border/50 rounded-xl bg-card p-6 border-l-2 border-l-green-500">
+        <div className="glass-card rounded-lg p-6 border-l-2 border-l-green-500">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Performance Summary</p>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <TrendingUp className="w-6 h-6 text-green-400" />
             All Time Performance
@@ -1393,7 +1423,8 @@ export default function PerformancePage() {
       )}
 
       {/* Engine Performance Trends - Moved Up for Visibility */}
-      <div className="border border-border/50 rounded-xl bg-card p-6" data-testid="card-engine-trends-section">
+      <div className="glass-card rounded-lg p-6" data-testid="card-engine-trends-section">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">Historical Trends</p>
         <Suspense fallback={<ChartSkeleton />}>
           <EngineTrendsChart />
         </Suspense>
@@ -1401,28 +1432,29 @@ export default function PerformancePage() {
 
       {/* Trade Outcomes Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4" data-testid="section-trade-outcomes">
-        <div className="border border-border/50 rounded-xl bg-card p-4 text-center border-l-2 border-l-green-500">
-          <div className="text-3xl font-bold font-mono text-green-400">{stats.overall.wonIdeas}</div>
-          <div className="text-xs text-muted-foreground">Wins</div>
+        <div className="stat-glass rounded-lg p-4 text-center border-l-2 border-l-green-500">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Wins</p>
+          <div className="text-3xl font-bold font-mono tabular-nums text-green-400">{stats.overall.wonIdeas}</div>
         </div>
-        <div className="border border-border/50 rounded-xl bg-card p-4 text-center border-l-2 border-l-red-500">
-          <div className="text-3xl font-bold font-mono text-red-400">{stats.overall.lostIdeas}</div>
-          <div className="text-xs text-muted-foreground">Losses</div>
+        <div className="stat-glass rounded-lg p-4 text-center border-l-2 border-l-red-500">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Losses</p>
+          <div className="text-3xl font-bold font-mono tabular-nums text-red-400">{stats.overall.lostIdeas}</div>
         </div>
-        <div className="border border-border/50 rounded-xl bg-card p-4 text-center border-l-2 border-l-gray-500">
-          <div className="text-3xl font-bold font-mono text-muted-foreground">{stats.overall.expiredIdeas}</div>
-          <div className="text-xs text-muted-foreground">Expired</div>
+        <div className="stat-glass rounded-lg p-4 text-center border-l-2 border-l-gray-500">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Expired</p>
+          <div className="text-3xl font-bold font-mono tabular-nums text-muted-foreground">{stats.overall.expiredIdeas}</div>
         </div>
-        <div className="border border-border/50 rounded-xl bg-card p-4 text-center border-l-2 border-l-cyan-500">
-          <div className="text-3xl font-bold font-mono text-cyan-400">{stats.overall.totalIdeas}</div>
-          <div className="text-xs text-muted-foreground">Total Briefs</div>
+        <div className="stat-glass rounded-lg p-4 text-center border-l-2 border-l-cyan-500">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Briefs</p>
+          <div className="text-3xl font-bold font-mono tabular-nums text-cyan-400">{stats.overall.totalIdeas}</div>
         </div>
       </div>
 
       <div className="space-y-6" data-testid="performance-simplified">
         <TierGate feature="performance" blur>
           <div className="space-y-6" data-testid="section-advanced-analytics">
-            <div className="border border-border/50 rounded-xl bg-card p-6">
+            <div className="glass-card rounded-lg p-6">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Engine Verification</p>
               <h2 className="text-xl font-semibold mb-2 text-cyan-400">Actual Engine Performance</h2>
               <p className="text-sm text-muted-foreground mb-4">
                 Verified win rates from resolved trades - this is the PROOF
@@ -1432,14 +1464,16 @@ export default function PerformancePage() {
               </Suspense>
             </div>
             
-            <div className="border border-border/50 rounded-xl bg-card p-6">
+            <div className="glass-card rounded-lg p-6">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Momentum</p>
               <h2 className="text-xl font-semibold mb-4 text-cyan-400">Current Performance Streak</h2>
               <Suspense fallback={<ChartSkeleton />}>
                 <StreakTracker selectedEngine={selectedEngine === 'all' ? undefined : selectedEngine} />
               </Suspense>
             </div>
             
-            <div className="border border-border/50 rounded-xl bg-card p-6">
+            <div className="glass-card rounded-lg p-6">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Symbol Rankings</p>
               <h2 className="text-xl font-semibold mb-2 text-cyan-400">Symbol Performance Leaderboard</h2>
               <p className="text-sm text-muted-foreground mb-4">
                 {selectedEngine === 'all' ? 'All engines' : `${selectedEngine.toUpperCase()} engine`} - Top/worst performing symbols
@@ -1449,7 +1483,7 @@ export default function PerformancePage() {
               </Suspense>
             </div>
             
-            <div className="border border-border/50 rounded-xl bg-card p-6">
+            <div className="glass-card rounded-lg p-6">
               <h2 className="text-xl font-semibold mb-2 text-cyan-400">Time-of-Day Performance</h2>
               <p className="text-sm text-muted-foreground mb-4">
                 Win rate by hour (9 AM - 4 PM ET) {selectedEngine !== 'all' && `for ${selectedEngine.toUpperCase()} engine`}
@@ -1459,7 +1493,8 @@ export default function PerformancePage() {
               </Suspense>
             </div>
             
-            <div className="border border-border/50 rounded-xl bg-card p-6">
+            <div className="glass-card rounded-lg p-6">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Signal Analysis</p>
               <h2 className="text-xl font-semibold mb-2 text-cyan-400">Signal Strength Calibration</h2>
               <p className="text-sm text-muted-foreground mb-4">
                 Actual win rates by signal count band {selectedEngine !== 'all' && `for ${selectedEngine.toUpperCase()} engine`}
@@ -1469,7 +1504,8 @@ export default function PerformancePage() {
               </Suspense>
             </div>
             
-            <div className="border border-border/50 rounded-xl bg-card p-6">
+            <div className="glass-card rounded-lg p-6">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Calibration</p>
               <h2 className="text-xl font-semibold mb-2 text-cyan-400">Accuracy Curve</h2>
               <p className="text-sm text-muted-foreground mb-4">
                 Signal count vs actual win rate - how does indicator consensus correlate with outcomes?
@@ -1482,7 +1518,8 @@ export default function PerformancePage() {
         </TierGate>
 
         {stats.bySource.length > 0 && (
-          <div className="border border-border/50 rounded-xl bg-card p-6 border-l-2 border-l-purple-500" data-testid="card-performance-by-source">
+          <div className="glass-card rounded-lg p-6 border-l-2 border-l-purple-500" data-testid="card-performance-by-source">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Engine Comparison</p>
             <div className="mb-4">
               <h2 className="text-lg font-bold">Performance by Source</h2>
               <p className="text-sm text-muted-foreground">

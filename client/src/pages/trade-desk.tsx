@@ -779,11 +779,53 @@ export default function TradeDeskPage() {
       {/* AI Research Assistant - Claude-powered Q&A */}
       <AIResearchPanel />
 
+      {/* Engine/Source Tabs with Gradient Icons */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Engine</p>
+        <div className="flex flex-wrap items-center gap-2">
+          {([
+            { value: 'all', label: 'All', icon: Activity, gradient: 'from-slate-500 to-slate-600' },
+            { value: 'ai', label: 'AI', icon: Bot, gradient: 'from-purple-500 to-purple-600' },
+            { value: 'quant', label: 'Quant', icon: BarChart3, gradient: 'from-blue-500 to-blue-600' },
+            { value: 'flow', label: 'Flow', icon: Activity, gradient: 'from-cyan-500 to-cyan-600' },
+            { value: 'chart_analysis', label: 'Chart', icon: Eye, gradient: 'from-amber-500 to-amber-600' },
+            { value: 'hybrid', label: 'Hybrid', icon: Sparkles, gradient: 'from-orange-500 to-orange-600' },
+            { value: 'news', label: 'News', icon: Newspaper, gradient: 'from-yellow-500 to-yellow-600' },
+            { value: 'manual', label: 'Manual', icon: FileText, gradient: 'from-gray-500 to-gray-600' },
+          ] as const).map(({ value, label, icon: Icon, gradient }) => (
+            <Button
+              key={value}
+              variant={sourceTab === value ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setSourceTab(value as IdeaSource | "all")}
+              className={cn(
+                "gap-2 hover-elevate",
+                sourceTab === value 
+                  ? "bg-background border border-border shadow-sm"
+                  : "text-muted-foreground"
+              )}
+              data-testid={`tab-source-${value}`}
+            >
+              <div className={cn(
+                "h-5 w-5 rounded flex items-center justify-center bg-gradient-to-br",
+                gradient
+              )}>
+                <Icon className="h-3 w-3 text-white" />
+              </div>
+              {label}
+              <span className="ml-0.5 text-[10px] font-mono opacity-70">
+                {sourceCounts[value] || 0}
+              </span>
+            </Button>
+          ))}
+        </div>
+      </div>
+
       {/* Trade Type + Timeframe Filter Bar */}
       <div className="flex flex-wrap items-center gap-4">
         {/* Trade Type Toggle - Day vs Swing (PDT-friendly default) */}
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Trade Type</span>
+          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Trade Type</span>
           <div className="flex items-center gap-1 border border-border/50 rounded-lg p-1">
             {([
               { value: 'swing', label: 'Swing', tooltip: '1-5 day holds (PDT-friendly)' },
@@ -796,7 +838,7 @@ export default function TradeDeskPage() {
                 size="sm"
                 onClick={() => setTradeTypeFilter(value)}
                 className={cn(
-                  "gap-1.5 whitespace-nowrap",
+                  "gap-1.5 whitespace-nowrap hover-elevate",
                   tradeTypeFilter === value 
                     ? value === 'swing' 
                       ? "bg-cyan-500/10 text-cyan-500"
@@ -817,6 +859,7 @@ export default function TradeDeskPage() {
 
         {/* Timeframe Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Horizon</span>
         <div className="flex items-center gap-1 border border-border/50 rounded-lg p-1">
           {(['all', 'today_tomorrow', 'few_days', 'next_week', 'next_month'] as TimeframeBucket[]).map((timeframe) => (
             <Button
@@ -825,7 +868,7 @@ export default function TradeDeskPage() {
               size="sm"
               onClick={() => setActiveTimeframe(timeframe)}
               className={cn(
-                "gap-1.5 whitespace-nowrap",
+                "gap-1.5 whitespace-nowrap hover-elevate",
                 activeTimeframe === timeframe 
                   ? "bg-cyan-500/10 text-cyan-500" 
                   : "text-muted-foreground"
@@ -861,47 +904,53 @@ export default function TradeDeskPage() {
       </div>
 
       {/* Search + Filters */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="Search symbols..."
-            value={symbolSearch}
-            onChange={(e) => setSymbolSearch(e.target.value.toUpperCase())}
-            className="pl-10"
-            data-testid="filter-symbol-search"
-          />
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Filters</p>
+        <div className="flex items-center gap-3">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search symbols..."
+              value={symbolSearch}
+              onChange={(e) => setSymbolSearch(e.target.value.toUpperCase())}
+              className="pl-10"
+              data-testid="filter-symbol-search"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[120px] hover-elevate" data-testid="filter-status">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="won">Winners</SelectItem>
+              <SelectItem value="lost">Losers</SelectItem>
+            </SelectContent>
+          </Select>
+          {(symbolSearch || statusFilter !== 'all') && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setSymbolSearch('');
+                setStatusFilter('all');
+              }}
+              className="hover-elevate"
+              data-testid="button-clear-filters"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[120px]" data-testid="filter-status">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="won">Winners</SelectItem>
-            <SelectItem value="lost">Losers</SelectItem>
-          </SelectContent>
-        </Select>
-        {(symbolSearch || statusFilter !== 'all') && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              setSymbolSearch('');
-              setStatusFilter('all');
-            }}
-            data-testid="button-clear-filters"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        )}
       </div>
 
       {/* Weekend Notice */}
       {isWeekend() && (
-        <div className="flex items-center gap-3 p-4 rounded-lg border border-amber-500/30 bg-amber-500/5" data-testid="weekend-preview-section">
-          <Clock className="h-5 w-5 text-amber-500" />
+        <div className="glass-card flex items-center gap-3 p-4 rounded-lg border-l-2 border-l-amber-500" data-testid="weekend-preview-section">
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center">
+            <Clock className="h-4 w-4 text-white" />
+          </div>
           <p className="text-sm text-muted-foreground">
             Markets open <span className="text-foreground font-medium">{format(getNextTradingWeekStart(), 'EEEE, MMM d')}</span> at 9:30 AM CT
           </p>
@@ -924,8 +973,8 @@ export default function TradeDeskPage() {
           /* Enhanced Empty State - Glassmorphism */
           <div className="glass-card rounded-xl border-dashed border-2 border-white/10">
             <div className="flex flex-col items-center justify-center py-20 px-6">
-              <div className="h-20 w-20 rounded-2xl glass flex items-center justify-center mb-6">
-                <BarChart3 className="h-10 w-10 text-cyan-400" />
+              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center mb-6">
+                <BarChart3 className="h-10 w-10 text-white" />
               </div>
               <h3 className="text-2xl font-bold mb-2">No Research Briefs Found</h3>
               <p className="text-muted-foreground text-center max-w-md mb-4">
@@ -956,18 +1005,18 @@ export default function TradeDeskPage() {
             <div className="space-y-4">
               <div className="glass-card rounded-xl p-4 flex items-center justify-between gap-4 border-l-2 border-l-cyan-500">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg glass flex items-center justify-center">
-                    <Activity className="h-5 w-5 text-cyan-400" />
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center">
+                    <Activity className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold">Active Research</h3>
-                    <span className="text-sm text-muted-foreground">{activeIdeas.length} open patterns</span>
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Active Research</p>
+                    <span className="text-lg font-semibold">{activeIdeas.length} open patterns</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {/* Sort By Dropdown */}
                   <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-[140px] h-8 glass-secondary border-white/10" data-testid="select-sort-by">
+                    <SelectTrigger className="w-[140px] h-8 glass-secondary border-white/10 hover-elevate" data-testid="select-sort-by">
                       <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
                       <SelectValue placeholder="Sort by" />
                     </SelectTrigger>
@@ -988,7 +1037,7 @@ export default function TradeDeskPage() {
                       variant={viewMode === "list" ? "glass" : "ghost"}
                       size="sm"
                       onClick={() => setViewMode("list")}
-                      className="h-7 px-2"
+                      className="h-7 px-2 hover-elevate"
                       data-testid="button-view-list"
                     >
                       <List className="h-4 w-4" />
@@ -997,7 +1046,7 @@ export default function TradeDeskPage() {
                       variant={viewMode === "grid" ? "glass" : "ghost"}
                       size="sm"
                       onClick={() => setViewMode("grid")}
-                      className="h-7 px-2"
+                      className="h-7 px-2 hover-elevate"
                       data-testid="button-view-grid"
                     >
                       <LayoutGrid className="h-4 w-4" />
@@ -1021,8 +1070,8 @@ export default function TradeDeskPage() {
               {activeIdeas.length === 0 ? (
                 <div className="glass-card rounded-xl border-dashed border-2 border-white/10">
                   <div className="flex flex-col items-center justify-center py-12">
-                    <div className="h-14 w-14 rounded-lg glass flex items-center justify-center mb-3">
-                      <Activity className="h-7 w-7 text-muted-foreground/50" />
+                    <div className="h-14 w-14 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center mb-3">
+                      <Activity className="h-7 w-7 text-white" />
                     </div>
                     <p className="text-muted-foreground text-sm">No active research briefs match your filters</p>
                   </div>
@@ -1104,10 +1153,12 @@ export default function TradeDeskPage() {
               <div className="glass-card rounded-xl p-4 mt-4 border-l-2 border-l-blue-500">
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg glass flex items-center justify-center">
-                      <BarChart3 className="h-5 w-5 text-cyan-400" />
+                    <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                      <BarChart3 className="h-5 w-5 text-white" />
                     </div>
-                    <span className="text-sm text-muted-foreground">Recent Performance:</span>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Recent Performance</p>
+                    </div>
                     <span className="bg-green-500/20 text-green-400 rounded px-2 py-0.5 text-xs border border-green-500/30">
                       {closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target').length} wins
                     </span>
@@ -1116,7 +1167,7 @@ export default function TradeDeskPage() {
                     </span>
                     <span className="text-xs text-muted-foreground">({closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target' || isRealLoss(i)).length} decided)</span>
                   </div>
-                  <Button variant="glass" size="sm" asChild className="gap-1.5" data-testid="link-view-performance">
+                  <Button variant="glass" size="sm" asChild className="gap-1.5 hover-elevate" data-testid="link-view-performance">
                     <a href="/performance">
                       <BarChart3 className="h-4 w-4" />
                       View Performance

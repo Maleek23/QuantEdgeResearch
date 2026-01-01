@@ -298,26 +298,26 @@ function AddSourceDialog({ onSuccess }: { onSuccess: () => void }) {
 
 function StatsCard({ title, value, subtitle, icon: Icon }: { title: string; value: string | number; subtitle?: string; icon: React.ElementType }) {
   return (
-    <Card data-testid={`stats-card-${title.toLowerCase().replace(/ /g, '-')}`}>
-      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <p className="text-2xl font-bold font-mono" data-testid={`text-stats-${title.toLowerCase().replace(/ /g, '-')}`}>
-          {value}
-        </p>
-        {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
-      </CardContent>
-    </Card>
+    <div className="stat-glass rounded-lg p-4" data-testid={`stats-card-${title.toLowerCase().replace(/ /g, '-')}`}>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{title}</p>
+        <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+          <Icon className="h-4 w-4 text-cyan-400" />
+        </div>
+      </div>
+      <p className="text-2xl font-bold font-mono tabular-nums" data-testid={`text-stats-${title.toLowerCase().replace(/ /g, '-')}`}>
+        {value}
+      </p>
+      {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
+    </div>
   );
 }
 
 function SourceCard({ source, onDelete }: { source: CTSource; onDelete: () => void }) {
   return (
-    <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50" data-testid={`source-row-${source.id}`}>
-      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-        <User className="h-5 w-5 text-muted-foreground" />
+    <div className="flex items-center gap-4 p-4 rounded-lg glass-card hover-elevate" data-testid={`source-row-${source.id}`}>
+      <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+        <User className="h-5 w-5 text-purple-400" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
@@ -348,13 +348,13 @@ function TopTickerRow({ ticker, onClick, isSelected }: { ticker: TopTicker; onCl
   return (
     <div
       className={cn(
-        "flex items-center gap-4 p-3 rounded-lg cursor-pointer hover-elevate",
-        isSelected ? "bg-primary/10" : "bg-muted/50"
+        "flex items-center gap-4 p-3 rounded-lg cursor-pointer hover-elevate transition-colors",
+        isSelected ? "bg-cyan-500/10 border border-cyan-500/30" : "glass-subtle"
       )}
       onClick={onClick}
       data-testid={`ticker-row-${ticker.ticker}`}
     >
-      <Badge variant="secondary" className="font-mono text-sm">
+      <Badge variant="secondary" className="font-mono text-sm bg-blue-500/10 text-blue-400 border-blue-500/30">
         ${ticker.ticker}
       </Badge>
       <div className="flex-1">
@@ -381,7 +381,7 @@ function TopTickerRow({ ticker, onClick, isSelected }: { ticker: TopTicker; onCl
 
 function MentionCard({ mention }: { mention: CTMention }) {
   return (
-    <div className="p-4 rounded-lg bg-muted/50 space-y-3" data-testid={`mention-card-${mention.id}`}>
+    <div className="p-4 rounded-lg glass-card space-y-3 hover-elevate" data-testid={`mention-card-${mention.id}`}>
       <div className="flex items-center gap-2 flex-wrap">
         <span className="font-medium">{mention.sourceName}</span>
         <PlatformBadge platform={mention.sourcePlatform} />
@@ -520,11 +520,14 @@ export default function CTTracker() {
     <div className="container max-w-7xl mx-auto p-6 space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3" data-testid="text-page-title">
-            <MessageSquare className="h-8 w-8" />
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Social Intelligence</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold flex items-center gap-3" data-testid="text-page-title">
+            <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <MessageSquare className="h-5 w-5 text-cyan-400" />
+            </div>
             CT Tracker
           </h1>
-          <p className="text-muted-foreground">Crypto influencer intelligence & social signals</p>
+          <p className="text-muted-foreground mt-1">Crypto influencer intelligence & social signals</p>
         </div>
         <AddSourceDialog onSuccess={() => queryClient.invalidateQueries({ queryKey: ["/api/ct/sources"] })} />
       </div>
@@ -562,7 +565,12 @@ export default function CTTracker() {
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
           <section>
-            <h2 className="text-xl font-semibold mb-4">Tracked Sources</h2>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                <User className="h-4 w-4 text-purple-400" />
+              </div>
+              <h2 className="text-xl font-semibold">Tracked Sources</h2>
+            </div>
             {sourcesLoading ? (
               <div className="space-y-2">
                 {[1, 2, 3].map((i) => <Skeleton key={i} className="h-20" />)}
@@ -578,17 +586,24 @@ export default function CTTracker() {
                 ))}
               </div>
             ) : (
-              <Card className="p-8 text-center" data-testid="empty-sources">
-                <User className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <div className="glass-card rounded-lg p-8 text-center" data-testid="empty-sources">
+                <div className="h-12 w-12 mx-auto rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
+                  <User className="h-6 w-6 text-purple-400" />
+                </div>
                 <p className="text-muted-foreground">No sources tracked yet</p>
                 <p className="text-sm text-muted-foreground">Add a crypto influencer to start tracking</p>
-              </Card>
+              </div>
             )}
           </section>
 
           <section>
             <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-              <h2 className="text-xl font-semibold">Recent Mentions</h2>
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                  <MessageSquare className="h-4 w-4 text-cyan-400" />
+                </div>
+                <h2 className="text-xl font-semibold">Recent Mentions</h2>
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Select value={sentimentFilter} onValueChange={(v) => setSentimentFilter(v as Sentiment | "all")}>
                   <SelectTrigger className="w-32" data-testid="select-sentiment-filter">
@@ -619,85 +634,93 @@ export default function CTTracker() {
                 )}
               </div>
             </div>
-            <Card>
-              <CardContent className="p-0">
-                <ScrollArea className="h-[400px] p-4">
-                  {mentionsLoading ? (
-                    <div className="space-y-4">
-                      {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-24" />)}
+            <div className="glass-card rounded-lg">
+              <ScrollArea className="h-[400px] p-4">
+                {mentionsLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-24" />)}
+                  </div>
+                ) : filteredMentions && filteredMentions.length > 0 ? (
+                  <div className="space-y-4">
+                    {filteredMentions.map((mention) => (
+                      <MentionCard key={mention.id} mention={mention} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <div className="h-12 w-12 mx-auto rounded-lg bg-cyan-500/10 flex items-center justify-center mb-2">
+                      <MessageSquare className="h-6 w-6 text-cyan-400" />
                     </div>
-                  ) : filteredMentions && filteredMentions.length > 0 ? (
-                    <div className="space-y-4">
-                      {filteredMentions.map((mention) => (
-                        <MentionCard key={mention.id} mention={mention} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <MessageSquare className="h-8 w-8 mx-auto mb-2" />
-                      <p>No mentions found</p>
-                    </div>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
+                    <p>No mentions found</p>
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
           </section>
         </div>
 
         <div className="space-y-6">
           <section>
-            <h2 className="text-xl font-semibold mb-4">Top Tickers</h2>
-            <Card>
-              <CardContent className="p-4">
-                {tickersLoading ? (
-                  <div className="space-y-2">
-                    {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-12" />)}
-                  </div>
-                ) : topTickers && topTickers.length > 0 ? (
-                  <div className="space-y-2">
-                    {topTickers.map((ticker) => (
-                      <TopTickerRow
-                        key={ticker.ticker}
-                        ticker={ticker}
-                        onClick={() => setSelectedTicker(selectedTicker === ticker.ticker ? null : ticker.ticker)}
-                        isSelected={selectedTicker === ticker.ticker}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-center text-muted-foreground py-4">No ticker data available</p>
-                )}
-              </CardContent>
-            </Card>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <BarChart3 className="h-4 w-4 text-blue-400" />
+              </div>
+              <h2 className="text-xl font-semibold">Top Tickers</h2>
+            </div>
+            <div className="glass-card rounded-lg p-4">
+              {tickersLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-12" />)}
+                </div>
+              ) : topTickers && topTickers.length > 0 ? (
+                <div className="space-y-2">
+                  {topTickers.map((ticker) => (
+                    <TopTickerRow
+                      key={ticker.ticker}
+                      ticker={ticker}
+                      onClick={() => setSelectedTicker(selectedTicker === ticker.ticker ? null : ticker.ticker)}
+                      isSelected={selectedTicker === ticker.ticker}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-4">No ticker data available</p>
+              )}
+            </div>
           </section>
 
           <section>
             <Collapsible open={performanceOpen} onOpenChange={setPerformanceOpen}>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="w-full justify-between text-xl font-semibold p-0 h-auto mb-4">
-                  Call Performance
+                <Button variant="ghost" className="w-full justify-between p-0 h-auto mb-4 hover-elevate">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                      <Target className="h-4 w-4 text-green-400" />
+                    </div>
+                    <span className="text-xl font-semibold">Call Performance</span>
+                  </div>
                   <ChevronDown className={cn("h-5 w-5 transition-transform", performanceOpen && "rotate-180")} />
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <Card>
-                  <CardContent className="p-0">
-                    <ScrollArea className="max-h-[300px]">
-                      {performanceLoading ? (
-                        <div className="p-4 space-y-2">
-                          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}
+                <div className="glass-card rounded-lg">
+                  <ScrollArea className="max-h-[300px]">
+                    {performanceLoading ? (
+                      <div className="p-4 space-y-2">
+                        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}
+                      </div>
+                    ) : performance && performance.length > 0 ? (
+                      <PerformanceTable performance={performance} />
+                    ) : (
+                      <div className="p-8 text-center text-muted-foreground">
+                        <div className="h-12 w-12 mx-auto rounded-lg bg-green-500/10 flex items-center justify-center mb-2">
+                          <Target className="h-6 w-6 text-green-400" />
                         </div>
-                      ) : performance && performance.length > 0 ? (
-                        <PerformanceTable performance={performance} />
-                      ) : (
-                        <div className="p-8 text-center text-muted-foreground">
-                          <Target className="h-8 w-8 mx-auto mb-2" />
-                          <p>No tracked calls yet</p>
-                        </div>
-                      )}
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
+                        <p>No tracked calls yet</p>
+                      </div>
+                    )}
+                  </ScrollArea>
+                </div>
               </CollapsibleContent>
             </Collapsible>
           </section>

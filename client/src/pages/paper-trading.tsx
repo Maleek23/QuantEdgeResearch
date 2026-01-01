@@ -62,7 +62,7 @@ function formatPercent(value: number): string {
 function PnLDisplay({ value, percent, showPercent = true }: { value: number; percent?: number; showPercent?: boolean }) {
   const isProfit = value >= 0;
   return (
-    <span className={cn("font-mono font-medium", isProfit ? "text-green-500" : "text-red-500")}>
+    <span className={cn("font-mono font-medium tabular-nums", isProfit ? "text-green-400" : "text-red-400")}>
       {isProfit ? "+" : ""}
       {formatCurrency(value)}
       {showPercent && percent !== undefined && (
@@ -75,10 +75,12 @@ function PnLDisplay({ value, percent, showPercent = true }: { value: number; per
 function DirectionBadge({ direction }: { direction: string }) {
   return (
     <Badge
-      variant={direction === "long" ? "default" : "destructive"}
+      variant="outline"
       className={cn(
         "text-xs",
-        direction === "long" ? "bg-green-600 text-white" : "bg-red-600 text-white"
+        direction === "long" 
+          ? "bg-green-500/10 text-green-400 border-green-500/30" 
+          : "bg-red-500/10 text-red-400 border-red-500/30"
       )}
     >
       {direction === "long" ? "Long" : "Short"}
@@ -132,17 +134,23 @@ function PortfolioSummaryCard({
   };
 
   return (
-    <Card data-testid="card-portfolio-summary">
+    <Card className="glass-card" data-testid="card-portfolio-summary">
       <CardHeader className="flex flex-row items-start justify-between gap-4 pb-2">
-        <div>
-          <CardTitle className="text-xl">{portfolio.name}</CardTitle>
-          <CardDescription>Virtual Trading Portfolio</CardDescription>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/10 flex items-center justify-center border border-green-500/20">
+            <DollarSign className="h-5 w-5 text-green-400" />
+          </div>
+          <div>
+            <CardTitle className="text-xl font-semibold">{portfolio.name}</CardTitle>
+            <CardDescription>Virtual Trading Portfolio</CardDescription>
+          </div>
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={onRefreshPrices}
           disabled={isRefreshing}
+          className="border-slate-700"
           data-testid="button-refresh-prices"
         >
           <RefreshCw className={cn("h-4 w-4 mr-1", isRefreshing && "animate-spin")} />
@@ -151,14 +159,14 @@ function PortfolioSummaryCard({
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Total Value</p>
-            <p className="text-3xl font-bold font-mono" data-testid="text-total-value">
+          <div className="stat-glass rounded-lg p-4">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Value</p>
+            <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-total-value">
               {formatCurrency(totalValue)}
             </p>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Cash / Positions</p>
+          <div className="stat-glass rounded-lg p-4">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Cash / Positions</p>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -170,28 +178,28 @@ function PortfolioSummaryCard({
               </div>
             </div>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Total P&L</p>
-            <p className="text-2xl font-bold" data-testid="text-total-pnl">
+          <div className="stat-glass rounded-lg p-4">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total P&L</p>
+            <p className="text-xl font-bold" data-testid="text-total-pnl">
               <PnLDisplay
                 value={portfolio.totalPnL + totalUnrealizedPnL}
                 percent={((portfolio.totalPnL + totalUnrealizedPnL) / portfolio.startingCapital) * 100}
               />
             </p>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Win/Loss Record</p>
+          <div className="stat-glass rounded-lg p-4">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Win/Loss Record</p>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
-                <Trophy className="h-4 w-4 text-green-500" />
-                <span className="font-bold text-green-500" data-testid="text-win-count">{portfolio.winCount}</span>
-                <span className="text-muted-foreground">Wins</span>
+                <Trophy className="h-4 w-4 text-green-400" />
+                <span className="font-bold font-mono text-green-400" data-testid="text-win-count">{portfolio.winCount}</span>
+                <span className="text-xs text-muted-foreground">Wins</span>
               </div>
               <span className="text-muted-foreground">/</span>
               <div className="flex items-center gap-1">
-                <XCircle className="h-4 w-4 text-red-500" />
-                <span className="font-bold text-red-500" data-testid="text-loss-count">{portfolio.lossCount}</span>
-                <span className="text-muted-foreground">Losses</span>
+                <XCircle className="h-4 w-4 text-red-400" />
+                <span className="font-bold font-mono text-red-400" data-testid="text-loss-count">{portfolio.lossCount}</span>
+                <span className="text-xs text-muted-foreground">Losses</span>
               </div>
             </div>
           </div>
@@ -257,12 +265,17 @@ function OpenPositionsSection({
 
   if (openPositions.length === 0) {
     return (
-      <Card data-testid="card-open-positions">
+      <Card className="glass-card" data-testid="card-open-positions">
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Open Positions
-          </CardTitle>
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
+              <Activity className="h-4 w-4 text-cyan-400" />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Positions</p>
+              <CardTitle className="text-lg font-semibold">Open Positions</CardTitle>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="text-center py-12 text-muted-foreground">
@@ -276,12 +289,17 @@ function OpenPositionsSection({
   }
 
   return (
-    <Card data-testid="card-open-positions">
+    <Card className="glass-card" data-testid="card-open-positions">
       <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Activity className="h-5 w-5" />
-          Open Positions ({openPositions.length})
-        </CardTitle>
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center border border-cyan-500/20">
+            <Activity className="h-4 w-4 text-cyan-400" />
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Positions</p>
+            <CardTitle className="text-lg font-semibold">Open Positions ({openPositions.length})</CardTitle>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         <ScrollArea className="w-full">
@@ -375,15 +393,20 @@ function ClosedPositionsSection({ positions }: { positions: PaperPosition[] }) {
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <Card data-testid="card-closed-positions">
+      <Card className="glass-card" data-testid="card-closed-positions">
         <CollapsibleTrigger asChild>
           <CardHeader className="cursor-pointer hover-elevate rounded-t-xl">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Closed Positions ({closedPositions.length})
-              </CardTitle>
-              <ChevronDown className={cn("h-5 w-5 transition-transform", isOpen && "rotate-180")} />
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center border border-green-500/20">
+                  <TrendingUp className="h-4 w-4 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">History</p>
+                  <CardTitle className="text-lg font-semibold">Closed Positions ({closedPositions.length})</CardTitle>
+                </div>
+              </div>
+              <ChevronDown className={cn("h-5 w-5 transition-transform text-muted-foreground", isOpen && "rotate-180")} />
             </div>
           </CardHeader>
         </CollapsibleTrigger>
@@ -469,12 +492,17 @@ function EquityCurveChart({ portfolioId }: { portfolioId: string }) {
 
   if (equityData.length === 0) {
     return (
-      <Card data-testid="card-equity-curve">
+      <Card className="glass-card" data-testid="card-equity-curve">
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Equity Curve
-          </CardTitle>
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/10 flex items-center justify-center border border-green-500/20">
+              <TrendingUp className="h-4 w-4 text-green-400" />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Performance</p>
+              <CardTitle className="text-lg font-semibold">Equity Curve</CardTitle>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="h-48 flex items-center justify-center text-muted-foreground">
@@ -491,12 +519,17 @@ function EquityCurveChart({ portfolioId }: { portfolioId: string }) {
   }));
 
   return (
-    <Card data-testid="card-equity-curve">
+    <Card className="glass-card" data-testid="card-equity-curve">
       <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <TrendingUp className="h-5 w-5" />
-          Equity Curve
-        </CardTitle>
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/10 flex items-center justify-center border border-green-500/20">
+            <TrendingUp className="h-4 w-4 text-green-400" />
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Performance</p>
+            <CardTitle className="text-lg font-semibold">Equity Curve</CardTitle>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="h-64">
@@ -542,15 +575,26 @@ function EquityCurveChart({ portfolioId }: { portfolioId: string }) {
 
 function CreatePortfolioCard({ onCreate, isCreating }: { onCreate: () => void; isCreating: boolean }) {
   return (
-    <Card className="border-dashed" data-testid="card-create-portfolio">
+    <Card className="glass-card border-dashed border-slate-700" data-testid="card-create-portfolio">
       <CardContent className="flex flex-col items-center justify-center py-16">
-        <DollarSign className="h-16 w-16 text-muted-foreground/40 mb-4" />
+        <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/10 flex items-center justify-center border border-green-500/20 mb-4">
+          <DollarSign className="h-8 w-8 text-green-400" />
+        </div>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+          Get Started
+        </p>
         <h3 className="text-xl font-semibold mb-2">Start Paper Trading</h3>
         <p className="text-muted-foreground text-center max-w-md mb-6">
           Create a virtual portfolio with $100,000 to practice trading without risking real money.
           Test strategies and track your performance.
         </p>
-        <Button variant="glass" onClick={onCreate} disabled={isCreating} size="lg" data-testid="button-create-portfolio">
+        <Button 
+          className="bg-cyan-500 hover:bg-cyan-400 text-slate-950" 
+          onClick={onCreate} 
+          disabled={isCreating} 
+          size="lg" 
+          data-testid="button-create-portfolio"
+        >
           <Plus className="h-5 w-5 mr-2" />
           {isCreating ? "Creating..." : "Create Portfolio"}
         </Button>
@@ -663,8 +707,20 @@ export default function PaperTradingPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold" data-testid="text-page-title">Paper Trading Simulator</h1>
-        <p className="text-muted-foreground mt-1" data-testid="text-page-subtitle">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/10 flex items-center justify-center border border-green-500/20">
+            <Wallet className="h-5 w-5 text-green-400" />
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Virtual Portfolio
+            </p>
+            <h1 className="text-2xl sm:text-3xl font-semibold" data-testid="text-page-title">
+              Paper Trading Simulator
+            </h1>
+          </div>
+        </div>
+        <p className="text-muted-foreground mt-2 ml-13" data-testid="text-page-subtitle">
           Practice trading with virtual $100K - no risk
         </p>
       </div>

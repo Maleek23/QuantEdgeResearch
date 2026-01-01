@@ -114,45 +114,46 @@ export default function Academy() {
   ];
 
   const renderCourseSection = (title: string, courses: typeof fundamentals) => (
-    <div className="mb-10">
-      <h2 className="text-xl font-bold mb-5 flex items-center gap-2">
+    <div className="mb-12">
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+        Course Module
+      </p>
+      <h2 className="text-xl font-semibold mb-6">
         {title}
       </h2>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {courses.map((course, index) => {
           const Icon = course.icon;
           return (
             <Card 
               key={index}
-              className="hover-elevate h-full"
+              className="glass-card hover-elevate h-full border-slate-700/50"
               data-testid={`course-${title.toLowerCase().replace(/\s+/g, '-')}-${index}`}
             >
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Icon className="h-5 w-5 text-primary" />
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                    <Icon className="h-6 w-6 text-white" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      {course.level}
-                    </Badge>
-                  </div>
+                  <Badge variant="outline" className="text-xs border-slate-700">
+                    {course.level}
+                  </Badge>
                 </div>
                 <CardTitle className="text-base leading-tight">{course.title}</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <p className="text-sm text-muted-foreground mb-3 leading-relaxed">
+                <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
                   {course.description}
                 </p>
                 
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
                   <Clock className="h-3 w-3" />
-                  <span>{course.duration}</span>
+                  <span className="font-mono">{course.duration}</span>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 mb-4">
                   {course.topics.map((topic, i) => (
-                    <Badge key={i} variant="secondary" className="text-xs px-2 py-0.5">
+                    <Badge key={i} variant="secondary" className="text-xs px-2 py-0.5 bg-purple-500/10 text-purple-400 border-purple-500/30">
                       {topic}
                     </Badge>
                   ))}
@@ -160,7 +161,7 @@ export default function Academy() {
 
                 <Button 
                   variant="ghost" 
-                  className="w-full justify-between text-sm"
+                  className="w-full justify-between text-sm hover-elevate"
                   disabled
                 >
                   Read Article
@@ -179,12 +180,15 @@ export default function Academy() {
       <div className="container mx-auto max-w-6xl">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <GraduationCap className="h-6 w-6 text-primary" />
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+            Learning Center
+          </p>
+          <div className="flex items-center gap-4 mb-3">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+              <GraduationCap className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold" data-testid="text-page-title">Trading Academy</h1>
+              <h1 className="text-2xl sm:text-3xl font-semibold" data-testid="text-page-title">Trading Academy</h1>
               <p className="text-sm text-muted-foreground">
                 Free educational resources for traders at every level
               </p>
@@ -193,9 +197,11 @@ export default function Academy() {
         </div>
 
         {/* Introduction */}
-        <div className="glass-card rounded-xl p-5 mb-8">
+        <div className="glass-card rounded-xl p-6 mb-8 border border-slate-700/50">
           <div className="flex items-start gap-4">
-            <Lightbulb className="h-6 w-6 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20 flex-shrink-0">
+              <Lightbulb className="h-5 w-5 text-white" />
+            </div>
             <div>
               <h3 className="font-semibold mb-1">Learn at Your Own Pace</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
@@ -214,10 +220,12 @@ export default function Academy() {
         {renderCourseSection("Options Trading", options)}
 
         {/* Blog Link */}
-        <div className="glass-card rounded-xl p-5 mb-8">
+        <div className="glass-card rounded-xl p-6 mb-8 border border-slate-700/50">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-start gap-4">
-              <BookOpen className="h-6 w-6 text-cyan-400 flex-shrink-0 mt-0.5" />
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/20 flex-shrink-0">
+                <BookOpen className="h-5 w-5 text-white" />
+              </div>
               <div>
                 <h3 className="font-semibold mb-1">Want More?</h3>
                 <p className="text-sm text-muted-foreground">
@@ -226,7 +234,7 @@ export default function Academy() {
               </div>
             </div>
             <Link href="/blog">
-              <Button variant="outline" size="sm" data-testid="button-visit-blog">
+              <Button variant="outline" size="sm" className="border-slate-700" data-testid="button-visit-blog">
                 Visit Blog
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
@@ -235,9 +243,11 @@ export default function Academy() {
         </div>
 
         {/* Disclaimer */}
-        <div className="glass-card rounded-xl p-4 border-l-2 border-l-amber-500/50">
+        <div className="glass-card rounded-xl p-5 border border-slate-700/50 border-l-2 border-l-amber-500/50">
           <div className="flex items-start gap-3">
-            <Shield className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20 flex-shrink-0">
+              <Shield className="h-4 w-4 text-white" />
+            </div>
             <div>
               <h4 className="font-medium text-sm mb-1">Educational Disclaimer</h4>
               <p className="text-xs text-muted-foreground leading-relaxed">

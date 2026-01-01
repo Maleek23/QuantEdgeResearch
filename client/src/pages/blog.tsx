@@ -83,11 +83,11 @@ export default function Blog() {
     return (
       <div className="min-h-screen bg-background">
         <SEOHead pageKey="blog" />
-        <div className="container mx-auto max-w-7xl px-4 py-8">
-          <Skeleton className="h-[400px] w-full rounded-2xl mb-8" />
+        <div className="container mx-auto max-w-7xl px-6 py-8">
+          <Skeleton className="h-[400px] w-full rounded-lg mb-8" />
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-80 w-full rounded-xl" />
+              <Skeleton key={i} className="h-80 w-full rounded-lg" />
             ))}
           </div>
         </div>
@@ -102,23 +102,24 @@ export default function Blog() {
       {/* Hero Section */}
       <div className="relative overflow-hidden border-b border-border/50">
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10" />
-        <div className="absolute inset-0" style={{ 
-          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0)',
-          backgroundSize: '40px 40px'
-        }} />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
         
-        <div className="container mx-auto max-w-7xl px-4 py-12 md:py-16 relative">
+        <div className="container mx-auto max-w-7xl px-6 py-12 md:py-16 relative">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
+            Trading Education
+          </p>
+          
           <div className="flex items-center gap-3 mb-4">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+            <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
               <BookOpen className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl md:text-4xl font-bold">Trading Insights</h1>
-              <p className="text-muted-foreground">Learn. Grow. Trade Smarter.</p>
+              <h1 className="text-2xl sm:text-3xl font-semibold">Trading Insights</h1>
+              <p className="text-sm text-muted-foreground">Learn. Grow. Trade Smarter.</p>
             </div>
           </div>
           
-          <p className="text-lg text-muted-foreground max-w-2xl mb-8">
+          <p className="text-base text-muted-foreground max-w-2xl mb-8 leading-relaxed">
             Free educational content to help you understand options trading, risk management, 
             and market analysis. Written by traders, for traders.
           </p>
@@ -133,7 +134,7 @@ export default function Blog() {
                   variant={isActive ? "default" : "outline"}
                   size="sm"
                   onClick={() => setActiveCategory(cat.id)}
-                  className={isActive ? "bg-cyan-500 text-slate-950" : ""}
+                  className={isActive ? "bg-cyan-500 text-slate-950" : "border-slate-700"}
                   data-testid={`category-${cat.id}`}
                 >
                   <cat.icon className="h-4 w-4 mr-2" />
@@ -145,7 +146,7 @@ export default function Blog() {
         </div>
       </div>
 
-      <div className="container mx-auto max-w-7xl px-4 py-8">
+      <div className="container mx-auto max-w-7xl px-6 py-8">
         {articles.length === 0 ? (
           <EmptyBlogState />
         ) : (
@@ -185,11 +186,11 @@ function FeaturedArticleCard({ article }: { article: BlogPost }) {
 
   return (
     <Link href={`/blog/${article.slug}`}>
-      <Card className="overflow-hidden hover-elevate cursor-pointer group" data-testid="featured-article">
+      <Card className="glass-card overflow-visible hover-elevate cursor-pointer group rounded-lg" data-testid="featured-article">
         <div className="grid md:grid-cols-2 gap-0">
           {/* Visual Side */}
           <div 
-            className="relative h-64 md:h-auto min-h-[280px] overflow-hidden"
+            className="relative h-64 md:h-auto min-h-[280px] overflow-hidden rounded-t-lg md:rounded-l-lg md:rounded-tr-none"
             style={{ background: visual.pattern }}
           >
             <div className={`absolute inset-0 bg-gradient-to-br ${visual.gradient} opacity-80`} />
@@ -245,10 +246,10 @@ function ArticleCard({ article }: { article: BlogPost }) {
 
   return (
     <Link href={`/blog/${article.slug}`}>
-      <Card className="overflow-hidden h-full hover-elevate cursor-pointer group" data-testid={`article-${article.id}`}>
+      <Card className="glass-card overflow-visible h-full hover-elevate cursor-pointer group rounded-lg" data-testid={`article-${article.id}`}>
         {/* Visual Header */}
         <div 
-          className="relative h-40 overflow-hidden"
+          className="relative h-40 overflow-hidden rounded-t-lg"
           style={{ background: visual.pattern }}
         >
           <div className={`absolute inset-0 bg-gradient-to-br ${visual.gradient} opacity-70`} />
@@ -314,16 +315,19 @@ function TopicsSection() {
 
   return (
     <div className="mb-12">
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+        Explore
+      </p>
       <div className="flex items-center gap-2 mb-6">
         <GraduationCap className="h-5 w-5 text-cyan-500" />
-        <h2 className="text-xl font-bold">Popular Topics</h2>
+        <h2 className="text-xl font-semibold">Popular Topics</h2>
       </div>
       
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {topics.map((topic) => (
-          <Card key={topic.title} className="hover-elevate cursor-pointer group overflow-hidden">
+          <Card key={topic.title} className="glass-card overflow-visible hover-elevate cursor-pointer group rounded-lg">
             <CardContent className="p-4 text-center">
-              <div className={`h-12 w-12 rounded-xl bg-gradient-to-br ${topic.color} flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform`}>
+              <div className={`h-12 w-12 rounded-lg bg-gradient-to-br ${topic.color} flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-200`}>
                 <topic.icon className="h-6 w-6 text-white" />
               </div>
               <h3 className="font-semibold text-sm mb-1">{topic.title}</h3>
@@ -338,17 +342,17 @@ function TopicsSection() {
 
 function EmptyBlogState() {
   return (
-    <Card className="text-center py-16">
+    <Card className="glass-card text-center py-16 rounded-lg">
       <CardContent>
-        <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mx-auto mb-6">
+        <div className="h-20 w-20 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mx-auto mb-6">
           <Newspaper className="h-10 w-10 text-cyan-500" />
         </div>
-        <h2 className="text-2xl font-bold mb-2">Content Coming Soon</h2>
-        <p className="text-muted-foreground max-w-md mx-auto mb-6">
+        <h2 className="text-2xl font-semibold mb-2">Content Coming Soon</h2>
+        <p className="text-muted-foreground max-w-md mx-auto mb-6 leading-relaxed">
           We're working on creating helpful educational content about options trading, 
           risk management, and market analysis.
         </p>
-        <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
             <span>Trading Guides</span>
@@ -369,31 +373,34 @@ function EmptyBlogState() {
 
 function NewsletterCTA() {
   return (
-    <Card className="bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10 border-cyan-500/20">
-      <CardContent className="p-8 md:p-12">
+    <Card className="glass-card bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10 border-cyan-500/20 rounded-lg">
+      <CardContent className="p-6 md:p-8">
         <div className="grid md:grid-cols-2 gap-8 items-center">
           <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+              Stay Updated
+            </p>
             <div className="flex items-center gap-3 mb-4">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+              <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
                 <Users className="h-6 w-6 text-white" />
               </div>
-              <h3 className="text-2xl font-bold">Join Our Community</h3>
+              <h3 className="text-xl font-semibold">Join Our Community</h3>
             </div>
-            <p className="text-muted-foreground mb-4">
+            <p className="text-muted-foreground mb-4 leading-relaxed">
               Get weekly trading insights, educational content, and market analysis 
               delivered straight to your inbox. No spam, just valuable content.
             </p>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-green-500" />
+                <TrendingUp className="h-4 w-4 text-green-400" />
                 Weekly market recaps and analysis
               </li>
               <li className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-blue-500" />
+                <BookOpen className="h-4 w-4 text-blue-400" />
                 Educational articles and trading tips
               </li>
               <li className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-amber-500" />
+                <DollarSign className="h-4 w-4 text-amber-400" />
                 Trade ideas and setup breakdowns
               </li>
             </ul>
@@ -403,7 +410,7 @@ function NewsletterCTA() {
               size="lg"
               variant="outline"
               disabled
-              className="w-full md:w-auto"
+              className="w-full md:w-auto border-slate-700"
               data-testid="button-subscribe-newsletter"
             >
               Newsletter Coming Soon

@@ -66,205 +66,204 @@ export default function ChartDatabase() {
       <div className="container mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-8">
+          <p className="text-xs font-medium uppercase tracking-wider text-amber-400 mb-2">
+            Chart Database
+          </p>
           <div className="flex items-center gap-3 mb-2">
-            <Database className="h-8 w-8 text-primary" />
-            <h1 className="text-4xl font-bold">My Chart Analyses</h1>
+            <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <Database className="h-5 w-5 text-amber-400" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-semibold">My Chart Analyses</h1>
           </div>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-base text-muted-foreground leading-relaxed">
             Track performance of charts you've uploaded for AI analysis
           </p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid md:grid-cols-5 gap-4 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Charts Uploaded</p>
-                  <p className="text-3xl font-bold">{stats.total}</p>
-                </div>
-                <BarChart3 className="h-8 w-8 text-primary" />
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+          <div className="stat-glass rounded-lg p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Charts Uploaded</p>
+                <p className="text-2xl font-bold font-mono tabular-nums">{stats.total}</p>
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Still Open</p>
-                  <p className="text-3xl font-bold text-cyan-500">{stats.open}</p>
-                </div>
-                <Calendar className="h-8 w-8 text-cyan-500" />
+              <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                <BarChart3 className="h-4 w-4 text-amber-400" />
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Wins</p>
-                  <p className="text-3xl font-bold text-green-500">{stats.wins}</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-green-500" />
+            </div>
+          </div>
+          <div className="stat-glass rounded-lg p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Still Open</p>
+                <p className="text-2xl font-bold font-mono tabular-nums text-cyan-400">{stats.open}</p>
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Losses</p>
-                  <p className="text-3xl font-bold text-red-500">{stats.losses}</p>
-                </div>
-                <TrendingDown className="h-8 w-8 text-red-500" />
+              <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                <Calendar className="h-4 w-4 text-cyan-400" />
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Win Rate</p>
-                  <p className="text-3xl font-bold">{stats.winRate}%</p>
-                  <p className="text-xs text-muted-foreground">{stats.totalResolved} resolved</p>
-                </div>
-                <Target className="h-8 w-8 text-cyan-500" />
+            </div>
+          </div>
+          <div className="stat-glass rounded-lg p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Wins</p>
+                <p className="text-2xl font-bold font-mono tabular-nums text-green-400">{stats.wins}</p>
               </div>
-            </CardContent>
-          </Card>
+              <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="h-4 w-4 text-green-400" />
+              </div>
+            </div>
+          </div>
+          <div className="stat-glass rounded-lg p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Losses</p>
+                <p className="text-2xl font-bold font-mono tabular-nums text-red-400">{stats.losses}</p>
+              </div>
+              <div className="h-8 w-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                <TrendingDown className="h-4 w-4 text-red-400" />
+              </div>
+            </div>
+          </div>
+          <div className="stat-glass rounded-lg p-4 col-span-2 md:col-span-1">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Win Rate</p>
+                <p className="text-2xl font-bold font-mono tabular-nums">{stats.winRate}%</p>
+                <p className="text-xs text-muted-foreground font-mono">{stats.totalResolved} resolved</p>
+              </div>
+              <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                <Target className="h-4 w-4 text-cyan-400" />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Filters */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Filter Charts
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search symbol..."
-                  value={symbolSearch}
-                  onChange={(e) => setSymbolSearch(e.target.value)}
-                  className="pl-9"
-                  data-testid="input-symbol-search"
-                />
-              </div>
-              <Select value={outcomeFilter} onValueChange={setOutcomeFilter}>
-                <SelectTrigger data-testid="select-outcome-filter">
-                  <SelectValue placeholder="Outcome" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Outcomes</SelectItem>
-                  <SelectItem value="open">Still Open</SelectItem>
-                  <SelectItem value="hit_target">Hit Target (Win)</SelectItem>
-                  <SelectItem value="hit_stop">Hit Stop (Loss)</SelectItem>
-                  <SelectItem value="expired">Expired</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={assetFilter} onValueChange={setAssetFilter}>
-                <SelectTrigger data-testid="select-asset-filter">
-                  <SelectValue placeholder="Asset Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Assets</SelectItem>
-                  <SelectItem value="stock">Stocks</SelectItem>
-                  <SelectItem value="option">Options</SelectItem>
-                  <SelectItem value="crypto">Crypto</SelectItem>
-                  <SelectItem value="future">Futures</SelectItem>
-                </SelectContent>
-              </Select>
+        <div className="glass-card rounded-lg p-6 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <Filter className="h-4 w-4 text-amber-400" />
             </div>
-          </CardContent>
-        </Card>
+            <h3 className="font-semibold">Filter Charts</h3>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search symbol..."
+                value={symbolSearch}
+                onChange={(e) => setSymbolSearch(e.target.value)}
+                className="pl-9"
+                data-testid="input-symbol-search"
+              />
+            </div>
+            <Select value={outcomeFilter} onValueChange={setOutcomeFilter}>
+              <SelectTrigger data-testid="select-outcome-filter">
+                <SelectValue placeholder="Outcome" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Outcomes</SelectItem>
+                <SelectItem value="open">Still Open</SelectItem>
+                <SelectItem value="hit_target">Hit Target (Win)</SelectItem>
+                <SelectItem value="hit_stop">Hit Stop (Loss)</SelectItem>
+                <SelectItem value="expired">Expired</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={assetFilter} onValueChange={setAssetFilter}>
+              <SelectTrigger data-testid="select-asset-filter">
+                <SelectValue placeholder="Asset Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Assets</SelectItem>
+                <SelectItem value="stock">Stocks</SelectItem>
+                <SelectItem value="option">Options</SelectItem>
+                <SelectItem value="crypto">Crypto</SelectItem>
+                <SelectItem value="future">Futures</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
 
         {/* Patterns Grid */}
         <div className="space-y-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">
-              {filteredTrades.length} Chart{filteredTrades.length !== 1 ? 's' : ''} Found
+              <span className="font-mono tabular-nums">{filteredTrades.length}</span> Chart{filteredTrades.length !== 1 ? 's' : ''} Found
             </h2>
           </div>
 
           {isLoading ? (
             <div className="space-y-4">
               {[1, 2, 3].map(i => (
-                <Card key={i}>
-                  <CardContent className="p-6">
-                    <Skeleton className="h-24 w-full" />
-                  </CardContent>
-                </Card>
+                <div key={i} className="glass-card rounded-lg p-6">
+                  <Skeleton className="h-24 w-full" />
+                </div>
               ))}
             </div>
           ) : filteredTrades.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <Database className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No Patterns Found</h3>
-                <p className="text-muted-foreground">
-                  Try adjusting your filters to see more results
-                </p>
-              </CardContent>
-            </Card>
+            <div className="glass-card rounded-lg p-12 text-center">
+              <div className="h-16 w-16 rounded-lg bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
+                <Database className="h-8 w-8 text-amber-400" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">No Patterns Found</h3>
+              <p className="text-muted-foreground">
+                Try adjusting your filters to see more results
+              </p>
+            </div>
           ) : (
             <div className="space-y-3">
               {filteredTrades.map((trade, index) => (
-                <Card key={trade.id} className="hover-elevate" data-testid={`pattern-${index}`}>
-                  <CardContent className="p-6">
-                    <div className="grid md:grid-cols-6 gap-4 items-center">
-                      <div>
-                        <div className="font-bold text-lg mb-1">{trade.symbol}</div>
-                        <Badge variant="outline" className="text-xs">{trade.assetType}</Badge>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Direction</p>
-                        <Badge variant={trade.direction === 'long' ? 'default' : 'destructive'}>
-                          {trade.direction.toUpperCase()}
-                        </Badge>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Entry / Exit</p>
-                        <p className="text-sm font-mono font-semibold">
-                          ${trade.entryPrice.toFixed(2)} → {trade.exitPrice ? `$${trade.exitPrice.toFixed(2)}` : <span className="text-muted-foreground">Pending</span>}
+                <div key={trade.id} className="glass-card rounded-lg p-6 hover-elevate" data-testid={`pattern-${index}`}>
+                  <div className="grid md:grid-cols-6 gap-4 items-center">
+                    <div>
+                      <div className="font-bold text-lg font-mono mb-1">{trade.symbol}</div>
+                      <Badge variant="outline" className="text-xs">{trade.assetType}</Badge>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Direction</p>
+                      <Badge variant={trade.direction === 'long' ? 'default' : 'destructive'}>
+                        {trade.direction.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Entry / Exit</p>
+                      <p className="text-sm font-mono font-semibold tabular-nums">
+                        ${trade.entryPrice.toFixed(2)} → {trade.exitPrice ? `$${trade.exitPrice.toFixed(2)}` : <span className="text-muted-foreground">Pending</span>}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">P&L</p>
+                      {trade.outcomeStatus && trade.outcomeStatus !== 'open' ? (
+                        <p className={`text-sm font-bold font-mono tabular-nums ${(trade.percentGain || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {(trade.percentGain || 0) >= 0 ? '+' : ''}{(trade.percentGain || 0).toFixed(1)}%
                         </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">P&L</p>
-                        {trade.outcomeStatus && trade.outcomeStatus !== 'open' ? (
-                          <p className={`text-sm font-bold ${(trade.percentGain || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {(trade.percentGain || 0) >= 0 ? '+' : ''}{(trade.percentGain || 0).toFixed(1)}%
-                          </p>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs">OPEN</Badge>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Status</p>
-                        {trade.outcomeStatus === 'hit_target' ? (
-                          <Badge className="bg-green-500/20 text-green-500 border-green-500/30 text-xs">WIN</Badge>
-                        ) : trade.outcomeStatus === 'hit_stop' ? (
-                          <Badge className="bg-red-500/20 text-red-500 border-red-500/30 text-xs">LOSS</Badge>
-                        ) : trade.outcomeStatus === 'expired' ? (
-                          <Badge variant="secondary" className="text-xs">EXPIRED</Badge>
-                        ) : (
-                          <Badge className="bg-cyan-500/20 text-cyan-500 border-cyan-500/30 text-xs">TRACKING</Badge>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Date</p>
-                        <div className="flex items-center gap-1 text-xs">
-                          <Calendar className="h-3 w-3" />
-                          {format(parseISO(trade.timestamp), 'MMM d, yyyy')}
-                        </div>
+                      ) : (
+                        <Badge variant="secondary" className="text-xs">OPEN</Badge>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Status</p>
+                      {trade.outcomeStatus === 'hit_target' ? (
+                        <Badge className="bg-green-500/10 text-green-400 border-green-500/30 text-xs">WIN</Badge>
+                      ) : trade.outcomeStatus === 'hit_stop' ? (
+                        <Badge className="bg-red-500/10 text-red-400 border-red-500/30 text-xs">LOSS</Badge>
+                      ) : trade.outcomeStatus === 'expired' ? (
+                        <Badge variant="secondary" className="text-xs">EXPIRED</Badge>
+                      ) : (
+                        <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 text-xs">TRACKING</Badge>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Date</p>
+                      <div className="flex items-center gap-1 text-xs font-mono">
+                        <Calendar className="h-3 w-3 text-muted-foreground" />
+                        {format(parseISO(trade.timestamp), 'MMM d, yyyy')}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               ))}
             </div>
           )}

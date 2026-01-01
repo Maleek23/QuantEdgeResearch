@@ -371,18 +371,19 @@ export default function AdminPanel() {
   if (authStep === "pin") {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
-        {/* Aurora Background */}
-        <div className="absolute inset-0 aurora-hero opacity-30" />
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
+        {/* Grid Background */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(100,116,139,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(100,116,139,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-500/5 via-background to-background" />
         
-        <Card className="w-full max-w-md relative glass-card border-primary/20">
+        <Card className="w-full max-w-md relative glass-card border-slate-700/50">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center">
-              <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                <Lock className="h-8 w-8 text-primary" />
+              <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                <Lock className="h-8 w-8 text-slate-400" />
               </div>
             </div>
             <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Security</p>
               <CardTitle className="text-2xl">Admin Access</CardTitle>
               <CardDescription className="text-base mt-2">
                 Enter 4-digit security code
@@ -432,17 +433,18 @@ export default function AdminPanel() {
   if (authStep === "password") {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
-        <div className="absolute inset-0 aurora-hero opacity-30" />
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(100,116,139,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(100,116,139,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-500/5 via-background to-background" />
         
-        <Card className="w-full max-w-md relative glass-card border-primary/20">
+        <Card className="w-full max-w-md relative glass-card border-slate-700/50">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center">
-              <div className="h-16 w-16 rounded-2xl bg-green-500/10 flex items-center justify-center border border-green-500/20">
-                <LockOpen className="h-8 w-8 text-green-500" />
+              <div className="h-16 w-16 rounded-xl bg-gradient-to-br from-green-600/20 to-green-700/20 flex items-center justify-center border border-green-600/30">
+                <LockOpen className="h-8 w-8 text-green-400" />
               </div>
             </div>
             <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Authenticated</p>
               <CardTitle className="text-2xl">Administrator Login</CardTitle>
               <CardDescription className="text-base mt-2">
                 Enter admin password to continue
@@ -491,22 +493,23 @@ export default function AdminPanel() {
   // Admin Dashboard
   return (
     <div className="min-h-screen bg-background">
-      {/* Header with Aurora */}
-      <div className="relative border-b">
-        <div className="absolute inset-0 aurora-hero opacity-30" />
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
+      {/* Header with Grid Background */}
+      <div className="relative border-b border-slate-800">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(100,116,139,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(100,116,139,0.03)_1px,transparent_1px)] bg-[size:32px_32px]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-500/5 via-background to-background" />
         <div className="container relative mx-auto px-6 py-8">
-          <div className="relative overflow-hidden rounded-xl glass-card p-6">
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
+          <div className="relative overflow-visible rounded-xl glass-card p-6">
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-600/10 via-transparent to-slate-500/10 rounded-xl" />
             <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
-                <h1 className="text-3xl lg:text-4xl font-bold flex items-center gap-3 text-display">
-                  <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30">
-                    <Shield className="h-7 w-7 text-cyan-400" />
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Administration</p>
+                <h1 className="text-2xl sm:text-3xl font-semibold flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                    <Shield className="h-7 w-7 text-slate-400" />
                   </div>
                   Admin Control Center
                 </h1>
-                <p className="text-muted-foreground mt-2 text-lg">
+                <p className="text-muted-foreground mt-2">
                   Platform management and analytics dashboard
                 </p>
               </div>
@@ -540,23 +543,23 @@ export default function AdminPanel() {
       <div className="container mx-auto px-6 py-8 space-y-8">
         {/* Hero Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="glass-card border-cyan-500/20 hover-elevate">
+          <Card className="glass-card border-slate-700/50 hover-elevate">
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Total Users
-                </CardTitle>
-                <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                  <Users className="h-5 w-5 text-cyan-400" />
+                </span>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                  <Users className="h-5 w-5 text-slate-400" />
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gradient">
+              <div className="text-2xl font-bold font-mono tabular-nums">
                 {(stats as any)?.totalUsers || 0}
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                <span className="text-green-500 font-medium">
+                <span className="text-green-400 font-medium">
                   {(stats as any)?.premiumUsers || 0} premium
                 </span>
                 {' • '}
@@ -565,66 +568,67 @@ export default function AdminPanel() {
             </CardContent>
           </Card>
 
-          <Card className="glass-card border-green-500/20 hover-elevate">
+          <Card className="glass-card border-slate-700/50 hover-elevate">
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Research Briefs
-                </CardTitle>
-                <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <TrendingUp className="h-5 w-5 text-green-500" />
+                </span>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-600/20 to-green-700/20 flex items-center justify-center border border-green-600/30">
+                  <TrendingUp className="h-5 w-5 text-green-400" />
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gradient">
-                {(stats as any)?.totalIdeas || 0} briefs
+              <div className="text-2xl font-bold font-mono tabular-nums">
+                {(stats as any)?.totalIdeas || 0}
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                <span className="text-amber-500 font-medium">
-                  {(stats as any)?.activeIdeas || 0} active briefs
+                <span className="text-amber-400 font-medium">
+                  {(stats as any)?.activeIdeas || 0} active
                 </span>
                 {' • '}
-                {(stats as any)?.closedIdeas || 0} closed briefs
+                {(stats as any)?.closedIdeas || 0} closed
               </p>
             </CardContent>
           </Card>
 
-          <Card className="glass-card border-amber-500/20 hover-elevate">
+          <Card className="glass-card border-slate-700/50 hover-elevate">
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Win Rate
-                </CardTitle>
-                <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                </span>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-600/20 to-amber-700/20 flex items-center justify-center border border-amber-600/30">
                   <Target className="h-5 w-5 text-amber-400" />
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gradient">
+              <div className="text-2xl font-bold font-mono tabular-nums text-green-400">
                 {(stats as any)?.winRate || 0}%
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                From {(stats as any)?.closedIdeas || 0} closed research briefs
+                From {(stats as any)?.closedIdeas || 0} closed briefs
               </p>
             </CardContent>
           </Card>
 
-          <Card className="glass-card border-cyan-500/20 hover-elevate">
+          <Card className="glass-card border-slate-700/50 hover-elevate">
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Database
-                </CardTitle>
-                <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                  <Database className="h-5 w-5 text-cyan-500" />
+                </span>
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                  <Database className="h-5 w-5 text-slate-400" />
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-gradient">
-                <Activity className="h-8 w-8 text-green-500 inline" />
+              <div className="flex items-center gap-2">
+                <Activity className="h-6 w-6 text-green-400" />
+                <span className="text-lg font-semibold font-mono text-green-400">Online</span>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
                 System operational
@@ -636,19 +640,19 @@ export default function AdminPanel() {
         {/* User Management & Research Briefs */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Users */}
-          <Card className="glass-card">
+          <Card className="glass-card border-slate-700/50">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    User Management
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Management</p>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                      <Users className="h-4 w-4 text-slate-400" />
+                    </div>
+                    Users
                   </CardTitle>
-                  <CardDescription className="mt-1">
-                    Platform user overview
-                  </CardDescription>
                 </div>
-                <Badge variant="secondary">{(users as any[])?.length || 0}</Badge>
+                <Badge variant="secondary" className="font-mono">{(users as any[])?.length || 0}</Badge>
               </div>
             </CardHeader>
             <CardContent>
@@ -656,11 +660,11 @@ export default function AdminPanel() {
                 {(users as any[])?.slice(0, 10).map((user: any) => (
                   <div 
                     key={user.id} 
-                    className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border/50 hover-elevate"
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg border border-slate-700/50 hover-elevate"
                   >
                     <div className="flex items-center gap-3 flex-1">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                        <Users className="h-5 w-5 text-primary" />
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                        <Users className="h-5 w-5 text-slate-400" />
                       </div>
                       <div>
                         <p className="font-medium text-sm">
@@ -716,19 +720,22 @@ export default function AdminPanel() {
           </Card>
 
           {/* Recent Research Briefs */}
-          <Card className="glass-card">
+          <Card className="glass-card border-slate-700/50">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-primary" />
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Recent</p>
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-600/20 to-green-700/20 flex items-center justify-center border border-green-600/30">
+                      <TrendingUp className="h-4 w-4 text-green-400" />
+                    </div>
                     Research Briefs
                   </CardTitle>
                   <CardDescription className="mt-1">
                     Recent platform briefs
                   </CardDescription>
                 </div>
-                <Badge variant="secondary">{(allIdeas as any[])?.length || 0}</Badge>
+                <Badge variant="secondary" className="font-mono">{(allIdeas as any[])?.length || 0}</Badge>
               </div>
             </CardHeader>
             <CardContent>
@@ -736,7 +743,7 @@ export default function AdminPanel() {
                 {(allIdeas as any[])?.slice(0, 10).map((idea: any) => (
                   <div 
                     key={idea.id} 
-                    className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover-elevate"
+                    className="flex items-center justify-between p-3 rounded-lg border border-slate-700/50 hover-elevate"
                   >
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -777,9 +784,10 @@ export default function AdminPanel() {
         </div>
 
         {/* Tabbed Admin Tools */}
-        <Card className="glass-card">
+        <Card className="glass-card border-slate-700/50">
           <Tabs defaultValue="users" className="w-full">
             <CardHeader>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Admin Tools</p>
               <TabsList className="grid w-full grid-cols-8">
                 <TabsTrigger value="users" data-testid="tab-users">
                   <Users className="h-4 w-4 mr-2" />
@@ -821,39 +829,42 @@ export default function AdminPanel() {
               <CardContent className="space-y-6">
                 {/* User Stats Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-lg bg-cyan-500/5 border border-cyan-500/20">
-                    <div className="text-2xl font-bold text-cyan-400">
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Users</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums text-cyan-400">
                       {(users as any[])?.length || 0}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Total Users</div>
+                    </p>
                   </div>
-                  <div className="p-4 rounded-lg bg-green-500/5 border border-green-500/20">
-                    <div className="text-2xl font-bold text-green-500">
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Free Tier</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums text-green-400">
                       {(users as any[])?.filter((u: any) => u.subscriptionTier === 'free').length || 0}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Free Tier</div>
+                    </p>
                   </div>
-                  <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
-                    <div className="text-2xl font-bold text-primary">
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Advanced</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums text-cyan-400">
                       {(users as any[])?.filter((u: any) => u.subscriptionTier === 'advanced').length || 0}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Advanced</div>
+                    </p>
                   </div>
-                  <div className="p-4 rounded-lg bg-amber-500/5 border border-amber-500/20">
-                    <div className="text-2xl font-bold text-amber-500">
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Pro</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums text-amber-400">
                       {(users as any[])?.filter((u: any) => u.subscriptionTier === 'pro').length || 0}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Pro</div>
+                    </p>
                   </div>
                 </div>
 
                 {/* Users Table */}
                 <div>
                   <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Users className="h-4 w-4 text-primary" />
-                    All Users ({(users as any[])?.length || 0})
+                    <div className="h-6 w-6 rounded bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                      <Users className="h-3.5 w-3.5 text-slate-400" />
+                    </div>
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">All Users</span>
+                    <Badge variant="secondary" className="font-mono text-xs">{(users as any[])?.length || 0}</Badge>
                   </h3>
-                  <div className="rounded-lg border overflow-hidden">
+                  <div className="rounded-lg border border-slate-700/50 overflow-hidden">
                     <table className="w-full text-sm">
                       <thead className="bg-muted/50">
                         <tr>
@@ -975,10 +986,12 @@ export default function AdminPanel() {
                 {/* Database Status */}
                 <div>
                   <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Database className="h-4 w-4 text-primary" />
-                    Database
+                    <div className="h-6 w-6 rounded bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                      <Database className="h-3.5 w-3.5 text-slate-400" />
+                    </div>
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Database</span>
                   </h3>
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
                     <CheckCircle2 className="h-6 w-6 text-green-500" />
                     <div>
                       <p className="text-sm font-medium">PostgreSQL</p>
@@ -993,8 +1006,11 @@ export default function AdminPanel() {
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold flex items-center gap-2">
-                      <Cpu className="h-4 w-4 text-primary" />
-                      AI Providers (Live Status)
+                      <div className="h-6 w-6 rounded bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                        <Cpu className="h-3.5 w-3.5 text-slate-400" />
+                      </div>
+                      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">AI Providers</span>
+                      <Badge variant="outline" className="text-xs">Live</Badge>
                     </h3>
                     <Button
                       variant="ghost"
@@ -1129,33 +1145,35 @@ export default function AdminPanel() {
                 {aiProviderStatus?.generationStats && (
                   <div>
                     <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                      <Activity className="h-4 w-4 text-primary" />
-                      Generation Stats
+                      <div className="h-6 w-6 rounded bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                        <Activity className="h-3.5 w-3.5 text-slate-400" />
+                      </div>
+                      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Generation Stats</span>
                     </h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                        <p className="text-2xl font-bold font-mono text-cyan-400">
+                      <div className="stat-glass rounded-lg p-4">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Ideas</p>
+                        <p className="text-2xl font-bold font-mono tabular-nums text-cyan-400">
                           {aiProviderStatus.generationStats.total}
                         </p>
-                        <p className="text-xs text-muted-foreground">Total Ideas</p>
                       </div>
-                      <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                        <p className="text-2xl font-bold font-mono text-green-400">
+                      <div className="stat-glass rounded-lg p-4">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Today</p>
+                        <p className="text-2xl font-bold font-mono tabular-nums text-green-400">
                           {aiProviderStatus.generationStats.today?.total || 0}
                         </p>
-                        <p className="text-xs text-muted-foreground">Today</p>
                       </div>
-                      <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                        <p className="text-2xl font-bold font-mono text-purple-400">
+                      <div className="stat-glass rounded-lg p-4">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">This Week</p>
+                        <p className="text-2xl font-bold font-mono tabular-nums text-purple-400">
                           {aiProviderStatus.generationStats.thisWeek?.total || 0}
                         </p>
-                        <p className="text-xs text-muted-foreground">This Week</p>
                       </div>
-                      <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                        <p className="text-2xl font-bold font-mono text-amber-400">
+                      <div className="stat-glass rounded-lg p-4">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">AI Today</p>
+                        <p className="text-2xl font-bold font-mono tabular-nums text-amber-400">
                           {aiProviderStatus.generationStats.today?.bySource?.ai || 0}
                         </p>
-                        <p className="text-xs text-muted-foreground">AI Today</p>
                       </div>
                     </div>
                     
@@ -1192,19 +1210,21 @@ export default function AdminPanel() {
                 {/* Market Data APIs */}
                 <div>
                   <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-primary" />
-                    Market Data Sources
+                    <div className="h-6 w-6 rounded bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                      <BarChart3 className="h-3.5 w-3.5 text-slate-400" />
+                    </div>
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Market Data Sources</span>
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
-                      <CheckCircle2 className="h-6 w-6 text-green-500" />
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                      <CheckCircle2 className="h-6 w-6 text-green-400" />
                       <div>
                         <p className="text-sm font-medium">Yahoo Finance</p>
                         <p className="text-xs text-muted-foreground">Operational</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/5 border border-green-500/20">
-                      <CheckCircle2 className="h-6 w-6 text-green-500" />
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                      <CheckCircle2 className="h-6 w-6 text-green-400" />
                       <div>
                         <p className="text-sm font-medium">CoinGecko</p>
                         <p className="text-xs text-muted-foreground">Operational</p>
@@ -1239,8 +1259,10 @@ export default function AdminPanel() {
               <CardContent className="space-y-6">
                 <div>
                   <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-primary" />
-                    Test AI Providers
+                    <div className="h-6 w-6 rounded bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                      <Zap className="h-3.5 w-3.5 text-slate-400" />
+                    </div>
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Test AI Providers</span>
                   </h3>
                   <p className="text-sm text-muted-foreground mb-4">
                     Send a test prompt to verify AI models are responding correctly.
@@ -1331,14 +1353,16 @@ export default function AdminPanel() {
               <CardContent>
                 <div>
                   <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-primary" />
-                    Recent Platform Activity
+                    <div className="h-6 w-6 rounded bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                      <Clock className="h-3.5 w-3.5 text-slate-400" />
+                    </div>
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Recent Platform Activity</span>
                   </h3>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {(activities as any[])?.map((activity: any) => (
                       <div 
                         key={activity.id}
-                        className="flex items-start gap-3 p-3 rounded-lg border border-border/50 hover-elevate"
+                        className="flex items-start gap-3 p-3 rounded-lg border border-slate-700/50 hover-elevate"
                       >
                         <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${
                           activity.type === 'trade_idea' 
@@ -1374,11 +1398,13 @@ export default function AdminPanel() {
             {/* Loss Analysis Tab */}
             <TabsContent value="loss-analysis">
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-lg font-semibold flex items-center gap-2">
-                      <TrendingDown className="h-5 w-5 text-red-400" />
-                      Loss Pattern Analysis
+                    <h3 className="text-xl font-semibold flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-red-600/20 to-red-700/20 flex items-center justify-center border border-red-600/30">
+                        <TrendingDown className="h-4 w-4 text-red-400" />
+                      </div>
+                      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Loss Pattern Analysis</span>
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
                       Analyze losing trades to identify patterns and improve future performance
@@ -1436,29 +1462,31 @@ export default function AdminPanel() {
               <CardContent className="space-y-6">
                 {/* Alert Summary Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-4 rounded-lg border border-red-500/20 bg-red-500/5">
-                    <div className="text-2xl font-bold text-red-500">{(alertSummary as any)?.criticalAlerts || 0}</div>
-                    <div className="text-xs text-muted-foreground">Critical Alerts</div>
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Critical</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums text-red-400">{(alertSummary as any)?.criticalAlerts || 0}</p>
                   </div>
-                  <div className="p-4 rounded-lg border border-amber-500/20 bg-amber-500/5">
-                    <div className="text-2xl font-bold text-amber-500">{(alertSummary as any)?.errorAlerts || 0}</div>
-                    <div className="text-xs text-muted-foreground">Error Alerts</div>
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Errors</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums text-amber-400">{(alertSummary as any)?.errorAlerts || 0}</p>
                   </div>
-                  <div className="p-4 rounded-lg border border-yellow-500/20 bg-yellow-500/5">
-                    <div className="text-2xl font-bold text-yellow-500">{(alertSummary as any)?.warningAlerts || 0}</div>
-                    <div className="text-xs text-muted-foreground">Warnings</div>
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Warnings</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums text-yellow-400">{(alertSummary as any)?.warningAlerts || 0}</p>
                   </div>
-                  <div className="p-4 rounded-lg border border-cyan-500/20 bg-cyan-500/5">
-                    <div className="text-2xl font-bold text-cyan-400">{(alertSummary as any)?.failingAPIs || 0}</div>
-                    <div className="text-xs text-muted-foreground">Failing APIs</div>
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Failing APIs</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums text-cyan-400">{(alertSummary as any)?.failingAPIs || 0}</p>
                   </div>
                 </div>
 
                 {/* Recent Alerts */}
                 <div>
                   <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-primary" />
-                    Recent Alerts & Issues
+                    <div className="h-6 w-6 rounded bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                      <AlertCircle className="h-3.5 w-3.5 text-slate-400" />
+                    </div>
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Recent Alerts & Issues</span>
                   </h3>
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {(alerts as any[])?.length > 0 ? (
@@ -1519,14 +1547,16 @@ export default function AdminPanel() {
                 {(apiMetrics as any[])?.length > 0 && (
                   <div>
                     <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-primary" />
-                      API Performance Metrics
+                      <div className="h-6 w-6 rounded bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                        <Zap className="h-3.5 w-3.5 text-slate-400" />
+                      </div>
+                      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">API Performance Metrics</span>
                     </h3>
                     <div className="space-y-2">
                       {(apiMetrics as any[]).map((metric: any, idx: number) => (
                         <div 
                           key={idx}
-                          className="p-3 rounded-lg border border-border/50 hover-elevate"
+                          className="p-3 rounded-lg border border-slate-700/50 hover-elevate"
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
@@ -1560,32 +1590,23 @@ export default function AdminPanel() {
             <TabsContent value="database">
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Database className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">Status</span>
-                    </div>
-                    <div className="text-2xl font-bold text-green-500">
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Status</p>
+                    <p className="text-2xl font-bold font-mono text-green-400">
                       {(dbHealth as any)?.status === 'operational' ? 'Healthy' : 'Error'}
-                    </div>
+                    </p>
                   </div>
-                  <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <BarChart3 className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">Database Size</span>
-                    </div>
-                    <div className="text-2xl font-bold">
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Database Size</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums">
                       {(dbHealth as any)?.databaseSize || 'Unknown'}
-                    </div>
+                    </p>
                   </div>
-                  <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Clock className="h-4 w-4 text-primary" />
-                      <span className="text-sm font-medium">Last Checked</span>
-                    </div>
-                    <div className="text-sm">
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Last Checked</p>
+                    <p className="text-lg font-mono">
                       {(dbHealth as any)?.lastChecked ? new Date((dbHealth as any).lastChecked).toLocaleTimeString() : 'N/A'}
-                    </div>
+                    </p>
                   </div>
                 </div>
 
@@ -1593,14 +1614,16 @@ export default function AdminPanel() {
                 {(dbHealth as any)?.tables && (
                   <div>
                     <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                      <Database className="h-4 w-4 text-primary" />
-                      Table Statistics
+                      <div className="h-6 w-6 rounded bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                        <Database className="h-3.5 w-3.5 text-slate-400" />
+                      </div>
+                      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Table Statistics</span>
                     </h3>
                     <div className="space-y-2">
                       {(dbHealth as any).tables.map((table: any, idx: number) => (
                         <div 
                           key={idx}
-                          className="p-3 rounded-lg border border-border/50 hover-elevate"
+                          className="p-3 rounded-lg border border-slate-700/50 hover-elevate"
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
@@ -1620,11 +1643,13 @@ export default function AdminPanel() {
                 {/* Database Maintenance Tools */}
                 <div>
                   <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Settings className="h-4 w-4 text-primary" />
-                    Database Maintenance
+                    <div className="h-6 w-6 rounded bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                      <Settings className="h-3.5 w-3.5 text-slate-400" />
+                    </div>
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Database Maintenance</span>
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card className="border-border/50">
+                    <Card className="glass-card border-slate-700/50 hover-elevate">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-sm flex items-center gap-2">
                           <Trash2 className="h-4 w-4 text-amber-500" />
@@ -1656,7 +1681,7 @@ export default function AdminPanel() {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-border/50">
+                    <Card className="glass-card border-slate-700/50 hover-elevate">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-sm flex items-center gap-2">
                           <Archive className="h-4 w-4 text-cyan-400" />
@@ -1688,10 +1713,10 @@ export default function AdminPanel() {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-border/50">
+                    <Card className="glass-card border-slate-700/50 hover-elevate">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-sm flex items-center gap-2">
-                          <Gauge className="h-4 w-4 text-green-500" />
+                          <Gauge className="h-4 w-4 text-green-400" />
                           Optimize Database
                         </CardTitle>
                         <CardDescription className="text-xs">
@@ -1739,46 +1764,48 @@ export default function AdminPanel() {
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold flex items-center gap-2">
-                    <Settings className="h-4 w-4 text-primary" />
-                    System Configuration
+                    <div className="h-6 w-6 rounded bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                      <Settings className="h-3.5 w-3.5 text-slate-400" />
+                    </div>
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">System Configuration</span>
                   </h3>
                   
                   <div className="grid gap-6">
                     {/* API Keys Status */}
                     <div className="space-y-3">
-                      <h4 className="text-sm font-medium text-muted-foreground">API Keys Status</h4>
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">API Keys Status</p>
                       <div className="grid gap-2">
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700/50 hover-elevate">
                           <span className="text-sm">Alpha Vantage API</span>
                           <Badge variant={apiMetrics?.alphaVantage?.configured ? "default" : "destructive"} data-testid="badge-alpha-vantage-status">
                             {apiMetrics?.alphaVantage?.configured ? "Configured" : "Not Configured"}
                           </Badge>
                         </div>
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700/50 hover-elevate">
                           <span className="text-sm">Tradier API</span>
                           <Badge variant={apiMetrics?.tradier?.configured ? "default" : "destructive"} data-testid="badge-tradier-status">
                             {apiMetrics?.tradier?.configured ? "Configured" : "Not Configured"}
                           </Badge>
                         </div>
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700/50 hover-elevate">
                           <span className="text-sm">OpenAI API</span>
                           <Badge variant={apiMetrics?.openai?.configured ? "default" : "destructive"} data-testid="badge-openai-status">
                             {apiMetrics?.openai?.configured ? "Configured" : "Not Configured"}
                           </Badge>
                         </div>
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700/50 hover-elevate">
                           <span className="text-sm">Anthropic API</span>
                           <Badge variant={apiMetrics?.anthropic?.configured ? "default" : "destructive"} data-testid="badge-anthropic-status">
                             {apiMetrics?.anthropic?.configured ? "Configured" : "Not Configured"}
                           </Badge>
                         </div>
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700/50 hover-elevate">
                           <span className="text-sm">Google Gemini API</span>
                           <Badge variant={apiMetrics?.gemini?.configured ? "default" : "destructive"} data-testid="badge-gemini-status">
                             {apiMetrics?.gemini?.configured ? "Configured" : "Not Configured"}
                           </Badge>
                         </div>
-                        <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                        <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700/50 hover-elevate">
                           <span className="text-sm">Discord Webhook</span>
                           <Badge variant={apiMetrics?.discord?.configured ? "default" : "destructive"} data-testid="badge-discord-status">
                             {apiMetrics?.discord?.configured ? "Configured" : "Not Configured"}
@@ -1789,8 +1816,8 @@ export default function AdminPanel() {
 
                     {/* System Preferences */}
                     <div className="space-y-3">
-                      <h4 className="text-sm font-medium text-muted-foreground">System Preferences</h4>
-                      <div className="p-4 rounded-lg border border-border/50 bg-muted/20">
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">System Preferences</p>
+                      <div className="p-4 rounded-lg border border-slate-700/50 bg-muted/20">
                         <p className="text-sm text-muted-foreground">
                           System-wide settings and preferences are managed through environment variables and database configuration. 
                           User-specific preferences can be configured through the Settings page.
@@ -1800,8 +1827,8 @@ export default function AdminPanel() {
 
                     {/* Session Management */}
                     <div className="space-y-3">
-                      <h4 className="text-sm font-medium text-muted-foreground">Session Management</h4>
-                      <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Session Management</p>
+                      <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700/50 hover-elevate">
                         <div>
                           <span className="text-sm font-medium block">Admin Session</span>
                           <span className="text-xs text-muted-foreground">Currently logged in</span>

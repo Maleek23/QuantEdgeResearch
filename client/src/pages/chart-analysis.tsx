@@ -410,16 +410,16 @@ function AnalysisTypeCard({
   return (
     <div 
       onClick={onClick}
-      className={`border border-border/50 rounded-xl bg-card p-5 cursor-pointer transition-all hover-elevate ${
+      className={`glass-card rounded-xl p-5 cursor-pointer transition-all hover-elevate ${
         isActive ? 'ring-2 ring-cyan-400/50 bg-cyan-500/5' : ''
       }`}
       data-testid={`card-analysis-${title.toLowerCase().replace(/ /g, '-')}`}
     >
       <div className="flex items-start justify-between mb-3">
         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-          isActive ? 'bg-cyan-500/20' : 'bg-muted/50'
+          isActive ? 'bg-gradient-to-br from-amber-500 to-amber-600' : 'bg-muted/50'
         }`}>
-          <Icon className={`h-5 w-5 ${isActive ? 'text-cyan-500' : 'text-muted-foreground'}`} />
+          <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-muted-foreground'}`} />
         </div>
         {badge && (
           <Badge variant={badgeVariant} className="text-[10px]">
@@ -438,10 +438,12 @@ function AnalysisTypeCard({
 
 function QuickStatCard({ label, value, icon: Icon }: { label: string; value: string | number; icon: any }) {
   return (
-    <div className="border border-border/50 rounded-xl bg-card p-4 text-center">
-      <Icon className="h-5 w-5 text-muted-foreground mx-auto mb-2" />
+    <div className="glass-card rounded-xl p-4 text-center">
+      <div className="h-8 w-8 mx-auto mb-2 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/20 flex items-center justify-center">
+        <Icon className="h-4 w-4 text-amber-500" />
+      </div>
       <p className="text-xl font-bold font-mono tabular-nums">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
     </div>
   );
 }
@@ -876,16 +878,21 @@ export default function ChartAnalysis() {
     <TierGate feature="chart-analysis">
     <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6" data-testid="page-chart-analysis">
       {/* Header */}
-      <div>
-        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase mb-1">
-          {format(new Date(), 'EEEE, MMMM d')}
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight mb-1">
-          Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {userName}!
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          AI-powered chart analysis
-        </p>
+      <div className="flex items-start gap-4">
+        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/20">
+          <BarChart3 className="h-6 w-6 text-white" />
+        </div>
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+            {format(new Date(), 'EEEE, MMMM d')}
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight mb-1">
+            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {userName}!
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            AI-powered chart analysis with pattern detection
+          </p>
+        </div>
       </div>
 
       {/* Analysis Type Cards */}
@@ -921,8 +928,10 @@ export default function ChartAnalysis() {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <QuickStatCard label="Charts Analyzed" value={perfStats?.overall?.totalIdeas || 0} icon={BarChart3} />
-        <div className="border border-border/50 rounded-xl bg-card p-4 text-center">
-          <Trophy className="h-5 w-5 text-cyan-500 mx-auto mb-2" />
+        <div className="glass-card rounded-xl p-4 text-center">
+          <div className="h-8 w-8 mx-auto mb-2 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/20 flex items-center justify-center">
+            <Trophy className="h-4 w-4 text-amber-500" />
+          </div>
           <p className={cn(
             "text-xl font-bold font-mono tabular-nums",
             (perfStats?.overall?.winRate || 58) >= 60 ? "text-green-500" : 
@@ -930,7 +939,7 @@ export default function ChartAnalysis() {
           )}>
             {`${Math.min((perfStats?.overall?.winRate || 58), 58).toFixed(0)}%`}
           </p>
-          <p className="text-xs text-muted-foreground">Win Rate</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Win Rate</p>
         </div>
         <QuickStatCard label="Analysis Mode" value={analysisMode === "day" ? "Day Trade" : "Swing"} icon={Brain} />
         <QuickStatCard label="Pattern Detection" value="Active" icon={Target} />
@@ -939,15 +948,19 @@ export default function ChartAnalysis() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 min-w-0">
         {/* Upload Section - Left Column */}
         <div className="lg:col-span-2 space-y-4 min-w-0">
-          <div className="border border-border/50 rounded-xl bg-card overflow-hidden">
+          <div className="glass-card rounded-xl overflow-hidden">
             <div className="p-4 pb-3 border-b border-border/50">
-              <h3 className="text-base font-semibold flex items-center gap-2">
-                <Upload className="h-4 w-4 text-cyan-500" />
-                Upload Chart
-              </h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Drop your {analysisMode === "day" ? "intraday" : "swing"} chart for AI analysis
-              </p>
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center">
+                  <Upload className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold uppercase tracking-wider">Upload Chart</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Drop your {analysisMode === "day" ? "intraday" : "swing"} chart for AI analysis
+                  </p>
+                </div>
+              </div>
             </div>
             <div className="p-4 space-y-4">
               {/* File Upload Area */}
@@ -1139,11 +1152,13 @@ export default function ChartAnalysis() {
           </div>
 
           {/* Trading Tip Card */}
-          <div className="border border-border/50 rounded-xl bg-card p-4 border-l-2 border-l-amber-400">
+          <div className="glass-card rounded-xl p-4 border-l-2 border-l-amber-500">
             <div className="flex items-start gap-3">
-              <Lightbulb className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center flex-shrink-0">
+                <Lightbulb className="h-4 w-4 text-white" />
+              </div>
               <div>
-                <p className="text-sm font-medium text-amber-500 mb-1">
+                <p className="text-xs font-medium uppercase tracking-wider text-amber-500 mb-1">
                   {analysisMode === "day" ? "Day Trading Tip" : "Swing Trading Tip"}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -1162,7 +1177,7 @@ export default function ChartAnalysis() {
           {analysisResult ? (
             <>
               {/* Summary Banner */}
-              <div className={`border border-border/50 rounded-xl bg-card overflow-hidden border-l-2 ${
+              <div className={`glass-card rounded-xl overflow-hidden border-l-2 ${
                 analysisResult.sentiment === "bullish" ? "border-l-green-400" :
                 analysisResult.sentiment === "bearish" ? "border-l-red-400" :
                 "border-l-amber-400"
@@ -1213,7 +1228,7 @@ export default function ChartAnalysis() {
 
               {/* Price Discrepancy Warning */}
               {analysisResult.priceDiscrepancyWarning && (
-                <div className="border border-border/50 rounded-xl bg-card border-l-2 border-l-amber-400 p-4">
+                <div className="glass-card rounded-xl border-l-2 border-l-amber-400 p-4">
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
                     <div className="space-y-2 flex-1">
@@ -1227,7 +1242,7 @@ export default function ChartAnalysis() {
               )}
 
               {/* Price Levels Card */}
-              <div className="border border-border/50 rounded-xl bg-card p-4">
+              <div className="glass-card rounded-xl p-4">
                 <div className="grid grid-cols-4 gap-3">
                   <div className="text-center p-3 rounded-lg bg-muted/30 bg-muted/30">
                     <p className="text-xs text-muted-foreground mb-1">Entry</p>
@@ -1266,7 +1281,7 @@ export default function ChartAnalysis() {
 
               {/* Validation Warnings */}
               {validationWarnings.length > 0 && (
-                <div className="border border-border/50 rounded-xl bg-card border-l-2 border-l-amber-400 p-3">
+                <div className="glass-card rounded-xl border-l-2 border-l-amber-400 p-3">
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
                     <div className="space-y-1">
@@ -1282,7 +1297,7 @@ export default function ChartAnalysis() {
               )}
 
               {/* Tabbed Analysis */}
-              <div className="border border-border/50 rounded-xl bg-card">
+              <div className="glass-card rounded-xl">
                 <Tabs defaultValue="ai" className="w-full">
                   <div className="p-4 pb-0">
                     <TabsList className="grid w-full grid-cols-3">
@@ -1497,10 +1512,11 @@ export default function ChartAnalysis() {
           ) : (
             /* Empty State - Feature Cards */
             <div className="space-y-4">
-              <div className="border border-border/50 rounded-xl bg-card p-6 text-center">
-                <div className="w-16 h-16 mx-auto rounded-full bg-cyan-500/10 flex items-center justify-center mb-4">
-                  <BarChart3 className="h-8 w-8 text-cyan-500" />
+              <div className="glass-card rounded-xl p-6 text-center">
+                <div className="w-16 h-16 mx-auto rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/20">
+                  <BarChart3 className="h-8 w-8 text-white" />
                 </div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Chart Analysis</p>
                 <h3 className="font-semibold text-lg mb-2">Ready to Analyze</h3>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-4">
                   Upload a chart screenshot and let AI + Quant engines identify patterns, levels, and trade setups.
@@ -1520,9 +1536,11 @@ export default function ChartAnalysis() {
               {/* Quick Links */}
               <div className="grid grid-cols-2 gap-3">
                 <Link href="/chart-database">
-                  <div className="border border-border/50 rounded-xl bg-card p-4 hover-elevate cursor-pointer">
+                  <div className="glass-card rounded-xl p-4 hover-elevate cursor-pointer">
                     <div className="flex items-center gap-3">
-                      <Database className="h-5 w-5 text-cyan-500" />
+                      <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/20 flex items-center justify-center flex-shrink-0">
+                        <Database className="h-4 w-4 text-amber-500" />
+                      </div>
                       <div>
                         <p className="text-sm font-medium">Chart Database</p>
                         <p className="text-xs text-muted-foreground">Browse past analyses</p>
@@ -1532,9 +1550,11 @@ export default function ChartAnalysis() {
                   </div>
                 </Link>
                 <Link href="/academy">
-                  <div className="border border-border/50 rounded-xl bg-card p-4 hover-elevate cursor-pointer">
+                  <div className="glass-card rounded-xl p-4 hover-elevate cursor-pointer">
                     <div className="flex items-center gap-3">
-                      <BookOpen className="h-5 w-5 text-cyan-500" />
+                      <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/20 flex items-center justify-center flex-shrink-0">
+                        <BookOpen className="h-4 w-4 text-amber-500" />
+                      </div>
                       <div>
                         <p className="text-sm font-medium">Learning Center</p>
                         <p className="text-xs text-muted-foreground">Master chart patterns</p>
@@ -1546,8 +1566,8 @@ export default function ChartAnalysis() {
               </div>
 
               {/* Features List */}
-              <div className="border border-border/50 rounded-xl bg-card p-4">
-                <h4 className="text-sm font-medium mb-3">What You'll Get</h4>
+              <div className="glass-card rounded-xl p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">What You'll Get</p>
                 <div className="space-y-2">
                   {[
                     { icon: Target, text: "Precise entry, target, and stop levels" },
@@ -1556,7 +1576,7 @@ export default function ChartAnalysis() {
                     { icon: Calculator, text: "Risk/reward ratio calculations" },
                   ].map((item, i) => (
                     <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <item.icon className="h-4 w-4 text-cyan-500" />
+                      <item.icon className="h-4 w-4 text-amber-500" />
                       <span>{item.text}</span>
                     </div>
                   ))}

@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, IdeaSource, MarketData, Catalyst } from "@shared/schema";
-import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock, Info, Activity, Newspaper, Bot } from "lucide-react";
+import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock, Info, Activity, Newspaper, Bot, Brain, Calculator } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, subYears, isAfter, isBefore } from "date-fns";
 import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
@@ -281,14 +281,16 @@ export default function TradeIdeasPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Header with Aurora Hero */}
-      <div className="relative overflow-hidden border-b aurora-hero rounded-xl -mx-6 px-6 pb-6 mb-8">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
-        <div className="relative flex items-center justify-between gap-4 pt-6">
+      {/* Header - Tech Minimalist */}
+      <div className="relative mb-8">
+        <div className="flex items-center justify-between gap-4">
           <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+              Research
+            </p>
             <div className="flex items-baseline gap-3 flex-wrap">
-              <h1 className="text-3xl font-bold tracking-tight text-gradient-premium" data-testid="text-page-title">Research Briefs</h1>
-              <span className="text-sm font-medium text-muted-foreground hidden md:inline" data-testid="text-current-date">
+              <h1 className="text-2xl sm:text-3xl font-semibold" data-testid="text-page-title">Research Briefs</h1>
+              <span className="text-sm font-mono text-muted-foreground hidden md:inline" data-testid="text-current-date">
                 {format(new Date(), 'EEEE, MMM d')}
               </span>
             </div>
@@ -298,105 +300,105 @@ export default function TradeIdeasPage() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {newIdeasCount > 0 && (
-              <Badge variant="default" className="animate-pulse neon-accent badge-shimmer" data-testid="badge-new-ideas">
+              <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 animate-pulse" data-testid="badge-new-ideas">
                 {newIdeasCount} NEW
               </Badge>
             )}
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </div>
 
       {/* 🔐 Risk Disclosure - Auto-attached to all trade outputs */}
       <RiskDisclosure variant="compact" engineVersion="v2.2.0" />
 
       {/* ACTIVE DATE FILTER BANNER */}
-      <Card className={cn(
-        "shadow-lg border-2 transition-all",
-        dateRange !== 'all' 
-          ? "bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/50" 
-          : "bg-card border-border/50"
+      <div className={cn(
+        "glass-card rounded-lg p-6 transition-all",
+        dateRange !== 'all' && "border-l-2 border-cyan-500/50"
       )}>
-        <CardContent className="pt-6 pb-5">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              "h-8 w-8 rounded-lg flex items-center justify-center",
+              dateRange !== 'all' ? "bg-cyan-500/10" : "bg-muted"
+            )}>
               <CalendarIcon className={cn(
-                "w-5 h-5",
-                dateRange !== 'all' ? "text-primary" : "text-muted-foreground"
+                "w-4 h-4",
+                dateRange !== 'all' ? "text-cyan-400" : "text-muted-foreground"
               )} />
-              <span className="text-sm font-semibold">Posted:</span>
-              <Select value={dateRange} onValueChange={setDateRange}>
-                <SelectTrigger className={cn(
-                  "w-40 font-semibold",
-                  dateRange !== 'all' && "border-primary/50 bg-primary/5"
-                )} data-testid="select-date-range-ideas">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Today Only</SelectItem>
-                  <SelectItem value="7d">Last 7 Days</SelectItem>
-                  <SelectItem value="30d">Last 30 Days</SelectItem>
-                  <SelectItem value="3m">Last 3 Months</SelectItem>
-                  <SelectItem value="1y">Last Year</SelectItem>
-                  <SelectItem value="all">All Time</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
-
-            <div className="flex-1" />
-
-            {/* Data Range Indicator */}
-            {dateRange !== 'all' && (
-              <Badge variant="default" className="px-3 py-1.5 bg-primary text-primary-foreground font-semibold">
-                <Activity className="w-3 h-3 mr-1.5" />
-                Filtered view
-              </Badge>
-            )}
-
-            <Badge variant="outline" className="badge-shimmer px-3 py-1.5 font-semibold">
-              {filteredIdeas.length} trade{filteredIdeas.length !== 1 ? 's' : ''}
-            </Badge>
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Posted:</span>
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger className={cn(
+                "w-40 font-mono text-sm",
+                dateRange !== 'all' && "border-cyan-500/30"
+              )} data-testid="select-date-range-ideas">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today Only</SelectItem>
+                <SelectItem value="7d">Last 7 Days</SelectItem>
+                <SelectItem value="30d">Last 30 Days</SelectItem>
+                <SelectItem value="3m">Last 3 Months</SelectItem>
+                <SelectItem value="1y">Last Year</SelectItem>
+                <SelectItem value="all">All Time</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Active Filter Description */}
+          <div className="flex-1" />
+
+          {/* Data Range Indicator */}
           {dateRange !== 'all' && (
-            <div className="mt-3 pt-3 border-t border-primary/20">
-              <div className="flex items-center gap-2 text-sm">
-                <Info className="w-4 h-4 text-primary flex-shrink-0" />
-                <span className="text-muted-foreground">
-                  Showing research briefs posted 
-                  <span className="font-semibold text-foreground mx-1">
-                    {dateRange === 'today' && 'today'}
-                    {dateRange === '7d' && 'in the last 7 days'}
-                    {dateRange === '30d' && 'in the last 30 days'}
-                    {dateRange === '3m' && 'in the last 3 months'}
-                    {dateRange === '1y' && 'in the last year'}
-                  </span>
-                  ({filteredIdeas.filter(i => i.outcomeStatus === 'open').length} active, {filteredIdeas.filter(i => i.outcomeStatus === 'hit_target').length} winners)
-                </span>
-              </div>
-            </div>
+            <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
+              <Activity className="w-3 h-3 mr-1.5" />
+              Filtered
+            </Badge>
           )}
-        </CardContent>
-      </Card>
+
+          <Badge variant="outline" className="font-mono">
+            {filteredIdeas.length} trade{filteredIdeas.length !== 1 ? 's' : ''}
+          </Badge>
+        </div>
+
+        {/* Active Filter Description */}
+        {dateRange !== 'all' && (
+          <div className="mt-3 pt-3 border-t border-slate-700/30">
+            <div className="flex items-center gap-2 text-sm">
+              <Info className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+              <span className="text-muted-foreground">
+                Showing research briefs posted 
+                <span className="font-semibold text-foreground mx-1">
+                  {dateRange === 'today' && 'today'}
+                  {dateRange === '7d' && 'in the last 7 days'}
+                  {dateRange === '30d' && 'in the last 30 days'}
+                  {dateRange === '3m' && 'in the last 3 months'}
+                  {dateRange === '1y' && 'in the last year'}
+                </span>
+                <span className="font-mono">({filteredIdeas.filter(i => i.outcomeStatus === 'open').length} active, {filteredIdeas.filter(i => i.outcomeStatus === 'hit_target').length} winners)</span>
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Weekend Notice Banner */}
       {isWeekend() && (
-        <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5" data-testid="weekend-preview-section">
-          <CardContent className="py-4">
-            <div className="flex items-center gap-3">
-              <CalendarClock className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-sm font-semibold">Markets open {format(getNextTradingWeekStart(), 'EEEE, MMM d')} at 9:30 AM CT</p>
-                <p className="text-xs text-muted-foreground">
-                  {tradeIdeas.filter(i => i.outcomeStatus === 'open').length > 0 
-                    ? `${tradeIdeas.filter(i => i.outcomeStatus === 'open').length} ideas ready for next week`
-                    : "Use the generation buttons above to create new research briefs"}
-                </p>
-              </div>
+        <div className="glass-card rounded-lg p-4 border-l-2 border-amber-500/50" data-testid="weekend-preview-section">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <CalendarClock className="h-5 w-5 text-amber-400" />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <p className="text-sm font-semibold">Markets open {format(getNextTradingWeekStart(), 'EEEE, MMM d')} at 9:30 AM CT</p>
+              <p className="text-xs text-muted-foreground">
+                {tradeIdeas.filter(i => i.outcomeStatus === 'open').length > 0 
+                  ? <span className="font-mono">{tradeIdeas.filter(i => i.outcomeStatus === 'open').length} ideas ready for next week</span>
+                  : "Use the generation buttons above to create new research briefs"}
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Simplified Filter Bar */}
@@ -423,60 +425,70 @@ export default function TradeIdeasPage() {
           )}
         </div>
 
-        {/* Generate Ideas Buttons - All 5 Sources */}
+        {/* Generate Ideas Buttons - All 5 Sources with Gradient Icons */}
         <Button 
           onClick={() => generateQuantIdeas.mutate()}
           disabled={generateQuantIdeas.isPending}
           size="sm"
-          variant="glass"
-          className="gap-1.5"
+          variant="outline"
+          className="gap-1.5 border-blue-500/30 hover:border-blue-500/50"
           data-testid="button-generate-quant-permanent"
         >
-          <BarChart3 className="h-4 w-4" />
+          <div className="h-5 w-5 rounded bg-blue-500/10 flex items-center justify-center">
+            <Calculator className="h-3 w-3 text-blue-400" />
+          </div>
           <span className="hidden sm:inline">{generateQuantIdeas.isPending ? "..." : "Quant"}</span>
         </Button>
         <Button 
           onClick={() => generateAIIdeas.mutate()}
           disabled={generateAIIdeas.isPending}
           size="sm"
-          variant="glass-secondary"
-          className="gap-1.5"
+          variant="outline"
+          className="gap-1.5 border-purple-500/30 hover:border-purple-500/50"
           data-testid="button-generate-ai-permanent"
         >
-          <Bot className="h-4 w-4" />
+          <div className="h-5 w-5 rounded bg-purple-500/10 flex items-center justify-center">
+            <Brain className="h-3 w-3 text-purple-400" />
+          </div>
           <span className="hidden sm:inline">{generateAIIdeas.isPending ? "..." : "AI"}</span>
         </Button>
         <Button 
           onClick={() => generateHybridIdeas.mutate()}
           disabled={generateHybridIdeas.isPending}
           size="sm"
-          variant="glass"
-          className="gap-1.5"
+          variant="outline"
+          className="gap-1.5 border-violet-500/30 hover:border-violet-500/50"
           data-testid="button-generate-hybrid-permanent"
         >
-          <Sparkles className="h-4 w-4" />
+          <div className="h-5 w-5 rounded bg-violet-500/10 flex items-center justify-center">
+            <Sparkles className="h-3 w-3 text-violet-400" />
+          </div>
           <span className="hidden sm:inline">{generateHybridIdeas.isPending ? "..." : "Hybrid"}</span>
         </Button>
         <Button 
           onClick={() => generateNewsIdeas.mutate()}
           disabled={generateNewsIdeas.isPending}
           size="sm"
-          variant="glass-secondary"
-          className="gap-1.5"
+          variant="outline"
+          className="gap-1.5 border-amber-500/30 hover:border-amber-500/50"
           data-testid="button-generate-news-permanent"
         >
-          <Newspaper className="h-4 w-4" />
+          <div className="h-5 w-5 rounded bg-amber-500/10 flex items-center justify-center">
+            <Newspaper className="h-3 w-3 text-amber-400" />
+          </div>
           <span className="hidden sm:inline">{generateNewsIdeas.isPending ? "..." : "News"}</span>
         </Button>
         <Button 
           onClick={() => generateFlowIdeas.mutate()}
           disabled={generateFlowIdeas.isPending}
           size="sm"
-          variant="glass-success"
-          className="gap-1.5"
+          variant="outline"
+          className="gap-1.5 border-cyan-500/30 hover:border-cyan-500/50"
           data-testid="button-generate-flow-permanent"
         >
-          <Activity className="h-4 w-4" />
+          <div className="h-5 w-5 rounded bg-cyan-500/10 flex items-center justify-center">
+            <Activity className="h-3 w-3 text-cyan-400" />
+          </div>
           <span className="hidden sm:inline">{generateFlowIdeas.isPending ? "..." : "Flow"}</span>
         </Button>
 
@@ -622,36 +634,39 @@ export default function TradeIdeasPage() {
 
       {/* Top Picks Today - Best Opportunities */}
       {topPicks.length > 0 && (
-        <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-accent/5" data-testid="top-picks-section">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <TrendingUpIcon className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg">Top Picks Today</CardTitle>
-                <Badge variant="default" className="ml-1">
-                  {topPicks.length}
-                </Badge>
+        <div className="glass-card rounded-lg p-6 border-l-2 border-cyan-500/50" data-testid="top-picks-section">
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                <TrendingUpIcon className="h-5 w-5 text-cyan-400" />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Best quality + R:R + probability
-              </p>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Today's Best</p>
+                <h3 className="font-semibold">Top Picks</h3>
+              </div>
+              <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 ml-1">
+                {topPicks.length}
+              </Badge>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-3 pt-0">
+            <p className="text-xs text-muted-foreground hidden sm:block">
+              Best quality + R:R + probability
+            </p>
+          </div>
+          <div className="space-y-3">
             {topPicks.map((idea, index) => (
               <div
                 key={idea.id}
-                className="flex items-center justify-between gap-4 p-3 rounded-lg border bg-card hover-elevate active-elevate-2 cursor-pointer"
+                className="flex items-center justify-between gap-4 p-3 rounded-lg border bg-background/50 hover-elevate cursor-pointer transition-all"
                 onClick={() => handleToggleExpand(idea.id)}
                 data-testid={`top-pick-${index + 1}`}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary font-bold text-sm">
+                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-cyan-500/10 text-cyan-400 font-bold font-mono text-sm">
                     {index + 1}
                   </div>
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-base">{idea.symbol}</span>
+                      <span className="font-bold font-mono text-base">{idea.symbol}</span>
                       <Badge variant={idea.direction === "long" ? "default" : "destructive"} className="text-xs">
                         {idea.direction === "long" ? "LONG" : "SHORT"}
                       </Badge>
@@ -666,19 +681,19 @@ export default function TradeIdeasPage() {
                   <div className="text-right hidden sm:block">
                     <Badge 
                       variant={idea.probabilityBand?.startsWith('A') ? 'default' : idea.probabilityBand?.startsWith('B') ? 'secondary' : 'outline'}
-                      className="font-bold"
+                      className="font-bold font-mono"
                     >
                       {idea.probabilityBand}
                     </Badge>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      R:R {idea.riskRewardRatio?.toFixed(1)} • Score: {idea.confidenceScore?.toFixed(0)}
+                    <p className="text-xs text-muted-foreground font-mono mt-1">
+                      R:R {idea.riskRewardRatio?.toFixed(1)} • {idea.confidenceScore?.toFixed(0)}
                     </p>
                   </div>
                 </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Trade Ideas Feed */}
@@ -739,17 +754,17 @@ export default function TradeIdeasPage() {
               ))}
             </div>
           ) : filteredIdeas.filter(isVeryFreshIdea).length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Sparkles className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">No fresh research briefs</p>
-                <p className="text-sm text-muted-foreground/70 mt-1">
-                  {tradeIdeas.length === 0 
-                    ? "Use the generation buttons above to create new ideas" 
-                    : "Fresh ideas appear here within 2 hours of generation"}
-                </p>
-              </CardContent>
-            </Card>
+            <div className="glass-card rounded-lg p-12 flex flex-col items-center justify-center">
+              <div className="h-16 w-16 rounded-lg bg-violet-500/10 flex items-center justify-center mb-4">
+                <Sparkles className="h-8 w-8 text-violet-400" />
+              </div>
+              <p className="text-lg font-medium text-muted-foreground">No fresh research briefs</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">
+                {tradeIdeas.length === 0 
+                  ? "Use the generation buttons above to create new ideas" 
+                  : "Fresh ideas appear here within 2 hours of generation"}
+              </p>
+            </div>
           ) : (
             <Accordion type="single" collapsible className="space-y-4" defaultValue={Object.entries(groupedIdeas).filter(([, ideas]) => ideas.some(isVeryFreshIdea))[0]?.[0]}>
               {Object.entries(groupedIdeas)
@@ -768,11 +783,11 @@ export default function TradeIdeasPage() {
                   const label = assetTypeLabels[assetType as keyof typeof assetTypeLabels] || assetType;
                   
                   return (
-                    <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
-                      <AccordionTrigger className="px-4 hover:no-underline" data-testid={`accordion-asset-${assetType}`}>
+                    <AccordionItem key={assetType} value={assetType} className="glass-card rounded-lg overflow-hidden">
+                      <AccordionTrigger className="px-4 hover:no-underline hover-elevate" data-testid={`accordion-asset-${assetType}`}>
                         <div className="flex items-center gap-3">
                           <span className="font-semibold">{label}</span>
-                          <Badge variant="outline" className="animate-pulse badge-shimmer" data-testid={`badge-count-${assetType}`}>
+                          <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 animate-pulse" data-testid={`badge-count-${assetType}`}>
                             {ideas.filter(isVeryFreshIdea).length} fresh
                           </Badge>
                         </div>
@@ -807,17 +822,17 @@ export default function TradeIdeasPage() {
               ))}
             </div>
           ) : filteredIdeas.filter(i => i.outcomeStatus === 'open').length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <TrendingUp className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">No active research briefs</p>
-                <p className="text-sm text-muted-foreground/70 mt-1">
-                  {tradeIdeas.length === 0 
-                    ? "Generate quantitative ideas to get started" 
-                    : "Try adjusting your filters"}
-                </p>
-              </CardContent>
-            </Card>
+            <div className="glass-card rounded-lg p-12 flex flex-col items-center justify-center">
+              <div className="h-16 w-16 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
+                <TrendingUp className="h-8 w-8 text-blue-400" />
+              </div>
+              <p className="text-lg font-medium text-muted-foreground">No active research briefs</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">
+                {tradeIdeas.length === 0 
+                  ? "Generate quantitative ideas to get started" 
+                  : "Try adjusting your filters"}
+              </p>
+            </div>
           ) : (
             <Accordion type="single" collapsible className="space-y-4" defaultValue={Object.entries(groupedIdeas).filter(([, ideas]) => ideas.some(i => i.outcomeStatus === 'open'))[0]?.[0]}>
               {Object.entries(groupedIdeas)
@@ -836,11 +851,11 @@ export default function TradeIdeasPage() {
                   const label = assetTypeLabels[assetType as keyof typeof assetTypeLabels] || assetType;
                   
                   return (
-                    <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
-                      <AccordionTrigger className="px-4 hover:no-underline" data-testid={`accordion-asset-${assetType}`}>
+                    <AccordionItem key={assetType} value={assetType} className="glass-card rounded-lg overflow-hidden">
+                      <AccordionTrigger className="px-4 hover:no-underline hover-elevate" data-testid={`accordion-asset-${assetType}`}>
                         <div className="flex items-center gap-3">
                           <span className="font-semibold">{label}</span>
-                          <Badge variant="outline" data-testid={`badge-count-${assetType}`}>
+                          <Badge variant="outline" className="font-mono" data-testid={`badge-count-${assetType}`}>
                             {ideas.filter(i => i.outcomeStatus === 'open').length} ideas
                           </Badge>
                         </div>
@@ -869,15 +884,15 @@ export default function TradeIdeasPage() {
 
         <TabsContent value="winners" className="space-y-4">
           {filteredIdeas.filter(i => i.outcomeStatus === 'hit_target').length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <CheckCircle className="h-12 w-12 text-green-500/50 mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">No winning trades yet</p>
-                <p className="text-sm text-muted-foreground/70 mt-1">
-                  Trades that hit target will appear here
-                </p>
-              </CardContent>
-            </Card>
+            <div className="glass-card rounded-lg p-12 flex flex-col items-center justify-center">
+              <div className="h-16 w-16 rounded-lg bg-green-500/10 flex items-center justify-center mb-4">
+                <CheckCircle className="h-8 w-8 text-green-400" />
+              </div>
+              <p className="text-lg font-medium text-muted-foreground">No winning trades yet</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">
+                Trades that hit target will appear here
+              </p>
+            </div>
           ) : (
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}>
               {filteredIdeas
@@ -899,15 +914,15 @@ export default function TradeIdeasPage() {
 
         <TabsContent value="losers" className="space-y-4">
           {filteredIdeas.filter(i => i.outcomeStatus === 'hit_stop').length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <XCircle className="h-12 w-12 text-red-500/50 mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">No losing trades yet</p>
-                <p className="text-sm text-muted-foreground/70 mt-1">
-                  Trades that hit stop loss will appear here
-                </p>
-              </CardContent>
-            </Card>
+            <div className="glass-card rounded-lg p-12 flex flex-col items-center justify-center">
+              <div className="h-16 w-16 rounded-lg bg-red-500/10 flex items-center justify-center mb-4">
+                <XCircle className="h-8 w-8 text-red-400" />
+              </div>
+              <p className="text-lg font-medium text-muted-foreground">No losing trades yet</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">
+                Trades that hit stop loss will appear here
+              </p>
+            </div>
           ) : (
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}>
               {filteredIdeas
@@ -929,15 +944,15 @@ export default function TradeIdeasPage() {
 
         <TabsContent value="expired" className="space-y-4">
           {filteredIdeas.filter(i => i.outcomeStatus === 'expired').length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Clock className="h-12 w-12 text-amber-500/50 mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">No expired trades</p>
-                <p className="text-sm text-muted-foreground/70 mt-1">
-                  Trades that expired without resolution will appear here
-                </p>
-              </CardContent>
-            </Card>
+            <div className="glass-card rounded-lg p-12 flex flex-col items-center justify-center">
+              <div className="h-16 w-16 rounded-lg bg-amber-500/10 flex items-center justify-center mb-4">
+                <Clock className="h-8 w-8 text-amber-400" />
+              </div>
+              <p className="text-lg font-medium text-muted-foreground">No expired trades</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">
+                Trades that expired without resolution will appear here
+              </p>
+            </div>
           ) : (
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 lg:grid-cols-2 gap-4' : 'space-y-3'}>
               {filteredIdeas

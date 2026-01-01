@@ -97,9 +97,12 @@ export default function TradingRules() {
       <div className="relative overflow-hidden rounded-xl glass-card p-6">
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
         <div className="relative z-10">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight" data-testid="text-page-title">Trading Rules Portal</h1>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+            Risk Management
+          </p>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight" data-testid="text-page-title">Trading Rules Portal</h1>
           <p className="text-sm text-muted-foreground mt-2">
-            Risk management and trading rules for consistent profits
+            Position sizing, stop losses, and trading rules for consistent profits
           </p>
         </div>
       </div>
@@ -125,13 +128,17 @@ export default function TradingRules() {
         <TabsContent value="options" className="space-y-6 mt-6">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Options Position Sizing Calculator */}
-            <div className="glass-card rounded-xl border-l-2 border-l-cyan-500" data-testid="card-options-sizing">
+            <div className="glass-card rounded-xl border-l-2 border-l-cyan-500 hover-elevate" data-testid="card-options-sizing">
               <div className="p-5 pb-3">
-                <h3 className="flex items-center gap-2 text-lg font-semibold">
-                  <Calculator className="h-5 w-5 text-cyan-400" />
-                  <span className="text-cyan-400">Options Position Sizing</span>
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">Calculate position size based on your capital</p>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-400/10 flex items-center justify-center">
+                    <Calculator className="h-5 w-5 text-cyan-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Options Position Sizing</h3>
+                    <p className="text-xs text-muted-foreground">Calculate position size based on your capital</p>
+                  </div>
+                </div>
               </div>
               <div className="px-5 pb-5 space-y-4">
                 <div className="grid gap-4">
@@ -214,13 +221,17 @@ export default function TradingRules() {
             </div>
 
             {/* Options Stop Loss & Targets */}
-            <div className="glass-card rounded-xl border-l-2 border-l-green-500" data-testid="card-options-targets">
+            <div className="glass-card rounded-xl border-l-2 border-l-green-500 hover-elevate" data-testid="card-options-targets">
               <div className="p-5 pb-3">
-                <h3 className="flex items-center gap-2 text-lg font-semibold">
-                  <Target className="h-5 w-5 text-green-400" />
-                  <span className="text-green-400">Stop Loss & Targets</span>
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">Pre-calculated exit levels for your option</p>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500/20 to-green-400/10 flex items-center justify-center">
+                    <Target className="h-5 w-5 text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Stop Loss & Targets</h3>
+                    <p className="text-xs text-muted-foreground">Pre-calculated exit levels for your option</p>
+                  </div>
+                </div>
               </div>
               <div className="px-5 pb-5 space-y-4">
                 <div className="p-4 rounded-lg glass-danger">
@@ -275,13 +286,17 @@ export default function TradingRules() {
           </div>
 
           {/* Options Trading Rules */}
-          <div className="glass-card rounded-xl border-l-2 border-l-amber-500" data-testid="card-options-rules">
+          <div className="glass-card rounded-xl border-l-2 border-l-amber-500 hover-elevate" data-testid="card-options-rules">
             <div className="p-5 pb-3">
-              <h3 className="flex items-center gap-2 text-lg font-semibold">
-                <Shield className="h-5 w-5 text-amber-400" />
-                <span className="text-amber-400">Options Trading Rules</span>
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1">Follow these rules strictly for consistent results</p>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-400/10 flex items-center justify-center">
+                  <Shield className="h-5 w-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Options Trading Rules</h3>
+                  <p className="text-xs text-muted-foreground">Follow these rules strictly for consistent results</p>
+                </div>
+              </div>
             </div>
             <div className="px-5 pb-5">
               <div className="grid gap-6 md:grid-cols-2">
@@ -389,13 +404,17 @@ export default function TradingRules() {
           </div>
 
           {/* Pre-Trade Checklist */}
-          <div className="glass-card rounded-xl border-l-2 border-l-cyan-500">
+          <div className="glass-card rounded-xl border-l-2 border-l-cyan-500 hover-elevate">
             <div className="p-5 pb-3">
-              <h3 className="flex items-center gap-2 text-lg font-semibold">
-                <CheckCircle className="h-5 w-5 text-cyan-400" />
-                <span className="text-cyan-400">Pre-Trade Checklist</span>
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1">Complete before every trade</p>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-400/10 flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Pre-Trade Checklist</h3>
+                  <p className="text-xs text-muted-foreground">Complete before every trade</p>
+                </div>
+              </div>
             </div>
             <div className="px-5 pb-5">
               <div className="grid gap-3 sm:grid-cols-2">
@@ -473,13 +492,17 @@ export default function TradingRules() {
         <TabsContent value="stocks" className="space-y-6 mt-6">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Stocks Position Sizing Calculator */}
-            <div className="glass-card rounded-xl border-l-2 border-l-cyan-500" data-testid="card-stocks-sizing">
+            <div className="glass-card rounded-xl border-l-2 border-l-cyan-500 hover-elevate" data-testid="card-stocks-sizing">
               <div className="p-5 pb-3">
-                <h3 className="flex items-center gap-2 text-lg font-semibold">
-                  <Calculator className="h-5 w-5 text-cyan-400" />
-                  <span className="text-cyan-400">Stock Position Sizing</span>
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">Calculate share count based on your capital and risk</p>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-400/10 flex items-center justify-center">
+                    <Calculator className="h-5 w-5 text-cyan-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Stock Position Sizing</h3>
+                    <p className="text-xs text-muted-foreground">Calculate share count based on your capital and risk</p>
+                  </div>
+                </div>
               </div>
               <div className="px-5 pb-5 space-y-4">
                 <div className="grid gap-4">
@@ -562,13 +585,17 @@ export default function TradingRules() {
             </div>
 
             {/* Stocks Stop Loss & Targets */}
-            <div className="glass-card rounded-xl border-l-2 border-l-green-500" data-testid="card-stocks-targets">
+            <div className="glass-card rounded-xl border-l-2 border-l-green-500 hover-elevate" data-testid="card-stocks-targets">
               <div className="p-5 pb-3">
-                <h3 className="flex items-center gap-2 text-lg font-semibold">
-                  <Target className="h-5 w-5 text-green-400" />
-                  <span className="text-green-400">Stop Loss & Targets</span>
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">Pre-calculated exit levels (3.5% stop, 2:1+ R:R)</p>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500/20 to-green-400/10 flex items-center justify-center">
+                    <Target className="h-5 w-5 text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Stop Loss & Targets</h3>
+                    <p className="text-xs text-muted-foreground">Pre-calculated exit levels (3.5% stop, 2:1+ R:R)</p>
+                  </div>
+                </div>
               </div>
               <div className="px-5 pb-5 space-y-4">
                 <div className="p-4 rounded-lg glass-danger">
@@ -619,13 +646,17 @@ export default function TradingRules() {
           </div>
 
           {/* Stocks Trading Rules */}
-          <div className="glass-card rounded-xl border-l-2 border-l-amber-500" data-testid="card-stocks-rules">
+          <div className="glass-card rounded-xl border-l-2 border-l-amber-500 hover-elevate" data-testid="card-stocks-rules">
             <div className="p-5 pb-3">
-              <h3 className="flex items-center gap-2 text-lg font-semibold">
-                <Shield className="h-5 w-5 text-amber-400" />
-                <span className="text-amber-400">Stock Trading Rules</span>
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1">Day trading and swing trading rules for equities</p>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-400/10 flex items-center justify-center">
+                  <Shield className="h-5 w-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Stock Trading Rules</h3>
+                  <p className="text-xs text-muted-foreground">Day trading and swing trading rules for equities</p>
+                </div>
+              </div>
             </div>
             <div className="px-5 pb-5">
               <div className="grid gap-6 md:grid-cols-2">
@@ -737,13 +768,17 @@ export default function TradingRules() {
         <TabsContent value="crypto" className="space-y-6 mt-6">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Crypto Position Sizing Calculator */}
-            <div className="glass-card rounded-xl border-l-2 border-l-cyan-500" data-testid="card-crypto-sizing">
+            <div className="glass-card rounded-xl border-l-2 border-l-cyan-500 hover-elevate" data-testid="card-crypto-sizing">
               <div className="p-5 pb-3">
-                <h3 className="flex items-center gap-2 text-lg font-semibold">
-                  <Calculator className="h-5 w-5 text-cyan-400" />
-                  <span className="text-cyan-400">Crypto Position Sizing</span>
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">Calculate position size for volatile crypto markets</p>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-400/10 flex items-center justify-center">
+                    <Calculator className="h-5 w-5 text-cyan-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Crypto Position Sizing</h3>
+                    <p className="text-xs text-muted-foreground">Calculate position size for volatile crypto markets</p>
+                  </div>
+                </div>
               </div>
               <div className="px-5 pb-5 space-y-4">
                 <div className="grid gap-4">
@@ -818,13 +853,17 @@ export default function TradingRules() {
             </div>
 
             {/* Crypto Stop Loss & Targets */}
-            <div className="glass-card rounded-xl border-l-2 border-l-green-500" data-testid="card-crypto-targets">
+            <div className="glass-card rounded-xl border-l-2 border-l-green-500 hover-elevate" data-testid="card-crypto-targets">
               <div className="p-5 pb-3">
-                <h3 className="flex items-center gap-2 text-lg font-semibold">
-                  <Target className="h-5 w-5 text-green-400" />
-                  <span className="text-green-400">Stop Loss & Targets</span>
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">Wider stops for crypto volatility (5% stop, 2:1+ R:R)</p>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500/20 to-green-400/10 flex items-center justify-center">
+                    <Target className="h-5 w-5 text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Stop Loss & Targets</h3>
+                    <p className="text-xs text-muted-foreground">Wider stops for crypto volatility (5% stop, 2:1+ R:R)</p>
+                  </div>
+                </div>
               </div>
               <div className="px-5 pb-5 space-y-4">
                 <div className="p-4 rounded-lg glass-danger">
@@ -875,13 +914,17 @@ export default function TradingRules() {
           </div>
 
           {/* Crypto Trading Rules */}
-          <div className="glass-card rounded-xl border-l-2 border-l-amber-500" data-testid="card-crypto-rules">
+          <div className="glass-card rounded-xl border-l-2 border-l-amber-500 hover-elevate" data-testid="card-crypto-rules">
             <div className="p-5 pb-3">
-              <h3 className="flex items-center gap-2 text-lg font-semibold">
-                <Shield className="h-5 w-5 text-amber-400" />
-                <span className="text-amber-400">Crypto Trading Rules</span>
-              </h3>
-              <p className="text-sm text-muted-foreground mt-1">Rules for navigating the volatile 24/7 crypto market</p>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-400/10 flex items-center justify-center">
+                  <Shield className="h-5 w-5 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Crypto Trading Rules</h3>
+                  <p className="text-xs text-muted-foreground">Rules for navigating the volatile 24/7 crypto market</p>
+                </div>
+              </div>
             </div>
             <div className="px-5 pb-5">
               <div className="grid gap-6 md:grid-cols-2">

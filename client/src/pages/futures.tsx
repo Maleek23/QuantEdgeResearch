@@ -112,7 +112,7 @@ function FuturesCard({ quote, onClick }: { quote: FuturesQuote; onClick: () => v
         </div>
         
         <div className="space-y-2">
-          <div className="text-2xl font-bold tracking-tight" data-testid={`text-futures-price-${quote.symbol}`}>
+          <div className="text-2xl font-bold font-mono tabular-nums tracking-tight" data-testid={`text-futures-price-${quote.symbol}`}>
             ${quote.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           
@@ -180,12 +180,12 @@ function ResearchBriefCard({
   const supportLevels = brief.supportLevels || [];
 
   return (
-    <Card className="glass-card" data-testid={`card-research-brief-${brief.symbol}`}>
+    <Card className="glass-card hover-elevate" data-testid={`card-research-brief-${brief.symbol}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-purple-500/20">
-              <Icon className="h-5 w-5 text-purple-400" />
+            <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-green-600 shadow-lg">
+              <Icon className="h-5 w-5 text-white" />
             </div>
             <div>
               <CardTitle className="text-lg" data-testid={`text-brief-symbol-${brief.symbol}`}>
@@ -211,7 +211,7 @@ function ResearchBriefCard({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="text-xl font-bold font-mono" data-testid={`text-brief-price-${brief.symbol}`}>
+          <div className="text-xl font-bold font-mono tabular-nums" data-testid={`text-brief-price-${brief.symbol}`}>
             ${brief.currentPrice?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || 'N/A'}
           </div>
           <SessionIndicator session={brief.session || 'closed'} />
@@ -225,23 +225,23 @@ function ResearchBriefCard({
         </div>
 
         <div className="grid grid-cols-3 gap-2">
-          <div className="p-2 rounded-lg bg-muted/30 border border-border/50">
-            <div className="text-xs text-muted-foreground mb-1">Resistance</div>
-            <div className="text-sm font-medium text-red-400" data-testid={`text-brief-resistance-${brief.symbol}`}>
+          <div className="p-2 rounded-lg stat-glass">
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Resistance</div>
+            <div className="text-sm font-medium font-mono text-red-400" data-testid={`text-brief-resistance-${brief.symbol}`}>
               {resistanceLevels.length > 0 
                 ? resistanceLevels.slice(0, 2).map(r => '$' + parseFloat(r).toFixed(2)).join(', ')
                 : 'N/A'}
             </div>
           </div>
-          <div className="p-2 rounded-lg bg-muted/30 border border-border/50">
-            <div className="text-xs text-muted-foreground mb-1">Pivot</div>
-            <div className="text-sm font-medium text-yellow-400" data-testid={`text-brief-pivot-${brief.symbol}`}>
+          <div className="p-2 rounded-lg stat-glass">
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Pivot</div>
+            <div className="text-sm font-medium font-mono text-yellow-400" data-testid={`text-brief-pivot-${brief.symbol}`}>
               {brief.pivotLevel ? '$' + brief.pivotLevel.toFixed(2) : 'N/A'}
             </div>
           </div>
-          <div className="p-2 rounded-lg bg-muted/30 border border-border/50">
-            <div className="text-xs text-muted-foreground mb-1">Support</div>
-            <div className="text-sm font-medium text-green-400" data-testid={`text-brief-support-${brief.symbol}`}>
+          <div className="p-2 rounded-lg stat-glass">
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Support</div>
+            <div className="text-sm font-medium font-mono text-green-400" data-testid={`text-brief-support-${brief.symbol}`}>
               {supportLevels.length > 0 
                 ? supportLevels.slice(0, 2).map(s => '$' + parseFloat(s).toFixed(2)).join(', ')
                 : 'N/A'}
@@ -394,11 +394,16 @@ export default function FuturesPage() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="relative overflow-hidden rounded-xl glass-card p-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-cyan-400/10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-transparent to-cyan-400/10" />
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+              Futures Research
+            </p>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3" data-testid="text-page-title">
-              <Brain className="h-8 w-8 text-purple-400" />
+              <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-green-600 shadow-lg">
+                <Brain className="h-6 w-6 text-white" />
+              </div>
               Futures Research Desk
             </h1>
             <p className="text-muted-foreground mt-1">AI-powered futures analysis - 24-hour markets</p>
@@ -449,21 +454,21 @@ export default function FuturesPage() {
 
       <div className="glass-card rounded-xl p-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-          <div className="text-center">
-            <div className="text-muted-foreground">Overnight</div>
-            <div className="font-medium text-purple-400">5:00 PM - 6:00 AM ET</div>
+          <div className="text-center p-2 rounded-lg hover-elevate cursor-default">
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Overnight</div>
+            <div className="font-medium font-mono text-purple-400">5:00 PM - 6:00 AM ET</div>
           </div>
-          <div className="text-center">
-            <div className="text-muted-foreground">Pre-Market</div>
-            <div className="font-medium text-yellow-400">6:00 AM - 9:30 AM ET</div>
+          <div className="text-center p-2 rounded-lg hover-elevate cursor-default">
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Pre-Market</div>
+            <div className="font-medium font-mono text-yellow-400">6:00 AM - 9:30 AM ET</div>
           </div>
-          <div className="text-center">
-            <div className="text-muted-foreground">Regular Hours</div>
-            <div className="font-medium text-green-400">9:30 AM - 4:00 PM ET</div>
+          <div className="text-center p-2 rounded-lg hover-elevate cursor-default">
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Regular Hours</div>
+            <div className="font-medium font-mono text-green-400">9:30 AM - 4:00 PM ET</div>
           </div>
-          <div className="text-center">
-            <div className="text-muted-foreground">Closed</div>
-            <div className="font-medium text-red-400">Fri 5PM - Sun 6PM ET</div>
+          <div className="text-center p-2 rounded-lg hover-elevate cursor-default">
+            <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Closed</div>
+            <div className="font-medium font-mono text-red-400">Fri 5PM - Sun 6PM ET</div>
           </div>
         </div>
       </div>
@@ -622,60 +627,60 @@ export default function FuturesPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                  <div>
-                    <div className="text-sm text-muted-foreground">Current Price</div>
-                    <div className="text-2xl font-bold">${selectedQuote.price.toLocaleString()}</div>
+                  <div className="stat-glass rounded-lg p-3">
+                    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Current Price</div>
+                    <div className="text-2xl font-bold font-mono tabular-nums">${selectedQuote.price.toLocaleString()}</div>
                   </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Change</div>
-                    <div className={`text-xl font-bold ${selectedQuote.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <div className="stat-glass rounded-lg p-3">
+                    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Change</div>
+                    <div className={`text-xl font-bold font-mono tabular-nums ${selectedQuote.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {selectedQuote.changePercent >= 0 ? '+' : ''}{selectedQuote.changePercent.toFixed(2)}%
                     </div>
                   </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Tick Size</div>
-                    <div className="text-xl font-bold">${selectedInfo.tickSize}</div>
+                  <div className="stat-glass rounded-lg p-3">
+                    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Tick Size</div>
+                    <div className="text-xl font-bold font-mono tabular-nums">${selectedInfo.tickSize}</div>
                   </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Point Value</div>
-                    <div className="text-xl font-bold">${selectedInfo.pointValue.toLocaleString()}</div>
+                  <div className="stat-glass rounded-lg p-3">
+                    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Point Value</div>
+                    <div className="text-xl font-bold font-mono tabular-nums">${selectedInfo.pointValue.toLocaleString()}</div>
                   </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Day High</div>
-                    <div className="text-lg font-semibold">${selectedQuote.high.toLocaleString()}</div>
+                  <div className="stat-glass rounded-lg p-3">
+                    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Day High</div>
+                    <div className="text-lg font-semibold font-mono tabular-nums">${selectedQuote.high.toLocaleString()}</div>
                   </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Day Low</div>
-                    <div className="text-lg font-semibold">${selectedQuote.low.toLocaleString()}</div>
+                  <div className="stat-glass rounded-lg p-3">
+                    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Day Low</div>
+                    <div className="text-lg font-semibold font-mono tabular-nums">${selectedQuote.low.toLocaleString()}</div>
                   </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Previous Close</div>
-                    <div className="text-lg font-semibold">${selectedQuote.previousClose.toLocaleString()}</div>
+                  <div className="stat-glass rounded-lg p-3">
+                    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Previous Close</div>
+                    <div className="text-lg font-semibold font-mono tabular-nums">${selectedQuote.previousClose.toLocaleString()}</div>
                   </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Volume</div>
-                    <div className="text-lg font-semibold">{selectedQuote.volume.toLocaleString()}</div>
+                  <div className="stat-glass rounded-lg p-3">
+                    <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Volume</div>
+                    <div className="text-lg font-semibold font-mono tabular-nums">{selectedQuote.volume.toLocaleString()}</div>
                   </div>
                 </div>
                 
-                <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
-                  <h4 className="font-semibold mb-2">Quick Math</h4>
+                <div className="p-4 rounded-lg glass-card">
+                  <h4 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Quick Math</h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">1 Tick Move = </span>
-                      <span className="font-medium">${(selectedInfo.tickSize * selectedInfo.pointValue).toFixed(2)}</span>
+                      <span className="font-medium font-mono">${(selectedInfo.tickSize * selectedInfo.pointValue).toFixed(2)}</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">1 Point Move = </span>
-                      <span className="font-medium">${selectedInfo.pointValue.toLocaleString()}</span>
+                      <span className="font-medium font-mono">${selectedInfo.pointValue.toLocaleString()}</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Day Range = </span>
-                      <span className="font-medium">${(selectedQuote.high - selectedQuote.low).toFixed(2)} pts</span>
+                      <span className="font-medium font-mono">${(selectedQuote.high - selectedQuote.low).toFixed(2)} pts</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Day P&L (1 lot) = </span>
-                      <span className={`font-medium ${selectedQuote.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      <span className={`font-medium font-mono ${selectedQuote.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {selectedQuote.change >= 0 ? '+' : ''}${(selectedQuote.change * selectedInfo.pointValue).toFixed(2)}
                       </span>
                     </div>

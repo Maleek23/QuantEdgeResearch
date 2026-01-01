@@ -1,29 +1,35 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Eye, Database, Lock, Mail } from "lucide-react";
+import { Shield, Eye, Database, Lock, Mail, Scale } from "lucide-react";
 
 export default function PrivacyPolicy() {
   return (
     <div className="container mx-auto p-6 space-y-6 max-w-4xl">
-      <div className="relative overflow-hidden border-b aurora-hero rounded-xl -mx-6 px-6 pb-6 mb-8">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background opacity-50" />
-        <div className="relative pt-6">
-          <div className="flex items-center gap-3">
-            <Shield className="h-8 w-8 text-primary" />
+      {/* Page Header */}
+      <div className="relative overflow-visible rounded-xl mb-8">
+        <div className="relative py-6">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+            Legal
+          </p>
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg shadow-slate-500/20">
+              <Shield className="h-6 w-6 text-white" />
+            </div>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
+              <h1 className="text-2xl sm:text-3xl font-semibold">Privacy Policy</h1>
               <p className="text-sm text-muted-foreground mt-1">
                 Last updated: October 21, 2025
               </p>
             </div>
           </div>
         </div>
-        <div className="absolute bottom-0 left-0 right-0 h-px divider-premium" />
       </div>
 
-      <Card>
+      <Card className="glass-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Eye className="h-5 w-5 text-primary" />
+          <CardTitle className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
+              <Eye className="h-5 w-5 text-white" />
+            </div>
             Information We Collect
           </CardTitle>
         </CardHeader>
@@ -52,10 +58,12 @@ export default function PrivacyPolicy() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="glass-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5 text-primary" />
+          <CardTitle className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
+              <Database className="h-5 w-5 text-white" />
+            </div>
             How We Use Your Information
           </CardTitle>
         </CardHeader>
@@ -71,10 +79,12 @@ export default function PrivacyPolicy() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="glass-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Lock className="h-5 w-5 text-primary" />
+          <CardTitle className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
+              <Lock className="h-5 w-5 text-white" />
+            </div>
             Data Security
           </CardTitle>
         </CardHeader>
@@ -90,16 +100,18 @@ export default function PrivacyPolicy() {
             <li>API key encryption for external service integrations</li>
           </ul>
           <p className="text-amber-500 text-xs mt-4">
-            ⚠️ No security system is impenetrable. While we strive to protect your data, 
+            No security system is impenetrable. While we strive to protect your data, 
             we cannot guarantee absolute security.
           </p>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="glass-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5 text-primary" />
+          <CardTitle className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
+              <Mail className="h-5 w-5 text-white" />
+            </div>
             Third-Party Services
           </CardTitle>
         </CardHeader>
@@ -119,9 +131,14 @@ export default function PrivacyPolicy() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="glass-card">
         <CardHeader>
-          <CardTitle>Your Rights</CardTitle>
+          <CardTitle className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
+              <Scale className="h-5 w-5 text-white" />
+            </div>
+            Your Rights
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-muted-foreground">
           <p>You have the right to:</p>
@@ -135,9 +152,14 @@ export default function PrivacyPolicy() {
         </CardContent>
       </Card>
 
-      <Card className="border-primary/20">
+      <Card className="glass-card overflow-visible hover-elevate border-slate-700/50">
         <CardContent className="pt-6 space-y-2 text-sm">
-          <p className="font-semibold">Contact Us</p>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
+              <Mail className="h-5 w-5 text-white" />
+            </div>
+            <p className="font-semibold text-lg">Contact Us</p>
+          </div>
           <p className="text-muted-foreground">
             If you have questions about this Privacy Policy or how we handle your data, 
             please contact us through our Discord community or support channels.

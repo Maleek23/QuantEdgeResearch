@@ -17,6 +17,7 @@ import {
   FileText,
   Camera,
   Activity,
+  Scale,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
@@ -92,15 +93,19 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
   
   return (
     <Card className="glass-card">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Target className="h-5 w-5 text-cyan-400" />
-          Trade Plan
-        </CardTitle>
-        <CardDescription>Original trade thesis and parameters</CardDescription>
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+            <Target className="h-5 w-5 text-cyan-400" />
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Original Plan</p>
+            <CardTitle className="text-lg">Trade Plan</CardTitle>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="outline" className={cn(
             isLong ? "border-green-500/50 text-green-400" : "border-red-500/50 text-red-400"
           )}>
@@ -111,43 +116,43 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
         </div>
         
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-muted-foreground">Entry Price</p>
-            <p className="font-mono text-lg">${Number(idea.entryPrice).toFixed(2)}</p>
+          <div className="stat-glass rounded-lg p-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Entry Price</p>
+            <p className="font-mono text-lg font-bold tabular-nums">${Number(idea.entryPrice).toFixed(2)}</p>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Target Price</p>
-            <p className="font-mono text-lg text-green-400">${Number(idea.targetPrice).toFixed(2)}</p>
+          <div className="stat-glass rounded-lg p-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Target Price</p>
+            <p className="font-mono text-lg font-bold tabular-nums text-green-400">${Number(idea.targetPrice).toFixed(2)}</p>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Stop Loss</p>
-            <p className="font-mono text-lg text-red-400">${Number(idea.stopLoss).toFixed(2)}</p>
+          <div className="stat-glass rounded-lg p-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Stop Loss</p>
+            <p className="font-mono text-lg font-bold tabular-nums text-red-400">${Number(idea.stopLoss).toFixed(2)}</p>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Risk/Reward</p>
-            <p className="font-mono text-lg">
+          <div className="stat-glass rounded-lg p-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Risk/Reward</p>
+            <p className="font-mono text-lg font-bold tabular-nums">
               {idea.riskRewardRatio ? Number(idea.riskRewardRatio).toFixed(2) + ":1" : "—"}
             </p>
           </div>
         </div>
         
         <div className="pt-2 border-t border-border/50">
-          <p className="text-xs text-muted-foreground">Analysis</p>
-          <p className="text-sm mt-1">{idea.analysis || "No analysis provided"}</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Analysis</p>
+          <p className="text-sm leading-relaxed">{idea.analysis || "No analysis provided"}</p>
         </div>
         
         <div className="grid grid-cols-2 gap-4 pt-2">
           <div>
-            <p className="text-xs text-muted-foreground">Published</p>
-            <p className="text-sm">{formatCT(idea.timestamp)}</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Published</p>
+            <p className="text-sm font-mono">{formatCT(idea.timestamp)}</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">Exit By</p>
-            <p className="text-sm">{formatCT(idea.exitBy)}</p>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Exit By</p>
+            <p className="text-sm font-mono">{formatCT(idea.exitBy)}</p>
           </div>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Badge variant="outline">{idea.source}</Badge>
           {idea.confidenceScore && (
             <Badge variant="secondary">{idea.confidenceScore}% confidence</Badge>
@@ -165,27 +170,32 @@ function OutcomeCard({ idea }: { idea: TradeIdea }) {
   
   return (
     <Card className="glass-card">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          {isWin ? (
-            <TrendingUp className="h-5 w-5 text-green-400" />
-          ) : isLoss ? (
-            <TrendingDown className="h-5 w-5 text-red-400" />
-          ) : (
-            <Activity className="h-5 w-5 text-cyan-400" />
-          )}
-          Outcome
-        </CardTitle>
-        <CardDescription>
-          {isResolved ? "Trade result and exit details" : "Trade is still active"}
-        </CardDescription>
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "h-10 w-10 rounded-lg flex items-center justify-center",
+            isWin ? "bg-green-500/10" : isLoss ? "bg-red-500/10" : "bg-cyan-500/10"
+          )}>
+            {isWin ? (
+              <TrendingUp className="h-5 w-5 text-green-400" />
+            ) : isLoss ? (
+              <TrendingDown className="h-5 w-5 text-red-400" />
+            ) : (
+              <Activity className="h-5 w-5 text-cyan-400" />
+            )}
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Trade Result</p>
+            <CardTitle className="text-lg">Outcome</CardTitle>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {getOutcomeBadge(idea.outcomeStatus)}
           {idea.percentGain !== null && (
             <span className={cn(
-              "font-mono text-2xl font-bold",
+              "font-mono text-2xl font-bold tabular-nums",
               Number(idea.percentGain) >= 0 ? "text-green-400" : "text-red-400"
             )}>
               {Number(idea.percentGain) >= 0 ? "+" : ""}{Number(idea.percentGain).toFixed(2)}%
@@ -196,13 +206,13 @@ function OutcomeCard({ idea }: { idea: TradeIdea }) {
         {isResolved && (
           <>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Exit Price</p>
-                <p className="font-mono text-lg">${Number(idea.exitPrice || 0).toFixed(2)}</p>
+              <div className="stat-glass rounded-lg p-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Exit Price</p>
+                <p className="font-mono text-lg font-bold tabular-nums">${Number(idea.exitPrice || 0).toFixed(2)}</p>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Holding Time</p>
-                <p className="font-mono text-lg">
+              <div className="stat-glass rounded-lg p-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Holding Time</p>
+                <p className="font-mono text-lg font-bold tabular-nums">
                   {idea.actualHoldingTimeMinutes 
                     ? `${Math.round(idea.actualHoldingTimeMinutes)}m`
                     : "—"
@@ -212,15 +222,15 @@ function OutcomeCard({ idea }: { idea: TradeIdea }) {
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground">High Reached</p>
-                <p className="font-mono text-green-400">
+              <div className="stat-glass rounded-lg p-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">High Reached</p>
+                <p className="font-mono text-lg font-bold tabular-nums text-green-400">
                   ${Number(idea.highestPriceReached || 0).toFixed(2)}
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Low Reached</p>
-                <p className="font-mono text-red-400">
+              <div className="stat-glass rounded-lg p-3">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Low Reached</p>
+                <p className="font-mono text-lg font-bold tabular-nums text-red-400">
                   ${Number(idea.lowestPriceReached || 0).toFixed(2)}
                 </p>
               </div>
@@ -228,21 +238,23 @@ function OutcomeCard({ idea }: { idea: TradeIdea }) {
             
             {idea.resolutionReason && (
               <div className="pt-2 border-t border-border/50">
-                <p className="text-xs text-muted-foreground">Resolution Reason</p>
-                <p className="text-sm mt-1">{idea.resolutionReason}</p>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Resolution Reason</p>
+                <p className="text-sm leading-relaxed">{idea.resolutionReason}</p>
               </div>
             )}
             
             <div>
-              <p className="text-xs text-muted-foreground">Exited At</p>
-              <p className="text-sm">{formatCT(idea.exitDate)}</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Exited At</p>
+              <p className="text-sm font-mono">{formatCT(idea.exitDate)}</p>
             </div>
           </>
         )}
         
         {!isResolved && (
           <div className="text-center py-8">
-            <Activity className="h-12 w-12 text-cyan-400 mx-auto mb-2 animate-pulse" />
+            <div className="h-12 w-12 rounded-lg bg-cyan-500/10 flex items-center justify-center mx-auto mb-3">
+              <Activity className="h-6 w-6 text-cyan-400 animate-pulse" />
+            </div>
             <p className="text-muted-foreground">Trade in progress...</p>
             <p className="text-xs text-muted-foreground mt-1">
               Validation runs every 5 minutes
@@ -258,18 +270,22 @@ function PriceSnapshotTimeline({ snapshots }: { snapshots: TradePriceSnapshot[] 
   if (snapshots.length === 0) {
     return (
       <Card className="glass-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Camera className="h-5 w-5 text-cyan-400" />
-            Price Evidence Timeline
-          </CardTitle>
-          <CardDescription>
-            No price snapshots recorded yet
-          </CardDescription>
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+              <Camera className="h-5 w-5 text-purple-400" />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Evidence Log</p>
+              <CardTitle className="text-lg">Price Timeline</CardTitle>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
-            <Camera className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+            <div className="h-12 w-12 rounded-lg bg-muted/30 flex items-center justify-center mx-auto mb-3">
+              <Camera className="h-6 w-6 text-muted-foreground" />
+            </div>
             <p className="text-muted-foreground">
               Price snapshots are captured when the trade reaches target/stop or expires
             </p>
@@ -281,68 +297,70 @@ function PriceSnapshotTimeline({ snapshots }: { snapshots: TradePriceSnapshot[] 
   
   return (
     <Card className="glass-card">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Camera className="h-5 w-5 text-cyan-400" />
-          Price Evidence Timeline
-        </CardTitle>
-        <CardDescription>
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+            <Camera className="h-5 w-5 text-purple-400" />
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Evidence Log</p>
+            <CardTitle className="text-lg">Price Timeline</CardTitle>
+          </div>
+        </div>
+        <CardDescription className="mt-2">
           {snapshots.length} price snapshot{snapshots.length !== 1 ? "s" : ""} recorded
         </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="relative">
-          {/* Timeline line */}
           <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-border" />
           
           <div className="space-y-6">
             {snapshots.map((snapshot, index) => (
               <div key={snapshot.id} className="relative flex gap-4">
-                {/* Timeline dot */}
                 <div className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background border border-border">
                   {getEventIcon(snapshot.eventType)}
                 </div>
                 
-                {/* Content */}
                 <div className="flex-1 pb-4">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
                     <span className="font-medium">{getEventLabel(snapshot.eventType)}</span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground font-mono">
                       {formatCT(snapshot.createdAt?.toISOString?.() || snapshot.eventTimestamp)}
                     </span>
                   </div>
                   
-                  <div className="glass-secondary rounded-lg p-3 space-y-2">
-                    <div className="flex items-center gap-4">
+                  <div className="stat-glass rounded-lg p-4 space-y-3 hover-elevate transition-all">
+                    <div className="flex items-center gap-4 flex-wrap">
                       <div>
-                        <span className="text-xs text-muted-foreground">Price: </span>
-                        <span className="font-mono font-bold">
+                        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Price</span>
+                        <p className="font-mono font-bold tabular-nums">
                           ${Number(snapshot.currentPrice).toFixed(2)}
-                        </span>
+                        </p>
                       </div>
                       {snapshot.bidPrice && (
                         <div>
-                          <span className="text-xs text-muted-foreground">Bid: </span>
-                          <span className="font-mono">${Number(snapshot.bidPrice).toFixed(2)}</span>
+                          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Bid</span>
+                          <p className="font-mono tabular-nums">${Number(snapshot.bidPrice).toFixed(2)}</p>
                         </div>
                       )}
                       {snapshot.askPrice && (
                         <div>
-                          <span className="text-xs text-muted-foreground">Ask: </span>
-                          <span className="font-mono">${Number(snapshot.askPrice).toFixed(2)}</span>
+                          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Ask</span>
+                          <p className="font-mono tabular-nums">${Number(snapshot.askPrice).toFixed(2)}</p>
                         </div>
                       )}
                     </div>
                     
                     {snapshot.distanceToTargetPercent !== null && (
                       <p className="text-xs text-muted-foreground">
-                        Distance to target: {Number(snapshot.distanceToTargetPercent).toFixed(1)}%
+                        Distance to target: <span className="font-mono">{Number(snapshot.distanceToTargetPercent).toFixed(1)}%</span>
                       </p>
                     )}
                     
                     {snapshot.validatorVersion && (
                       <p className="text-xs text-muted-foreground">
-                        Validator: v{snapshot.validatorVersion}
+                        Validator: <span className="font-mono">v{snapshot.validatorVersion}</span>
                       </p>
                     )}
                   </div>
@@ -365,75 +383,78 @@ function ComparisonCard({ idea }: { idea: TradeIdea }) {
   const stopLoss = Number(idea.stopLoss);
   const exitPrice = Number(idea.exitPrice || 0);
   
-  // Calculate target % and stop % from entry
   const targetPct = ((targetPrice - entryPrice) / entryPrice) * 100;
   const stopPct = ((stopLoss - entryPrice) / entryPrice) * 100;
   const actualPct = Number(idea.percentGain || 0);
   
   return (
     <Card className="glass-card">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-cyan-400" />
-          Plan vs Reality
-        </CardTitle>
-        <CardDescription>Side-by-side comparison of expected vs actual</CardDescription>
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+            <Scale className="h-5 w-5 text-amber-400" />
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Analysis</p>
+            <CardTitle className="text-lg">Plan vs Reality</CardTitle>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
           <table className="w-full text-sm" data-testid="comparison-table">
             <thead>
               <tr className="border-b border-border/50">
-                <th className="text-left py-2 font-medium text-muted-foreground">Metric</th>
-                <th className="text-right py-2 font-medium text-muted-foreground">Planned</th>
-                <th className="text-right py-2 font-medium text-muted-foreground">Actual</th>
-                <th className="text-right py-2 font-medium text-muted-foreground">Difference</th>
+                <th className="text-left py-3 font-medium text-xs uppercase tracking-wider text-muted-foreground">Metric</th>
+                <th className="text-right py-3 font-medium text-xs uppercase tracking-wider text-muted-foreground">Planned</th>
+                <th className="text-right py-3 font-medium text-xs uppercase tracking-wider text-muted-foreground">Actual</th>
+                <th className="text-right py-3 font-medium text-xs uppercase tracking-wider text-muted-foreground">Difference</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-border/30">
-                <td className="py-2">Target Price</td>
-                <td className="text-right font-mono text-green-400">${targetPrice.toFixed(2)}</td>
-                <td className="text-right font-mono">—</td>
-                <td className="text-right font-mono">—</td>
+              <tr className="border-b border-border/30 hover-elevate">
+                <td className="py-3">Target Price</td>
+                <td className="text-right font-mono tabular-nums text-green-400">${targetPrice.toFixed(2)}</td>
+                <td className="text-right font-mono tabular-nums">—</td>
+                <td className="text-right font-mono tabular-nums">—</td>
               </tr>
-              <tr className="border-b border-border/30">
-                <td className="py-2">Stop Loss</td>
-                <td className="text-right font-mono text-red-400">${stopLoss.toFixed(2)}</td>
-                <td className="text-right font-mono">—</td>
-                <td className="text-right font-mono">—</td>
+              <tr className="border-b border-border/30 hover-elevate">
+                <td className="py-3">Stop Loss</td>
+                <td className="text-right font-mono tabular-nums text-red-400">${stopLoss.toFixed(2)}</td>
+                <td className="text-right font-mono tabular-nums">—</td>
+                <td className="text-right font-mono tabular-nums">—</td>
               </tr>
-              <tr className="border-b border-border/30">
-                <td className="py-2">Exit Price</td>
-                <td className="text-right font-mono">—</td>
-                <td className="text-right font-mono">${exitPrice.toFixed(2)}</td>
-                <td className="text-right font-mono">
+              <tr className="border-b border-border/30 hover-elevate">
+                <td className="py-3">Exit Price</td>
+                <td className="text-right font-mono tabular-nums">—</td>
+                <td className="text-right font-mono tabular-nums">${exitPrice.toFixed(2)}</td>
+                <td className="text-right font-mono tabular-nums">
                   {(exitPrice - entryPrice >= 0 ? "+" : "") + (exitPrice - entryPrice).toFixed(2)}
                 </td>
               </tr>
-              <tr className="border-b border-border/30">
-                <td className="py-2">Max Upside</td>
-                <td className="text-right font-mono text-green-400">+{targetPct.toFixed(1)}%</td>
+              <tr className="border-b border-border/30 hover-elevate">
+                <td className="py-3">Max Upside</td>
+                <td className="text-right font-mono tabular-nums text-green-400">+{targetPct.toFixed(1)}%</td>
                 <td className={cn(
-                  "text-right font-mono",
+                  "text-right font-mono tabular-nums",
                   actualPct >= 0 ? "text-green-400" : "text-red-400"
                 )}>
                   {actualPct >= 0 ? "+" : ""}{actualPct.toFixed(1)}%
                 </td>
                 <td className={cn(
-                  "text-right font-mono",
+                  "text-right font-mono tabular-nums",
                   actualPct >= targetPct ? "text-green-400" : "text-amber-400"
                 )}>
                   {(actualPct - targetPct).toFixed(1)}%
                 </td>
               </tr>
-              <tr>
-                <td className="py-2">Max Risk</td>
-                <td className="text-right font-mono text-red-400">{stopPct.toFixed(1)}%</td>
-                <td className="text-right font-mono">
+              <tr className="hover-elevate">
+                <td className="py-3">Max Risk</td>
+                <td className="text-right font-mono tabular-nums text-red-400">{stopPct.toFixed(1)}%</td>
+                <td className="text-right font-mono tabular-nums">
                   {idea.outcomeStatus === "hit_stop" ? `${actualPct.toFixed(1)}%` : "—"}
                 </td>
-                <td className="text-right font-mono">—</td>
+                <td className="text-right font-mono tabular-nums">—</td>
               </tr>
             </tbody>
           </table>
@@ -477,7 +498,9 @@ export default function TradeAudit() {
         </Link>
         <Card className="glass-card">
           <CardContent className="py-12 text-center">
-            <AlertTriangle className="h-12 w-12 text-amber-400 mx-auto mb-4" />
+            <div className="h-12 w-12 rounded-lg bg-amber-500/10 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="h-6 w-6 text-amber-400" />
+            </div>
             <h2 className="text-xl font-bold mb-2">Trade Not Found</h2>
             <p className="text-muted-foreground">
               The trade idea you're looking for doesn't exist or has been removed.
@@ -492,8 +515,7 @@ export default function TradeAudit() {
   
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto" data-testid="trade-audit-page">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4">
           <Link href="/trade-desk">
             <Button variant="ghost" size="sm" data-testid="button-back">
@@ -501,39 +523,39 @@ export default function TradeAudit() {
               Back
             </Button>
           </Link>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-              <FileText className="h-6 w-6 text-cyan-400" />
-              Trade Audit Trail
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              {tradeIdea.symbol} • {formatCT(tradeIdea.timestamp)}
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <FileText className="h-5 w-5 text-blue-400" />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Audit Trail</p>
+              <h1 className="text-xl sm:text-2xl font-semibold">
+                {tradeIdea.symbol} <span className="text-muted-foreground font-mono text-base">• {formatCT(tradeIdea.timestamp)}</span>
+              </h1>
+            </div>
           </div>
         </div>
         {getOutcomeBadge(tradeIdea.outcomeStatus)}
       </div>
       
-      {/* Plan vs Outcome Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <PlanCard idea={tradeIdea} />
         <OutcomeCard idea={tradeIdea} />
       </div>
       
-      {/* Comparison Table */}
       <ComparisonCard idea={tradeIdea} />
       
-      {/* Price Evidence Timeline */}
       <PriceSnapshotTimeline snapshots={priceSnapshots} />
       
-      {/* Disclaimer */}
-      <Card className="glass-secondary border-amber-500/20">
+      <Card className="glass-card border-amber-500/20">
         <CardContent className="py-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
+            <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="h-4 w-4 text-amber-400" />
+            </div>
             <div>
               <p className="text-sm font-medium text-amber-400">Educational Disclaimer</p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                 This audit trail is provided for educational and research purposes only. 
                 Past performance does not guarantee future results. All trade ideas are 
                 research publications, not investment advice. You are solely responsible 

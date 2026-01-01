@@ -24,13 +24,9 @@ import {
   MessageSquare,
   TrendingUp,
   LineChart,
-  Shield,
   BarChart3,
-  Zap,
-  Clock,
   Eye,
-  Layers,
-  GitBranch
+  Layers
 } from "lucide-react";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 
@@ -119,9 +115,9 @@ export default function Features() {
       <section className="pt-24 pb-12" data-testid="features-hero">
         <div className="container mx-auto px-6">
           <div className="text-center max-w-3xl mx-auto">
-            <Badge variant="outline" className="mb-4 border-cyan-500/30 text-cyan-400">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
               Complete Platform Overview
-            </Badge>
+            </p>
             <h1 className="text-2xl sm:text-3xl font-semibold mb-4">
               Everything You Get with QuantEdge
             </h1>
@@ -149,9 +145,9 @@ export default function Features() {
           
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {/* AI Engine */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-purple-500/50" data-testid="card-ai-engine">
+            <div className="glass-card rounded-lg p-6 border-l-2 border-purple-500/50 hover-elevate" data-testid="card-ai-engine">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-12 w-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 flex items-center justify-center">
                   <Brain className="h-6 w-6 text-purple-400" />
                 </div>
                 <div>
@@ -179,9 +175,9 @@ export default function Features() {
             </div>
             
             {/* Quant Engine */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-blue-500/50" data-testid="card-quant-engine">
+            <div className="glass-card rounded-lg p-6 border-l-2 border-blue-500/50 hover-elevate" data-testid="card-quant-engine">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/10 flex items-center justify-center">
                   <Calculator className="h-6 w-6 text-blue-400" />
                 </div>
                 <div>
@@ -209,9 +205,9 @@ export default function Features() {
             </div>
             
             {/* Flow Scanner */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-cyan-500/50" data-testid="card-flow-scanner">
+            <div className="glass-card rounded-lg p-6 border-l-2 border-cyan-500/50 hover-elevate" data-testid="card-flow-scanner">
               <div className="flex items-center gap-3 mb-4">
-                <div className="h-12 w-12 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 flex items-center justify-center">
                   <Activity className="h-6 w-6 text-cyan-400" />
                 </div>
                 <div>
@@ -242,7 +238,7 @@ export default function Features() {
       </section>
 
       {/* Research Tools Section */}
-      <section className="py-12 lg:py-16 bg-slate-900/30" id="research-tools" data-testid="section-research-tools">
+      <section className="py-12 lg:py-16 bg-slate-900/30 dark:bg-slate-900/30" id="research-tools" data-testid="section-research-tools">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
@@ -255,9 +251,9 @@ export default function Features() {
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-            <div className="glass-card rounded-lg p-5 border-l-2 border-cyan-500/50" data-testid="card-chart-analysis">
-              <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
-                <Target className="h-5 w-5 text-cyan-400" />
+            <div className="glass-card rounded-lg p-5 border-l-2 border-amber-500/50 hover-elevate" data-testid="card-chart-analysis">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/10 flex items-center justify-center mb-4">
+                <Target className="h-5 w-5 text-amber-400" />
               </div>
               <h3 className="font-semibold mb-2">Chart Analysis</h3>
               <p className="text-sm text-muted-foreground">
@@ -265,8 +261,8 @@ export default function Features() {
               </p>
             </div>
             
-            <div className="glass-card rounded-lg p-5 border-l-2 border-purple-500/50" data-testid="card-chart-database">
-              <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
+            <div className="glass-card rounded-lg p-5 border-l-2 border-purple-500/50 hover-elevate" data-testid="card-chart-database">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 flex items-center justify-center mb-4">
                 <Database className="h-5 w-5 text-purple-400" />
               </div>
               <h3 className="font-semibold mb-2">Chart Database</h3>
@@ -275,9 +271,9 @@ export default function Features() {
               </p>
             </div>
             
-            <div className="glass-card rounded-lg p-5 border-l-2 border-blue-500/50" data-testid="card-futures-terminal">
-              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
-                <CandlestickChart className="h-5 w-5 text-blue-400" />
+            <div className="glass-card rounded-lg p-5 border-l-2 border-green-500/50 hover-elevate" data-testid="card-futures-terminal">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-500/20 to-green-600/10 flex items-center justify-center mb-4">
+                <CandlestickChart className="h-5 w-5 text-green-400" />
               </div>
               <h3 className="font-semibold mb-2">Futures Terminal</h3>
               <p className="text-sm text-muted-foreground">
@@ -285,8 +281,8 @@ export default function Features() {
               </p>
             </div>
             
-            <div className="glass-card rounded-lg p-5 border-l-2 border-cyan-500/50" data-testid="card-auto-lotto-bot">
-              <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
+            <div className="glass-card rounded-lg p-5 border-l-2 border-cyan-500/50 hover-elevate" data-testid="card-auto-lotto-bot">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 flex items-center justify-center mb-4">
                 <Bot className="h-5 w-5 text-cyan-400" />
               </div>
               <h3 className="font-semibold mb-2">Auto-Lotto Bot</h3>
@@ -315,33 +311,33 @@ export default function Features() {
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-            <div className="glass-card rounded-lg p-6 text-center" data-testid="badge-stocks">
-              <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center mx-auto mb-3">
+            <div className="glass-card rounded-lg p-6 text-center hover-elevate" data-testid="badge-stocks">
+              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 flex items-center justify-center mx-auto mb-3">
                 <TrendingUp className="h-6 w-6 text-cyan-400" />
               </div>
               <h3 className="font-semibold">Stocks</h3>
               <p className="text-xs text-muted-foreground mt-1">US Equities</p>
             </div>
             
-            <div className="glass-card rounded-lg p-6 text-center" data-testid="badge-options">
-              <div className="h-12 w-12 rounded-full bg-purple-500/10 flex items-center justify-center mx-auto mb-3">
+            <div className="glass-card rounded-lg p-6 text-center hover-elevate" data-testid="badge-options">
+              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-purple-500/20 to-purple-600/10 flex items-center justify-center mx-auto mb-3">
                 <LineChart className="h-6 w-6 text-purple-400" />
               </div>
               <h3 className="font-semibold">Options</h3>
               <p className="text-xs text-muted-foreground mt-1">Full Chain + Greeks</p>
             </div>
             
-            <div className="glass-card rounded-lg p-6 text-center" data-testid="badge-crypto">
-              <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center mx-auto mb-3">
-                <Coins className="h-6 w-6 text-cyan-400" />
+            <div className="glass-card rounded-lg p-6 text-center hover-elevate" data-testid="badge-crypto">
+              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-amber-500/20 to-amber-600/10 flex items-center justify-center mx-auto mb-3">
+                <Coins className="h-6 w-6 text-amber-400" />
               </div>
               <h3 className="font-semibold">Crypto</h3>
               <p className="text-xs text-muted-foreground mt-1">BTC, ETH, Altcoins</p>
             </div>
             
-            <div className="glass-card rounded-lg p-6 text-center" data-testid="badge-futures">
-              <div className="h-12 w-12 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-3">
-                <CandlestickChart className="h-6 w-6 text-blue-400" />
+            <div className="glass-card rounded-lg p-6 text-center hover-elevate" data-testid="badge-futures">
+              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-green-500/20 to-green-600/10 flex items-center justify-center mx-auto mb-3">
+                <CandlestickChart className="h-6 w-6 text-green-400" />
               </div>
               <h3 className="font-semibold">Futures</h3>
               <p className="text-xs text-muted-foreground mt-1">NQ, GC Contracts</p>
@@ -351,7 +347,7 @@ export default function Features() {
       </section>
 
       {/* Analytics & Risk Section */}
-      <section className="py-12 lg:py-16 bg-slate-900/30" id="analytics" data-testid="section-analytics">
+      <section className="py-12 lg:py-16 bg-slate-900/30 dark:bg-slate-900/30" id="analytics" data-testid="section-analytics">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
@@ -364,8 +360,8 @@ export default function Features() {
           </div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-            <div className="glass-card rounded-lg p-5 border-l-2 border-cyan-500/50" data-testid="card-performance-analytics">
-              <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
+            <div className="glass-card rounded-lg p-5 border-l-2 border-cyan-500/50 hover-elevate" data-testid="card-performance-analytics">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 flex items-center justify-center mb-4">
                 <PieChart className="h-5 w-5 text-cyan-400" />
               </div>
               <h3 className="font-semibold mb-2">Performance Analytics</h3>
@@ -374,9 +370,9 @@ export default function Features() {
               </p>
             </div>
             
-            <div className="glass-card rounded-lg p-5 border-l-2 border-cyan-500/50" data-testid="card-loss-analysis">
-              <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
-                <AlertTriangle className="h-5 w-5 text-muted-foreground" />
+            <div className="glass-card rounded-lg p-5 border-l-2 border-amber-500/50 hover-elevate" data-testid="card-loss-analysis">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/10 flex items-center justify-center mb-4">
+                <AlertTriangle className="h-5 w-5 text-amber-400" />
               </div>
               <h3 className="font-semibold mb-2">Loss Analysis</h3>
               <p className="text-sm text-muted-foreground">
@@ -384,8 +380,8 @@ export default function Features() {
               </p>
             </div>
             
-            <div className="glass-card rounded-lg p-5 border-l-2 border-purple-500/50" data-testid="card-paper-journal">
-              <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
+            <div className="glass-card rounded-lg p-5 border-l-2 border-purple-500/50 hover-elevate" data-testid="card-paper-journal">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 flex items-center justify-center mb-4">
                 <ClipboardList className="h-5 w-5 text-purple-400" />
               </div>
               <h3 className="font-semibold mb-2">Paper Trading Journal</h3>
@@ -394,8 +390,8 @@ export default function Features() {
               </p>
             </div>
             
-            <div className="glass-card rounded-lg p-5 border-l-2 border-blue-500/50" data-testid="card-trade-audit">
-              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
+            <div className="glass-card rounded-lg p-5 border-l-2 border-blue-500/50 hover-elevate" data-testid="card-trade-audit">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/10 flex items-center justify-center mb-4">
                 <FileSearch className="h-5 w-5 text-blue-400" />
               </div>
               <h3 className="font-semibold mb-2">Trade Audit</h3>
@@ -421,8 +417,8 @@ export default function Features() {
           </div>
           
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <div className="glass-card rounded-lg p-5 text-center" data-testid="card-engine-perf">
-              <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mx-auto mb-4">
+            <div className="glass-card rounded-lg p-5 text-center hover-elevate" data-testid="card-engine-perf">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 flex items-center justify-center mx-auto mb-4">
                 <BarChart3 className="h-5 w-5 text-cyan-400" />
               </div>
               <h3 className="font-semibold mb-2">Engine Performance</h3>
@@ -431,8 +427,8 @@ export default function Features() {
               </p>
             </div>
             
-            <div className="glass-card rounded-lg p-5 text-center" data-testid="card-symbol-tracking">
-              <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center mx-auto mb-4">
+            <div className="glass-card rounded-lg p-5 text-center hover-elevate" data-testid="card-symbol-tracking">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 flex items-center justify-center mx-auto mb-4">
                 <Eye className="h-5 w-5 text-purple-400" />
               </div>
               <h3 className="font-semibold mb-2">Symbol Tracking</h3>
@@ -441,8 +437,8 @@ export default function Features() {
               </p>
             </div>
             
-            <div className="glass-card rounded-lg p-5 text-center" data-testid="card-confidence-calibration">
-              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
+            <div className="glass-card rounded-lg p-5 text-center hover-elevate" data-testid="card-confidence-calibration">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/10 flex items-center justify-center mx-auto mb-4">
                 <Layers className="h-5 w-5 text-blue-400" />
               </div>
               <h3 className="font-semibold mb-2">Signal Strength Bands</h3>
@@ -455,7 +451,7 @@ export default function Features() {
       </section>
 
       {/* Education Section */}
-      <section className="py-12 lg:py-16 bg-slate-900/30" id="education" data-testid="section-education">
+      <section className="py-12 lg:py-16 bg-slate-900/30 dark:bg-slate-900/30" id="education" data-testid="section-education">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
@@ -470,7 +466,7 @@ export default function Features() {
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             <Link href="/academy" className="block" data-testid="card-academy">
               <div className="glass-card rounded-lg p-5 border-l-2 border-cyan-500/50 hover-elevate h-full">
-                <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-4">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 flex items-center justify-center mb-4">
                   <GraduationCap className="h-5 w-5 text-cyan-400" />
                 </div>
                 <h3 className="font-semibold mb-2">Trading Academy</h3>
@@ -482,7 +478,7 @@ export default function Features() {
             
             <Link href="/blog" className="block" data-testid="card-blog">
               <div className="glass-card rounded-lg p-5 border-l-2 border-purple-500/50 hover-elevate h-full">
-                <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 flex items-center justify-center mb-4">
                   <Newspaper className="h-5 w-5 text-purple-400" />
                 </div>
                 <h3 className="font-semibold mb-2">Educational Blog</h3>
@@ -492,8 +488,8 @@ export default function Features() {
               </div>
             </Link>
             
-            <div className="glass-card rounded-lg p-5 border-l-2 border-blue-500/50" data-testid="card-discord">
-              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center mb-4">
+            <div className="glass-card rounded-lg p-5 border-l-2 border-blue-500/50 hover-elevate" data-testid="card-discord">
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/10 flex items-center justify-center mb-4">
                 <MessageSquare className="h-5 w-5 text-blue-400" />
               </div>
               <h3 className="font-semibold mb-2">Discord Alerts</h3>
@@ -534,6 +530,9 @@ export default function Features() {
       <section className="py-16" data-testid="section-cta">
         <div className="container mx-auto px-6">
           <div className="glass-card rounded-lg p-8 md:p-12 text-center max-w-3xl mx-auto border border-cyan-500/20">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+              Get Started Today
+            </p>
             <h2 className="text-xl font-semibold mb-4">Ready to Start Your Research?</h2>
             <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
               Join thousands of traders using QuantEdge for educational market research. 

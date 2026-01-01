@@ -16,7 +16,10 @@ import {
   ArrowRight,
   Clock,
   Activity,
-  BarChart3
+  BarChart3,
+  Brain,
+  Calculator,
+  CandlestickChart
 } from "lucide-react";
 import { format, parseISO, isSameDay, subHours } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -73,11 +76,25 @@ export default function HomePage() {
 
   const getEngineColor = (source: string) => {
     const s = source?.toLowerCase();
-    if (s?.includes('flow')) return 'text-cyan-500';
-    if (s?.includes('ai')) return 'text-purple-500';
-    if (s?.includes('quant')) return 'text-blue-500';
-    if (s?.includes('hybrid')) return 'text-orange-500';
+    if (s?.includes('flow')) return 'text-cyan-400';
+    if (s?.includes('ai')) return 'text-purple-400';
+    if (s?.includes('quant')) return 'text-blue-400';
+    if (s?.includes('hybrid')) return 'text-orange-400';
+    if (s?.includes('chart')) return 'text-amber-400';
+    if (s?.includes('futures')) return 'text-green-400';
+    if (s?.includes('lotto') || s?.includes('auto')) return 'text-pink-400';
     return 'text-muted-foreground';
+  };
+
+  const getEngineIcon = (source: string) => {
+    const s = source?.toLowerCase();
+    if (s?.includes('ai')) return { icon: Brain, gradient: 'from-purple-500 to-purple-600', glow: 'shadow-purple-500/20' };
+    if (s?.includes('quant')) return { icon: Calculator, gradient: 'from-blue-500 to-blue-600', glow: 'shadow-blue-500/20' };
+    if (s?.includes('flow')) return { icon: Activity, gradient: 'from-cyan-500 to-cyan-600', glow: 'shadow-cyan-500/20' };
+    if (s?.includes('chart')) return { icon: BarChart3, gradient: 'from-amber-500 to-amber-600', glow: 'shadow-amber-500/20' };
+    if (s?.includes('futures')) return { icon: CandlestickChart, gradient: 'from-green-500 to-green-600', glow: 'shadow-green-500/20' };
+    if (s?.includes('lotto') || s?.includes('auto')) return { icon: Sparkles, gradient: 'from-pink-500 to-pink-600', glow: 'shadow-pink-500/20' };
+    return { icon: Sparkles, gradient: 'from-slate-500 to-slate-600', glow: 'shadow-slate-500/20' };
   };
 
   if (isLoading) {
@@ -121,57 +138,69 @@ export default function HomePage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        {/* Active Positions */}
-        <Card className="p-5 border-border/50">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Active</p>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <p className="text-3xl font-bold font-mono tabular-nums" data-testid="text-active-count">
-            {activeCount}
-          </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            {todaysTopIdeas.length} fresh today
-          </p>
-        </Card>
+      <div className="space-y-3">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Overview</p>
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+          {/* Active Positions */}
+          <Card className="glass-card p-5 bg-gradient-to-br from-background to-muted/20">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Active</p>
+              <div className="p-1.5 rounded-md bg-gradient-to-br from-cyan-500 to-cyan-600 shadow-lg shadow-cyan-500/20">
+                <Activity className="h-3.5 w-3.5 text-white" />
+              </div>
+            </div>
+            <p className="text-3xl font-bold font-mono tabular-nums" data-testid="text-active-count">
+              {activeCount}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {todaysTopIdeas.length} fresh today
+            </p>
+          </Card>
 
-        {/* Win Rate */}
-        <Card className="p-5 border-border/50">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Win Rate</p>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <p className={cn(
-            "text-3xl font-bold font-mono tabular-nums",
-            winRate >= 60 ? "text-green-500" : winRate >= 50 ? "text-amber-500" : "text-red-500"
-          )} data-testid="text-win-rate">
-            {decidedThisWeek > 0 ? `${winRate.toFixed(0)}%` : '—'}
-          </p>
-          <p className="text-sm text-muted-foreground mt-1">
-            {decidedThisWeek} decided this week
-          </p>
-        </Card>
+          {/* Win Rate */}
+          <Card className="glass-card p-5 bg-gradient-to-br from-background to-muted/20">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Win Rate</p>
+              <div className="p-1.5 rounded-md bg-gradient-to-br from-green-500 to-green-600 shadow-lg shadow-green-500/20">
+                <Target className="h-3.5 w-3.5 text-white" />
+              </div>
+            </div>
+            <p className={cn(
+              "text-3xl font-bold font-mono tabular-nums",
+              winRate >= 60 ? "text-green-500" : winRate >= 50 ? "text-amber-500" : "text-red-500"
+            )} data-testid="text-win-rate">
+              {decidedThisWeek > 0 ? `${winRate.toFixed(0)}%` : '—'}
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {decidedThisWeek} decided this week
+            </p>
+          </Card>
 
-        {/* Record */}
-        <Card className="p-5 border-border/50">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Record</p>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold font-mono tabular-nums text-green-500">{winsThisWeek}W</span>
-            <span className="text-xl font-mono text-muted-foreground">/</span>
-            <span className="text-3xl font-bold font-mono tabular-nums text-red-500">{lossesThisWeek}L</span>
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">This week</p>
-        </Card>
+          {/* Record */}
+          <Card className="glass-card p-5 bg-gradient-to-br from-background to-muted/20">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Record</p>
+              <div className="p-1.5 rounded-md bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/20">
+                <BarChart3 className="h-3.5 w-3.5 text-white" />
+              </div>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold font-mono tabular-nums text-green-500">{winsThisWeek}W</span>
+              <span className="text-xl font-mono text-muted-foreground">/</span>
+              <span className="text-3xl font-bold font-mono tabular-nums text-red-500">{lossesThisWeek}L</span>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">This week</p>
+          </Card>
+        </div>
       </div>
 
       {/* Today's Top Signals */}
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold tracking-tight">Top Signals</h2>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Signals</p>
+            <h2 className="text-xl font-semibold tracking-tight">Top Signals</h2>
+          </div>
           <Link href="/trade-desk">
             <Button variant="ghost" size="sm" data-testid="button-view-all-signals">
               View All <ArrowRight className="h-4 w-4 ml-1" />
@@ -203,15 +232,24 @@ export default function HomePage() {
             {todaysTopIdeas.map((idea, index) => {
               const grade = getPerformanceGrade(idea.confidenceScore);
               const isLong = idea.direction === 'long';
+              const engineInfo = getEngineIcon(idea.source || '');
+              const EngineIcon = engineInfo.icon;
               
               return (
                 <Link key={idea.id} href="/trade-desk">
                   <Card 
-                    className="p-4 hover:bg-muted/30 transition-colors cursor-pointer border-border/50"
+                    className="p-4 hover-elevate cursor-pointer border-border/50 transition-all duration-200"
                     data-testid={`card-top-idea-${index}`}
                   >
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2">
+                        <div className={cn(
+                          "p-1.5 rounded-md bg-gradient-to-br shadow-lg",
+                          engineInfo.gradient,
+                          engineInfo.glow
+                        )}>
+                          <EngineIcon className="h-3.5 w-3.5 text-white" />
+                        </div>
                         <span className="text-lg font-bold font-mono">{idea.symbol}</span>
                         <span className={cn(
                           "text-xs font-semibold uppercase",
@@ -261,31 +299,40 @@ export default function HomePage() {
 
         <div className="space-y-4">
           {/* Quick Actions */}
-          <Card className="p-4 border-border/50">
-            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</h3>
+          <Card className="glass-card p-4">
+            <div className="mb-3">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Navigation</p>
+              <h3 className="text-lg font-semibold">Quick Actions</h3>
+            </div>
             <div className="space-y-2">
               <Link href="/trade-desk" className="block">
-                <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors" data-testid="card-action-trade-desk">
+                <div className="flex items-center justify-between gap-2 p-3 rounded-lg hover-elevate transition-all duration-200" data-testid="card-action-trade-desk">
                   <div className="flex items-center gap-3">
-                    <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                    <div className="p-1.5 rounded-md bg-gradient-to-br from-cyan-500 to-cyan-600 shadow-lg shadow-cyan-500/20">
+                      <TrendingUp className="h-3.5 w-3.5 text-white" />
+                    </div>
                     <span className="font-medium">Research Desk</span>
                   </div>
                   <ArrowRight className="h-4 w-4 text-muted-foreground" />
                 </div>
               </Link>
               <Link href="/performance" className="block">
-                <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors" data-testid="card-action-performance">
+                <div className="flex items-center justify-between gap-2 p-3 rounded-lg hover-elevate transition-all duration-200" data-testid="card-action-performance">
                   <div className="flex items-center gap-3">
-                    <Target className="h-5 w-5 text-muted-foreground" />
+                    <div className="p-1.5 rounded-md bg-gradient-to-br from-green-500 to-green-600 shadow-lg shadow-green-500/20">
+                      <Target className="h-3.5 w-3.5 text-white" />
+                    </div>
                     <span className="font-medium">Performance</span>
                   </div>
                   <ArrowRight className="h-4 w-4 text-muted-foreground" />
                 </div>
               </Link>
               <Link href="/chart-analysis" className="block">
-                <div className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors" data-testid="card-action-chart">
+                <div className="flex items-center justify-between gap-2 p-3 rounded-lg hover-elevate transition-all duration-200" data-testid="card-action-chart">
                   <div className="flex items-center gap-3">
-                    <BarChart3 className="h-5 w-5 text-muted-foreground" />
+                    <div className="p-1.5 rounded-md bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg shadow-amber-500/20">
+                      <BarChart3 className="h-3.5 w-3.5 text-white" />
+                    </div>
                     <span className="font-medium">Chart Analysis</span>
                   </div>
                   <ArrowRight className="h-4 w-4 text-muted-foreground" />
@@ -295,9 +342,11 @@ export default function HomePage() {
           </Card>
 
           {/* Educational Notice */}
-          <Card className="p-4 border-l-2 border-l-amber-500 border-border/50">
+          <Card className="glass-card p-4 border-l-2 border-l-amber-500">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+              <div className="p-1.5 rounded-md bg-gradient-to-br from-amber-500 to-amber-600 shadow-lg shadow-amber-500/20 shrink-0">
+                <AlertTriangle className="h-3.5 w-3.5 text-white" />
+              </div>
               <div>
                 <p className="font-medium text-sm mb-1">Educational Research Only</p>
                 <p className="text-sm text-muted-foreground">

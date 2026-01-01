@@ -80,16 +80,24 @@ export default function Signup() {
       <div className="relative w-full max-w-md overflow-hidden rounded-xl glass-card p-6">
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
         <div className="relative z-10">
-          <div className="space-y-1 mb-6">
-            <div className="flex items-center gap-2 mb-4">
+          <div className="space-y-2 mb-8">
+            <div className="flex items-center gap-2 mb-6">
               <Link href="/">
-                <Button variant="ghost" size="icon" data-testid="button-back">
+                <Button variant="ghost" size="icon" className="hover-elevate" data-testid="button-back">
                   <ArrowLeft className="h-4 w-4" />
                 </Button>
               </Link>
             </div>
+            <div className="flex justify-center mb-4">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-400/10 border border-cyan-500/20">
+                <UserPlus className="h-6 w-6 text-cyan-400" />
+              </div>
+            </div>
+            <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 text-center">
+              Get Started
+            </p>
             <h2 className="text-2xl font-bold text-center">Create an account</h2>
-            <p className="text-center text-muted-foreground">
+            <p className="text-center text-muted-foreground text-sm">
               Enter your details to get started with QuantEdge
             </p>
           </div>
@@ -259,10 +267,10 @@ export default function Signup() {
               </form>
             </Form>
             
-            <div className="flex flex-col gap-4 mt-4">
+            <div className="flex flex-col gap-4 mt-6">
               <div className="text-sm text-muted-foreground text-center">
                 Already have an account?{" "}
-                <Link href="/login" className="text-cyan-400 hover:underline" data-testid="link-login">
+                <Link href="/login" className="text-cyan-400 hover:text-cyan-300 transition-colors font-medium" data-testid="link-login">
                   Log in
                 </Link>
               </div>

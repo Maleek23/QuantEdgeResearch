@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MarketData, Catalyst, WatchlistItem } from "@shared/schema";
-import { TrendingUp, DollarSign, Activity, RefreshCw, Clock, ArrowUp, ArrowDown, Star } from "lucide-react";
+import { TrendingUp, DollarSign, Activity, RefreshCw, Clock, ArrowUp, ArrowDown, Star, BarChart3 } from "lucide-react";
 import { getMarketSession, formatCTTime, formatCurrency, formatPercent } from "@/lib/utils";
 
 export default function MarketPage() {
@@ -86,23 +86,25 @@ export default function MarketPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-page-title">Market Overview</h1>
-          <div className="flex items-center gap-3 mt-2">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Market Data</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight" data-testid="text-page-title">Market Overview</h1>
+          <div className="flex items-center gap-3 mt-3">
             <MarketSessionBadge session={currentSession} data-testid="badge-market-session" />
             <div className="flex items-center gap-2 text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span className="text-sm font-medium" data-testid="text-current-time">{currentTime} CT</span>
+              <Clock className="h-4 w-4 text-cyan-400" />
+              <span className="text-sm font-medium font-mono" data-testid="text-current-time">{currentTime} CT</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <SymbolSearch />
           <Button
             variant="outline"
             size="sm"
             onClick={() => refreshPricesMutation.mutate()}
             disabled={refreshPricesMutation.isPending}
+            className="border-slate-700"
             data-testid="button-refresh-prices"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${refreshPricesMutation.isPending ? 'animate-spin' : ''}`} />
@@ -113,55 +115,68 @@ export default function MarketPage() {
 
       {/* Market Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-5 border-border/50">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tracked Assets</p>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+        <Card className="glass-card p-5">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Tracked Assets</p>
+            <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <Activity className="h-4 w-4 text-cyan-400" />
+            </div>
           </div>
-          <p className="text-3xl font-bold font-mono tabular-nums" data-testid="text-total-assets">{marketData.length}</p>
+          <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-total-assets">{marketData.length}</p>
           <p className="text-sm text-muted-foreground mt-1">Stocks, Options & Crypto</p>
         </Card>
 
-        <Card className="p-5 border-border/50">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Market Sentiment</p>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        <Card className="glass-card p-5">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Market Sentiment</p>
+            <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <TrendingUp className="h-4 w-4 text-cyan-400" />
+            </div>
           </div>
-          <p className={`text-3xl font-bold font-mono tabular-nums ${avgChange >= 0 ? 'text-green-500' : 'text-red-500'}`} data-testid="text-avg-change">
+          <p className={`text-2xl font-bold font-mono tabular-nums ${avgChange >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-avg-change">
             {avgChange >= 0 ? '+' : ''}{avgChange.toFixed(2)}%
           </p>
           <p className="text-sm text-muted-foreground mt-1">Average Change</p>
         </Card>
 
-        <Card className="p-5 border-border/50">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Volume</p>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+        <Card className="glass-card p-5">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Volume</p>
+            <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <BarChart3 className="h-4 w-4 text-cyan-400" />
+            </div>
           </div>
-          <p className="text-3xl font-bold font-mono tabular-nums" data-testid="text-total-volume">
+          <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-total-volume">
             {totalVolume >= 1e9 ? `${(totalVolume / 1e9).toFixed(1)}B` : `${(totalVolume / 1e6).toFixed(1)}M`}
           </p>
           <p className="text-sm text-muted-foreground mt-1">Combined Trading Volume</p>
         </Card>
 
-        <Card className="p-5 border-border/50">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Active Catalysts</p>
-            <Activity className="h-4 w-4 text-muted-foreground" />
+        <Card className="glass-card p-5">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Active Catalysts</p>
+            <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <Activity className="h-4 w-4 text-cyan-400" />
+            </div>
           </div>
-          <p className="text-3xl font-bold font-mono tabular-nums" data-testid="text-catalyst-count">{catalysts.length}</p>
+          <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-catalyst-count">{catalysts.length}</p>
           <p className="text-sm text-muted-foreground mt-1">Market-Moving Events</p>
         </Card>
       </div>
 
       {/* Top Movers */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-border/50">
+        <Card className="glass-card overflow-visible">
           <div className="p-5 pb-3">
-            <h3 className="flex items-center gap-2 text-lg font-semibold">
-              <ArrowUp className="h-5 w-5 text-green-500" />
-              Top Gainers
-            </h3>
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                <ArrowUp className="h-4 w-4 text-green-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Movers</p>
+                <h3 className="text-lg font-semibold">Top Gainers</h3>
+              </div>
+            </div>
           </div>
           <div className="px-5 pb-5">
             {marketLoading ? (
@@ -173,7 +188,7 @@ export default function MarketPage() {
                 {gainers.map((data, idx) => (
                   <div
                     key={data.symbol}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    className="flex items-center justify-between p-3 rounded-lg hover-elevate cursor-pointer transition-colors"
                     onClick={() => handleSymbolSelect(data)}
                     data-testid={`gainer-${idx}`}
                   >
@@ -181,7 +196,7 @@ export default function MarketPage() {
                       <span className="bg-muted text-muted-foreground rounded px-2 py-0.5 text-xs font-mono">{data.symbol}</span>
                       <span className="text-sm font-medium font-mono">{formatCurrency(data.currentPrice)}</span>
                     </div>
-                    <span className="text-sm font-bold font-mono text-green-500">
+                    <span className="text-sm font-bold font-mono text-green-400">
                       {formatPercent(data.changePercent)}
                     </span>
                   </div>
@@ -191,12 +206,17 @@ export default function MarketPage() {
           </div>
         </Card>
 
-        <Card className="border-border/50">
+        <Card className="glass-card overflow-visible">
           <div className="p-5 pb-3">
-            <h3 className="flex items-center gap-2 text-lg font-semibold">
-              <ArrowDown className="h-5 w-5 text-red-500" />
-              Top Losers
-            </h3>
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+                <ArrowDown className="h-4 w-4 text-red-400" />
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Movers</p>
+                <h3 className="text-lg font-semibold">Top Losers</h3>
+              </div>
+            </div>
           </div>
           <div className="px-5 pb-5">
             {marketLoading ? (
@@ -208,7 +228,7 @@ export default function MarketPage() {
                 {losers.map((data, idx) => (
                   <div
                     key={data.symbol}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    className="flex items-center justify-between p-3 rounded-lg hover-elevate cursor-pointer transition-colors"
                     onClick={() => handleSymbolSelect(data)}
                     data-testid={`loser-${idx}`}
                   >
@@ -216,7 +236,7 @@ export default function MarketPage() {
                       <span className="bg-muted text-muted-foreground rounded px-2 py-0.5 text-xs font-mono">{data.symbol}</span>
                       <span className="text-sm font-medium font-mono">{formatCurrency(data.currentPrice)}</span>
                     </div>
-                    <span className="text-sm font-bold font-mono text-red-500">
+                    <span className="text-sm font-bold font-mono text-red-400">
                       {formatPercent(data.changePercent)}
                     </span>
                   </div>
@@ -228,9 +248,17 @@ export default function MarketPage() {
       </div>
 
       {/* All Market Data */}
-      <Card className="border-border/50">
+      <Card className="glass-card">
         <div className="p-5 pb-3">
-          <h3 className="text-lg font-semibold">Live Market Data</h3>
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+              <BarChart3 className="h-4 w-4 text-cyan-400" />
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Real-Time</p>
+              <h3 className="text-lg font-semibold">Live Market Data</h3>
+            </div>
+          </div>
         </div>
         <div className="px-5 pb-5">
           {marketLoading ? (
@@ -256,7 +284,7 @@ export default function MarketPage() {
 
       {/* Catalyst Feed */}
       {catalystsLoading ? (
-        <Card className="border-border/50 p-12">
+        <Card className="glass-card p-12">
           <Skeleton className="h-64 w-full" />
         </Card>
       ) : (
@@ -264,21 +292,28 @@ export default function MarketPage() {
       )}
 
       {/* Watchlist Section */}
-      <Card className="border-border/50">
+      <Card className="glass-card overflow-visible">
         <div className="p-5 pb-3">
-          <h3 className="flex items-center gap-2 text-lg font-semibold">
-            <Star className="h-5 w-5 text-amber-500" />
-            <span>Watchlist</span>
-            <span className="text-muted-foreground text-sm font-normal">{watchlist.length} symbols</span>
-          </h3>
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <Star className="h-4 w-4 text-amber-400" />
+            </div>
+            <div className="flex items-center gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Personal</p>
+                <h3 className="text-lg font-semibold">Watchlist</h3>
+              </div>
+              <span className="text-muted-foreground text-sm font-mono">{watchlist.length} symbols</span>
+            </div>
+          </div>
         </div>
         <div className="px-5 pb-5">
           {watchlistLoading ? (
             <Skeleton className="h-64 w-full" />
           ) : watchlist.length === 0 ? (
             <div className="text-center py-12">
-              <div className="h-14 w-14 rounded-xl bg-muted mx-auto mb-4 flex items-center justify-center">
-                <Star className="h-7 w-7 text-muted-foreground" />
+              <div className="h-14 w-14 rounded-xl bg-amber-500/10 mx-auto mb-4 flex items-center justify-center">
+                <Star className="h-7 w-7 text-amber-400" />
               </div>
               <h3 className="text-lg font-semibold mb-2">No Symbols Tracked</h3>
               <p className="text-muted-foreground text-sm">
