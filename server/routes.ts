@@ -8045,6 +8045,35 @@ FORMATTING:
     }
   });
 
+  // POST /api/auto-lotto-bot/scan - Trigger manual bot scan (admin only)
+  app.post("/api/auto-lotto-bot/scan", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.subscriptionTier !== 'admin') {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const { runAutonomousBotScan, runFuturesBotScan } = await import("./auto-lotto-trader");
+      
+      logger.info("🤖 [BOT] Admin-triggered manual scan starting...");
+      
+      // Run both scans
+      const optionsResult = await runAutonomousBotScan();
+      const futuresResult = await runFuturesBotScan();
+      
+      res.json({
+        success: true,
+        message: "Bot scan completed - check logs for details",
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      logger.error("Error running manual bot scan", { error });
+      res.status(500).json({ error: "Failed to run bot scan" });
+    }
+  });
+
   // ==========================================
   // WALLET TRACKER API ENDPOINTS
   // ==========================================

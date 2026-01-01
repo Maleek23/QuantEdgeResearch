@@ -317,12 +317,12 @@ function makeBotDecision(
   score = Math.max(0, Math.min(100, score));
   const grade = getLetterGrade(score);
   
-  // STRICTER ENTRY CRITERIA - Only A and B grades allowed
-  // A = 85+, B+ = 80-84, B = 75-79
+  // RELAXED ENTRY CRITERIA - Allow B and C+ grades to trade more actively
+  // A = 85+, B+ = 80-84, B = 75-79, C+ = 70-74
   const isDayTrade = opportunity.daysToExpiry <= 2;
-  const minScoreForEntry = isDayTrade ? 85 : 80; // Higher thresholds
+  const minScoreForEntry = isDayTrade ? 75 : 70; // Lowered thresholds for more trades
   
-  // Require at least 3 positive signals to enter
+  // Require at least 2 positive signals to enter (reduced from 3)
   const positiveSignals = signals.filter(s => 
     !s.includes('LOW_VOLUME') && 
     !s.includes('RISKY') && 
@@ -330,27 +330,27 @@ function makeBotDecision(
     !s.includes('TOO_FAR')
   );
   
-  if (positiveSignals.length < 3) {
+  if (positiveSignals.length < 2) {
     return {
       action: 'skip',
-      reason: `Only ${positiveSignals.length} positive signals - need 3+`,
+      reason: `Only ${positiveSignals.length} positive signals - need 2+`,
       confidence: score,
       signals
     };
   }
   
-  // Only enter on A or B grades
-  if (score >= minScoreForEntry && (grade === 'A' || grade === 'B+' || grade === 'B')) {
+  // Enter on A, B, or C+ grades (score >= 70)
+  if (score >= minScoreForEntry && (grade === 'A' || grade === 'B+' || grade === 'B' || grade === 'C+' || grade === 'C')) {
     return {
       action: 'enter',
       reason: `${grade} grade (${score}) - ${signals.slice(0, 3).join(', ')}`,
       confidence: score,
       signals
     };
-  } else if (score >= 70) {
+  } else if (score >= 60) {
     return {
       action: 'wait',
-      reason: `${grade} grade (${score}) needs A/B grade for entry`,
+      reason: `${grade} grade (${score}) needs higher score for entry`,
       confidence: score,
       signals
     };
@@ -856,8 +856,8 @@ export async function runFuturesBotScan(): Promise<void> {
           score += 5;
         }
         
-        // Require minimum score of 75 for futures (higher bar)
-        if (score >= 75) {
+        // Require minimum score of 65 for futures (lowered for more activity)
+        if (score >= 65) {
           // Determine direction based on session
           const direction: 'long' | 'short' = isMorningSession ? 'long' : (Math.random() > 0.5 ? 'long' : 'short');
           const opportunity: FuturesOpportunity = {

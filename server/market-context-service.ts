@@ -145,10 +145,12 @@ function analyzeMarketConditions(
     reasons.push('SPY/QQQ diverging - mixed signals');
   }
 
-  const shouldTrade = score >= 45 && regime !== 'volatile';
+  // Relaxed threshold: Allow trading in more conditions (score >= 30)
+  // Only block in truly volatile/dangerous markets
+  const shouldTrade = score >= 30 && regime !== 'volatile';
 
   if (!shouldTrade) {
-    reasons.push(`⛔ Skip trading: Score ${score} < 45 or volatile regime`);
+    reasons.push(`⛔ Skip trading: Score ${score} < 30 or volatile regime`);
   }
 
   return {
