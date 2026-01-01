@@ -831,22 +831,24 @@ app.use((req, res, next) => {
         }
         
         logger.info('🤖 [AUTO-BOT] Starting autonomous market scan...');
-        const { runAutonomousBotScan } = await import('./auto-lotto-trader');
+        const { runAutonomousBotScan, runFuturesBotScan } = await import('./auto-lotto-trader');
         await runAutonomousBotScan();
         
-        // Also scan for futures opportunities (NQ, GC)
-        logger.info('🔮 [FUTURES-AUTO] Starting automated futures scan...');
+        // Futures paper trading scan (during CME market hours)
+        logger.info('🔮 [FUTURES-BOT] Starting futures paper trading scan...');
+        await runFuturesBotScan();
+        
+        // Also generate futures research ideas (NQ, GC)
         const { generateFuturesIdeas } = await import('./quantitative-engine');
-        const futuresIdeas = await generateFuturesIdeas(); // Uses market hours check internally
+        const futuresIdeas = await generateFuturesIdeas();
         if (futuresIdeas.length > 0) {
           const savedFuturesIdeas = [];
           for (const idea of futuresIdeas) {
             const saved = await storage.createTradeIdea(idea);
             savedFuturesIdeas.push(saved);
           }
-          logger.info(`🔮 [FUTURES-AUTO] Generated ${futuresIdeas.length} futures ideas`);
+          logger.info(`🔮 [FUTURES-AUTO] Generated ${futuresIdeas.length} futures research ideas`);
           
-          // Send to dedicated futures Discord channel
           const { sendFuturesTradesToDiscord } = await import('./discord-service');
           await sendFuturesTradesToDiscord(savedFuturesIdeas);
         }

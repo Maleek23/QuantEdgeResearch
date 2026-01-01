@@ -1,6 +1,6 @@
 import { storage } from "./storage";
 import { executeTradeIdea, checkStopsAndTargets, updatePositionPrices } from "./paper-trading-service";
-import { sendBotTradeEntryToDiscord, sendBotTradeExitToDiscord } from "./discord-service";
+import { sendBotTradeEntryToDiscord, sendBotTradeExitToDiscord, sendFuturesTradesToDiscord } from "./discord-service";
 import { getTradierQuote, getTradierOptionsChainsByDTE } from "./tradier-api";
 import { calculateLottoTargets, getLottoThresholds } from "./lotto-detector";
 import { getLetterGrade } from "./grading";
@@ -8,6 +8,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { TradeIdea, PaperPortfolio, InsertTradeIdea } from "@shared/schema";
 import { logger } from "./logger";
 import { getMarketContext, getEntryTiming, checkDynamicExit, MarketContext } from "./market-context-service";
+import { getActiveFuturesContract, getFuturesQuote } from "./futures-data-service";
 
 const LOTTO_PORTFOLIO_NAME = "Auto-Lotto Bot";
 const SYSTEM_USER_ID = "system-auto-trader";
@@ -38,6 +39,41 @@ const BOT_SCAN_TICKERS = [
   'TSLA', 'NVDA', 'AMD', 'SPY', 'QQQ', 'AAPL', 'META', 'GOOGL', 'AMZN', 'NFLX',
   'IONQ', 'RGTI', 'QUBT', 'QBTS', 'MARA', 'RIOT', 'COIN', 'SOFI', 'HOOD', 'PLTR'
 ];
+
+const FUTURES_SYMBOLS: ('NQ' | 'GC')[] = ['NQ', 'GC'];
+const FUTURES_MAX_POSITION_SIZE = 100;
+
+interface FuturesOpportunity {
+  symbol: string;
+  contractCode: string;
+  direction: 'long' | 'short';
+  price: number;
+  signals: string[];
+  confidence: number;
+  expirationDate: string;
+}
+
+function isCMEMarketOpen(): boolean {
+  const now = new Date();
+  const ctTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+  const day = ctTime.getDay();
+  const hour = ctTime.getHours();
+  const minute = ctTime.getMinutes();
+  
+  if (day === 6) return false;
+  if (day === 0 && hour < 17) return false;
+  
+  if (day >= 1 && day <= 4) {
+    if ((hour === 16 && minute >= 0 && minute < 15) || (hour === 17 && minute < 0)) {
+      return false;
+    }
+    return true;
+  }
+  
+  if (day === 5 && hour >= 16) return false;
+  
+  return true;
+}
 
 export async function getLottoPortfolio(): Promise<PaperPortfolio | null> {
   try {
@@ -607,6 +643,113 @@ export async function monitorLottoPositions(): Promise<void> {
     }
   } catch (error) {
     logger.error("🤖 [BOT] Error monitoring positions:", error);
+  }
+}
+
+/**
+ * FUTURES TRADING - Scan and execute futures trades during CME market hours
+ */
+export async function runFuturesBotScan(): Promise<void> {
+  try {
+    if (!isCMEMarketOpen()) {
+      logger.info(`🔮 [FUTURES-BOT] CME market closed - skipping futures scan`);
+      return;
+    }
+    
+    logger.info(`🔮 [FUTURES-BOT] ========== FUTURES SCAN STARTED ==========`);
+    
+    const portfolio = await getLottoPortfolio();
+    if (!portfolio) {
+      logger.error(`🔮 [FUTURES-BOT] No portfolio available`);
+      return;
+    }
+    
+    const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+    const openFuturesPositions = positions.filter(p => p.status === 'open' && p.assetType === 'futures');
+    
+    if (openFuturesPositions.length >= 1) {
+      logger.info(`🔮 [FUTURES-BOT] Already have ${openFuturesPositions.length} open futures - waiting for exit`);
+      return;
+    }
+    
+    const openFuturesSymbols = new Set(openFuturesPositions.map(p => p.symbol.substring(0, 2)));
+    let bestFuturesOpp: FuturesOpportunity | null = null;
+    
+    for (const rootSymbol of FUTURES_SYMBOLS) {
+      if (openFuturesSymbols.has(rootSymbol)) continue;
+      
+      try {
+        const contract = await getActiveFuturesContract(rootSymbol);
+        const quote = await getFuturesQuote(contract.contractCode);
+        
+        if (!quote) {
+          logger.warn(`🔮 [FUTURES-BOT] No quote for ${contract.contractCode}`);
+          continue;
+        }
+        
+        const signals: string[] = [];
+        let score = 50;
+        
+        const priceChange = ((quote.last - quote.open) / quote.open) * 100;
+        
+        if (Math.abs(priceChange) >= 0.5) {
+          if (priceChange > 0) {
+            signals.push(`BULLISH_MOMENTUM_${priceChange.toFixed(2)}%`);
+            score += priceChange >= 1.0 ? 20 : 10;
+          } else {
+            signals.push(`BEARISH_MOMENTUM_${priceChange.toFixed(2)}%`);
+            score += Math.abs(priceChange) >= 1.0 ? 20 : 10;
+          }
+        }
+        
+        if (quote.high && quote.low && quote.last) {
+          const range = quote.high - quote.low;
+          if (range > 0) {
+            const pricePosition = (quote.last - quote.low) / range;
+            if (pricePosition < 0.3) {
+              signals.push('NEAR_SESSION_LOW');
+              score += 15;
+            } else if (pricePosition > 0.7) {
+              signals.push('NEAR_SESSION_HIGH');
+              score += 15;
+            }
+          }
+        }
+        
+        if (score >= 65) {
+          const direction = priceChange > 0 ? 'long' : 'short';
+          const opportunity: FuturesOpportunity = {
+            symbol: rootSymbol,
+            contractCode: contract.contractCode,
+            direction,
+            price: quote.last,
+            signals,
+            confidence: Math.min(score, 90),
+            expirationDate: contract.expirationDate,
+          };
+          
+          if (!bestFuturesOpp || score > bestFuturesOpp.confidence) {
+            bestFuturesOpp = opportunity;
+          }
+          
+          logger.info(`🔮 [FUTURES-BOT] ✅ ${rootSymbol}: ${direction.toUpperCase()} @ ${quote.last.toFixed(2)} | ${signals.join(' | ')}`);
+        }
+      } catch (error) {
+        logger.warn(`🔮 [FUTURES-BOT] Error scanning ${rootSymbol}:`, error);
+      }
+    }
+    
+    if (bestFuturesOpp) {
+      logger.info(`🔮 [FUTURES-BOT] 🎯 FOUND FUTURES OPPORTUNITY: ${bestFuturesOpp.contractCode} ${bestFuturesOpp.direction.toUpperCase()} @ $${bestFuturesOpp.price.toFixed(2)}`);
+      logger.info(`🔮 [FUTURES-BOT] 📊 Signals: ${bestFuturesOpp.signals.join(' | ')}`);
+      logger.info(`🔮 [FUTURES-BOT] ℹ️ Futures paper trading deferred - focus on lotto options for now`);
+    } else {
+      logger.info(`🔮 [FUTURES-BOT] No futures opportunities met entry criteria`);
+    }
+    
+    logger.info(`🔮 [FUTURES-BOT] ========== FUTURES SCAN COMPLETE ==========`);
+  } catch (error) {
+    logger.error(`🔮 [FUTURES-BOT] Error in futures scan:`, error);
   }
 }
 

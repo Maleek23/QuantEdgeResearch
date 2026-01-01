@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, cn } from "@/lib/utils";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -14,7 +15,8 @@ import {
   Bot, Eye, Plus, Trash2, TrendingUp, DollarSign, Target, 
   AlertTriangle, Activity, Zap, Clock, CheckCircle2, XCircle, 
   RefreshCw, Shield, Calendar, Bell, BellOff, LogIn, Radio, Atom, 
-  Radiation, FlaskConical, Bitcoin, Search, BarChart3
+  Radiation, FlaskConical, Bitcoin, Search, BarChart3, Wallet, 
+  PiggyBank, ArrowUpRight, ArrowDownRight, LineChart
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { WatchlistItem, PaperPosition } from "@shared/schema";
@@ -52,6 +54,8 @@ interface CoverageData {
 interface AutoLottoBotData {
   portfolio: {
     name: string;
+    startingCapital?: number;
+    cashBalance?: number;
     totalValue?: number;
     totalPnL?: number;
     createdAt: string;
@@ -435,7 +439,7 @@ export default function WatchlistBotPage() {
           )}
         </TabsContent>
 
-        {/* Auto-Lotto Bot Tab */}
+        {/* Auto-Lotto Bot Tab - Professional Broker Interface */}
         <TabsContent value="bot" className="space-y-6">
           {authLoading ? (
             <Card className="glass-card">
@@ -492,14 +496,33 @@ export default function WatchlistBotPage() {
               </CardContent>
             </Card>
           ) : (() => {
-            // Gating: Only show metrics if admin OR statistical validity reached
             const showMetrics = botData.isAdmin || botData.stats?.hasStatisticalValidity;
             const closedCount = botData.stats?.closedPositions || 0;
             const sampleSize = botData.stats?.sampleSize || 20;
             
+            const openPositions = botData.positions.filter(p => p.status === 'open');
+            const closedPositions = botData.positions.filter(p => p.status === 'closed');
+            
+            const totalRealizedPnL = botData.stats?.totalRealizedPnL || 0;
+            const totalUnrealizedPnL = botData.stats?.totalUnrealizedPnL || 0;
+            const startingCapital = botData.portfolio?.startingCapital || 300;
+            const accountBalance = startingCapital + totalRealizedPnL;
+            
+            const openPositionsValue = openPositions.reduce((sum, p) => {
+              const multiplier = p.assetType === 'option' ? 100 : (p.assetType === 'futures' ? 1 : 1);
+              return sum + (p.currentPrice || p.entryPrice) * p.quantity * multiplier;
+            }, 0);
+            const buyingPower = accountBalance - openPositionsValue;
+            const totalEquity = accountBalance + totalUnrealizedPnL;
+            
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+            const todaysPnL = closedPositions
+              .filter(p => p.exitTime && new Date(p.exitTime) >= todayStart)
+              .reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
+            
             return (
             <>
-              {/* Sample size gating banner for non-admin */}
               {!showMetrics && (
                 <Card className="glass-card border-amber-500/30 bg-amber-500/5">
                   <CardContent className="p-4">
@@ -516,113 +539,179 @@ export default function WatchlistBotPage() {
                 </Card>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="stat-glass hover-elevate">
-                  <CardHeader className="pb-2">
-                    <CardDescription className="text-xs font-medium uppercase tracking-wider">Portfolio Value</CardDescription>
-                    {showMetrics && botData.portfolio.totalValue !== undefined ? (
-                      <CardTitle className="text-2xl font-bold font-mono tabular-nums" data-testid="text-portfolio-value">
-                        {formatCurrency(botData.portfolio.totalValue)}
-                      </CardTitle>
-                    ) : (
-                      <CardTitle className="text-lg text-muted-foreground" data-testid="text-portfolio-value">
-                        Hidden
-                      </CardTitle>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    {showMetrics && botData.portfolio.totalPnL !== undefined ? (
-                      <div className={cn(
-                        "text-sm font-semibold font-mono",
-                        botData.portfolio.totalPnL >= 0 ? "text-green-400" : "text-red-400"
-                      )}>
-                        {botData.portfolio.totalPnL >= 0 ? '+' : ''}{formatCurrency(botData.portfolio.totalPnL)} Total P&L
+              {/* Portfolio Header - Large Account Balance Display */}
+              <Card className="glass-card bg-gradient-to-br from-pink-500/5 to-purple-500/5 border-pink-500/20">
+                <CardContent className="p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center border border-pink-500/30">
+                        <Bot className="h-7 w-7 text-pink-400" />
                       </div>
-                    ) : (
-                      <div className="text-xs text-muted-foreground">{closedCount}/{sampleSize} trades complete</div>
-                    )}
-                  </CardContent>
-                </Card>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Account Balance</p>
+                          <Badge variant="outline" className="text-xs bg-pink-500/10 text-pink-400 border-pink-500/30">
+                            Paper Trading
+                          </Badge>
+                        </div>
+                        {showMetrics ? (
+                          <p className="text-4xl font-bold font-mono tabular-nums" data-testid="text-account-balance">
+                            {formatCurrency(accountBalance)}
+                          </p>
+                        ) : (
+                          <p className="text-2xl text-muted-foreground" data-testid="text-account-balance">
+                            Hidden
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Starting: {formatCurrency(startingCapital)}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center gap-6">
+                      <div className="text-center">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Buying Power</p>
+                        {showMetrics ? (
+                          <p className="text-xl font-bold font-mono tabular-nums text-cyan-400" data-testid="text-buying-power">
+                            {formatCurrency(buyingPower)}
+                          </p>
+                        ) : (
+                          <p className="text-lg text-muted-foreground">Hidden</p>
+                        )}
+                      </div>
+                      
+                      <div className="h-12 w-px bg-slate-700" />
+                      
+                      <div className="text-center">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Day's P&L</p>
+                        {showMetrics ? (
+                          <p className={cn(
+                            "text-xl font-bold font-mono tabular-nums",
+                            todaysPnL >= 0 ? "text-green-400" : "text-red-400"
+                          )} data-testid="text-days-pnl">
+                            {todaysPnL >= 0 ? '+' : ''}{formatCurrency(todaysPnL)}
+                          </p>
+                        ) : (
+                          <p className="text-lg text-muted-foreground">Hidden</p>
+                        )}
+                      </div>
+                      
+                      <div className="text-center">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total P&L</p>
+                        {showMetrics ? (
+                          <p className={cn(
+                            "text-xl font-bold font-mono tabular-nums",
+                            totalRealizedPnL >= 0 ? "text-green-400" : "text-red-400"
+                          )} data-testid="text-total-pnl">
+                            {totalRealizedPnL >= 0 ? '+' : ''}{formatCurrency(totalRealizedPnL)}
+                          </p>
+                        ) : (
+                          <p className="text-lg text-muted-foreground">Hidden</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <Button variant="outline" size="sm" className="border-slate-700" onClick={() => refetchBot()} data-testid="button-refresh-bot">
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Refresh
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
 
+              {/* Account Summary Bar */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card className="stat-glass hover-elevate">
-                  <CardHeader className="pb-2">
-                    <CardDescription className="text-xs font-medium uppercase tracking-wider">Win Rate</CardDescription>
-                    {showMetrics && botData.stats?.winRate !== null ? (
-                      <CardTitle className="text-2xl font-bold font-mono tabular-nums text-green-400" data-testid="text-win-rate">
-                        {botData.stats?.winRate}%
-                      </CardTitle>
-                    ) : (
-                      <CardTitle className="text-lg text-muted-foreground" data-testid="text-win-rate">
-                        Pending
-                      </CardTitle>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    {showMetrics ? (
-                      <div className="text-sm text-muted-foreground font-mono">
-                        {botData.stats?.wins ?? 0}W / {botData.stats?.losses ?? 0}L ({closedCount} total)
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-purple-500/10">
+                        <LineChart className="h-5 w-5 text-purple-400" />
                       </div>
-                    ) : (
-                      <div className="text-xs text-muted-foreground">
-                        {closedCount}/{sampleSize} trades
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Equity</p>
+                        {showMetrics ? (
+                          <p className="text-lg font-bold font-mono tabular-nums" data-testid="text-total-equity">
+                            {formatCurrency(totalEquity)}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground">Hidden</p>
+                        )}
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="stat-glass hover-elevate">
-                  <CardHeader className="pb-2">
-                    <CardDescription className="text-xs font-medium uppercase tracking-wider">Realized P&L</CardDescription>
-                    {showMetrics && botData.stats?.totalRealizedPnL !== null ? (
-                      <CardTitle className={cn(
-                        "text-2xl font-bold font-mono tabular-nums",
-                        (botData.stats?.totalRealizedPnL || 0) >= 0 ? "text-green-400" : "text-red-400"
-                      )} data-testid="text-realized-pnl">
-                        {(botData.stats?.totalRealizedPnL || 0) >= 0 ? '+' : ''}{formatCurrency(botData.stats?.totalRealizedPnL || 0)}
-                      </CardTitle>
-                    ) : (
-                      <CardTitle className="text-lg text-muted-foreground" data-testid="text-realized-pnl">
-                        Hidden
-                      </CardTitle>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-sm text-muted-foreground">
-                      From {closedCount} closed trades
                     </div>
                   </CardContent>
                 </Card>
 
                 <Card className="stat-glass hover-elevate">
-                  <CardHeader className="pb-2">
-                    <CardDescription className="text-xs font-medium uppercase tracking-wider">Open Positions</CardDescription>
-                    {showMetrics && botData.stats?.openPositions !== null ? (
-                      <CardTitle className="text-2xl font-bold font-mono tabular-nums" data-testid="text-open-positions">
-                        {botData.stats?.openPositions || 0}
-                      </CardTitle>
-                    ) : (
-                      <CardTitle className="text-lg text-muted-foreground" data-testid="text-open-positions">
-                        Hidden
-                      </CardTitle>
-                    )}
-                  </CardHeader>
-                  <CardContent>
-                    {showMetrics && botData.stats?.totalUnrealizedPnL !== null ? (
-                      <div className={cn(
-                        "text-sm font-semibold font-mono",
-                        (botData.stats?.totalUnrealizedPnL || 0) >= 0 ? "text-green-400" : "text-red-400"
-                      )}>
-                        {(botData.stats?.totalUnrealizedPnL || 0) >= 0 ? '+' : ''}{formatCurrency(botData.stats?.totalUnrealizedPnL || 0)} unrealized
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-cyan-500/10">
+                        <Wallet className="h-5 w-5 text-cyan-400" />
                       </div>
-                    ) : (
-                      <div className="text-xs text-muted-foreground">{closedCount}/{sampleSize} trades</div>
-                    )}
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Cash Available</p>
+                        {showMetrics ? (
+                          <p className="text-lg font-bold font-mono tabular-nums" data-testid="text-cash-available">
+                            {formatCurrency(buyingPower)}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground">Hidden</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="stat-glass hover-elevate">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-amber-500/10">
+                        <Activity className="h-5 w-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Open P&L</p>
+                        {showMetrics ? (
+                          <p className={cn(
+                            "text-lg font-bold font-mono tabular-nums",
+                            totalUnrealizedPnL >= 0 ? "text-green-400" : "text-red-400"
+                          )} data-testid="text-open-pnl">
+                            {totalUnrealizedPnL >= 0 ? '+' : ''}{formatCurrency(totalUnrealizedPnL)}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground">Hidden</p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="stat-glass hover-elevate">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-green-500/10">
+                        <PiggyBank className="h-5 w-5 text-green-400" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Closed P&L</p>
+                        {showMetrics ? (
+                          <p className={cn(
+                            "text-lg font-bold font-mono tabular-nums",
+                            totalRealizedPnL >= 0 ? "text-green-400" : "text-red-400"
+                          )} data-testid="text-closed-pnl">
+                            {totalRealizedPnL >= 0 ? '+' : ''}{formatCurrency(totalRealizedPnL)}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground">Hidden</p>
+                        )}
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
+              {/* Bot Status Bar with Futures Indicator */}
+              <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-lg bg-slate-800/30 border border-slate-700/50">
+                <div className="flex flex-wrap items-center gap-3">
                   <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center">
                     <Bot className="h-4 w-4 text-pink-400" />
                   </div>
@@ -633,25 +722,55 @@ export default function WatchlistBotPage() {
                   <span className="text-sm text-muted-foreground">
                     Checks every 5 min during market hours
                   </span>
+                  <div className="h-4 w-px bg-slate-700" />
+                  <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-400 border-purple-500/30">
+                    <Target className="h-3 w-3 mr-1" />
+                    Options
+                  </Badge>
+                  <Badge variant="outline" className="text-xs bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
+                    <BarChart3 className="h-3 w-3 mr-1" />
+                    Futures
+                  </Badge>
                 </div>
-                <Button variant="outline" size="sm" className="border-slate-700" onClick={() => refetchBot()} data-testid="button-refresh-bot">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh
-                </Button>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {showMetrics ? `${botData.stats?.wins ?? 0}W / ${botData.stats?.losses ?? 0}L` : `${closedCount}/${sampleSize}`}
+                  </span>
+                  {showMetrics && botData.stats?.winRate !== null && (
+                    <Badge className={cn(
+                      "font-mono text-xs",
+                      parseFloat(botData.stats?.winRate || '0') >= 50 
+                        ? "bg-green-500/20 text-green-400" 
+                        : "bg-red-500/20 text-red-400"
+                    )}>
+                      {botData.stats?.winRate}% Win
+                    </Badge>
+                  )}
+                </div>
               </div>
 
+              {/* Open Positions Table */}
               <Card className="glass-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Zap className="h-5 w-5 text-pink-400" />
-                    Recent Positions
-                  </CardTitle>
-                  <CardDescription>
-                    {botData.isAdmin 
-                      ? "Latest lotto trades executed by the bot"
-                      : "Position details are only visible to administrators"
-                    }
-                  </CardDescription>
+                <CardHeader className="pb-3">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Zap className="h-5 w-5 text-pink-400" />
+                        Open Positions
+                        {openPositions.length > 0 && (
+                          <Badge variant="outline" className="ml-2 font-mono text-xs">
+                            {openPositions.length}
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <CardDescription>
+                        {botData.isAdmin 
+                          ? "Active lotto trades currently held by the bot"
+                          : "Position details are only visible to administrators"
+                        }
+                      </CardDescription>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {!botData.isAdmin ? (
@@ -660,41 +779,163 @@ export default function WatchlistBotPage() {
                       <p>Individual trade details are restricted.</p>
                       <p className="text-xs mt-2">Aggregated performance stats are shown above.</p>
                     </div>
-                  ) : botData.positions.length === 0 ? (
+                  ) : openPositions.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center mx-auto mb-2">
                         <Zap className="h-6 w-6 text-pink-400" />
                       </div>
-                      <p>No positions yet. Bot will enter trades when lotto opportunities arise.</p>
+                      <p>No open positions. Bot will enter trades when lotto opportunities arise.</p>
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      {botData.positions.map((position) => (
-                        <div
-                          key={position.id}
-                          className={cn(
-                            "flex items-center justify-between p-3 rounded-lg border hover-elevate",
-                            position.status === 'open' 
-                              ? "bg-card" 
-                              : position.realizedPnL && position.realizedPnL > 0 
-                                ? "bg-green-500/5 border-green-500/20"
-                                : "bg-red-500/5 border-red-500/20"
-                          )}
-                          data-testid={`position-${position.id}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-mono font-bold">{position.symbol}</span>
-                                <Badge variant="outline" className="text-xs border-slate-700">
-                                  {position.optionType?.toUpperCase() || position.assetType}
-                                </Badge>
-                                {position.status === 'open' ? (
-                                  <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
-                                    <Clock className="h-3 w-3 mr-1" />
-                                    Open
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-slate-700">
+                            <TableHead className="text-xs font-medium uppercase tracking-wider">Symbol</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider">Type</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Qty</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Avg Cost</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Current</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Market Value</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider text-right">P&L</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Return %</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {openPositions.map((position) => {
+                            const multiplier = position.assetType === 'option' ? 100 : (position.assetType === 'futures' ? 50 : 1);
+                            const marketValue = (position.currentPrice || position.entryPrice) * position.quantity * multiplier;
+                            const costBasis = position.entryPrice * position.quantity * multiplier;
+                            const pnl = position.unrealizedPnL || (marketValue - costBasis);
+                            const returnPct = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
+                            
+                            return (
+                              <TableRow key={position.id} className="border-slate-700/50 hover-elevate" data-testid={`open-position-${position.id}`}>
+                                <TableCell className="font-mono font-bold">{position.symbol}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className={cn(
+                                    "text-xs",
+                                    position.assetType === 'futures' 
+                                      ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
+                                      : position.optionType === 'call'
+                                        ? "bg-green-500/10 text-green-400 border-green-500/30"
+                                        : "bg-red-500/10 text-red-400 border-red-500/30"
+                                  )}>
+                                    {position.assetType === 'futures' ? 'FUTURES' : position.optionType?.toUpperCase() || 'OPTION'}
                                   </Badge>
-                                ) : position.realizedPnL && position.realizedPnL > 0 ? (
+                                </TableCell>
+                                <TableCell className="text-right font-mono tabular-nums">{position.quantity}</TableCell>
+                                <TableCell className="text-right font-mono tabular-nums">{formatCurrency(position.entryPrice)}</TableCell>
+                                <TableCell className="text-right font-mono tabular-nums">{formatCurrency(position.currentPrice || position.entryPrice)}</TableCell>
+                                <TableCell className="text-right font-mono tabular-nums">{formatCurrency(marketValue)}</TableCell>
+                                <TableCell className={cn(
+                                  "text-right font-mono tabular-nums font-semibold",
+                                  pnl >= 0 ? "text-green-400" : "text-red-400"
+                                )}>
+                                  <div className="flex items-center justify-end gap-1">
+                                    {pnl >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                                    {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
+                                  </div>
+                                </TableCell>
+                                <TableCell className={cn(
+                                  "text-right font-mono tabular-nums font-semibold",
+                                  returnPct >= 0 ? "text-green-400" : "text-red-400"
+                                )}>
+                                  {returnPct >= 0 ? '+' : ''}{returnPct.toFixed(2)}%
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Trading History */}
+              <Card className="glass-card">
+                <CardHeader className="pb-3">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-purple-400" />
+                        Trading History
+                        {closedPositions.length > 0 && (
+                          <Badge variant="outline" className="ml-2 font-mono text-xs">
+                            {closedPositions.length}
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <CardDescription>Closed trades with realized P&L</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {!botData.isAdmin ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Shield className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                      <p>Trade history is restricted to administrators.</p>
+                    </div>
+                  ) : closedPositions.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No closed trades yet.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-slate-700">
+                            <TableHead className="text-xs font-medium uppercase tracking-wider">Symbol</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider">Type</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Entry</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Exit</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider text-right">P&L</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider">Date Closed</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider text-center">Result</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {closedPositions.slice(0, 10).map((position) => (
+                            <TableRow 
+                              key={position.id} 
+                              className={cn(
+                                "border-slate-700/50",
+                                (position.realizedPnL || 0) >= 0 
+                                  ? "bg-green-500/5" 
+                                  : "bg-red-500/5"
+                              )}
+                              data-testid={`closed-position-${position.id}`}
+                            >
+                              <TableCell className="font-mono font-bold">{position.symbol}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={cn(
+                                  "text-xs",
+                                  position.assetType === 'futures' 
+                                    ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
+                                    : position.optionType === 'call'
+                                      ? "bg-green-500/10 text-green-400 border-green-500/30"
+                                      : "bg-red-500/10 text-red-400 border-red-500/30"
+                                )}>
+                                  {position.assetType === 'futures' ? 'FUTURES' : position.optionType?.toUpperCase() || 'OPTION'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right font-mono tabular-nums">{formatCurrency(position.entryPrice)}</TableCell>
+                              <TableCell className="text-right font-mono tabular-nums">{formatCurrency(position.exitPrice || 0)}</TableCell>
+                              <TableCell className={cn(
+                                "text-right font-mono tabular-nums font-semibold",
+                                (position.realizedPnL || 0) >= 0 ? "text-green-400" : "text-red-400"
+                              )}>
+                                {(position.realizedPnL || 0) >= 0 ? '+' : ''}{formatCurrency(position.realizedPnL || 0)}
+                              </TableCell>
+                              <TableCell className="font-mono text-sm text-muted-foreground">
+                                {position.exitTime 
+                                  ? new Date(position.exitTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                  : 'N/A'}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {(position.realizedPnL || 0) >= 0 ? (
                                   <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/30">
                                     <CheckCircle2 className="h-3 w-3 mr-1" />
                                     Won
@@ -705,43 +946,16 @@ export default function WatchlistBotPage() {
                                     Lost
                                   </Badge>
                                 )}
-                              </div>
-                              <div className="text-xs text-muted-foreground mt-1 font-mono">
-                                Entry: {formatCurrency(position.entryPrice)} • 
-                                Target: {formatCurrency(position.targetPrice || 0)} • 
-                                Stop: {formatCurrency(position.stopLoss || 0)}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            {position.status === 'open' ? (
-                              <>
-                                <div className="font-mono tabular-nums">
-                                  {formatCurrency(position.currentPrice || position.entryPrice)}
-                                </div>
-                                <div className={cn(
-                                  "text-sm font-semibold font-mono tabular-nums",
-                                  (position.unrealizedPnL || 0) >= 0 ? "text-green-400" : "text-red-400"
-                                )}>
-                                  {(position.unrealizedPnL || 0) >= 0 ? '+' : ''}{formatCurrency(position.unrealizedPnL || 0)}
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="font-mono tabular-nums">
-                                  {formatCurrency(position.exitPrice || 0)}
-                                </div>
-                                <div className={cn(
-                                  "text-sm font-semibold font-mono tabular-nums",
-                                  (position.realizedPnL || 0) >= 0 ? "text-green-400" : "text-red-400"
-                                )}>
-                                  {(position.realizedPnL || 0) >= 0 ? '+' : ''}{formatCurrency(position.realizedPnL || 0)}
-                                </div>
-                              </>
-                            )}
-                          </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      {closedPositions.length > 10 && (
+                        <div className="text-center py-3 text-sm text-muted-foreground border-t border-slate-700/50">
+                          Showing 10 of {closedPositions.length} closed trades
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
                 </CardContent>

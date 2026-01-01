@@ -7628,6 +7628,8 @@ FORMATTING:
         res.json({
           portfolio: {
             name: portfolio.name,
+            startingCapital: portfolio.startingCapital,
+            cashBalance: portfolio.cashBalance,
             totalValue: portfolio.totalValue,
             totalPnL: portfolio.totalPnL,
             createdAt: portfolio.createdAt,
@@ -7653,6 +7655,8 @@ FORMATTING:
         res.json({
           portfolio: {
             name: portfolio.name,
+            startingCapital: portfolio.startingCapital,
+            cashBalance: portfolio.cashBalance,
             createdAt: portfolio.createdAt,
           },
           positions: [], // Never show positions to non-admin
