@@ -509,7 +509,7 @@ export default function WatchlistBotPage() {
             const accountBalance = startingCapital + totalRealizedPnL;
             
             const openPositionsValue = openPositions.reduce((sum, p) => {
-              const multiplier = p.assetType === 'option' ? 100 : (p.assetType === 'futures' ? 1 : 1);
+              const multiplier = p.assetType === 'option' ? 100 : (p.assetType === 'future' ? 1 : 1);
               return sum + (p.currentPrice || p.entryPrice) * p.quantity * multiplier;
             }, 0);
             const buyingPower = accountBalance - openPositionsValue;
@@ -803,7 +803,7 @@ export default function WatchlistBotPage() {
                         </TableHeader>
                         <TableBody>
                           {openPositions.map((position) => {
-                            const multiplier = position.assetType === 'option' ? 100 : (position.assetType === 'futures' ? 50 : 1);
+                            const multiplier = position.assetType === 'option' ? 100 : (position.assetType === 'future' ? 50 : 1);
                             const marketValue = (position.currentPrice || position.entryPrice) * position.quantity * multiplier;
                             const costBasis = position.entryPrice * position.quantity * multiplier;
                             const pnl = position.unrealizedPnL || (marketValue - costBasis);
@@ -815,13 +815,13 @@ export default function WatchlistBotPage() {
                                 <TableCell>
                                   <Badge variant="outline" className={cn(
                                     "text-xs",
-                                    position.assetType === 'futures' 
+                                    position.assetType === 'future' 
                                       ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
                                       : position.optionType === 'call'
                                         ? "bg-green-500/10 text-green-400 border-green-500/30"
                                         : "bg-red-500/10 text-red-400 border-red-500/30"
                                   )}>
-                                    {position.assetType === 'futures' ? 'FUTURES' : position.optionType?.toUpperCase() || 'OPTION'}
+                                    {position.assetType === 'future' ? 'FUTURES' : position.optionType?.toUpperCase() || 'OPTION'}
                                   </Badge>
                                 </TableCell>
                                 <TableCell className="text-right font-mono tabular-nums">{position.quantity}</TableCell>
@@ -912,13 +912,13 @@ export default function WatchlistBotPage() {
                               <TableCell>
                                 <Badge variant="outline" className={cn(
                                   "text-xs",
-                                  position.assetType === 'futures' 
+                                  position.assetType === 'future' 
                                     ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
                                     : position.optionType === 'call'
                                       ? "bg-green-500/10 text-green-400 border-green-500/30"
                                       : "bg-red-500/10 text-red-400 border-red-500/30"
                                 )}>
-                                  {position.assetType === 'futures' ? 'FUTURES' : position.optionType?.toUpperCase() || 'OPTION'}
+                                  {position.assetType === 'future' ? 'FUTURES' : position.optionType?.toUpperCase() || 'OPTION'}
                                 </Badge>
                               </TableCell>
                               <TableCell className="text-right font-mono tabular-nums">{formatCurrency(position.entryPrice)}</TableCell>
