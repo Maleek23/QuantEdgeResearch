@@ -151,6 +151,44 @@ export async function getLottoPortfolio(): Promise<PaperPortfolio | null> {
   return getOptionsPortfolio();
 }
 
+// BLACKLISTED SYMBOLS - historically poor performers (0% or very low win rate)
+const BLACKLISTED_SYMBOLS = new Set([
+  'SOL', 'AAVE', 'SMCI', 'CLF', 'USAR', 'NIO', 'BABA', 'SNAP', 'PINS', 'WISH'
+]);
+
+// HIGH PERFORMANCE SYMBOLS - historically strong win rates (100% or 80%+)
+const PREFERRED_SYMBOLS = new Set([
+  'AAPL', 'AMD', 'SOFI', 'NFLX', 'QQQ', 'AMZN', 'GOOGL', 'ETH', 'HOOD', 'META'
+]);
+
+/**
+ * Check if a symbol has good historical performance
+ * Returns: { allowed: boolean, reason: string, boost: number }
+ */
+function checkSymbolPerformance(symbol: string): { allowed: boolean; reason: string; boost: number } {
+  if (BLACKLISTED_SYMBOLS.has(symbol)) {
+    return { 
+      allowed: false, 
+      reason: `BLOCKED: ${symbol} has 0% historical win rate`, 
+      boost: 0 
+    };
+  }
+  
+  if (PREFERRED_SYMBOLS.has(symbol)) {
+    return { 
+      allowed: true, 
+      reason: `PREFERRED: ${symbol} has strong historical performance`, 
+      boost: 10 
+    };
+  }
+  
+  return { 
+    allowed: true, 
+    reason: 'Standard symbol', 
+    boost: 0 
+  };
+}
+
 /**
  * BOT DECISION ENGINE
  * The bot evaluates each opportunity and decides whether to enter based on its own criteria
@@ -268,20 +306,40 @@ function makeBotDecision(
   score = Math.max(0, Math.min(100, score));
   const grade = getLetterGrade(score);
   
+  // STRICTER ENTRY CRITERIA - Only A and B grades allowed
+  // A = 85+, B+ = 80-84, B = 75-79
   const isDayTrade = opportunity.daysToExpiry <= 2;
-  const minScoreForEntry = isDayTrade ? 80 : 70;
+  const minScoreForEntry = isDayTrade ? 85 : 80; // Higher thresholds
   
-  if (score >= minScoreForEntry) {
+  // Require at least 3 positive signals to enter
+  const positiveSignals = signals.filter(s => 
+    !s.includes('LOW_VOLUME') && 
+    !s.includes('RISKY') && 
+    !s.includes('COUNTER') &&
+    !s.includes('TOO_FAR')
+  );
+  
+  if (positiveSignals.length < 3) {
+    return {
+      action: 'skip',
+      reason: `Only ${positiveSignals.length} positive signals - need 3+`,
+      confidence: score,
+      signals
+    };
+  }
+  
+  // Only enter on A or B grades
+  if (score >= minScoreForEntry && (grade === 'A' || grade === 'B+' || grade === 'B')) {
     return {
       action: 'enter',
       reason: `${grade} grade (${score}) - ${signals.slice(0, 3).join(', ')}`,
       confidence: score,
       signals
     };
-  } else if (score >= 60) {
+  } else if (score >= 70) {
     return {
       action: 'wait',
-      reason: `${grade} grade (${score}) needs stronger signals`,
+      reason: `${grade} grade (${score}) needs A/B grade for entry`,
       confidence: score,
       signals
     };
@@ -440,13 +498,26 @@ export async function runAutonomousBotScan(): Promise<void> {
     for (const ticker of BOT_SCAN_TICKERS) {
       if (openSymbols.has(ticker)) continue;
       
+      // 📊 CHECK HISTORICAL PERFORMANCE - Skip blacklisted symbols
+      const symbolCheck = checkSymbolPerformance(ticker);
+      if (!symbolCheck.allowed) {
+        logger.debug(`🤖 [BOT] ⛔ ${symbolCheck.reason}`);
+        continue;
+      }
+      
       const opportunities = await scanForOpportunities(ticker);
       
       for (const opp of opportunities) {
         const quote = await getTradierQuote(ticker);
         if (!quote) continue;
         
-        const decision = makeBotDecision(quote, opp);
+        let decision = makeBotDecision(quote, opp);
+        
+        // Apply performance boost for preferred symbols
+        if (symbolCheck.boost > 0) {
+          decision.confidence = Math.min(100, decision.confidence + symbolCheck.boost);
+          decision.signals.push('PREFERRED_SYMBOL');
+        }
         
         // 📊 ENTRY TIMING CHECK - Should we enter now or wait?
         const entryTiming = getEntryTiming(quote, opp.optionType, marketContext);
@@ -734,14 +805,50 @@ export async function runFuturesBotScan(): Promise<void> {
         const signals: string[] = [];
         let score = 50;
         
-        // Since we only have current price, we log the opportunity for research
-        // Full signal analysis would require historical data
+        // CME market is open
         signals.push(`PRICE_$${price.toFixed(2)}`);
         signals.push('CME_OPEN');
-        score += 20;
+        score += 10;
         
-        if (score >= 65) {
-          const direction: 'long' | 'short' = 'long'; // Default to long without momentum data
+        // Get price context from contract
+        const contractSymbol = contract.contractCode;
+        const isNQ = rootSymbol === 'NQ';
+        const isGC = rootSymbol === 'GC';
+        
+        // Analyze market conditions for direction
+        const ctTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const hour = ctTime.getHours();
+        
+        // Time-based bias (morning momentum, afternoon mean reversion)
+        const isMorningSession = hour >= 8 && hour <= 11;
+        const isAfternoonSession = hour >= 13 && hour <= 15;
+        
+        if (isMorningSession) {
+          signals.push('MORNING_MOMENTUM');
+          score += 15;
+        } else if (isAfternoonSession) {
+          signals.push('AFTERNOON_SESSION');
+          score += 10;
+        }
+        
+        // Price level analysis for NQ (Nasdaq futures)
+        if (isNQ) {
+          if (price > 20000) {
+            signals.push('NQ_STRONG');
+            score += 10;
+          }
+        }
+        
+        // Gold tends to be safer in uncertain times
+        if (isGC) {
+          signals.push('GOLD_HEDGE');
+          score += 5;
+        }
+        
+        // Require minimum score of 75 for futures (higher bar)
+        if (score >= 75) {
+          // Determine direction based on session
+          const direction: 'long' | 'short' = isMorningSession ? 'long' : (Math.random() > 0.5 ? 'long' : 'short');
           const opportunity: FuturesOpportunity = {
             symbol: rootSymbol,
             contractCode: contract.contractCode,
@@ -766,7 +873,65 @@ export async function runFuturesBotScan(): Promise<void> {
     if (bestFuturesOpp) {
       logger.info(`🔮 [FUTURES-BOT] 🎯 FOUND FUTURES OPPORTUNITY: ${bestFuturesOpp.contractCode} ${bestFuturesOpp.direction.toUpperCase()} @ $${bestFuturesOpp.price.toFixed(2)}`);
       logger.info(`🔮 [FUTURES-BOT] 📊 Signals: ${bestFuturesOpp.signals.join(' | ')}`);
-      logger.info(`🔮 [FUTURES-BOT] ℹ️ Futures paper trading deferred - focus on lotto options for now`);
+      
+      // EXECUTE FUTURES TRADE
+      try {
+        const positionSize = Math.min(FUTURES_MAX_POSITION_SIZE_PER_TRADE, portfolio.cashBalance * 0.3);
+        const quantity = Math.max(1, Math.floor(positionSize / bestFuturesOpp.price));
+        
+        if (quantity > 0 && positionSize <= portfolio.cashBalance) {
+          const entryPrice = bestFuturesOpp.price;
+          const stopLoss = bestFuturesOpp.direction === 'long' 
+            ? entryPrice * 0.98  // 2% stop for futures
+            : entryPrice * 1.02;
+          const targetPrice = bestFuturesOpp.direction === 'long'
+            ? entryPrice * 1.04  // 4% target for futures
+            : entryPrice * 0.96;
+          
+          const position = await storage.createPaperPosition({
+            portfolioId: portfolio.id,
+            symbol: bestFuturesOpp.contractCode,
+            assetType: 'future',
+            quantity: quantity,
+            entryPrice: entryPrice,
+            currentPrice: entryPrice,
+            status: 'open',
+            direction: bestFuturesOpp.direction,
+            entryReason: `${bestFuturesOpp.direction.toUpperCase()} ${bestFuturesOpp.signals.join(', ')}`,
+            stopLoss: stopLoss,
+            targetPrice: targetPrice,
+            confidence: bestFuturesOpp.confidence,
+          });
+          
+          // Update portfolio cash
+          await storage.updatePaperPortfolio(portfolio.id, {
+            cashBalance: portfolio.cashBalance - (entryPrice * quantity),
+          });
+          
+          logger.info(`🔮 [FUTURES-BOT] ✅ EXECUTED: ${bestFuturesOpp.direction.toUpperCase()} ${quantity}x ${bestFuturesOpp.contractCode} @ $${entryPrice.toFixed(2)}`);
+          logger.info(`🔮 [FUTURES-BOT] 📊 Stop: $${stopLoss.toFixed(2)} | Target: $${targetPrice.toFixed(2)}`);
+          
+          // Send Discord notification
+          try {
+            await sendFuturesTradesToDiscord({
+              action: 'ENTRY',
+              symbol: bestFuturesOpp.contractCode,
+              direction: bestFuturesOpp.direction,
+              price: entryPrice,
+              quantity: quantity,
+              signals: bestFuturesOpp.signals,
+              stopLoss: stopLoss,
+              targetPrice: targetPrice,
+            });
+          } catch (discordErr) {
+            logger.warn(`🔮 [FUTURES-BOT] Discord notification failed`, discordErr);
+          }
+        } else {
+          logger.warn(`🔮 [FUTURES-BOT] Insufficient capital for trade: need $${positionSize.toFixed(2)}, have $${portfolio.cashBalance.toFixed(2)}`);
+        }
+      } catch (execError) {
+        logger.error(`🔮 [FUTURES-BOT] Failed to execute futures trade:`, execError);
+      }
     } else {
       logger.info(`🔮 [FUTURES-BOT] No futures opportunities met entry criteria`);
     }
