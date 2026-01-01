@@ -1077,12 +1077,18 @@ export async function discoverPennyStocks(): Promise<StockGem[]> {
         
         const price = priceData.currentPrice;
         const change = priceData.changePercent || 0;
-        const volume = priceData.volume || 0;
+        // Use avgVolume as fallback when current volume is 0 (off-hours)
+        const volume = priceData.volume || priceData.avgVolume || 0;
+        const avgVolume = priceData.avgVolume || 0;
         const marketCap = priceData.marketCap || 0;
         
         // Filter: Must be $0.50-$500 (expanded to include all actionable stocks)
-        // Minimum volume 50K for liquidity, min market cap $10M to avoid scams
-        if (price >= 0.50 && price <= 500 && volume >= 50000 && marketCap >= 10_000_000) {
+        // Use avgVolume threshold during off-hours when volume is 0
+        // Make marketCap optional - many stocks don't report it
+        const volumeOk = volume >= 50000 || avgVolume >= 50000;
+        const priceOk = price >= 0.50 && price <= 500;
+        // Skip marketCap filter if not available (focus on volume/price)
+        if (priceOk && volumeOk) {
           pennyStocks.push({
             symbol,
             currentPrice: price,
