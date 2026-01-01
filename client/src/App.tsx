@@ -51,12 +51,28 @@ function PageLoader() {
     </div>
   );
 }
+function SmartLanding() {
+  const { user, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <PageLoader />;
+  }
+  
+  // If logged in, go straight to trade desk
+  if (user) {
+    return <Redirect to="/trade-desk" />;
+  }
+  
+  // Otherwise show landing page
+  return <Landing />;
+}
+
 function Router() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Switch>
-        {/* Core Pages */}
-        <Route path="/" component={Landing} />
+        {/* Core Pages - Smart redirect for logged-in users */}
+        <Route path="/" component={SmartLanding} />
       <Route path="/features" component={Features} />
       <Route path="/home" component={HomePage} />
       <Route path="/login" component={Login} />
