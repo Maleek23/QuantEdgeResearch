@@ -886,11 +886,14 @@ export async function runFuturesBotScan(): Promise<void> {
       logger.info(`🔮 [FUTURES-BOT] 📊 Signals: ${bestFuturesOpp.signals.join(' | ')}`);
       
       // EXECUTE FUTURES TRADE
+      // For paper trading futures with a small portfolio, we use margin-based position sizing
+      // Risk per trade = $100 max (from FUTURES_MAX_POSITION_SIZE_PER_TRADE) or 30% of cash
+      // This represents the margin/risk amount, NOT the full contract notional value
       try {
-        const positionSize = Math.min(FUTURES_MAX_POSITION_SIZE_PER_TRADE, portfolio.cashBalance * 0.3);
-        const quantity = Math.max(1, Math.floor(positionSize / bestFuturesOpp.price));
+        const marginRequired = Math.min(FUTURES_MAX_POSITION_SIZE_PER_TRADE, portfolio.cashBalance * 0.3);
+        const quantity = 1; // Paper trade 1 micro contract at a time
         
-        if (quantity > 0 && positionSize <= portfolio.cashBalance) {
+        if (marginRequired <= portfolio.cashBalance && marginRequired >= 10) {
           const entryPrice = bestFuturesOpp.price;
           const stopLoss = bestFuturesOpp.direction === 'long' 
             ? entryPrice * 0.98  // 2% stop for futures
@@ -913,17 +916,18 @@ export async function runFuturesBotScan(): Promise<void> {
             entryTime: new Date().toISOString(),
           });
           
-          // Update portfolio cash
+          // Update portfolio cash - subtract MARGIN amount, not full contract value
+          // For paper trading, we treat the margin as our capital at risk
           await storage.updatePaperPortfolio(portfolio.id, {
-            cashBalance: portfolio.cashBalance - (entryPrice * quantity),
+            cashBalance: portfolio.cashBalance - marginRequired,
           });
           
           logger.info(`🔮 [FUTURES-BOT] ✅ EXECUTED: ${bestFuturesOpp.direction.toUpperCase()} ${quantity}x ${bestFuturesOpp.contractCode} @ $${entryPrice.toFixed(2)}`);
-          logger.info(`🔮 [FUTURES-BOT] 📊 Stop: $${stopLoss.toFixed(2)} | Target: $${targetPrice.toFixed(2)}`);
+          logger.info(`🔮 [FUTURES-BOT] 📊 Stop: $${stopLoss.toFixed(2)} | Target: $${targetPrice.toFixed(2)} | Margin: $${marginRequired.toFixed(2)}`);
           
           logger.info(`🔮 [FUTURES-BOT] Trade logged to paper portfolio`)
         } else {
-          logger.warn(`🔮 [FUTURES-BOT] Insufficient capital for trade: need $${positionSize.toFixed(2)}, have $${portfolio.cashBalance.toFixed(2)}`);
+          logger.warn(`🔮 [FUTURES-BOT] Insufficient capital for trade: need $${marginRequired.toFixed(2)}, have $${portfolio.cashBalance.toFixed(2)}`);
         }
       } catch (execError) {
         logger.error(`🔮 [FUTURES-BOT] Failed to execute futures trade:`, execError);
