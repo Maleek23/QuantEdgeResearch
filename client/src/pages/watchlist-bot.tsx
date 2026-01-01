@@ -19,6 +19,8 @@ import {
   PiggyBank, ArrowUpRight, ArrowDownRight, LineChart
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { NumberTicker } from "@/components/magicui/number-ticker";
+import { BorderBeam } from "@/components/magicui/border-beam";
 import type { WatchlistItem, PaperPosition } from "@shared/schema";
 
 interface SectorData {
@@ -551,8 +553,9 @@ export default function WatchlistBotPage() {
               {/* Dual Portfolio Header - Options & Futures */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Options Portfolio */}
-                <Card className="glass-card bg-gradient-to-br from-pink-500/5 to-purple-500/5 border-pink-500/20">
-                  <CardContent className="p-5">
+                <Card className="glass-card bg-gradient-to-br from-pink-500/5 to-purple-500/5 border-pink-500/20 relative overflow-hidden">
+                  <BorderBeam size={250} duration={12} colorFrom="#ec4899" colorTo="#a855f7" />
+                  <CardContent className="p-5 relative z-10">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center border border-pink-500/30">
                         <Target className="h-5 w-5 text-pink-400" />
@@ -568,9 +571,14 @@ export default function WatchlistBotPage() {
                       <div>
                         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Balance</p>
                         {showMetrics ? (
-                          <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-options-balance">
-                            {formatCurrency(botData.portfolio?.cashBalance || 300)}
-                          </p>
+                          <div className="text-2xl font-bold font-mono tabular-nums" data-testid="text-options-balance">
+                            <NumberTicker 
+                              value={botData.portfolio?.cashBalance || 300} 
+                              prefix="$"
+                              decimalPlaces={2}
+                              className="text-foreground"
+                            />
+                          </div>
                         ) : (
                           <p className="text-xl text-muted-foreground">Hidden</p>
                         )}
@@ -583,7 +591,7 @@ export default function WatchlistBotPage() {
                         <span className="text-muted-foreground">P&L</span>
                         {showMetrics ? (
                           <span className={cn("font-mono font-medium", totalRealizedPnL >= 0 ? "text-green-400" : "text-red-400")}>
-                            {totalRealizedPnL >= 0 ? '+' : ''}{formatCurrency(totalRealizedPnL)}
+                            {totalRealizedPnL >= 0 ? '+' : ''}<NumberTicker value={Math.abs(totalRealizedPnL)} prefix="$" decimalPlaces={2} />
                           </span>
                         ) : (
                           <span className="text-muted-foreground">Hidden</span>
@@ -598,8 +606,9 @@ export default function WatchlistBotPage() {
                 </Card>
 
                 {/* Futures Portfolio */}
-                <Card className="glass-card bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border-cyan-500/20">
-                  <CardContent className="p-5">
+                <Card className="glass-card bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border-cyan-500/20 relative overflow-hidden">
+                  <BorderBeam size={250} duration={12} delay={6} colorFrom="#22d3ee" colorTo="#3b82f6" />
+                  <CardContent className="p-5 relative z-10">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center border border-cyan-500/30">
                         <BarChart3 className="h-5 w-5 text-cyan-400" />
@@ -615,9 +624,14 @@ export default function WatchlistBotPage() {
                       <div>
                         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Balance</p>
                         {showMetrics ? (
-                          <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-futures-balance">
-                            {formatCurrency(botData.futuresPortfolio?.cashBalance || 300)}
-                          </p>
+                          <div className="text-2xl font-bold font-mono tabular-nums" data-testid="text-futures-balance">
+                            <NumberTicker 
+                              value={botData.futuresPortfolio?.cashBalance || 300} 
+                              prefix="$"
+                              decimalPlaces={2}
+                              className="text-foreground"
+                            />
+                          </div>
                         ) : (
                           <p className="text-xl text-muted-foreground">Hidden</p>
                         )}
@@ -630,7 +644,7 @@ export default function WatchlistBotPage() {
                         <span className="text-muted-foreground">P&L</span>
                         {showMetrics ? (
                           <span className={cn("font-mono font-medium", (botData.futuresPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
-                            {(botData.futuresPortfolio?.totalPnL || 0) >= 0 ? '+' : ''}{formatCurrency(botData.futuresPortfolio?.totalPnL || 0)}
+                            {(botData.futuresPortfolio?.totalPnL || 0) >= 0 ? '+' : ''}<NumberTicker value={Math.abs(botData.futuresPortfolio?.totalPnL || 0)} prefix="$" decimalPlaces={2} />
                           </span>
                         ) : (
                           <span className="text-muted-foreground">Hidden</span>
@@ -646,16 +660,22 @@ export default function WatchlistBotPage() {
               </div>
 
               {/* Combined Stats Bar */}
-              <Card className="glass-card">
-                <CardContent className="p-4">
+              <Card className="glass-card relative overflow-hidden">
+                <BorderBeam size={300} duration={20} colorFrom="#22d3ee" colorTo="#a855f7" borderWidth={1} />
+                <CardContent className="p-4 relative z-10">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-6">
                       <div className="text-center">
                         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Combined Balance</p>
                         {showMetrics ? (
-                          <p className="text-xl font-bold font-mono tabular-nums text-cyan-400" data-testid="text-combined-balance">
-                            {formatCurrency((botData.portfolio?.cashBalance || 300) + (botData.futuresPortfolio?.cashBalance || 300))}
-                          </p>
+                          <div className="text-xl font-bold font-mono tabular-nums text-cyan-400" data-testid="text-combined-balance">
+                            <NumberTicker 
+                              value={(botData.portfolio?.cashBalance || 300) + (botData.futuresPortfolio?.cashBalance || 300)} 
+                              prefix="$"
+                              decimalPlaces={2}
+                              className="text-cyan-400"
+                            />
+                          </div>
                         ) : (
                           <p className="text-lg text-muted-foreground">Hidden</p>
                         )}
@@ -664,9 +684,9 @@ export default function WatchlistBotPage() {
                       <div className="text-center">
                         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Day's P&L</p>
                         {showMetrics ? (
-                          <p className={cn("text-xl font-bold font-mono tabular-nums", todaysPnL >= 0 ? "text-green-400" : "text-red-400")} data-testid="text-days-pnl">
-                            {todaysPnL >= 0 ? '+' : ''}{formatCurrency(todaysPnL)}
-                          </p>
+                          <div className={cn("text-xl font-bold font-mono tabular-nums", todaysPnL >= 0 ? "text-green-400" : "text-red-400")} data-testid="text-days-pnl">
+                            {todaysPnL >= 0 ? '+' : ''}<NumberTicker value={Math.abs(todaysPnL)} prefix="$" decimalPlaces={2} />
+                          </div>
                         ) : (
                           <p className="text-lg text-muted-foreground">Hidden</p>
                         )}
@@ -674,9 +694,9 @@ export default function WatchlistBotPage() {
                       <div className="h-8 w-px bg-slate-700" />
                       <div className="text-center">
                         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Trades</p>
-                        <p className="text-xl font-bold font-mono tabular-nums">
-                          {closedCount + (botData.futuresPortfolio?.closedPositions || 0)}
-                        </p>
+                        <div className="text-xl font-bold font-mono tabular-nums">
+                          <NumberTicker value={closedCount + (botData.futuresPortfolio?.closedPositions || 0)} />
+                        </div>
                       </div>
                     </div>
                     <Button variant="outline" size="sm" className="border-slate-700" onClick={() => refetchBot()} data-testid="button-refresh-bot">

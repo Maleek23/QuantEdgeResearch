@@ -33,6 +33,7 @@ import {
 import { useState } from "react";
 import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
 import { HeroProductPanel } from "@/components/hero-product-panel";
+import { ShimmerButton } from "@/components/magicui/shimmer-button";
 
 interface AssetTypeStats {
   assetType: string;
@@ -758,13 +759,17 @@ export default function Landing() {
               Research platform for self-directed traders. Paper trade first, risk second.
             </p>
             <div className="flex flex-wrap justify-center gap-3">
-              <Button 
-                className="bg-cyan-500 text-slate-950"
+              <ShimmerButton 
+                shimmerColor="#22d3ee"
+                shimmerSize="0.1em"
+                background="linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)"
+                borderRadius="8px"
                 onClick={() => setLocation('/signup')} 
                 data-testid="button-cta-signup"
+                className="font-medium"
               >
                 Get Started Free <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
+              </ShimmerButton>
               <Button 
                 variant="outline" 
                 className="border-slate-700"

@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import type { CSSProperties } from "react";
 
 interface BorderBeamProps {
   className?: string;
@@ -34,7 +35,7 @@ export function BorderBeam({
           "--color-from": colorFrom,
           "--color-to": colorTo,
           "--delay": `-${delay}s`,
-        } as React.CSSProperties
+        } as CSSProperties
       }
       className={cn(
         "pointer-events-none absolute inset-0 rounded-[inherit] [border:calc(var(--border-width)*1px)_solid_transparent]",
