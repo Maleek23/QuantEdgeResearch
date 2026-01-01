@@ -99,11 +99,49 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "border-beam": {
+          "100%": {
+            "offset-distance": "100%",
+          },
+        },
+        "shimmer-slide": {
+          to: {
+            transform: "translate(calc(100cqw - 100%), 0)",
+          },
+        },
+        "spin-around": {
+          "0%": {
+            transform: "translateZ(0) rotate(0)",
+          },
+          "15%, 35%": {
+            transform: "translateZ(0) rotate(90deg)",
+          },
+          "65%, 85%": {
+            transform: "translateZ(0) rotate(270deg)",
+          },
+          "100%": {
+            transform: "translateZ(0) rotate(360deg)",
+          },
+        },
+        "pulse-glow": {
+          "0%, 100%": {
+            opacity: "1",
+            boxShadow: "0 0 20px 5px var(--glow-color, rgba(34, 211, 238, 0.4))",
+          },
+          "50%": {
+            opacity: "0.8",
+            boxShadow: "0 0 40px 10px var(--glow-color, rgba(34, 211, 238, 0.6))",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "gradient": "gradient 6s ease infinite",
+        "border-beam": "border-beam calc(var(--duration)*1s) infinite linear",
+        "shimmer-slide": "shimmer-slide var(--shimmer-duration) ease-in-out infinite alternate",
+        "spin-around": "spin-around calc(var(--shimmer-duration) * 2) infinite linear",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
       },
     },
   },
