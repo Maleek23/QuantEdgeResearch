@@ -104,7 +104,7 @@ export default function WatchlistBotPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [newSymbol, setNewSymbol] = useState("");
   const [newAssetType, setNewAssetType] = useState<string>("stock");
-  const [activeTab, setActiveTab] = useState("watchlist");
+  const [activeTab, setActiveTab] = useState("bot");
 
   const { data: watchlistItems = [], isLoading: watchlistLoading, refetch: refetchWatchlist } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
