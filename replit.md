@@ -196,6 +196,10 @@ Automated paper trading system that executes lotto plays (high R:R options) to b
 - Win rate with sample size context
 - Recent positions (admin only)
 - "Building Statistical Evidence" banner for non-admin below threshold
+- **Performance Analysis by Asset Type**: Side-by-side comparison of Options vs Futures performance
+  - Win Rate, Record (W/L), Total P&L, Average Trade for each
+  - Trading hours indicator (Options: 9:30 AM - 4:00 PM ET, Futures: 24/7 CME hours)
+  - Color-coded styling (purple for options, cyan for futures)
 
 ## Educational Blog System (Dec 2025)
 

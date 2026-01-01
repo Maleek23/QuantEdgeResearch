@@ -776,6 +776,133 @@ export default function WatchlistBotPage() {
                 </Card>
               </div>
 
+              {/* Performance Analysis by Asset Type */}
+              {showMetrics && (
+                <Card className="glass-card">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <BarChart3 className="h-4 w-4 text-cyan-400" />
+                      Performance by Asset Type
+                    </CardTitle>
+                    <CardDescription>
+                      Separate win rates and metrics for each trading strategy
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Options Performance */}
+                      <div className="p-4 rounded-lg border border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-pink-500/5">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="h-8 w-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                            <Target className="h-4 w-4 text-purple-400" />
+                          </div>
+                          <span className="font-semibold">Options Lotto</span>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Win Rate</span>
+                            <span className={cn(
+                              "font-mono font-bold",
+                              parseFloat(botData.stats?.winRate || '0') >= 50 ? "text-green-400" : "text-amber-400"
+                            )}>
+                              {botData.stats?.winRate || '0'}%
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Record</span>
+                            <span className="font-mono">
+                              <span className="text-green-400">{botData.stats?.wins || 0}W</span>
+                              <span className="text-muted-foreground"> / </span>
+                              <span className="text-red-400">{botData.stats?.losses || 0}L</span>
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Total P&L</span>
+                            <span className={cn(
+                              "font-mono font-bold",
+                              totalRealizedPnL >= 0 ? "text-green-400" : "text-red-400"
+                            )}>
+                              {totalRealizedPnL >= 0 ? '+' : ''}{formatCurrency(totalRealizedPnL)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Avg Trade</span>
+                            <span className="font-mono">
+                              {closedCount > 0 
+                                ? `${(totalRealizedPnL / closedCount) >= 0 ? '+' : ''}${formatCurrency(totalRealizedPnL / closedCount)}`
+                                : '--'
+                              }
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-purple-500/20">
+                          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            Active 9:30 AM - 4:00 PM ET
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Futures Performance */}
+                      <div className="p-4 rounded-lg border border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-blue-500/5">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="h-8 w-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                            <BarChart3 className="h-4 w-4 text-cyan-400" />
+                          </div>
+                          <span className="font-semibold">Futures Trading</span>
+                          <Badge variant="outline" className="text-[9px] bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
+                            NQ / GC
+                          </Badge>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Win Rate</span>
+                            <span className={cn(
+                              "font-mono font-bold",
+                              parseFloat(botData.futuresPortfolio?.winRate || '0') >= 50 ? "text-green-400" : "text-amber-400"
+                            )}>
+                              {botData.futuresPortfolio?.winRate || '0'}%
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Record</span>
+                            <span className="font-mono">
+                              <span className="text-green-400">{botData.futuresPortfolio?.wins || 0}W</span>
+                              <span className="text-muted-foreground"> / </span>
+                              <span className="text-red-400">{botData.futuresPortfolio?.losses || 0}L</span>
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Total P&L</span>
+                            <span className={cn(
+                              "font-mono font-bold",
+                              (botData.futuresPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400"
+                            )}>
+                              {(botData.futuresPortfolio?.totalPnL || 0) >= 0 ? '+' : ''}{formatCurrency(botData.futuresPortfolio?.totalPnL || 0)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Avg Trade</span>
+                            <span className="font-mono">
+                              {(botData.futuresPortfolio?.closedPositions || 0) > 0 
+                                ? `${((botData.futuresPortfolio?.totalPnL || 0) / (botData.futuresPortfolio?.closedPositions || 1)) >= 0 ? '+' : ''}${formatCurrency((botData.futuresPortfolio?.totalPnL || 0) / (botData.futuresPortfolio?.closedPositions || 1))}`
+                                : '--'
+                              }
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-cyan-500/20">
+                          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            Active 24/7 (CME hours)
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Bot Status Bar with Futures Indicator */}
               <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-lg bg-slate-800/30 border border-slate-700/50">
                 <div className="flex flex-wrap items-center gap-3">
