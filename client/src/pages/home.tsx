@@ -37,7 +37,7 @@ export default function HomePage() {
   });
 
   const generateHybridIdeas = useMutation({
-    mutationFn: () => apiRequest('POST', '/api/generate-hybrid-ideas'),
+    mutationFn: () => apiRequest('POST', '/api/hybrid/generate-ideas'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
       toast({ title: "Fresh research briefs generated!", description: "Check out today's new analysis" });
