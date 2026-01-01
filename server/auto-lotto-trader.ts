@@ -8,14 +8,18 @@ import { formatInTimeZone } from "date-fns-tz";
 import { TradeIdea, PaperPortfolio, InsertTradeIdea } from "@shared/schema";
 import { logger } from "./logger";
 import { getMarketContext, getEntryTiming, checkDynamicExit, MarketContext } from "./market-context-service";
-import { getActiveFuturesContract, getFuturesQuote } from "./futures-data-service";
+import { getActiveFuturesContract, getFuturesPrice } from "./futures-data-service";
 
-const LOTTO_PORTFOLIO_NAME = "Auto-Lotto Bot";
+// Separate portfolios for Options and Futures
+const OPTIONS_PORTFOLIO_NAME = "Auto-Lotto Options";
+const FUTURES_PORTFOLIO_NAME = "Auto-Lotto Futures";
 const SYSTEM_USER_ID = "system-auto-trader";
-const LOTTO_STARTING_CAPITAL = 300;
+const STARTING_CAPITAL = 300; // $300 per portfolio
 const MAX_POSITION_SIZE = 50;
+const FUTURES_MAX_POSITION_SIZE_PER_TRADE = 100;
 
-let lottoPortfolio: PaperPortfolio | null = null;
+let optionsPortfolio: PaperPortfolio | null = null;
+let futuresPortfolio: PaperPortfolio | null = null;
 
 interface BotDecision {
   action: 'enter' | 'skip' | 'wait';
@@ -41,7 +45,6 @@ const BOT_SCAN_TICKERS = [
 ];
 
 const FUTURES_SYMBOLS: ('NQ' | 'GC')[] = ['NQ', 'GC'];
-const FUTURES_MAX_POSITION_SIZE = 100;
 
 interface FuturesOpportunity {
   symbol: string;
@@ -75,38 +78,77 @@ function isCMEMarketOpen(): boolean {
   return true;
 }
 
-export async function getLottoPortfolio(): Promise<PaperPortfolio | null> {
+export async function getOptionsPortfolio(): Promise<PaperPortfolio | null> {
   try {
-    if (lottoPortfolio) {
-      return lottoPortfolio;
+    if (optionsPortfolio) {
+      return optionsPortfolio;
     }
 
     const portfolios = await storage.getPaperPortfoliosByUser(SYSTEM_USER_ID);
-    const existing = portfolios.find(p => p.name === LOTTO_PORTFOLIO_NAME);
+    const existing = portfolios.find(p => p.name === OPTIONS_PORTFOLIO_NAME);
     
     if (existing) {
-      lottoPortfolio = existing;
-      logger.info(`🤖 [BOT] Found portfolio: ${existing.id} (Balance: $${existing.cashBalance.toFixed(2)})`);
+      optionsPortfolio = existing;
+      logger.info(`🎰 [OPTIONS BOT] Found portfolio: ${existing.id} (Balance: $${existing.cashBalance.toFixed(2)})`);
       return existing;
     }
 
     const newPortfolio = await storage.createPaperPortfolio({
       userId: SYSTEM_USER_ID,
-      name: LOTTO_PORTFOLIO_NAME,
-      startingCapital: LOTTO_STARTING_CAPITAL,
-      cashBalance: LOTTO_STARTING_CAPITAL,
-      totalValue: LOTTO_STARTING_CAPITAL,
+      name: OPTIONS_PORTFOLIO_NAME,
+      startingCapital: STARTING_CAPITAL,
+      cashBalance: STARTING_CAPITAL,
+      totalValue: STARTING_CAPITAL,
       maxPositionSize: MAX_POSITION_SIZE,
       riskPerTrade: 0.05,
     });
 
-    lottoPortfolio = newPortfolio;
-    logger.info(`🤖 [BOT] Created new portfolio: ${newPortfolio.id} with $${LOTTO_STARTING_CAPITAL}`);
+    optionsPortfolio = newPortfolio;
+    logger.info(`🎰 [OPTIONS BOT] Created new portfolio: ${newPortfolio.id} with $${STARTING_CAPITAL}`);
     return newPortfolio;
   } catch (error) {
-    logger.error("🤖 [BOT] Failed to get/create portfolio:", error);
+    logger.error("🎰 [OPTIONS BOT] Failed to get/create portfolio:", error);
     return null;
   }
+}
+
+export async function getFuturesPortfolio(): Promise<PaperPortfolio | null> {
+  try {
+    if (futuresPortfolio) {
+      return futuresPortfolio;
+    }
+
+    const portfolios = await storage.getPaperPortfoliosByUser(SYSTEM_USER_ID);
+    const existing = portfolios.find(p => p.name === FUTURES_PORTFOLIO_NAME);
+    
+    if (existing) {
+      futuresPortfolio = existing;
+      logger.info(`📈 [FUTURES BOT] Found portfolio: ${existing.id} (Balance: $${existing.cashBalance.toFixed(2)})`);
+      return existing;
+    }
+
+    const newPortfolio = await storage.createPaperPortfolio({
+      userId: SYSTEM_USER_ID,
+      name: FUTURES_PORTFOLIO_NAME,
+      startingCapital: STARTING_CAPITAL,
+      cashBalance: STARTING_CAPITAL,
+      totalValue: STARTING_CAPITAL,
+      maxPositionSize: FUTURES_MAX_POSITION_SIZE_PER_TRADE,
+      riskPerTrade: 0.05,
+    });
+
+    futuresPortfolio = newPortfolio;
+    logger.info(`📈 [FUTURES BOT] Created new portfolio: ${newPortfolio.id} with $${STARTING_CAPITAL}`);
+    return newPortfolio;
+  } catch (error) {
+    logger.error("📈 [FUTURES BOT] Failed to get/create portfolio:", error);
+    return null;
+  }
+}
+
+// Legacy function for backward compatibility - returns options portfolio
+export async function getLottoPortfolio(): Promise<PaperPortfolio | null> {
+  return getOptionsPortfolio();
 }
 
 /**
@@ -451,7 +493,7 @@ export async function runAutonomousBotScan(): Promise<void> {
         }
         
         const updated = await storage.getPaperPortfolioById(portfolio.id);
-        if (updated) lottoPortfolio = updated;
+        if (updated) optionsPortfolio = updated;
       } else {
         logger.warn(`🤖 [BOT] ❌ Trade failed: ${result.error}`);
       }
@@ -521,7 +563,7 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
       }
       
       const updated = await storage.getPaperPortfolioById(portfolio.id);
-      if (updated) lottoPortfolio = updated;
+      if (updated) optionsPortfolio = updated;
       
       return true;
     } else {
@@ -639,7 +681,7 @@ export async function monitorLottoPositions(): Promise<void> {
       }
       
       const updated = await storage.getPaperPortfolioById(portfolio.id);
-      if (updated) lottoPortfolio = updated;
+      if (updated) optionsPortfolio = updated;
     }
   } catch (error) {
     logger.error("🤖 [BOT] Error monitoring positions:", error);
@@ -658,14 +700,16 @@ export async function runFuturesBotScan(): Promise<void> {
     
     logger.info(`🔮 [FUTURES-BOT] ========== FUTURES SCAN STARTED ==========`);
     
-    const portfolio = await getLottoPortfolio();
+    const portfolio = await getFuturesPortfolio();
     if (!portfolio) {
       logger.error(`🔮 [FUTURES-BOT] No portfolio available`);
       return;
     }
     
+    logger.info(`📈 [FUTURES-BOT] Portfolio: $${portfolio.cashBalance.toFixed(2)} cash / $${portfolio.totalValue.toFixed(2)} total`);
+    
     const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
-    const openFuturesPositions = positions.filter(p => p.status === 'open' && p.assetType === 'futures');
+    const openFuturesPositions = positions.filter(p => p.status === 'open' && p.assetType === 'future');
     
     if (openFuturesPositions.length >= 1) {
       logger.info(`🔮 [FUTURES-BOT] Already have ${openFuturesPositions.length} open futures - waiting for exit`);
@@ -680,49 +724,29 @@ export async function runFuturesBotScan(): Promise<void> {
       
       try {
         const contract = await getActiveFuturesContract(rootSymbol);
-        const quote = await getFuturesQuote(contract.contractCode);
+        const price = await getFuturesPrice(contract.contractCode);
         
-        if (!quote) {
-          logger.warn(`🔮 [FUTURES-BOT] No quote for ${contract.contractCode}`);
+        if (!price || price <= 0) {
+          logger.warn(`🔮 [FUTURES-BOT] No price for ${contract.contractCode}`);
           continue;
         }
         
         const signals: string[] = [];
         let score = 50;
         
-        const priceChange = ((quote.last - quote.open) / quote.open) * 100;
-        
-        if (Math.abs(priceChange) >= 0.5) {
-          if (priceChange > 0) {
-            signals.push(`BULLISH_MOMENTUM_${priceChange.toFixed(2)}%`);
-            score += priceChange >= 1.0 ? 20 : 10;
-          } else {
-            signals.push(`BEARISH_MOMENTUM_${priceChange.toFixed(2)}%`);
-            score += Math.abs(priceChange) >= 1.0 ? 20 : 10;
-          }
-        }
-        
-        if (quote.high && quote.low && quote.last) {
-          const range = quote.high - quote.low;
-          if (range > 0) {
-            const pricePosition = (quote.last - quote.low) / range;
-            if (pricePosition < 0.3) {
-              signals.push('NEAR_SESSION_LOW');
-              score += 15;
-            } else if (pricePosition > 0.7) {
-              signals.push('NEAR_SESSION_HIGH');
-              score += 15;
-            }
-          }
-        }
+        // Since we only have current price, we log the opportunity for research
+        // Full signal analysis would require historical data
+        signals.push(`PRICE_$${price.toFixed(2)}`);
+        signals.push('CME_OPEN');
+        score += 20;
         
         if (score >= 65) {
-          const direction = priceChange > 0 ? 'long' : 'short';
+          const direction: 'long' | 'short' = 'long'; // Default to long without momentum data
           const opportunity: FuturesOpportunity = {
             symbol: rootSymbol,
             contractCode: contract.contractCode,
             direction,
-            price: quote.last,
+            price,
             signals,
             confidence: Math.min(score, 90),
             expirationDate: contract.expirationDate,
@@ -732,7 +756,7 @@ export async function runFuturesBotScan(): Promise<void> {
             bestFuturesOpp = opportunity;
           }
           
-          logger.info(`🔮 [FUTURES-BOT] ✅ ${rootSymbol}: ${direction.toUpperCase()} @ ${quote.last.toFixed(2)} | ${signals.join(' | ')}`);
+          logger.info(`🔮 [FUTURES-BOT] ✅ ${rootSymbol}: ${direction.toUpperCase()} @ ${price.toFixed(2)} | ${signals.join(' | ')}`);
         }
       } catch (error) {
         logger.warn(`🔮 [FUTURES-BOT] Error scanning ${rootSymbol}:`, error);

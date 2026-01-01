@@ -7586,12 +7586,16 @@ FORMATTING:
   // AUTO-LOTTO BOT API (Authenticated)
   // ==========================================
   
-  // GET /api/auto-lotto-bot - Get the auto-lotto bot's portfolio and stats
+  // GET /api/auto-lotto-bot - Get the auto-lotto bot's portfolios and stats
   // Returns aggregated stats publicly, detailed positions only for admin
   app.get("/api/auto-lotto-bot", isAuthenticated, async (req: any, res: Response) => {
     try {
-      const { getLottoPortfolio } = await import("./auto-lotto-trader");
-      const portfolio = await getLottoPortfolio();
+      const { getOptionsPortfolio, getFuturesPortfolio } = await import("./auto-lotto-trader");
+      const optionsPortfolio = await getOptionsPortfolio();
+      const futuresPortfolio = await getFuturesPortfolio();
+      
+      // Use options portfolio as main for backward compatibility
+      const portfolio = optionsPortfolio;
       
       if (!portfolio) {
         return res.json({
@@ -7623,6 +7627,29 @@ FORMATTING:
       
       // For admin: show all data
       // For non-admin: only show data once minimum sample size is met
+      // Get futures portfolio stats if available
+      let futuresStats = null;
+      let futuresPositions: any[] = [];
+      if (futuresPortfolio) {
+        futuresPositions = await storage.getPaperPositionsByPortfolio(futuresPortfolio.id);
+        const futuresOpen = futuresPositions.filter(p => p.status === 'open');
+        const futuresClosed = futuresPositions.filter(p => p.status === 'closed');
+        const futuresWins = futuresClosed.filter(p => (p.realizedPnL || 0) > 0).length;
+        const futuresLosses = futuresClosed.filter(p => (p.realizedPnL || 0) < 0).length;
+        futuresStats = {
+          name: futuresPortfolio.name,
+          startingCapital: futuresPortfolio.startingCapital,
+          cashBalance: futuresPortfolio.cashBalance,
+          totalValue: futuresPortfolio.totalValue,
+          totalPnL: futuresPortfolio.totalPnL,
+          openPositions: futuresOpen.length,
+          closedPositions: futuresClosed.length,
+          wins: futuresWins,
+          losses: futuresLosses,
+          winRate: futuresClosed.length > 0 ? (futuresWins / futuresClosed.length * 100).toFixed(1) : '0',
+        };
+      }
+      
       if (isAdmin) {
         // Admin gets full access
         res.json({
@@ -7634,7 +7661,9 @@ FORMATTING:
             totalPnL: portfolio.totalPnL,
             createdAt: portfolio.createdAt,
           },
+          futuresPortfolio: futuresStats,
           positions: positions.slice(0, 50),
+          futuresPositions: futuresPositions.slice(0, 20),
           stats: {
             openPositions: openPositions.length,
             closedPositions: closedPositions.length,
@@ -7659,7 +7688,13 @@ FORMATTING:
             cashBalance: portfolio.cashBalance,
             createdAt: portfolio.createdAt,
           },
+          futuresPortfolio: futuresStats ? {
+            name: futuresStats.name,
+            startingCapital: futuresStats.startingCapital,
+            cashBalance: futuresStats.cashBalance,
+          } : null,
           positions: [], // Never show positions to non-admin
+          futuresPositions: [],
           stats: hasStatisticalValidity ? {
             openPositions: openPositions.length,
             closedPositions: closedPositions.length,
@@ -7786,6 +7821,72 @@ FORMATTING:
     } catch (error: any) {
       logger.error("Error fetching auto-lotto bot coverage", { error });
       res.status(500).json({ error: "Failed to fetch coverage data" });
+    }
+  });
+
+  // POST /api/auto-lotto-bot/reset - Reset bot portfolios to fresh $300 each (admin only)
+  app.post("/api/auto-lotto-bot/reset", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const user = userId ? await storage.getUser(userId) : null;
+      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      
+      if (!isAdmin) {
+        return res.status(403).json({ error: "Admin access required to reset bot portfolios" });
+      }
+      
+      const SYSTEM_USER_ID = "system-auto-trader";
+      const STARTING_CAPITAL = 300;
+      
+      // Get existing portfolios
+      const portfolios = await storage.getPaperPortfoliosByUser(SYSTEM_USER_ID);
+      
+      // Delete old portfolios (positions will be orphaned but that's okay for reset)
+      for (const portfolio of portfolios) {
+        await storage.deletePaperPortfolio(portfolio.id);
+      }
+      
+      // Create fresh Options portfolio
+      const optionsPortfolio = await storage.createPaperPortfolio({
+        userId: SYSTEM_USER_ID,
+        name: "Auto-Lotto Options",
+        startingCapital: STARTING_CAPITAL,
+        cashBalance: STARTING_CAPITAL,
+        totalValue: STARTING_CAPITAL,
+        maxPositionSize: 50,
+        riskPerTrade: 0.05,
+      });
+      
+      // Create fresh Futures portfolio
+      const futuresPortfolio = await storage.createPaperPortfolio({
+        userId: SYSTEM_USER_ID,
+        name: "Auto-Lotto Futures",
+        startingCapital: STARTING_CAPITAL,
+        cashBalance: STARTING_CAPITAL,
+        totalValue: STARTING_CAPITAL,
+        maxPositionSize: 100,
+        riskPerTrade: 0.05,
+      });
+      
+      logger.info(`🤖 [BOT] Admin reset bot portfolios: Options #${optionsPortfolio.id}, Futures #${futuresPortfolio.id} - $${STARTING_CAPITAL} each`);
+      
+      res.json({
+        success: true,
+        message: "Bot portfolios reset to $300 each",
+        optionsPortfolio: {
+          id: optionsPortfolio.id,
+          name: optionsPortfolio.name,
+          startingCapital: optionsPortfolio.startingCapital,
+        },
+        futuresPortfolio: {
+          id: futuresPortfolio.id,
+          name: futuresPortfolio.name,
+          startingCapital: futuresPortfolio.startingCapital,
+        }
+      });
+    } catch (error: any) {
+      logger.error("Error resetting auto-lotto bot portfolios", { error });
+      res.status(500).json({ error: "Failed to reset bot portfolios" });
     }
   });
 
