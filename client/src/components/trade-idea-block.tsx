@@ -63,6 +63,28 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
     refetchInterval: 600000, // Refresh every 10 minutes (sparklines don't need frequent updates)
   });
 
+  // Fetch pattern data when expanded (for stocks/crypto only)
+  interface PatternData {
+    signalScore?: { score: number; direction: string; confidence: number; signals: string[] };
+    indicators?: { rsi?: { value: number }; adx?: { value: number; regime: string }; macd?: { histogram: number } };
+    patterns?: { name: string; type: string }[];
+    error?: string;
+  }
+  const { data: patternData, isLoading: patternLoading, error: patternError } = useQuery<PatternData>({
+    queryKey: ['/api/patterns', idea.symbol],
+    queryFn: async () => {
+      const response = await fetch(`/api/patterns/${idea.symbol}`);
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(data.error || 'Failed to fetch patterns');
+      }
+      return data;
+    },
+    enabled: isOpen && idea.assetType !== 'option', // Only fetch when expanded
+    staleTime: 300000, // Cache for 5 minutes
+    retry: false, // Don't retry failed requests
+  });
+
   useEffect(() => {
     if (currentPrice !== undefined && prevPriceRef.current !== undefined && currentPrice !== prevPriceRef.current) {
       setPriceUpdated(true);
@@ -486,6 +508,106 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Technical Analysis Section - Pattern Detection */}
+          {idea.assetType !== 'option' && (
+            <div className="p-3 rounded-lg border bg-card/50">
+              <div className="flex items-center gap-1.5 mb-2">
+                <BarChart3 className="h-3.5 w-3.5 text-cyan-400" />
+                <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wide">Technical Analysis</span>
+                <Link href="/backtest" className="text-[10px] text-muted-foreground hover:text-cyan-400 ml-auto flex items-center gap-0.5">
+                  <ExternalLink className="h-2.5 w-2.5" />
+                  Full Analysis
+                </Link>
+              </div>
+              {patternLoading ? (
+                <div className="grid grid-cols-4 gap-2">
+                  {[1,2,3,4].map(i => (
+                    <div key={i} className="h-10 bg-muted/30 rounded animate-pulse" />
+                  ))}
+                </div>
+              ) : patternError ? (
+                <div className="text-xs text-muted-foreground text-center py-2">
+                  Unable to load analysis
+                </div>
+              ) : patternData?.signalScore && patternData?.indicators ? (
+                <>
+                  <div className="grid grid-cols-4 gap-2 text-xs">
+                    <div className="text-center p-2 rounded bg-muted/30">
+                      <div className="text-[9px] text-muted-foreground mb-0.5">SIGNAL</div>
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          "text-[10px] font-bold",
+                          patternData.signalScore.direction === 'bullish' ? "bg-green-500/20 text-green-400 border-green-500/30" :
+                          patternData.signalScore.direction === 'bearish' ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                          "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {patternData.signalScore.direction.toUpperCase()}
+                      </Badge>
+                    </div>
+                    {patternData.indicators.rsi?.value !== undefined && (
+                      <div className="text-center p-2 rounded bg-muted/30">
+                        <div className="text-[9px] text-muted-foreground mb-0.5">RSI(14)</div>
+                        <span className={cn(
+                          "font-mono font-bold",
+                          patternData.indicators.rsi.value < 30 ? "text-green-400" :
+                          patternData.indicators.rsi.value > 70 ? "text-red-400" :
+                          "text-foreground"
+                        )}>
+                          {patternData.indicators.rsi.value.toFixed(1)}
+                        </span>
+                      </div>
+                    )}
+                    {patternData.indicators.adx?.value !== undefined && (
+                      <div className="text-center p-2 rounded bg-muted/30">
+                        <div className="text-[9px] text-muted-foreground mb-0.5">ADX</div>
+                        <span className="font-mono font-bold">
+                          {patternData.indicators.adx.value.toFixed(1)}
+                        </span>
+                      </div>
+                    )}
+                    {patternData.indicators.adx?.regime && (
+                      <div className="text-center p-2 rounded bg-muted/30">
+                        <div className="text-[9px] text-muted-foreground mb-0.5">TREND</div>
+                        <span className={cn(
+                          "text-[10px] font-semibold uppercase",
+                          patternData.indicators.adx.regime === 'trending' ? "text-green-400" :
+                          patternData.indicators.adx.regime === 'ranging' ? "text-amber-400" :
+                          "text-muted-foreground"
+                        )}>
+                          {patternData.indicators.adx.regime}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {patternData.patterns && patternData.patterns.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {patternData.patterns.slice(0, 3).map((p, i) => (
+                        <Badge 
+                          key={i} 
+                          variant="outline" 
+                          className={cn(
+                            "text-[9px]",
+                            p.type === 'bullish' ? "bg-green-500/10 text-green-400 border-green-500/30" :
+                            p.type === 'bearish' ? "bg-red-500/10 text-red-400 border-red-500/30" :
+                            "bg-muted/30"
+                          )}
+                        >
+                          {p.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-xs text-muted-foreground text-center py-2">
+                  Pattern analysis unavailable
+                </div>
+              )}
             </div>
           )}
 

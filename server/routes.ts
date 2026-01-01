@@ -1648,7 +1648,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/patterns/:symbol", async (req, res) => {
     try {
       const { symbol } = req.params;
-      const { fetchHistoricalPrices } = await import("./market-api");
       const { 
         detectCandlestickPatterns, 
         calculateEnhancedSignalScore,
@@ -1661,19 +1660,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         determineMarketRegime
       } = await import("./technical-indicators");
       
-      // Fetch historical data
-      const historicalData = await fetchHistoricalPrices(symbol);
+      // Fetch OHLCV data from Yahoo Finance
+      const endDate = Math.floor(Date.now() / 1000);
+      const startDate = endDate - (60 * 24 * 60 * 60); // 60 days back
+      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol.toUpperCase()}?period1=${startDate}&period2=${endDate}&interval=1d`;
       
-      if (!historicalData || historicalData.length < 20) {
+      const response = await fetch(yahooUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      
+      if (!response.ok) {
+        return res.status(400).json({ error: "Failed to fetch historical data" });
+      }
+      
+      const data = await response.json();
+      const result = data.chart?.result?.[0];
+      
+      if (!result || !result.indicators?.quote?.[0]) {
         return res.status(400).json({ error: "Insufficient data for pattern analysis" });
       }
       
-      // Extract OHLCV data
-      const prices = historicalData.map(d => d.close);
-      const highs = historicalData.map(d => d.high);
-      const lows = historicalData.map(d => d.low);
-      const volumes = historicalData.map(d => d.volume);
-      const opens = historicalData.map(d => d.open);
+      const quote = result.indicators.quote[0];
+      const timestamps = result.timestamp || [];
+      
+      // Extract OHLCV arrays (filter out null values)
+      const opens: number[] = [];
+      const highs: number[] = [];
+      const lows: number[] = [];
+      const prices: number[] = [];
+      const volumes: number[] = [];
+      
+      for (let i = 0; i < timestamps.length; i++) {
+        if (quote.open[i] && quote.high[i] && quote.low[i] && quote.close[i]) {
+          opens.push(quote.open[i]);
+          highs.push(quote.high[i]);
+          lows.push(quote.low[i]);
+          prices.push(quote.close[i]);
+          volumes.push(quote.volume[i] || 0);
+        }
+      }
+      
+      if (prices.length < 20) {
+        return res.status(400).json({ error: "Insufficient data points for analysis" });
+      }
       
       // Detect candlestick patterns
       const candles = { open: opens, high: highs, low: lows, close: prices };
@@ -1694,7 +1723,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Current price info
       const currentPrice = prices[prices.length - 1];
-      const priceChange = ((currentPrice - prices[prices.length - 2]) / prices[prices.length - 2]) * 100;
+      const priceChange = prices.length >= 2 
+        ? ((currentPrice - prices[prices.length - 2]) / prices[prices.length - 2]) * 100 
+        : 0;
+      
+      // Build candle data for charting
+      const validTimestamps: number[] = [];
+      for (let i = 0; i < timestamps.length; i++) {
+        if (quote.open[i] && quote.high[i] && quote.low[i] && quote.close[i]) {
+          validTimestamps.push(timestamps[i]);
+        }
+      }
+      
+      const candles_data = validTimestamps.map((ts, i) => ({
+        time: ts,
+        open: opens[i],
+        high: highs[i],
+        low: lows[i],
+        close: prices[i],
+        volume: volumes[i]
+      }));
+      
+      // Calculate RSI series for charting
+      const rsiSeries: Array<{ time: number; value: number }> = [];
+      for (let i = 14; i < prices.length; i++) {
+        const slicePrices = prices.slice(0, i + 1);
+        const rsiVal = calculateRSI(slicePrices, 14);
+        rsiSeries.push({ time: validTimestamps[i], value: rsiVal });
+      }
+      
+      // Calculate Bollinger Bands series for overlay
+      const bbSeries: Array<{ time: number; upper: number; middle: number; lower: number }> = [];
+      for (let i = 20; i < prices.length; i++) {
+        const slicePrices = prices.slice(0, i + 1);
+        const bbVal = calculateBollingerBands(slicePrices, 20, 2);
+        bbSeries.push({ 
+          time: validTimestamps[i], 
+          upper: bbVal.upper, 
+          middle: bbVal.middle, 
+          lower: bbVal.lower 
+        });
+      }
       
       res.json({
         symbol: symbol.toUpperCase(),
@@ -1716,7 +1785,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stochRSI: stochRSI,
           ichimoku: ichimoku
         },
-        dataPoints: historicalData.length
+        dataPoints: prices.length,
+        candles: candles_data,
+        rsiSeries,
+        bbSeries
       });
     } catch (error) {
       logger.error(`Error analyzing patterns for ${req.params.symbol}:`, error);

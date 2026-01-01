@@ -9,6 +9,13 @@ import { TradeIdea, PaperPortfolio, InsertTradeIdea } from "@shared/schema";
 import { logger } from "./logger";
 import { getMarketContext, getEntryTiming, checkDynamicExit, MarketContext } from "./market-context-service";
 import { getActiveFuturesContract, getFuturesPrice } from "./futures-data-service";
+import { 
+  calculateEnhancedSignalScore, 
+  detectCandlestickPatterns,
+  calculateRSI,
+  calculateADX,
+  determineMarketRegime
+} from "./technical-indicators";
 
 // Separate portfolios for Options and Futures
 const OPTIONS_PORTFOLIO_NAME = "Auto-Lotto Options";
@@ -903,6 +910,7 @@ export async function runFuturesBotScan(): Promise<void> {
             direction: bestFuturesOpp.direction,
             stopLoss: stopLoss,
             targetPrice: targetPrice,
+            entryTime: new Date().toISOString(),
           });
           
           // Update portfolio cash
