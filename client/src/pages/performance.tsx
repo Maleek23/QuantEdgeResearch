@@ -37,6 +37,7 @@ const ConfidenceCalibration = lazy(() => import("@/components/confidence-calibra
 const CalibrationCurve = lazy(() => import("@/components/calibration-curve"));
 const EngineActualPerformance = lazy(() => import("@/components/engine-actual-performance"));
 const StreakTracker = lazy(() => import("@/components/streak-tracker"));
+const LossPatternsDashboard = lazy(() => import("@/components/loss-patterns-dashboard"));
 import { PerformanceLeaderboard } from "@/components/performance-leaderboard";
 
 // Loading fallback for lazy components
@@ -1512,6 +1513,17 @@ export default function PerformancePage() {
               </p>
               <Suspense fallback={<ChartSkeleton />}>
                 <CalibrationCurve />
+              </Suspense>
+            </div>
+            
+            <div className="glass-card rounded-lg p-6 border-l-2 border-l-amber-500">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Post-Mortem Analysis</p>
+              <h2 className="text-xl font-semibold mb-2 text-amber-400">Loss Patterns Dashboard</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Understanding why trades fail - automatic post-mortem analysis of all losing trades
+              </p>
+              <Suspense fallback={<ChartSkeleton />}>
+                <LossPatternsDashboard />
               </Suspense>
             </div>
           </div>

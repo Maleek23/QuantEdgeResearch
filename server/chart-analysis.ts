@@ -521,9 +521,298 @@ function detectChannel(highs: number[], lows: number[], closes: number[]): Chart
   return null;
 }
 
+function detectRisingWedge(highs: number[], lows: number[], closes: number[], currentPrice: number): ChartPattern | null {
+  if (closes.length < 20) return null;
+  
+  const recentHighs = highs.slice(-20);
+  const recentLows = lows.slice(-20);
+  
+  let highSlope = 0;
+  let lowSlope = 0;
+  let highSum = 0, lowSum = 0;
+  
+  for (let i = 1; i < recentHighs.length; i++) {
+    highSum += (recentHighs[i] - recentHighs[i-1]) / recentHighs[i-1];
+    lowSum += (recentLows[i] - recentLows[i-1]) / recentLows[i-1];
+  }
+  
+  highSlope = highSum / (recentHighs.length - 1);
+  lowSlope = lowSum / (recentLows.length - 1);
+  
+  if (highSlope > 0.001 && lowSlope > 0.002 && lowSlope > highSlope) {
+    const wedgeTop = Math.max(...recentHighs);
+    const target = currentPrice - (wedgeTop - Math.min(...recentLows)) * 0.618;
+    
+    return {
+      name: 'Rising Wedge',
+      type: 'bearish',
+      confidence: 68,
+      description: 'Rising wedge pattern detected - lower highs converging with higher lows, often precedes breakdown',
+      priceTarget: Number(target.toFixed(2)),
+      invalidationLevel: Number((wedgeTop * 1.02).toFixed(2))
+    };
+  }
+  
+  return null;
+}
+
+function detectFallingWedge(highs: number[], lows: number[], closes: number[], currentPrice: number): ChartPattern | null {
+  if (closes.length < 20) return null;
+  
+  const recentHighs = highs.slice(-20);
+  const recentLows = lows.slice(-20);
+  
+  let highSlope = 0;
+  let lowSlope = 0;
+  let highSum = 0, lowSum = 0;
+  
+  for (let i = 1; i < recentHighs.length; i++) {
+    highSum += (recentHighs[i] - recentHighs[i-1]) / recentHighs[i-1];
+    lowSum += (recentLows[i] - recentLows[i-1]) / recentLows[i-1];
+  }
+  
+  highSlope = highSum / (recentHighs.length - 1);
+  lowSlope = lowSum / (recentLows.length - 1);
+  
+  if (highSlope < -0.002 && lowSlope < -0.001 && highSlope < lowSlope) {
+    const wedgeBottom = Math.min(...recentLows);
+    const target = currentPrice + (Math.max(...recentHighs) - wedgeBottom) * 0.618;
+    
+    return {
+      name: 'Falling Wedge',
+      type: 'bullish',
+      confidence: 68,
+      description: 'Falling wedge pattern detected - lower highs converging with lower lows, often precedes breakout',
+      priceTarget: Number(target.toFixed(2)),
+      invalidationLevel: Number((wedgeBottom * 0.98).toFixed(2))
+    };
+  }
+  
+  return null;
+}
+
+function detectCupAndHandle(highs: number[], lows: number[], closes: number[], currentPrice: number): ChartPattern | null {
+  if (closes.length < 30) return null;
+  
+  const cupPeriod = Math.min(30, closes.length);
+  const cupCloses = closes.slice(-cupPeriod);
+  
+  const cupHigh = Math.max(...cupCloses.slice(0, 5));
+  const cupLow = Math.min(...cupCloses.slice(Math.floor(cupPeriod/3), Math.floor(cupPeriod*2/3)));
+  const cupRight = Math.max(...cupCloses.slice(-5));
+  
+  const cupDepth = (cupHigh - cupLow) / cupHigh;
+  const cupSymmetry = Math.abs(cupHigh - cupRight) / cupHigh;
+  
+  if (cupDepth > 0.1 && cupDepth < 0.35 && cupSymmetry < 0.05) {
+    const handleCloses = closes.slice(-10);
+    const handleDrop = (cupRight - Math.min(...handleCloses)) / cupRight;
+    
+    if (handleDrop > 0.02 && handleDrop < cupDepth * 0.5) {
+      const target = cupRight + (cupRight - cupLow);
+      
+      return {
+        name: 'Cup and Handle',
+        type: 'bullish',
+        confidence: 72,
+        description: `Cup and handle forming with ${(cupDepth * 100).toFixed(1)}% cup depth, handle retracement ${(handleDrop * 100).toFixed(1)}%`,
+        priceTarget: Number(target.toFixed(2)),
+        invalidationLevel: Number(cupLow.toFixed(2))
+      };
+    }
+  }
+  
+  return null;
+}
+
+function detectHammerPattern(opens: number[], highs: number[], lows: number[], closes: number[], currentPrice: number): ChartPattern | null {
+  if (closes.length < 5) return null;
+  
+  const idx = closes.length - 1;
+  const open = opens[idx];
+  const high = highs[idx];
+  const low = lows[idx];
+  const close = closes[idx];
+  
+  const body = Math.abs(close - open);
+  const upperWick = high - Math.max(open, close);
+  const lowerWick = Math.min(open, close) - low;
+  const totalRange = high - low;
+  
+  if (totalRange === 0 || body === 0) return null;
+  
+  // Hammer: Long lower wick, small upper wick, appears after downtrend (potential bullish reversal)
+  // Requirements: Lower wick >= 2x body, upper wick <= 0.5x body
+  if (lowerWick >= body * 2 && upperWick <= body * 0.5) {
+    // Check for prior downtrend (prices were falling)
+    const lookback = Math.min(5, idx);
+    const priorClose = closes[idx - lookback];
+    const isDowntrend = priorClose > closes[idx - 1];
+    
+    if (isDowntrend) {
+      return {
+        name: 'Hammer',
+        type: 'bullish',
+        confidence: 62,
+        description: 'Hammer candlestick at potential support - long lower wick shows buyers rejected lower prices',
+        priceTarget: Number((currentPrice + totalRange * 1.5).toFixed(2)),
+        invalidationLevel: Number((low * 0.99).toFixed(2))
+      };
+    }
+  }
+  
+  // Shooting Star: Long upper wick, small lower wick, appears after uptrend (potential bearish reversal)
+  // Requirements: Upper wick >= 2x body, lower wick <= 0.5x body
+  if (upperWick >= body * 2 && lowerWick <= body * 0.5) {
+    // Check for prior uptrend (prices were rising)
+    const lookback = Math.min(5, idx);
+    const priorClose = closes[idx - lookback];
+    const isUptrend = priorClose < closes[idx - 1];
+    
+    if (isUptrend) {
+      return {
+        name: 'Shooting Star',
+        type: 'bearish',
+        confidence: 62,
+        description: 'Shooting star candlestick at potential resistance - long upper wick shows sellers rejected higher prices',
+        priceTarget: Number((currentPrice - totalRange * 1.5).toFixed(2)),
+        invalidationLevel: Number((high * 1.01).toFixed(2))
+      };
+    }
+  }
+  
+  return null;
+}
+
+function detectEngulfingPattern(opens: number[], highs: number[], lows: number[], closes: number[], currentPrice: number): ChartPattern | null {
+  if (closes.length < 3) return null;
+  
+  const idx = closes.length - 1;
+  const currOpen = opens[idx];
+  const currClose = closes[idx];
+  const currHigh = highs[idx];
+  const currLow = lows[idx];
+  const prevOpen = opens[idx - 1];
+  const prevClose = closes[idx - 1];
+  const prevLow = lows[idx - 1];
+  const prevHigh = highs[idx - 1];
+  
+  const currBody = Math.abs(currClose - currOpen);
+  const prevBody = Math.abs(prevClose - prevOpen);
+  
+  // Bullish Engulfing: Current bullish candle (close > open) engulfs previous bearish candle (close < open)
+  const isCurrBullish = currClose > currOpen;
+  const isPrevBearish = prevClose < prevOpen;
+  
+  if (isCurrBullish && isPrevBearish) {
+    // Body of current candle must completely contain body of previous candle
+    if (currOpen <= prevClose && currClose >= prevOpen && currBody > prevBody * 1.1) {
+      return {
+        name: 'Bullish Engulfing',
+        type: 'bullish',
+        confidence: 65,
+        description: 'Bullish engulfing - green candle completely engulfs prior red candle, suggesting buyers took control',
+        priceTarget: Number((currentPrice + currBody * 1.5).toFixed(2)),
+        invalidationLevel: Number((Math.min(currLow, prevLow) * 0.99).toFixed(2))
+      };
+    }
+  }
+  
+  // Bearish Engulfing: Current bearish candle (close < open) engulfs previous bullish candle (close > open)
+  const isCurrBearish = currClose < currOpen;
+  const isPrevBullish = prevClose > prevOpen;
+  
+  if (isCurrBearish && isPrevBullish) {
+    // Body of current candle must completely contain body of previous candle
+    if (currOpen >= prevClose && currClose <= prevOpen && currBody > prevBody * 1.1) {
+      return {
+        name: 'Bearish Engulfing',
+        type: 'bearish',
+        confidence: 65,
+        description: 'Bearish engulfing - red candle completely engulfs prior green candle, suggesting sellers took control',
+        priceTarget: Number((currentPrice - currBody * 1.5).toFixed(2)),
+        invalidationLevel: Number((Math.max(currHigh, prevHigh) * 1.01).toFixed(2))
+      };
+    }
+  }
+  
+  return null;
+}
+
+function detectRSIDivergence(closes: number[], currentPrice: number): ChartPattern | null {
+  if (closes.length < 30) return null;
+  
+  const rsi = calculateRSI(closes, 14);
+  if (rsi.length < 15) return null;
+  
+  const recentCloses = closes.slice(-15);
+  const recentRSI = rsi.slice(-15);
+  
+  const priceSlope = (recentCloses[recentCloses.length - 1] - recentCloses[0]) / recentCloses[0];
+  const rsiSlope = recentRSI[recentRSI.length - 1] - recentRSI[0];
+  
+  if (priceSlope > 0.03 && rsiSlope < -5) {
+    return {
+      name: 'Bearish RSI Divergence',
+      type: 'bearish',
+      confidence: 60,
+      description: 'Price making higher highs while RSI making lower highs - momentum weakening, potential reversal',
+      priceTarget: Number((currentPrice * 0.95).toFixed(2))
+    };
+  }
+  
+  if (priceSlope < -0.03 && rsiSlope > 5) {
+    return {
+      name: 'Bullish RSI Divergence',
+      type: 'bullish',
+      confidence: 60,
+      description: 'Price making lower lows while RSI making higher lows - momentum building, potential reversal',
+      priceTarget: Number((currentPrice * 1.05).toFixed(2))
+    };
+  }
+  
+  return null;
+}
+
+function detectVolumeTrend(closes: number[], volumes: number[] | undefined, currentPrice: number): ChartPattern | null {
+  if (!volumes || volumes.length < 10 || closes.length < 10) return null;
+  
+  const recentVolumes = volumes.slice(-10);
+  const recentCloses = closes.slice(-10);
+  
+  const avgVolume = recentVolumes.slice(0, 5).reduce((a, b) => a + b, 0) / 5;
+  const recentAvg = recentVolumes.slice(-3).reduce((a, b) => a + b, 0) / 3;
+  
+  const priceChange = (recentCloses[recentCloses.length - 1] - recentCloses[0]) / recentCloses[0];
+  const volumeChange = (recentAvg - avgVolume) / avgVolume;
+  
+  if (volumeChange > 0.5 && priceChange > 0.02) {
+    return {
+      name: 'Volume Breakout',
+      type: 'bullish',
+      confidence: 58,
+      description: `Volume surge ${(volumeChange * 100).toFixed(0)}% above average accompanying ${(priceChange * 100).toFixed(1)}% price move`,
+      priceTarget: Number((currentPrice * 1.05).toFixed(2))
+    };
+  }
+  
+  if (volumeChange > 0.5 && priceChange < -0.02) {
+    return {
+      name: 'Volume Breakdown',
+      type: 'bearish',
+      confidence: 58,
+      description: `Volume surge ${(volumeChange * 100).toFixed(0)}% above average accompanying ${(priceChange * 100).toFixed(1)}% price drop`,
+      priceTarget: Number((currentPrice * 0.95).toFixed(2))
+    };
+  }
+  
+  return null;
+}
+
 export function detectChartPatterns(ohlc: OHLCData, currentPrice: number): ChartPattern[] {
   const patterns: ChartPattern[] = [];
   
+  // Classic chart patterns
   const doubleTop = detectDoubleTop(ohlc.highs, ohlc.closes, currentPrice);
   if (doubleTop) patterns.push(doubleTop);
   
@@ -544,6 +833,28 @@ export function detectChartPatterns(ohlc: OHLCData, currentPrice: number): Chart
   
   const channel = detectChannel(ohlc.highs, ohlc.lows, ohlc.closes);
   if (channel) patterns.push(channel);
+  
+  // Wedge patterns
+  const risingWedge = detectRisingWedge(ohlc.highs, ohlc.lows, ohlc.closes, currentPrice);
+  if (risingWedge) patterns.push(risingWedge);
+  
+  const fallingWedge = detectFallingWedge(ohlc.highs, ohlc.lows, ohlc.closes, currentPrice);
+  if (fallingWedge) patterns.push(fallingWedge);
+  
+  // Cup and handle
+  const cupHandle = detectCupAndHandle(ohlc.highs, ohlc.lows, ohlc.closes, currentPrice);
+  if (cupHandle) patterns.push(cupHandle);
+  
+  // Candlestick patterns
+  const hammer = detectHammerPattern(ohlc.opens, ohlc.highs, ohlc.lows, ohlc.closes, currentPrice);
+  if (hammer) patterns.push(hammer);
+  
+  const engulfing = detectEngulfingPattern(ohlc.opens, ohlc.highs, ohlc.lows, ohlc.closes, currentPrice);
+  if (engulfing) patterns.push(engulfing);
+  
+  // Momentum divergences
+  const rsiDiv = detectRSIDivergence(ohlc.closes, currentPrice);
+  if (rsiDiv) patterns.push(rsiDiv);
   
   return patterns.sort((a, b) => b.confidence - a.confidence);
 }
