@@ -1642,6 +1642,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // PATTERN DETECTION API - Advanced technical analysis
+  // ============================================
+  
+  app.get("/api/patterns/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const { fetchHistoricalPrices } = await import("./market-api");
+      const { 
+        detectCandlestickPatterns, 
+        calculateEnhancedSignalScore,
+        calculateStochRSI,
+        calculateIchimoku,
+        calculateRSI,
+        calculateMACD,
+        calculateBollingerBands,
+        calculateADX,
+        determineMarketRegime
+      } = await import("./technical-indicators");
+      
+      // Fetch historical data
+      const historicalData = await fetchHistoricalPrices(symbol);
+      
+      if (!historicalData || historicalData.length < 20) {
+        return res.status(400).json({ error: "Insufficient data for pattern analysis" });
+      }
+      
+      // Extract OHLCV data
+      const prices = historicalData.map(d => d.close);
+      const highs = historicalData.map(d => d.high);
+      const lows = historicalData.map(d => d.low);
+      const volumes = historicalData.map(d => d.volume);
+      const opens = historicalData.map(d => d.open);
+      
+      // Detect candlestick patterns
+      const candles = { open: opens, high: highs, low: lows, close: prices };
+      const patterns = detectCandlestickPatterns(candles);
+      
+      // Calculate enhanced signal score
+      const signalScore = calculateEnhancedSignalScore(prices, highs, lows, volumes);
+      
+      // Calculate individual indicators
+      const rsi = calculateRSI(prices, 14);
+      const rsi2 = calculateRSI(prices, 2);
+      const macd = calculateMACD(prices);
+      const bb = calculateBollingerBands(prices);
+      const adx = calculateADX(highs, lows, prices);
+      const regime = determineMarketRegime(adx);
+      const stochRSI = calculateStochRSI(prices);
+      const ichimoku = calculateIchimoku(highs, lows, prices);
+      
+      // Current price info
+      const currentPrice = prices[prices.length - 1];
+      const priceChange = ((currentPrice - prices[prices.length - 2]) / prices[prices.length - 2]) * 100;
+      
+      res.json({
+        symbol: symbol.toUpperCase(),
+        currentPrice,
+        priceChange: Number(priceChange.toFixed(2)),
+        patterns: patterns.filter(p => p.detected),
+        signalScore: {
+          score: signalScore.score,
+          direction: signalScore.direction,
+          confidence: signalScore.confidence,
+          signals: signalScore.signals
+        },
+        indicators: {
+          rsi: { value: rsi, period: 14 },
+          rsi2: { value: rsi2, period: 2 },
+          macd: { macd: macd.macd, signal: macd.signal, histogram: macd.histogram },
+          bollingerBands: { upper: bb.upper, middle: bb.middle, lower: bb.lower },
+          adx: { value: adx, regime: regime.regime, suitableFor: regime.suitableFor },
+          stochRSI: stochRSI,
+          ichimoku: ichimoku
+        },
+        dataPoints: historicalData.length
+      });
+    } catch (error) {
+      logger.error(`Error analyzing patterns for ${req.params.symbol}:`, error);
+      res.status(500).json({ error: "Failed to analyze patterns" });
+    }
+  });
+
+  // ============================================
   // FUTURES TRADING ROUTES - 24-hour markets
   // ============================================
   
