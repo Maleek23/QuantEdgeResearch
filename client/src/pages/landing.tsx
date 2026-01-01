@@ -314,141 +314,145 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Engine → Outcome Matrix */}
-      <section className="py-10 lg:py-16 bg-slate-900/30" id="features" data-testid="section-features">
+      {/* Platform Capabilities - Visual Cards */}
+      <section className="py-12 lg:py-20 bg-slate-900/30" id="features" data-testid="section-features">
         <div className="container mx-auto px-6">
-          <div className="text-center mb-10">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
+          <div className="text-center mb-12">
+            <p className="text-xs font-medium uppercase tracking-wider text-cyan-400 mb-2">
               Platform Capabilities
             </p>
-            <h2 className="text-xl font-semibold">Engine → Outcome</h2>
+            <h2 className="text-2xl lg:text-3xl font-bold mb-3">Five Engines. Complete Coverage.</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Every angle analyzed. Every signal tracked. Every outcome measured.
+            </p>
           </div>
           
-          {/* Two-column Engine/Outcome Matrix - Research Engines */}
-          <div className="max-w-3xl mx-auto mb-8">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Research Engines</p>
-            <div className="glass-card rounded-lg overflow-hidden">
-              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-700/50">
-                <div className="p-3 bg-slate-800/30">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Engine</p>
-                </div>
-                <div className="p-3 bg-slate-800/30">
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">What It Does</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
-                <div className="p-4 flex items-center gap-3">
-                  <Brain className="h-4 w-4 text-purple-400" />
-                  <span className="text-sm font-medium">AI Engine</span>
-                </div>
-                <div className="p-4">
-                  <p className="text-sm text-muted-foreground">Fundamental analysis via multi-LLM consensus. Parses news, earnings, SEC filings.</p>
+          {/* Research Engines - Visual Grid */}
+          <div className="mb-12">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4 text-center">Research Engines</p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 max-w-5xl mx-auto">
+              {/* AI Engine */}
+              <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 p-5 hover-elevate">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+                <div className="relative">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center mb-4 shadow-lg shadow-purple-500/20">
+                    <Brain className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="font-semibold mb-1">AI Engine</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Multi-LLM consensus. News, earnings, SEC filings.</p>
                 </div>
               </div>
               
-              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
-                <div className="p-4 flex items-center gap-3">
-                  <Calculator className="h-4 w-4 text-blue-400" />
-                  <span className="text-sm font-medium">Quant Engine</span>
-                </div>
-                <div className="p-4">
-                  <p className="text-sm text-muted-foreground">RSI(2), VWAP, volume spike detection. Technical signals with statistical edge.</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
-                <div className="p-4 flex items-center gap-3">
-                  <Activity className="h-4 w-4 text-cyan-400" />
-                  <span className="text-sm font-medium">Flow Scanner</span>
-                </div>
-                <div className="p-4">
-                  <p className="text-sm text-muted-foreground">Detects unusual institutional activity. Sweeps, blocks, dark pool prints.</p>
+              {/* Quant Engine */}
+              <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 p-5 hover-elevate">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+                <div className="relative">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mb-4 shadow-lg shadow-blue-500/20">
+                    <Calculator className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="font-semibold mb-1">Quant Engine</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">RSI(2), VWAP, volume spike detection.</p>
                 </div>
               </div>
               
-              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
-                <div className="p-4 flex items-center gap-3">
-                  <Target className="h-4 w-4 text-amber-400" />
-                  <span className="text-sm font-medium">Chart Analysis</span>
-                </div>
-                <div className="p-4">
-                  <p className="text-sm text-muted-foreground">Upload screenshots for AI pattern recognition. Support/resistance, key levels.</p>
+              {/* Flow Scanner */}
+              <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border border-cyan-500/20 p-5 hover-elevate">
+                <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+                <div className="relative">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center mb-4 shadow-lg shadow-cyan-500/20">
+                    <Activity className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="font-semibold mb-1">Flow Scanner</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">Institutional sweeps, blocks, dark pool prints.</p>
                 </div>
               </div>
               
-              <div className="grid grid-cols-[1fr_2fr]">
-                <div className="p-4 flex items-center gap-3">
-                  <CandlestickChart className="h-4 w-4 text-green-400" />
-                  <span className="text-sm font-medium">Futures Engine</span>
+              {/* Chart Analysis */}
+              <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 p-5 hover-elevate">
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+                <div className="relative">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/20">
+                    <Target className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="font-semibold mb-1">Chart Analysis</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">AI pattern recognition from screenshots.</p>
                 </div>
-                <div className="p-4">
-                  <p className="text-sm text-muted-foreground">NQ and GC futures analysis. CME contract specs, tick-based targets, margin calculations.</p>
+              </div>
+              
+              {/* Futures Engine */}
+              <div className="group relative overflow-visible rounded-xl bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 p-5 hover-elevate">
+                <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl" />
+                <div className="relative">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center mb-4 shadow-lg shadow-green-500/20">
+                    <CandlestickChart className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="font-semibold mb-1">Futures Engine</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">NQ & GC with CME specs, tick targets.</p>
                 </div>
               </div>
             </div>
           </div>
           
-          {/* Tools & Analytics */}
-          <div className="max-w-3xl mx-auto mb-8">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Tools & Analytics</p>
-            <div className="glass-card rounded-lg overflow-hidden">
-              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
-                <div className="p-4 flex items-center gap-3">
-                  <Sparkles className="h-4 w-4 text-pink-400" />
-                  <span className="text-sm font-medium">Auto-Lotto Bot</span>
+          {/* Tools & Analytics - Horizontal Cards */}
+          <div className="mb-10">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4 text-center">Tools & Analytics</p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto">
+              {/* Auto-Lotto Bot */}
+              <div className="glass-card rounded-xl p-5 border-l-2 border-pink-500/50">
+                <div className="flex items-center gap-3 mb-2">
+                  <Sparkles className="h-5 w-5 text-pink-400" />
+                  <h3 className="font-semibold text-sm">Auto-Lotto Bot</h3>
                 </div>
-                <div className="p-4">
-                  <p className="text-sm text-muted-foreground">Autonomous paper trading bot. Scans for high R:R setups and executes automatically.</p>
-                </div>
+                <p className="text-xs text-muted-foreground">Autonomous paper trading. Scans for high R:R setups automatically.</p>
               </div>
               
-              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
-                <div className="p-4 flex items-center gap-3">
-                  <LineChart className="h-4 w-4 text-cyan-400" />
-                  <span className="text-sm font-medium">Performance Analytics</span>
+              {/* Performance Analytics */}
+              <div className="glass-card rounded-xl p-5 border-l-2 border-cyan-500/50">
+                <div className="flex items-center gap-3 mb-2">
+                  <LineChart className="h-5 w-5 text-cyan-400" />
+                  <h3 className="font-semibold text-sm">Performance</h3>
                 </div>
-                <div className="p-4">
-                  <p className="text-sm text-muted-foreground">Win rates by engine, symbol leaderboards, confidence calibration. Every trade tracked.</p>
-                </div>
+                <p className="text-xs text-muted-foreground">Win rates, symbol leaderboards, confidence calibration.</p>
               </div>
               
-              <div className="grid grid-cols-[1fr_2fr] border-b border-slate-800/50">
-                <div className="p-4 flex items-center gap-3">
-                  <Target className="h-4 w-4 text-red-400" />
-                  <span className="text-sm font-medium">Loss Analysis</span>
+              {/* Loss Analysis */}
+              <div className="glass-card rounded-xl p-5 border-l-2 border-red-500/50">
+                <div className="flex items-center gap-3 mb-2">
+                  <Target className="h-5 w-5 text-red-400" />
+                  <h3 className="font-semibold text-sm">Loss Analysis</h3>
                 </div>
-                <div className="p-4">
-                  <p className="text-sm text-muted-foreground">Automatic post-mortem on losses. Identifies patterns, worst symbols, lessons learned.</p>
-                </div>
+                <p className="text-xs text-muted-foreground">Automatic post-mortem. Patterns, lessons, prevention.</p>
               </div>
               
-              <div className="grid grid-cols-[1fr_2fr]">
-                <div className="p-4 flex items-center gap-3">
-                  <TrendingUp className="h-4 w-4 text-green-400" />
-                  <span className="text-sm font-medium">Paper Trading</span>
+              {/* Paper Trading */}
+              <div className="glass-card rounded-xl p-5 border-l-2 border-green-500/50">
+                <div className="flex items-center gap-3 mb-2">
+                  <TrendingUp className="h-5 w-5 text-green-400" />
+                  <h3 className="font-semibold text-sm">Paper Trading</h3>
                 </div>
-                <div className="p-4">
-                  <p className="text-sm text-muted-foreground">Practice with virtual portfolios. Track P&L, manage positions, learn without risk.</p>
-                </div>
+                <p className="text-xs text-muted-foreground">Virtual portfolios. Track P&L, learn without risk.</p>
               </div>
             </div>
           </div>
           
-          {/* Market Coverage - Minimal */}
-          <div className="flex flex-wrap items-center justify-center gap-3 mt-8 mb-6">
-            <Badge variant="outline" className="border-slate-700 text-muted-foreground">
-              <TrendingUp className="h-3 w-3 mr-1" /> Stocks
-            </Badge>
-            <Badge variant="outline" className="border-slate-700 text-muted-foreground">
-              <LineChart className="h-3 w-3 mr-1" /> Options
-            </Badge>
-            <Badge variant="outline" className="border-slate-700 text-muted-foreground">
-              <Coins className="h-3 w-3 mr-1" /> Crypto
-            </Badge>
-            <Badge variant="outline" className="border-slate-700 text-muted-foreground">
-              <CandlestickChart className="h-3 w-3 mr-1" /> Futures (NQ, GC)
-            </Badge>
+          {/* Market Coverage - Pill badges */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700/50">
+              <TrendingUp className="h-4 w-4 text-cyan-400" />
+              <span className="text-sm">Stocks</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700/50">
+              <LineChart className="h-4 w-4 text-purple-400" />
+              <span className="text-sm">Options</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700/50">
+              <Coins className="h-4 w-4 text-amber-400" />
+              <span className="text-sm">Crypto</span>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700/50">
+              <CandlestickChart className="h-4 w-4 text-green-400" />
+              <span className="text-sm">Futures (NQ, GC)</span>
+            </div>
           </div>
           
           {/* See All Features CTA */}
