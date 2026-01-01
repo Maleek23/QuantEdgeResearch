@@ -56,7 +56,7 @@ interface FuturesOpportunity {
   expirationDate: string;
 }
 
-function isCMEMarketOpen(): boolean {
+export function isCMEOpen(): boolean {
   // CME Globex hours: Sunday 5:00 PM CT to Friday 4:00 PM CT (nearly 24 hours)
   // Daily maintenance break: 4:00 PM - 5:00 PM CT (Mon-Thu)
   const now = new Date();
@@ -768,7 +768,7 @@ export async function monitorLottoPositions(): Promise<void> {
  */
 export async function runFuturesBotScan(): Promise<void> {
   try {
-    if (!isCMEMarketOpen()) {
+    if (!isCMEOpen()) {
       logger.info(`🔮 [FUTURES-BOT] CME market closed - skipping futures scan`);
       return;
     }
@@ -901,10 +901,8 @@ export async function runFuturesBotScan(): Promise<void> {
             currentPrice: entryPrice,
             status: 'open',
             direction: bestFuturesOpp.direction,
-            entryReason: `${bestFuturesOpp.direction.toUpperCase()} ${bestFuturesOpp.signals.join(', ')}`,
             stopLoss: stopLoss,
             targetPrice: targetPrice,
-            confidence: bestFuturesOpp.confidence,
           });
           
           // Update portfolio cash
@@ -915,21 +913,7 @@ export async function runFuturesBotScan(): Promise<void> {
           logger.info(`🔮 [FUTURES-BOT] ✅ EXECUTED: ${bestFuturesOpp.direction.toUpperCase()} ${quantity}x ${bestFuturesOpp.contractCode} @ $${entryPrice.toFixed(2)}`);
           logger.info(`🔮 [FUTURES-BOT] 📊 Stop: $${stopLoss.toFixed(2)} | Target: $${targetPrice.toFixed(2)}`);
           
-          // Send Discord notification
-          try {
-            await sendFuturesTradesToDiscord({
-              action: 'ENTRY',
-              symbol: bestFuturesOpp.contractCode,
-              direction: bestFuturesOpp.direction,
-              price: entryPrice,
-              quantity: quantity,
-              signals: bestFuturesOpp.signals,
-              stopLoss: stopLoss,
-              targetPrice: targetPrice,
-            });
-          } catch (discordErr) {
-            logger.warn(`🔮 [FUTURES-BOT] Discord notification failed`, discordErr);
-          }
+          logger.info(`🔮 [FUTURES-BOT] Trade logged to paper portfolio`)
         } else {
           logger.warn(`🔮 [FUTURES-BOT] Insufficient capital for trade: need $${positionSize.toFixed(2)}, have $${portfolio.cashBalance.toFixed(2)}`);
         }
@@ -943,6 +927,87 @@ export async function runFuturesBotScan(): Promise<void> {
     logger.info(`🔮 [FUTURES-BOT] ========== FUTURES SCAN COMPLETE ==========`);
   } catch (error) {
     logger.error(`🔮 [FUTURES-BOT] Error in futures scan:`, error);
+  }
+}
+
+/**
+ * Monitor and manage open futures positions
+ */
+export async function monitorFuturesPositions(): Promise<void> {
+  try {
+    const portfolio = await getFuturesPortfolio();
+    if (!portfolio) return;
+    
+    const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+    const openPositions = positions.filter(p => p.status === 'open');
+    
+    if (openPositions.length === 0) {
+      logger.info(`🔮 [FUTURES-MONITOR] No open futures positions to monitor`);
+      return;
+    }
+    
+    logger.info(`🔮 [FUTURES-MONITOR] Checking ${openPositions.length} open futures positions...`);
+    
+    for (const position of openPositions) {
+      try {
+        // Get current price for the futures contract
+        const { getFuturesPrice } = await import('./futures-data-service');
+        const currentPrice = await getFuturesPrice(position.symbol);
+        
+        if (!currentPrice || currentPrice <= 0) {
+          logger.warn(`🔮 [FUTURES-MONITOR] No price for ${position.symbol}`);
+          continue;
+        }
+        
+        const entryPrice = typeof position.entryPrice === 'string' ? parseFloat(position.entryPrice) : position.entryPrice;
+        const stopLoss = position.stopLoss ? (typeof position.stopLoss === 'string' ? parseFloat(position.stopLoss) : position.stopLoss) : null;
+        const targetPrice = position.targetPrice ? (typeof position.targetPrice === 'string' ? parseFloat(position.targetPrice) : position.targetPrice) : null;
+        
+        const direction = position.direction || 'long';
+        let pnlPercent: number;
+        
+        if (direction === 'long') {
+          pnlPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
+        } else {
+          pnlPercent = ((entryPrice - currentPrice) / entryPrice) * 100;
+        }
+        
+        const unrealizedPnL = pnlPercent * (parseFloat(position.quantity?.toString() || '1') * entryPrice) / 100;
+        
+        logger.info(`🔮 [FUTURES-MONITOR] ${position.symbol}: ${direction} @ $${entryPrice.toFixed(2)} → $${currentPrice.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%)`);
+        
+        // Check stop loss
+        if (stopLoss && (
+          (direction === 'long' && currentPrice <= stopLoss) ||
+          (direction === 'short' && currentPrice >= stopLoss)
+        )) {
+          logger.info(`🔮 [FUTURES-MONITOR] ❌ STOP HIT: ${position.symbol} @ $${currentPrice.toFixed(2)}`);
+          await storage.closePaperPosition(position.id, currentPrice, 'hit_stop');
+          await storage.updatePaperPortfolio(portfolio.id, {
+            cashBalance: portfolio.cashBalance + (parseFloat(position.quantity?.toString() || '1') * entryPrice) + unrealizedPnL,
+          });
+          continue;
+        }
+        
+        // Check target
+        if (targetPrice && (
+          (direction === 'long' && currentPrice >= targetPrice) ||
+          (direction === 'short' && currentPrice <= targetPrice)
+        )) {
+          logger.info(`🔮 [FUTURES-MONITOR] ✅ TARGET HIT: ${position.symbol} @ $${currentPrice.toFixed(2)}`);
+          await storage.closePaperPosition(position.id, currentPrice, 'hit_target');
+          await storage.updatePaperPortfolio(portfolio.id, {
+            cashBalance: portfolio.cashBalance + (parseFloat(position.quantity?.toString() || '1') * entryPrice) + unrealizedPnL,
+          });
+          continue;
+        }
+        
+      } catch (posErr) {
+        logger.error(`🔮 [FUTURES-MONITOR] Error checking position ${position.symbol}:`, posErr);
+      }
+    }
+  } catch (error) {
+    logger.error(`🔮 [FUTURES-MONITOR] Position monitoring error:`, error);
   }
 }
 

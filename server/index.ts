@@ -823,20 +823,37 @@ app.use((req, res, next) => {
       }
     });
     
-    // Autonomous bot scan every 15 minutes during market hours - bot makes its own trading decisions
+    // Autonomous OPTIONS bot scan every 15 minutes during US market hours
     cron.default.schedule('*/15 * * * *', async () => {
       try {
         if (!isMarketHoursForFlow()) {
           return;
         }
         
-        logger.info('🤖 [AUTO-BOT] Starting autonomous market scan...');
-        const { runAutonomousBotScan, runFuturesBotScan } = await import('./auto-lotto-trader');
+        logger.info('🤖 [AUTO-BOT] Starting autonomous OPTIONS market scan...');
+        const { runAutonomousBotScan } = await import('./auto-lotto-trader');
         await runAutonomousBotScan();
         
-        // Futures paper trading scan (during CME market hours)
-        logger.info('🔮 [FUTURES-BOT] Starting futures paper trading scan...');
+      } catch (error: any) {
+        logger.error('🤖 [AUTO-BOT-CRON] Autonomous scan failed:', error);
+      }
+    });
+    
+    log('🤖 Auto-Lotto Bot started - scanning options every 15 minutes (9:30 AM-4:00 PM ET)');
+    
+    // Separate futures bot cron - runs INDEPENDENTLY during CME hours (nearly 24/7)
+    cron.default.schedule('*/15 * * * *', async () => {
+      try {
+        const { isCMEOpen, runFuturesBotScan, monitorFuturesPositions } = await import('./auto-lotto-trader');
+        
+        if (!isCMEOpen()) {
+          logger.info('🔮 [FUTURES-BOT] CME market closed - skipping futures scan');
+          return;
+        }
+        
+        logger.info('🔮 [FUTURES-BOT] CME market OPEN - starting futures scan...');
         await runFuturesBotScan();
+        await monitorFuturesPositions();
         
         // Also generate futures research ideas (NQ, GC)
         const { generateFuturesIdeas } = await import('./quantitative-engine');
@@ -847,18 +864,18 @@ app.use((req, res, next) => {
             const saved = await storage.createTradeIdea(idea);
             savedFuturesIdeas.push(saved);
           }
-          logger.info(`🔮 [FUTURES-AUTO] Generated ${futuresIdeas.length} futures research ideas`);
+          logger.info(`🔮 [FUTURES-BOT] Generated ${futuresIdeas.length} futures research ideas`);
           
           const { sendFuturesTradesToDiscord } = await import('./discord-service');
           await sendFuturesTradesToDiscord(savedFuturesIdeas);
         }
         
       } catch (error: any) {
-        logger.error('🤖 [AUTO-BOT-CRON] Autonomous scan failed:', error);
+        logger.error('🔮 [FUTURES-BOT] Futures scan failed:', error);
       }
     });
     
-    log('🤖 Auto-Lotto Bot started - autonomous scanning every 15 minutes + position monitoring every 5 minutes + futures scanning during market hours');
+    log('🔮 Futures Bot started - scanning NQ/GC every 15 minutes during CME hours (nearly 24/7)');
     
     // Daily summary to Discord at 8:00 AM CT (before market open)
     let lastDailySummaryDate: string | null = null;
