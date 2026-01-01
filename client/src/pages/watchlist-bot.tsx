@@ -51,16 +51,25 @@ interface CoverageData {
   }>;
 }
 
+interface PortfolioStats {
+  name: string;
+  startingCapital?: number;
+  cashBalance?: number;
+  totalValue?: number;
+  totalPnL?: number;
+  openPositions?: number;
+  closedPositions?: number;
+  wins?: number;
+  losses?: number;
+  winRate?: string;
+  createdAt?: string;
+}
+
 interface AutoLottoBotData {
-  portfolio: {
-    name: string;
-    startingCapital?: number;
-    cashBalance?: number;
-    totalValue?: number;
-    totalPnL?: number;
-    createdAt: string;
-  } | null;
+  portfolio: PortfolioStats | null;
+  futuresPortfolio?: PortfolioStats | null;
   positions: PaperPosition[];
+  futuresPositions?: PaperPosition[];
   stats: {
     openPositions: number | null;
     closedPositions: number;
@@ -539,79 +548,137 @@ export default function WatchlistBotPage() {
                 </Card>
               )}
 
-              {/* Portfolio Header - Large Account Balance Display */}
-              <Card className="glass-card bg-gradient-to-br from-pink-500/5 to-purple-500/5 border-pink-500/20">
-                <CardContent className="p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-6">
-                    <div className="flex items-center gap-4">
-                      <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center border border-pink-500/30">
-                        <Bot className="h-7 w-7 text-pink-400" />
+              {/* Dual Portfolio Header - Options & Futures */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Options Portfolio */}
+                <Card className="glass-card bg-gradient-to-br from-pink-500/5 to-purple-500/5 border-pink-500/20">
+                  <CardContent className="p-5">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center border border-pink-500/30">
+                        <Target className="h-5 w-5 text-pink-400" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Account Balance</p>
-                          <Badge variant="outline" className="text-xs bg-pink-500/10 text-pink-400 border-pink-500/30">
-                            Paper Trading
-                          </Badge>
-                        </div>
-                        {showMetrics ? (
-                          <p className="text-4xl font-bold font-mono tabular-nums" data-testid="text-account-balance">
-                            {formatCurrency(accountBalance)}
-                          </p>
-                        ) : (
-                          <p className="text-2xl text-muted-foreground" data-testid="text-account-balance">
-                            Hidden
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Starting: {formatCurrency(startingCapital)}
-                        </p>
+                        <p className="text-sm font-semibold">Options Lotto</p>
+                        <Badge variant="outline" className="text-xs bg-pink-500/10 text-pink-400 border-pink-500/30">
+                          Paper
+                        </Badge>
                       </div>
                     </div>
-                    
-                    <div className="flex flex-wrap items-center gap-6">
-                      <div className="text-center">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Buying Power</p>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Balance</p>
                         {showMetrics ? (
-                          <p className="text-xl font-bold font-mono tabular-nums text-cyan-400" data-testid="text-buying-power">
-                            {formatCurrency(buyingPower)}
+                          <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-options-balance">
+                            {formatCurrency(botData.portfolio?.cashBalance || 300)}
+                          </p>
+                        ) : (
+                          <p className="text-xl text-muted-foreground">Hidden</p>
+                        )}
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Starting</span>
+                        <span className="font-mono">{formatCurrency(botData.portfolio?.startingCapital || 300)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">P&L</span>
+                        {showMetrics ? (
+                          <span className={cn("font-mono font-medium", totalRealizedPnL >= 0 ? "text-green-400" : "text-red-400")}>
+                            {totalRealizedPnL >= 0 ? '+' : ''}{formatCurrency(totalRealizedPnL)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Hidden</span>
+                        )}
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Positions</span>
+                        <span className="font-mono">{openPositions.length} open / {closedPositions.length} closed</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Futures Portfolio */}
+                <Card className="glass-card bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border-cyan-500/20">
+                  <CardContent className="p-5">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center border border-cyan-500/30">
+                        <BarChart3 className="h-5 w-5 text-cyan-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">Futures Trading</p>
+                        <Badge variant="outline" className="text-xs bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
+                          Paper
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Balance</p>
+                        {showMetrics ? (
+                          <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-futures-balance">
+                            {formatCurrency(botData.futuresPortfolio?.cashBalance || 300)}
+                          </p>
+                        ) : (
+                          <p className="text-xl text-muted-foreground">Hidden</p>
+                        )}
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Starting</span>
+                        <span className="font-mono">{formatCurrency(botData.futuresPortfolio?.startingCapital || 300)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">P&L</span>
+                        {showMetrics ? (
+                          <span className={cn("font-mono font-medium", (botData.futuresPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
+                            {(botData.futuresPortfolio?.totalPnL || 0) >= 0 ? '+' : ''}{formatCurrency(botData.futuresPortfolio?.totalPnL || 0)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Hidden</span>
+                        )}
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Positions</span>
+                        <span className="font-mono">{botData.futuresPortfolio?.openPositions || 0} open / {botData.futuresPortfolio?.closedPositions || 0} closed</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Combined Stats Bar */}
+              <Card className="glass-card">
+                <CardContent className="p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-6">
+                      <div className="text-center">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Combined Balance</p>
+                        {showMetrics ? (
+                          <p className="text-xl font-bold font-mono tabular-nums text-cyan-400" data-testid="text-combined-balance">
+                            {formatCurrency((botData.portfolio?.cashBalance || 300) + (botData.futuresPortfolio?.cashBalance || 300))}
                           </p>
                         ) : (
                           <p className="text-lg text-muted-foreground">Hidden</p>
                         )}
                       </div>
-                      
-                      <div className="h-12 w-px bg-slate-700" />
-                      
+                      <div className="h-8 w-px bg-slate-700" />
                       <div className="text-center">
                         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Day's P&L</p>
                         {showMetrics ? (
-                          <p className={cn(
-                            "text-xl font-bold font-mono tabular-nums",
-                            todaysPnL >= 0 ? "text-green-400" : "text-red-400"
-                          )} data-testid="text-days-pnl">
+                          <p className={cn("text-xl font-bold font-mono tabular-nums", todaysPnL >= 0 ? "text-green-400" : "text-red-400")} data-testid="text-days-pnl">
                             {todaysPnL >= 0 ? '+' : ''}{formatCurrency(todaysPnL)}
                           </p>
                         ) : (
                           <p className="text-lg text-muted-foreground">Hidden</p>
                         )}
                       </div>
-                      
+                      <div className="h-8 w-px bg-slate-700" />
                       <div className="text-center">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total P&L</p>
-                        {showMetrics ? (
-                          <p className={cn(
-                            "text-xl font-bold font-mono tabular-nums",
-                            totalRealizedPnL >= 0 ? "text-green-400" : "text-red-400"
-                          )} data-testid="text-total-pnl">
-                            {totalRealizedPnL >= 0 ? '+' : ''}{formatCurrency(totalRealizedPnL)}
-                          </p>
-                        ) : (
-                          <p className="text-lg text-muted-foreground">Hidden</p>
-                        )}
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Trades</p>
+                        <p className="text-xl font-bold font-mono tabular-nums">
+                          {closedCount + (botData.futuresPortfolio?.closedPositions || 0)}
+                        </p>
                       </div>
                     </div>
-                    
                     <Button variant="outline" size="sm" className="border-slate-700" onClick={() => refetchBot()} data-testid="button-refresh-bot">
                       <RefreshCw className="h-4 w-4 mr-2" />
                       Refresh
