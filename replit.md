@@ -37,3 +37,18 @@ Core features include public informational pages, user authentication, a main ap
 
 ### Other Integrations
 - **Discord:** Webhook notifications.
+
+## Magic UI Components
+Custom animated components located in `client/src/components/magicui/`:
+
+- **NumberTicker:** Animated number counting for price displays (supports prefix/suffix, decimal places)
+- **ShimmerButton:** Button with animated shimmer effect for premium CTAs
+- **BorderBeam:** Glowing animated border beam effect for card highlights
+- **SparklesText:** Text with animated sparkle particles (available for gain indicators)
+
+Tailwind keyframes configured: `border-beam`, `shimmer-slide`, `spin-around`, `pulse-glow`
+
+Usage:
+- BorderBeam on Options (purple) and Futures (cyan) portfolio cards in watchlist-bot
+- NumberTicker for animated balance/P&L displays
+- ShimmerButton on landing page CTA sections
