@@ -6637,8 +6637,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           entryValidUntil: timingWindows.entryValidUntil,
           exitBy: timingWindows.exitBy,
           expiryDate: aiIdea.expiryDate || null,
-          strikePrice: aiIdea.assetType === 'option' ? aiIdea.entryPrice * (aiIdea.direction === 'long' ? 1.02 : 0.98) : null,
-          optionType: aiIdea.assetType === 'option' ? (aiIdea.direction === 'long' ? 'call' : 'put') : null,
+          strikePrice: aiIdea.assetType === 'option' ? ((aiIdea as any).strikePrice || aiIdea.entryPrice * (aiIdea.direction === 'long' ? 1.02 : 0.98)) : null,
+          optionType: aiIdea.assetType === 'option' ? ((aiIdea as any).optionType || (aiIdea.direction === 'long' ? 'call' : 'put')) : null,
           source: 'ai',
           isNewsCatalyst: isNewsCatalyst,
           confidenceScore,
@@ -6878,8 +6878,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           entryValidUntil: timingWindows.entryValidUntil,
           exitBy: timingWindows.exitBy,
           expiryDate: hybridIdea.expiryDate || null,
-          strikePrice: hybridIdea.assetType === 'option' ? hybridIdea.entryPrice * (hybridIdea.direction === 'long' ? 1.02 : 0.98) : null,
-          optionType: hybridIdea.assetType === 'option' ? (hybridIdea.direction === 'long' ? 'call' : 'put') : null,
+          strikePrice: hybridIdea.assetType === 'option' ? ((hybridIdea as any).strikePrice || hybridIdea.entryPrice * (hybridIdea.direction === 'long' ? 1.02 : 0.98)) : null,
+          optionType: hybridIdea.assetType === 'option' ? ((hybridIdea as any).optionType || (hybridIdea.direction === 'long' ? 'call' : 'put')) : null,
           source: 'hybrid',
           isNewsCatalyst: isNewsCatalyst,
           confidenceScore,
@@ -6998,8 +6998,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               sessionContext: idea.sessionContext || "Chat-suggested trade",
               timestamp: new Date().toISOString(),
               expiryDate: idea.expiryDate || null,
-              strikePrice: idea.assetType === 'option' ? idea.entryPrice * (idea.direction === 'long' ? 1.02 : 0.98) : null,
-              optionType: idea.assetType === 'option' ? (idea.direction === 'long' ? 'call' : 'put') : null,
+              strikePrice: idea.assetType === 'option' ? ((idea as any).strikePrice || idea.entryPrice * (idea.direction === 'long' ? 1.02 : 0.98)) : null,
+              optionType: idea.assetType === 'option' ? ((idea as any).optionType || (idea.direction === 'long' ? 'call' : 'put')) : null,
               source: 'ai',
               isLottoPlay: false // Chat-generated ideas use stock-based pricing, not enriched
             });
@@ -7190,8 +7190,8 @@ FORMATTING:
           sessionContext: idea.sessionContext || "Chat-suggested trade",
           timestamp: new Date().toISOString(),
           expiryDate: idea.expiryDate || null,
-          strikePrice: idea.assetType === 'option' ? idea.entryPrice * (idea.direction === 'long' ? 1.02 : 0.98) : null,
-          optionType: idea.assetType === 'option' ? (idea.direction === 'long' ? 'call' : 'put') : null,
+          strikePrice: idea.assetType === 'option' ? ((idea as any).strikePrice || idea.entryPrice * (idea.direction === 'long' ? 1.02 : 0.98)) : null,
+          optionType: idea.assetType === 'option' ? ((idea as any).optionType || (idea.direction === 'long' ? 'call' : 'put')) : null,
           source: 'ai',
           isLottoPlay: false // Chat-generated ideas use stock-based pricing, not enriched
         });
