@@ -17,6 +17,16 @@ import { getTradierQuote, getTradierOptionsChainsByDTE } from './tradier-api';
 import { calculateLottoTargets, isLottoCandidate } from './lotto-detector';
 import { formatInTimeZone } from 'date-fns-tz';
 
+/**
+ * Calculate days until next Monday (for trade entry timing)
+ */
+function getDaysUntilNextMonday(date: Date): number {
+  const dayOfWeek = date.getDay();
+  if (dayOfWeek === 0) return 1; // Sunday -> Monday is 1 day
+  if (dayOfWeek === 6) return 2; // Saturday -> Monday is 2 days
+  return 8 - dayOfWeek; // Other days -> next Monday
+}
+
 // Premium watchlist symbols - proven movers with liquid options
 const PREMIUM_SYMBOLS = [
   // Mega-cap tech (most liquid options)
@@ -36,6 +46,8 @@ export interface WeeklyPick {
   optionType: 'call' | 'put';
   strike: number;
   expiration: string;
+  expirationFormatted: string; // Human readable date
+  suggestedExitDate: string;   // Recommended exit timing
   entryPrice: number;
   targetPrice: number;
   stopLoss: number;
@@ -46,6 +58,9 @@ export interface WeeklyPick {
   catalyst: string;
   delta: number;
   volume: number;
+  dte: number; // Days to expiration
+  optimalHoldDays: number; // Recommended hold period based on analysis
+  riskAnalysis: string; // Brief risk assessment
 }
 
 /**
@@ -153,11 +168,44 @@ export async function generateNextWeekPicks(): Promise<WeeklyPick[]> {
           ? `Reversal play after ${change.toFixed(1)}% drop`
           : `Technical setup for ${direction} continuation`;
         
+        // Calculate optimal hold days and suggested exit based on play type analysis
+        let optimalHoldDays: number;
+        let suggestedExitDate: string;
+        let riskAnalysis: string;
+        
+        if (playType === 'lotto') {
+          // Lotto: Hold 1-2 days max, quick scalp or bust
+          optimalHoldDays = Math.min(2, dte - 1);
+          const exitDate = new Date(now);
+          exitDate.setDate(now.getDate() + optimalHoldDays + getDaysUntilNextMonday(now));
+          suggestedExitDate = formatInTimeZone(exitDate, timezone, 'EEE MMM d');
+          riskAnalysis = `Far OTM (δ${(absDelta * 100).toFixed(0)}), rapid theta decay. Exit quickly on 50%+ move or cut at -50%.`;
+        } else if (playType === 'day_trade') {
+          // Day trade: Same day or next day exit
+          optimalHoldDays = 1;
+          const exitDate = new Date(now);
+          exitDate.setDate(now.getDate() + getDaysUntilNextMonday(now));
+          suggestedExitDate = formatInTimeZone(exitDate, timezone, 'EEE MMM d') + ' (same day)';
+          riskAnalysis = `Near ATM (δ${(absDelta * 100).toFixed(0)}), responsive to stock moves. Quick scalp, exit by 2PM CT.`;
+        } else {
+          // Swing: Hold 3-5 trading days, exit before theta accelerates
+          optimalHoldDays = Math.min(5, Math.max(3, dte - 5));
+          const exitDate = new Date(now);
+          exitDate.setDate(now.getDate() + optimalHoldDays + getDaysUntilNextMonday(now));
+          suggestedExitDate = formatInTimeZone(exitDate, timezone, 'EEE MMM d');
+          riskAnalysis = `Moderate OTM (δ${(absDelta * 100).toFixed(0)}), ${dte} DTE cushion. Exit 5+ days before expiry to avoid theta crush.`;
+        }
+        
+        // Format expiration as human readable
+        const expirationFormatted = formatInTimeZone(expDate, timezone, 'EEE MMM d');
+        
         picks.push({
           symbol,
           optionType: opt.option_type as 'call' | 'put',
           strike: opt.strike,
           expiration: opt.expiration_date,
+          expirationFormatted,
+          suggestedExitDate,
           entryPrice: Math.round(midPrice * 100) / 100,
           targetPrice: Math.round(targetPrice * 100) / 100,
           stopLoss: Math.round(stopLoss * 100) / 100,
@@ -167,7 +215,10 @@ export async function generateNextWeekPicks(): Promise<WeeklyPick[]> {
           confidence: Math.round(confidence),
           catalyst,
           delta: absDelta,
-          volume: opt.volume || 0
+          volume: opt.volume || 0,
+          dte,
+          optimalHoldDays,
+          riskAnalysis
         });
       }
       

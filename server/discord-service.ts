@@ -987,6 +987,8 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
   optionType: 'call' | 'put';
   strike: number;
   expiration: string;
+  expirationFormatted?: string;
+  suggestedExitDate?: string;
   entryPrice: number;
   targetPrice: number;
   stopLoss: number;
@@ -997,10 +999,14 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
   catalyst: string;
   delta: number;
   volume: number;
+  dte?: number;
+  optimalHoldDays?: number;
+  riskAnalysis?: string;
 }>, weekRange: { start: string; end: string }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_WEEKLYWATCHLISTS || process.env.DISCORD_WEBHOOK_URL;
+  // Use DISCORD_WEBHOOK_FUTURE_TRADES for premium picks (future trade recommendations)
+  const webhookUrl = process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
     logger.info('⚠️ Discord webhook not configured - skipping next week picks');
@@ -1018,13 +1024,19 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
     const dayTrades = picks.filter(p => p.playType === 'day_trade');
     const swings = picks.filter(p => p.playType === 'swing');
     
-    // Format picks by category
+    // Format picks by category with enhanced date analysis
     const formatPick = (p: typeof picks[0]) => {
       const emoji = p.optionType === 'call' ? '🟢' : '🔴';
       const type = p.optionType.toUpperCase();
-      const exp = p.expiration.substring(5).replace('-', '/');
+      const exp = p.expirationFormatted || p.expiration.substring(5).replace('-', '/');
       const gain = ((p.targetPrice - p.entryPrice) / p.entryPrice * 100).toFixed(0);
-      return `${emoji} **${p.symbol}** ${type} $${p.strike} (${exp}) • Entry $${p.entryPrice.toFixed(2)} → Target ${p.targetMultiplier}x (+${gain}%) • ${p.confidence}% conf`;
+      const dteInfo = p.dte ? ` (${p.dte}DTE)` : '';
+      const exitInfo = p.suggestedExitDate ? `\n   📅 Exit by: ${p.suggestedExitDate}` : '';
+      const holdInfo = p.optimalHoldDays ? ` • Hold: ${p.optimalHoldDays}d` : '';
+      
+      return `${emoji} **${p.symbol}** ${type} $${p.strike} exp ${exp}${dteInfo}\n` +
+             `   💰 Entry $${p.entryPrice.toFixed(2)} → Target $${p.targetPrice.toFixed(2)} (${p.targetMultiplier}x, +${gain}%)${holdInfo}${exitInfo}\n` +
+             `   ⚡ ${p.confidence}% conf | δ${(p.delta * 100).toFixed(0)}`;
     };
     
     // Build description
@@ -1047,6 +1059,11 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
       description += swings.slice(0, 5).map(formatPick).join('\n');
     }
     
+    // Calculate average DTE
+    const avgDTE = picks.filter(p => p.dte).length > 0 
+      ? Math.round(picks.filter(p => p.dte).reduce((sum, p) => sum + (p.dte || 0), 0) / picks.filter(p => p.dte).length)
+      : 0;
+    
     const embed: DiscordEmbed = {
       title: `🎯 NEXT WEEK'S PREMIUM PICKS (${weekRange.start} - ${weekRange.end})`,
       description: description.trim(),
@@ -1060,6 +1077,11 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
         {
           name: '🔥 Avg Confidence',
           value: `${Math.round(picks.reduce((sum, p) => sum + p.confidence, 0) / picks.length)}%`,
+          inline: true
+        },
+        {
+          name: '📅 Avg DTE',
+          value: avgDTE > 0 ? `${avgDTE} days` : 'N/A',
           inline: true
         }
       ],
