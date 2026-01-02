@@ -3,7 +3,7 @@ import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
@@ -174,15 +174,21 @@ function AuthHeader() {
             <span className="hidden sm:inline text-xs font-mono text-muted-foreground">
               {userData.email || userData.firstName || 'User'}
             </span>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={handleLogout}
-              data-testid="button-logout"
-              className="h-8 w-8"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleLogout}
+                  data-testid="button-logout"
+                  className="gap-1.5"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="hidden sm:inline">Exit</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Sign out of QuantEdge</TooltipContent>
+            </Tooltip>
           </>
         )}
         <ThemeToggle />
