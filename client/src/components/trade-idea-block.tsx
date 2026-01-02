@@ -171,14 +171,16 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
         };
       }
       
-      // Check if near target or stop
+      // Check if near target or stop (guard against division by zero)
       const targetDistance = Math.abs(idea.targetPrice - currentPrice);
-      const stopDistance = Math.abs(currentPrice - idea.stopLoss);
       const entryDistance = Math.abs(idea.targetPrice - idea.entryPrice);
-      const progressToTarget = ((entryDistance - targetDistance) / entryDistance) * 100;
       
-      if (progressToTarget >= 80) {
-        return { status: 'valid', label: 'Near Target', tooltip: `${progressToTarget.toFixed(0)}% to target`, color: 'text-green-400' };
+      if (entryDistance > 0) {
+        const progressToTarget = ((entryDistance - targetDistance) / entryDistance) * 100;
+        
+        if (progressToTarget >= 80) {
+          return { status: 'valid', label: 'Near Target', tooltip: `${progressToTarget.toFixed(0)}% to target`, color: 'text-green-400' };
+        }
       }
     }
     
