@@ -5039,6 +5039,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Batch add stocks to watchlist with automatic price alerts
+  app.post("/api/watchlist/batch-add", async (req: any, res) => {
+    try {
+      const { symbols } = req.body;
+      
+      if (!Array.isArray(symbols) || symbols.length === 0) {
+        return res.status(400).json({ error: "symbols must be a non-empty array" });
+      }
+      
+      const results: any[] = [];
+      const errors: any[] = [];
+      
+      // Import Tradier API for price fetching
+      const { getTradierQuote } = await import('./tradier-api');
+      
+      for (const symbol of symbols) {
+        try {
+          // Fetch current price using Tradier API
+          const quote = await getTradierQuote(symbol);
+          
+          if (!quote || !quote.last) {
+            errors.push({ symbol, error: `Could not fetch price for ${symbol}` });
+            continue;
+          }
+          
+          const currentPrice = quote.last;
+          
+          // Calculate alert prices based on current price
+          const entryAlertPrice = Math.round(currentPrice * 0.97 * 100) / 100;  // 3% below
+          const stopAlertPrice = Math.round(currentPrice * 0.92 * 100) / 100;   // 8% below
+          const targetAlertPrice = Math.round(currentPrice * 1.10 * 100) / 100; // 10% above
+          
+          // Create watchlist item
+          const watchlistData = {
+            symbol: symbol.toUpperCase(),
+            assetType: 'stock' as const,
+            notes: 'User watchlist - momentum tracking',
+            addedAt: new Date().toISOString(),
+            alertsEnabled: true,
+            discordAlertsEnabled: true,
+            entryAlertPrice,
+            stopAlertPrice,
+            targetAlertPrice,
+            targetPrice: currentPrice, // Store reference price
+          };
+          
+          const item = await storage.addToWatchlist(watchlistData);
+          
+          logger.info(`📋 [WATCHLIST] Added ${symbol} at $${currentPrice} with alerts enabled`);
+          
+          results.push({
+            symbol,
+            currentPrice,
+            entryAlertPrice,
+            stopAlertPrice,
+            targetAlertPrice,
+            id: item.id,
+          });
+          
+        } catch (error: any) {
+          errors.push({ symbol, error: error?.message || 'Unknown error' });
+        }
+      }
+      
+      res.status(201).json({
+        success: true,
+        added: results.length,
+        failed: errors.length,
+        results,
+        errors,
+      });
+      
+    } catch (error: any) {
+      logger.error('❌ Batch watchlist add error:', error);
+      res.status(500).json({ error: "Failed to batch add watchlist items", details: error?.message });
+    }
+  });
+
   app.patch("/api/watchlist/:id", async (req, res) => {
     try {
       console.log("PATCH /api/watchlist/:id - Request body:", JSON.stringify(req.body));

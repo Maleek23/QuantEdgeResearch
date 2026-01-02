@@ -203,7 +203,7 @@ export type TradeIdea = typeof tradeIdeas.$inferSelect & {
 export type DataSource = 'seed' | 'live';
 
 // Idea Source Type
-export type IdeaSource = 'ai' | 'quant' | 'hybrid' | 'manual' | 'news' | 'flow' | 'lotto' | 'chart_analysis';
+export type IdeaSource = 'ai' | 'quant' | 'hybrid' | 'manual' | 'news' | 'flow' | 'lotto' | 'chart_analysis' | 'penny-scanner';
 
 // Trade Idea Status Type
 export type TradeIdeaStatus = 'draft' | 'published' | 'archived';

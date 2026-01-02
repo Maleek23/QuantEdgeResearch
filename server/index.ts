@@ -106,6 +106,11 @@ app.use((req, res, next) => {
     autoIdeaGenerator.start();
     log('🤖 Auto Idea Generator started - will generate fresh ideas at 9:30 AM CT weekdays');
     
+    // Start Penny Stock Moonshot Scanner (4:00 AM, 9:30 AM, 8:00 PM CT on weekdays)
+    const { pennyScanner } = await import('./penny-scanner');
+    pennyScanner.start();
+    log('🚀 Penny Moonshot Scanner started - scanning at 4:00 AM, 9:30 AM, 8:00 PM CT weekdays');
+    
     // 🌙 EVENING STARTUP: One-time check to run Tomorrow's Playbook generation if in evening hours
     (async () => {
       try {
