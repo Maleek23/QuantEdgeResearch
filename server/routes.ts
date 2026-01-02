@@ -4827,7 +4827,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Sort by entry time descending (newest first)
       allPositions.sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime());
       
-      // Build full audit records
+      // Build full audit records with market timing context
       const auditRecords = allPositions.map((p, index) => {
         const entryTime = new Date(p.entryTime);
         const exitTime = p.exitTime ? new Date(p.exitTime) : null;
@@ -4837,6 +4837,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const holdTimeMinutes = exitTime 
           ? Math.round((exitTime.getTime() - entryTime.getTime()) / (1000 * 60))
           : null;
+        
+        // Market session context helper - U.S. Eastern hours converted to Central Time
+        // NYSE/NASDAQ: 9:30 AM - 4:00 PM ET = 8:30 AM - 3:00 PM CT
+        const getMarketSession = (time: Date): string => {
+          const ctTime = new Date(time.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+          const hours = ctTime.getHours();
+          const minutes = ctTime.getMinutes();
+          const totalMinutes = hours * 60 + minutes;
+          
+          // Pre-market: 6:00 AM - 8:30 AM CT (7:00 AM - 9:30 AM ET)
+          if (totalMinutes >= 360 && totalMinutes < 510) return 'PRE-MARKET';
+          // Power Hour: 2:00 PM - 3:00 PM CT (3:00 PM - 4:00 PM ET, last hour of trading)
+          if (totalMinutes >= 840 && totalMinutes < 900) return 'POWER-HOUR';
+          // Regular: 8:30 AM - 2:00 PM CT (before power hour)
+          if (totalMinutes >= 510 && totalMinutes < 840) return 'REGULAR';
+          // After-hours: 3:00 PM - 7:00 PM CT (4:00 PM - 8:00 PM ET)
+          if (totalMinutes >= 900 && totalMinutes < 1140) return 'AFTER-HOURS';
+          return 'CLOSED';
+        };
+        
+        const getDayOfWeek = (time: Date): string => {
+          const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+          const ctTime = new Date(time.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+          return days[ctTime.getDay()];
+        };
+        
+        // Calculate DTE at entry for options
+        const getDteAtEntry = (): number | null => {
+          if (p.assetType !== 'option' || !p.expiryDate) return null;
+          const expiry = new Date(p.expiryDate);
+          const diffTime = expiry.getTime() - entryTime.getTime();
+          return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        };
         
         // Format contract name for options
         let contractName = p.symbol;
@@ -4862,17 +4895,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           strikePrice: p.strikePrice || null,
           expiryDate: p.expiryDate || null,
           
-          // Entry details - FULL TRANSPARENCY
+          // Entry details - FULL TRANSPARENCY with market context
           entryTime: p.entryTime,
           entryTimeFormatted: formatInTimeZone(entryTime, 'America/Chicago', 'yyyy-MM-dd HH:mm:ss zzz'),
+          entryDayOfWeek: getDayOfWeek(entryTime),
+          entrySession: getMarketSession(entryTime),
           entryPrice: p.entryPrice,
           quantity: p.quantity,
           entryCost: Math.round((p.entryPrice * p.quantity * (p.assetType === 'option' ? 100 : 1)) * 100) / 100,
+          dteAtEntry: getDteAtEntry(),
           
-          // Exit details
+          // Exit details with market context
           status: p.status,
           exitTime: p.exitTime || null,
           exitTimeFormatted: exitTime ? formatInTimeZone(exitTime, 'America/Chicago', 'yyyy-MM-dd HH:mm:ss zzz') : null,
+          exitDayOfWeek: exitTime ? getDayOfWeek(exitTime) : null,
+          exitSession: exitTime ? getMarketSession(exitTime) : null,
           exitPrice: p.exitPrice || null,
           exitReason: p.exitReason || null,
           
@@ -4924,11 +4962,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
       
       if (format === 'csv') {
-        // Generate CSV
+        // Generate CSV with enhanced market timing data
         const headers = [
           'Trade #', 'ID', 'Portfolio', 'Symbol', 'Contract', 'Asset Type', 'Direction', 
-          'Option Type', 'Strike', 'Expiry', 'Entry Time (CT)', 'Entry Price', 'Qty', 'Entry Cost',
-          'Status', 'Exit Time (CT)', 'Exit Price', 'Exit Reason', 
+          'Option Type', 'Strike', 'Expiry', 'DTE at Entry',
+          'Entry Time (CT)', 'Entry Day', 'Entry Session', 'Entry Price', 'Qty', 'Entry Cost',
+          'Status', 'Exit Time (CT)', 'Exit Day', 'Exit Session', 'Exit Price', 'Exit Reason', 
           'Realized P&L', 'Realized P&L %', 'Target', 'Stop Loss', 'Hold Time',
           'Created At (CT)', 'Trade Idea ID'
         ];
@@ -4947,12 +4986,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             r.optionType || '',
             r.strikePrice || '',
             r.expiryDate || '',
+            r.dteAtEntry ?? '',
             `"${r.entryTimeFormatted}"`,
+            r.entryDayOfWeek,
+            r.entrySession,
             r.entryPrice,
             r.quantity,
             r.entryCost,
             r.status,
             r.exitTimeFormatted ? `"${r.exitTimeFormatted}"` : '',
+            r.exitDayOfWeek || '',
+            r.exitSession || '',
             r.exitPrice || '',
             r.exitReason ? `"${r.exitReason.replace(/"/g, '""')}"` : '',
             r.realizedPnL ?? '',

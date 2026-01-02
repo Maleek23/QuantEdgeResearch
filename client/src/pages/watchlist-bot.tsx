@@ -16,7 +16,7 @@ import {
   AlertTriangle, Activity, Zap, Clock, CheckCircle2, XCircle, 
   RefreshCw, Shield, Calendar, Bell, BellOff, LogIn, Radio, Atom, 
   Radiation, FlaskConical, Bitcoin, Search, BarChart3, Wallet, 
-  PiggyBank, ArrowUpRight, ArrowDownRight, LineChart
+  PiggyBank, ArrowUpRight, ArrowDownRight, LineChart, Download
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NumberTicker } from "@/components/magicui/number-ticker";
@@ -800,10 +800,25 @@ export default function WatchlistBotPage() {
                         </div>
                       </div>
                     </div>
-                    <Button variant="outline" size="sm" className="border-slate-700" onClick={() => refetchBot()} data-testid="button-refresh-bot">
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Refresh
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="border-slate-700" 
+                        onClick={() => {
+                          window.open('/api/audit/auto-lotto-bot?format=csv', '_blank');
+                          toast({ title: "Downloading trade audit data..." });
+                        }}
+                        data-testid="button-download-trades"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Export All
+                      </Button>
+                      <Button variant="outline" size="sm" className="border-slate-700" onClick={() => refetchBot()} data-testid="button-refresh-bot">
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Refresh
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
