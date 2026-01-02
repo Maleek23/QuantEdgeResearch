@@ -246,12 +246,75 @@ export async function updatePositionPrices(portfolioId: string): Promise<void> {
         const unrealizedPnL = (currentPrice - position.entryPrice) * position.quantity * multiplier * directionMultiplier;
         const unrealizedPnLPercent = ((currentPrice - position.entryPrice) / position.entryPrice) * 100 * directionMultiplier;
 
-        await storage.updatePaperPosition(position.id, {
+        // SMART TRAILING STOP: Update high water mark and trailing stop
+        const updateData: Record<string, any> = {
           currentPrice,
           lastPriceUpdate: now,
           unrealizedPnL,
           unrealizedPnLPercent,
-        });
+        };
+        
+        // Track highest price for trailing stops (for both long and short positions)
+        const isLong = position.direction === 'long';
+        const currentHWM = position.highWaterMark || position.entryPrice;
+        const entryPrice = position.entryPrice;
+        
+        // For long positions: HWM is the peak high price
+        // For short positions: HWM would be lowest low price (we use same field, just logic differs)
+        const priceImproved = isLong ? currentPrice > currentHWM : currentPrice < currentHWM;
+        
+        if (priceImproved) {
+          updateData.highWaterMark = currentPrice;
+          
+          // Dynamic trailing stop: wider trailing when winning big, tighter when gains are small
+          // At 50%+ gain: use 35% trailing stop (let it breathe)
+          // At 100%+ gain: use 40% trailing stop (let big winners run)
+          // At 200%+ gain: use 50% trailing stop (mega winners need room)
+          const gainPercent = isLong 
+            ? ((currentPrice - entryPrice) / entryPrice) * 100
+            : ((entryPrice - currentPrice) / entryPrice) * 100;
+          
+          let trailingPercent = 25; // Default 25% trailing stop
+          
+          if (gainPercent >= 200) {
+            trailingPercent = 50; // Let mega winners run
+          } else if (gainPercent >= 100) {
+            trailingPercent = 40; // Let big winners run
+          } else if (gainPercent >= 50) {
+            trailingPercent = 35; // Let winners breathe
+          } else if (gainPercent >= 25) {
+            trailingPercent = 30; // Standard winners
+          }
+          
+          // CRITICAL: Calculate trailing stop but ALWAYS clamp to at least break-even
+          // This ensures a profitable trade NEVER exits at a loss
+          let rawTrailingStop = isLong 
+            ? currentPrice * (1 - trailingPercent / 100)
+            : currentPrice * (1 + trailingPercent / 100);
+          
+          // Clamp trailing stop to at least break-even (entry price)
+          // Only set trailing stop if it's above entry (for longs) or below entry (for shorts)
+          const trailingStopAboveBreakeven = isLong 
+            ? rawTrailingStop >= entryPrice
+            : rawTrailingStop <= entryPrice;
+          
+          if (trailingStopAboveBreakeven) {
+            updateData.trailingStopPercent = trailingPercent;
+            updateData.trailingStopPrice = rawTrailingStop;
+            
+            const lockedGain = isLong 
+              ? ((rawTrailingStop - entryPrice) / entryPrice) * 100
+              : ((entryPrice - rawTrailingStop) / entryPrice) * 100;
+            
+            logger.info(`📈 [TRAILING] ${position.symbol}: New HWM $${currentPrice.toFixed(2)} (+${gainPercent.toFixed(0)}%), trailing stop at $${rawTrailingStop.toFixed(2)} (locks +${lockedGain.toFixed(0)}%)`);
+          } else {
+            // Trailing stop would be below break-even, don't activate it yet
+            // Keep original stop loss active until trailing stop can lock in gains
+            logger.debug(`📈 [TRAILING] ${position.symbol}: HWM $${currentPrice.toFixed(2)} (+${gainPercent.toFixed(0)}%), but trailing stop $${rawTrailingStop.toFixed(2)} is below entry - using original stop`);
+          }
+        }
+
+        await storage.updatePaperPosition(position.id, updateData);
       }
     }
 
@@ -288,19 +351,53 @@ export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPo
 
       // Only check price-based exits if we have real prices (not stale)
       if (canUsePrice && !priceIsStale) {
-        if (position.targetPrice) {
-          if ((isLong && position.currentPrice >= position.targetPrice) ||
-              (!isLong && position.currentPrice <= position.targetPrice)) {
+        // SMART EXIT STRATEGY: Use trailing stops to let winners run
+        const useTrailing = position.useTrailingStop !== false; // Default to true
+        const trailingStopPrice = position.trailingStopPrice;
+        const highWaterMark = position.highWaterMark || position.entryPrice;
+        const entryPrice = position.entryPrice;
+        
+        // 1. Check TRAILING STOP (only if it's been set AND it's above break-even)
+        // The trailing stop is only set when it would lock in a gain, so if it exists, use it
+        if (useTrailing && trailingStopPrice) {
+          const trailingHit = isLong 
+            ? position.currentPrice <= trailingStopPrice
+            : position.currentPrice >= trailingStopPrice;
+          
+          if (trailingHit) {
+            const gainFromEntry = isLong
+              ? ((highWaterMark - entryPrice) / entryPrice) * 100
+              : ((entryPrice - highWaterMark) / entryPrice) * 100;
+            const lockedGain = isLong
+              ? ((trailingStopPrice - entryPrice) / entryPrice) * 100
+              : ((entryPrice - trailingStopPrice) / entryPrice) * 100;
             shouldClose = true;
-            exitReason = 'target_hit';
+            exitReason = `trailing_stop_hit_locked_${Math.max(0, lockedGain).toFixed(0)}pct`;
+            logger.info(`📉 [TRAILING] ${position.symbol}: Hit trailing stop at $${position.currentPrice.toFixed(2)} (set at $${trailingStopPrice.toFixed(2)}). Peak was $${highWaterMark.toFixed(2)} (+${gainFromEntry.toFixed(0)}%), locked +${lockedGain.toFixed(0)}%`);
           }
         }
-
-        if (!shouldClose && position.stopLoss) {
+        
+        // 2. Check ORIGINAL STOP LOSS (only if trailing stop is NOT active)
+        // Trailing stop takes priority once it's set above break-even
+        if (!shouldClose && position.stopLoss && !trailingStopPrice) {
           if ((isLong && position.currentPrice <= position.stopLoss) ||
               (!isLong && position.currentPrice >= position.stopLoss)) {
             shouldClose = true;
             exitReason = 'stop_hit';
+          }
+        }
+        
+        // 3. Check MEGA TARGET (400%+ gain - take massive profits to lock in wins)
+        if (!shouldClose && position.targetPrice) {
+          const megaTarget = entryPrice * 4; // 300%+ gain is mega territory
+          const megaHit = isLong 
+            ? position.currentPrice >= megaTarget
+            : position.currentPrice <= entryPrice * 0.25; // 75% drop for shorts (rare)
+          
+          if (megaHit) {
+            shouldClose = true;
+            exitReason = 'mega_target_hit';
+            logger.info(`🚀 [MEGA] ${position.symbol}: Hit mega target at $${position.currentPrice.toFixed(2)} (400%+)!`);
           }
         }
       }

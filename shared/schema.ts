@@ -661,6 +661,12 @@ export const paperPositions = pgTable("paper_positions", {
   targetPrice: real("target_price"),
   stopLoss: real("stop_loss"),
   
+  // Trailing Stop System - let winners run
+  highWaterMark: real("high_water_mark"), // Highest price seen during trade
+  trailingStopPercent: real("trailing_stop_percent").default(25), // Dynamic trailing stop %
+  trailingStopPrice: real("trailing_stop_price"), // Calculated trailing stop level
+  useTrailingStop: boolean("use_trailing_stop").default(true), // Enable trailing stops
+  
   // Current State
   currentPrice: real("current_price"),
   lastPriceUpdate: text("last_price_update"),
