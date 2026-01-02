@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, IdeaSource, MarketData, Catalyst } from "@shared/schema";
-import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock, Info, Activity, Newspaper, Bot, Brain, Calculator } from "lucide-react";
+import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock, Info, Activity, Newspaper, Bot, Brain, Calculator, Rocket } from "lucide-react";
 import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, subYears, isAfter, isBefore } from "date-fns";
 import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
@@ -174,6 +174,28 @@ export default function TradeIdeasPage() {
       toast({
         title: "Scan Failed",
         description: error.message || "Failed to scan options flow",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Generate Penny Stock Ideas (Tomorrow's Playbook) mutation
+  const generatePennyIdeas = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/ideas/generate-now', { focusPennyStocks: true });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
+      toast({
+        title: "Penny Stock Ideas Generated",
+        description: data.message || `Generated ${data.ideasGenerated || 0} penny stock lotto plays`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate penny stock ideas (rate limited to 1 per 5 min)",
         variant: "destructive"
       });
     }
@@ -490,6 +512,19 @@ export default function TradeIdeasPage() {
             <Activity className="h-3 w-3 text-cyan-400" />
           </div>
           <span className="hidden sm:inline">{generateFlowIdeas.isPending ? "..." : "Flow"}</span>
+        </Button>
+        <Button 
+          onClick={() => generatePennyIdeas.mutate()}
+          disabled={generatePennyIdeas.isPending}
+          size="sm"
+          variant="outline"
+          className="gap-1.5 border-green-500/30 hover:border-green-500/50 bg-green-500/5"
+          data-testid="button-generate-penny-permanent"
+        >
+          <div className="h-5 w-5 rounded bg-green-500/10 flex items-center justify-center">
+            <Rocket className="h-3 w-3 text-green-400" />
+          </div>
+          <span className="hidden sm:inline">{generatePennyIdeas.isPending ? "..." : "Penny"}</span>
         </Button>
 
         {/* View Mode Toggle */}
