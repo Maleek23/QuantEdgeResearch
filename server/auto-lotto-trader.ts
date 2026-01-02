@@ -47,10 +47,34 @@ interface LottoOpportunity {
   daysToExpiry: number;
 }
 
-const BOT_SCAN_TICKERS = [
+// Day trade tickers: High volatility, good for 0-7 DTE plays
+const DAY_TRADE_TICKERS = [
   'TSLA', 'NVDA', 'AMD', 'SPY', 'QQQ', 'AAPL', 'META', 'GOOGL', 'AMZN', 'NFLX',
   'IONQ', 'RGTI', 'QUBT', 'QBTS', 'MARA', 'RIOT', 'COIN', 'SOFI', 'HOOD', 'PLTR'
 ];
+
+// Swing trade tickers: Good for 8-45 DTE plays (earnings, catalyst-driven, sector rotations)
+const SWING_TRADE_TICKERS = [
+  // Mega caps with options liquidity (steady swings)
+  'MSFT', 'AAPL', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA',
+  // Growth & momentum (multi-day moves)
+  'CRM', 'NOW', 'SNOW', 'CRWD', 'NET', 'DDOG', 'MDB', 'ZS',
+  // Financials & cyclicals (rate-sensitive)
+  'JPM', 'GS', 'MS', 'V', 'MA', 'AXP',
+  // Energy (oil/gas swings)
+  'XOM', 'CVX', 'OXY', 'SLB', 'HAL',
+  // Space/Defense (govt contracts, launches)
+  'RKLB', 'LUNR', 'RDW', 'LMT', 'RTX', 'NOC',
+  // Biotech (FDA catalysts)
+  'MRNA', 'BNTX', 'REGN', 'VRTX',
+  // Retail/Consumer (earnings plays)
+  'COST', 'WMT', 'TGT', 'LULU', 'NKE',
+  // Semiconductors (sector rotations)
+  'AVGO', 'QCOM', 'MU', 'MRVL', 'ARM', 'ASML'
+];
+
+// Combined for general scanning (deduplicated)
+const BOT_SCAN_TICKERS = [...new Set([...DAY_TRADE_TICKERS, ...SWING_TRADE_TICKERS])];
 
 const FUTURES_SYMBOLS: ('NQ' | 'GC')[] = ['NQ', 'GC'];
 
@@ -285,19 +309,27 @@ function makeBotDecision(
     score += 5;
   }
   
+  // DTE-based scoring - swings get bonus for time value
   if (opportunity.daysToExpiry <= 2) {
     signals.push('0-2_DTE');
     if (!signals.some(s => s.includes('STRONG_MOMENTUM'))) {
-      score -= 10;
+      score -= 10; // Day trades need momentum
     }
   } else if (opportunity.daysToExpiry <= 7) {
-    signals.push('WEEKLY');
+    signals.push('WEEKLY_3-7DTE');
+    score += 5; // Weekly lotto - decent time
   } else if (opportunity.daysToExpiry <= 14) {
     signals.push('SWING_8-14DTE');
-    score += 5; // Swings give more time to be right
+    score += 12; // Swings give more time to be right - BOOST
   } else if (opportunity.daysToExpiry <= 21) {
     signals.push('SWING_15-21DTE');
-    score += 3; // Position swings - even more time
+    score += 15; // 2-3 week swings - good theta/time balance
+  } else if (opportunity.daysToExpiry <= 30) {
+    signals.push('MONTHLY_22-30DTE');
+    score += 18; // Monthly swings - excellent for trend trades
+  } else if (opportunity.daysToExpiry <= 45) {
+    signals.push('MONTHLY_31-45DTE');
+    score += 20; // 6-week swings - best for sector rotations
   }
   
   score = Math.max(0, Math.min(100, score));
@@ -323,13 +355,21 @@ function makeBotDecision(
   const grade = getLetterGrade(boostedScore);
   const hasAnalysisBoost = analysisBoost > 0;
   
-  // DTE-aware entry criteria (lowered thresholds for more flexibility)
-  // Day trades (0-2 DTE): 65 (was 75)
-  // Weekly trades (3-7 DTE): 60 (was 70)
-  // Swing trades (8-21 DTE): 55 (was 65)
+  // DTE-aware entry criteria (lower thresholds for swings since they have more time)
+  // Day trades (0-2 DTE): 65 - need strong momentum
+  // Weekly trades (3-7 DTE): 60 - moderate conviction
+  // Swing trades (8-21 DTE): 50 - time is on our side
+  // Monthly swings (22-45 DTE): 45 - even more time to be right
   const isDayTrade = opportunity.daysToExpiry <= 2;
-  const isSwingTrade = opportunity.daysToExpiry >= 8;
-  const minScoreForEntry = isDayTrade ? 65 : isSwingTrade ? 55 : 60;
+  const isWeekly = opportunity.daysToExpiry > 2 && opportunity.daysToExpiry <= 7;
+  const isSwingTrade = opportunity.daysToExpiry >= 8 && opportunity.daysToExpiry <= 21;
+  const isMonthlySwing = opportunity.daysToExpiry > 21;
+  
+  let minScoreForEntry = 60; // default
+  if (isDayTrade) minScoreForEntry = 65;
+  else if (isWeekly) minScoreForEntry = 58;
+  else if (isSwingTrade) minScoreForEntry = 50;
+  else if (isMonthlySwing) minScoreForEntry = 45; // Monthly swings need lowest threshold
   
   // Require at least 1 positive signal to enter (reduced from 2)
   const positiveSignals = signals.filter(s => 
@@ -440,7 +480,7 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
   // We're not selling/writing options (that would require margin and has unlimited risk)
   const direction = 'long' as const;
   
-  // DTE-aware exit timing: day trades exit same day, swings 3-5 days, positions 7-10 days
+  // DTE-aware exit timing: day trades exit same day, swings 3-14 days, monthly 14-30 days
   let exitWindowDays: number;
   let holdingPeriod: 'day' | 'swing' | 'position';
   
@@ -451,10 +491,17 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
     exitWindowDays = Math.min(3, opportunity.daysToExpiry - 1);
     holdingPeriod = 'swing';
   } else if (opportunity.daysToExpiry <= 14) {
-    exitWindowDays = Math.min(5, opportunity.daysToExpiry - 2);
+    exitWindowDays = Math.min(7, opportunity.daysToExpiry - 2);
     holdingPeriod = 'swing';
-  } else {
+  } else if (opportunity.daysToExpiry <= 21) {
     exitWindowDays = Math.min(10, opportunity.daysToExpiry - 3);
+    holdingPeriod = 'swing';
+  } else if (opportunity.daysToExpiry <= 30) {
+    exitWindowDays = Math.min(14, opportunity.daysToExpiry - 5);
+    holdingPeriod = 'position';
+  } else {
+    // Monthly swings (31-45 DTE) - hold longer
+    exitWindowDays = Math.min(21, opportunity.daysToExpiry - 7);
     holdingPeriod = 'position';
   }
   
@@ -468,7 +515,8 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
   const targetLabel = dteCategory === '0DTE' ? 'gamma play' : 
     dteCategory === '1-2DTE' ? 'short-term' : 
     dteCategory === '3-7DTE' ? 'weekly lotto' : 
-    dteCategory === 'swing' ? 'swing trade' : 'position';
+    dteCategory === 'swing' ? 'swing trade' : 
+    dteCategory === 'monthly' ? 'monthly swing' : 'position';
   
   return {
     symbol: opportunity.symbol,

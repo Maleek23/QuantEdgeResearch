@@ -7,7 +7,7 @@ import { logger } from './logger';
 const LOTTO_ENTRY_MIN = 0.20; // $20 minimum (options priced at $0.20+)
 const LOTTO_ENTRY_MAX = 5.00; // $500 maximum (expanded to include swing trade premiums)
 const LOTTO_DELTA_MAX = 0.40; // Moderate OTM (delta <0.40 to include swings)
-const LOTTO_MAX_DTE = 21; // Extended to include swings (0-7 day trades, 8-21 swings)
+const LOTTO_MAX_DTE = 45; // Extended for monthly swings: 0-7 day trades, 8-21 weekly swings, 22-45 monthly swings
 
 interface LottoOption {
   lastPrice: number;           // Entry premium price
@@ -72,7 +72,7 @@ export function calculateLottoTargets(entryPrice: number, expiryDate?: string): 
   targetPrice: number;
   riskRewardRatio: number;
   targetMultiplier: number;
-  dteCategory: '0DTE' | '1-2DTE' | '3-7DTE';
+  dteCategory: '0DTE' | '1-2DTE' | '3-7DTE' | 'swing' | 'monthly';
 } {
   // Calculate DTE if expiry date provided
   let dte = 7; // Default to full weekly if unknown
@@ -84,7 +84,7 @@ export function calculateLottoTargets(entryPrice: number, expiryDate?: string): 
   
   // DTE-aware target multipliers - realistic for time remaining
   let targetMultiplier: number;
-  let dteCategory: '0DTE' | '1-2DTE' | '3-7DTE';
+  let dteCategory: '0DTE' | '1-2DTE' | '3-7DTE' | 'swing' | 'monthly';
   
   if (dte === 0) {
     // 0DTE: Intraday gamma play - only hours left
@@ -105,17 +105,29 @@ export function calculateLottoTargets(entryPrice: number, expiryDate?: string): 
     dteCategory = '3-7DTE';
     logger.info(`[LOTTO] 🎰 Weekly lotto - using 15x target (${dte}d remaining)`);
   } else if (dte <= 14) {
-    // 8-14 DTE: Swing trade territory
-    // More conservative 2x-3x target (average 2.5x)
+    // 8-14 DTE: Short swing trade
+    // More conservative 2.5x-3x target
     targetMultiplier = 2.5;
     dteCategory = 'swing';
-    logger.info(`[LOTTO] 📊 Swing trade - using 2.5x target (${dte}d remaining)`);
-  } else {
-    // 15-21+ DTE: Position/multi-week swing
-    // Conservative 1.5x-2x target (average 1.75x)
-    targetMultiplier = 1.75;
+    logger.info(`[LOTTO] 📊 Short swing - using 2.5x target (${dte}d remaining)`);
+  } else if (dte <= 21) {
+    // 15-21 DTE: Standard swing trade
+    // Conservative 2x target - time is on our side
+    targetMultiplier = 2;
     dteCategory = 'swing';
-    logger.info(`[LOTTO] 📈 Position swing - using 1.75x target (${dte}d remaining)`);
+    logger.info(`[LOTTO] 📊 Swing trade - using 2x target (${dte}d remaining)`);
+  } else if (dte <= 30) {
+    // 22-30 DTE: Monthly swing
+    // Lower target but more time - 1.75x
+    targetMultiplier = 1.75;
+    dteCategory = 'monthly';
+    logger.info(`[LOTTO] 📈 Monthly swing - using 1.75x target (${dte}d remaining)`);
+  } else {
+    // 31-45 DTE: Long monthly position
+    // Conservative 1.5x target - maximum time
+    targetMultiplier = 1.5;
+    dteCategory = 'monthly';
+    logger.info(`[LOTTO] 📈 Long monthly - using 1.5x target (${dte}d remaining)`);
   }
   
   const targetPrice = entryPrice * targetMultiplier;
