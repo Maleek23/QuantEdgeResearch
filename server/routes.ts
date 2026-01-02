@@ -452,15 +452,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid access code" });
       }
       
-      // Find or create dev user using upsert
-      const user = await storage.upsertUser({
-        id: "dev_user_001",
-        email: "dev@quantedge.local",
-        firstName: "Dev",
-        lastName: "User",
-        profileImageUrl: null,
-      });
-      logger.info('Dev user ready', { userId: user.id });
+      // Login as admin user (Abdulmalik)
+      const adminEmail = "abdulmalikajisegiri@gmail.com";
+      let user = await storage.getUserByEmail(adminEmail);
+      
+      if (!user) {
+        // Create admin user if doesn't exist
+        user = await storage.upsertUser({
+          id: "admin_001",
+          email: adminEmail,
+          firstName: "Abdulmalik",
+          lastName: "Ajisegiri",
+          profileImageUrl: null,
+        });
+      }
+      logger.info('Admin user logged in via dev access', { userId: user.id, email: user.email });
       
       // Store userId in session
       (req.session as any).userId = user.id;
