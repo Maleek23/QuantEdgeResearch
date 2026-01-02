@@ -2206,7 +2206,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? await storage.getTradeIdeasForUser(userId) // Gets system ideas + user's own
           : [];
       
-      logger.info(`[TRADE-IDEAS] Fetched ${ideas.length} ideas (isAdmin=${isAdmin}, userId=${userId ? 'present' : 'null'})`);
+      const hitTargetCount = ideas.filter(i => i.outcomeStatus === 'hit_target').length;
+      const openCount = ideas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus).length;
+      logger.info(`[TRADE-IDEAS] Fetched ${ideas.length} ideas (isAdmin=${isAdmin}, userId=${userId ? 'present' : 'null'}) - ${hitTargetCount} hit_target, ${openCount} open`);
       
       const marketData = await storage.getAllMarketData();
       const now = new Date();

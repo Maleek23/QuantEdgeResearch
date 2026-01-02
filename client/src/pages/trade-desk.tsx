@@ -705,8 +705,19 @@ export default function TradeDeskPage() {
     return status === 'hit_target' || status === 'hit_stop' || status === 'expired';
   });
 
-  // TASK 2: Paginate ONLY the active ideas
-  const paginatedActiveIdeas = activeIdeas.slice(0, visibleCount);
+  // Determine which ideas to show based on status filter
+  // When statusFilter is 'all' or 'active', show only open trades
+  // When statusFilter is 'won', 'lost', or 'expired', show those closed trades
+  const displayIdeas = useMemo(() => {
+    if (statusFilter === 'all' || statusFilter === 'active') {
+      return activeIdeas;
+    }
+    // Show the filtered closed trades when a specific status is selected
+    return closedIdeas;
+  }, [statusFilter, activeIdeas, closedIdeas]);
+
+  // TASK 2: Paginate the display ideas
+  const paginatedActiveIdeas = displayIdeas.slice(0, visibleCount);
 
   // Calculate trade counts for each expiry bucket (AFTER non-expiry filters, BEFORE expiry filter)
   const calculateExpiryCounts = () => {
@@ -1346,8 +1357,8 @@ export default function TradeDeskPage() {
                 </Accordion>
               )}
 
-              {/* Load More Button for Active Briefs */}
-              {activeIdeas.length > 0 && visibleCount < activeIdeas.length && (
+              {/* Load More Button for Displayed Briefs */}
+              {displayIdeas.length > 0 && visibleCount < displayIdeas.length && (
                 <div className="flex justify-center pt-4">
                   <Button
                     variant="glass-secondary"
@@ -1356,9 +1367,9 @@ export default function TradeDeskPage() {
                     className="gap-2"
                     data-testid="button-load-more"
                   >
-                    Load More Active
+                    Load More {statusFilter === 'won' ? 'Winners' : statusFilter === 'lost' ? 'Losers' : 'Active'}
                     <span className="ml-1 bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs">
-                      {Math.min(50, activeIdeas.length - visibleCount)} more
+                      {Math.min(50, displayIdeas.length - visibleCount)} more
                     </span>
                   </Button>
                 </div>
