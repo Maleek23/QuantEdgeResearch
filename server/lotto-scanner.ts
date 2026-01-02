@@ -123,17 +123,17 @@ function calculateLottoQuality(
     }
   }
   
-  // 5. DELTA CHECK: Optimal delta range for lotto plays (0.05-0.20)
+  // 5. DELTA CHECK: Optimal delta range for lotto plays (0.05-0.12)
   const absDelta = Math.abs(candidate.delta);
-  if (absDelta >= 0.08 && absDelta <= 0.15) {
+  if (absDelta >= 0.05 && absDelta <= 0.12) {
     signals.push(`optimal_delta_${absDelta.toFixed(2)}`);
-    score += 10;
-  } else if (absDelta < 0.05) {
-    signals.push('very_far_otm');
-    score -= 5; // Too far OTM, unlikely to hit
-  } else if (absDelta > 0.20) {
-    signals.push('close_to_money');
-    score += 5; // More likely to hit but smaller R:R
+    score += 15; // Increased bonus for optimal delta
+  } else if (absDelta < 0.03) {
+    signals.push('extreme_otm_high_risk');
+    score -= 15; // Heavy penalty for extreme OTM (too unlikely to hit)
+  } else if (absDelta > 0.15) {
+    signals.push('too_close_to_money_for_lotto');
+    score -= 10; // Penalty for being too close to the money (not a true lotto)
   }
   
   // 6. DTE PREMIUM: Short DTE needs stronger signals

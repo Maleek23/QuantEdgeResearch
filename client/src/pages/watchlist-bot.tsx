@@ -626,12 +626,27 @@ export default function WatchlistBotPage() {
                       {dailyIdeas.slice(0, 6).map((idea) => (
                         <div key={idea.id} className="p-4 rounded-lg border border-slate-700 bg-slate-900/50 hover-elevate">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="font-mono font-bold text-lg">{idea.symbol}</span>
-                            <Badge className={cn(
-                              idea.confidenceScore && idea.confidenceScore >= 80 ? "bg-green-500/20 text-green-400" : "bg-blue-500/20 text-blue-400"
-                            )}>
-                              {idea.confidenceScore}% Conf.
-                            </Badge>
+                            <div className="flex flex-col">
+                              <span className="font-mono font-bold text-lg">{idea.symbol}</span>
+                              {idea.optionType && (
+                                <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                                  {idea.optionType} ${idea.strikePrice}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <Badge className={cn(
+                                idea.confidenceScore && idea.confidenceScore >= 80 ? "bg-green-500/20 text-green-400" : "bg-blue-500/20 text-blue-400"
+                              )}>
+                                {idea.confidenceScore}% Conf.
+                              </Badge>
+                              {idea.isLottoPlay && (
+                                <span className="text-[10px] font-bold text-amber-500 mt-1 flex items-center gap-1">
+                                  <AlertTriangle className="h-2 w-2" />
+                                  HIGH RISK OTM
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                             <div className="text-muted-foreground">Entry: <span className="text-foreground font-mono">${idea.entryPrice}</span></div>

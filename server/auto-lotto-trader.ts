@@ -293,12 +293,15 @@ function makeBotDecision(
   }
   
   const absDelta = Math.abs(opportunity.delta);
-  if (absDelta >= 0.08 && absDelta <= 0.18) {
+  if (absDelta >= 0.05 && absDelta <= 0.12) {
     signals.push(`OPTIMAL_DELTA_${absDelta.toFixed(2)}`);
-    score += 10;
-  } else if (absDelta < 0.05) {
-    signals.push('TOO_FAR_OTM');
-    score -= 10;
+    score += 15;
+  } else if (absDelta < 0.03) {
+    signals.push('EXTREME_OTM_RISK');
+    score -= 20;
+  } else if (absDelta > 0.15) {
+    signals.push('REJECTED_DELTA_TOO_HIGH');
+    score -= 25;
   }
   
   if (opportunity.volume >= 500) {

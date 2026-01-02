@@ -6,7 +6,7 @@ import { logger } from './logger';
 // Lotto Mode thresholds - High-risk far-OTM options with 20x potential
 const LOTTO_ENTRY_MIN = 0.20; // $20 minimum (options priced at $0.20+)
 const LOTTO_ENTRY_MAX = 5.00; // $500 maximum (expanded to include swing trade premiums)
-const LOTTO_DELTA_MAX = 0.40; // Moderate OTM (delta <0.40 to include swings)
+const LOTTO_DELTA_MAX = 0.15; // Tightened: Only deep OTM (delta <0.15) for true lotto potential
 const LOTTO_MAX_DTE = 45; // Extended for monthly swings: 0-7 day trades, 8-21 weekly swings, 22-45 monthly swings
 
 interface LottoOption {
