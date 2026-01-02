@@ -480,8 +480,23 @@ export default function ChartAnalysis() {
   // Persist chart analysis state to localStorage
   const STORAGE_KEY = 'chart_analysis_state';
   
-  // Restore state from localStorage on mount
+  // Check for URL parameters (symbol passed from watchlist)
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const symbolParam = urlParams.get('symbol');
+    if (symbolParam) {
+      setSymbol(symbolParam.toUpperCase());
+      // Clear the URL param to prevent stale data on refresh
+      window.history.replaceState({}, '', '/chart-analysis');
+    }
+  }, []);
+  
+  // Restore state from localStorage on mount (only if no URL param)
+  useEffect(() => {
+    // Skip if symbol was set from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('symbol')) return;
+    
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {

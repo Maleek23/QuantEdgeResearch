@@ -307,8 +307,8 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
                 ) : (
                   <div className="p-3 rounded-md border border-dashed text-center">
                     <p className="text-sm text-muted-foreground mb-2">No active trade idea for this symbol</p>
-                    <Link href="/chart-analysis">
-                      <Button variant="outline" size="sm" className="gap-2">
+                    <Link href={`/chart-analysis?symbol=${selectedItem.symbol}`}>
+                      <Button variant="outline" size="sm" className="gap-2" data-testid="button-run-chart-analysis">
                         <BarChart3 className="h-3 w-3" />
                         Run Chart Analysis
                       </Button>
