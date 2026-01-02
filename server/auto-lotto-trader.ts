@@ -103,7 +103,9 @@ const SWING_TRADE_TICKERS = [
   // Retail/Consumer (earnings plays)
   'COST', 'WMT', 'TGT', 'LULU', 'NKE',
   // Semiconductors (sector rotations)
-  'AVGO', 'QCOM', 'MU', 'MRVL', 'ARM', 'ASML'
+  'AVGO', 'QCOM', 'MU', 'MRVL', 'ARM', 'ASML',
+  // Chinese ADRs (high volatility, news-driven)
+  'BIDU', 'BABA', 'JD', 'PDD', 'NIO', 'XPEV', 'LI', 'BILI', 'TME', 'KWEB'
 ];
 
 // Combined for general scanning (deduplicated)
