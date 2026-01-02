@@ -106,6 +106,39 @@ app.use((req, res, next) => {
     autoIdeaGenerator.start();
     log('🤖 Auto Idea Generator started - will generate fresh ideas at 9:30 AM CT weekdays');
     
+    // 🌙 EVENING STARTUP: One-time check to run Tomorrow's Playbook generation if in evening hours
+    (async () => {
+      try {
+        const now = new Date();
+        const nowCT = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const hourCT = nowCT.getHours();
+        const dayOfWeek = nowCT.getDay(); // 0 = Sunday, 6 = Saturday
+        
+        // Check if current time is between 6:00 PM (18:00) and 11:59 PM (23:59) CT
+        // Also skip weekends - penny stock generation is for weekday trading
+        const isEveningHours = hourCT >= 18 && hourCT <= 23;
+        const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+        
+        if (isEveningHours && isWeekday) {
+          logger.info(`🌙 [EVENING STARTUP] Running Tomorrow's Playbook generation...`);
+          logger.info(`🌙 [EVENING STARTUP] Current CT time: ${nowCT.toLocaleTimeString('en-US')} (${hourCT}:00 hour)`);
+          
+          // Call forceGenerate with focusPennyStocks=true and relaxedFilters=true
+          const generatedCount = await autoIdeaGenerator.forceGenerate(true, true);
+          
+          if (generatedCount > 0) {
+            logger.info(`🌙 [EVENING STARTUP] Successfully generated ${generatedCount} tomorrow's watchlist ideas`);
+          } else {
+            logger.info(`🌙 [EVENING STARTUP] No evening ideas generated (may be duplicates or AI unavailable)`);
+          }
+        } else {
+          logger.info(`⏰ [STARTUP] Not evening hours (CT hour: ${hourCT}, day: ${dayOfWeek}) - skipping evening penny stock generation`);
+        }
+      } catch (error) {
+        logger.error('🌙 [EVENING STARTUP] Failed to run evening generation:', error);
+      }
+    })();
+    
     // Start automated hybrid idea generation (9:45 AM CT on weekdays - 15 min after AI/Quant)
     const cron = await import('node-cron');
     let lastHybridRunDate: string | null = null;

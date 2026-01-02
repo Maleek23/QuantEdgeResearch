@@ -446,16 +446,230 @@ Generate swing trade and lotto option ideas with asymmetric risk/reward. Include
    * Force immediate idea generation regardless of time windows
    * Can be called from API routes for on-demand generation
    * @param focusPennyStocks - If true, emphasize penny stocks and lotto plays (like evening session)
+   * @param relaxedFilters - If true, skip chart validation and use lenient risk thresholds (for evening watchlist)
    * @returns Number of ideas generated
    */
-  async forceGenerate(focusPennyStocks = false): Promise<number> {
+  async forceGenerate(focusPennyStocks = false, relaxedFilters = false): Promise<number> {
     if (this.isGenerating) {
       logger.warn('⚠️ [FORCE-GEN] Generation already in progress, skipping...');
       return 0;
     }
     
+    if (relaxedFilters) {
+      logger.info(`🌙 [EVENING MODE] Relaxed filters active for tomorrow's watchlist`);
+      return await this.generateRelaxedIdeas(focusPennyStocks);
+    }
+    
     logger.info(`🚀 [FORCE-GEN] Manual idea generation triggered (penny stock focus: ${focusPennyStocks})`);
     return await this.generateFreshIdeas(focusPennyStocks, 'On-Demand');
+  }
+
+  /**
+   * Generate trade ideas with relaxed validation for evening "Tomorrow's Playbook" sessions
+   * Skips chart validation, uses lenient risk thresholds, allows lower confidence
+   * @param focusPennyStocks - If true, emphasize penny stocks and lotto plays
+   * @returns Number of ideas generated
+   */
+  private async generateRelaxedIdeas(focusPennyStocks = true): Promise<number> {
+    this.isGenerating = true;
+    this.lastRunTime = new Date();
+    this.lastGeneratedCount = 0;
+
+    try {
+      const nowCT = new Date(this.lastRunTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+      
+      logger.info(`🌙 [EVENING MODE] Generating tomorrow's watchlist ideas for ${nowCT.toLocaleDateString('en-US')}`);
+      logger.info(`🌙 [EVENING MODE] Relaxed validation: skipping chart analysis, lenient risk thresholds`);
+      
+      if (focusPennyStocks) {
+        logger.info(`🌙 [EVENING MODE] Penny stock focus enabled - targeting: ${PENNY_STOCK_TICKERS.slice(0, 10).join(', ')}...`);
+      }
+
+      // 🚫 DEDUPLICATION: Only block symbols that have open AI-generated ideas
+      const allIdeas = await storage.getAllTradeIdeas();
+      const existingOpenAiSymbols = new Set(
+        allIdeas
+          .filter((idea: any) => idea.outcomeStatus === 'open' && idea.source === 'ai')
+          .map((idea: any) => idea.symbol.toUpperCase())
+      );
+
+      // Build market context for tomorrow's watchlist
+      const pennyTickers = PENNY_STOCK_TICKERS.join(', ');
+      const marketContext = `🌙 TOMORROW'S WATCHLIST - Evening research session for next-day trading opportunities.
+This is a relaxed evening scan to identify interesting setups for tomorrow's trading day.
+Focus heavily on penny stocks and lotto plays with high volatility potential.
+Priority tickers to analyze: ${pennyTickers}.
+Look for:
+1. Quantum computing plays (IONQ, RGTI, QUBT, QBTS) - next big tech wave
+2. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition momentum
+3. AI penny stocks (BBAI, SOUN) - AI bubble opportunities
+4. Crypto miners (MARA, RIOT, WULF, CLSK) - Bitcoin correlation plays
+5. Speculative biotech/EV (NVAX, NKLA, GOEV) - high risk/reward
+Generate swing trade and lotto option ideas with asymmetric risk/reward. Include OTM call options for potential 5-10x returns.
+This is a WATCHLIST scan - be more inclusive of speculative setups.`;
+
+      const aiIdeas = await generateTradeIdeas(marketContext);
+      logger.info(`🌙 [EVENING MODE] AI generated ${aiIdeas.length} candidate ideas`);
+
+      // 🛡️ Apply RELAXED validation to evening ideas
+      const savedIdeas = [];
+      const rejectedIdeas: Array<{symbol: string, reason: string}> = [];
+
+      for (const aiIdea of aiIdeas) {
+        // 🚫 Skip if symbol already has an open AI-generated trade
+        if (existingOpenAiSymbols.has(aiIdea.symbol.toUpperCase())) {
+          logger.info(`⏭️  [EVENING MODE] Skipped ${aiIdea.symbol} - already has open AI trade`);
+          continue;
+        }
+
+        // 📅 Check earnings calendar (still block earnings, but allow news catalysts)
+        if (aiIdea.assetType === 'stock' || aiIdea.assetType === 'option') {
+          const isBlocked = await shouldBlockSymbol(aiIdea.symbol, false);
+          if (isBlocked) {
+            logger.warn(`📅 [EVENING MODE] Skipped ${aiIdea.symbol} - earnings within 2 days`);
+            rejectedIdeas.push({ symbol: aiIdea.symbol, reason: 'Earnings within 2 days' });
+            continue;
+          }
+        }
+
+        // 📊 OPTIONS ENRICHMENT: If AI suggested an option, fetch real Tradier data
+        let processedIdea: any = aiIdea;
+        let isLotto = false;
+        
+        if (aiIdea.assetType === 'option') {
+          logger.info(`📊 [EVENING MODE] Enriching ${aiIdea.symbol} option with Tradier data...`);
+          const enrichedOption = await enrichOptionIdea(aiIdea);
+          
+          if (!enrichedOption) {
+            logger.warn(`🚫 [EVENING MODE] Failed to enrich ${aiIdea.symbol} option - skipping`);
+            rejectedIdeas.push({ symbol: aiIdea.symbol, reason: 'Failed to fetch real option data' });
+            continue;
+          }
+          
+          processedIdea = enrichedOption;
+          isLotto = enrichedOption.isLottoPlay;
+          logger.info(`✅ [EVENING MODE] Enriched ${aiIdea.symbol} option${isLotto ? ' (LOTTO PLAY)' : ''}`);
+        }
+
+        // 🌙 RELAXED RISK VALIDATION: More lenient thresholds for evening watchlist
+        // Only apply basic sanity checks - not strict R:R requirements
+        const { entryPrice, targetPrice, stopLoss, direction, assetType } = processedIdea;
+        
+        // Basic sanity checks (price > 0, symbol exists)
+        if (entryPrice <= 0 || targetPrice <= 0 || stopLoss <= 0) {
+          logger.warn(`🚫 [EVENING MODE] REJECTED ${processedIdea.symbol} - invalid prices: entry=$${entryPrice}, target=$${targetPrice}, stop=$${stopLoss}`);
+          rejectedIdeas.push({ symbol: processedIdea.symbol, reason: 'Invalid prices (must be > 0)' });
+          continue;
+        }
+
+        // Validate price relationships (relaxed - just check direction makes sense)
+        if (direction === 'long' && targetPrice <= entryPrice) {
+          logger.warn(`🚫 [EVENING MODE] REJECTED ${processedIdea.symbol} - long trade but target <= entry`);
+          rejectedIdeas.push({ symbol: processedIdea.symbol, reason: 'Long trade but target <= entry' });
+          continue;
+        }
+        if (direction === 'short' && targetPrice >= entryPrice) {
+          logger.warn(`🚫 [EVENING MODE] REJECTED ${processedIdea.symbol} - short trade but target >= entry`);
+          rejectedIdeas.push({ symbol: processedIdea.symbol, reason: 'Short trade but target >= entry' });
+          continue;
+        }
+
+        // 🌙 SKIP CHART VALIDATION: Evening mode doesn't require chart confirmation
+        logger.info(`🌙 [EVENING MODE] ${processedIdea.symbol} - skipping chart validation (evening watchlist mode)`);
+
+        // Calculate basic risk metrics for display (but don't enforce strict thresholds)
+        const maxLoss = direction === 'long' 
+          ? (entryPrice - stopLoss) 
+          : (stopLoss - entryPrice);
+        
+        const potentialGain = direction === 'long'
+          ? (targetPrice - entryPrice)
+          : (entryPrice - targetPrice);
+        
+        const riskRewardRatio = maxLoss > 0 ? potentialGain / maxLoss : 1.5;
+        
+        logger.info(`🌙 [EVENING MODE] ${processedIdea.symbol} passed relaxed validation - R:R:${riskRewardRatio.toFixed(2)}:1`);
+
+        // 📊 BUILD QUALITY SIGNALS for evening watchlist
+        const qualitySignals: string[] = ['AI Analysis', 'Evening Watchlist'];
+        
+        if (riskRewardRatio >= 2.0) {
+          qualitySignals.push(`R:R ${riskRewardRatio.toFixed(1)}:1`);
+        }
+        
+        if (processedIdea.assetType === 'option' && processedIdea.strikePrice) {
+          qualitySignals.push('Option Enriched');
+        }
+
+        if (isLotto) {
+          qualitySignals.push('Lotto Play');
+        }
+
+        // Evening mode uses lower base confidence (50 vs 60 for regular)
+        const baseConfidence = 50;
+        const finalConfidence = Math.min(100, baseConfidence + (riskRewardRatio >= 2.0 ? 5 : 0));
+
+        // Evening ideas default to swing trades (holding overnight for tomorrow)
+        const holdingPeriod: 'day' | 'swing' | 'position' = 
+          processedIdea.assetType === 'crypto' ? 'position' : 'swing';
+        
+        const tradeIdea = await storage.createTradeIdea({
+          symbol: processedIdea.symbol,
+          assetType: processedIdea.assetType,
+          direction: processedIdea.direction,
+          holdingPeriod: holdingPeriod,
+          entryPrice,
+          targetPrice,
+          stopLoss,
+          riskRewardRatio: Math.round(riskRewardRatio * 10) / 10,
+          catalyst: processedIdea.catalyst,
+          analysis: `[Tomorrow's Watchlist] ${processedIdea.analysis}`,
+          liquidityWarning: processedIdea.entryPrice < 5,
+          sessionContext: `Evening scan for ${nowCT.toLocaleDateString('en-US')} - tomorrow's trading`,
+          timestamp: new Date().toISOString(),
+          expiryDate: processedIdea.expiryDate || null,
+          strikePrice: processedIdea.strikePrice || null,
+          optionType: processedIdea.optionType || null,
+          source: 'ai',
+          isLottoPlay: isLotto,
+          confidenceScore: finalConfidence,
+          qualitySignals,
+        });
+        savedIdeas.push(tradeIdea);
+      }
+
+      // Send Discord notification for batch
+      if (savedIdeas.length > 0) {
+        const { sendBatchSummaryToDiscord } = await import("./discord-service");
+        sendBatchSummaryToDiscord(savedIdeas, 'ai').catch(err => 
+          logger.error('[EVENING MODE] Discord notification failed:', err)
+        );
+      }
+
+      // Log summary
+      if (rejectedIdeas.length > 0) {
+        logger.warn(`🌙 [EVENING MODE] Relaxed Validation Summary: ${rejectedIdeas.length} ideas rejected, ${savedIdeas.length} passed`);
+        rejectedIdeas.forEach(r => logger.warn(`   - ${r.symbol}: ${r.reason}`));
+      }
+
+      if (savedIdeas.length > 0) {
+        logger.info(`🌙 [EVENING MODE] Successfully generated ${savedIdeas.length} tomorrow's watchlist ideas`);
+        this.lastRunSuccess = true;
+        this.lastGeneratedCount = savedIdeas.length;
+      } else {
+        logger.warn('🌙 [EVENING MODE] No ideas generated - all rejected or AI unavailable');
+        this.lastRunSuccess = false;
+        this.lastGeneratedCount = 0;
+      }
+      return savedIdeas.length;
+    } catch (error: any) {
+      logger.error('[EVENING MODE] Failed to generate ideas:', error);
+      this.lastRunSuccess = false;
+      this.lastGeneratedCount = 0;
+      return 0;
+    } finally {
+      this.isGenerating = false;
+    }
   }
 }
 
