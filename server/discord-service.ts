@@ -197,6 +197,8 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
 }
 
 // Send trade idea to Discord webhook
+// ALL research ideas (quant, AI, hybrid, flow) go to #trade-alerts
+// Bot entries (when bot actually trades) go to #quantbot via sendBotTradeEntryToDiscord
 export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
   logger.info(`📨 Discord single trade called: ${idea.symbol} (${idea.source || 'unknown'})`);
   
@@ -205,10 +207,9 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
     return;
   }
   
-  // Route quant trades to dedicated QUANTBOT channel, others to main trade-alerts
-  const webhookUrl = idea.source === 'quant' 
-    ? (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL)
-    : process.env.DISCORD_WEBHOOK_URL;
+  // ALL research/trade ideas go to main #trade-alerts channel
+  // Bot entries go to QUANTBOT channel via separate sendBotTradeEntryToDiscord function
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
     logger.warn('⚠️ Discord webhook URL not configured - skipping alert');
@@ -218,7 +219,7 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
   try {
     const embed = formatTradeIdeaEmbed(idea);
     const sourceLabel = idea.source === 'ai' ? 'AI' : idea.source === 'quant' ? 'QUANT' : idea.source === 'hybrid' ? 'HYBRID' : 'FLOW';
-    const channelHeader = idea.source === 'quant' ? CHANNEL_HEADERS.QUANTBOT : CHANNEL_HEADERS.TRADE_ALERTS;
+    const channelHeader = CHANNEL_HEADERS.TRADE_ALERTS;
     const message: DiscordMessage = {
       content: `🎯 **${sourceLabel} TRADE** → ${idea.symbol} │ ${channelHeader}`,
       embeds: [embed]
@@ -355,6 +356,8 @@ export async function sendDiscordAlert(alert: {
 }
 
 // Send batch summary to Discord
+// ALL research ideas (quant, AI, hybrid, flow, news) go to #trade-alerts
+// Bot entries (when bot actually trades) go to #quantbot via sendBotTradeEntryToDiscord
 export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai' | 'quant' | 'hybrid' | 'flow' | 'news'): Promise<void> {
   logger.info(`📨 Discord batch summary called: ${ideas.length} ${source} ideas`);
   
@@ -363,10 +366,9 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
     return;
   }
   
-  // Route quant batches to dedicated QUANTBOT channel, others to main trade-alerts
-  const webhookUrl = source === 'quant'
-    ? (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL)
-    : process.env.DISCORD_WEBHOOK_URL;
+  // ALL research/trade ideas go to main #trade-alerts channel
+  // Bot entries go to QUANTBOT channel via separate sendBotTradeEntryToDiscord function
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
     logger.warn('⚠️ No Discord webhook configured - skipping notification');
@@ -459,7 +461,7 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
       timestamp: new Date().toISOString()
     };
     
-    const channelHeader = source === 'quant' ? CHANNEL_HEADERS.QUANTBOT : CHANNEL_HEADERS.TRADE_ALERTS;
+    const channelHeader = CHANNEL_HEADERS.TRADE_ALERTS;
     const message: DiscordMessage = {
       content: `📢 **BATCH ALERT** → ${ideas.length} ${sourceLabel} Ideas │ ${channelHeader}`,
       embeds: [embed]
@@ -788,6 +790,8 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
 }
 
 // Send bot trade entry notification to Discord
+// Bot entries (when bot ACTUALLY trades) go to #quantbot channel
+// This is separate from trade ideas (research signals) which go to #trade-alerts
 export async function sendBotTradeEntryToDiscord(position: {
   symbol: string;
   optionType?: string | null;
@@ -800,8 +804,8 @@ export async function sendBotTradeEntryToDiscord(position: {
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
-  // Use LOTTO webhook or main webhook
-  const webhookUrl = process.env.DISCORD_WEBHOOK_LOTTO || process.env.DISCORD_WEBHOOK_URL;
+  // Bot entries go to dedicated QUANTBOT channel (separate from trade ideas)
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
     return;
@@ -872,6 +876,8 @@ export async function sendBotTradeEntryToDiscord(position: {
 }
 
 // Send bot trade exit notification to Discord
+// Bot exits go to #quantbot channel (same as bot entries)
+// Winning trades ALSO go to #gains via sendGainsToDiscord
 export async function sendBotTradeExitToDiscord(position: {
   symbol: string;
   optionType?: string | null;
@@ -884,7 +890,8 @@ export async function sendBotTradeExitToDiscord(position: {
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_LOTTO || process.env.DISCORD_WEBHOOK_URL;
+  // Bot exits go to dedicated QUANTBOT channel
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
     return;

@@ -1,6 +1,6 @@
 import { 
   TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
-  Sun, Moon, Upload, Home, 
+  Sun, Moon, Upload, Home, BookOpen,
   GraduationCap, FileText, Database, Bot, Zap, Shield, ExternalLink
 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -43,6 +43,7 @@ const analysisItems: NavItem[] = [
 ];
 
 const resourceItems: NavItem[] = [
+  { title: "Technical Guide", url: "/technical-guide", icon: BookOpen },
   { title: "Trading Rules", url: "/trading-rules", icon: Shield },
   { title: "Academy", url: "/academy", icon: GraduationCap },
   { title: "Blog", url: "/blog", icon: FileText },

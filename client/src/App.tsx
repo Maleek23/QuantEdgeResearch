@@ -44,6 +44,7 @@ const WatchlistBot = lazy(() => import("@/pages/watchlist-bot"));
 const FuturesPage = lazy(() => import("@/pages/futures"));
 const Features = lazy(() => import("@/pages/features"));
 const BacktestPage = lazy(() => import("@/pages/backtest"));
+const TechnicalGuide = lazy(() => import("@/pages/technical-guide"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function PageLoader() {
@@ -97,6 +98,7 @@ function Router() {
       </Route>
       
       {/* Research & Community Pages */}
+      <Route path="/technical-guide" component={TechnicalGuide} />
       <Route path="/trading-rules" component={TradingRules} />
       <Route path="/chart-database" component={ChartDatabase} />
       <Route path="/success-stories" component={SuccessStories} />
