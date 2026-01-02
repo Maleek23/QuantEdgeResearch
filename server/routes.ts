@@ -5001,6 +5001,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Watchlist Routes
   app.get("/api/watchlist", async (req: any, res) => {
     try {
+      // Disable caching - watchlist data must be fresh for each user
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       const userId = req.session?.userId;
       const adminEmail = process.env.ADMIN_EMAIL || "";
       
@@ -5009,6 +5014,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (userId) {
         const user = await storage.getUser(userId);
         isAdmin = adminEmail !== "" && user?.email === adminEmail;
+        logger.info(`[WATCHLIST] userId=${userId}, userEmail=${user?.email}, adminEmail=${adminEmail}, isAdmin=${isAdmin}`);
+      } else {
+        logger.info(`[WATCHLIST] No userId in session - returning empty`);
       }
       
       // Admin sees all, users see their own
@@ -5017,8 +5025,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : userId 
           ? await storage.getWatchlistByUser(userId)
           : [];
+      
+      logger.info(`[WATCHLIST] Returning ${watchlist.length} items (isAdmin=${isAdmin})`);
       res.json(watchlist);
     } catch (error) {
+      logger.error('[WATCHLIST] Error fetching watchlist:', error);
       res.status(500).json({ error: "Failed to fetch watchlist" });
     }
   });
