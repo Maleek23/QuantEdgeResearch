@@ -5029,6 +5029,168 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 🔍 TRADE IDEAS AUDIT EXPORT - Complete transparency on all research ideas
+  // Shows idea timing, entry/exit prices, market session context - everything for analysis
+  app.get("/api/audit/trade-ideas", async (req, res) => {
+    try {
+      const format = req.query.format as string || 'json';
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Sort by timestamp descending (newest first)
+      allIdeas.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+      // Market session helper (same as bot audit)
+      const getMarketSession = (time: Date): string => {
+        const ctTime = new Date(time.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const hours = ctTime.getHours();
+        const minutes = ctTime.getMinutes();
+        const totalMinutes = hours * 60 + minutes;
+        
+        if (totalMinutes >= 360 && totalMinutes < 510) return 'PRE-MARKET';
+        if (totalMinutes >= 840 && totalMinutes < 900) return 'POWER-HOUR';
+        if (totalMinutes >= 510 && totalMinutes < 840) return 'REGULAR';
+        if (totalMinutes >= 900 && totalMinutes < 1140) return 'AFTER-HOURS';
+        return 'CLOSED';
+      };
+      
+      const getDayOfWeek = (time: Date): string => {
+        const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+        const ctTime = new Date(time.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        return days[ctTime.getDay()];
+      };
+      
+      // Build audit records
+      const auditRecords = allIdeas.map((idea, index) => {
+        const ideaTime = new Date(idea.timestamp);
+        const exitTime = idea.exitDate ? new Date(idea.exitDate) : null;
+        
+        // Calculate DTE at idea generation for options
+        let dteAtIdea: number | null = null;
+        if (idea.assetType === 'option' && idea.optionExpiry) {
+          const expiry = new Date(idea.optionExpiry);
+          dteAtIdea = Math.ceil((expiry.getTime() - ideaTime.getTime()) / (1000 * 60 * 60 * 24));
+        }
+        
+        return {
+          ideaNumber: allIdeas.length - index,
+          id: idea.id,
+          symbol: idea.symbol,
+          assetType: idea.assetType,
+          direction: idea.direction,
+          optionType: idea.optionType || null,
+          strikePrice: idea.strikePrice || null,
+          optionExpiry: idea.optionExpiry || null,
+          dteAtIdea,
+          
+          // Idea timing with market context
+          ideaTime: idea.timestamp,
+          ideaTimeFormatted: formatInTimeZone(ideaTime, 'America/Chicago', 'yyyy-MM-dd HH:mm:ss zzz'),
+          ideaDayOfWeek: getDayOfWeek(ideaTime),
+          ideaSession: getMarketSession(ideaTime),
+          
+          // Entry/Exit prices
+          entryPrice: idea.entryPrice,
+          targetPrice: idea.targetPrice,
+          stopLoss: idea.stopLoss,
+          
+          // Outcome
+          outcomeStatus: idea.outcomeStatus || 'open',
+          exitDate: idea.exitDate || null,
+          exitDateFormatted: exitTime ? formatInTimeZone(exitTime, 'America/Chicago', 'yyyy-MM-dd HH:mm:ss zzz') : null,
+          exitDayOfWeek: exitTime ? getDayOfWeek(exitTime) : null,
+          exitSession: exitTime ? getMarketSession(exitTime) : null,
+          exitPrice: idea.exitPrice || null,
+          
+          // Performance
+          percentGain: idea.percentGain ?? null,
+          
+          // Source and confidence
+          source: idea.source,
+          confidenceScore: idea.confidenceScore || null,
+          holdingPeriod: idea.holdingPeriod || null,
+          catalyst: idea.catalyst || null,
+        };
+      });
+      
+      // Calculate summary stats
+      const closedIdeas = auditRecords.filter(i => i.outcomeStatus !== 'open');
+      const wins = auditRecords.filter(i => i.outcomeStatus === 'hit_target');
+      const losses = auditRecords.filter(i => i.outcomeStatus === 'hit_stop');
+      const expired = auditRecords.filter(i => i.outcomeStatus === 'expired');
+      
+      const summary = {
+        exportDate: formatInTimeZone(new Date(), 'America/Chicago', 'yyyy-MM-dd HH:mm:ss zzz'),
+        totalIdeas: auditRecords.length,
+        closedIdeas: closedIdeas.length,
+        openIdeas: auditRecords.filter(i => i.outcomeStatus === 'open').length,
+        wins: wins.length,
+        losses: losses.length,
+        expired: expired.length,
+        winRateVsLosses: losses.length > 0 ? Math.round((wins.length / (wins.length + losses.length)) * 1000) / 10 : 0,
+        winRateVsAll: closedIdeas.length > 0 ? Math.round((wins.length / closedIdeas.length) * 1000) / 10 : 0,
+      };
+      
+      if (format === 'csv') {
+        const headers = [
+          'Idea #', 'ID', 'Symbol', 'Asset Type', 'Direction',
+          'Option Type', 'Strike', 'Expiry', 'DTE at Idea',
+          'Idea Time (CT)', 'Idea Day', 'Idea Session',
+          'Entry Price', 'Target', 'Stop Loss',
+          'Outcome', 'Exit Time (CT)', 'Exit Day', 'Exit Session', 'Exit Price',
+          'Percent Gain', 'Source', 'Confidence', 'Holding Period', 'Catalyst'
+        ];
+        
+        const csvRows = [headers.join(',')];
+        
+        auditRecords.forEach(r => {
+          const row = [
+            r.ideaNumber,
+            r.id,
+            r.symbol,
+            r.assetType,
+            r.direction,
+            r.optionType || '',
+            r.strikePrice || '',
+            r.optionExpiry || '',
+            r.dteAtIdea ?? '',
+            `"${r.ideaTimeFormatted}"`,
+            r.ideaDayOfWeek,
+            r.ideaSession,
+            r.entryPrice,
+            r.targetPrice,
+            r.stopLoss,
+            r.outcomeStatus,
+            r.exitDateFormatted ? `"${r.exitDateFormatted}"` : '',
+            r.exitDayOfWeek || '',
+            r.exitSession || '',
+            r.exitPrice || '',
+            r.percentGain ?? '',
+            r.source,
+            r.confidenceScore || '',
+            r.holdingPeriod || '',
+            r.catalyst ? `"${r.catalyst.replace(/"/g, '""')}"` : ''
+          ];
+          csvRows.push(row.join(','));
+        });
+        
+        const csvContent = csvRows.join('\n');
+        
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="trade-ideas-audit-${formatInTimeZone(new Date(), 'America/Chicago', 'yyyy-MM-dd-HHmm')}.csv"`);
+        res.send(csvContent);
+      } else {
+        res.json({
+          summary,
+          ideas: auditRecords,
+          disclaimer: "All trade ideas shown are for research and educational purposes only. This is NOT financial advice.",
+        });
+      }
+    } catch (error) {
+      logger.error("Trade ideas audit export error:", error);
+      res.status(500).json({ error: "Failed to generate trade ideas audit export" });
+    }
+  });
+
   // =========== DATA INTELLIGENCE API ===========
   // Comprehensive endpoint that provides all historical performance data
   // for use across the platform (trade cards, dashboards, etc.)
