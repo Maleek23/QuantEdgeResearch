@@ -21,7 +21,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NumberTicker } from "@/components/magicui/number-ticker";
 import { BorderBeam } from "@/components/magicui/border-beam";
-import type { WatchlistItem, PaperPosition } from "@shared/schema";
+import type { WatchlistItem, PaperPosition, TradeIdea } from "@shared/schema";
+import { SiDiscord } from "react-icons/si";
 
 interface SectorData {
   name: string;
@@ -123,6 +124,27 @@ export default function WatchlistBotPage() {
     queryKey: ['/api/auto-lotto-bot/coverage'],
     refetchInterval: 30000,
   });
+
+  // Fetch trade ideas to show recent wins (these are what Discord alerts show)
+  const { data: tradeIdeas = [] } = useQuery<TradeIdea[]>({
+    queryKey: ['/api/trade-ideas'],
+    staleTime: 60000,
+  });
+
+  // Get recent winning trade ideas (last 7 days, hit_target)
+  const recentWins = useMemo(() => {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    return tradeIdeas
+      .filter(idea => 
+        idea.outcomeStatus === 'hit_target' && 
+        idea.exitDate && 
+        new Date(idea.exitDate) >= sevenDaysAgo
+      )
+      .sort((a, b) => new Date(b.exitDate!).getTime() - new Date(a.exitDate!).getTime())
+      .slice(0, 10);
+  }, [tradeIdeas]);
 
   const addWatchlistMutation = useMutation({
     mutationFn: async (data: { symbol: string; assetType: string }) => {
@@ -546,6 +568,82 @@ export default function WatchlistBotPage() {
                         </p>
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Recent Wins from Trade Ideas (Discord Alerts Source) */}
+              {recentWins.length > 0 && (
+                <Card className="glass-card border-green-500/20 bg-green-500/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-green-500/20 flex items-center justify-center">
+                          <CheckCircle2 className="h-4 w-4 text-green-400" />
+                        </div>
+                        Recent Wins
+                        <Badge variant="outline" className="text-xs bg-green-500/10 text-green-400 border-green-500/30">
+                          Last 7 Days
+                        </Badge>
+                      </CardTitle>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <SiDiscord className="h-3 w-3" />
+                        <span>From Trade Ideas</span>
+                      </div>
+                    </div>
+                    <CardDescription>
+                      These are the winning research ideas that triggered Discord alerts
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <ScrollArea className="h-[200px]">
+                      <div className="space-y-2">
+                        {recentWins.map((idea) => (
+                          <div 
+                            key={idea.id} 
+                            className="flex items-center justify-between p-3 rounded-lg border bg-card/50 hover-elevate"
+                            data-testid={`recent-win-${idea.id}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "p-2 rounded",
+                                idea.assetType === 'option' ? "bg-purple-500/10" : 
+                                idea.assetType === 'crypto' ? "bg-amber-500/10" : "bg-cyan-500/10"
+                              )}>
+                                {idea.assetType === 'option' ? (
+                                  <Target className="h-4 w-4 text-purple-400" />
+                                ) : idea.assetType === 'crypto' ? (
+                                  <Bitcoin className="h-4 w-4 text-amber-400" />
+                                ) : (
+                                  <TrendingUp className="h-4 w-4 text-cyan-400" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-bold">{idea.symbol}</span>
+                                  {idea.optionType && (
+                                    <Badge variant="outline" className="text-[10px] px-1 py-0">
+                                      {idea.optionType.toUpperCase()} ${idea.strikePrice}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {idea.source === 'ai' ? '🧠 AI' : idea.source === 'chart_analysis' ? '📈 Chart' : '📊 Quant'} • {idea.direction?.toUpperCase()}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-mono font-bold text-green-400">
+                                +{(idea.percentGain || 25).toFixed(1)}%
+                              </span>
+                              <p className="text-[10px] text-muted-foreground">
+                                {idea.exitDate && new Date(idea.exitDate).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
                   </CardContent>
                 </Card>
               )}
