@@ -132,42 +132,69 @@ export default function WatchlistBotPage() {
   });
 
   // Get recent winning trade ideas (last 7 days, hit_target) - split by source
+  // Bot Wins now uses ACTUAL paper positions for real P&L, not theoretical targets
   const { botWins, ideaWins, botWinsPnL, ideaWinsPnL } = useMemo(() => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
+    // Bot Wins - from actual paper positions with REAL realized P&L
+    const allBotPositions = [
+      ...(botData?.positions || []),
+      ...(botData?.futuresPositions || [])
+    ];
+    const closedWinningPositions = allBotPositions
+      .filter(pos => 
+        pos.status === 'closed' && 
+        (pos.realizedPnL || 0) > 0 &&
+        pos.exitTime &&
+        new Date(pos.exitTime) >= sevenDaysAgo
+      )
+      .sort((a, b) => new Date(b.exitTime!).getTime() - new Date(a.exitTime!).getTime())
+      .slice(0, 10);
+    
+    // Convert positions to display format with ACTUAL P&L
+    const botWinsArr = closedWinningPositions.map(pos => ({
+      id: pos.id,
+      symbol: pos.symbol,
+      assetType: pos.assetType,
+      optionType: pos.optionType,
+      strikePrice: pos.strikePrice,
+      direction: pos.direction,
+      // Use ACTUAL realized P&L percent, fallback to calculation from entry/exit
+      percentGain: pos.realizedPnLPercent || 
+        (pos.exitPrice && pos.entryPrice ? 
+          ((pos.exitPrice - pos.entryPrice) / pos.entryPrice) * 100 : 0),
+      exitDate: pos.exitTime,
+      realizedPnL: pos.realizedPnL || 0,
+    }));
+    
+    // Calculate total using ACTUAL realized P&L percentages
+    const botPnL = botWinsArr.reduce((sum, pos) => sum + (pos.percentGain || 0), 0);
+    
+    // Research Idea Wins - AI/Quant generated ideas that hit targets (not bot-traded)
     const allWins = tradeIdeas
       .filter(idea => 
         idea.outcomeStatus === 'hit_target' && 
         idea.exitDate && 
         new Date(idea.exitDate) >= sevenDaysAgo &&
-        // Filter out invalid trades with broken percentGain (negative wins, extreme values)
+        // Exclude lotto/bot source - those are shown in Bot Wins
+        idea.source !== 'lotto' && idea.source !== 'bot' &&
+        // Filter out invalid trades with broken percentGain
         (idea.percentGain === null || idea.percentGain === undefined || 
           (idea.percentGain >= 0 && idea.percentGain <= 500))
       )
-      .sort((a, b) => new Date(b.exitDate!).getTime() - new Date(a.exitDate!).getTime());
-    
-    // Bot Wins - trades actually executed by the Auto-Lotto Bot
-    const botWinsArr = allWins
-      .filter(idea => idea.source === 'lotto' || idea.source === 'bot')
+      .sort((a, b) => new Date(b.exitDate!).getTime() - new Date(a.exitDate!).getTime())
       .slice(0, 10);
     
-    // Research Idea Wins - AI/Quant generated ideas that hit targets but weren't bot-traded
-    const ideaWinsArr = allWins
-      .filter(idea => idea.source !== 'lotto' && idea.source !== 'bot')
-      .slice(0, 10);
-    
-    // Calculate total P&L for each section
-    const botPnL = botWinsArr.reduce((sum, idea) => sum + (idea.percentGain || 0), 0);
-    const ideaPnL = ideaWinsArr.reduce((sum, idea) => sum + (idea.percentGain || 0), 0);
+    const ideaPnL = allWins.reduce((sum, idea) => sum + (idea.percentGain || 0), 0);
     
     return { 
       botWins: botWinsArr, 
-      ideaWins: ideaWinsArr,
+      ideaWins: allWins,
       botWinsPnL: botPnL,
       ideaWinsPnL: ideaPnL
     };
-  }, [tradeIdeas]);
+  }, [tradeIdeas, botData?.positions, botData?.futuresPositions]);
 
   const addWatchlistMutation = useMutation({
     mutationFn: async (data: { symbol: string; assetType: string }) => {
