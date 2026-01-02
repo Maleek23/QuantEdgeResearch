@@ -1783,16 +1783,16 @@ export default function PerformancePage() {
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground">Quant Accuracy</div>
               <div className={`text-2xl font-bold font-mono ${
-                todayStats.overall.quantAccuracy >= 70 ? 'text-green-400' : 
-                todayStats.overall.quantAccuracy >= 50 ? 'text-amber-400' : 'text-red-400'
+                (todayStats.overall.quantAccuracy ?? 0) >= 70 ? 'text-green-400' : 
+                (todayStats.overall.quantAccuracy ?? 0) >= 50 ? 'text-amber-400' : 'text-red-400'
               }`}>
-                {todayStats.overall.quantAccuracy.toFixed(1)}%
+                {todayStats.overall.quantAccuracy?.toFixed(1) ?? '0.0'}%
               </div>
               <span className={cn(
                 "rounded px-2 py-0.5 text-xs",
-                todayStats.overall.quantAccuracy >= 70 ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-muted-foreground'
+                (todayStats.overall.quantAccuracy ?? 0) >= 70 ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-muted-foreground'
               )}>
-                {todayStats.overall.quantAccuracy >= 70 ? 'Strong' : 'Building'}
+                {(todayStats.overall.quantAccuracy ?? 0) >= 70 ? 'Strong' : 'Building'}
               </span>
             </div>
             <div className="space-y-1">
@@ -1811,10 +1811,10 @@ export default function PerformancePage() {
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground">Directional Accuracy</div>
               <div className={`text-2xl font-bold font-mono ${
-                todayStats.overall.directionalAccuracy >= 70 ? 'text-green-400' : 
-                todayStats.overall.directionalAccuracy >= 50 ? 'text-amber-400' : 'text-red-400'
+                (todayStats.overall.directionalAccuracy ?? 0) >= 70 ? 'text-green-400' : 
+                (todayStats.overall.directionalAccuracy ?? 0) >= 50 ? 'text-amber-400' : 'text-red-400'
               }`}>
-                {todayStats.overall.directionalAccuracy.toFixed(1)}%
+                {todayStats.overall.directionalAccuracy?.toFixed(1) ?? '0.0'}%
               </div>
               <span className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs">
                 25%+ to target
@@ -1822,7 +1822,7 @@ export default function PerformancePage() {
             </div>
           </div>
           
-          {todayStats.overall.quantAccuracy < 70 && (
+          {(todayStats.overall.quantAccuracy ?? 0) < 70 && (
             <div className="mt-4 p-3 rounded-lg glass-danger">
               <div className="flex items-start gap-2">
                 <Info className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
@@ -1831,10 +1831,10 @@ export default function PerformancePage() {
                     Improvement Opportunities for Today
                   </div>
                   <ul className="space-y-1 text-muted-foreground">
-                    {todayStats.overall.quantAccuracy < 50 && (
+                    {(todayStats.overall.quantAccuracy ?? 0) < 50 && (
                       <li>• Consider reviewing entry timing on today's signals</li>
                     )}
-                    {todayStats.overall.directionalAccuracy < 50 && (
+                    {(todayStats.overall.directionalAccuracy ?? 0) < 50 && (
                       <li>• Multiple signals moving against prediction - check market conditions</li>
                     )}
                     {todayStats.bySource.find(s => s.source === 'quant')?.totalIdeas === 0 && (

@@ -807,11 +807,11 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   });
   
   if (isLotto) {
-    // Override targets for lotto plays - aim for 20x return
-    const lottoTargets = calculateLottoTargets(entryPrice);
+    // Override targets for lotto plays with DTE-aware multipliers
+    const lottoTargets = calculateLottoTargets(entryPrice, mostActiveOption.expiration);
     targetPrice = lottoTargets.targetPrice;
     riskRewardRatio = lottoTargets.riskRewardRatio;
-    logger.info(`🎰 [FLOW] ${ticker} LOTTO PLAY DETECTED: Entry=$${entryPrice.toFixed(2)}, Delta=${Math.abs(mostActiveOption.greeks?.delta || 0).toFixed(2)}, Target=$${targetPrice.toFixed(2)} (20x potential)`);
+    logger.info(`🎰 [FLOW] ${ticker} LOTTO PLAY DETECTED (${lottoTargets.dteCategory}): Entry=$${entryPrice.toFixed(2)}, Delta=${Math.abs(mostActiveOption.greeks?.delta || 0).toFixed(2)}, Target=$${targetPrice.toFixed(2)} (${lottoTargets.targetMultiplier}x potential)`);
   }
 
   const sectorFocus = detectSectorFocus(ticker);

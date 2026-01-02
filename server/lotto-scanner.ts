@@ -397,9 +397,9 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
     // But we're BUYING the option in both cases, so premium target is always 20x
     const direction = candidate.optionType === 'call' ? 'long' : 'short';
     
-    // Calculate lotto targets (20x return on option premium)
+    // Calculate lotto targets with DTE-aware multipliers
     const entryPrice = candidate.lastPrice;
-    const { targetPrice, riskRewardRatio } = calculateLottoTargets(entryPrice);
+    const { targetPrice, riskRewardRatio, targetMultiplier, dteCategory } = calculateLottoTargets(entryPrice, candidate.expiration);
     
     // Calculate stop loss - 50% of premium for all lotto plays
     // (We're BUYING the option, so stop triggers if premium drops 50%)
@@ -410,9 +410,10 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
     // 0-2 DTE = day trade, 3-14 DTE = swing trade, 15+ DTE = position trade
     const holdingTypeLabel = isDayTrade ? 'Day trade' : candidate.daysToExpiry <= 14 ? 'Swing trade' : 'Position trade';
     
-    // Generate analysis with quality context
+    // Generate analysis with quality context and DTE-aware targets
     const qualityContext = `[${quality.grade}] ${quality.signals.slice(0, 3).join(', ')}`;
-    const analysis = `🎰 LOTTO PLAY: ${ticker} ${candidate.optionType.toUpperCase()} $${candidate.strike} expiring ${formatInTimeZone(new Date(candidate.expiration), 'America/Chicago', 'MMM dd, yyyy')} - Far OTM play (Δ ${Math.abs(candidate.delta).toFixed(2)}) targeting 20x return. Entry: $${entryPrice.toFixed(2)}, Target: $${targetPrice.toFixed(2)}. Quality: ${qualityContext}. HIGH RISK: ${optionTypeLabel} option with ${candidate.daysToExpiry}d until expiry. ${holdingTypeLabel} - sized for small account growth ($0.20-$2.00 entry range).`;
+    const targetLabel = dteCategory === '0DTE' ? '4x gamma play' : dteCategory === '1-2DTE' ? '7x short-term' : '15x weekly';
+    const analysis = `🎰 LOTTO PLAY: ${ticker} ${candidate.optionType.toUpperCase()} $${candidate.strike} expiring ${formatInTimeZone(new Date(candidate.expiration), 'America/Chicago', 'MMM dd, yyyy')} - Far OTM play (Δ ${Math.abs(candidate.delta).toFixed(2)}) targeting ${targetMultiplier}x return (${targetLabel}). Entry: $${entryPrice.toFixed(2)}, Target: $${targetPrice.toFixed(2)}. Quality: ${qualityContext}. HIGH RISK: ${optionTypeLabel} option with ${candidate.daysToExpiry}d until expiry. ${holdingTypeLabel} - sized for small account growth ($0.20-$2.00 entry range).`;
 
     // Get entry/exit windows based on DTE (days to expiry)
     const now = new Date();

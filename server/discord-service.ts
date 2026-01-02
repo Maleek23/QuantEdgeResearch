@@ -625,14 +625,19 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
     // Format expiry nicely
     const expiryFormatted = idea.expiryDate || 'N/A';
     
-    // Calculate DTE from expiry
+    // Calculate DTE from expiry and determine target multiplier
     let dteText = 'N/A';
+    let dte = 7; // Default to 7 if unknown
     if (idea.expiryDate) {
       const expiryDate = new Date(idea.expiryDate);
       const now = new Date();
-      const dte = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      dte = Math.max(0, Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
       dteText = `${dte}d`;
     }
+    
+    // DTE-aware target multiplier (matches calculateLottoTargets logic)
+    const targetMultiplier = dte === 0 ? 4 : dte <= 2 ? 7 : 15;
+    const targetLabel = dte === 0 ? 'gamma play' : dte <= 2 ? 'short-term' : 'weekly lotto';
     
     // Calculate potential return
     const potentialReturn = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(0);
@@ -646,7 +651,7 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
     
     const embed: DiscordEmbed = {
       title: `🎰 LOTTO: ${idea.symbol} ${(idea.optionType || 'OPT').toUpperCase()} $${idea.strikePrice}`,
-      description: `**${expiryFormatted} Expiry** (${dteText} DTE)\n\n${sectorText ? `**${sectorText}** sector | ` : ''}${holdingLabel} targeting **${potentialReturn}%** return`,
+      description: `**${expiryFormatted} Expiry** (${dteText} DTE)\n\n${sectorText ? `**${sectorText}** sector | ` : ''}${holdingLabel} - **${targetLabel}** targeting **${potentialReturn}%** return`,
       color,
       fields: [
         {
@@ -655,7 +660,7 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
           inline: true
         },
         {
-          name: '🎯 Target (20x)',
+          name: `🎯 Target (${targetMultiplier}x)`,
           value: `$${idea.targetPrice.toFixed(2)}`,
           inline: true
         },

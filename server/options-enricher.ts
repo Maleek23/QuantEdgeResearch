@@ -156,13 +156,13 @@ export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOpt
     let riskRewardRatio: number;
 
     if (isLotto) {
-      // Lotto plays: 20x targets
-      const lottoTargets = calculateLottoTargets(entryPremium);
+      // Lotto plays: DTE-aware targets (0DTE=4x, 1-2DTE=7x, 3-7DTE=15x)
+      const lottoTargets = calculateLottoTargets(entryPremium, expiryDate);
       targetPremium = lottoTargets.targetPrice;
       riskRewardRatio = lottoTargets.riskRewardRatio;
       // For lotto, risk entire premium (stop = $0.01)
       stopPremium = 0.01;
-      logger.info(`[OPTIONS-ENRICH] 🎰 LOTTO DETECTED: Target 20x ($${targetPremium.toFixed(2)})`);
+      logger.info(`[OPTIONS-ENRICH] 🎰 LOTTO DETECTED (${lottoTargets.dteCategory}): Target ${lottoTargets.targetMultiplier}x ($${targetPremium.toFixed(2)})`);
     } else {
       // 🔧 FIX: OPTIONS PREMIUM TARGETS - You're always BUYING the option!
       // Whether CALL or PUT, you BUY the option and want premium to increase.

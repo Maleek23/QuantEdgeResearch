@@ -399,7 +399,8 @@ async function scanForOpportunities(ticker: string): Promise<LottoOpportunity[]>
  */
 function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): InsertTradeIdea {
   const now = new Date();
-  const { targetPrice, riskRewardRatio } = calculateLottoTargets(opportunity.price);
+  // DTE-aware targets: 0DTE=4x, 1-2DTE=7x, 3-7DTE=15x
+  const { targetPrice, riskRewardRatio, targetMultiplier, dteCategory } = calculateLottoTargets(opportunity.price, opportunity.expiration);
   const stopLoss = opportunity.price * 0.5;
   // Always LONG (buying) options in lotto plays - we BUY calls and puts for leverage
   // CALL = bet stock goes UP, PUT = bet stock goes DOWN, but both are LONG (owned) positions
@@ -413,6 +414,9 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
   
   const entryValidUntil = new Date(now.getTime() + 60 * 60 * 1000);
   
+  // DTE-aware target label for analysis
+  const targetLabel = dteCategory === '0DTE' ? 'gamma play' : dteCategory === '1-2DTE' ? 'short-term' : 'weekly lotto';
+  
   return {
     symbol: opportunity.symbol,
     assetType: 'option',
@@ -425,7 +429,7 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
     qualitySignals: decision.signals,
     probabilityBand: getLetterGrade(decision.confidence),
     catalyst: `🤖 BOT DECISION: ${opportunity.symbol} ${opportunity.optionType.toUpperCase()} $${opportunity.strike} | ${decision.signals.slice(0, 3).join(' | ')}`,
-    analysis: `Auto-Lotto Bot autonomous trade: ${decision.reason}. Entry $${opportunity.price.toFixed(2)}, Target $${targetPrice.toFixed(2)} (20x), Stop $${stopLoss.toFixed(2)} (50%).`,
+    analysis: `Auto-Lotto Bot autonomous trade (${dteCategory} ${targetLabel}): ${decision.reason}. Entry $${opportunity.price.toFixed(2)}, Target $${targetPrice.toFixed(2)} (${targetMultiplier}x), Stop $${stopLoss.toFixed(2)} (50%).`,
     sessionContext: 'Bot autonomous trading',
     holdingPeriod: opportunity.daysToExpiry <= 2 ? 'day' : 'swing',
     source: 'lotto',

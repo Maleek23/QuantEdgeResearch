@@ -53,28 +53,66 @@ export function isLottoCandidate(option: LottoOption): boolean {
 }
 
 /**
- * Calculate Lotto-specific targets (20x return with adjusted R:R)
+ * Calculate Lotto-specific targets with DTE-aware multipliers
  * 
  * For LOTTO plays, you're always BUYING options (calls or puts).
- * - BUY CALL: You want call value to increase 20x (when stock goes up)
- * - BUY PUT: You want put value to increase 20x (when stock goes down)
+ * - BUY CALL: You want call value to increase (when stock goes up)
+ * - BUY PUT: You want put value to increase (when stock goes down)
  * 
- * In both cases, the OPTION PREMIUM target is 20x the entry price.
+ * Target multipliers based on DTE (Days To Expiration):
+ * - 0 DTE: 3x-5x (intraday gamma play, realistic for hours left)
+ * - 1-2 DTE: 5x-10x (overnight/weekend plays)
+ * - 3-7 DTE: 10x-20x (full weekly lotto potential)
  * 
  * @param entryPrice - Option premium entry price
+ * @param expiryDate - Optional expiry date to calculate DTE-aware targets
  * @returns Updated target price and R:R ratio for Lotto plays
  */
-export function calculateLottoTargets(entryPrice: number): {
+export function calculateLottoTargets(entryPrice: number, expiryDate?: string): {
   targetPrice: number;
   riskRewardRatio: number;
+  targetMultiplier: number;
+  dteCategory: '0DTE' | '1-2DTE' | '3-7DTE';
 } {
-  // Lotto plays aim for 20x return on the option premium
-  // This applies to both calls AND puts since you're BUYING the option
-  const targetPrice = entryPrice * 20;
+  // Calculate DTE if expiry date provided
+  let dte = 7; // Default to full weekly if unknown
+  if (expiryDate) {
+    const today = new Date();
+    const expiry = new Date(expiryDate);
+    dte = Math.max(0, Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+  }
+  
+  // DTE-aware target multipliers - realistic for time remaining
+  let targetMultiplier: number;
+  let dteCategory: '0DTE' | '1-2DTE' | '3-7DTE';
+  
+  if (dte === 0) {
+    // 0DTE: Intraday gamma play - only hours left
+    // Realistic 3x-5x target (average 4x)
+    targetMultiplier = 4;
+    dteCategory = '0DTE';
+    logger.info(`[LOTTO] 🔥 0DTE play - using 4x target (${dte}d remaining)`);
+  } else if (dte <= 2) {
+    // 1-2 DTE: Overnight/weekend plays
+    // Medium 5x-10x target (average 7x)
+    targetMultiplier = 7;
+    dteCategory = '1-2DTE';
+    logger.info(`[LOTTO] ⚡ Short-term play - using 7x target (${dte}d remaining)`);
+  } else {
+    // 3-7 DTE: Full weekly lotto potential
+    // High 10x-20x target (average 15x)
+    targetMultiplier = 15;
+    dteCategory = '3-7DTE';
+    logger.info(`[LOTTO] 🎰 Weekly lotto - using 15x target (${dte}d remaining)`);
+  }
+  
+  const targetPrice = entryPrice * targetMultiplier;
   
   return {
     targetPrice,
-    riskRewardRatio: 20.0
+    riskRewardRatio: targetMultiplier,
+    targetMultiplier,
+    dteCategory
   };
 }
 
