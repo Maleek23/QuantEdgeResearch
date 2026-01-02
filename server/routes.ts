@@ -4678,6 +4678,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 🤖 AUTO-LOTTO BOT PERFORMANCE - From paper_positions table
+  // This shows ACTUAL bot executions, not just signal detection
+  app.get("/api/performance/auto-lotto-bot", async (req, res) => {
+    try {
+      // Get all paper portfolios
+      const portfolios = await storage.getAllPaperPortfolios();
+      
+      // Get all positions across all portfolios
+      let allPositions: any[] = [];
+      for (const portfolio of portfolios) {
+        const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+        allPositions = allPositions.concat(positions.map(p => ({ ...p, portfolioName: portfolio.name })));
+      }
+      
+      const closedPositions = allPositions.filter(p => p.status === 'closed');
+      const openPositions = allPositions.filter(p => p.status === 'open');
+      
+      // Calculate overall stats
+      const wins = closedPositions.filter((p: any) => (p.realizedPnL || 0) > 0);
+      const losses = closedPositions.filter((p: any) => (p.realizedPnL || 0) <= 0);
+      const totalPnL = closedPositions.reduce((sum: number, p: any) => sum + (p.realizedPnL || 0), 0);
+      const avgPnL = closedPositions.length > 0 ? totalPnL / closedPositions.length : 0;
+      const winRate = closedPositions.length > 0 ? (wins.length / closedPositions.length) * 100 : 0;
+      
+      // Group by portfolio type
+      const optionsPortfolio = portfolios.find((p: any) => p.name.toLowerCase().includes('options'));
+      const futuresPortfolio = portfolios.find((p: any) => p.name.toLowerCase().includes('futures'));
+      
+      const optionsPositions = closedPositions.filter((p: any) => p.portfolioId === optionsPortfolio?.id);
+      const futuresPositions = closedPositions.filter((p: any) => p.portfolioId === futuresPortfolio?.id);
+      
+      const optionsWins = optionsPositions.filter((p: any) => (p.realizedPnL || 0) > 0);
+      const optionsLosses = optionsPositions.filter((p: any) => (p.realizedPnL || 0) <= 0);
+      const optionsPnL = optionsPositions.reduce((sum: number, p: any) => sum + (p.realizedPnL || 0), 0);
+      
+      const futuresWins = futuresPositions.filter((p: any) => (p.realizedPnL || 0) > 0);
+      const futuresLosses = futuresPositions.filter((p: any) => (p.realizedPnL || 0) <= 0);
+      const futuresPnL = futuresPositions.reduce((sum: number, p: any) => sum + (p.realizedPnL || 0), 0);
+      
+      // Group by exit reason
+      const exitReasonStats: Record<string, { count: number; wins: number; losses: number; totalPnL: number }> = {};
+      closedPositions.forEach((p: any) => {
+        const reason = p.exitReason?.split(':')[0] || 'unknown';
+        if (!exitReasonStats[reason]) {
+          exitReasonStats[reason] = { count: 0, wins: 0, losses: 0, totalPnL: 0 };
+        }
+        exitReasonStats[reason].count++;
+        if ((p.realizedPnL || 0) > 0) exitReasonStats[reason].wins++;
+        else exitReasonStats[reason].losses++;
+        exitReasonStats[reason].totalPnL += p.realizedPnL || 0;
+      });
+      
+      // Best and worst trades
+      const sortedByPnL = [...closedPositions].sort((a: any, b: any) => (b.realizedPnL || 0) - (a.realizedPnL || 0));
+      const bestTrade = sortedByPnL[0];
+      const worstTrade = sortedByPnL[sortedByPnL.length - 1];
+      
+      // Calculate unrealized P&L
+      const totalUnrealizedPnL = openPositions.reduce((sum: number, p: any) => sum + (p.unrealizedPnL || 0), 0);
+      
+      res.json({
+        overall: {
+          totalTrades: closedPositions.length,
+          wins: wins.length,
+          losses: losses.length,
+          winRate: Math.round(winRate * 10) / 10,
+          totalPnL: Math.round(totalPnL * 100) / 100,
+          avgPnL: Math.round(avgPnL * 100) / 100,
+          openPositions: openPositions.length,
+          unrealizedPnL: Math.round(totalUnrealizedPnL * 100) / 100,
+        },
+        options: {
+          totalTrades: optionsPositions.length,
+          wins: optionsWins.length,
+          losses: optionsLosses.length,
+          winRate: optionsPositions.length > 0 ? Math.round((optionsWins.length / optionsPositions.length) * 1000) / 10 : 0,
+          totalPnL: Math.round(optionsPnL * 100) / 100,
+          portfolio: optionsPortfolio,
+        },
+        futures: {
+          totalTrades: futuresPositions.length,
+          wins: futuresWins.length,
+          losses: futuresLosses.length,
+          winRate: futuresPositions.length > 0 ? Math.round((futuresWins.length / futuresPositions.length) * 1000) / 10 : 0,
+          totalPnL: Math.round(futuresPnL * 100) / 100,
+          portfolio: futuresPortfolio,
+        },
+        byExitReason: Object.entries(exitReasonStats).map(([reason, stats]) => ({
+          reason,
+          ...stats,
+          winRate: stats.count > 0 ? Math.round((stats.wins / stats.count) * 1000) / 10 : 0,
+        })),
+        bestTrade: bestTrade ? {
+          symbol: bestTrade.symbol,
+          optionType: bestTrade.optionType,
+          strikePrice: bestTrade.strikePrice,
+          pnl: bestTrade.realizedPnL,
+          pnlPercent: bestTrade.realizedPnLPercent,
+        } : null,
+        worstTrade: worstTrade ? {
+          symbol: worstTrade.symbol,
+          optionType: worstTrade.optionType,
+          strikePrice: worstTrade.strikePrice,
+          pnl: worstTrade.realizedPnL,
+          pnlPercent: worstTrade.realizedPnLPercent,
+        } : null,
+        recentTrades: closedPositions.slice(0, 10).map((p: any) => ({
+          symbol: p.symbol,
+          optionType: p.optionType,
+          strikePrice: p.strikePrice,
+          entryPrice: p.entryPrice,
+          exitPrice: p.exitPrice,
+          quantity: p.quantity,
+          pnl: p.realizedPnL,
+          pnlPercent: p.realizedPnLPercent,
+          exitReason: p.exitReason,
+        })),
+        lastUpdated: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error("Auto-Lotto Bot performance error:", error);
+      res.status(500).json({ error: "Failed to fetch Auto-Lotto Bot performance" });
+    }
+  });
+
   // =========== DATA INTELLIGENCE API ===========
   // Comprehensive endpoint that provides all historical performance data
   // for use across the platform (trade cards, dashboards, etc.)

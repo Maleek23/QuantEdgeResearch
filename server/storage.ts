@@ -354,6 +354,7 @@ export interface IStorage {
   // Paper Trading - Portfolios
   createPaperPortfolio(portfolio: InsertPaperPortfolio): Promise<PaperPortfolio>;
   getPaperPortfoliosByUser(userId: string): Promise<PaperPortfolio[]>;
+  getAllPaperPortfolios(): Promise<PaperPortfolio[]>;
   getPaperPortfolioById(id: string): Promise<PaperPortfolio | undefined>;
   updatePaperPortfolio(id: string, updates: Partial<PaperPortfolio>): Promise<PaperPortfolio | undefined>;
   deletePaperPortfolio(id: string): Promise<boolean>;
@@ -1831,6 +1832,10 @@ export class MemStorage implements IStorage {
     return [];
   }
 
+  async getAllPaperPortfolios(): Promise<PaperPortfolio[]> {
+    return [];
+  }
+
   async getPaperPortfolioById(_id: string): Promise<PaperPortfolio | undefined> {
     return undefined;
   }
@@ -2916,6 +2921,11 @@ export class DatabaseStorage implements IStorage {
   async getPaperPortfoliosByUser(userId: string): Promise<PaperPortfolio[]> {
     return await db.select().from(paperPortfoliosTable)
       .where(eq(paperPortfoliosTable.userId, userId))
+      .orderBy(desc(paperPortfoliosTable.createdAt));
+  }
+
+  async getAllPaperPortfolios(): Promise<PaperPortfolio[]> {
+    return await db.select().from(paperPortfoliosTable)
       .orderBy(desc(paperPortfoliosTable.createdAt));
   }
 

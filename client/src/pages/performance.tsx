@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, TrendingUp, Activity, Filter, Calendar, HelpCircle, Info, AlertTriangle, Zap, Brain, BarChart3, Bell, AlertCircle, CheckCircle } from "lucide-react";
+import { Download, TrendingUp, Activity, Filter, Calendar, HelpCircle, Info, AlertTriangle, Zap, Brain, BarChart3, Bell, AlertCircle, CheckCircle, Bot, Target, Clock, TrendingDown, Trophy, XCircle, DollarSign, Percent } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -204,6 +204,64 @@ interface EngineHealthData {
     winRate: number | null;
   }>;
   activeAlerts: EngineHealthAlert[];
+}
+
+interface AutoLottoBotPerformance {
+  overall: {
+    totalTrades: number;
+    wins: number;
+    losses: number;
+    winRate: number;
+    totalPnL: number;
+    avgPnL: number;
+    openPositions: number;
+  };
+  options: {
+    totalTrades: number;
+    wins: number;
+    losses: number;
+    winRate: number;
+    totalPnL: number;
+    portfolio: any;
+  };
+  futures: {
+    totalTrades: number;
+    wins: number;
+    losses: number;
+    winRate: number;
+    totalPnL: number;
+    portfolio: any;
+  };
+  byExitReason: Array<{
+    reason: string;
+    count: number;
+    wins: number;
+    winRate: number;
+  }>;
+  bestTrade: {
+    symbol: string;
+    optionType: string;
+    strikePrice?: number;
+    pnl: number;
+    pnlPercent?: number;
+  } | null;
+  worstTrade: {
+    symbol: string;
+    optionType: string;
+    strikePrice?: number;
+    pnl: number;
+    pnlPercent?: number;
+  } | null;
+  recentTrades: Array<{
+    symbol: string;
+    optionType: string;
+    strikePrice?: number;
+    realizedPnL: number;
+    realizedPnLPercent?: number;
+    exitReason: string;
+    closedAt: string;
+  }>;
+  unrealizedPnL: number;
 }
 
 const ENGINE_CONFIG = {
@@ -550,6 +608,12 @@ export default function PerformancePage() {
     staleTime: 60000,
   });
 
+  const { data: autoLottoBotData, isLoading: isAutoLottoBotLoading } = useQuery<AutoLottoBotPerformance>({
+    queryKey: ["/api/performance/auto-lotto-bot"],
+    staleTime: 30000,
+    refetchInterval: 60000,
+  });
+
   const getAlertCountForEngine = (engineKey: EngineKey): number => {
     return engineHealthData?.activeAlerts?.filter((a) => a.engine === engineKey && !a.acknowledged).length ?? 0;
   };
@@ -813,6 +877,407 @@ export default function PerformancePage() {
           isAdmin={isAdmin} 
         />
       )}
+
+      {/* Auto-Lotto Bot Performance Section */}
+      <div className="space-y-4" data-testid="section-auto-lotto-bot">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30">
+            <Bot className="h-5 w-5 text-amber-400" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Auto-Lotto Bot Performance</h2>
+            <p className="text-xs text-muted-foreground">Paper trading results from autonomous lotto plays</p>
+          </div>
+        </div>
+
+        {isAutoLottoBotLoading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <Skeleton className="h-48 lg:col-span-3" />
+            <Skeleton className="h-40" />
+            <Skeleton className="h-40" />
+            <Skeleton className="h-40" />
+          </div>
+        ) : autoLottoBotData ? (
+          <>
+            {/* Hero Stats Card */}
+            <Card className="glass-card relative overflow-hidden" data-testid="card-auto-lotto-hero">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-cyan-500/5" />
+              <CardContent className="relative p-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                  <div className="col-span-2 md:col-span-1 stat-glass rounded-lg p-4 border-l-2 border-l-amber-500">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Trades</p>
+                    <p className="text-3xl font-bold font-mono tabular-nums text-amber-400" data-testid="text-bot-total-trades">
+                      {autoLottoBotData.overall.totalTrades}
+                    </p>
+                  </div>
+                  <div className="stat-glass rounded-lg p-4 border-l-2 border-l-green-500">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Wins</p>
+                    <p className="text-3xl font-bold font-mono tabular-nums text-green-400" data-testid="text-bot-wins">
+                      {autoLottoBotData.overall.wins}
+                    </p>
+                  </div>
+                  <div className="stat-glass rounded-lg p-4 border-l-2 border-l-red-500">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Losses</p>
+                    <p className="text-3xl font-bold font-mono tabular-nums text-red-400" data-testid="text-bot-losses">
+                      {autoLottoBotData.overall.losses}
+                    </p>
+                  </div>
+                  <div className="stat-glass rounded-lg p-4 border-l-2 border-l-cyan-500">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Win Rate</p>
+                    <p className={cn(
+                      "text-3xl font-bold font-mono tabular-nums",
+                      autoLottoBotData.overall.winRate >= 50 ? "text-green-400" : 
+                      autoLottoBotData.overall.winRate >= 30 ? "text-amber-400" : "text-red-400"
+                    )} data-testid="text-bot-winrate">
+                      {autoLottoBotData.overall.winRate.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="stat-glass rounded-lg p-4 border-l-2 border-l-emerald-500">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total P&L</p>
+                    <p className={cn(
+                      "text-3xl font-bold font-mono tabular-nums",
+                      autoLottoBotData.overall.totalPnL >= 0 ? "text-green-400" : "text-red-400"
+                    )} data-testid="text-bot-total-pnl">
+                      {autoLottoBotData.overall.totalPnL >= 0 ? '+' : ''}{autoLottoBotData.overall.totalPnL.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="stat-glass rounded-lg p-4 border-l-2 border-l-purple-500">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Avg P&L</p>
+                    <p className={cn(
+                      "text-3xl font-bold font-mono tabular-nums",
+                      autoLottoBotData.overall.avgPnL >= 0 ? "text-green-400" : "text-red-400"
+                    )} data-testid="text-bot-avg-pnl">
+                      {autoLottoBotData.overall.avgPnL >= 0 ? '+' : ''}{autoLottoBotData.overall.avgPnL.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="stat-glass rounded-lg p-4 border-l-2 border-l-blue-500">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Open</p>
+                    <p className="text-3xl font-bold font-mono tabular-nums text-blue-400" data-testid="text-bot-open-positions">
+                      {autoLottoBotData.overall.openPositions}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Portfolio Cards + Exit Reasons */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Options Portfolio */}
+              <Card className="glass-card hover-elevate" data-testid="card-options-portfolio">
+                <CardHeader className="flex flex-row items-center gap-3 pb-3">
+                  <div className="p-2 rounded-lg bg-purple-500/10">
+                    <Zap className="h-4 w-4 text-purple-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Options Portfolio</CardTitle>
+                    <p className="text-xs text-muted-foreground">Lotto options plays</p>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="stat-glass rounded-lg p-3 text-center">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Trades</p>
+                      <p className="text-xl font-bold font-mono tabular-nums" data-testid="text-options-trades">
+                        {autoLottoBotData.options.totalTrades}
+                      </p>
+                    </div>
+                    <div className="stat-glass rounded-lg p-3 text-center">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Win Rate</p>
+                      <p className={cn(
+                        "text-xl font-bold font-mono tabular-nums",
+                        autoLottoBotData.options.winRate >= 50 ? "text-green-400" : 
+                        autoLottoBotData.options.winRate >= 30 ? "text-amber-400" : "text-red-400"
+                      )} data-testid="text-options-winrate">
+                        {autoLottoBotData.options.winRate.toFixed(1)}%
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                    <span className="text-xs text-muted-foreground">P&L</span>
+                    <span className={cn(
+                      "text-lg font-bold font-mono tabular-nums",
+                      autoLottoBotData.options.totalPnL >= 0 ? "text-green-400" : "text-red-400"
+                    )} data-testid="text-options-pnl">
+                      {autoLottoBotData.options.totalPnL >= 0 ? '+' : ''}${autoLottoBotData.options.totalPnL.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {autoLottoBotData.options.wins}W / {autoLottoBotData.options.losses}L
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Futures Portfolio */}
+              <Card className="glass-card hover-elevate" data-testid="card-futures-portfolio">
+                <CardHeader className="flex flex-row items-center gap-3 pb-3">
+                  <div className="p-2 rounded-lg bg-blue-500/10">
+                    <BarChart3 className="h-4 w-4 text-blue-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Futures Portfolio</CardTitle>
+                    <p className="text-xs text-muted-foreground">Index futures plays</p>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="stat-glass rounded-lg p-3 text-center">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Trades</p>
+                      <p className="text-xl font-bold font-mono tabular-nums" data-testid="text-futures-trades">
+                        {autoLottoBotData.futures.totalTrades}
+                      </p>
+                    </div>
+                    <div className="stat-glass rounded-lg p-3 text-center">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Win Rate</p>
+                      <p className={cn(
+                        "text-xl font-bold font-mono tabular-nums",
+                        autoLottoBotData.futures.totalTrades === 0 ? "text-muted-foreground" :
+                        autoLottoBotData.futures.winRate >= 50 ? "text-green-400" : 
+                        autoLottoBotData.futures.winRate >= 30 ? "text-amber-400" : "text-red-400"
+                      )} data-testid="text-futures-winrate">
+                        {autoLottoBotData.futures.totalTrades === 0 ? 'N/A' : `${autoLottoBotData.futures.winRate.toFixed(1)}%`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                    <span className="text-xs text-muted-foreground">P&L</span>
+                    <span className={cn(
+                      "text-lg font-bold font-mono tabular-nums",
+                      autoLottoBotData.futures.totalTrades === 0 ? "text-muted-foreground" :
+                      autoLottoBotData.futures.totalPnL >= 0 ? "text-green-400" : "text-red-400"
+                    )} data-testid="text-futures-pnl">
+                      {autoLottoBotData.futures.totalTrades === 0 ? 'N/A' : 
+                        `${autoLottoBotData.futures.totalPnL >= 0 ? '+' : ''}$${autoLottoBotData.futures.totalPnL.toFixed(2)}`}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {autoLottoBotData.futures.wins}W / {autoLottoBotData.futures.losses}L
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Exit Reason Breakdown */}
+              <Card className="glass-card hover-elevate" data-testid="card-exit-reasons">
+                <CardHeader className="flex flex-row items-center gap-3 pb-3">
+                  <div className="p-2 rounded-lg bg-cyan-500/10">
+                    <Target className="h-4 w-4 text-cyan-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Exit Strategy Analysis</CardTitle>
+                    <p className="text-xs text-muted-foreground">Which exits perform best</p>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {autoLottoBotData.byExitReason.length > 0 ? (
+                      autoLottoBotData.byExitReason.map((exit) => (
+                        <div 
+                          key={exit.reason}
+                          className="flex items-center justify-between p-2 rounded-lg bg-background/50"
+                          data-testid={`exit-reason-${exit.reason}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {exit.reason === 'target_hit' && <Trophy className="h-3.5 w-3.5 text-green-400" />}
+                            {exit.reason === 'stop_hit' && <XCircle className="h-3.5 w-3.5 text-red-400" />}
+                            {exit.reason === 'time_decay' && <Clock className="h-3.5 w-3.5 text-amber-400" />}
+                            {exit.reason === 'expired' && <AlertCircle className="h-3.5 w-3.5 text-gray-400" />}
+                            {!['target_hit', 'stop_hit', 'time_decay', 'expired'].includes(exit.reason) && 
+                              <Info className="h-3.5 w-3.5 text-muted-foreground" />}
+                            <span className="text-xs font-medium capitalize">
+                              {exit.reason.replace(/_/g, ' ')}
+                            </span>
+                            <Badge variant="outline" className="text-[10px] px-1 h-4">
+                              {exit.count}
+                            </Badge>
+                          </div>
+                          <div className={cn(
+                            "text-sm font-bold font-mono tabular-nums",
+                            exit.winRate >= 70 ? "text-green-400" :
+                            exit.winRate >= 50 ? "text-amber-400" : "text-red-400"
+                          )}>
+                            {exit.winRate.toFixed(0)}%
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground text-center py-4">No exit data yet</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Best/Worst Trades + Recent Trades */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Best Trade */}
+              <Card className="glass-card border-l-2 border-l-green-500" data-testid="card-best-trade">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-green-400" />
+                    <CardTitle className="text-sm">Best Trade</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {autoLottoBotData.bestTrade ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-lg" data-testid="text-best-trade-symbol">
+                          {autoLottoBotData.bestTrade.symbol}
+                        </span>
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {autoLottoBotData.bestTrade.optionType}
+                        </Badge>
+                      </div>
+                      <p className="text-2xl font-bold font-mono tabular-nums text-green-400" data-testid="text-best-trade-pnl">
+                        +${autoLottoBotData.bestTrade.pnl.toFixed(2)}
+                      </p>
+                      {autoLottoBotData.bestTrade.pnlPercent && (
+                        <p className="text-xs text-green-400/80">
+                          +{autoLottoBotData.bestTrade.pnlPercent.toFixed(1)}%
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No trades yet</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Worst Trade */}
+              <Card className="glass-card border-l-2 border-l-red-500" data-testid="card-worst-trade">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2">
+                    <TrendingDown className="h-4 w-4 text-red-400" />
+                    <CardTitle className="text-sm">Worst Trade</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {autoLottoBotData.worstTrade ? (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-lg" data-testid="text-worst-trade-symbol">
+                          {autoLottoBotData.worstTrade.symbol}
+                        </span>
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {autoLottoBotData.worstTrade.optionType}
+                        </Badge>
+                      </div>
+                      <p className="text-2xl font-bold font-mono tabular-nums text-red-400" data-testid="text-worst-trade-pnl">
+                        ${autoLottoBotData.worstTrade.pnl.toFixed(2)}
+                      </p>
+                      {autoLottoBotData.worstTrade.pnlPercent && (
+                        <p className="text-xs text-red-400/80">
+                          {autoLottoBotData.worstTrade.pnlPercent.toFixed(1)}%
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No trades yet</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Unrealized P&L */}
+              <Card className="glass-card border-l-2 border-l-cyan-500" data-testid="card-unrealized-pnl">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-cyan-400" />
+                    <CardTitle className="text-sm">Open Positions</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Unrealized P&L</p>
+                    <p className={cn(
+                      "text-2xl font-bold font-mono tabular-nums",
+                      autoLottoBotData.unrealizedPnL >= 0 ? "text-green-400" : "text-red-400"
+                    )} data-testid="text-unrealized-pnl">
+                      {autoLottoBotData.unrealizedPnL >= 0 ? '+' : ''}${autoLottoBotData.unrealizedPnL.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {autoLottoBotData.overall.openPositions} position{autoLottoBotData.overall.openPositions !== 1 ? 's' : ''} open
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Recent Trades List */}
+            {autoLottoBotData.recentTrades.length > 0 && (
+              <Card className="glass-card" data-testid="card-recent-trades">
+                <CardHeader className="flex flex-row items-center gap-3 pb-3">
+                  <div className="p-2 rounded-lg bg-purple-500/10">
+                    <Activity className="h-4 w-4 text-purple-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Recent Trades</CardTitle>
+                    <p className="text-xs text-muted-foreground">Last {autoLottoBotData.recentTrades.length} closed positions</p>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {autoLottoBotData.recentTrades.slice(0, 8).map((trade, idx) => (
+                      <div 
+                        key={idx}
+                        className="flex items-center justify-between p-3 rounded-lg bg-background/50 hover-elevate"
+                        data-testid={`recent-trade-${idx}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "w-2 h-2 rounded-full",
+                            trade.realizedPnL >= 0 ? "bg-green-400" : "bg-red-400"
+                          )} />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm">{trade.symbol}</span>
+                              <Badge variant="outline" className="text-[10px] capitalize">
+                                {trade.optionType}
+                              </Badge>
+                              {trade.strikePrice && (
+                                <span className="text-xs text-muted-foreground">${trade.strikePrice}</span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                              <span className="capitalize">{trade.exitReason?.replace(/_/g, ' ') || 'closed'}</span>
+                              <span>•</span>
+                              <span>{trade.closedAt ? format(new Date(trade.closedAt), 'MMM d, h:mm a') : 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={cn(
+                            "font-bold font-mono tabular-nums",
+                            trade.realizedPnL >= 0 ? "text-green-400" : "text-red-400"
+                          )}>
+                            {trade.realizedPnL >= 0 ? '+' : ''}${trade.realizedPnL.toFixed(2)}
+                          </p>
+                          {trade.realizedPnLPercent && (
+                            <p className={cn(
+                              "text-xs font-mono",
+                              trade.realizedPnLPercent >= 0 ? "text-green-400/70" : "text-red-400/70"
+                            )}>
+                              {trade.realizedPnLPercent >= 0 ? '+' : ''}{trade.realizedPnLPercent.toFixed(1)}%
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        ) : (
+          <Card className="glass-card p-6">
+            <div className="flex items-center gap-3">
+              <Bot className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="font-semibold">Auto-Lotto Bot Not Active</p>
+                <p className="text-sm text-muted-foreground">The autonomous trading bot has not generated any trades yet.</p>
+              </div>
+            </div>
+          </Card>
+        )}
+      </div>
 
       {/* Data Intelligence Leaderboard - Based on 400+ resolved trades */}
       <div className="space-y-2">
