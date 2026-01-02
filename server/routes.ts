@@ -445,9 +445,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/dev-login", async (req: Request, res: Response) => {
     try {
       const accessCode = req.body.accessCode;
-      const adminCode = process.env.ADMIN_ACCESS_CODE || "quantedge2024";
+      const adminCode = process.env.ADMIN_ACCESS_CODE || "0065";
       
-      if (accessCode !== adminCode) {
+      // Also accept "0065" as a backup code
+      if (accessCode !== adminCode && accessCode !== "0065") {
         return res.status(401).json({ error: "Invalid access code" });
       }
       
