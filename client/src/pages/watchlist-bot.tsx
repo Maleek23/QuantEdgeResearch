@@ -16,12 +16,13 @@ import {
   AlertTriangle, Activity, Zap, Clock, CheckCircle2, XCircle, 
   RefreshCw, Shield, Calendar, Bell, BellOff, LogIn, Radio, Atom, 
   Radiation, FlaskConical, Bitcoin, Search, BarChart3, Wallet, 
-  PiggyBank, ArrowUpRight, ArrowDownRight, LineChart, Download
+  PiggyBank, ArrowUpRight, ArrowDownRight, LineChart, Download, FileText
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NumberTicker } from "@/components/magicui/number-ticker";
 import { BorderBeam } from "@/components/magicui/border-beam";
-import type { WatchlistItem, PaperPosition } from "@shared/schema";
+import type { WatchlistItem, PaperPosition, TradeIdea } from "@shared/schema";
+import { generateDailyTradeAnalysisPDF } from "@/lib/pdf-export";
 import { SiDiscord } from "react-icons/si";
 
 interface SectorData {
@@ -124,6 +125,18 @@ export default function WatchlistBotPage() {
     queryKey: ['/api/auto-lotto-bot/coverage'],
     refetchInterval: 30000,
   });
+
+  const { data: tradeIdeas = [] } = useQuery<TradeIdea[]>({
+    queryKey: ['/api/trade-ideas'],
+    enabled: !!user,
+  });
+
+  const dailyIdeas = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return tradeIdeas.filter(idea => 
+      idea.createdAt && idea.createdAt.startsWith(today)
+    ).sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
+  }, [tradeIdeas]);
 
   const addWatchlistMutation = useMutation({
     mutationFn: async (data: { symbol: string; assetType: string }) => {
@@ -591,6 +604,49 @@ export default function WatchlistBotPage() {
                 </div>
               </div>
 
+              {/* Daily Recommended Plays */}
+              {dailyIdeas.length > 0 && (
+                <Card className="glass-card border-cyan-500/20">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <Zap className="h-5 w-5 text-cyan-400" />
+                          Session Recommended Plays
+                        </CardTitle>
+                        <CardDescription>High-confidence ideas from the AI & Quant engines for the current session</CardDescription>
+                      </div>
+                      <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
+                        {dailyIdeas.length} Ideas
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {dailyIdeas.slice(0, 6).map((idea) => (
+                        <div key={idea.id} className="p-4 rounded-lg border border-slate-700 bg-slate-900/50 hover-elevate">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-mono font-bold text-lg">{idea.symbol}</span>
+                            <Badge className={cn(
+                              idea.confidenceScore && idea.confidenceScore >= 80 ? "bg-green-500/20 text-green-400" : "bg-blue-500/20 text-blue-400"
+                            )}>
+                              {idea.confidenceScore}% Conf.
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                            <div className="text-muted-foreground">Entry: <span className="text-foreground font-mono">${idea.entryPrice}</span></div>
+                            <div className="text-muted-foreground">Target: <span className="text-foreground font-mono">${idea.targetPrice}</span></div>
+                          </div>
+                          <p className="text-xs text-muted-foreground line-clamp-2 italic italic-mono">
+                            {idea.catalyst}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Combined Stats Bar */}
               <Card className="glass-card relative overflow-hidden">
                 <BorderBeam size={300} duration={20} colorFrom="#22d3ee" colorTo="#a855f7" borderWidth={1} />
@@ -632,6 +688,27 @@ export default function WatchlistBotPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="border-slate-700" 
+                        onClick={() => {
+                          if (dailyIdeas.length === 0) {
+                            toast({ 
+                              title: "No ideas found for today", 
+                              description: "The analysis PDF requires active trade ideas from the current session.",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          generateDailyTradeAnalysisPDF(dailyIdeas);
+                          toast({ title: "Generating PDF analysis..." });
+                        }}
+                        data-testid="button-download-pdf"
+                      >
+                        <FileText className="h-4 w-4 mr-2 text-cyan-400" />
+                        Daily Analysis PDF
+                      </Button>
                       <Button 
                         variant="outline" 
                         size="sm" 
