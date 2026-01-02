@@ -7333,11 +7333,12 @@ FORMATTING:
           
           const history = await getTradierHistoryOHLC(req.body.symbol, 60);
           
-          if (history && history.length >= 20) {
-            const prices = history.map((h: any) => h.close);
-            const highs = history.map((h: any) => h.high);
-            const lows = history.map((h: any) => h.low);
-            const volumes = history.map((h: any) => h.volume);
+          // getTradierHistoryOHLC returns { opens, highs, lows, closes, dates }
+          if (history && history.closes && history.closes.length >= 20) {
+            const prices = history.closes;
+            const highs = history.highs;
+            const lows = history.lows;
+            const volumes = history.closes.map(() => 1000000); // Volume not in OHLC, use placeholder
             
             const quantSignals = calculateEnhancedSignalScore(prices, highs, lows, volumes);
             const currentPrice = prices[prices.length - 1];
