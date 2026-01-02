@@ -16,12 +16,12 @@ import {
   AlertTriangle, Activity, Zap, Clock, CheckCircle2, XCircle, 
   RefreshCw, Shield, Calendar, Bell, BellOff, LogIn, Radio, Atom, 
   Radiation, FlaskConical, Bitcoin, Search, BarChart3, Wallet, 
-  PiggyBank, ArrowUpRight, ArrowDownRight, LineChart, Download, Lightbulb
+  PiggyBank, ArrowUpRight, ArrowDownRight, LineChart, Download
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NumberTicker } from "@/components/magicui/number-ticker";
 import { BorderBeam } from "@/components/magicui/border-beam";
-import type { WatchlistItem, PaperPosition, TradeIdea } from "@shared/schema";
+import type { WatchlistItem, PaperPosition } from "@shared/schema";
 import { SiDiscord } from "react-icons/si";
 
 interface SectorData {
@@ -124,77 +124,6 @@ export default function WatchlistBotPage() {
     queryKey: ['/api/auto-lotto-bot/coverage'],
     refetchInterval: 30000,
   });
-
-  // Fetch trade ideas to show recent wins (these are what Discord alerts show)
-  const { data: tradeIdeas = [] } = useQuery<TradeIdea[]>({
-    queryKey: ['/api/trade-ideas'],
-    staleTime: 60000,
-  });
-
-  // Get recent winning trade ideas (last 7 days, hit_target) - split by source
-  // Bot Wins now uses ACTUAL paper positions for real P&L, not theoretical targets
-  const { botWins, ideaWins, botWinsPnL, ideaWinsPnL } = useMemo(() => {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    // Bot Wins - from actual paper positions with REAL realized P&L
-    const allBotPositions = [
-      ...(botData?.positions || []),
-      ...(botData?.futuresPositions || [])
-    ];
-    const closedWinningPositions = allBotPositions
-      .filter(pos => 
-        pos.status === 'closed' && 
-        (pos.realizedPnL || 0) > 0 &&
-        pos.exitTime &&
-        new Date(pos.exitTime) >= sevenDaysAgo
-      )
-      .sort((a, b) => new Date(b.exitTime!).getTime() - new Date(a.exitTime!).getTime())
-      .slice(0, 10);
-    
-    // Convert positions to display format with ACTUAL P&L
-    const botWinsArr = closedWinningPositions.map(pos => ({
-      id: pos.id,
-      symbol: pos.symbol,
-      assetType: pos.assetType,
-      optionType: pos.optionType,
-      strikePrice: pos.strikePrice,
-      direction: pos.direction,
-      // Use ACTUAL realized P&L percent, fallback to calculation from entry/exit
-      percentGain: pos.realizedPnLPercent || 
-        (pos.exitPrice && pos.entryPrice ? 
-          ((pos.exitPrice - pos.entryPrice) / pos.entryPrice) * 100 : 0),
-      exitDate: pos.exitTime,
-      realizedPnL: pos.realizedPnL || 0,
-    }));
-    
-    // Calculate total using ACTUAL realized P&L percentages
-    const botPnL = botWinsArr.reduce((sum, pos) => sum + (pos.percentGain || 0), 0);
-    
-    // Research Idea Wins - AI/Quant generated ideas that hit targets (not bot-traded)
-    const allWins = tradeIdeas
-      .filter(idea => 
-        idea.outcomeStatus === 'hit_target' && 
-        idea.exitDate && 
-        new Date(idea.exitDate) >= sevenDaysAgo &&
-        // Exclude lotto/bot source - those are shown in Bot Wins
-        idea.source !== 'lotto' && idea.source !== 'bot' &&
-        // Filter out invalid trades with broken percentGain
-        (idea.percentGain === null || idea.percentGain === undefined || 
-          (idea.percentGain >= 0 && idea.percentGain <= 500))
-      )
-      .sort((a, b) => new Date(b.exitDate!).getTime() - new Date(a.exitDate!).getTime())
-      .slice(0, 10);
-    
-    const ideaPnL = allWins.reduce((sum, idea) => sum + (idea.percentGain || 0), 0);
-    
-    return { 
-      botWins: botWinsArr, 
-      ideaWins: allWins,
-      botWinsPnL: botPnL,
-      ideaWinsPnL: ideaPnL
-    };
-  }, [tradeIdeas, botData?.positions, botData?.futuresPositions]);
 
   const addWatchlistMutation = useMutation({
     mutationFn: async (data: { symbol: string; assetType: string }) => {
@@ -622,165 +551,108 @@ export default function WatchlistBotPage() {
                 </Card>
               )}
 
-              {/* Bot Wins - Auto-Executed Trades */}
-              {botWins.length > 0 && (
-                <Card className="glass-card border-pink-500/20 bg-pink-500/5">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-lg bg-pink-500/20 flex items-center justify-center">
-                          <Bot className="h-4 w-4 text-pink-400" />
-                        </div>
-                        Bot Wins (Auto-Executed)
-                        <Badge variant="outline" className="text-xs bg-pink-500/10 text-pink-400 border-pink-500/30">
-                          {botWins.length} Trades
-                        </Badge>
-                      </CardTitle>
-                      <div className="text-right">
-                        <span className="font-mono font-bold text-green-400">
-                          +{botWinsPnL.toFixed(1)}%
-                        </span>
-                        <p className="text-[10px] text-muted-foreground">Total Gain</p>
-                      </div>
-                    </div>
-                    <CardDescription>
-                      Trades actually executed by the Auto-Lotto Bot with realized P&L
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <ScrollArea className="h-[200px]">
-                      <div className="space-y-2">
-                        {botWins.map((idea) => (
-                          <div 
-                            key={idea.id} 
-                            className="flex items-center justify-between p-3 rounded-lg border border-pink-500/20 bg-card/50 hover-elevate"
-                            data-testid={`bot-win-${idea.id}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={cn(
-                                "p-2 rounded",
-                                idea.assetType === 'option' ? "bg-purple-500/10" : 
-                                idea.assetType === 'crypto' ? "bg-amber-500/10" : "bg-cyan-500/10"
-                              )}>
-                                {idea.assetType === 'option' ? (
-                                  <Target className="h-4 w-4 text-purple-400" />
-                                ) : idea.assetType === 'crypto' ? (
-                                  <Bitcoin className="h-4 w-4 text-amber-400" />
-                                ) : (
-                                  <TrendingUp className="h-4 w-4 text-cyan-400" />
-                                )}
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-mono font-bold">{idea.symbol}</span>
-                                  {idea.optionType && (
-                                    <Badge variant="outline" className="text-[10px] px-1 py-0">
-                                      {idea.optionType.toUpperCase()} ${idea.strikePrice}
-                                    </Badge>
-                                  )}
-                                  <Badge variant="outline" className="text-[10px] px-1 py-0 bg-pink-500/10 text-pink-400 border-pink-500/30">
-                                    <Bot className="h-2 w-2 mr-0.5" />
-                                    AUTO
-                                  </Badge>
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                  {idea.direction?.toUpperCase()}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <span className="font-mono font-bold text-green-400">
-                                +{(idea.percentGain || 25).toFixed(1)}%
-                              </span>
-                              <p className="text-[10px] text-muted-foreground">
-                                {idea.exitDate && new Date(idea.exitDate).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-              )}
+              {/* Bot Status Bar with Futures Indicator */}
+              <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-lg bg-slate-800/30 border border-slate-700/50">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center">
+                    <Bot className="h-4 w-4 text-pink-400" />
+                  </div>
+                  <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/30">
+                    <Activity className="h-3 w-3 mr-1" />
+                    Bot {botData.botStatus}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Checks every 5 min during market hours
+                  </span>
+                  <div className="h-4 w-px bg-slate-700" />
+                  <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-400 border-purple-500/30">
+                    <Target className="h-3 w-3 mr-1" />
+                    Options
+                  </Badge>
+                  <Badge variant="outline" className="text-xs bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
+                    <BarChart3 className="h-3 w-3 mr-1" />
+                    Futures
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {showMetrics ? `${botData.stats?.wins ?? 0}W / ${botData.stats?.losses ?? 0}L` : `${closedCount}/${sampleSize}`}
+                  </span>
+                  {showMetrics && botData.stats?.winRate !== null && (
+                    <Badge className={cn(
+                      "font-mono text-xs",
+                      parseFloat(botData.stats?.winRate || '0') >= 50 
+                        ? "bg-green-500/20 text-green-400" 
+                        : "bg-red-500/20 text-red-400"
+                    )}>
+                      {botData.stats?.winRate}% Win
+                    </Badge>
+                  )}
+                </div>
+              </div>
 
-              {/* Research Idea Wins - AI/Quant Generated */}
-              {ideaWins.length > 0 && (
-                <Card className="glass-card border-amber-500/20 bg-amber-500/5">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                          <Lightbulb className="h-4 w-4 text-amber-400" />
+              {/* Combined Stats Bar */}
+              <Card className="glass-card relative overflow-hidden">
+                <BorderBeam size={300} duration={20} colorFrom="#22d3ee" colorTo="#a855f7" borderWidth={1} />
+                <CardContent className="p-4 relative z-10">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-6">
+                      <div className="text-center">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Combined Value</p>
+                        {showMetrics ? (
+                          <div className="text-xl font-bold font-mono tabular-nums text-cyan-400" data-testid="text-combined-balance">
+                            <NumberTicker 
+                              value={accountBalance + ((botData.futuresPortfolio?.startingCapital || 300) + (botData.futuresPortfolio?.totalPnL || 0))} 
+                              prefix="$"
+                              decimalPlaces={2}
+                              className="text-cyan-400"
+                            />
+                          </div>
+                        ) : (
+                          <p className="text-lg text-muted-foreground">Hidden</p>
+                        )}
+                      </div>
+                      <div className="h-8 w-px bg-slate-700" />
+                      <div className="text-center">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Day's P&L</p>
+                        {showMetrics ? (
+                          <div className={cn("text-xl font-bold font-mono tabular-nums", todaysPnL >= 0 ? "text-green-400" : "text-red-400")} data-testid="text-days-pnl">
+                            {todaysPnL >= 0 ? '+' : ''}<NumberTicker value={Math.abs(todaysPnL)} prefix="$" decimalPlaces={2} />
+                          </div>
+                        ) : (
+                          <p className="text-lg text-muted-foreground">Hidden</p>
+                        )}
+                      </div>
+                      <div className="h-8 w-px bg-slate-700" />
+                      <div className="text-center">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Trades</p>
+                        <div className="text-xl font-bold font-mono tabular-nums">
+                          <NumberTicker value={closedCount + (botData.futuresPortfolio?.closedPositions || 0)} />
                         </div>
-                        Research Idea Wins
-                        <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/30">
-                          {ideaWins.length} Ideas
-                        </Badge>
-                      </CardTitle>
-                      <div className="text-right">
-                        <span className="font-mono font-bold text-green-400">
-                          +{ideaWinsPnL.toFixed(1)}%
-                        </span>
-                        <p className="text-[10px] text-muted-foreground">Total Gain</p>
                       </div>
                     </div>
-                    <CardDescription>
-                      AI/Quant generated ideas that hit targets (not auto-traded by bot)
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <ScrollArea className="h-[200px]">
-                      <div className="space-y-2">
-                        {ideaWins.map((idea) => (
-                          <div 
-                            key={idea.id} 
-                            className="flex items-center justify-between p-3 rounded-lg border border-amber-500/20 bg-card/50 hover-elevate"
-                            data-testid={`idea-win-${idea.id}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={cn(
-                                "p-2 rounded",
-                                idea.assetType === 'option' ? "bg-purple-500/10" : 
-                                idea.assetType === 'crypto' ? "bg-amber-500/10" : "bg-cyan-500/10"
-                              )}>
-                                {idea.assetType === 'option' ? (
-                                  <Target className="h-4 w-4 text-purple-400" />
-                                ) : idea.assetType === 'crypto' ? (
-                                  <Bitcoin className="h-4 w-4 text-amber-400" />
-                                ) : (
-                                  <TrendingUp className="h-4 w-4 text-cyan-400" />
-                                )}
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-mono font-bold">{idea.symbol}</span>
-                                  {idea.optionType && (
-                                    <Badge variant="outline" className="text-[10px] px-1 py-0">
-                                      {idea.optionType.toUpperCase()} ${idea.strikePrice}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <p className="text-xs text-muted-foreground">
-                                  {idea.source === 'ai' ? 'AI Engine' : idea.source === 'chart_analysis' ? 'Chart Analysis' : idea.source === 'quant' ? 'Quant Engine' : idea.source === 'flow' ? 'Flow Scanner' : 'Research'} • {idea.direction?.toUpperCase()}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <span className="font-mono font-bold text-green-400">
-                                +{(idea.percentGain || 25).toFixed(1)}%
-                              </span>
-                              <p className="text-[10px] text-muted-foreground">
-                                {idea.exitDate && new Date(idea.exitDate).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-              )}
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="border-slate-700" 
+                        onClick={() => {
+                          window.open('/api/audit/auto-lotto-bot?format=csv', '_blank');
+                          toast({ title: "Downloading trade audit data..." });
+                        }}
+                        data-testid="button-download-trades"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Export All
+                      </Button>
+                      <Button variant="outline" size="sm" className="border-slate-700" onClick={() => refetchBot()} data-testid="button-refresh-bot">
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Refresh
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Dual Portfolio Header - Options & Futures */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -890,69 +762,6 @@ export default function WatchlistBotPage() {
                   </CardContent>
                 </Card>
               </div>
-
-              {/* Combined Stats Bar */}
-              <Card className="glass-card relative overflow-hidden">
-                <BorderBeam size={300} duration={20} colorFrom="#22d3ee" colorTo="#a855f7" borderWidth={1} />
-                <CardContent className="p-4 relative z-10">
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-6">
-                      <div className="text-center">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Combined Value</p>
-                        {showMetrics ? (
-                          <div className="text-xl font-bold font-mono tabular-nums text-cyan-400" data-testid="text-combined-balance">
-                            <NumberTicker 
-                              value={accountBalance + ((botData.futuresPortfolio?.startingCapital || 300) + (botData.futuresPortfolio?.totalPnL || 0))} 
-                              prefix="$"
-                              decimalPlaces={2}
-                              className="text-cyan-400"
-                            />
-                          </div>
-                        ) : (
-                          <p className="text-lg text-muted-foreground">Hidden</p>
-                        )}
-                      </div>
-                      <div className="h-8 w-px bg-slate-700" />
-                      <div className="text-center">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Day's P&L</p>
-                        {showMetrics ? (
-                          <div className={cn("text-xl font-bold font-mono tabular-nums", todaysPnL >= 0 ? "text-green-400" : "text-red-400")} data-testid="text-days-pnl">
-                            {todaysPnL >= 0 ? '+' : ''}<NumberTicker value={Math.abs(todaysPnL)} prefix="$" decimalPlaces={2} />
-                          </div>
-                        ) : (
-                          <p className="text-lg text-muted-foreground">Hidden</p>
-                        )}
-                      </div>
-                      <div className="h-8 w-px bg-slate-700" />
-                      <div className="text-center">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Trades</p>
-                        <div className="text-xl font-bold font-mono tabular-nums">
-                          <NumberTicker value={closedCount + (botData.futuresPortfolio?.closedPositions || 0)} />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="border-slate-700" 
-                        onClick={() => {
-                          window.open('/api/audit/auto-lotto-bot?format=csv', '_blank');
-                          toast({ title: "Downloading trade audit data..." });
-                        }}
-                        data-testid="button-download-trades"
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Export All
-                      </Button>
-                      <Button variant="outline" size="sm" className="border-slate-700" onClick={() => refetchBot()} data-testid="button-refresh-bot">
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Refresh
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
 
               {/* Account Summary Bar */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1169,46 +978,6 @@ export default function WatchlistBotPage() {
                   </CardContent>
                 </Card>
               )}
-
-              {/* Bot Status Bar with Futures Indicator */}
-              <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-lg bg-slate-800/30 border border-slate-700/50">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center">
-                    <Bot className="h-4 w-4 text-pink-400" />
-                  </div>
-                  <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/30">
-                    <Activity className="h-3 w-3 mr-1" />
-                    Bot {botData.botStatus}
-                  </Badge>
-                  <span className="text-sm text-muted-foreground">
-                    Checks every 5 min during market hours
-                  </span>
-                  <div className="h-4 w-px bg-slate-700" />
-                  <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-400 border-purple-500/30">
-                    <Target className="h-3 w-3 mr-1" />
-                    Options
-                  </Badge>
-                  <Badge variant="outline" className="text-xs bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
-                    <BarChart3 className="h-3 w-3 mr-1" />
-                    Futures
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground font-mono">
-                    {showMetrics ? `${botData.stats?.wins ?? 0}W / ${botData.stats?.losses ?? 0}L` : `${closedCount}/${sampleSize}`}
-                  </span>
-                  {showMetrics && botData.stats?.winRate !== null && (
-                    <Badge className={cn(
-                      "font-mono text-xs",
-                      parseFloat(botData.stats?.winRate || '0') >= 50 
-                        ? "bg-green-500/20 text-green-400" 
-                        : "bg-red-500/20 text-red-400"
-                    )}>
-                      {botData.stats?.winRate}% Win
-                    </Badge>
-                  )}
-                </div>
-              </div>
 
               {/* Open Positions Table */}
               <Card className="glass-card">
