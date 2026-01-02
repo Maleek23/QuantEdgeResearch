@@ -1,11 +1,13 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Eye, TrendingUp, TrendingDown, AlertTriangle, Plus } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
-import type { WatchlistItem, MarketData } from "@shared/schema";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Eye, TrendingUp, TrendingDown, AlertTriangle, Plus, BarChart3, Target, ShieldAlert, Clock, ExternalLink } from "lucide-react";
+import { formatCurrency, cn } from "@/lib/utils";
+import type { WatchlistItem, MarketData, TradeIdea } from "@shared/schema";
 import { Link } from "wouter";
 
 interface WatchlistSpotlightProps {
@@ -13,11 +15,31 @@ interface WatchlistSpotlightProps {
 }
 
 export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
+  const [selectedItem, setSelectedItem] = useState<WatchlistItem | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  
   const { data: watchlistItems = [] } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
     refetchInterval: 60000,
     staleTime: 30000,
   });
+
+  const { data: tradeIdeas = [] } = useQuery<TradeIdea[]>({
+    queryKey: ['/api/trade-ideas'],
+    staleTime: 30000,
+  });
+
+  const handleItemClick = (item: WatchlistItem) => {
+    setSelectedItem(item);
+    setDialogOpen(true);
+  };
+
+  const getRelatedIdea = (symbol: string): TradeIdea | undefined => {
+    return tradeIdeas.find(idea => 
+      idea.symbol === symbol && 
+      idea.outcomeStatus === 'open'
+    );
+  };
 
   const { data: marketData = [] } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
@@ -92,7 +114,11 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
               return (
                 <div 
                   key={item.id}
-                  className="flex items-center justify-between p-2 rounded-md border bg-card/50 hover-elevate"
+                  role="button"
+                  tabIndex={0}
+                  className="flex items-center justify-between p-2 rounded-md border bg-card/50 hover-elevate cursor-pointer"
+                  onClick={() => handleItemClick(item)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleItemClick(item)}
                   data-testid={`watchlist-spotlight-item-${item.symbol}`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
@@ -162,6 +188,146 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
           </div>
         )}
       </CardContent>
+
+      {/* Trade Idea Details Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="font-mono font-bold">{selectedItem?.symbol}</span>
+              <Badge variant="outline" className="text-xs">
+                {selectedItem?.assetType.toUpperCase()}
+              </Badge>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedItem && (() => {
+            const market = priceMap[selectedItem.symbol];
+            const relatedIdea = getRelatedIdea(selectedItem.symbol);
+            const currentPrice = market?.currentPrice;
+            const changePercent = market?.changePercent;
+            
+            return (
+              <div className="space-y-4">
+                {/* Current Price */}
+                <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+                  <span className="text-sm text-muted-foreground">Current Price</span>
+                  <div className="text-right">
+                    <span className="font-mono font-bold text-lg">
+                      {currentPrice ? formatCurrency(currentPrice) : '--'}
+                    </span>
+                    {changePercent !== undefined && (
+                      <span className={cn(
+                        "ml-2 text-sm",
+                        changePercent > 0 ? "text-green-500" : changePercent < 0 ? "text-red-500" : "text-muted-foreground"
+                      )}>
+                        {changePercent > 0 ? '+' : ''}{changePercent.toFixed(2)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Price Alerts */}
+                <div className="grid grid-cols-3 gap-2">
+                  {selectedItem.entryAlertPrice && (
+                    <div className="p-2 rounded border bg-green-500/10 border-green-500/30">
+                      <div className="flex items-center gap-1 text-[10px] text-green-500 mb-1">
+                        <Target className="h-3 w-3" />
+                        Entry
+                      </div>
+                      <span className="font-mono text-sm font-medium">
+                        {formatCurrency(selectedItem.entryAlertPrice)}
+                      </span>
+                    </div>
+                  )}
+                  {selectedItem.targetPrice && (
+                    <div className="p-2 rounded border bg-cyan-500/10 border-cyan-500/30">
+                      <div className="flex items-center gap-1 text-[10px] text-cyan-500 mb-1">
+                        <TrendingUp className="h-3 w-3" />
+                        Target
+                      </div>
+                      <span className="font-mono text-sm font-medium">
+                        {formatCurrency(selectedItem.targetPrice)}
+                      </span>
+                    </div>
+                  )}
+                  {selectedItem.stopAlertPrice && (
+                    <div className="p-2 rounded border bg-red-500/10 border-red-500/30">
+                      <div className="flex items-center gap-1 text-[10px] text-red-500 mb-1">
+                        <ShieldAlert className="h-3 w-3" />
+                        Stop
+                      </div>
+                      <span className="font-mono text-sm font-medium">
+                        {formatCurrency(selectedItem.stopAlertPrice)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Notes */}
+                {selectedItem.notes && (
+                  <div className="p-3 rounded-md bg-muted/30 border">
+                    <p className="text-sm text-muted-foreground">{selectedItem.notes}</p>
+                  </div>
+                )}
+
+                {/* Related Trade Idea */}
+                {relatedIdea ? (
+                  <div className="p-3 rounded-md border bg-card">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <BarChart3 className="h-3 w-3" />
+                        Active Trade Idea
+                      </span>
+                      <Badge variant={relatedIdea.direction === 'long' ? 'default' : 'destructive'} className="text-xs">
+                        {relatedIdea.direction?.toUpperCase()}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                      <div>
+                        <div className="text-[10px] text-muted-foreground">Entry</div>
+                        <div className="font-mono text-sm">{formatCurrency(relatedIdea.entryPrice)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-muted-foreground">Target</div>
+                        <div className="font-mono text-sm text-green-500">{formatCurrency(relatedIdea.targetPrice)}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-muted-foreground">Stop</div>
+                        <div className="font-mono text-sm text-red-500">{formatCurrency(relatedIdea.stopLoss)}</div>
+                      </div>
+                    </div>
+                    <Link href={`/trade-ideas/${relatedIdea.id}/audit`}>
+                      <Button variant="outline" size="sm" className="w-full gap-2">
+                        <ExternalLink className="h-3 w-3" />
+                        View Full Audit
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-md border border-dashed text-center">
+                    <p className="text-sm text-muted-foreground mb-2">No active trade idea for this symbol</p>
+                    <Link href="/chart-analysis">
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <BarChart3 className="h-3 w-3" />
+                        Run Chart Analysis
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+
+                {/* Added Date */}
+                {selectedItem.addedAt && (
+                  <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    Added {new Date(selectedItem.addedAt).toLocaleDateString()}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
