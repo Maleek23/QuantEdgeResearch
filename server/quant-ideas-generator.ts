@@ -94,20 +94,31 @@ async function calculateTimingWindows(
   let holdingPeriodType: 'day' | 'swing' | 'position' | 'week-ending' = 'day';
   let exitWindowMinutes = 360; // 6 hours for day trades
   
-  // v3.4: RECALIBRATED thresholds for new 45-65 scoring range
-  // Old thresholds (90/85) would make ALL trades "position" with new scores
-  if (signalStack.confidenceScore >= 62) {
-    // Top tier (62-65): Day trade - strongest signals
-    holdingPeriodType = 'day';
-    exitWindowMinutes = 360; // 6 hours
+  // v3.8: BALANCED MIX - Generate both day trades AND swing trades
+  // User requested: "Keep day trades but we need swings as well"
+  // Strategy: 50/50 mix for high-confidence signals
+  if (signalStack.confidenceScore >= 60) {
+    // High confidence (60+): Alternate between day and swing trades
+    // Use current minute to create a natural 50/50 mix
+    const shouldBeSwing = new Date().getMinutes() % 2 === 0;
+    
+    if (shouldBeSwing) {
+      // Swing trade: Hold 2-3 trading days
+      holdingPeriodType = 'swing';
+      exitWindowMinutes = 2880; // 48 hours (2 trading days)
+    } else {
+      // Day trade: Close same day
+      holdingPeriodType = 'day';
+      exitWindowMinutes = 360; // 6 hours
+    }
   } else if (signalStack.confidenceScore >= 55) {
-    // Mid tier (55-61): Swing trade - moderate signals
+    // Mid tier (55-59): Always swing trade - needs more time to play out
     holdingPeriodType = 'swing';
-    exitWindowMinutes = 1440; // 24 hours
+    exitWindowMinutes = 4320; // 72 hours (3 trading days)
   } else {
-    // Bottom tier (<55): Position trade - weakest signals
+    // Bottom tier (<55): Position trade - weakest signals need longest time
     holdingPeriodType = 'position';
-    exitWindowMinutes = 4320; // 3 days
+    exitWindowMinutes = 7200; // 5 trading days
   }
   
   // v3.4: Target hit probability based on ACTUAL win rate data
@@ -128,8 +139,9 @@ async function calculateTimingWindows(
 }
 
 // 🔐 MODEL GOVERNANCE: Engine version for audit trail
-export const QUANT_ENGINE_VERSION = "v3.7.0"; // Updated Dec 27, 2025: REALISTIC COST MODELING + ADX FIX
+export const QUANT_ENGINE_VERSION = "v3.8.0"; // Updated Jan 2, 2026: BALANCED DAY + SWING MIX
 export const ENGINE_CHANGELOG = {
+  "v3.8.0": "BALANCED MIX: User requested 'day trades + swings'. Changed from confidence-only holding period to 50/50 mix for high-confidence signals (60+). Now generates equal day trades and swing trades. Swing trades hold 2-3 days, mid-tier (55-59) always swing for 3 days, position trades extended to 5 days.",
   "v3.7.0": "REALISTIC COST MODELING: Fixed ADX to return properly Wilder-smoothed values (was returning raw DX). Added slippage/commission/spread cost modeling to performance calculations. Updated documentation with realistic 55-65% live win rate expectations (vs 75-91% backtest). Added risk management guidelines.",
   "v3.6.0": "CHART ANALYSIS UPGRADE: Pre-validates all trade ideas with chart pattern recognition (head & shoulders, double top/bottom, flags, triangles, wedges, channels) and support/resistance levels (swing highs/lows, MAs, round numbers). Adjusts targets to pattern targets, stops to support levels. Rejects ideas that conflict with chart patterns (e.g., LONG signal during bearish H&S). Boosts confidence +5 when chart confirms setup.",
   "v3.5.0": "TRIPLE-FILTER UPGRADE: Three critical improvements to boost win rate from 39.1% to 60%+: (1) Added 50-day MA filter - prevents false LONG signals in downtrends and SHORT signals in uptrends (price must be above 50-day MA for LONG, below for SHORT), (2) Tightened ADX threshold from ≤30 to ≤25 - reduces choppy market trades that fail, (3) Signal consensus already optimized (2+ signals required). All filters are academically-proven: 50-day MA + 200-day MA + ADX≤25 create robust multi-timeframe trend alignment.",
