@@ -75,6 +75,7 @@ function Router() {
         {/* Core Pages - Smart redirect for logged-in users */}
         <Route path="/" component={SmartLanding} />
       <Route path="/features" component={Features} />
+        <Route path="/landing" component={Landing} />
       <Route path="/home" component={HomePage} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />

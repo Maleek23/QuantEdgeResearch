@@ -243,7 +243,7 @@ export function AppSidebar() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleNavigation("/")}
+              onClick={() => handleNavigation("/landing")}
               className="h-8 w-8"
               data-testid="button-landing-page"
               title="View Landing Page"
