@@ -5,9 +5,9 @@ import { logger } from './logger';
 
 // Lotto Mode thresholds - High-risk far-OTM options with 20x potential
 const LOTTO_ENTRY_MIN = 0.20; // $20 minimum (options priced at $0.20+)
-const LOTTO_ENTRY_MAX = 2.00; // $200 maximum (widened from $0.70 to catch more opportunities)
-const LOTTO_DELTA_MAX = 0.30; // Far OTM (delta <0.30)
-const LOTTO_MAX_DTE = 7; // Weekly expiration only (0-7 days)
+const LOTTO_ENTRY_MAX = 5.00; // $500 maximum (expanded to include swing trade premiums)
+const LOTTO_DELTA_MAX = 0.40; // Moderate OTM (delta <0.40 to include swings)
+const LOTTO_MAX_DTE = 21; // Extended to include swings (0-7 day trades, 8-21 swings)
 
 interface LottoOption {
   lastPrice: number;           // Entry premium price
@@ -98,12 +98,24 @@ export function calculateLottoTargets(entryPrice: number, expiryDate?: string): 
     targetMultiplier = 7;
     dteCategory = '1-2DTE';
     logger.info(`[LOTTO] ⚡ Short-term play - using 7x target (${dte}d remaining)`);
-  } else {
+  } else if (dte <= 7) {
     // 3-7 DTE: Full weekly lotto potential
     // High 10x-20x target (average 15x)
     targetMultiplier = 15;
     dteCategory = '3-7DTE';
     logger.info(`[LOTTO] 🎰 Weekly lotto - using 15x target (${dte}d remaining)`);
+  } else if (dte <= 14) {
+    // 8-14 DTE: Swing trade territory
+    // More conservative 2x-3x target (average 2.5x)
+    targetMultiplier = 2.5;
+    dteCategory = 'swing';
+    logger.info(`[LOTTO] 📊 Swing trade - using 2.5x target (${dte}d remaining)`);
+  } else {
+    // 15-21+ DTE: Position/multi-week swing
+    // Conservative 1.5x-2x target (average 1.75x)
+    targetMultiplier = 1.75;
+    dteCategory = 'swing';
+    logger.info(`[LOTTO] 📈 Position swing - using 1.75x target (${dte}d remaining)`);
   }
   
   const targetPrice = entryPrice * targetMultiplier;

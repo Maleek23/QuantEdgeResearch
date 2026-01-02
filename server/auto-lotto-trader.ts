@@ -292,15 +292,23 @@ function makeBotDecision(
     }
   } else if (opportunity.daysToExpiry <= 7) {
     signals.push('WEEKLY');
+  } else if (opportunity.daysToExpiry <= 14) {
+    signals.push('SWING_8-14DTE');
+    score += 5; // Swings give more time to be right
+  } else if (opportunity.daysToExpiry <= 21) {
+    signals.push('SWING_15-21DTE');
+    score += 3; // Position swings - even more time
   }
   
   score = Math.max(0, Math.min(100, score));
   const grade = getLetterGrade(score);
   
-  // RELAXED ENTRY CRITERIA - Allow B and C+ grades to trade more actively
-  // A = 85+, B+ = 80-84, B = 75-79, C+ = 70-74
+  // DTE-aware entry criteria
+  // Day trades (0-2 DTE) need stronger setup due to time decay risk
+  // Swings (8-21 DTE) can be more relaxed as time is on our side
   const isDayTrade = opportunity.daysToExpiry <= 2;
-  const minScoreForEntry = isDayTrade ? 75 : 70; // Lowered thresholds for more trades
+  const isSwingTrade = opportunity.daysToExpiry >= 8;
+  const minScoreForEntry = isDayTrade ? 75 : isSwingTrade ? 65 : 70;
   
   // Require at least 2 positive signals to enter (reduced from 3)
   const positiveSignals = signals.filter(s => 
@@ -407,7 +415,24 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
   // We're not selling/writing options (that would require margin and has unlimited risk)
   const direction = 'long' as const;
   
-  const exitWindowDays = opportunity.daysToExpiry <= 2 ? 1 : Math.min(3, opportunity.daysToExpiry - 1);
+  // DTE-aware exit timing: day trades exit same day, swings 3-5 days, positions 7-10 days
+  let exitWindowDays: number;
+  let holdingPeriod: 'day' | 'swing' | 'position';
+  
+  if (opportunity.daysToExpiry <= 2) {
+    exitWindowDays = 1;
+    holdingPeriod = 'day';
+  } else if (opportunity.daysToExpiry <= 7) {
+    exitWindowDays = Math.min(3, opportunity.daysToExpiry - 1);
+    holdingPeriod = 'swing';
+  } else if (opportunity.daysToExpiry <= 14) {
+    exitWindowDays = Math.min(5, opportunity.daysToExpiry - 2);
+    holdingPeriod = 'swing';
+  } else {
+    exitWindowDays = Math.min(10, opportunity.daysToExpiry - 3);
+    holdingPeriod = 'position';
+  }
+  
   const exitDate = new Date(now);
   exitDate.setDate(exitDate.getDate() + exitWindowDays);
   exitDate.setHours(15, 30, 0, 0);
@@ -415,7 +440,10 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
   const entryValidUntil = new Date(now.getTime() + 60 * 60 * 1000);
   
   // DTE-aware target label for analysis
-  const targetLabel = dteCategory === '0DTE' ? 'gamma play' : dteCategory === '1-2DTE' ? 'short-term' : 'weekly lotto';
+  const targetLabel = dteCategory === '0DTE' ? 'gamma play' : 
+    dteCategory === '1-2DTE' ? 'short-term' : 
+    dteCategory === '3-7DTE' ? 'weekly lotto' : 
+    dteCategory === 'swing' ? 'swing trade' : 'position';
   
   return {
     symbol: opportunity.symbol,
@@ -431,7 +459,7 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
     catalyst: `🤖 BOT DECISION: ${opportunity.symbol} ${opportunity.optionType.toUpperCase()} $${opportunity.strike} | ${decision.signals.slice(0, 3).join(' | ')}`,
     analysis: `Auto-Lotto Bot autonomous trade (${dteCategory} ${targetLabel}): ${decision.reason}. Entry $${opportunity.price.toFixed(2)}, Target $${targetPrice.toFixed(2)} (${targetMultiplier}x), Stop $${stopLoss.toFixed(2)} (50%).`,
     sessionContext: 'Bot autonomous trading',
-    holdingPeriod: opportunity.daysToExpiry <= 2 ? 'day' : 'swing',
+    holdingPeriod,
     source: 'lotto',
     strikePrice: opportunity.strike,
     optionType: opportunity.optionType,
@@ -442,7 +470,7 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
     timestamp: formatInTimeZone(now, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX"),
     sectorFocus: 'momentum',
     riskProfile: 'speculative',
-    researchHorizon: opportunity.daysToExpiry <= 2 ? 'intraday' : 'week',
+    researchHorizon: opportunity.daysToExpiry <= 2 ? 'intraday' : opportunity.daysToExpiry <= 7 ? 'week' : 'month',
     liquidityWarning: true,
     engineVersion: 'bot_autonomous_v1.0',
   };
