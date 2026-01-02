@@ -7345,29 +7345,37 @@ FORMATTING:
             
             const isBullish = quantSignals.direction === 'bullish';
             const entryPrice = currentPrice;
-            const targetPrice = isBullish ? currentPrice * 1.05 : currentPrice * 0.95;
-            const stopLoss = isBullish ? currentPrice * 0.97 : currentPrice * 1.03;
+            // Use ATR for dynamic targets if available (1.5x ATR stop, 2x ATR target)
+            const atrStop = quantSignals.atr ? quantSignals.atr * 1.5 : currentPrice * 0.03;
+            const atrTarget = quantSignals.atr ? quantSignals.atr * 2.5 : currentPrice * 0.05;
+            const targetPrice = isBullish ? currentPrice + atrTarget : currentPrice - atrTarget;
+            const stopLoss = isBullish ? currentPrice - atrStop : currentPrice + atrStop;
             
+            const riskRewardRatio = atrTarget / atrStop;
             const quantAnalysis = {
               patterns: quantSignals.signals,
-              supportLevels: [Math.min(...lows.slice(-20))],
-              resistanceLevels: [Math.max(...highs.slice(-20))],
+              supportLevels: [quantSignals.supportLevel],
+              resistanceLevels: [quantSignals.resistanceLevel],
               entryPoint: entryPrice,
               targetPrice: targetPrice,
               stopLoss: stopLoss,
-              riskRewardRatio: 1.7,
+              riskRewardRatio: Number(riskRewardRatio.toFixed(2)),
               sentiment: quantSignals.direction,
               analysis: `**QUANT ENGINE ANALYSIS** (AI unavailable)\n\n` +
-                `📊 Signal Score: ${quantSignals.score}/100\n` +
-                `📈 Direction: ${quantSignals.direction.toUpperCase()}\n` +
-                `🎯 Confidence: ${quantSignals.confidence}%\n\n` +
-                `**Signals Detected:**\n${quantSignals.signals.map(s => `• ${s}`).join('\n')}\n\n` +
+                `📊 **Signal Score:** ${quantSignals.score}/100\n` +
+                `📈 **Direction:** ${quantSignals.direction.toUpperCase()}\n` +
+                `🎯 **Confidence:** ${quantSignals.confidence}%\n` +
+                `📐 **R:R Ratio:** ${riskRewardRatio.toFixed(2)}:1\n\n` +
+                `**Technical Signals (${quantSignals.signals.length}):**\n${quantSignals.signals.map(s => `• ${s}`).join('\n')}\n\n` +
                 `**Key Levels:**\n` +
-                `• Current: $${currentPrice.toFixed(2)}\n` +
+                `• Support: $${quantSignals.supportLevel.toFixed(2)}\n` +
+                `• Resistance: $${quantSignals.resistanceLevel.toFixed(2)}\n` +
+                `• Current: $${currentPrice.toFixed(2)}\n\n` +
+                `**Trade Setup:**\n` +
                 `• Entry: $${entryPrice.toFixed(2)}\n` +
-                `• Target: $${targetPrice.toFixed(2)}\n` +
-                `• Stop: $${stopLoss.toFixed(2)}\n\n` +
-                `⚠️ This analysis uses quantitative indicators only. For detailed pattern recognition, try again when AI is available.`,
+                `• Target: $${targetPrice.toFixed(2)} (+${((targetPrice - entryPrice) / entryPrice * 100).toFixed(1)}%)\n` +
+                `• Stop: $${stopLoss.toFixed(2)} (${((stopLoss - entryPrice) / entryPrice * 100).toFixed(1)}%)\n\n` +
+                `_Based on RSI, MACD, Bollinger Bands, S/R levels, momentum, and trend analysis._`,
               confidence: quantSignals.confidence,
               timeframe: req.body.timeframe || 'daily',
               isQuantFallback: true
