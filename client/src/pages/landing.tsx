@@ -197,17 +197,17 @@ export default function Landing() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="stat-glass rounded-lg p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Ideas</p>
-              <p className="text-2xl font-bold font-mono tabular-nums text-foreground">
+              <div className="text-2xl font-bold font-mono tabular-nums text-foreground">
                 {statsLoading ? (
                   <Skeleton className="h-8 w-16" />
                 ) : (
                   perfStats?.overall?.totalIdeas || '—'
                 )}
-              </p>
+              </div>
             </div>
             <div className="stat-glass rounded-lg p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Active</p>
-              <p className="text-2xl font-bold font-mono tabular-nums text-cyan-400">
+              <div className="text-2xl font-bold font-mono tabular-nums text-cyan-400">
                 {statsLoading ? (
                   <Skeleton className="h-8 w-16" />
                 ) : perfStats?.overall?.openIdeas ? (
@@ -215,7 +215,7 @@ export default function Landing() {
                 ) : (
                   '—'
                 )}
-              </p>
+              </div>
             </div>
             <div className="stat-glass rounded-lg p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Engines</p>
