@@ -441,6 +441,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Quick dev login - creates test user if needed and logs in
+  app.post("/api/auth/dev-login", async (req: Request, res: Response) => {
+    try {
+      const accessCode = req.body.accessCode;
+      const adminCode = process.env.ADMIN_ACCESS_CODE || "quantedge2024";
+      
+      if (accessCode !== adminCode) {
+        return res.status(401).json({ error: "Invalid access code" });
+      }
+      
+      // Find or create dev user
+      let user = await storage.getUserByEmail("dev@quantedge.local");
+      if (!user) {
+        user = await storage.createUser({
+          email: "dev@quantedge.local",
+          firstName: "Dev",
+          lastName: "User",
+          profileImageUrl: null,
+          password: null
+        });
+        logger.info('Created dev user', { userId: user.id });
+      }
+      
+      // Store userId in session
+      (req.session as any).userId = user.id;
+      
+      logger.info('Dev user logged in', { userId: user.id });
+      res.json({ user: sanitizeUser(user) });
+    } catch (error) {
+      logError(error as Error, { context: 'auth/dev-login' });
+      res.status(500).json({ error: "Failed to log in" });
+    }
+  });
+
   // Get current user - Returns logged in user from session OR Replit Auth
   app.get("/api/auth/me", async (req: Request, res: Response) => {
     try {

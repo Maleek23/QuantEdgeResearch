@@ -25,6 +25,32 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
+  const [accessCode, setAccessCode] = useState("");
+  const [showDevLogin, setShowDevLogin] = useState(false);
+
+  // Dev login mutation
+  const devLoginMutation = useMutation({
+    mutationFn: async (code: string) => {
+      const response = await apiRequest("POST", "/api/auth/dev-login", { accessCode: code });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "Welcome!",
+        description: "Dev login successful.",
+      });
+      setLocation("/trade-desk");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Login failed",
+        description: error.message || "Invalid access code",
+        variant: "destructive",
+      });
+    },
+  });
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -193,6 +219,42 @@ export default function Login() {
                   Sign up
                 </Link>
               </div>
+              
+              <Separator className="my-2" />
+              
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowDevLogin(!showDevLogin)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  data-testid="button-show-dev-login"
+                >
+                  Quick Access (Admin)
+                </button>
+              </div>
+              
+              {showDevLogin && (
+                <div className="space-y-2 p-3 rounded-lg bg-muted/30 border border-muted">
+                  <Input
+                    type="password"
+                    placeholder="Enter access code"
+                    value={accessCode}
+                    onChange={(e) => setAccessCode(e.target.value)}
+                    data-testid="input-access-code"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => devLoginMutation.mutate(accessCode)}
+                    disabled={devLoginMutation.isPending || !accessCode}
+                    data-testid="button-dev-login"
+                  >
+                    {devLoginMutation.isPending ? "Logging in..." : "Quick Login"}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
