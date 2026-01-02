@@ -401,7 +401,10 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
   const now = new Date();
   const { targetPrice, riskRewardRatio } = calculateLottoTargets(opportunity.price);
   const stopLoss = opportunity.price * 0.5;
-  const direction = opportunity.optionType === 'call' ? 'long' : 'short';
+  // Always LONG (buying) options in lotto plays - we BUY calls and puts for leverage
+  // CALL = bet stock goes UP, PUT = bet stock goes DOWN, but both are LONG (owned) positions
+  // We're not selling/writing options (that would require margin and has unlimited risk)
+  const direction = 'long' as const;
   
   const exitWindowDays = opportunity.daysToExpiry <= 2 ? 1 : Math.min(3, opportunity.daysToExpiry - 1);
   const exitDate = new Date(now);
