@@ -25,6 +25,8 @@ export interface TimingWindowsInput {
   volumeRatio?: number;
   // ✅ Option-specific fields
   expiryDate?: string; // ISO date string for option expiration
+  // ✅ NEW: Allow explicit holding period override
+  holdingPeriod?: 'day' | 'swing' | 'position';
 }
 
 export interface TimingWindowsOutput {
@@ -251,42 +253,85 @@ export function deriveTimingWindows(
   const confidenceScore = input.confidenceScore || 50;
   const confidenceInfo = calculateConfidenceAdjustment(confidenceScore);
   
-  // 5. Asset-specific base windows (in minutes)
-  let baseEntryWindow: number;
-  let baseExitWindow: number;
+  // 5. Determine holding period - use explicit override or calculate
   let holdingPeriodType: 'day' | 'swing' | 'position' | 'week-ending';
   
-  if (input.assetType === 'option') {
-    // Options: Shorter windows due to time decay
-    baseEntryWindow = 45;     // 45 minutes base
-    baseExitWindow = 300;     // 5 hours base (day trade)
-    holdingPeriodType = 'day';
-  } else if (input.assetType === 'crypto') {
-    // Crypto: 24/7 trading, moderate windows
-    baseEntryWindow = 90;     // 1.5 hours base
-    baseExitWindow = 720;     // 12 hours base (swing trade)
-    holdingPeriodType = 'swing';
+  if (input.holdingPeriod) {
+    // Use explicit holding period if provided
+    holdingPeriodType = input.holdingPeriod;
+    logger.info(`⏰ [TIMING] ${input.symbol}: Using explicit holdingPeriod="${input.holdingPeriod}"`);
   } else {
-    // Stocks: Standard day trading windows
-    baseEntryWindow = 60;     // 1 hour base
-    baseExitWindow = 360;     // 6 hours base (day trade)
-    holdingPeriodType = 'day';
+    // Calculate holding period based on confidence + volatility
+    // IMPORTANT: Check position first (most restrictive), then swing, then day
+    if (input.assetType === 'crypto') {
+      // Crypto: Based on confidence level
+      if (confidenceScore >= 80) {
+        holdingPeriodType = 'position';
+      } else if (confidenceScore >= 60) {
+        holdingPeriodType = 'swing';
+      } else {
+        holdingPeriodType = 'day';
+      }
+    } else if (input.assetType === 'stock' || input.assetType === 'penny_stock') {
+      // Stocks: Based on confidence + volatility
+      if (confidenceScore >= 80 && volatilityInfo.regime === 'low') {
+        holdingPeriodType = 'position'; // Very high conviction = position trade
+      } else if (confidenceScore >= 65 && (volatilityInfo.regime === 'low' || volatilityInfo.regime === 'normal')) {
+        holdingPeriodType = 'swing'; // High conviction = swing trade
+      } else {
+        holdingPeriodType = 'day'; // Default to day trade
+      }
+    } else {
+      holdingPeriodType = 'day'; // Default for other asset types
+    }
   }
   
-  // 6. Adjust for swing trades when high confidence + low volatility (conservative)
-  // Only convert to swing when there's strong conviction:
-  // - High confidence (>= 65) AND low volatility → swing trade (high conviction plays)
-  // This preserves day trade generation while still producing swing trades when appropriate
-  if (input.assetType === 'stock' || input.assetType === 'penny_stock') {
-    if (confidenceScore >= 65 && volatilityInfo.regime === 'low') {
-      baseExitWindow = 1440; // 24 hours (swing trade)
-      holdingPeriodType = 'swing';
-      
-      // Very high confidence = even longer hold potential
-      if (confidenceScore >= 75) {
-        baseExitWindow = 2880; // 48 hours (2-day swing)
+  // 6. Calculate base windows based on HOLDING PERIOD TYPE
+  let baseEntryWindow: number;
+  let baseExitWindow: number;
+  
+  // Entry windows vary by asset type
+  if (input.assetType === 'option') {
+    baseEntryWindow = 45;     // 45 minutes base (options need quick entry due to theta)
+  } else if (input.assetType === 'crypto') {
+    baseEntryWindow = 90;     // 1.5 hours base (24/7 market)
+  } else {
+    baseEntryWindow = 60;     // 1 hour base (stocks)
+  }
+  
+  // Exit windows based on HOLDING PERIOD TYPE
+  switch (holdingPeriodType) {
+    case 'day':
+      // Day trade: exit by end of trading day (use minutes until 4 PM ET)
+      if (input.assetType === 'option') {
+        baseExitWindow = 300;   // 5 hours for options (theta decay)
+      } else if (input.assetType === 'crypto') {
+        baseExitWindow = 480;   // 8 hours for crypto day trades
+      } else {
+        baseExitWindow = 390;   // ~6.5 hours (typical trading day)
       }
-    }
+      break;
+      
+    case 'swing':
+      // Swing trade: 3-5 trading days
+      if (input.assetType === 'crypto') {
+        baseExitWindow = 72 * 60;   // 72 hours (3 days, 24/7)
+      } else {
+        baseExitWindow = 3 * 6.5 * 60; // 3 trading days (~19.5 hours of trading)
+      }
+      break;
+      
+    case 'position':
+      // Position trade: 1-2 weeks
+      if (input.assetType === 'crypto') {
+        baseExitWindow = 10 * 24 * 60;  // 10 days (24/7)
+      } else {
+        baseExitWindow = 10 * 6.5 * 60; // 10 trading days (~65 hours of trading)
+      }
+      break;
+      
+    default:
+      baseExitWindow = 360; // Fallback: 6 hours
   }
   
   // 7. Apply all multipliers to create unique windows
@@ -322,18 +367,65 @@ export function deriveTimingWindows(
     
     logger.info(`⏰ [TIMING] ${input.symbol} OPTION: Exit by ${formatInTimeZone(actualExitBy, 'America/New_York', 'MMM dd h:mm a zzz')} (option expires ${formatInTimeZone(optionExpiryDate, 'America/New_York', 'MMM dd h:mm a zzz')})`);
   } else if (input.assetType === 'stock' || input.assetType === 'penny_stock') {
-    // ✅ FIX: For stocks, exit_by MUST be BEFORE market close (4:00 PM ET)
-    // Stocks CANNOT be traded after regular market hours (4:00 PM ET)
+    // Calculate exit based on holding period type
     const defaultExitBy = new Date(baseTimestamp.getTime() + exitWindowMinutes * 60 * 1000);
-    const marketCloseToday = new Date(baseTimestamp);
-    marketCloseToday.setHours(16, 0, 0, 0); // 4:00 PM ET (assuming server runs in ET timezone)
     
-    // Use the EARLIER of: (defaultExitBy OR market close)
-    // This ensures we never try to exit AFTER market close
-    const actualExitBy = defaultExitBy < marketCloseToday ? defaultExitBy : marketCloseToday;
-    exitBy = actualExitBy.toISOString();
-    
-    logger.info(`⏰ [TIMING] ${input.symbol} STOCK: Exit by ${formatInTimeZone(actualExitBy, 'America/New_York', 'MMM dd h:mm a zzz')} (market closes at ${formatInTimeZone(marketCloseToday, 'America/New_York', 'h:mm a zzz')})`);
+    if (holdingPeriodType === 'day') {
+      // DAY TRADE: Must exit by market close TODAY (4:00 PM ET)
+      const marketCloseToday = new Date(baseTimestamp);
+      marketCloseToday.setHours(16, 0, 0, 0); // 4:00 PM ET
+      
+      const actualExitBy = defaultExitBy < marketCloseToday ? defaultExitBy : marketCloseToday;
+      exitBy = actualExitBy.toISOString();
+      
+      logger.info(`⏰ [TIMING] ${input.symbol} STOCK DAY: Exit by ${formatInTimeZone(actualExitBy, 'America/New_York', 'MMM dd h:mm a zzz')} (market closes today at 4:00 PM ET)`);
+    } else if (holdingPeriodType === 'swing') {
+      // SWING TRADE: Exit within 3-5 trading days (at market close on that day)
+      const tradingDaysAhead = 3; // 3 trading days for swing
+      let targetExitDate = new Date(baseTimestamp);
+      let daysAdded = 0;
+      
+      // Add trading days (skip weekends)
+      while (daysAdded < tradingDaysAhead) {
+        targetExitDate.setDate(targetExitDate.getDate() + 1);
+        const dayOfWeek = targetExitDate.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not Sunday (0) or Saturday (6)
+          daysAdded++;
+        }
+      }
+      
+      // Set to market close (4:00 PM ET) on target day
+      targetExitDate.setHours(16, 0, 0, 0);
+      exitBy = targetExitDate.toISOString();
+      
+      logger.info(`⏰ [TIMING] ${input.symbol} STOCK SWING: Exit by ${formatInTimeZone(targetExitDate, 'America/New_York', 'MMM dd h:mm a zzz')} (${tradingDaysAhead} trading days)`);
+    } else if (holdingPeriodType === 'position') {
+      // POSITION TRADE: Exit within 10+ trading days (at market close on that day)
+      const tradingDaysAhead = 10; // 10 trading days for position
+      let targetExitDate = new Date(baseTimestamp);
+      let daysAdded = 0;
+      
+      // Add trading days (skip weekends)
+      while (daysAdded < tradingDaysAhead) {
+        targetExitDate.setDate(targetExitDate.getDate() + 1);
+        const dayOfWeek = targetExitDate.getDay();
+        if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Not Sunday (0) or Saturday (6)
+          daysAdded++;
+        }
+      }
+      
+      // Set to market close (4:00 PM ET) on target day
+      targetExitDate.setHours(16, 0, 0, 0);
+      exitBy = targetExitDate.toISOString();
+      
+      logger.info(`⏰ [TIMING] ${input.symbol} STOCK POSITION: Exit by ${formatInTimeZone(targetExitDate, 'America/New_York', 'MMM dd h:mm a zzz')} (${tradingDaysAhead} trading days)`);
+    } else {
+      // Fallback: use calculated window clamped to today's market close
+      const marketCloseToday = new Date(baseTimestamp);
+      marketCloseToday.setHours(16, 0, 0, 0);
+      const actualExitBy = defaultExitBy < marketCloseToday ? defaultExitBy : marketCloseToday;
+      exitBy = actualExitBy.toISOString();
+    }
   } else {
     // For crypto, use calculated exit window (crypto trades 24/7)
     exitBy = new Date(baseTimestamp.getTime() + exitWindowMinutes * 60 * 1000).toISOString();
@@ -341,7 +433,11 @@ export function deriveTimingWindows(
     logger.info(`⏰ [TIMING] ${input.symbol} CRYPTO: Exit by ${formatInTimeZone(new Date(exitBy), 'America/New_York', 'MMM dd h:mm a zzz')} (24/7 trading)`);
   }
   
-  // 9. Calculate trend strength (use provided or estimate from price action)
+  // 9. CRITICAL: Recalculate exitWindowMinutes to match actual exitBy timestamp
+  // This ensures the duration metadata is consistent with the enforced exit deadline
+  const finalExitWindowMinutes = Math.round((new Date(exitBy).getTime() - baseTimestamp.getTime()) / (60 * 1000));
+  
+  // 10. Calculate trend strength (use provided or estimate from price action)
   const trendStrength = input.trendStrength !== undefined
     ? input.trendStrength
     : 50 + (confidenceScore - 50) * 0.5; // Rough estimate: higher confidence = stronger trend
@@ -361,23 +457,23 @@ export function deriveTimingWindows(
     Math.random() * 10 // Add randomization
   ));
   
-  // 11. Build timing reason for logging
+  // 12. Build timing reason for logging
   const timingReason = [
     nlpCues.reason,
     volatilityInfo.reason,
     confidenceInfo.reason,
-    `${entryWindowMinutes}min entry, ${exitWindowMinutes}min exit`
+    `${entryWindowMinutes}min entry, ${finalExitWindowMinutes}min exit (${holdingPeriodType})`
   ].join('; ');
   
-  // 12. Log the derived timing windows
-  logger.info(`⏰ [TIMING] ${input.symbol}: Entry window ${entryWindowMinutes}min, Exit window ${exitWindowMinutes}min (${holdingPeriodType}) - ${timingReason}`);
+  // 13. Log the derived timing windows
+  logger.info(`⏰ [TIMING] ${input.symbol}: Entry window ${entryWindowMinutes}min, Exit window ${finalExitWindowMinutes}min (${holdingPeriodType}) - ${timingReason}`);
   
   return {
     entryValidUntil,
     exitBy,
     holdingPeriodType,
     entryWindowMinutes,
-    exitWindowMinutes,
+    exitWindowMinutes: finalExitWindowMinutes, // Use recalculated value to match exitBy
     timingConfidence,
     targetHitProbability,
     volatilityRegime: volatilityInfo.regime,
