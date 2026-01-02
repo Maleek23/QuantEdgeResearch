@@ -301,16 +301,37 @@ function makeBotDecision(
   }
   
   score = Math.max(0, Math.min(100, score));
-  const grade = getLetterGrade(score);
   
-  // DTE-aware entry criteria
-  // Day trades (0-2 DTE) need stronger setup due to time decay risk
-  // Swings (8-21 DTE) can be more relaxed as time is on our side
+  // Analysis-based confidence boost for strong technical signals
+  let analysisBoost = 0;
+  const boostReasons: string[] = [];
+  
+  if (signals.some(s => s.includes('STRONG_MOMENTUM'))) {
+    analysisBoost += 10;
+    boostReasons.push('STRONG_MOMENTUM+10');
+  }
+  if (signals.some(s => s.includes('HIGH_VOL'))) {
+    analysisBoost += 8;
+    boostReasons.push('HIGH_VOL+8');
+  }
+  if (signals.some(s => s.includes('OPTIMAL_DELTA'))) {
+    analysisBoost += 5;
+    boostReasons.push('OPTIMAL_DELTA+5');
+  }
+  
+  const boostedScore = Math.min(100, score + analysisBoost);
+  const grade = getLetterGrade(boostedScore);
+  const hasAnalysisBoost = analysisBoost > 0;
+  
+  // DTE-aware entry criteria (lowered thresholds for more flexibility)
+  // Day trades (0-2 DTE): 65 (was 75)
+  // Weekly trades (3-7 DTE): 60 (was 70)
+  // Swing trades (8-21 DTE): 55 (was 65)
   const isDayTrade = opportunity.daysToExpiry <= 2;
   const isSwingTrade = opportunity.daysToExpiry >= 8;
-  const minScoreForEntry = isDayTrade ? 75 : isSwingTrade ? 65 : 70;
+  const minScoreForEntry = isDayTrade ? 65 : isSwingTrade ? 55 : 60;
   
-  // Require at least 2 positive signals to enter (reduced from 3)
+  // Require at least 1 positive signal to enter (reduced from 2)
   const positiveSignals = signals.filter(s => 
     !s.includes('LOW_VOLUME') && 
     !s.includes('RISKY') && 
@@ -318,35 +339,39 @@ function makeBotDecision(
     !s.includes('TOO_FAR')
   );
   
-  if (positiveSignals.length < 2) {
+  if (positiveSignals.length < 1) {
     return {
       action: 'skip',
-      reason: `Only ${positiveSignals.length} positive signals - need 2+`,
-      confidence: score,
+      reason: `No positive signals found`,
+      confidence: boostedScore,
       signals
     };
   }
   
-  // Enter on A, B, or C+ grades (score >= 70)
-  if (score >= minScoreForEntry && (grade === 'A' || grade === 'B+' || grade === 'B' || grade === 'C+' || grade === 'C')) {
+  // Enter on A, B, or C+ grades with boosted score
+  const entryReason = hasAnalysisBoost 
+    ? `${grade} grade (${score}+${analysisBoost}=${boostedScore}) ANALYSIS_BOOST: ${boostReasons.join(', ')}`
+    : `${grade} grade (${boostedScore}) - ${signals.slice(0, 3).join(', ')}`;
+    
+  if (boostedScore >= minScoreForEntry && (grade === 'A' || grade === 'B+' || grade === 'B' || grade === 'C+' || grade === 'C')) {
     return {
       action: 'enter',
-      reason: `${grade} grade (${score}) - ${signals.slice(0, 3).join(', ')}`,
-      confidence: score,
-      signals
+      reason: entryReason,
+      confidence: boostedScore,
+      signals: hasAnalysisBoost ? [...signals, ...boostReasons] : signals
     };
-  } else if (score >= 60) {
+  } else if (boostedScore >= 50) {
     return {
       action: 'wait',
-      reason: `${grade} grade (${score}) needs higher score for entry`,
-      confidence: score,
+      reason: `${grade} grade (${boostedScore}) needs higher score for entry (min: ${minScoreForEntry})`,
+      confidence: boostedScore,
       signals
     };
   } else {
     return {
       action: 'skip',
-      reason: `${grade} grade (${score}) too weak - ${signals.slice(0, 2).join(', ')}`,
-      confidence: score,
+      reason: `${grade} grade (${boostedScore}) too weak - ${signals.slice(0, 2).join(', ')}`,
+      confidence: boostedScore,
       signals
     };
   }

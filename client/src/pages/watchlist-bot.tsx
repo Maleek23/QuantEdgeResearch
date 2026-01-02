@@ -16,7 +16,7 @@ import {
   AlertTriangle, Activity, Zap, Clock, CheckCircle2, XCircle, 
   RefreshCw, Shield, Calendar, Bell, BellOff, LogIn, Radio, Atom, 
   Radiation, FlaskConical, Bitcoin, Search, BarChart3, Wallet, 
-  PiggyBank, ArrowUpRight, ArrowDownRight, LineChart, Download
+  PiggyBank, ArrowUpRight, ArrowDownRight, LineChart, Download, Lightbulb
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NumberTicker } from "@/components/magicui/number-ticker";
@@ -131,12 +131,12 @@ export default function WatchlistBotPage() {
     staleTime: 60000,
   });
 
-  // Get recent winning trade ideas (last 7 days, hit_target)
-  const recentWins = useMemo(() => {
+  // Get recent winning trade ideas (last 7 days, hit_target) - split by source
+  const { botWins, ideaWins, botWinsPnL, ideaWinsPnL } = useMemo(() => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
-    return tradeIdeas
+    const allWins = tradeIdeas
       .filter(idea => 
         idea.outcomeStatus === 'hit_target' && 
         idea.exitDate && 
@@ -145,8 +145,28 @@ export default function WatchlistBotPage() {
         (idea.percentGain === null || idea.percentGain === undefined || 
           (idea.percentGain >= 0 && idea.percentGain <= 500))
       )
-      .sort((a, b) => new Date(b.exitDate!).getTime() - new Date(a.exitDate!).getTime())
+      .sort((a, b) => new Date(b.exitDate!).getTime() - new Date(a.exitDate!).getTime());
+    
+    // Bot Wins - trades actually executed by the Auto-Lotto Bot
+    const botWinsArr = allWins
+      .filter(idea => idea.source === 'lotto' || idea.source === 'bot')
       .slice(0, 10);
+    
+    // Research Idea Wins - AI/Quant generated ideas that hit targets but weren't bot-traded
+    const ideaWinsArr = allWins
+      .filter(idea => idea.source !== 'lotto' && idea.source !== 'bot')
+      .slice(0, 10);
+    
+    // Calculate total P&L for each section
+    const botPnL = botWinsArr.reduce((sum, idea) => sum + (idea.percentGain || 0), 0);
+    const ideaPnL = ideaWinsArr.reduce((sum, idea) => sum + (idea.percentGain || 0), 0);
+    
+    return { 
+      botWins: botWinsArr, 
+      ideaWins: ideaWinsArr,
+      botWinsPnL: botPnL,
+      ideaWinsPnL: ideaPnL
+    };
   }, [tradeIdeas]);
 
   const addWatchlistMutation = useMutation({
@@ -575,37 +595,121 @@ export default function WatchlistBotPage() {
                 </Card>
               )}
 
-              {/* Recent Wins from Trade Ideas (Discord Alerts Source) */}
-              {recentWins.length > 0 && (
-                <Card className="glass-card border-green-500/20 bg-green-500/5">
+              {/* Bot Wins - Auto-Executed Trades */}
+              {botWins.length > 0 && (
+                <Card className="glass-card border-pink-500/20 bg-pink-500/5">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-lg bg-green-500/20 flex items-center justify-center">
-                          <CheckCircle2 className="h-4 w-4 text-green-400" />
+                        <div className="h-8 w-8 rounded-lg bg-pink-500/20 flex items-center justify-center">
+                          <Bot className="h-4 w-4 text-pink-400" />
                         </div>
-                        Recent Wins
-                        <Badge variant="outline" className="text-xs bg-green-500/10 text-green-400 border-green-500/30">
-                          Last 7 Days
+                        Bot Wins (Auto-Executed)
+                        <Badge variant="outline" className="text-xs bg-pink-500/10 text-pink-400 border-pink-500/30">
+                          {botWins.length} Trades
                         </Badge>
                       </CardTitle>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <SiDiscord className="h-3 w-3" />
-                        <span>From Trade Ideas</span>
+                      <div className="text-right">
+                        <span className="font-mono font-bold text-green-400">
+                          +{botWinsPnL.toFixed(1)}%
+                        </span>
+                        <p className="text-[10px] text-muted-foreground">Total Gain</p>
                       </div>
                     </div>
                     <CardDescription>
-                      These are the winning research ideas that triggered Discord alerts
+                      Trades actually executed by the Auto-Lotto Bot with realized P&L
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">
                     <ScrollArea className="h-[200px]">
                       <div className="space-y-2">
-                        {recentWins.map((idea) => (
+                        {botWins.map((idea) => (
                           <div 
                             key={idea.id} 
-                            className="flex items-center justify-between p-3 rounded-lg border bg-card/50 hover-elevate"
-                            data-testid={`recent-win-${idea.id}`}
+                            className="flex items-center justify-between p-3 rounded-lg border border-pink-500/20 bg-card/50 hover-elevate"
+                            data-testid={`bot-win-${idea.id}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "p-2 rounded",
+                                idea.assetType === 'option' ? "bg-purple-500/10" : 
+                                idea.assetType === 'crypto' ? "bg-amber-500/10" : "bg-cyan-500/10"
+                              )}>
+                                {idea.assetType === 'option' ? (
+                                  <Target className="h-4 w-4 text-purple-400" />
+                                ) : idea.assetType === 'crypto' ? (
+                                  <Bitcoin className="h-4 w-4 text-amber-400" />
+                                ) : (
+                                  <TrendingUp className="h-4 w-4 text-cyan-400" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-bold">{idea.symbol}</span>
+                                  {idea.optionType && (
+                                    <Badge variant="outline" className="text-[10px] px-1 py-0">
+                                      {idea.optionType.toUpperCase()} ${idea.strikePrice}
+                                    </Badge>
+                                  )}
+                                  <Badge variant="outline" className="text-[10px] px-1 py-0 bg-pink-500/10 text-pink-400 border-pink-500/30">
+                                    <Bot className="h-2 w-2 mr-0.5" />
+                                    AUTO
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {idea.direction?.toUpperCase()}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-mono font-bold text-green-400">
+                                +{(idea.percentGain || 25).toFixed(1)}%
+                              </span>
+                              <p className="text-[10px] text-muted-foreground">
+                                {idea.exitDate && new Date(idea.exitDate).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Research Idea Wins - AI/Quant Generated */}
+              {ideaWins.length > 0 && (
+                <Card className="glass-card border-amber-500/20 bg-amber-500/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                          <Lightbulb className="h-4 w-4 text-amber-400" />
+                        </div>
+                        Research Idea Wins
+                        <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/30">
+                          {ideaWins.length} Ideas
+                        </Badge>
+                      </CardTitle>
+                      <div className="text-right">
+                        <span className="font-mono font-bold text-green-400">
+                          +{ideaWinsPnL.toFixed(1)}%
+                        </span>
+                        <p className="text-[10px] text-muted-foreground">Total Gain</p>
+                      </div>
+                    </div>
+                    <CardDescription>
+                      AI/Quant generated ideas that hit targets (not auto-traded by bot)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <ScrollArea className="h-[200px]">
+                      <div className="space-y-2">
+                        {ideaWins.map((idea) => (
+                          <div 
+                            key={idea.id} 
+                            className="flex items-center justify-between p-3 rounded-lg border border-amber-500/20 bg-card/50 hover-elevate"
+                            data-testid={`idea-win-${idea.id}`}
                           >
                             <div className="flex items-center gap-3">
                               <div className={cn(
@@ -631,7 +735,7 @@ export default function WatchlistBotPage() {
                                   )}
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                  {idea.source === 'ai' ? '🧠 AI' : idea.source === 'chart_analysis' ? '📈 Chart' : '📊 Quant'} • {idea.direction?.toUpperCase()}
+                                  {idea.source === 'ai' ? 'AI Engine' : idea.source === 'chart_analysis' ? 'Chart Analysis' : idea.source === 'quant' ? 'Quant Engine' : idea.source === 'flow' ? 'Flow Scanner' : 'Research'} • {idea.direction?.toUpperCase()}
                                 </p>
                               </div>
                             </div>
