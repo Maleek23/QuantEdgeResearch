@@ -2508,6 +2508,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/analyze-play - Custom Analysis Request
+  // Allows users to request analysis of a specific ticker or option
+  app.post("/api/analyze-play", isAuthenticated, async (req: any, res) => {
+    try {
+      const { symbol, assetType = 'stock', optionType, strike, expiration, direction = 'long' } = req.body;
+      
+      if (!symbol || typeof symbol !== 'string') {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+      
+      const upperSymbol = symbol.toUpperCase().trim();
+      const userId = req.session?.userId;
+      
+      logger.info(`📊 [USER-ANALYSIS] Analyzing ${upperSymbol} at user request`);
+      
+      let entryPrice: number;
+      let targetPrice: number;
+      let stopLoss: number;
+      let optionDetails: { strikePrice?: number; expiryDate?: string; optionType?: string } = {};
+      
+      if (assetType === 'option') {
+        // Import Tradier API functions
+        const { getTradierQuote, getOptionQuote, getTradierOptionsChain } = await import('./tradier-api');
+        
+        // Get underlying stock price first
+        const stockQuote = await getTradierQuote(upperSymbol);
+        if (!stockQuote) {
+          return res.status(400).json({ error: `Could not fetch price for ${upperSymbol}` });
+        }
+        
+        const currentStockPrice = stockQuote.last || stockQuote.close;
+        
+        // If user provided specific option details, try to fetch that exact option
+        if (strike && expiration && optionType) {
+          const optQuote = await getOptionQuote({
+            underlying: upperSymbol,
+            expiryDate: expiration,
+            optionType: optionType as 'call' | 'put',
+            strike: strike
+          });
+          
+          if (optQuote && optQuote.mid > 0) {
+            entryPrice = Number(optQuote.mid.toFixed(2));
+          } else {
+            // Fallback: estimate based on stock price
+            entryPrice = Number((currentStockPrice * 0.03).toFixed(2)); // ~3% of stock price
+          }
+          
+          optionDetails = {
+            strikePrice: strike,
+            expiryDate: expiration,
+            optionType: optionType
+          };
+        } else {
+          // Find nearest ATM option
+          const options = await getTradierOptionsChain(upperSymbol);
+          
+          if (options.length === 0) {
+            return res.status(400).json({ error: `No options available for ${upperSymbol}` });
+          }
+          
+          // Filter to calls/puts based on direction
+          const targetType = direction === 'long' ? 'call' : 'put';
+          const filteredOptions = options.filter(o => o.option_type === targetType);
+          
+          if (filteredOptions.length === 0) {
+            return res.status(400).json({ error: `No ${targetType} options found for ${upperSymbol}` });
+          }
+          
+          // Find ATM option (closest strike to current price)
+          const atmOption = filteredOptions.reduce((prev, curr) => {
+            return Math.abs(curr.strike - currentStockPrice) < Math.abs(prev.strike - currentStockPrice) ? curr : prev;
+          });
+          
+          const mid = (atmOption.bid + atmOption.ask) / 2;
+          entryPrice = Number((mid > 0 ? mid : atmOption.last).toFixed(2));
+          
+          optionDetails = {
+            strikePrice: atmOption.strike,
+            expiryDate: atmOption.expiration_date,
+            optionType: atmOption.option_type
+          };
+        }
+        
+        // Options: target +25%, stop -6.25%
+        targetPrice = Number((entryPrice * 1.25).toFixed(2));
+        stopLoss = Number((entryPrice * 0.9375).toFixed(2));
+        
+      } else if (assetType === 'crypto') {
+        // Fetch crypto price
+        const cryptoPrice = await fetchCryptoPrice(upperSymbol);
+        if (!cryptoPrice) {
+          return res.status(400).json({ error: `Could not fetch crypto price for ${upperSymbol}` });
+        }
+        
+        entryPrice = cryptoPrice;
+        // Crypto: target +10%, stop -5%
+        targetPrice = Number((entryPrice * 1.10).toFixed(2));
+        stopLoss = Number((entryPrice * 0.95).toFixed(2));
+        
+      } else {
+        // Stock - fetch price from Tradier
+        const { getTradierQuote } = await import('./tradier-api');
+        const quote = await getTradierQuote(upperSymbol);
+        
+        if (!quote) {
+          return res.status(400).json({ error: `Could not fetch price for ${upperSymbol}` });
+        }
+        
+        entryPrice = quote.last || quote.close;
+        // Stocks: target +10%, stop -5%
+        targetPrice = Number((entryPrice * 1.10).toFixed(2));
+        stopLoss = Number((entryPrice * 0.95).toFixed(2));
+      }
+      
+      // Calculate risk/reward ratio
+      const risk = entryPrice - stopLoss;
+      const reward = targetPrice - entryPrice;
+      const riskRewardRatio = risk > 0 ? Number((reward / risk).toFixed(2)) : 2.0;
+      
+      // Create the trade idea
+      const tradeIdea = await storage.createTradeIdea({
+        userId,
+        symbol: upperSymbol,
+        assetType: assetType as 'stock' | 'option' | 'crypto',
+        direction: direction as 'long' | 'short',
+        holdingPeriod: 'day',
+        entryPrice,
+        targetPrice,
+        stopLoss,
+        riskRewardRatio,
+        catalyst: `User-requested analysis for ${upperSymbol}`,
+        analysis: `User-requested analysis for ${upperSymbol}. Entry at $${entryPrice.toFixed(2)}, targeting $${targetPrice.toFixed(2)} with stop at $${stopLoss.toFixed(2)}.`,
+        liquidityWarning: entryPrice < 5,
+        sessionContext: 'RTH',
+        timestamp: new Date().toISOString(),
+        source: 'ai',
+        confidenceScore: 70,
+        probabilityBand: 'B',
+        strikePrice: optionDetails.strikePrice || null,
+        expiryDate: optionDetails.expiryDate || null,
+        optionType: optionDetails.optionType || null,
+      });
+      
+      logger.info(`✅ [USER-ANALYSIS] Created trade idea for ${upperSymbol}: entry=$${entryPrice}, target=$${targetPrice}, stop=$${stopLoss}`);
+      
+      res.status(201).json(tradeIdea);
+    } catch (error: any) {
+      logger.error('📊 [USER-ANALYSIS] Error analyzing play:', error);
+      res.status(500).json({ error: error.message || 'Failed to analyze play' });
+    }
+  });
+
   app.delete("/api/trade-ideas/:id", async (req, res) => {
     try {
       const deleted = await storage.deleteTradeIdea(req.params.id);

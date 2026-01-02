@@ -30,6 +30,12 @@ export default function TradeIdeasPage() {
   const [dateRange, setDateRange] = useState<string>('all');
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [analyzeFormOpen, setAnalyzeFormOpen] = useState(false);
+  const [analyzeSymbol, setAnalyzeSymbol] = useState("");
+  const [analyzeAssetType, setAnalyzeAssetType] = useState<"stock" | "option" | "crypto">("stock");
+  const [analyzeOptionType, setAnalyzeOptionType] = useState<"call" | "put">("call");
+  const [analyzeStrike, setAnalyzeStrike] = useState("");
+  const [analyzeExpiration, setAnalyzeExpiration] = useState("");
   const { toast } = useToast();
 
   const { data: tradeIdeas = [], isLoading: ideasLoading } = useQuery<TradeIdea[]>({
@@ -200,6 +206,59 @@ export default function TradeIdeasPage() {
       });
     }
   });
+
+  // Custom Analysis Request mutation
+  const analyzePlay = useMutation({
+    mutationFn: async (params: {
+      symbol: string;
+      assetType: "stock" | "option" | "crypto";
+      optionType?: "call" | "put";
+      strike?: number;
+      expiration?: string;
+      direction?: "long" | "short";
+    }) => {
+      return await apiRequest('POST', '/api/analyze-play', params);
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/performance/stats'] });
+      toast({
+        title: "Analysis Complete",
+        description: `Created research brief for ${data.symbol}`,
+      });
+      setAnalyzeSymbol("");
+      setAnalyzeStrike("");
+      setAnalyzeExpiration("");
+      setAnalyzeFormOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Analysis Failed",
+        description: error.message || "Failed to analyze play",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleAnalyzeSubmit = () => {
+    if (!analyzeSymbol.trim()) {
+      toast({
+        title: "Symbol Required",
+        description: "Please enter a ticker symbol",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    analyzePlay.mutate({
+      symbol: analyzeSymbol.trim().toUpperCase(),
+      assetType: analyzeAssetType,
+      optionType: analyzeAssetType === 'option' ? analyzeOptionType : undefined,
+      strike: analyzeAssetType === 'option' && analyzeStrike ? parseFloat(analyzeStrike) : undefined,
+      expiration: analyzeAssetType === 'option' && analyzeExpiration ? analyzeExpiration : undefined,
+      direction: 'long'
+    });
+  };
 
   const handleToggleExpand = (ideaId: string) => {
     setExpandedIdeaId(expandedIdeaId === ideaId ? null : ideaId);
@@ -527,6 +586,19 @@ export default function TradeIdeasPage() {
           <span className="hidden sm:inline">{generatePennyIdeas.isPending ? "..." : "Penny"}</span>
         </Button>
 
+        <Separator orientation="vertical" className="h-6" />
+
+        <Button 
+          onClick={() => setAnalyzeFormOpen(!analyzeFormOpen)}
+          size="sm"
+          variant={analyzeFormOpen ? "default" : "outline"}
+          className="gap-1.5"
+          data-testid="button-custom-analysis"
+        >
+          <Search className="h-3 w-3" />
+          <span className="hidden sm:inline">Analyze</span>
+        </Button>
+
         {/* View Mode Toggle */}
         <div className="flex items-center gap-1 border rounded-md p-1">
           <Button
@@ -666,6 +738,121 @@ export default function TradeIdeasPage() {
           </PopoverContent>
         </Popover>
       </div>
+
+      {/* Custom Analysis Form */}
+      <Collapsible open={analyzeFormOpen} onOpenChange={setAnalyzeFormOpen}>
+        <CollapsibleContent>
+          <Card className="glass-card border-l-2 border-cyan-500/50" data-testid="custom-analysis-form">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                  <Search className="h-5 w-5 text-cyan-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Custom Analysis Request</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">Analyze a specific ticker or option</p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex-1 min-w-[120px]">
+                  <Label className="text-xs text-muted-foreground mb-1.5 block">Symbol</Label>
+                  <Input
+                    placeholder="TSLA"
+                    value={analyzeSymbol}
+                    onChange={(e) => setAnalyzeSymbol(e.target.value.toUpperCase())}
+                    className="font-mono uppercase"
+                    data-testid="input-analyze-symbol"
+                  />
+                </div>
+
+                <div className="min-w-[120px]">
+                  <Label className="text-xs text-muted-foreground mb-1.5 block">Asset Type</Label>
+                  <Select value={analyzeAssetType} onValueChange={(v: "stock" | "option" | "crypto") => setAnalyzeAssetType(v)}>
+                    <SelectTrigger data-testid="select-analyze-asset-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="stock">Stock</SelectItem>
+                      <SelectItem value="option">Option</SelectItem>
+                      <SelectItem value="crypto">Crypto</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {analyzeAssetType === 'option' && (
+                  <>
+                    <div className="min-w-[100px]">
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Call/Put</Label>
+                      <Select value={analyzeOptionType} onValueChange={(v: "call" | "put") => setAnalyzeOptionType(v)}>
+                        <SelectTrigger data-testid="select-analyze-option-type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="call">Call</SelectItem>
+                          <SelectItem value="put">Put</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="min-w-[100px]">
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Strike (optional)</Label>
+                      <Input
+                        type="number"
+                        placeholder="150"
+                        value={analyzeStrike}
+                        onChange={(e) => setAnalyzeStrike(e.target.value)}
+                        className="font-mono"
+                        data-testid="input-analyze-strike"
+                      />
+                    </div>
+
+                    <div className="min-w-[140px]">
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Expiration (optional)</Label>
+                      <Input
+                        type="date"
+                        value={analyzeExpiration}
+                        onChange={(e) => setAnalyzeExpiration(e.target.value)}
+                        className="font-mono"
+                        data-testid="input-analyze-expiration"
+                      />
+                    </div>
+                  </>
+                )}
+
+                <Button
+                  onClick={handleAnalyzeSubmit}
+                  disabled={analyzePlay.isPending || !analyzeSymbol.trim()}
+                  className="gap-2"
+                  data-testid="button-submit-analyze"
+                >
+                  {analyzePlay.isPending ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <BarChart3 className="h-4 w-4" />
+                      Analyze
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setAnalyzeFormOpen(false)}
+                  data-testid="button-close-analyze-form"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Top Picks Today - Best Opportunities */}
       {topPicks.length > 0 && (
