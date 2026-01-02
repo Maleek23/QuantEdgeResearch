@@ -14,26 +14,30 @@ const DISCORD_DISABLED = false;
  * ═══════════════════════════════════════════════════════════════════════════
  * CHANNEL             │ WEBHOOK ENV VAR              │ PURPOSE
  * ═══════════════════════════════════════════════════════════════════════════
- * #trade-alerts       │ DISCORD_WEBHOOK_URL          │ All trade ideas (AI/Quant/Hybrid/Flow)
+ * #trade-alerts       │ DISCORD_WEBHOOK_URL          │ AI/Hybrid/Flow trade ideas
  *                     │                              │ Daily summaries, batch alerts
+ * ───────────────────────────────────────────────────────────────────────────
+ * #quantbot           │ DISCORD_WEBHOOK_QUANTBOT     │ Quant engine trades only
+ *                     │                              │ RSI2, VWAP, Volume signals
  * ───────────────────────────────────────────────────────────────────────────
  * #lotto              │ DISCORD_WEBHOOK_LOTTO        │ Lotto detector alerts
  *                     │                              │ Bot entries & exits (paper trading)
  * ───────────────────────────────────────────────────────────────────────────
- * #gains              │ DISCORD_WEBHOOK_GAINS        │ Bot winning trades
- *                     │                              │ Weekly premium picks
+ * #gains              │ DISCORD_WEBHOOK_GAINS        │ Bot winning trades only
  * ───────────────────────────────────────────────────────────────────────────
  * #futures            │ DISCORD_WEBHOOK_FUTURE_TRADES│ NQ/GC futures trades only
  * ───────────────────────────────────────────────────────────────────────────
  * #chart-analysis     │ DISCORD_WEBHOOK_CHARTANALYSIS│ Technical chart breakdowns
  * ───────────────────────────────────────────────────────────────────────────
  * #weekly-watchlist   │ DISCORD_WEBHOOK_WEEKLYWATCHLISTS │ Weekly watchlist summary
+ *                     │                              │ Weekly premium picks
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
 // Channel header prefixes for easy identification in Discord
 const CHANNEL_HEADERS = {
   TRADE_ALERTS: '📊 #TRADE-ALERTS',
+  QUANTBOT: '✨ #QUANTBOT',
   LOTTO: '🎰 #LOTTO',
   GAINS: '💰 #GAINS',
   FUTURES: '📈 #FUTURES',
@@ -201,7 +205,10 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
     return;
   }
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  // Route quant trades to dedicated QUANTBOT channel, others to main trade-alerts
+  const webhookUrl = idea.source === 'quant' 
+    ? (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL)
+    : process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
     logger.warn('⚠️ Discord webhook URL not configured - skipping alert');
@@ -211,8 +218,9 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
   try {
     const embed = formatTradeIdeaEmbed(idea);
     const sourceLabel = idea.source === 'ai' ? 'AI' : idea.source === 'quant' ? 'QUANT' : idea.source === 'hybrid' ? 'HYBRID' : 'FLOW';
+    const channelHeader = idea.source === 'quant' ? CHANNEL_HEADERS.QUANTBOT : CHANNEL_HEADERS.TRADE_ALERTS;
     const message: DiscordMessage = {
-      content: `🎯 **${sourceLabel} TRADE** → ${idea.symbol} │ ${CHANNEL_HEADERS.TRADE_ALERTS}`,
+      content: `🎯 **${sourceLabel} TRADE** → ${idea.symbol} │ ${channelHeader}`,
       embeds: [embed]
     };
     
@@ -355,10 +363,13 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
     return;
   }
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  // Route quant batches to dedicated QUANTBOT channel, others to main trade-alerts
+  const webhookUrl = source === 'quant'
+    ? (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL)
+    : process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
-    logger.warn('⚠️ No DISCORD_WEBHOOK_URL configured - skipping notification');
+    logger.warn('⚠️ No Discord webhook configured - skipping notification');
     return;
   }
   
@@ -448,8 +459,9 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
       timestamp: new Date().toISOString()
     };
     
+    const channelHeader = source === 'quant' ? CHANNEL_HEADERS.QUANTBOT : CHANNEL_HEADERS.TRADE_ALERTS;
     const message: DiscordMessage = {
-      content: `📢 **BATCH ALERT** → ${ideas.length} ${sourceLabel} Ideas │ ${CHANNEL_HEADERS.TRADE_ALERTS}`,
+      content: `📢 **BATCH ALERT** → ${ideas.length} ${sourceLabel} Ideas │ ${channelHeader}`,
       embeds: [embed]
     };
     
@@ -1058,8 +1070,8 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
 }>, weekRange: { start: string; end: string }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
-  // Use dedicated webhook for premium picks - falls back to main trades webhook, NOT futures
-  const webhookUrl = process.env.DISCORD_WEBHOOK_GAINS || process.env.DISCORD_WEBHOOK_URL;
+  // Use weekly watchlist webhook for premium picks, NOT gains channel
+  const webhookUrl = process.env.DISCORD_WEBHOOK_WEEKLYWATCHLISTS || process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
     logger.info('⚠️ Discord webhook not configured - skipping next week picks');
@@ -1146,7 +1158,7 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
     };
     
     const message: DiscordMessage = {
-      content: `🎯 **NEXT WEEK PREMIUM PICKS** → ${picks.length} curated plays │ ${CHANNEL_HEADERS.GAINS}`,
+      content: `🎯 **NEXT WEEK PREMIUM PICKS** → ${picks.length} curated plays │ ${CHANNEL_HEADERS.WEEKLY_WATCHLIST}`,
       embeds: [embed]
     };
     
