@@ -647,3 +647,57 @@ export async function validateTradierAPI(): Promise<boolean> {
     return false;
   }
 }
+
+interface TradierLookupResult {
+  symbol: string;
+  exchange: string;
+  type: string;
+  description: string;
+}
+
+export async function searchSymbolLookup(query: string, apiKey?: string): Promise<TradierLookupResult[]> {
+  const key = apiKey || process.env.TRADIER_API_KEY;
+  if (!key || query.length < 1) {
+    return [];
+  }
+
+  const startTime = Date.now();
+  try {
+    const baseUrl = getBaseUrl(key);
+    const response = await fetch(`${baseUrl}/markets/lookup?q=${encodeURIComponent(query)}`, {
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      logger.warn(`Tradier lookup error for "${query}": ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const securities = data.securities?.security;
+    
+    if (!securities) {
+      return [];
+    }
+
+    const results = Array.isArray(securities) ? securities : [securities];
+    
+    logAPISuccess('Tradier', '/markets/lookup', Date.now() - startTime);
+    
+    return results
+      .filter((s: any) => s.type === 'stock' || s.type === 'etf')
+      .slice(0, 10)
+      .map((s: any) => ({
+        symbol: s.symbol,
+        exchange: s.exchange,
+        type: s.type,
+        description: s.description
+      }));
+  } catch (error) {
+    logger.error('Tradier lookup error:', error);
+    return [];
+  }
+}

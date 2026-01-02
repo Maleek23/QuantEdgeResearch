@@ -2033,6 +2033,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Symbol autocomplete search - returns matches for partial queries
+  app.get("/api/symbol-autocomplete", async (req, res) => {
+    try {
+      const query = (req.query.q as string || '').trim();
+      if (query.length < 1) {
+        return res.json({ results: [] });
+      }
+
+      const { searchSymbolLookup } = await import('./tradier-api');
+      const results = await searchSymbolLookup(query);
+      
+      // Also search crypto if query matches common crypto patterns
+      const cryptoMatches: { symbol: string; description: string; type: string }[] = [];
+      const cryptoMap: Record<string, string> = {
+        'BTC': 'Bitcoin', 'ETH': 'Ethereum', 'SOL': 'Solana', 'XRP': 'Ripple',
+        'ADA': 'Cardano', 'DOGE': 'Dogecoin', 'DOT': 'Polkadot', 'AVAX': 'Avalanche',
+        'LINK': 'Chainlink', 'MATIC': 'Polygon', 'UNI': 'Uniswap', 'ATOM': 'Cosmos',
+        'LTC': 'Litecoin', 'FIL': 'Filecoin', 'NEAR': 'NEAR Protocol', 'APT': 'Aptos',
+        'ARB': 'Arbitrum', 'OP': 'Optimism', 'PEPE': 'Pepe', 'SHIB': 'Shiba Inu',
+        'SUI': 'Sui', 'SEI': 'Sei', 'TIA': 'Celestia', 'INJ': 'Injective', 'PENDLE': 'Pendle'
+      };
+      
+      for (const [symbol, name] of Object.entries(cryptoMap)) {
+        if (symbol.toLowerCase().includes(query.toLowerCase()) || 
+            name.toLowerCase().includes(query.toLowerCase())) {
+          cryptoMatches.push({ symbol, description: name, type: 'crypto' });
+        }
+      }
+
+      res.json({ 
+        results: [...results, ...cryptoMatches.slice(0, 5)].slice(0, 15)
+      });
+    } catch (error) {
+      logger.error('Symbol autocomplete error:', error);
+      res.json({ results: [] });
+    }
+  });
+
   app.get("/api/search-symbol/:symbol", async (req, res) => {
     try {
       const symbol = req.params.symbol.toUpperCase();
@@ -2547,10 +2585,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/analyze-play - Custom Analysis Request
-  // Allows users to request analysis of a specific ticker or option
+  // Auto-suggests play type (calls/puts/shares) based on quantitative signals
   app.post("/api/analyze-play", isAuthenticated, async (req: any, res) => {
     try {
-      const { symbol, assetType = 'stock', optionType, strike, expiration, direction = 'long' } = req.body;
+      const { symbol, assetType: requestedAssetType, optionType: requestedOptionType, strike, expiration, direction: requestedDirection, autoSuggest = true } = req.body;
       
       if (!symbol || typeof symbol !== 'string') {
         return res.status(400).json({ error: "Symbol is required" });
@@ -2559,96 +2597,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const upperSymbol = symbol.toUpperCase().trim();
       const userId = req.session?.userId;
       
-      logger.info(`📊 [USER-ANALYSIS] Analyzing ${upperSymbol} at user request`);
+      logger.info(`📊 [USER-ANALYSIS] Analyzing ${upperSymbol} at user request (autoSuggest=${autoSuggest})`);
+      
+      // Determine if this is crypto
+      const cryptoMap: Record<string, boolean> = {
+        'BTC': true, 'ETH': true, 'SOL': true, 'XRP': true, 'ADA': true, 'DOGE': true,
+        'DOT': true, 'AVAX': true, 'LINK': true, 'MATIC': true, 'UNI': true, 'ATOM': true,
+        'LTC': true, 'FIL': true, 'NEAR': true, 'APT': true, 'ARB': true, 'OP': true,
+        'PEPE': true, 'SHIB': true, 'SUI': true, 'SEI': true, 'TIA': true, 'INJ': true, 'PENDLE': true
+      };
+      const isCrypto = cryptoMap[upperSymbol] === true;
       
       let entryPrice: number;
       let targetPrice: number;
       let stopLoss: number;
-      let optionDetails: { strikePrice?: number; expiryDate?: string; optionType?: string } = {};
+      let detectedDirection: 'long' | 'short' = 'long';
+      let suggestedAssetType: 'stock' | 'option' | 'crypto' = isCrypto ? 'crypto' : 'stock';
+      let suggestedOptionType: 'call' | 'put' | null = null;
+      let confidenceScore = 60;
+      let signals: string[] = [];
+      let analysisText = '';
       
-      if (assetType === 'option') {
-        // Import Tradier API functions
-        const { getTradierQuote, getOptionQuote, getTradierOptionsChain } = await import('./tradier-api');
-        
-        // Get underlying stock price first
-        const stockQuote = await getTradierQuote(upperSymbol);
-        if (!stockQuote) {
-          return res.status(400).json({ error: `Could not fetch price for ${upperSymbol}` });
-        }
-        
-        const currentStockPrice = stockQuote.last || stockQuote.close;
-        
-        // If user provided specific option details, try to fetch that exact option
-        if (strike && expiration && optionType) {
-          const optQuote = await getOptionQuote({
-            underlying: upperSymbol,
-            expiryDate: expiration,
-            optionType: optionType as 'call' | 'put',
-            strike: strike
-          });
-          
-          if (optQuote && optQuote.mid > 0) {
-            entryPrice = Number(optQuote.mid.toFixed(2));
-          } else {
-            // Fallback: estimate based on stock price
-            entryPrice = Number((currentStockPrice * 0.03).toFixed(2)); // ~3% of stock price
-          }
-          
-          optionDetails = {
-            strikePrice: strike,
-            expiryDate: expiration,
-            optionType: optionType
-          };
-        } else {
-          // Find nearest ATM option
-          const options = await getTradierOptionsChain(upperSymbol);
-          
-          if (options.length === 0) {
-            return res.status(400).json({ error: `No options available for ${upperSymbol}` });
-          }
-          
-          // Filter to calls/puts based on direction
-          const targetType = direction === 'long' ? 'call' : 'put';
-          const filteredOptions = options.filter(o => o.option_type === targetType);
-          
-          if (filteredOptions.length === 0) {
-            return res.status(400).json({ error: `No ${targetType} options found for ${upperSymbol}` });
-          }
-          
-          // Find ATM option (closest strike to current price)
-          const atmOption = filteredOptions.reduce((prev, curr) => {
-            return Math.abs(curr.strike - currentStockPrice) < Math.abs(prev.strike - currentStockPrice) ? curr : prev;
-          });
-          
-          const mid = (atmOption.bid + atmOption.ask) / 2;
-          entryPrice = Number((mid > 0 ? mid : atmOption.last).toFixed(2));
-          
-          optionDetails = {
-            strikePrice: atmOption.strike,
-            expiryDate: atmOption.expiration_date,
-            optionType: atmOption.option_type
-          };
-        }
-        
-        // Options: target +25%, stop -6.25%
-        targetPrice = Number((entryPrice * 1.25).toFixed(2));
-        stopLoss = Number((entryPrice * 0.9375).toFixed(2));
-        
-      } else if (assetType === 'crypto') {
-        // Fetch crypto price
-        const cryptoPrice = await fetchCryptoPrice(upperSymbol);
-        if (!cryptoPrice) {
+      // Fetch price and historical data for quant analysis
+      if (isCrypto) {
+        const cryptoData = await fetchCryptoPrice(upperSymbol);
+        if (!cryptoData) {
           return res.status(400).json({ error: `Could not fetch crypto price for ${upperSymbol}` });
         }
+        entryPrice = cryptoData.currentPrice;
         
-        entryPrice = cryptoPrice;
         // Crypto: target +10%, stop -5%
         targetPrice = Number((entryPrice * 1.10).toFixed(2));
         stopLoss = Number((entryPrice * 0.95).toFixed(2));
-        
+        analysisText = `Crypto analysis for ${upperSymbol}. `;
       } else {
-        // Stock - fetch price from Tradier
-        const { getTradierQuote } = await import('./tradier-api');
+        // Stock - fetch quote and historical data for quant signals
+        const { getTradierQuote, getTradierHistory } = await import('./tradier-api');
         const quote = await getTradierQuote(upperSymbol);
         
         if (!quote) {
@@ -2656,35 +2640,200 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         entryPrice = quote.last || quote.close;
-        // Stocks: target +10%, stop -5%
-        targetPrice = Number((entryPrice * 1.10).toFixed(2));
-        stopLoss = Number((entryPrice * 0.95).toFixed(2));
+        const historicalPrices = await getTradierHistory(upperSymbol, 20);
+        
+        // Run quantitative analysis to determine direction
+        if (historicalPrices.length >= 14) {
+          const { RSI, EMA, MACD, ADX } = await import('technicalindicators');
+          
+          // Calculate RSI(2) for mean reversion
+          const rsi2 = RSI.calculate({ period: 2, values: historicalPrices });
+          const latestRSI = rsi2.length > 0 ? rsi2[rsi2.length - 1] : 50;
+          
+          // Calculate RSI(14) for trend
+          const rsi14 = RSI.calculate({ period: 14, values: historicalPrices });
+          const latestRSI14 = rsi14.length > 0 ? rsi14[rsi14.length - 1] : 50;
+          
+          // Calculate MACD
+          const macdResult = MACD.calculate({
+            values: historicalPrices,
+            fastPeriod: 12,
+            slowPeriod: 26,
+            signalPeriod: 9,
+            SimpleMAOscillator: false,
+            SimpleMASignal: false
+          });
+          const latestMACD = macdResult.length > 0 ? macdResult[macdResult.length - 1] : null;
+          
+          // Determine signals and direction
+          let bullishSignals = 0;
+          let bearishSignals = 0;
+          
+          // RSI(2) mean reversion signals
+          if (latestRSI < 10) {
+            signals.push(`RSI(2) extremely oversold at ${latestRSI.toFixed(1)}`);
+            bullishSignals += 2;
+          } else if (latestRSI < 20) {
+            signals.push(`RSI(2) oversold at ${latestRSI.toFixed(1)}`);
+            bullishSignals += 1;
+          } else if (latestRSI > 90) {
+            signals.push(`RSI(2) extremely overbought at ${latestRSI.toFixed(1)}`);
+            bearishSignals += 2;
+          } else if (latestRSI > 80) {
+            signals.push(`RSI(2) overbought at ${latestRSI.toFixed(1)}`);
+            bearishSignals += 1;
+          }
+          
+          // RSI(14) trend confirmation
+          if (latestRSI14 < 30) {
+            signals.push(`RSI(14) oversold at ${latestRSI14.toFixed(1)}`);
+            bullishSignals += 1;
+          } else if (latestRSI14 > 70) {
+            signals.push(`RSI(14) overbought at ${latestRSI14.toFixed(1)}`);
+            bearishSignals += 1;
+          }
+          
+          // MACD signals
+          if (latestMACD && latestMACD.histogram !== undefined) {
+            if (latestMACD.histogram > 0 && latestMACD.MACD !== undefined && latestMACD.MACD > 0) {
+              signals.push('MACD bullish crossover');
+              bullishSignals += 1;
+            } else if (latestMACD.histogram < 0 && latestMACD.MACD !== undefined && latestMACD.MACD < 0) {
+              signals.push('MACD bearish crossover');
+              bearishSignals += 1;
+            }
+          }
+          
+          // Price momentum
+          const priceChange = ((entryPrice - historicalPrices[0]) / historicalPrices[0]) * 100;
+          if (priceChange < -5) {
+            signals.push(`Down ${Math.abs(priceChange).toFixed(1)}% - potential bounce`);
+            bullishSignals += 1;
+          } else if (priceChange > 5) {
+            signals.push(`Up ${priceChange.toFixed(1)}% - potential pullback`);
+            bearishSignals += 1;
+          }
+          
+          // Determine direction based on signals
+          if (bullishSignals > bearishSignals) {
+            detectedDirection = 'long';
+            suggestedOptionType = 'call';
+            confidenceScore = Math.min(95, 55 + (bullishSignals * 10));
+          } else if (bearishSignals > bullishSignals) {
+            detectedDirection = 'short';
+            suggestedOptionType = 'put';
+            confidenceScore = Math.min(95, 55 + (bearishSignals * 10));
+          } else {
+            // Neutral - default to long with lower confidence
+            detectedDirection = 'long';
+            suggestedOptionType = 'call';
+            confidenceScore = 50;
+            signals.push('Mixed signals - proceed with caution');
+          }
+          
+          analysisText = `Quant analysis for ${upperSymbol}: ${signals.join('. ')}. `;
+        } else {
+          analysisText = `Limited historical data for ${upperSymbol}. `;
+          detectedDirection = 'long';
+          suggestedOptionType = 'call';
+        }
+        
+        // Calculate targets based on direction
+        if (detectedDirection === 'long') {
+          targetPrice = Number((entryPrice * 1.08).toFixed(2)); // 8% target
+          stopLoss = Number((entryPrice * 0.96).toFixed(2)); // 4% stop
+        } else {
+          targetPrice = Number((entryPrice * 0.92).toFixed(2)); // 8% down target
+          stopLoss = Number((entryPrice * 1.04).toFixed(2)); // 4% stop
+        }
+      }
+      
+      // Use detected values or user overrides
+      const finalDirection = requestedDirection || detectedDirection;
+      const finalAssetType = requestedAssetType || suggestedAssetType;
+      let optionDetails: { strikePrice?: number; expiryDate?: string; optionType?: string } = {};
+      
+      // If option, fetch option chain
+      if (finalAssetType === 'option' && !isCrypto) {
+        const { getTradierQuote, getOptionQuote, getTradierOptionsChain } = await import('./tradier-api');
+        const stockQuote = await getTradierQuote(upperSymbol);
+        const currentStockPrice = stockQuote?.last || stockQuote?.close || entryPrice;
+        
+        const finalOptionType = requestedOptionType || suggestedOptionType || 'call';
+        
+        if (strike && expiration) {
+          const optQuote = await getOptionQuote({
+            underlying: upperSymbol,
+            expiryDate: expiration,
+            optionType: finalOptionType as 'call' | 'put',
+            strike: strike
+          });
+          
+          if (optQuote && optQuote.mid > 0) {
+            entryPrice = Number(optQuote.mid.toFixed(2));
+          } else {
+            entryPrice = Number((currentStockPrice * 0.03).toFixed(2));
+          }
+          
+          optionDetails = { strikePrice: strike, expiryDate: expiration, optionType: finalOptionType };
+        } else {
+          const options = await getTradierOptionsChain(upperSymbol);
+          const filteredOptions = options.filter(o => o.option_type === finalOptionType);
+          
+          if (filteredOptions.length > 0) {
+            const atmOption = filteredOptions.reduce((prev, curr) => 
+              Math.abs(curr.strike - currentStockPrice) < Math.abs(prev.strike - currentStockPrice) ? curr : prev
+            );
+            
+            const mid = (atmOption.bid + atmOption.ask) / 2;
+            entryPrice = Number((mid > 0 ? mid : atmOption.last).toFixed(2));
+            optionDetails = {
+              strikePrice: atmOption.strike,
+              expiryDate: atmOption.expiration_date,
+              optionType: atmOption.option_type
+            };
+          }
+        }
+        
+        // Options targets: +30% target, -10% stop
+        targetPrice = Number((entryPrice * 1.30).toFixed(2));
+        stopLoss = Number((entryPrice * 0.90).toFixed(2));
       }
       
       // Calculate risk/reward ratio
-      const risk = entryPrice - stopLoss;
-      const reward = targetPrice - entryPrice;
+      const risk = Math.abs(entryPrice - stopLoss);
+      const reward = Math.abs(targetPrice - entryPrice);
       const riskRewardRatio = risk > 0 ? Number((reward / risk).toFixed(2)) : 2.0;
+      
+      // Determine probability band from confidence
+      const probabilityBand = confidenceScore >= 80 ? 'A' : confidenceScore >= 65 ? 'B' : 'C';
+      
+      // Build suggested play description
+      const playDescription = finalAssetType === 'option' 
+        ? `${optionDetails.optionType?.toUpperCase() || 'CALL'} $${optionDetails.strikePrice} exp ${optionDetails.expiryDate}`
+        : finalAssetType === 'crypto' ? 'SPOT' : 'SHARES';
+      
+      analysisText += `Suggested play: ${finalDirection.toUpperCase()} ${playDescription}. Entry at $${entryPrice.toFixed(2)}, target $${targetPrice.toFixed(2)}, stop $${stopLoss.toFixed(2)}. R:R ${riskRewardRatio}:1.`;
       
       // Create the trade idea
       const tradeIdea = await storage.createTradeIdea({
         userId,
         symbol: upperSymbol,
-        assetType: assetType as 'stock' | 'option' | 'crypto',
-        direction: direction as 'long' | 'short',
+        assetType: finalAssetType as 'stock' | 'option' | 'crypto',
+        direction: finalDirection as 'long' | 'short',
         holdingPeriod: 'day',
         entryPrice,
         targetPrice,
         stopLoss,
         riskRewardRatio,
-        catalyst: `User-requested analysis for ${upperSymbol}`,
-        analysis: `User-requested analysis for ${upperSymbol}. Entry at $${entryPrice.toFixed(2)}, targeting $${targetPrice.toFixed(2)} with stop at $${stopLoss.toFixed(2)}.`,
+        catalyst: signals.length > 0 ? signals.slice(0, 3).join(' | ') : `Analysis for ${upperSymbol}`,
+        analysis: analysisText,
         liquidityWarning: entryPrice < 5,
         sessionContext: 'RTH',
         timestamp: new Date().toISOString(),
         source: 'ai',
-        confidenceScore: 70,
-        probabilityBand: 'B',
+        confidenceScore,
+        probabilityBand,
         strikePrice: optionDetails.strikePrice || null,
         expiryDate: optionDetails.expiryDate || null,
         optionType: optionDetails.optionType || null,

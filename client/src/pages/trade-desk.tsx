@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -64,12 +64,72 @@ export default function TradeDeskPage() {
   // Pagination state
   const [visibleCount, setVisibleCount] = useState(50);
   
+  // Custom Analysis state
+  const [analyzeSymbol, setAnalyzeSymbol] = useState("");
+  const [analyzeAssetType, setAnalyzeAssetType] = useState<"stock" | "option" | "crypto">("stock");
+  const [analyzeOptionType, setAnalyzeOptionType] = useState<"call" | "put">("call");
+  const [analyzeStrike, setAnalyzeStrike] = useState("");
+  const [analyzeExpiration, setAnalyzeExpiration] = useState("");
+  const [symbolSearchResults, setSymbolSearchResults] = useState<{symbol: string; description: string; type: string}[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchResultsRef = useRef<HTMLDivElement>(null);
+  
   // Reset pagination when filters change
   useEffect(() => {
     setVisibleCount(50);
   }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, sourceTab, statusView, activeTimeframe, tradeTypeFilter]);
   
   const { toast } = useToast();
+
+  // Symbol autocomplete search effect
+  useEffect(() => {
+    const searchSymbols = async () => {
+      if (analyzeSymbol.length < 1) {
+        setSymbolSearchResults([]);
+        return;
+      }
+      
+      setIsSearching(true);
+      try {
+        const response = await fetch(`/api/symbol-autocomplete?q=${encodeURIComponent(analyzeSymbol)}`);
+        const data = await response.json();
+        setSymbolSearchResults(data.results || []);
+        setShowSearchResults(true);
+      } catch (error) {
+        console.error('Symbol search error:', error);
+        setSymbolSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const debounce = setTimeout(searchSymbols, 300);
+    return () => clearTimeout(debounce);
+  }, [analyzeSymbol]);
+
+  // Close search results on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchResultsRef.current && !searchResultsRef.current.contains(event.target as Node) &&
+          searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectSymbol = (symbol: string, type: string) => {
+    setAnalyzeSymbol(symbol);
+    if (type === 'crypto') {
+      setAnalyzeAssetType('crypto');
+    } else {
+      setAnalyzeAssetType('stock');
+    }
+    setShowSearchResults(false);
+  };
   
   // Memoize market status to avoid recalculating on every render
   const marketStatus = useMemo(() => getMarketStatus(), []);
@@ -328,6 +388,47 @@ export default function TradeDeskPage() {
       toast({
         title: "Scan Failed",
         description: error.message || "Failed to scan options flow",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Custom Analysis mutation
+  const analyzePlayMutation = useMutation({
+    mutationFn: async () => {
+      if (!analyzeSymbol.trim()) {
+        throw new Error("Please enter a symbol");
+      }
+      const payload: any = {
+        symbol: analyzeSymbol.toUpperCase(),
+        assetType: analyzeAssetType,
+        autoSuggest: true,
+      };
+      if (analyzeAssetType === 'option') {
+        payload.optionType = analyzeOptionType;
+        if (analyzeStrike) payload.strike = parseFloat(analyzeStrike);
+        if (analyzeExpiration) payload.expiration = analyzeExpiration;
+      }
+      const response = await apiRequest("POST", "/api/analyze-play", payload);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      setAnalyzeSymbol("");
+      setAnalyzeStrike("");
+      setAnalyzeExpiration("");
+      
+      const direction = data.tradeIdea?.direction || 'LONG';
+      const suggestedType = data.tradeIdea?.assetType || 'stock';
+      toast({
+        title: `Analysis Complete`,
+        description: `${analyzeSymbol.toUpperCase()}: ${direction} ${suggestedType === 'option' ? (data.tradeIdea?.optionType?.toUpperCase() || 'OPTION') : suggestedType.toUpperCase()}`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Analysis Failed",
+        description: error.message || "Could not analyze symbol",
         variant: "destructive"
       });
     }
@@ -798,6 +899,99 @@ export default function TradeDeskPage() {
 
       {/* AI Research Assistant - Claude-powered Q&A */}
       <AIResearchPanel />
+
+      {/* Quick Symbol Search & Analysis */}
+      <Card className="border-border/50 bg-card/50">
+        <CardHeader className="p-3 pb-2">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Search className="h-4 w-4" />
+            Quick Analysis
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-3 pt-0">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex-1 min-w-[180px] relative">
+              <div className="relative">
+                <Input
+                  ref={searchInputRef}
+                  placeholder="Search RKLB, TSLA, BTC..."
+                  value={analyzeSymbol}
+                  onChange={(e) => setAnalyzeSymbol(e.target.value.toUpperCase())}
+                  onFocus={() => symbolSearchResults.length > 0 && setShowSearchResults(true)}
+                  className="font-mono uppercase pr-8 h-9"
+                  data-testid="input-analyze-symbol"
+                />
+                {isSearching && (
+                  <RefreshCw className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+              </div>
+              {showSearchResults && symbolSearchResults.length > 0 && (
+                <div 
+                  ref={searchResultsRef}
+                  className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-60 overflow-y-auto"
+                >
+                  {symbolSearchResults.map((result, idx) => (
+                    <button
+                      key={`${result.symbol}-${idx}`}
+                      type="button"
+                      className="w-full px-3 py-2 text-left hover:bg-accent flex items-center justify-between gap-2 border-b last:border-b-0"
+                      onClick={() => handleSelectSymbol(result.symbol, result.type)}
+                      data-testid={`search-result-${result.symbol}`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-mono font-bold text-sm">{result.symbol}</span>
+                        <span className="text-xs text-muted-foreground truncate">{result.description}</span>
+                      </div>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {result.type === 'crypto' ? 'Crypto' : result.type?.toUpperCase() || 'Stock'}
+                      </Badge>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <Select value={analyzeAssetType} onValueChange={(v: "stock" | "option" | "crypto") => setAnalyzeAssetType(v)}>
+              <SelectTrigger className="w-[100px] h-9" data-testid="select-analyze-asset-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="stock">Shares</SelectItem>
+                <SelectItem value="option">Options</SelectItem>
+                <SelectItem value="crypto">Crypto</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {analyzeAssetType === 'option' && (
+              <Select value={analyzeOptionType} onValueChange={(v: "call" | "put") => setAnalyzeOptionType(v)}>
+                <SelectTrigger className="w-[80px] h-9" data-testid="select-analyze-option-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="call">Call</SelectItem>
+                  <SelectItem value="put">Put</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            <Button
+              onClick={() => analyzePlayMutation.mutate()}
+              disabled={analyzePlayMutation.isPending || !analyzeSymbol.trim()}
+              className="h-9"
+              data-testid="button-submit-analyze"
+            >
+              {analyzePlayMutation.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <TrendingUp className="h-4 w-4 mr-1" />
+                  Analyze
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Engine/Source Tabs with Gradient Icons */}
       <div className="space-y-2">

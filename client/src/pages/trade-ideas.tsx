@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -36,7 +36,60 @@ export default function TradeIdeasPage() {
   const [analyzeOptionType, setAnalyzeOptionType] = useState<"call" | "put">("call");
   const [analyzeStrike, setAnalyzeStrike] = useState("");
   const [analyzeExpiration, setAnalyzeExpiration] = useState("");
+  const [symbolSearchResults, setSymbolSearchResults] = useState<{symbol: string; description: string; type: string}[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchResultsRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Symbol autocomplete search
+  useEffect(() => {
+    const searchSymbols = async () => {
+      if (analyzeSymbol.length < 1) {
+        setSymbolSearchResults([]);
+        return;
+      }
+      
+      setIsSearching(true);
+      try {
+        const response = await fetch(`/api/symbol-autocomplete?q=${encodeURIComponent(analyzeSymbol)}`);
+        const data = await response.json();
+        setSymbolSearchResults(data.results || []);
+        setShowSearchResults(true);
+      } catch (error) {
+        console.error('Symbol search error:', error);
+        setSymbolSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const debounce = setTimeout(searchSymbols, 300);
+    return () => clearTimeout(debounce);
+  }, [analyzeSymbol]);
+
+  // Close search results on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchResultsRef.current && !searchResultsRef.current.contains(event.target as Node) &&
+          searchInputRef.current && !searchInputRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectSymbol = (symbol: string, type: string) => {
+    setAnalyzeSymbol(symbol);
+    if (type === 'crypto') {
+      setAnalyzeAssetType('crypto');
+    } else {
+      setAnalyzeAssetType('stock');
+    }
+    setShowSearchResults(false);
+  };
 
   const { data: tradeIdeas = [], isLoading: ideasLoading } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
@@ -756,26 +809,57 @@ export default function TradeIdeasPage() {
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap items-end gap-3">
-                <div className="flex-1 min-w-[120px]">
-                  <Label className="text-xs text-muted-foreground mb-1.5 block">Symbol</Label>
-                  <Input
-                    placeholder="TSLA"
-                    value={analyzeSymbol}
-                    onChange={(e) => setAnalyzeSymbol(e.target.value.toUpperCase())}
-                    className="font-mono uppercase"
-                    data-testid="input-analyze-symbol"
-                  />
+                <div className="flex-1 min-w-[180px] relative">
+                  <Label className="text-xs text-muted-foreground mb-1.5 block">Search Symbol</Label>
+                  <div className="relative">
+                    <Input
+                      ref={searchInputRef}
+                      placeholder="Search RKLB, TSLA, BTC..."
+                      value={analyzeSymbol}
+                      onChange={(e) => setAnalyzeSymbol(e.target.value.toUpperCase())}
+                      onFocus={() => symbolSearchResults.length > 0 && setShowSearchResults(true)}
+                      className="font-mono uppercase pr-8"
+                      data-testid="input-analyze-symbol"
+                    />
+                    {isSearching && (
+                      <RefreshCw className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  {showSearchResults && symbolSearchResults.length > 0 && (
+                    <div 
+                      ref={searchResultsRef}
+                      className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-60 overflow-y-auto"
+                    >
+                      {symbolSearchResults.map((result, idx) => (
+                        <button
+                          key={`${result.symbol}-${idx}`}
+                          type="button"
+                          className="w-full px-3 py-2 text-left hover:bg-accent flex items-center justify-between gap-2 border-b last:border-b-0"
+                          onClick={() => handleSelectSymbol(result.symbol, result.type)}
+                          data-testid={`search-result-${result.symbol}`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-mono font-bold">{result.symbol}</span>
+                            <span className="text-xs text-muted-foreground truncate">{result.description}</span>
+                          </div>
+                          <Badge variant="outline" className="text-xs shrink-0">
+                            {result.type === 'crypto' ? 'Crypto' : result.type?.toUpperCase() || 'Stock'}
+                          </Badge>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="min-w-[120px]">
-                  <Label className="text-xs text-muted-foreground mb-1.5 block">Asset Type</Label>
+                  <Label className="text-xs text-muted-foreground mb-1.5 block">Play Type</Label>
                   <Select value={analyzeAssetType} onValueChange={(v: "stock" | "option" | "crypto") => setAnalyzeAssetType(v)}>
                     <SelectTrigger data-testid="select-analyze-asset-type">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="stock">Stock</SelectItem>
-                      <SelectItem value="option">Option</SelectItem>
+                      <SelectItem value="stock">Shares</SelectItem>
+                      <SelectItem value="option">Options</SelectItem>
                       <SelectItem value="crypto">Crypto</SelectItem>
                     </SelectContent>
                   </Select>
