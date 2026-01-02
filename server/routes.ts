@@ -8355,8 +8355,10 @@ FORMATTING:
       // Calculate stats
       const openPositions = positions.filter(p => p.status === 'open');
       const closedPositions = positions.filter(p => p.status === 'closed');
-      const wins = closedPositions.filter(p => (p.realizedPnL || 0) > 0).length;
-      const losses = closedPositions.filter(p => (p.realizedPnL || 0) < 0).length;
+      // Only count trades with non-zero P&L for win rate calculation
+      const tradesWithOutcome = closedPositions.filter(p => (p.realizedPnL || 0) !== 0);
+      const wins = tradesWithOutcome.filter(p => (p.realizedPnL || 0) > 0).length;
+      const losses = tradesWithOutcome.filter(p => (p.realizedPnL || 0) < 0).length;
       const totalRealizedPnL = closedPositions.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
       const totalUnrealizedPnL = openPositions.reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0);
       
@@ -8378,8 +8380,10 @@ FORMATTING:
         futuresPositions = await storage.getPaperPositionsByPortfolio(futuresPortfolio.id);
         const futuresOpen = futuresPositions.filter(p => p.status === 'open');
         const futuresClosed = futuresPositions.filter(p => p.status === 'closed');
-        const futuresWins = futuresClosed.filter(p => (p.realizedPnL || 0) > 0).length;
-        const futuresLosses = futuresClosed.filter(p => (p.realizedPnL || 0) < 0).length;
+        // Only count trades with non-zero P&L for win rate
+        const futuresWithOutcome = futuresClosed.filter(p => (p.realizedPnL || 0) !== 0);
+        const futuresWins = futuresWithOutcome.filter(p => (p.realizedPnL || 0) > 0).length;
+        const futuresLosses = futuresWithOutcome.filter(p => (p.realizedPnL || 0) < 0).length;
         futuresStats = {
           name: futuresPortfolio.name,
           startingCapital: futuresPortfolio.startingCapital,
@@ -8390,7 +8394,7 @@ FORMATTING:
           closedPositions: futuresClosed.length,
           wins: futuresWins,
           losses: futuresLosses,
-          winRate: futuresClosed.length > 0 ? (futuresWins / futuresClosed.length * 100).toFixed(1) : '0',
+          winRate: futuresWithOutcome.length > 0 ? (futuresWins / futuresWithOutcome.length * 100).toFixed(1) : '0',
         };
       }
       
@@ -8413,7 +8417,8 @@ FORMATTING:
             closedPositions: closedPositions.length,
             wins,
             losses,
-            winRate: closedPositions.length > 0 ? (wins / closedPositions.length * 100).toFixed(1) : '0',
+            // Win rate uses only trades with actual outcomes (not $0 P&L breakevens)
+            winRate: tradesWithOutcome.length > 0 ? (wins / tradesWithOutcome.length * 100).toFixed(1) : '0',
             winRateNote: null,
             totalRealizedPnL,
             totalUnrealizedPnL,
@@ -8444,7 +8449,8 @@ FORMATTING:
             closedPositions: closedPositions.length,
             wins,
             losses,
-            winRate: (wins / closedPositions.length * 100).toFixed(1),
+            // Win rate uses only trades with actual outcomes (not $0 P&L breakevens)
+            winRate: tradesWithOutcome.length > 0 ? (wins / tradesWithOutcome.length * 100).toFixed(1) : '0',
             winRateNote: null,
             totalRealizedPnL,
             totalUnrealizedPnL,

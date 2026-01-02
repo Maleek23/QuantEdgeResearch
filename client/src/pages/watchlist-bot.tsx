@@ -140,7 +140,10 @@ export default function WatchlistBotPage() {
       .filter(idea => 
         idea.outcomeStatus === 'hit_target' && 
         idea.exitDate && 
-        new Date(idea.exitDate) >= sevenDaysAgo
+        new Date(idea.exitDate) >= sevenDaysAgo &&
+        // Filter out invalid trades with broken percentGain (negative wins, extreme values)
+        (idea.percentGain === null || idea.percentGain === undefined || 
+          (idea.percentGain >= 0 && idea.percentGain <= 500))
       )
       .sort((a, b) => new Date(b.exitDate!).getTime() - new Date(a.exitDate!).getTime())
       .slice(0, 10);
@@ -667,11 +670,11 @@ export default function WatchlistBotPage() {
                     </div>
                     <div className="space-y-3">
                       <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Balance</p>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Account Value</p>
                         {showMetrics ? (
                           <div className="text-2xl font-bold font-mono tabular-nums" data-testid="text-options-balance">
                             <NumberTicker 
-                              value={botData.portfolio?.cashBalance || 300} 
+                              value={accountBalance} 
                               prefix="$"
                               decimalPlaces={2}
                               className="text-foreground"
@@ -686,7 +689,7 @@ export default function WatchlistBotPage() {
                         <span className="font-mono">{formatCurrency(botData.portfolio?.startingCapital || 300)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">P&L</span>
+                        <span className="text-muted-foreground">Realized P&L</span>
                         {showMetrics ? (
                           <span className={cn("font-mono font-medium", totalRealizedPnL >= 0 ? "text-green-400" : "text-red-400")}>
                             {totalRealizedPnL >= 0 ? '+' : ''}<NumberTicker value={Math.abs(totalRealizedPnL)} prefix="$" decimalPlaces={2} />
@@ -720,11 +723,11 @@ export default function WatchlistBotPage() {
                     </div>
                     <div className="space-y-3">
                       <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Balance</p>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Account Value</p>
                         {showMetrics ? (
                           <div className="text-2xl font-bold font-mono tabular-nums" data-testid="text-futures-balance">
                             <NumberTicker 
-                              value={botData.futuresPortfolio?.cashBalance || 300} 
+                              value={(botData.futuresPortfolio?.startingCapital || 300) + (botData.futuresPortfolio?.totalPnL || 0)} 
                               prefix="$"
                               decimalPlaces={2}
                               className="text-foreground"
@@ -739,7 +742,7 @@ export default function WatchlistBotPage() {
                         <span className="font-mono">{formatCurrency(botData.futuresPortfolio?.startingCapital || 300)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">P&L</span>
+                        <span className="text-muted-foreground">Realized P&L</span>
                         {showMetrics ? (
                           <span className={cn("font-mono font-medium", (botData.futuresPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
                             {(botData.futuresPortfolio?.totalPnL || 0) >= 0 ? '+' : ''}<NumberTicker value={Math.abs(botData.futuresPortfolio?.totalPnL || 0)} prefix="$" decimalPlaces={2} />
@@ -764,11 +767,11 @@ export default function WatchlistBotPage() {
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-6">
                       <div className="text-center">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Combined Balance</p>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Combined Value</p>
                         {showMetrics ? (
                           <div className="text-xl font-bold font-mono tabular-nums text-cyan-400" data-testid="text-combined-balance">
                             <NumberTicker 
-                              value={(botData.portfolio?.cashBalance || 300) + (botData.futuresPortfolio?.cashBalance || 300)} 
+                              value={accountBalance + ((botData.futuresPortfolio?.startingCapital || 300) + (botData.futuresPortfolio?.totalPnL || 0))} 
                               prefix="$"
                               decimalPlaces={2}
                               className="text-cyan-400"
