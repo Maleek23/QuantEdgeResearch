@@ -133,6 +133,61 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
   const quickTiming = getQuickTimingStatus();
 
+  // Helper: Get real-time applicability status showing if trade is still valid to enter
+  const getRealTimeApplicability = (): { status: 'valid' | 'caution' | 'expired' | 'closed'; label: string; tooltip: string; color: string } => {
+    // Closed trades are no longer applicable
+    if (idea.outcomeStatus && idea.outcomeStatus !== 'open') {
+      return { status: 'closed', label: 'Closed', tooltip: 'This trade has been resolved', color: 'text-muted-foreground' };
+    }
+
+    const now = new Date();
+    
+    // Check exit deadline
+    if (idea.exitBy) {
+      const exitDeadline = new Date(idea.exitBy);
+      const hoursRemaining = (exitDeadline.getTime() - now.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursRemaining <= 0) {
+        return { status: 'expired', label: 'Expired', tooltip: 'Exit deadline has passed', color: 'text-red-400' };
+      }
+    }
+    
+    // Check price proximity to entry (for non-options only)
+    if (currentPrice && idea.assetType !== 'option') {
+      const entryDeviation = Math.abs((currentPrice - idea.entryPrice) / idea.entryPrice) * 100;
+      
+      // For LONG: price should be at or below entry, For SHORT: price should be at or above entry
+      const priceDirection = isLong 
+        ? (currentPrice <= idea.entryPrice * 1.02) // Allow 2% above entry for longs
+        : (currentPrice >= idea.entryPrice * 0.98); // Allow 2% below entry for shorts
+      
+      if (!priceDirection && entryDeviation > 3) {
+        // Price moved significantly away from entry in wrong direction
+        return { 
+          status: 'caution', 
+          label: 'Entry Missed', 
+          tooltip: `Price ${isLong ? 'above' : 'below'} entry by ${entryDeviation.toFixed(1)}%`, 
+          color: 'text-amber-400' 
+        };
+      }
+      
+      // Check if near target or stop
+      const targetDistance = Math.abs(idea.targetPrice - currentPrice);
+      const stopDistance = Math.abs(currentPrice - idea.stopLoss);
+      const entryDistance = Math.abs(idea.targetPrice - idea.entryPrice);
+      const progressToTarget = ((entryDistance - targetDistance) / entryDistance) * 100;
+      
+      if (progressToTarget >= 80) {
+        return { status: 'valid', label: 'Near Target', tooltip: `${progressToTarget.toFixed(0)}% to target`, color: 'text-green-400' };
+      }
+    }
+    
+    // Default: trade is still valid
+    return { status: 'valid', label: 'Active', tooltip: 'Trade is still actionable', color: 'text-green-400' };
+  };
+
+  const applicability = getRealTimeApplicability();
+
   // Helper: Map IdeaSource to badge configuration
   const getSourceBadgeConfig = (source: string, isLotto: boolean) => {
     if (isLotto) {
@@ -315,6 +370,32 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 qualitySignals={idea.qualitySignals}
                 compact={true}
               />
+
+              {/* Real-Time Applicability - Shows if trade is still valid */}
+              {idea.outcomeStatus === 'open' && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant="outline" 
+                      className={cn(
+                        "text-[10px] h-5 font-semibold border cursor-help whitespace-nowrap",
+                        applicability.status === 'valid' && "bg-green-500/10 text-green-400 border-green-500/40",
+                        applicability.status === 'caution' && "bg-amber-500/10 text-amber-400 border-amber-500/40",
+                        applicability.status === 'expired' && "bg-red-500/10 text-red-400 border-red-500/40"
+                      )}
+                      data-testid={`badge-applicability-${idea.symbol}`}
+                    >
+                      {applicability.status === 'valid' && <Activity className="h-2.5 w-2.5 mr-1" />}
+                      {applicability.status === 'caution' && <AlertTriangle className="h-2.5 w-2.5 mr-1" />}
+                      {applicability.status === 'expired' && <Clock className="h-2.5 w-2.5 mr-1" />}
+                      {applicability.label}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="font-medium">{applicability.tooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
 
               {/* Timing Status - Compact */}
               <div className={cn(

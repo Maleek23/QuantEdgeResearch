@@ -997,9 +997,9 @@ export async function generateQuantIdeas(
     
     if (data.assetType === 'stock') {
       // 🎯 HIGH CONFIDENCE MINIMUM: Convert high-confidence directional trades to options
-      // Confidence >= 65% ALWAYS becomes an option (call for LONG, put for SHORT)
+      // Confidence >= 60% ALWAYS becomes an option (call for LONG, put for SHORT)
       // This provides leveraged exposure for strong conviction plays
-      const HIGH_CONFIDENCE_THRESHOLD = 65;
+      const HIGH_CONFIDENCE_THRESHOLD = 60;
       const shouldForceOption = confidenceScore >= HIGH_CONFIDENCE_THRESHOLD;
       
       // For stocks, decide between stock shares vs options - prioritize what's furthest from target
