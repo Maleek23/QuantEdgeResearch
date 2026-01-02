@@ -4803,6 +4803,188 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 🔍 FULL AUDIT EXPORT - Complete transparency on all bot trades
+  // Shows entry time, entry price, exit details - everything for verification
+  app.get("/api/audit/auto-lotto-bot", async (req, res) => {
+    try {
+      const format = req.query.format as string || 'json';
+      
+      // Get all paper portfolios
+      const portfolios = await storage.getAllPaperPortfolios();
+      
+      // Get all positions across all portfolios
+      let allPositions: any[] = [];
+      for (const portfolio of portfolios) {
+        const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+        allPositions = allPositions.concat(positions.map(p => ({ 
+          ...p, 
+          portfolioName: portfolio.name,
+          portfolioType: portfolio.name.toLowerCase().includes('options') ? 'options' : 
+                         portfolio.name.toLowerCase().includes('futures') ? 'futures' : 'other'
+        })));
+      }
+      
+      // Sort by entry time descending (newest first)
+      allPositions.sort((a, b) => new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime());
+      
+      // Build full audit records
+      const auditRecords = allPositions.map((p, index) => {
+        const entryTime = new Date(p.entryTime);
+        const exitTime = p.exitTime ? new Date(p.exitTime) : null;
+        const createdAt = new Date(p.createdAt);
+        
+        // Calculate hold time in minutes
+        const holdTimeMinutes = exitTime 
+          ? Math.round((exitTime.getTime() - entryTime.getTime()) / (1000 * 60))
+          : null;
+        
+        // Format contract name for options
+        let contractName = p.symbol;
+        if (p.assetType === 'option') {
+          const expDate = p.expiryDate?.replace(/-/g, '').slice(2) || '';
+          const optType = p.optionType?.toUpperCase().charAt(0) || '';
+          const strike = p.strikePrice ? Math.round(p.strikePrice * 1000).toString().padStart(8, '0') : '';
+          contractName = `${p.symbol}${expDate}${optType}${strike}`;
+        }
+        
+        return {
+          tradeNumber: allPositions.length - index,
+          id: p.id,
+          portfolioType: p.portfolioType,
+          portfolioName: p.portfolioName,
+          
+          // Trade identification
+          symbol: p.symbol,
+          contractName,
+          assetType: p.assetType,
+          direction: p.direction,
+          optionType: p.optionType || null,
+          strikePrice: p.strikePrice || null,
+          expiryDate: p.expiryDate || null,
+          
+          // Entry details - FULL TRANSPARENCY
+          entryTime: p.entryTime,
+          entryTimeFormatted: formatInTimeZone(entryTime, 'America/Chicago', 'yyyy-MM-dd HH:mm:ss zzz'),
+          entryPrice: p.entryPrice,
+          quantity: p.quantity,
+          entryCost: Math.round((p.entryPrice * p.quantity * (p.assetType === 'option' ? 100 : 1)) * 100) / 100,
+          
+          // Exit details
+          status: p.status,
+          exitTime: p.exitTime || null,
+          exitTimeFormatted: exitTime ? formatInTimeZone(exitTime, 'America/Chicago', 'yyyy-MM-dd HH:mm:ss zzz') : null,
+          exitPrice: p.exitPrice || null,
+          exitReason: p.exitReason || null,
+          
+          // P&L details
+          realizedPnL: p.realizedPnL ?? null,
+          realizedPnLPercent: p.realizedPnLPercent ?? null,
+          unrealizedPnL: p.status === 'open' ? (p.unrealizedPnL ?? null) : null,
+          currentPrice: p.status === 'open' ? (p.currentPrice ?? null) : null,
+          
+          // Trade targets
+          targetPrice: p.targetPrice,
+          stopLoss: p.stopLoss,
+          
+          // Timing
+          holdTimeMinutes,
+          holdTimeFormatted: holdTimeMinutes !== null 
+            ? holdTimeMinutes >= 60 
+              ? `${Math.floor(holdTimeMinutes / 60)}h ${holdTimeMinutes % 60}m`
+              : `${holdTimeMinutes}m`
+            : 'OPEN',
+          
+          // Metadata
+          createdAt: p.createdAt,
+          createdAtFormatted: formatInTimeZone(createdAt, 'America/Chicago', 'yyyy-MM-dd HH:mm:ss zzz'),
+          tradeIdeaId: p.tradeIdeaId || null,
+        };
+      });
+      
+      // Calculate summary stats
+      const closedTrades = auditRecords.filter(t => t.status === 'closed');
+      const openTrades = auditRecords.filter(t => t.status === 'open');
+      const wins = closedTrades.filter(t => (t.realizedPnL || 0) > 0);
+      const losses = closedTrades.filter(t => (t.realizedPnL || 0) <= 0);
+      const totalPnL = closedTrades.reduce((sum, t) => sum + (t.realizedPnL || 0), 0);
+      
+      const summary = {
+        exportDate: new Date().toISOString(),
+        exportDateFormatted: formatInTimeZone(new Date(), 'America/Chicago', 'yyyy-MM-dd HH:mm:ss zzz'),
+        totalTrades: auditRecords.length,
+        closedTrades: closedTrades.length,
+        openTrades: openTrades.length,
+        wins: wins.length,
+        losses: losses.length,
+        winRate: closedTrades.length > 0 ? Math.round((wins.length / closedTrades.length) * 1000) / 10 : 0,
+        totalPnL: Math.round(totalPnL * 100) / 100,
+        avgPnL: closedTrades.length > 0 ? Math.round((totalPnL / closedTrades.length) * 100) / 100 : 0,
+        bestTrade: wins.length > 0 ? Math.max(...wins.map(t => t.realizedPnL || 0)) : 0,
+        worstTrade: losses.length > 0 ? Math.min(...losses.map(t => t.realizedPnL || 0)) : 0,
+      };
+      
+      if (format === 'csv') {
+        // Generate CSV
+        const headers = [
+          'Trade #', 'ID', 'Portfolio', 'Symbol', 'Contract', 'Asset Type', 'Direction', 
+          'Option Type', 'Strike', 'Expiry', 'Entry Time (CT)', 'Entry Price', 'Qty', 'Entry Cost',
+          'Status', 'Exit Time (CT)', 'Exit Price', 'Exit Reason', 
+          'Realized P&L', 'Realized P&L %', 'Target', 'Stop Loss', 'Hold Time',
+          'Created At (CT)', 'Trade Idea ID'
+        ];
+        
+        const csvRows = [headers.join(',')];
+        
+        auditRecords.forEach(r => {
+          const row = [
+            r.tradeNumber,
+            r.id,
+            r.portfolioType,
+            r.symbol,
+            r.contractName,
+            r.assetType,
+            r.direction,
+            r.optionType || '',
+            r.strikePrice || '',
+            r.expiryDate || '',
+            `"${r.entryTimeFormatted}"`,
+            r.entryPrice,
+            r.quantity,
+            r.entryCost,
+            r.status,
+            r.exitTimeFormatted ? `"${r.exitTimeFormatted}"` : '',
+            r.exitPrice || '',
+            r.exitReason ? `"${r.exitReason.replace(/"/g, '""')}"` : '',
+            r.realizedPnL ?? '',
+            r.realizedPnLPercent ?? '',
+            r.targetPrice,
+            r.stopLoss,
+            r.holdTimeFormatted,
+            `"${r.createdAtFormatted}"`,
+            r.tradeIdeaId || ''
+          ];
+          csvRows.push(row.join(','));
+        });
+        
+        const csvContent = csvRows.join('\n');
+        
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="auto-lotto-bot-audit-${formatInTimeZone(new Date(), 'America/Chicago', 'yyyy-MM-dd-HHmm')}.csv"`);
+        res.send(csvContent);
+      } else {
+        // JSON response
+        res.json({
+          summary,
+          trades: auditRecords,
+          disclaimer: "All trades shown are paper/simulated trades for research purposes only. Entry times and prices reflect the moment the bot executed the trade. This is NOT financial advice.",
+        });
+      }
+    } catch (error) {
+      logger.error("Audit export error:", error);
+      res.status(500).json({ error: "Failed to generate audit export" });
+    }
+  });
+
   // =========== DATA INTELLIGENCE API ===========
   // Comprehensive endpoint that provides all historical performance data
   // for use across the platform (trade cards, dashboards, etc.)
