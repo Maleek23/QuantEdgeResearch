@@ -2404,6 +2404,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 📨 Share trade idea to Discord - manual trigger for audit page
+  app.post("/api/trade-ideas/:id/share-discord", isAuthenticated, async (req, res) => {
+    try {
+      const idea = await storage.getTradeIdeaById(req.params.id);
+      if (!idea) {
+        return res.status(404).json({ error: "Trade idea not found" });
+      }
+      
+      const { sendTradeIdeaToDiscord } = await import("./discord-service");
+      await sendTradeIdeaToDiscord(idea);
+      
+      logger.info(`📨 Trade idea ${idea.symbol} shared to Discord by user`);
+      res.json({ success: true, message: `Shared ${idea.symbol} trade to Discord` });
+    } catch (error: any) {
+      logger.error("Failed to share trade idea to Discord:", error);
+      res.status(500).json({ error: "Failed to share to Discord" });
+    }
+  });
+
   // 🚀 On-demand idea generation - trigger immediate AI idea generation
   app.post("/api/ideas/generate-now", isAuthenticated, ideaGenerationOnDemandLimiter, async (req: any, res) => {
     try {

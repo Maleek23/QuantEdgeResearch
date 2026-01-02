@@ -1,9 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import {
   ArrowLeft,
   Target,
@@ -18,7 +20,13 @@ import {
   Camera,
   Activity,
   Scale,
+  Share2,
+  RefreshCw,
+  Zap,
+  BarChart3,
+  Brain,
 } from "lucide-react";
+import { SiDiscord } from "react-icons/si";
 import { format, formatDistanceToNow } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { cn } from "@/lib/utils";
@@ -90,6 +98,7 @@ function getEventLabel(eventType: string): string {
 
 function PlanCard({ idea }: { idea: TradeIdea }) {
   const isLong = idea.direction === "long";
+  const potentialGain = ((Number(idea.targetPrice) - Number(idea.entryPrice)) / Number(idea.entryPrice) * 100).toFixed(1);
   
   return (
     <Card className="glass-card">
@@ -113,6 +122,13 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
           </Badge>
           <span className="font-mono text-lg font-bold">{idea.symbol}</span>
           <Badge variant="secondary">{idea.assetType}</Badge>
+          {idea.assetType === 'option' && idea.optionType && (
+            <Badge variant="outline" className={cn(
+              idea.optionType === 'call' ? "border-green-500/50 text-green-400" : "border-red-500/50 text-red-400"
+            )}>
+              {idea.optionType.toUpperCase()} ${idea.strikePrice} {idea.expiryDate}
+            </Badge>
+          )}
         </div>
         
         <div className="grid grid-cols-2 gap-4">
@@ -122,7 +138,10 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
           </div>
           <div className="stat-glass rounded-lg p-3">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Target Price</p>
-            <p className="font-mono text-lg font-bold tabular-nums text-green-400">${Number(idea.targetPrice).toFixed(2)}</p>
+            <p className="font-mono text-lg font-bold tabular-nums text-green-400">
+              ${Number(idea.targetPrice).toFixed(2)}
+              <span className="text-xs ml-1 opacity-70">+{potentialGain}%</span>
+            </p>
           </div>
           <div className="stat-glass rounded-lg p-3">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Stop Loss</p>
@@ -134,11 +153,6 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
               {idea.riskRewardRatio ? Number(idea.riskRewardRatio).toFixed(2) + ":1" : "—"}
             </p>
           </div>
-        </div>
-        
-        <div className="pt-2 border-t border-border/50">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Analysis</p>
-          <p className="text-sm leading-relaxed">{idea.analysis || "No analysis provided"}</p>
         </div>
         
         <div className="grid grid-cols-2 gap-4 pt-2">
@@ -153,11 +167,95 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
         </div>
         
         <div className="flex gap-2 flex-wrap">
-          <Badge variant="outline">{idea.source}</Badge>
+          <Badge variant="outline" className="flex items-center gap-1">
+            {idea.source === 'ai' ? <Brain className="h-3 w-3" /> : idea.source === 'quant' ? <Zap className="h-3 w-3" /> : <BarChart3 className="h-3 w-3" />}
+            {idea.source}
+          </Badge>
           {idea.confidenceScore && (
             <Badge variant="secondary">{idea.confidenceScore}% confidence</Badge>
           )}
+          {idea.holdingPeriod && (
+            <Badge variant="outline">{idea.holdingPeriod === 'day' ? 'Day Trade' : idea.holdingPeriod === 'swing' ? 'Swing' : 'Position'}</Badge>
+          )}
+          {idea.qualitySignals && idea.qualitySignals.length > 0 && (
+            <Badge variant="secondary">{idea.qualitySignals.length}/5 signals</Badge>
+          )}
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FullAnalysisCard({ idea }: { idea: TradeIdea }) {
+  if (!idea.analysis && !idea.catalyst && !idea.sessionContext && (!idea.qualitySignals || idea.qualitySignals.length === 0)) {
+    return null;
+  }
+  
+  return (
+    <Card className="glass-card">
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+            <Brain className="h-5 w-5 text-blue-400" />
+          </div>
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Research</p>
+            <CardTitle className="text-lg">Full Analysis</CardTitle>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {idea.analysis && (
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Analysis Summary</p>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{idea.analysis}</p>
+          </div>
+        )}
+        
+        {idea.catalyst && (
+          <div className="pt-3 border-t border-border/50">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
+              <Zap className="h-3 w-3 text-amber-400" />
+              Catalyst
+            </p>
+            <p className="text-sm leading-relaxed">{idea.catalyst}</p>
+          </div>
+        )}
+        
+        {idea.sessionContext && (
+          <div className="pt-3 border-t border-border/50">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
+              <Clock className="h-3 w-3 text-cyan-400" />
+              Market Session Context
+            </p>
+            <p className="text-sm leading-relaxed">{idea.sessionContext}</p>
+          </div>
+        )}
+        
+        {idea.qualitySignals && idea.qualitySignals.length > 0 && (
+          <div className="pt-3 border-t border-border/50">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
+              <BarChart3 className="h-3 w-3 text-purple-400" />
+              Quality Signals ({idea.qualitySignals.length}/5)
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {idea.qualitySignals.map((signal, idx) => (
+                <Badge key={idx} variant="outline" className="text-xs">
+                  {signal}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {idea.dataSourceUsed && (
+          <div className="pt-3 border-t border-border/50">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Data Source</p>
+            <Badge variant={idea.dataSourceUsed !== 'estimated' ? 'default' : 'secondary'}>
+              {idea.dataSourceUsed !== 'estimated' ? 'Real Market Data' : 'Simulated Data'}
+            </Badge>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -467,10 +565,40 @@ function ComparisonCard({ idea }: { idea: TradeIdea }) {
 export default function TradeAudit() {
   const params = useParams<{ id: string }>();
   const tradeId = params.id;
+  const { toast } = useToast();
   
-  const { data, isLoading, error } = useQuery<AuditTrailData>({
+  // Main audit data with polling for open trades
+  const { data, isLoading, error, refetch } = useQuery<AuditTrailData>({
     queryKey: ["/api/trade-ideas", tradeId, "audit"],
     enabled: !!tradeId,
+    refetchInterval: (query) => {
+      // Poll every 30 seconds if trade is still open
+      const tradeData = query.state.data as AuditTrailData | undefined;
+      if (tradeData?.tradeIdea?.outcomeStatus === 'open') {
+        return 30000; // 30 seconds
+      }
+      return false; // Stop polling once resolved
+    },
+  });
+  
+  // Discord share mutation
+  const shareToDiscord = useMutation({
+    mutationFn: async () => {
+      return apiRequest('POST', `/api/trade-ideas/${tradeId}/share-discord`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Shared to Discord",
+        description: `${data?.tradeIdea?.symbol} trade sent to Discord channel`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Share Failed",
+        description: "Could not share to Discord. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
   
   if (isLoading) {
@@ -513,6 +641,8 @@ export default function TradeAudit() {
   
   const { tradeIdea, priceSnapshots } = data;
   
+  const isOpen = tradeIdea.outcomeStatus === 'open';
+  
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto" data-testid="trade-audit-page">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -535,13 +665,44 @@ export default function TradeAudit() {
             </div>
           </div>
         </div>
-        {getOutcomeBadge(tradeIdea.outcomeStatus)}
+        
+        <div className="flex items-center gap-2 flex-wrap">
+          {isOpen && (
+            <Badge variant="outline" className="flex items-center gap-1 text-cyan-400 border-cyan-500/30 animate-pulse">
+              <Activity className="h-3 w-3" />
+              Live - updates every 30s
+            </Badge>
+          )}
+          {getOutcomeBadge(tradeIdea.outcomeStatus)}
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => refetch()}
+            data-testid="button-refresh"
+          >
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Refresh
+          </Button>
+          <Button 
+            variant="default" 
+            size="sm"
+            onClick={() => shareToDiscord.mutate()}
+            disabled={shareToDiscord.isPending}
+            className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+            data-testid="button-share-discord"
+          >
+            <SiDiscord className="h-4 w-4 mr-1" />
+            {shareToDiscord.isPending ? 'Sharing...' : 'Share to Discord'}
+          </Button>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <PlanCard idea={tradeIdea} />
         <OutcomeCard idea={tradeIdea} />
       </div>
+      
+      <FullAnalysisCard idea={tradeIdea} />
       
       <ComparisonCard idea={tradeIdea} />
       
