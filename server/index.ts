@@ -959,6 +959,50 @@ app.use((req, res, next) => {
     
     log('📨 Daily Summary started - sending top ideas to Discord at 8:00 AM CT weekdays');
     
+    // Next Week Premium Picks to Discord on Sunday at 5:00 PM CT (1 hour before regular watchlist)
+    let lastNextWeekPicksDate = '';
+    cron.default.schedule('*/5 * * * *', async () => {
+      try {
+        const ctTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const dayOfWeek = ctTime.getDay(); // 0 = Sunday
+        const hour = ctTime.getHours();
+        const minute = ctTime.getMinutes();
+        const dateKey = ctTime.toISOString().split('T')[0];
+        
+        // Check if it's Sunday 5:00 PM CT
+        const isPremiumPicksTime = dayOfWeek === 0 && hour === 17 && minute >= 0 && minute < 5;
+        
+        if (!isPremiumPicksTime) {
+          return;
+        }
+        
+        // Check if we already sent this week
+        if (lastNextWeekPicksDate === dateKey) {
+          return;
+        }
+        
+        lastNextWeekPicksDate = dateKey;
+        
+        logger.info('🎯 [NEXT-WEEK-PICKS] Generating premium picks for next week...');
+        
+        // Generate picks and send to Discord
+        const { generateNextWeekPicks, getNextWeekRange } = await import('./weekly-picks-generator');
+        const { sendNextWeekPicksToDiscord } = await import('./discord-service');
+        
+        const picks = await generateNextWeekPicks();
+        const weekRange = getNextWeekRange();
+        
+        await sendNextWeekPicksToDiscord(picks, weekRange);
+        
+        logger.info(`🎯 [NEXT-WEEK-PICKS] Sent ${picks.length} premium picks to Discord`);
+        
+      } catch (error: any) {
+        logger.error('🎯 [NEXT-WEEK-PICKS] Failed to generate picks:', error);
+      }
+    });
+    
+    log('🎯 Next Week Picks started - sending premium plays to Discord every Sunday at 5:00 PM CT');
+    
     // Weekly watchlist summary to Discord on Sunday at 6:00 PM CT
     let lastWeeklyWatchlistDate = '';
     cron.default.schedule('*/5 * * * *', async () => {

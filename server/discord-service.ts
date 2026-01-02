@@ -981,6 +981,115 @@ export async function sendWeeklyWatchlistToDiscord(items: Array<{
   }
 }
 
+// Send next week's premium picks to Discord
+export async function sendNextWeekPicksToDiscord(picks: Array<{
+  symbol: string;
+  optionType: 'call' | 'put';
+  strike: number;
+  expiration: string;
+  entryPrice: number;
+  targetPrice: number;
+  stopLoss: number;
+  targetMultiplier: number;
+  dteCategory: '0DTE' | '1-2DTE' | '3-7DTE' | 'swing';
+  playType: 'lotto' | 'day_trade' | 'swing';
+  confidence: number;
+  catalyst: string;
+  delta: number;
+  volume: number;
+}>, weekRange: { start: string; end: string }): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_WEEKLYWATCHLISTS || process.env.DISCORD_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    logger.info('⚠️ Discord webhook not configured - skipping next week picks');
+    return;
+  }
+  
+  if (picks.length === 0) {
+    logger.info('📭 No premium picks generated for next week');
+    return;
+  }
+  
+  try {
+    // Group by play type
+    const lottos = picks.filter(p => p.playType === 'lotto');
+    const dayTrades = picks.filter(p => p.playType === 'day_trade');
+    const swings = picks.filter(p => p.playType === 'swing');
+    
+    // Format picks by category
+    const formatPick = (p: typeof picks[0]) => {
+      const emoji = p.optionType === 'call' ? '🟢' : '🔴';
+      const type = p.optionType.toUpperCase();
+      const exp = p.expiration.substring(5).replace('-', '/');
+      const gain = ((p.targetPrice - p.entryPrice) / p.entryPrice * 100).toFixed(0);
+      return `${emoji} **${p.symbol}** ${type} $${p.strike} (${exp}) • Entry $${p.entryPrice.toFixed(2)} → Target ${p.targetMultiplier}x (+${gain}%) • ${p.confidence}% conf`;
+    };
+    
+    // Build description
+    let description = '';
+    
+    if (lottos.length > 0) {
+      description += `**🎰 LOTTO PLAYS (4x-15x targets)**\n`;
+      description += lottos.slice(0, 5).map(formatPick).join('\n');
+      description += '\n\n';
+    }
+    
+    if (dayTrades.length > 0) {
+      description += `**⚡ DAY TRADES (2x targets)**\n`;
+      description += dayTrades.slice(0, 5).map(formatPick).join('\n');
+      description += '\n\n';
+    }
+    
+    if (swings.length > 0) {
+      description += `**📊 SWING TRADES (1.5x targets)**\n`;
+      description += swings.slice(0, 5).map(formatPick).join('\n');
+    }
+    
+    const embed: DiscordEmbed = {
+      title: `🎯 NEXT WEEK'S PREMIUM PICKS (${weekRange.start} - ${weekRange.end})`,
+      description: description.trim(),
+      color: 0xa855f7, // Purple for premium
+      fields: [
+        {
+          name: '📊 Breakdown',
+          value: `${lottos.length} Lotto • ${dayTrades.length} Day Trades • ${swings.length} Swings`,
+          inline: true
+        },
+        {
+          name: '🔥 Avg Confidence',
+          value: `${Math.round(picks.reduce((sum, p) => sum + p.confidence, 0) / picks.length)}%`,
+          inline: true
+        }
+      ],
+      footer: {
+        text: '⚠️ Educational research only - not financial advice | QuantEdge Auto-Lotto Bot Style'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    const message: DiscordMessage = {
+      content: `🎯 **NEXT WEEK'S PREMIUM PICKS** - ${picks.length} curated options plays (Auto-Lotto Bot style)`,
+      embeds: [embed]
+    };
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message)
+    });
+    
+    if (response.ok) {
+      logger.info(`✅ Discord next week picks sent: ${picks.length} plays`);
+    } else {
+      logger.warn(`⚠️ Discord next week picks webhook failed: ${response.status}`);
+    }
+  } catch (error) {
+    logger.error('❌ Failed to send Discord next week picks:', error);
+  }
+}
+
 // Send daily summary of top trade ideas (scheduled for 8:00 AM CT)
 export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<void> {
   if (DISCORD_DISABLED) return;

@@ -8877,6 +8877,72 @@ FORMATTING:
     }
   });
 
+  // GET /api/next-week-picks - Generate premium picks for next week (bot-style)
+  app.get("/api/next-week-picks", async (_req: Request, res: Response) => {
+    try {
+      const { generateNextWeekPicks, getNextWeekRange } = await import("./weekly-picks-generator");
+      
+      const picks = await generateNextWeekPicks();
+      const weekRange = getNextWeekRange();
+      
+      // Group by play type for response
+      const lottos = picks.filter(p => p.playType === 'lotto');
+      const dayTrades = picks.filter(p => p.playType === 'day_trade');
+      const swings = picks.filter(p => p.playType === 'swing');
+      
+      res.json({
+        weekRange,
+        totalPicks: picks.length,
+        breakdown: {
+          lottos: lottos.length,
+          dayTrades: dayTrades.length,
+          swings: swings.length
+        },
+        picks: {
+          lottos,
+          dayTrades,
+          swings
+        },
+        avgConfidence: picks.length > 0 
+          ? Math.round(picks.reduce((sum, p) => sum + p.confidence, 0) / picks.length)
+          : 0
+      });
+    } catch (error: any) {
+      logger.error("Error generating next week picks", { error });
+      res.status(500).json({ error: "Failed to generate picks" });
+    }
+  });
+
+  // POST /api/next-week-picks/send-discord - Send picks to Discord (admin only)
+  app.post("/api/next-week-picks/send-discord", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const user = userId ? await storage.getUser(userId) : null;
+      const isAdmin = user?.email === process.env.ADMIN_EMAIL || user?.subscriptionTier === 'admin';
+      
+      if (!isAdmin) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const { generateNextWeekPicks, getNextWeekRange } = await import("./weekly-picks-generator");
+      const { sendNextWeekPicksToDiscord } = await import("./discord-service");
+      
+      const picks = await generateNextWeekPicks();
+      const weekRange = getNextWeekRange();
+      
+      await sendNextWeekPicksToDiscord(picks, weekRange);
+      
+      res.json({
+        success: true,
+        message: `Sent ${picks.length} picks to Discord`,
+        weekRange
+      });
+    } catch (error: any) {
+      logger.error("Error sending picks to Discord", { error });
+      res.status(500).json({ error: "Failed to send picks" });
+    }
+  });
+
   // POST /api/auto-lotto-bot/reset - Reset bot portfolios to fresh $300 each (admin only)
   app.post("/api/auto-lotto-bot/reset", isAuthenticated, async (req: any, res: Response) => {
     try {
