@@ -186,6 +186,140 @@ function PlanCard({ idea }: { idea: TradeIdea }) {
   );
 }
 
+function getLetterGrade(score: number): string {
+  if (score >= 95) return 'A+';
+  if (score >= 90) return 'A';
+  if (score >= 85) return 'B+';
+  if (score >= 80) return 'B';
+  if (score >= 75) return 'C+';
+  if (score >= 70) return 'C';
+  return 'D';
+}
+
+function getGradeColor(score: number): string {
+  if (score >= 85) return 'text-green-400';
+  if (score >= 70) return 'text-amber-400';
+  return 'text-red-400';
+}
+
+function getSignalInfo(signal: string): { points: number; description: string; color: string } {
+  const signalMap: Record<string, { points: number; description: string; color: string }> = {
+    'Strong R:R (2:1+)': { points: 28, description: 'Risk/reward ratio of 2:1 or better', color: 'bg-green-500' },
+    'Good R:R (1.5:1+)': { points: 15, description: 'Risk/reward ratio of 1.5:1 or better', color: 'bg-green-400' },
+    'Acceptable R:R (1.2:1+)': { points: 8, description: 'Risk/reward ratio of 1.2:1 or better', color: 'bg-cyan-400' },
+    'Confirmed Volume': { points: 18, description: 'Volume 1.5x+ average, institutional interest', color: 'bg-cyan-500' },
+    'Strong Volume': { points: 12, description: 'Volume above average, adequate liquidity', color: 'bg-cyan-400' },
+    'Strong Signal': { points: 25, description: 'Multiple technical indicators aligned', color: 'bg-purple-500' },
+    'Clear Signal': { points: 18, description: 'At least one strong technical indicator', color: 'bg-purple-400' },
+    'Reversal Setup': { points: 20, description: 'RSI extreme - mean reversion likely', color: 'bg-amber-500' },
+    'Trend Setup': { points: 15, description: 'Price aligned with prevailing trend', color: 'bg-amber-400' },
+    'Breakout Setup': { points: 18, description: 'Breaking key resistance/support', color: 'bg-indigo-500' },
+    'High Liquidity': { points: 5, description: 'High trading volume, easy entry/exit', color: 'bg-cyan-500' },
+    'Catalyst Present': { points: 10, description: 'News catalyst provides fundamental support', color: 'bg-pink-500' }
+  };
+  return signalMap[signal] || { points: 5, description: 'Quality signal detected', color: 'bg-white/10' };
+}
+
+function ConfidenceScoringCard({ idea }: { idea: TradeIdea }) {
+  const score = idea.confidenceScore || 0;
+  const grade = getLetterGrade(score);
+  const signals = idea.qualitySignals || [];
+  const totalPoints = signals.reduce((sum, s) => sum + getSignalInfo(s).points, 0);
+  
+  return (
+    <Card className="glass-card">
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center">
+            <Scale className="h-5 w-5 text-amber-400" />
+          </div>
+          <div className="flex-1">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Confidence Analysis</p>
+            <CardTitle className="text-lg">Scoring Breakdown</CardTitle>
+          </div>
+          <div className="text-right">
+            <div className={cn("text-3xl font-bold font-mono", getGradeColor(score))}>
+              {grade}
+            </div>
+            <div className="text-xs text-muted-foreground">{score}%</div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Score Bar */}
+        <div>
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-muted-foreground">Confidence Score</span>
+            <span className={cn("font-semibold", getGradeColor(score))}>{score}/100</span>
+          </div>
+          <div className="h-2 bg-muted/30 rounded-full overflow-hidden">
+            <div 
+              className={cn(
+                "h-full rounded-full transition-all duration-500",
+                score >= 85 ? "bg-green-500" : score >= 70 ? "bg-amber-500" : "bg-red-500"
+              )}
+              style={{ width: `${score}%` }}
+            />
+          </div>
+        </div>
+        
+        {/* Signal Breakdown */}
+        {signals.length > 0 && (
+          <div className="pt-3 border-t border-border/50">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+              Quality Signals ({signals.length}/5) • {totalPoints} pts
+            </p>
+            <div className="space-y-2">
+              {signals.map((signal, idx) => {
+                const info = getSignalInfo(signal);
+                return (
+                  <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-background/50">
+                    <div className={cn("w-1 h-8 rounded-full", info.color)} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{signal}</p>
+                      <p className="text-xs text-muted-foreground">{info.description}</p>
+                    </div>
+                    <Badge variant="outline" className="text-xs">+{info.points}</Badge>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        
+        {/* Quantitative Metrics */}
+        {(idea.targetHitProbability || idea.timingConfidence || idea.volatilityRegime) && (
+          <div className="pt-3 border-t border-border/50">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">
+              Quantitative Metrics
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              {idea.targetHitProbability && (
+                <div className="stat-glass rounded-lg p-3 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Target Hit Prob</p>
+                  <p className="font-mono font-bold text-green-400">{idea.targetHitProbability.toFixed(1)}%</p>
+                </div>
+              )}
+              {idea.timingConfidence && (
+                <div className="stat-glass rounded-lg p-3 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Timing Conf</p>
+                  <p className="font-mono font-bold text-cyan-400">{idea.timingConfidence.toFixed(0)}%</p>
+                </div>
+              )}
+              {idea.volatilityRegime && (
+                <div className="stat-glass rounded-lg p-3 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Volatility</p>
+                  <p className="font-mono font-bold capitalize">{idea.volatilityRegime}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function FullAnalysisCard({ idea }: { idea: TradeIdea }) {
   if (!idea.analysis && !idea.catalyst && !idea.sessionContext && (!idea.qualitySignals || idea.qualitySignals.length === 0)) {
     return null;
@@ -701,6 +835,9 @@ export default function TradeAudit() {
         <PlanCard idea={tradeIdea} />
         <OutcomeCard idea={tradeIdea} />
       </div>
+      
+      {/* Confidence Scoring - Prominent Display */}
+      <ConfidenceScoringCard idea={tradeIdea} />
       
       <FullAnalysisCard idea={tradeIdea} />
       

@@ -30,6 +30,17 @@ const COLORS = {
   MANUAL: 0x64748b,  // Gray for manual trades
 };
 
+// Helper to convert confidence score to letter grade
+function getLetterGrade(score: number): string {
+  if (score >= 95) return 'A+';
+  if (score >= 90) return 'A';
+  if (score >= 85) return 'B+';
+  if (score >= 80) return 'B';
+  if (score >= 75) return 'C+';
+  if (score >= 70) return 'C';
+  return 'D';
+}
+
 // Format trade idea as Discord rich embed
 function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
   const isLong = idea.direction === 'long';
@@ -93,14 +104,16 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
         inline: true
       },
       {
-        name: '⭐ Signal Grade',
-        value: getSignalLabel(idea.qualitySignals?.length || 0),
+        name: '⭐ Confidence',
+        value: idea.confidenceScore 
+          ? `${idea.confidenceScore}% (${getLetterGrade(idea.confidenceScore)})`
+          : getSignalLabel(idea.qualitySignals?.length || 0),
         inline: true
       },
       {
         name: '📶 Signals',
         value: idea.qualitySignals?.length 
-          ? `${idea.qualitySignals.length}/5 indicators`
+          ? `${idea.qualitySignals.length}/5 (${idea.qualitySignals.slice(0, 2).join(', ')}${idea.qualitySignals.length > 2 ? '...' : ''})`
           : '0 indicators',
         inline: true
       },
