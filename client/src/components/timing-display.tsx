@@ -34,10 +34,10 @@ export function TimingDisplay({ timestamp, label, showCountdown = false, classNa
       if (hours > 24) {
         const days = Math.floor(hours / 24);
         const remainingHours = hours % 24;
-        return `${days}d ${remainingHours}h remaining`;
+        return `${days}d ${remainingHours}h left`;
       }
       
-      return `${hours}h ${minutes}m remaining`;
+      return `${hours}h ${minutes}m left`;
     } catch {
       return null;
     }

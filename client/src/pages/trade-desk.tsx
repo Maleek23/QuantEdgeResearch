@@ -501,8 +501,125 @@ export default function TradeDeskPage() {
       (tradeTypeFilter === 'day' && idea.holdingPeriod === 'day') ||
       (tradeTypeFilter === 'swing' && ['swing', 'position', 'week-ending'].includes(idea.holdingPeriod));
     
-    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesSourceTab && matchesStatusView && matchesTradeType;
+    // Active only filter for the main view
+    const status = (idea.outcomeStatus || '').trim().toLowerCase();
+    const isActive = status === 'open' || status === '';
+    
+    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesSourceTab && matchesStatusView && matchesTradeType && isActive;
   });
+
+  const dayTrades = useMemo(() => filteredIdeas.filter(i => i.holdingPeriod === 'day'), [filteredIdeas]);
+  const swingTrades = useMemo(() => filteredIdeas.filter(i => ['swing', 'position', 'week-ending'].includes(i.holdingPeriod)), [filteredIdeas]);
+
+  const TradeTable = ({ ideas, title }: { ideas: TradeIdea[], title: string }) => (
+    <Card className="border-muted/50">
+      <CardHeader className="py-3 px-4 border-b border-muted/50 bg-muted/5">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            {title === "Day Trades" ? <Clock className="h-4 w-4 text-amber-400" /> : <CalendarClock className="h-4 w-4 text-cyan-400" />}
+            {title.toUpperCase()}
+            <Badge variant="secondary" className="ml-2 font-mono">{ideas.length}</Badge>
+          </CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left border-collapse">
+            <thead className="bg-muted/10 text-muted-foreground font-mono text-[10px] uppercase tracking-wider border-b border-muted/50">
+              <tr>
+                <th className="px-4 py-2 font-semibold">Symbol</th>
+                <th className="px-4 py-2 font-semibold">Signal</th>
+                <th className="px-4 py-2 font-semibold">Entry</th>
+                <th className="px-4 py-2 font-semibold">Target/Stop</th>
+                <th className="px-4 py-2 font-semibold">R:R</th>
+                <th className="px-4 py-2 font-semibold">Time Remaining</th>
+                <th className="px-4 py-2 font-semibold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-muted/30">
+              {ideas.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground italic">
+                    No active {title.toLowerCase()} found matching filters.
+                  </td>
+                </tr>
+              ) : (
+                ideas.map((idea) => {
+                  const currentPrice = priceMap[idea.symbol];
+                  const isLong = idea.direction === 'long';
+                  const stopLossPercent = isLong
+                    ? ((idea.stopLoss - idea.entryPrice) / idea.entryPrice) * 100
+                    : ((idea.entryPrice - idea.stopLoss) / idea.entryPrice) * 100;
+                  const targetPercent = isLong
+                    ? ((idea.targetPrice - idea.entryPrice) / idea.entryPrice) * 100
+                    : ((idea.entryPrice - idea.targetPrice) / idea.entryPrice) * 100;
+
+                  return (
+                    <tr key={idea.id} className="hover:bg-muted/5 transition-colors group">
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex flex-col">
+                          <span className="font-bold font-mono text-base">{idea.symbol}</span>
+                          <span className="text-[10px] text-muted-foreground uppercase">{idea.assetType}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <Badge variant={isLong ? "default" : "destructive"} className="text-[10px] h-5 px-1.5 font-bold">
+                          {idea.direction.toUpperCase()}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <div className="font-mono font-bold">{formatCurrency(idea.entryPrice)}</div>
+                        {currentPrice && (
+                          <div className="text-[10px] text-muted-foreground">
+                            Now: {formatCurrency(currentPrice)}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-bullish font-mono font-bold">{formatCurrency(idea.targetPrice)}</span>
+                            <span className="text-[10px] text-bullish font-semibold">({formatPercent(targetPercent)})</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-bearish font-mono font-bold">{formatCurrency(idea.stopLoss)}</span>
+                            <span className="text-[10px] text-bearish font-semibold">({formatPercent(stopLossPercent)})</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <Badge variant={(idea.riskRewardRatio ?? 0) >= 2 ? "default" : "secondary"} className="text-[10px] h-5 font-bold bg-muted/50">
+                          {idea.riskRewardRatio?.toFixed(1)}:1
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <TimingDisplay 
+                          timestamp={idea.exitBy} 
+                          label="Exit By" 
+                          showCountdown 
+                          className="border-none bg-transparent p-0 h-auto" 
+                        />
+                      </td>
+                      <td className="px-4 py-3 align-top text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="sm" variant="ghost" onClick={() => handleToggleExpand(idea.id.toString())} className="h-8 px-2 text-xs">
+                            Details
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-yellow-400">
+                            <Star className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   // Trade type counts - computed from ALL ideas (before trade type filter is applied)
   // This allows the toggle to show accurate counts even when filtered
