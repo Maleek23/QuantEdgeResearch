@@ -52,3 +52,21 @@ Usage:
 - BorderBeam on Options (purple) and Futures (cyan) portfolio cards in watchlist-bot
 - NumberTicker for animated balance/P&L displays
 - ShimmerButton on landing page CTA sections
+
+## Timing Intelligence System
+Located in `server/timing-intelligence.ts`, this system calculates optimal entry/exit windows for trades.
+
+**Holding Period Classification:**
+- **Day trades:** Exit by market close same day (4:00 PM ET)
+- **Swing trades:** Exit +3 trading days at market close (weekends skipped)
+- **Position trades:** Exit +10 trading days at market close (weekends skipped)
+
+**Auto-Promotion Logic (when no explicit holdingPeriod provided):**
+1. Position: confidence >= 80% AND low volatility
+2. Swing: confidence >= 65% AND (low OR normal volatility)
+3. Day: default
+
+**Key Fields:**
+- `holdingPeriod`: Explicit override ('day' | 'swing' | 'position')
+- `exitWindowMinutes`: Always recalculated from final `exitBy` timestamp for consistency
+- `exitBy`: ISO timestamp of exit deadline

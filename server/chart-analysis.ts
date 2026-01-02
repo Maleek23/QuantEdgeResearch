@@ -742,11 +742,18 @@ function detectEngulfingPattern(opens: number[], highs: number[], lows: number[]
 function detectRSIDivergence(closes: number[], currentPrice: number): ChartPattern | null {
   if (closes.length < 30) return null;
   
-  const rsi = calculateRSI(closes, 14);
-  if (rsi.length < 15) return null;
+  // Calculate RSI values for rolling windows to detect divergence
+  // We need at least 15 data points, each requiring 14 prior closes
+  const rsiValues: number[] = [];
+  for (let i = 14; i < closes.length; i++) {
+    const windowCloses = closes.slice(i - 14, i + 1);
+    rsiValues.push(calculateRSI(windowCloses, 14));
+  }
+  
+  if (rsiValues.length < 15) return null;
   
   const recentCloses = closes.slice(-15);
-  const recentRSI = rsi.slice(-15);
+  const recentRSI = rsiValues.slice(-15);
   
   const priceSlope = (recentCloses[recentCloses.length - 1] - recentCloses[0]) / recentCloses[0];
   const rsiSlope = recentRSI[recentRSI.length - 1] - recentRSI[0];
