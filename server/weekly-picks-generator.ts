@@ -38,7 +38,9 @@ const PREMIUM_SYMBOLS = [
   // Volatility favorites
   'MARA', 'RIOT', 'CLSK', 'GME', 'AMC',
   // Nuclear/AI themes
-  'SMR', 'OKLO', 'IONQ', 'RGTI', 'QBTS'
+  'SMR', 'OKLO', 'IONQ', 'RGTI', 'QBTS',
+  // Space/Aerospace plays
+  'RKLB', 'LUNR', 'ACHR', 'JOBY', 'RDW'
 ];
 
 export interface WeeklyPick {

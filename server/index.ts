@@ -564,6 +564,25 @@ app.use((req, res, next) => {
         } else {
           logger.warn('⚠️  [QUANT-STARTUP] No new quant ideas generated (may be filtered or duplicates)');
         }
+        
+        // STARTUP TRIGGER: Send weekly picks to Discord for immediate viewing
+        try {
+          const { generateNextWeekPicks, getNextWeekRange } = await import('./weekly-picks-generator');
+          const { sendNextWeekPicksToDiscord } = await import('./discord-service');
+          
+          const picks = await generateNextWeekPicks();
+          const weekRange = getNextWeekRange();
+          
+          if (picks.length > 0) {
+            await sendNextWeekPicksToDiscord(picks, weekRange);
+            logger.info(`🎯 [STARTUP] Sent ${picks.length} weekly premium picks to Discord (${weekRange.start} - ${weekRange.end})`);
+          } else {
+            logger.warn('⚠️  [STARTUP] No weekly picks generated');
+          }
+        } catch (err: any) {
+          logger.error('🎯 [STARTUP] Weekly picks failed:', err);
+        }
+        
       } catch (error: any) {
         logger.error('🚀 [QUANT-STARTUP] Startup quant generation failed:', error);
       }
