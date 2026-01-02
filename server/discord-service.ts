@@ -6,6 +6,41 @@ import { logger } from './logger';
 // GLOBAL DISABLE FLAG - Set to true to stop all Discord notifications
 const DISCORD_DISABLED = false;
 
+/**
+ * DISCORD CHANNEL ORGANIZATION
+ * 
+ * Each webhook routes to a specific Discord channel with clear purpose:
+ * 
+ * ═══════════════════════════════════════════════════════════════════════════
+ * CHANNEL             │ WEBHOOK ENV VAR              │ PURPOSE
+ * ═══════════════════════════════════════════════════════════════════════════
+ * #trade-alerts       │ DISCORD_WEBHOOK_URL          │ All trade ideas (AI/Quant/Hybrid/Flow)
+ *                     │                              │ Daily summaries, batch alerts
+ * ───────────────────────────────────────────────────────────────────────────
+ * #lotto              │ DISCORD_WEBHOOK_LOTTO        │ Lotto detector alerts
+ *                     │                              │ Bot entries & exits (paper trading)
+ * ───────────────────────────────────────────────────────────────────────────
+ * #gains              │ DISCORD_WEBHOOK_GAINS        │ Bot winning trades
+ *                     │                              │ Weekly premium picks
+ * ───────────────────────────────────────────────────────────────────────────
+ * #futures            │ DISCORD_WEBHOOK_FUTURE_TRADES│ NQ/GC futures trades only
+ * ───────────────────────────────────────────────────────────────────────────
+ * #chart-analysis     │ DISCORD_WEBHOOK_CHARTANALYSIS│ Technical chart breakdowns
+ * ───────────────────────────────────────────────────────────────────────────
+ * #weekly-watchlist   │ DISCORD_WEBHOOK_WEEKLYWATCHLISTS │ Weekly watchlist summary
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+// Channel header prefixes for easy identification in Discord
+const CHANNEL_HEADERS = {
+  TRADE_ALERTS: '📊 #TRADE-ALERTS',
+  LOTTO: '🎰 #LOTTO',
+  GAINS: '💰 #GAINS',
+  FUTURES: '📈 #FUTURES',
+  CHART_ANALYSIS: '📉 #CHART-ANALYSIS',
+  WEEKLY_WATCHLIST: '📋 #WEEKLY-WATCHLIST',
+};
+
 interface DiscordEmbed {
   title: string;
   description: string;
@@ -175,8 +210,9 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
   
   try {
     const embed = formatTradeIdeaEmbed(idea);
+    const sourceLabel = idea.source === 'ai' ? 'AI' : idea.source === 'quant' ? 'QUANT' : idea.source === 'hybrid' ? 'HYBRID' : 'FLOW';
     const message: DiscordMessage = {
-      content: `🎯 **New Trade Alert from QuantEdge**`,
+      content: `${CHANNEL_HEADERS.TRADE_ALERTS} │ **${sourceLabel} TRADE** → ${idea.symbol}`,
       embeds: [embed]
     };
     
@@ -284,8 +320,11 @@ export async function sendDiscordAlert(alert: {
       });
     }
     
+    const assetDetail = alert.assetType === 'option' && alert.optionType 
+      ? `${alert.optionType.toUpperCase()}${alert.strike ? ` $${alert.strike}` : ''}${alert.expiry ? ` ${alert.expiry}` : ''}` 
+      : alert.assetType === 'crypto' ? 'Crypto' : 'Shares';
     const message: DiscordMessage = {
-      content: `${alertEmoji} **${alert.symbol}** ${alert.assetType === 'option' && alert.optionType ? `${alert.optionType.toUpperCase()}${alert.strike ? ` $${alert.strike}` : ''}${alert.expiry ? ` ${alert.expiry}` : ''}` : alert.assetType === 'crypto' ? 'Crypto' : 'Shares'}`,
+      content: `${CHANNEL_HEADERS.TRADE_ALERTS} │ ${alertEmoji} **WATCHLIST** → ${alert.symbol} ${assetDetail}`,
       embeds: [embed]
     };
     
@@ -410,7 +449,7 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
     };
     
     const message: DiscordMessage = {
-      content: `📢 **${ideas.length} ${sourceLabel} Ideas**`,
+      content: `${CHANNEL_HEADERS.TRADE_ALERTS} │ 📢 **BATCH ALERT** → ${ideas.length} ${sourceLabel} Ideas`,
       embeds: [embed]
     };
     
@@ -493,7 +532,7 @@ export async function sendFuturesTradesToDiscord(ideas: TradeIdea[]): Promise<vo
     };
     
     const message: DiscordMessage = {
-      content: `🔮 **${ideas.length} Futures Trade Ideas**`,
+      content: `${CHANNEL_HEADERS.FUTURES} │ **${ideas.length} FUTURES TRADES** → NQ/GC Ideas`,
       embeds: [embed]
     };
     
@@ -597,7 +636,7 @@ export async function sendChartAnalysisToDiscord(analysis: {
     };
     
     const message: DiscordMessage = {
-      content: `📊 **Chart Analysis Alert: ${analysis.symbol.toUpperCase()}** ${sentimentEmoji}`,
+      content: `${CHANNEL_HEADERS.CHART_ANALYSIS} │ **TECHNICAL BREAKDOWN** → ${analysis.symbol.toUpperCase()} ${sentimentEmoji}`,
       embeds: [embed]
     };
     
@@ -714,7 +753,7 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
     }
     
     const message: DiscordMessage = {
-      content: `🎰 **LOTTO ALERT: ${idea.symbol}** ${(idea.optionType || 'OPT').toUpperCase()} $${idea.strikePrice} exp ${expiryFormatted}`,
+      content: `${CHANNEL_HEADERS.LOTTO} │ **LOTTO ALERT** → ${idea.symbol} ${(idea.optionType || 'OPT').toUpperCase()} $${idea.strikePrice} exp ${expiryFormatted}`,
       embeds: [embed]
     };
     
@@ -804,7 +843,7 @@ export async function sendBotTradeEntryToDiscord(position: {
     };
     
     const message: DiscordMessage = {
-      content: `🤖 **BOT ENTRY** → ${position.symbol} ${(position.optionType || '').toUpperCase()} $${position.strikePrice} x${position.quantity} @ $${position.entryPrice.toFixed(2)}`,
+      content: `${CHANNEL_HEADERS.LOTTO} │ **BOT ENTRY** → ${position.symbol} ${(position.optionType || '').toUpperCase()} $${position.strikePrice} x${position.quantity} @ $${position.entryPrice.toFixed(2)}`,
       embeds: [embed]
     };
     
@@ -890,7 +929,7 @@ export async function sendBotTradeExitToDiscord(position: {
     };
     
     const message: DiscordMessage = {
-      content: `${emoji} **BOT EXIT** → ${position.symbol} | ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | ${reasonText}`,
+      content: `${CHANNEL_HEADERS.LOTTO} │ ${emoji} **BOT EXIT** → ${position.symbol} | ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | ${reasonText}`,
       embeds: [embed]
     };
     
@@ -972,7 +1011,7 @@ export async function sendWeeklyWatchlistToDiscord(items: Array<{
     };
     
     const message: DiscordMessage = {
-      content: `📋 **WEEKLY WATCHLIST** - ${items.length} items being tracked`,
+      content: `${CHANNEL_HEADERS.WEEKLY_WATCHLIST} │ **WEEKLY SUMMARY** → ${items.length} items tracked`,
       embeds: [embed]
     };
     
@@ -1107,7 +1146,7 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
     };
     
     const message: DiscordMessage = {
-      content: `🎯 **NEXT WEEK'S PREMIUM PICKS** - ${picks.length} curated options plays (Auto-Lotto Bot style)`,
+      content: `${CHANNEL_HEADERS.GAINS} │ **NEXT WEEK PREMIUM PICKS** → ${picks.length} curated plays`,
       embeds: [embed]
     };
     
@@ -1216,7 +1255,7 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
     };
     
     const message: DiscordMessage = {
-      content: `☀️ **Good Morning! Here's your Daily Trading Preview**`,
+      content: `${CHANNEL_HEADERS.TRADE_ALERTS} │ ☀️ **DAILY PREVIEW** → Top Trade Ideas`,
       embeds: [embed]
     };
     
@@ -1331,7 +1370,7 @@ export async function sendGainsToDiscord(trade: {
     };
     
     const message: DiscordMessage = {
-      content: `${gainEmoji} **${trade.symbol}** hit target! **+${trade.percentGain.toFixed(1)}%** gain`,
+      content: `${CHANNEL_HEADERS.GAINS} │ ${gainEmoji} **WINNER** → ${trade.symbol} **+${trade.percentGain.toFixed(1)}%**`,
       embeds: [embed]
     };
     
