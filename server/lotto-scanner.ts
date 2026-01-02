@@ -2,6 +2,7 @@
 // Actively hunts for cheap far-OTM weekly options with 20x return potential
 
 import type { InsertTradeIdea, TradeIdea } from "@shared/schema";
+import { isUSMarketOpen, isValidTradingDay } from "@shared/market-calendar";
 import { detectSectorFocus, detectRiskProfile, detectResearchHorizon } from './sector-detector';
 import { getTradierQuote, getTradierOptionsChain, getTradierOptionsChainsByDTE } from './tradier-api';
 import { logger } from './logger';
@@ -178,37 +179,10 @@ function calculateLottoQuality(
   };
 }
 
-// US Market Holidays 2025-2026 (options don't expire on holidays)
-const MARKET_HOLIDAYS = new Set([
-  '2025-01-01', '2025-01-20', '2025-02-17', '2025-04-18', '2025-05-26',
-  '2025-06-19', '2025-07-04', '2025-09-01', '2025-11-27', '2025-12-25',
-  '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25',
-  '2026-06-19', '2026-07-03', '2026-09-07', '2026-11-26', '2026-12-25',
-]);
-
-// Validate expiration date is a valid trading day
-function isValidTradingDay(dateStr: string): boolean {
-  const date = new Date(dateStr + 'T12:00:00Z');
-  const day = date.getUTCDay();
-  if (day === 0 || day === 6) return false; // Weekend
-  if (MARKET_HOLIDAYS.has(dateStr)) return false; // Holiday
-  return true;
-}
-
-// Check if market is open
+// Wrapper to maintain existing function signature
 function isMarketOpen(): { isOpen: boolean; reason: string } {
-  const now = new Date();
-  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const day = etTime.getDay();
-  const hour = etTime.getHours();
-  const minute = etTime.getMinutes();
-  const timeInMinutes = hour * 60 + minute;
-  const dateStr = etTime.toISOString().split('T')[0];
-  
-  if (day === 0 || day === 6) return { isOpen: false, reason: 'Weekend' };
-  if (MARKET_HOLIDAYS.has(dateStr)) return { isOpen: false, reason: `Holiday (${dateStr})` };
-  if (timeInMinutes < 570 || timeInMinutes >= 960) return { isOpen: false, reason: 'Outside market hours' };
-  return { isOpen: true, reason: 'Market open' };
+  const status = isUSMarketOpen();
+  return { isOpen: status.isOpen, reason: status.reason };
 }
 
 // High-volatility tickers perfect for lotto plays - EXPANDED with Quantum, Nuclear, Healthcare penny stocks

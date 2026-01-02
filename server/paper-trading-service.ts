@@ -2,6 +2,7 @@ import { storage } from "./storage";
 import { searchSymbol, fetchCryptoPrice, fetchStockPrice } from "./market-api";
 import { getOptionQuote } from "./tradier-api";
 import { logger } from "./logger";
+import { isUSMarketOpen, normalizeDateString } from "@shared/market-calendar";
 import type {
   TradeIdea,
   PaperPortfolio,
@@ -11,40 +12,10 @@ import type {
   AssetType,
 } from "@shared/schema";
 
-// Market holidays for 2025-2026
-const MARKET_HOLIDAYS = new Set([
-  '2025-01-01', '2025-01-20', '2025-02-17', '2025-04-18', '2025-05-26',
-  '2025-06-19', '2025-07-04', '2025-09-01', '2025-11-27', '2025-12-25',
-  '2026-01-01', '2026-01-19', '2026-02-16', '2026-04-03', '2026-05-25',
-  '2026-06-19', '2026-07-03', '2026-09-07', '2026-11-26', '2026-12-25',
-]);
-
-// Check if US stock market is open (for option pricing)
+// Re-export for backward compatibility
 export function isOptionsMarketOpen(): { isOpen: boolean; reason: string } {
-  const now = new Date();
-  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const day = etTime.getDay();
-  const hour = etTime.getHours();
-  const minute = etTime.getMinutes();
-  const timeInMinutes = hour * 60 + minute;
-  const dateStr = etTime.toISOString().split('T')[0];
-  
-  if (day === 0 || day === 6) {
-    return { isOpen: false, reason: 'Weekend' };
-  }
-  
-  if (MARKET_HOLIDAYS.has(dateStr)) {
-    return { isOpen: false, reason: `Holiday (${dateStr})` };
-  }
-  
-  const marketOpen = 9 * 60 + 30; // 9:30 AM
-  const marketClose = 16 * 60; // 4:00 PM
-  
-  if (timeInMinutes < marketOpen || timeInMinutes >= marketClose) {
-    return { isOpen: false, reason: 'Outside trading hours' };
-  }
-  
-  return { isOpen: true, reason: 'Market open' };
+  const status = isUSMarketOpen();
+  return { isOpen: status.isOpen, reason: status.reason };
 }
 
 export interface ExecuteTradeResult {
@@ -336,8 +307,11 @@ export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPo
 
       // For expiry, only close if market is open (so we have real exit prices)
       if (isOption && position.expiryDate) {
-        const today = new Date().toISOString().split('T')[0];
-        if (position.expiryDate <= today) {
+        // Normalize both dates to YYYY-MM-DD for proper comparison
+        const today = normalizeDateString(new Date());
+        const expiryDateNormalized = normalizeDateString(position.expiryDate);
+        
+        if (expiryDateNormalized <= today) {
           if (marketStatus.isOpen && !priceIsStale) {
             // Market is open and we have real prices - close normally
             shouldClose = true;

@@ -6,6 +6,7 @@ import { calculateLottoTargets, getLottoThresholds } from "./lotto-detector";
 import { getLetterGrade } from "./grading";
 import { formatInTimeZone } from "date-fns-tz";
 import { TradeIdea, PaperPortfolio, InsertTradeIdea } from "@shared/schema";
+import { isUSMarketOpen, isCMEMarketOpen, normalizeDateString } from "@shared/market-calendar";
 import { logger } from "./logger";
 import { getMarketContext, getEntryTiming, checkDynamicExit, MarketContext } from "./market-context-service";
 import { getActiveFuturesContract, getFuturesPrice } from "./futures-data-service";
@@ -672,9 +673,8 @@ export async function monitorLottoPositions(): Promise<void> {
     // 📊 Get market context for dynamic exit decisions
     const marketContext = await getMarketContext();
     
-    // Import market status check
-    const { isOptionsMarketOpen } = await import("./paper-trading-service");
-    const marketStatus = isOptionsMarketOpen();
+    // Use shared market status check (static import)
+    const marketStatus = isUSMarketOpen();
     
     // Get open positions to check for dynamic exits
     const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);

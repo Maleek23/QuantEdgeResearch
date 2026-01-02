@@ -2,6 +2,7 @@
 // Detects unusual options activity and generates OPTIONS trade ideas based on real premiums
 
 import type { InsertTradeIdea } from "@shared/schema";
+import { isUSMarketOpen, isValidTradingDay } from "@shared/market-calendar";
 import { getTradierQuote, getTradierOptionsChain, getTradierOptionsChainsByDTE, getTradierHistoryOHLC } from './tradier-api';
 import { validateTradeRisk } from './ai-service';
 import { logger } from './logger';
@@ -12,84 +13,14 @@ import { isLottoCandidate, calculateLottoTargets } from './lotto-detector';
 import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennyStock } from './sector-detector';
 import { getLetterGrade } from './grading';
 
-// US Market Holidays 2025-2026 (options don't expire on holidays)
-const MARKET_HOLIDAYS = new Set([
-  // 2025
-  '2025-01-01', // New Year's Day
-  '2025-01-20', // MLK Day
-  '2025-02-17', // Presidents Day
-  '2025-04-18', // Good Friday
-  '2025-05-26', // Memorial Day
-  '2025-06-19', // Juneteenth
-  '2025-07-04', // Independence Day
-  '2025-09-01', // Labor Day
-  '2025-11-27', // Thanksgiving
-  '2025-12-25', // Christmas
-  // 2026
-  '2026-01-01', // New Year's Day
-  '2026-01-19', // MLK Day
-  '2026-02-16', // Presidents Day
-  '2026-04-03', // Good Friday
-  '2026-05-25', // Memorial Day
-  '2026-06-19', // Juneteenth
-  '2026-07-03', // Independence Day (observed)
-  '2026-09-07', // Labor Day
-  '2026-11-26', // Thanksgiving
-  '2026-12-25', // Christmas
-]);
-
-// Validate if a date is a valid trading day (not weekend or holiday)
-function isValidTradingDay(dateStr: string): boolean {
-  const date = new Date(dateStr + 'T12:00:00Z'); // Parse as noon UTC to avoid timezone issues
-  const day = date.getUTCDay();
-  
-  // Check for weekend (0 = Sunday, 6 = Saturday)
-  if (day === 0 || day === 6) {
-    return false;
-  }
-  
-  // Check for holidays
-  if (MARKET_HOLIDAYS.has(dateStr)) {
-    return false;
-  }
-  
-  return true;
-}
-
-// Check if market is currently open (9:30 AM - 4:00 PM ET, weekdays, non-holidays)
+// Wrapper to maintain existing function signature
 function isMarketOpen(): { isOpen: boolean; reason: string; minutesUntilClose: number } {
-  const now = new Date();
-  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const day = etTime.getDay();
-  const hour = etTime.getHours();
-  const minute = etTime.getMinutes();
-  const timeInMinutes = hour * 60 + minute;
-  const dateStr = etTime.toISOString().split('T')[0];
-  
-  // Check weekend
-  if (day === 0 || day === 6) {
-    return { isOpen: false, reason: 'Weekend - market closed', minutesUntilClose: 0 };
-  }
-  
-  // Check holiday
-  if (MARKET_HOLIDAYS.has(dateStr)) {
-    return { isOpen: false, reason: `Holiday (${dateStr}) - market closed`, minutesUntilClose: 0 };
-  }
-  
-  // Check time (9:30 AM = 570 minutes, 4:00 PM = 960 minutes)
-  const marketOpen = 9 * 60 + 30; // 9:30 AM
-  const marketClose = 16 * 60; // 4:00 PM
-  
-  if (timeInMinutes < marketOpen) {
-    return { isOpen: false, reason: 'Pre-market - market not yet open', minutesUntilClose: marketClose - marketOpen };
-  }
-  
-  if (timeInMinutes >= marketClose) {
-    return { isOpen: false, reason: 'After-hours - market closed', minutesUntilClose: 0 };
-  }
-  
-  const minutesUntilClose = marketClose - timeInMinutes;
-  return { isOpen: true, reason: 'Market is open', minutesUntilClose };
+  const status = isUSMarketOpen();
+  return { 
+    isOpen: status.isOpen, 
+    reason: status.reason, 
+    minutesUntilClose: status.minutesUntilClose || 0 
+  };
 }
 
 // Minimum trading time required for different DTE options (in minutes)
