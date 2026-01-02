@@ -76,7 +76,6 @@ export async function setupGoogleAuth(app: Express) {
     logger.info("Google OAuth initiated", { ip: req.ip });
     passport.authenticate("google", {
       scope: ["profile", "email"],
-      prompt: "select_account",
     })(req, res, next);
   });
 
