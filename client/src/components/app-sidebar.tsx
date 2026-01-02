@@ -38,8 +38,8 @@ const mainItems: NavItem[] = [
 const analysisItems: NavItem[] = [
   { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
   { title: "Performance", url: "/performance", icon: Target },
+  { title: "Data Audit", url: "/data-audit", icon: Database },
   { title: "Market Data", url: "/market", icon: BarChart2 },
-  { title: "Chart Database", url: "/chart-database", icon: Database },
 ];
 
 const resourceItems: NavItem[] = [
