@@ -104,12 +104,30 @@ export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOpt
     // 5. Pick strike based on delta (0.25-0.35 for balanced risk/reward)
     // For Lotto plays, we want far OTM (delta ≤0.30)
     // For standard plays, we want slightly OTM (delta 0.25-0.40)
+    
+    // 🔧 FIX: Filter out 0DTE options for standard plays - they expire too fast!
+    // Only allow 0DTE for explicit lotto plays where we want same-day gamma explosion
+    const now = new Date();
+    const today = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+    
     const goodOptions = optionsByType
-      .filter(opt => opt.greeks?.delta && Math.abs(opt.greeks.delta) >= 0.20 && Math.abs(opt.greeks.delta) <= 0.40)
+      .filter(opt => {
+        const hasDelta = opt.greeks?.delta && Math.abs(opt.greeks.delta) >= 0.20 && Math.abs(opt.greeks.delta) <= 0.40;
+        const is0DTE = opt.expiration_date === today;
+        // Skip 0DTE for standard plays - they get expired by validation before they can trade
+        // Allow 0DTE only for very cheap options ($0.50 or less) which are lotto candidates
+        const midPrice = opt.bid && opt.ask ? (opt.bid + opt.ask) / 2 : opt.last;
+        const isLottoCandidate = midPrice <= 0.50;
+        
+        if (is0DTE && !isLottoCandidate) {
+          return false; // Skip 0DTE for non-lotto plays
+        }
+        return hasDelta;
+      })
       .sort((a, b) => (b.volume || 0) - (a.volume || 0)); // Sort by volume descending
 
     if (goodOptions.length === 0) {
-      logger.warn(`[OPTIONS-ENRICH] No options with suitable delta for ${aiIdea.symbol}`);
+      logger.warn(`[OPTIONS-ENRICH] No options with suitable delta for ${aiIdea.symbol} (0DTE excluded for non-lotto)`);
       return null;
     }
 
@@ -139,7 +157,7 @@ export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOpt
 
     if (isLotto) {
       // Lotto plays: 20x targets
-      const lottoTargets = calculateLottoTargets(entryPremium, aiIdea.direction);
+      const lottoTargets = calculateLottoTargets(entryPremium);
       targetPremium = lottoTargets.targetPrice;
       riskRewardRatio = lottoTargets.riskRewardRatio;
       // For lotto, risk entire premium (stop = $0.01)
