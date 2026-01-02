@@ -58,6 +58,12 @@ import {
   PRICING_PLANS,
 } from "./stripe-service";
 import { getRealtimeQuote, getRealtimeBatchQuotes, type RealtimeQuote, type AssetType as RTAssetType } from './realtime-pricing-service';
+import { 
+  getCalibratedConfidence as getCalibrationScore, 
+  generateAdaptiveExitStrategy, 
+  refreshCalibrationCache, 
+  formatExitStrategyDisplay 
+} from './confidence-calibration';
 
 // Session-based authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -7167,6 +7173,88 @@ FORMATTING:
     } catch (error: any) {
       logger.error("Failed to send chart analysis to Discord:", error);
       res.status(500).json({ error: error?.message || "Failed to send to Discord" });
+    }
+  });
+
+  // Get calibrated confidence and adaptive exit strategy for a trade
+  app.post("/api/confidence/calibrate", async (req, res) => {
+    try {
+      const schema = z.object({
+        assetType: z.string(),
+        direction: z.string(),
+        source: z.string(),
+        signalCount: z.number(),
+        riskRewardRatio: z.number(),
+        entryPrice: z.number(),
+        targetPrice: z.number(),
+        stopLoss: z.number(),
+        volatilityRegime: z.enum(['low', 'normal', 'high']).optional(),
+        isLotto: z.boolean().optional(),
+      });
+      
+      const parseResult = schema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid calibration request", details: parseResult.error.errors });
+      }
+      
+      const params = parseResult.data;
+      
+      // Get calibrated confidence
+      const confidence = await getCalibrationScore({
+        assetType: params.assetType,
+        direction: params.direction,
+        source: params.source,
+        signalCount: params.signalCount,
+        riskRewardRatio: params.riskRewardRatio,
+        entryPrice: params.entryPrice,
+        targetPrice: params.targetPrice,
+        stopLoss: params.stopLoss,
+        volatilityRegime: params.volatilityRegime,
+      });
+      
+      // Calculate target/stop percentages for exit strategy
+      const targetGainPercent = params.direction === 'long' 
+        ? ((params.targetPrice - params.entryPrice) / params.entryPrice) * 100
+        : ((params.entryPrice - params.targetPrice) / params.entryPrice) * 100;
+      
+      const stopLossPercent = params.direction === 'long'
+        ? ((params.entryPrice - params.stopLoss) / params.entryPrice) * 100
+        : ((params.stopLoss - params.entryPrice) / params.entryPrice) * 100;
+      
+      // Generate adaptive exit strategy
+      const exitStrategy = generateAdaptiveExitStrategy({
+        assetType: params.assetType,
+        direction: params.direction,
+        confidenceScore: confidence.calibratedScore,
+        riskRewardRatio: params.riskRewardRatio,
+        volatilityRegime: params.volatilityRegime || 'normal',
+        isLotto: params.isLotto,
+        targetGainPercent,
+        stopLossPercent: Math.abs(stopLossPercent),
+      });
+      
+      res.json({
+        confidence,
+        exitStrategy,
+        exitStrategyDisplay: formatExitStrategyDisplay(exitStrategy),
+        targetGainPercent: Math.round(targetGainPercent * 100) / 100,
+        stopLossPercent: Math.round(Math.abs(stopLossPercent) * 100) / 100,
+      });
+      
+    } catch (error: any) {
+      logger.error("Failed to calibrate confidence:", error);
+      res.status(500).json({ error: error?.message || "Failed to calibrate confidence" });
+    }
+  });
+
+  // Refresh calibration cache (admin only)
+  app.post("/api/confidence/refresh-cache", requireAdmin, async (_req, res) => {
+    try {
+      await refreshCalibrationCache();
+      res.json({ success: true, message: "Calibration cache refreshed" });
+    } catch (error: any) {
+      logger.error("Failed to refresh calibration cache:", error);
+      res.status(500).json({ error: error?.message || "Failed to refresh cache" });
     }
   });
 
