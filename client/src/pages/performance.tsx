@@ -706,112 +706,40 @@ export default function PerformancePage() {
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
-      {/* Executive Summary - Most Important Info First */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" data-testid="section-executive-summary">
-        {/* Headline KPIs */}
-        <Card className="lg:col-span-2 glass-card p-6">
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Research Analytics</p>
-              <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-performance-title">Platform Performance</h1>
-              <p className="text-sm text-muted-foreground">{stats.overall.totalIdeas} total briefs • {stats.overall.closedIdeas} closed</p>
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleValidate}
-                disabled={isValidating}
-                data-testid="button-validate-ideas"
-              >
-                <Activity className={`w-4 h-4 mr-1 ${isValidating ? 'animate-spin' : ''}`} />
-                {isValidating ? 'Validating...' : 'Validate'}
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={handleExport}
-                data-testid="button-export-csv"
-              >
-                <Download className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center stat-glass rounded-lg p-4 relative">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <div className={cn(
-                        "text-4xl font-bold font-mono tabular-nums",
-                        (calibratedStats?.calibratedWinRate ?? stats.overall.winRate) >= 60 ? "text-green-500" : 
-                        (calibratedStats?.calibratedWinRate ?? stats.overall.winRate) >= 50 ? "text-amber-500" : 
-                        (calibratedStats?.calibratedWinRate ?? stats.overall.winRate) > 0 ? "text-red-500" : "text-muted-foreground"
-                      )} data-testid="text-headline-winrate">
-                        {calibratedStats ? `${calibratedStats.calibratedWinRate.toFixed(1)}%` : 
-                          stats.overall.closedIdeas > 0 ? `${stats.overall.winRate.toFixed(1)}%` : 'N/A'}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1">
-                        Win Rate
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 border-cyan-500/50 text-cyan-400">
-                          Calibrated
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {calibratedStats ? `${calibratedStats.calibratedWins}W / ${calibratedStats.calibratedTrades - calibratedStats.calibratedWins}L` : 
-                          `${stats.overall.wonIdeas}W / ${stats.overall.lostIdeas}L`}
-                      </div>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-xs">
-                    <p className="font-semibold">Overall Win Rate (All Signal Bands)</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Includes all signal strength bands (A-D). Based on actual qualitySignals count, not probability.
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            <div className="text-center bg-muted/30 rounded-lg p-4">
-              <div className={cn(
-                "text-4xl font-bold font-mono tabular-nums",
-                stats.overall.expectancy > 0 ? "text-green-500" : 
-                stats.overall.expectancy < 0 ? "text-red-500" : "text-muted-foreground"
-              )} data-testid="text-headline-expectancy">
-                {stats.overall.expectancy !== 0 ? `${stats.overall.expectancy > 0 ? '+' : ''}${stats.overall.expectancy.toFixed(2)}%` : 'N/A'}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">Expectancy</div>
-              <div className="text-xs text-muted-foreground">Per Trade</div>
-            </div>
-            <div className="text-center bg-muted/30 rounded-lg p-4">
-              <div className={cn(
-                "text-4xl font-bold font-mono tabular-nums",
-                stats.overall.profitFactor >= 1.5 ? "text-green-500" : 
-                stats.overall.profitFactor >= 1 ? "text-amber-500" : "text-red-500"
-              )} data-testid="text-headline-profitfactor">
-                {stats.overall.profitFactor > 0 ? stats.overall.profitFactor.toFixed(2) : 'N/A'}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">Profit Factor</div>
-              <div className="text-xs text-muted-foreground">Gains / Losses</div>
-            </div>
-            <div className="text-center bg-muted/30 rounded-lg p-4">
-              <div className="text-4xl font-bold font-mono tabular-nums text-cyan-500" data-testid="text-headline-open">
-                {stats.overall.openIdeas}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">Open Positions</div>
-              <div className="text-xs text-muted-foreground">Active</div>
-            </div>
-          </div>
-        </Card>
+      {/* Page Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-performance-title">Performance Analytics</h1>
+          <p className="text-sm text-muted-foreground">Separate tracking for Bot trades vs Research ideas</p>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleValidate}
+            disabled={isValidating}
+            data-testid="button-validate-ideas"
+          >
+            <Activity className={`w-4 h-4 mr-1 ${isValidating ? 'animate-spin' : ''}`} />
+            {isValidating ? 'Validating...' : 'Validate Ideas'}
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={handleExport}
+            data-testid="button-export-csv"
+          >
+            <Download className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
 
-        {/* Quick Engine Pulse */}
-        <Card className="glass-card p-4" data-testid="section-engine-pulse">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Quick View</p>
-          <div className="flex items-center gap-2 mb-3">
-            <Activity className="h-4 w-4 text-cyan-400" />
-            <h3 className="font-semibold text-sm">Engine Pulse (7d)</h3>
-          </div>
+      {/* Quick Engine Status - Compact */}
+      <Card className="glass-card p-4" data-testid="section-engine-pulse">
+        <div className="flex items-center gap-2 mb-3">
+          <Activity className="h-4 w-4 text-cyan-400" />
+          <h3 className="font-semibold text-sm">Engine Status (7d)</h3>
+        </div>
           {isEngineHealthLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4].map((i) => (
@@ -867,8 +795,7 @@ export default function PerformancePage() {
               })}
             </div>
           )}
-        </Card>
-      </div>
+      </Card>
 
       {/* Health Alerts (if any) */}
       {engineHealthData?.activeAlerts && engineHealthData.activeAlerts.length > 0 && (
@@ -1279,27 +1206,65 @@ export default function PerformancePage() {
         )}
       </div>
 
-      {/* Data Intelligence Leaderboard - Based on 400+ resolved trades */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold">Data-Driven Insights</h3>
-          <Badge variant="outline" className="text-xs border-purple-500/50 text-purple-400">
-            411 Resolved Trades
-          </Badge>
+      {/* === RESEARCH IDEAS SECTION === */}
+      <div className="space-y-4 pt-4 border-t border-border/50" data-testid="section-research-ideas">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500/20 to-cyan-500/20 border border-purple-500/30">
+            <Brain className="h-5 w-5 text-purple-400" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Research Ideas Performance</h2>
+            <p className="text-xs text-muted-foreground">AI & Quant engine generated trade ideas (not auto-executed)</p>
+          </div>
         </div>
+
+        {/* Research Summary Stats */}
+        <Card className="glass-card">
+          <CardContent className="p-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="stat-glass rounded-lg p-4 border-l-2 border-l-purple-500 text-center">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Ideas</p>
+                <p className="text-2xl font-bold font-mono tabular-nums">{stats.overall.totalIdeas}</p>
+              </div>
+              <div className="stat-glass rounded-lg p-4 border-l-2 border-l-green-500 text-center">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Won</p>
+                <p className="text-2xl font-bold font-mono tabular-nums text-green-400">{stats.overall.wonIdeas}</p>
+              </div>
+              <div className="stat-glass rounded-lg p-4 border-l-2 border-l-red-500 text-center">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Lost</p>
+                <p className="text-2xl font-bold font-mono tabular-nums text-red-400">{stats.overall.lostIdeas}</p>
+              </div>
+              <div className="stat-glass rounded-lg p-4 border-l-2 border-l-cyan-500 text-center">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Win Rate</p>
+                <p className={cn(
+                  "text-2xl font-bold font-mono tabular-nums",
+                  stats.overall.winRate >= 60 ? "text-green-400" : 
+                  stats.overall.winRate >= 50 ? "text-amber-400" : "text-red-400"
+                )} data-testid="text-research-winrate">
+                  {stats.overall.closedIdeas > 0 ? `${stats.overall.winRate.toFixed(1)}%` : 'N/A'}
+                </p>
+              </div>
+              <div className="stat-glass rounded-lg p-4 border-l-2 border-l-blue-500 text-center">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Open</p>
+                <p className="text-2xl font-bold font-mono tabular-nums text-blue-400">{stats.overall.openIdeas}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Data Intelligence Leaderboard */}
         <PerformanceLeaderboard />
       </div>
 
-      {/* Data Pipeline Transparency & Confidence Comparison */}
+      {/* Data Pipeline Transparency & Signal Strength Analysis */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Filter Breakdown - Explains where the numbers come from */}
         {filterBreakdown && (
           <Card className="glass-card" data-testid="section-filter-breakdown">
             <CardHeader className="pb-3">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Data Quality</p>
               <div className="flex items-center gap-2">
                 <Filter className="h-5 w-5 text-purple-400" />
-                <CardTitle className="text-lg">Data Pipeline Transparency</CardTitle>
+                <CardTitle className="text-lg">Data Pipeline</CardTitle>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
                 {filterBreakdown.explanation}
