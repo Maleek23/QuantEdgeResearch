@@ -500,6 +500,9 @@ export async function monitorCryptoPositions(): Promise<void> {
     
     const priceMap = await fetchCryptoPrices();
     
+    // Track running cash balance to handle multiple exits in one scan
+    let runningCashBalance = portfolio.cashBalance;
+    
     for (const pos of openPositions) {
       const data = priceMap.get(pos.symbol);
       if (!data) continue;
@@ -528,11 +531,12 @@ export async function monitorCryptoPositions(): Promise<void> {
       )) {
         logger.info(`🪙 [CRYPTO BOT] ❌ STOP HIT: ${pos.symbol} @ $${currentPrice.toFixed(4)}`);
         const quantity = typeof pos.quantity === 'string' ? parseFloat(pos.quantity) : pos.quantity;
-        const pnl = (currentPrice - entryPrice) * quantity * (direction === 'long' ? 1 : -1);
+        const proceeds = quantity * currentPrice;
+        runningCashBalance += proceeds;
         
         await storage.closePaperPosition(pos.id, currentPrice, 'hit_stop');
         await storage.updatePaperPortfolio(portfolio.id, {
-          cashBalance: portfolio.cashBalance + (quantity * currentPrice),
+          cashBalance: runningCashBalance,
         });
         continue;
       }
@@ -544,11 +548,12 @@ export async function monitorCryptoPositions(): Promise<void> {
       )) {
         logger.info(`🪙 [CRYPTO BOT] 🎯 TARGET HIT: ${pos.symbol} @ $${currentPrice.toFixed(4)}`);
         const quantity = typeof pos.quantity === 'string' ? parseFloat(pos.quantity) : pos.quantity;
-        const pnl = (currentPrice - entryPrice) * quantity * (direction === 'long' ? 1 : -1);
+        const proceeds = quantity * currentPrice;
+        runningCashBalance += proceeds;
         
         await storage.closePaperPosition(pos.id, currentPrice, 'hit_target');
         await storage.updatePaperPortfolio(portfolio.id, {
-          cashBalance: portfolio.cashBalance + (quantity * currentPrice),
+          cashBalance: runningCashBalance,
         });
         continue;
       }
