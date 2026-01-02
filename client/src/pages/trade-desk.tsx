@@ -931,21 +931,23 @@ export default function TradeDeskPage() {
                   className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-60 overflow-y-auto"
                 >
                   {symbolSearchResults.map((result, idx) => (
-                    <button
+                    <div
                       key={`${result.symbol}-${idx}`}
-                      type="button"
-                      className="w-full px-3 py-2 text-left hover:bg-accent flex items-center justify-between gap-2 border-b last:border-b-0"
+                      role="button"
+                      tabIndex={0}
+                      className="w-full px-3 py-2 text-left hover:bg-accent flex items-center justify-between gap-2 border-b last:border-b-0 cursor-pointer"
                       onClick={() => handleSelectSymbol(result.symbol, result.type)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSelectSymbol(result.symbol, result.type)}
                       data-testid={`search-result-${result.symbol}`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="font-mono font-bold text-sm">{result.symbol}</span>
                         <span className="text-xs text-muted-foreground truncate">{result.description}</span>
                       </div>
-                      <Badge variant="outline" className="text-xs shrink-0">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-muted/50 shrink-0">
                         {result.type === 'crypto' ? 'Crypto' : result.type?.toUpperCase() || 'Stock'}
-                      </Badge>
-                    </button>
+                      </span>
+                    </div>
                   ))}
                 </div>
               )}
