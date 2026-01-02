@@ -63,6 +63,7 @@ export interface WeeklyPick {
   dte: number; // Days to expiration
   optimalHoldDays: number; // Recommended hold period based on analysis
   riskAnalysis: string; // Brief risk assessment
+  botAnalysis?: string; // AI-generated analysis from the bot
 }
 
 /**
@@ -264,7 +265,66 @@ export async function generateNextWeekPicks(): Promise<WeeklyPick[]> {
   
   logger.info(`📋 [WEEKLY-PICKS] Generated ${finalPicks.length} premium picks (${lottos.length} lotto, ${dayTrades.length} day trades, ${swings.length} swings)`);
   
-  return finalPicks;
+  // Add AI analysis to each pick
+  const picksWithAnalysis = await addAIAnalysisToPicks(finalPicks);
+  
+  return picksWithAnalysis;
+}
+
+/**
+ * Add AI-generated analysis to each pick
+ */
+async function addAIAnalysisToPicks(picks: WeeklyPick[]): Promise<WeeklyPick[]> {
+  try {
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic();
+    
+    // Generate analysis for all picks in one request for efficiency
+    const picksContext = picks.map((p, i) => 
+      `${i + 1}. ${p.symbol} ${p.optionType.toUpperCase()} $${p.strike} (${p.playType}) - Entry: $${p.entryPrice}, Target: $${p.targetPrice} (${p.targetMultiplier}x), DTE: ${p.dte}d, Delta: ${(p.delta * 100).toFixed(0)}%, Conf: ${p.confidence}%`
+    ).join('\n');
+    
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      messages: [{
+        role: 'user',
+        content: `You are the Auto-Lotto Bot, an experienced options trader. Provide brief 1-2 sentence analysis for each of these option plays. Focus on:
+- Why this setup is interesting (technical/momentum/sector theme)
+- Key risk to watch
+- Optimal execution timing
+
+Picks for next week:
+${picksContext}
+
+Format your response as JSON array with objects containing "index" (1-based) and "analysis" (string) fields only. Be direct and actionable.`
+      }]
+    });
+    
+    // Parse AI response
+    const content = response.content[0]?.type === 'text' ? response.content[0].text : '';
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    
+    if (jsonMatch) {
+      const analyses = JSON.parse(jsonMatch[0]) as Array<{index: number; analysis: string}>;
+      
+      // Add analysis to each pick
+      return picks.map((pick, i) => {
+        const analysisItem = analyses.find(a => a.index === i + 1);
+        return {
+          ...pick,
+          botAnalysis: analysisItem?.analysis || pick.riskAnalysis
+        };
+      });
+    }
+    
+    logger.warn('📋 [WEEKLY-PICKS] Could not parse AI analysis, using default risk analysis');
+    return picks.map(p => ({ ...p, botAnalysis: p.riskAnalysis }));
+    
+  } catch (error) {
+    logger.warn('📋 [WEEKLY-PICKS] AI analysis failed, using default risk analysis:', error);
+    return picks.map(p => ({ ...p, botAnalysis: p.riskAnalysis }));
+  }
 }
 
 /**

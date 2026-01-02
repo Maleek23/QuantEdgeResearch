@@ -1015,6 +1015,7 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
   dte?: number;
   optimalHoldDays?: number;
   riskAnalysis?: string;
+  botAnalysis?: string;
 }>, weekRange: { start: string; end: string }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
@@ -1037,7 +1038,7 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
     const dayTrades = picks.filter(p => p.playType === 'day_trade');
     const swings = picks.filter(p => p.playType === 'swing');
     
-    // Format picks by category with enhanced date analysis
+    // Format picks by category with enhanced date analysis and bot thoughts
     const formatPick = (p: typeof picks[0]) => {
       const emoji = p.optionType === 'call' ? '🟢' : '🔴';
       const type = p.optionType.toUpperCase();
@@ -1045,11 +1046,12 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
       const gain = ((p.targetPrice - p.entryPrice) / p.entryPrice * 100).toFixed(0);
       const dteInfo = p.dte ? ` (${p.dte}DTE)` : '';
       const exitInfo = p.suggestedExitDate ? `\n   📅 Exit by: ${p.suggestedExitDate}` : '';
-      const holdInfo = p.optimalHoldDays ? ` • Hold: ${p.optimalHoldDays}d` : '';
+      const holdInfo = p.optimalHoldDays !== undefined ? ` • Hold: ${p.optimalHoldDays === 0 ? 'same day' : p.optimalHoldDays + 'd'}` : '';
+      const botThoughts = p.botAnalysis ? `\n   🤖 *${p.botAnalysis}*` : '';
       
       return `${emoji} **${p.symbol}** ${type} $${p.strike} exp ${exp}${dteInfo}\n` +
              `   💰 Entry $${p.entryPrice.toFixed(2)} → Target $${p.targetPrice.toFixed(2)} (${p.targetMultiplier}x, +${gain}%)${holdInfo}${exitInfo}\n` +
-             `   ⚡ ${p.confidence}% conf | δ${(p.delta * 100).toFixed(0)}`;
+             `   ⚡ ${p.confidence}% conf | δ${(p.delta * 100).toFixed(0)}${botThoughts}`;
     };
     
     // Build description
