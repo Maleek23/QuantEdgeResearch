@@ -696,16 +696,24 @@ function makeBotDecision(
     }
   }
   
+  // Delta scoring - we already hard-filter < 0.08, but score the remaining range
   const absDelta = Math.abs(opportunity.delta);
-  if (absDelta >= 0.05 && absDelta <= 0.12) {
+  if (absDelta >= 0.10 && absDelta <= 0.20) {
+    // Sweet spot: 10-20% probability, good risk/reward
     signals.push(`OPTIMAL_DELTA_${absDelta.toFixed(2)}`);
     score += 15;
-  } else if (absDelta < 0.03) {
-    signals.push('EXTREME_OTM_RISK');
-    score -= 20;
-  } else if (absDelta > 0.15) {
-    signals.push('REJECTED_DELTA_TOO_HIGH');
-    score -= 25;
+  } else if (absDelta >= 0.08 && absDelta < 0.10) {
+    // Acceptable but lower probability
+    signals.push(`LOW_DELTA_${absDelta.toFixed(2)}`);
+    score += 5;
+  } else if (absDelta > 0.20 && absDelta <= 0.30) {
+    // Higher delta = more expensive premium, less upside multiplier
+    signals.push(`HIGH_DELTA_${absDelta.toFixed(2)}`);
+    score += 8;
+  } else if (absDelta > 0.30) {
+    // Too close to ATM - not a lotto play
+    signals.push('DELTA_TOO_HIGH');
+    score -= 15;
   }
   
   if (opportunity.volume >= 500) {
@@ -847,7 +855,17 @@ async function scanForOpportunities(ticker: string): Promise<LottoOpportunity[]>
       const absDelta = Math.abs(delta);
       
       if (midPrice < thresholds.LOTTO_ENTRY_MIN || midPrice > thresholds.LOTTO_ENTRY_MAX) continue;
-      if (absDelta < 0.03 || absDelta > thresholds.LOTTO_DELTA_MAX) continue;
+      // HARD FILTER: Minimum delta 0.08 (realistic probability)
+      // Delta < 0.08 = lottery ticket with <8% chance - NOT a real trade
+      // This prevents entries like COIN $315 calls when stock is at $260
+      if (absDelta < 0.08 || absDelta > thresholds.LOTTO_DELTA_MAX) continue;
+      
+      // HARD FILTER: Strike can't be more than 12% OTM
+      // Prevents unrealistic far-OTM plays
+      const strikeOTMPercent = opt.option_type === 'call' 
+        ? ((opt.strike - quote.last) / quote.last) * 100
+        : ((quote.last - opt.strike) / quote.last) * 100;
+      if (strikeOTMPercent > 12) continue; // Max 12% OTM
       
       const expDate = new Date(opt.expiration_date);
       const now = new Date();
