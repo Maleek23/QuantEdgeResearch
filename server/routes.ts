@@ -5714,12 +5714,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rejectedIdeas: Array<{symbol: string, reason: string}> = [];
       
       for (const idea of quantIdeas) {
-        // 🚫 QUARANTINE: Block options trades until pricing logic is audited
-        if (idea.assetType === 'option') {
-          logger.warn(`🚫 Quant: REJECTED ${idea.symbol} - Options quarantined (avg return -99%, audit pending)`);
-          rejectedIdeas.push({ symbol: idea.symbol, reason: 'Options quarantined pending audit' });
-          continue;
-        }
+        // Options now allowed - direction bug fixed (was marking puts as 'short' instead of 'long')
+        // All options are now LONG (bought) positions with correct P&L calculation
         
         // 🛡️ LAYER 1: Structural validation (prevents logically impossible trades)
         const structureValid = validateTradeStructureLog({

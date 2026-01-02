@@ -485,11 +485,8 @@ app.use((req, res, next) => {
             continue;
           }
           
-          // Options are quarantined for quant (performance was -99%)
-          if (idea.assetType === 'option') {
-            logger.warn(`🚫 [QUANT-CRON] Skipped ${idea.symbol} option - options quarantined for quant engine`);
-            continue;
-          }
+          // Options now allowed - direction bug fixed (was marking puts as 'short' instead of 'long')
+          // All options are now LONG (bought) positions with correct P&L calculation
           
           const saved = await storage.createTradeIdea({
             ...idea,
@@ -547,11 +544,8 @@ app.use((req, res, next) => {
             continue;
           }
           
-          // Options are quarantined for quant (performance was -99%)
-          if (idea.assetType === 'option') {
-            logger.warn(`🚫 [QUANT-STARTUP] Skipped ${idea.symbol} option - options quarantined`);
-            continue;
-          }
+          // Options now allowed - direction bug fixed (was marking puts as 'short' instead of 'long')
+          // All options are now LONG (bought) positions with correct P&L calculation
           
           const saved = await quantStorage.createTradeIdea({
             ...idea,
