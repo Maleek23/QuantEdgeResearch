@@ -469,7 +469,6 @@ export default function TradeDeskPage() {
     }
   })();
 
-  // Filter ideas by search, direction, source, asset type, grade, date range, sourceTab, statusView, and trade type
   const filteredIdeas = tradeIdeas.filter(idea => {
     const matchesSearch = !tradeIdeaSearch || 
       idea.symbol.toLowerCase().includes(tradeIdeaSearch.toLowerCase()) ||
@@ -501,11 +500,14 @@ export default function TradeDeskPage() {
       (tradeTypeFilter === 'day' && idea.holdingPeriod === 'day') ||
       (tradeTypeFilter === 'swing' && ['swing', 'position', 'week-ending'].includes(idea.holdingPeriod));
     
-    // Active only filter for the main view
+    // Status filter: ACTIVE, WON, LOST
     const status = (idea.outcomeStatus || '').trim().toLowerCase();
-    const isActive = status === 'open' || status === '';
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'active' && (status === 'open' || status === '')) ||
+      (statusFilter === 'won' && status === 'hit_target') ||
+      (statusFilter === 'lost' && status === 'hit_stop');
     
-    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesSourceTab && matchesStatusView && matchesTradeType && isActive;
+    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesSourceTab && matchesStatusView && matchesTradeType && matchesStatus;
   });
 
   const dayTrades = useMemo(() => filteredIdeas.filter(i => i.holdingPeriod === 'day'), [filteredIdeas]);
