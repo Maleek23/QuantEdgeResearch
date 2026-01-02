@@ -175,27 +175,34 @@ export async function generateNextWeekPicks(): Promise<WeeklyPick[]> {
         let suggestedExitDate: string;
         let riskAnalysis: string;
         
+        // Calculate next Monday as the entry point for all weekly picks
+        const daysToMonday = getDaysUntilNextMonday(now);
+        const nextMonday = new Date(now);
+        nextMonday.setDate(now.getDate() + daysToMonday);
+        
         if (playType === 'lotto') {
-          // Lotto: Hold 1-2 days max, quick scalp or bust
+          // Lotto: Quick 1-2 trading day scalp from Monday entry
           optimalHoldDays = Math.min(2, dte - 1);
-          const exitDate = new Date(now);
-          exitDate.setDate(now.getDate() + optimalHoldDays + getDaysUntilNextMonday(now));
+          // Exit Tue or Wed (trading days only)
+          const exitDate = new Date(nextMonday);
+          exitDate.setDate(nextMonday.getDate() + optimalHoldDays);
+          // Skip weekend if needed
+          if (exitDate.getDay() === 0) exitDate.setDate(exitDate.getDate() + 1);
+          if (exitDate.getDay() === 6) exitDate.setDate(exitDate.getDate() + 2);
           suggestedExitDate = formatInTimeZone(exitDate, timezone, 'EEE MMM d');
           riskAnalysis = `Far OTM (δ${(absDelta * 100).toFixed(0)}), rapid theta decay. Exit quickly on 50%+ move or cut at -50%.`;
         } else if (playType === 'day_trade') {
-          // Day trade: Same day or next day exit
-          optimalHoldDays = 1;
-          const exitDate = new Date(now);
-          exitDate.setDate(now.getDate() + getDaysUntilNextMonday(now));
-          suggestedExitDate = formatInTimeZone(exitDate, timezone, 'EEE MMM d') + ' (same day)';
+          // Day trade: Exit same day as entry (Monday)
+          optimalHoldDays = 0;
+          suggestedExitDate = formatInTimeZone(nextMonday, timezone, 'EEE MMM d') + ' (same day)';
           riskAnalysis = `Near ATM (δ${(absDelta * 100).toFixed(0)}), responsive to stock moves. Quick scalp, exit by 2PM CT.`;
         } else {
-          // Swing: Hold 3-5 trading days, exit before theta accelerates
-          optimalHoldDays = Math.min(5, Math.max(3, dte - 5));
-          const exitDate = new Date(now);
-          exitDate.setDate(now.getDate() + optimalHoldDays + getDaysUntilNextMonday(now));
-          suggestedExitDate = formatInTimeZone(exitDate, timezone, 'EEE MMM d');
-          riskAnalysis = `Moderate OTM (δ${(absDelta * 100).toFixed(0)}), ${dte} DTE cushion. Exit 5+ days before expiry to avoid theta crush.`;
+          // Swing: Hold through Fri (full week), exit before weekend theta decay
+          optimalHoldDays = 4; // Mon-Fri = 4 trading days
+          const friday = new Date(nextMonday);
+          friday.setDate(nextMonday.getDate() + 4);
+          suggestedExitDate = formatInTimeZone(friday, timezone, 'EEE MMM d') + ' (end of week)';
+          riskAnalysis = `Moderate OTM (δ${(absDelta * 100).toFixed(0)}), ${dte} DTE cushion. Exit Friday to avoid weekend theta crush.`;
         }
         
         // Format expiration as human readable

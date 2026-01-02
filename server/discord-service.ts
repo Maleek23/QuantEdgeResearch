@@ -1018,8 +1018,8 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
 }>, weekRange: { start: string; end: string }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
-  // Use DISCORD_WEBHOOK_FUTURE_TRADES for premium picks (future trade recommendations)
-  const webhookUrl = process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_URL;
+  // Use dedicated webhook for premium picks - falls back to main trades webhook, NOT futures
+  const webhookUrl = process.env.DISCORD_WEBHOOK_GAINS || process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
     logger.info('⚠️ Discord webhook not configured - skipping next week picks');
