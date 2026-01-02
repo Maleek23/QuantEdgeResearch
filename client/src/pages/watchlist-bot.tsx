@@ -641,9 +641,9 @@ export default function WatchlistBotPage() {
                                 {idea.confidenceScore}% Conf.
                               </Badge>
                               {idea.isLottoPlay && (
-                                <span className="text-[10px] font-bold text-amber-500 mt-1 flex items-center gap-1">
+                                <span className="text-[10px] font-bold text-amber-500 mt-1 flex items-center gap-1 bg-amber-500/5 px-1.5 py-0.5 rounded border border-amber-500/20">
                                   <AlertTriangle className="h-2 w-2" />
-                                  HIGH RISK OTM
+                                  SPECULATIVE LOTTO
                                 </span>
                               )}
                             </div>

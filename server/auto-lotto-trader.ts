@@ -74,7 +74,7 @@ const SWING_TRADE_TICKERS = [
 ];
 
 // Combined for general scanning (deduplicated)
-const BOT_SCAN_TICKERS = [...new Set([...DAY_TRADE_TICKERS, ...SWING_TRADE_TICKERS])];
+const BOT_SCAN_TICKERS = Array.from(new Set([...DAY_TRADE_TICKERS, ...SWING_TRADE_TICKERS]));
 
 const FUTURES_SYMBOLS: ('NQ' | 'GC')[] = ['NQ', 'GC'];
 
