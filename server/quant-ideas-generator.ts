@@ -996,17 +996,20 @@ export async function generateQuantIdeas(
     let assetType = data.assetType;
     
     if (data.assetType === 'stock') {
-      // 🎲 10% probability to convert stock to option (for options enrichment with Tradier data)
-      const shouldMakeOption = Math.random() < 0.10;
+      // 🎯 HIGH CONFIDENCE MINIMUM: Convert high-confidence directional trades to options
+      // Confidence >= 65% ALWAYS becomes an option (call for LONG, put for SHORT)
+      // This provides leveraged exposure for strong conviction plays
+      const HIGH_CONFIDENCE_THRESHOLD = 65;
+      const shouldForceOption = confidenceScore >= HIGH_CONFIDENCE_THRESHOLD;
       
       // For stocks, decide between stock shares vs options - prioritize what's furthest from target
       const stockShortfall = targetDistribution.stock - assetTypeCount.stock;
       const optionShortfall = targetDistribution.option - assetTypeCount.option;
       
-      if (shouldMakeOption) {
-        // 10% probability triggered - force option selection for Tradier enrichment
+      if (shouldForceOption) {
+        // HIGH CONFIDENCE: Force option for leveraged directional exposure
         assetType = 'option';
-        logger.info(`  🎲 ${data.symbol}: 10% probability triggered - converting to option`);
+        logger.info(`  🎯 ${data.symbol}: HIGH CONFIDENCE (${confidenceScore}%) - converting to ${signal.direction === 'long' ? 'CALL' : 'PUT'} option`);
       } else if (stockShortfall > 0 && optionShortfall <= 0) {
         // Only stock shares needed
         assetType = 'stock';
