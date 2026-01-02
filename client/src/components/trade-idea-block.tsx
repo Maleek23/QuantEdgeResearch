@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
 import { formatInUserTZ, formatTimeUntilExpiry, formatDateOnly } from "@/lib/timezone";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles, Newspaper, HelpCircle, Info, Database, TrendingUpIcon, Zap, UserPlus, AlertTriangle, FileSearch } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles, Newspaper, HelpCircle, Info, Database, TrendingUpIcon, Zap, UserPlus, AlertTriangle, FileSearch, Hourglass, Minus, Octagon, Skull, Coins } from "lucide-react";
 import { Link } from "wouter";
 import { formatInTimeZone } from "date-fns-tz";
 import { parseISO } from "date-fns";
@@ -28,7 +28,7 @@ import { EnhancedCountdown } from "@/components/enhanced-countdown";
 import { TimingDisplay } from "@/components/timing-display";
 import { HistoricalPerformanceBadge } from "@/components/historical-performance-badge";
 import { SignalStrengthBadge } from "@/components/signal-strength-badge";
-import { getPerformanceGrade } from "@/lib/performance-grade";
+import { getResolutionReasonLabel } from "@/lib/signal-grade";
 import type { TradeIdea, Catalyst } from "@shared/schema";
 
 interface TradeIdeaBlockProps {
@@ -410,7 +410,95 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 LOW LIQ
               </Badge>
             )}
+          </div>
 
+          {/* TRADE AUDIT - Shows resolution reason for expired/closed trades */}
+          {idea.outcomeStatus && idea.outcomeStatus !== 'open' && (
+            <div className="p-3 rounded-lg bg-muted/30 border border-muted/50 space-y-2">
+              <div className="flex items-center gap-2">
+                <FileSearch className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Trade Audit</span>
+              </div>
+              
+              {(() => {
+                const reason = getResolutionReasonLabel(idea.resolutionReason);
+                const getReasonIcon = (iconName: string) => {
+                  switch (iconName) {
+                    case 'clock': return <Clock className="h-4 w-4" />;
+                    case 'hourglass': return <Hourglass className="h-4 w-4" />;
+                    case 'minus': return <Minus className="h-4 w-4" />;
+                    case 'target': return <TargetIcon className="h-4 w-4" />;
+                    case 'octagon': return <Octagon className="h-4 w-4" />;
+                    case 'skull': return <Skull className="h-4 w-4" />;
+                    case 'coins': return <Coins className="h-4 w-4" />;
+                    default: return <HelpCircle className="h-4 w-4" />;
+                  }
+                };
+                return (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className={reason.color}>{getReasonIcon(reason.iconName)}</span>
+                      <span className={cn("font-semibold text-sm", reason.color)}>{reason.label}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{reason.description}</p>
+                    
+                    {/* Theoretical outcome for missed entries */}
+                    {idea.missedEntryTheoreticalOutcome && (
+                      <div className="mt-2 p-2 rounded bg-muted/20 border border-muted/30">
+                        <div className="flex items-center gap-2 text-xs">
+                          <Info className="h-3 w-3 text-cyan-400" />
+                          <span className="text-muted-foreground">What would have happened:</span>
+                          <span className={cn(
+                            "font-semibold",
+                            idea.missedEntryTheoreticalOutcome === 'would_have_won' ? 'text-green-400' :
+                            idea.missedEntryTheoreticalOutcome === 'would_have_lost' ? 'text-red-400' :
+                            'text-slate-400'
+                          )}>
+                            {idea.missedEntryTheoreticalOutcome === 'would_have_won' ? 'Would have WON' :
+                             idea.missedEntryTheoreticalOutcome === 'would_have_lost' ? 'Would have LOST' :
+                             'Inconclusive'}
+                          </span>
+                          {idea.missedEntryTheoreticalGain !== null && idea.missedEntryTheoreticalGain !== undefined && (
+                            <span className={cn(
+                              "font-mono",
+                              idea.missedEntryTheoreticalGain > 0 ? 'text-green-400' : 'text-red-400'
+                            )}>
+                              ({idea.missedEntryTheoreticalGain > 0 ? '+' : ''}{idea.missedEntryTheoreticalGain.toFixed(1)}%)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Exit details */}
+                    {idea.exitPrice && (
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                        <span>Exit: <span className="font-mono text-foreground">${idea.exitPrice.toFixed(2)}</span></span>
+                        {idea.percentGain !== null && idea.percentGain !== undefined && (
+                          <span>P/L: <span className={cn(
+                            "font-mono",
+                            idea.percentGain > 0 ? 'text-green-400' : idea.percentGain < 0 ? 'text-red-400' : 'text-muted-foreground'
+                          )}>{idea.percentGain > 0 ? '+' : ''}{idea.percentGain.toFixed(1)}%</span></span>
+                        )}
+                        {idea.actualHoldingTimeMinutes && (
+                          <span>Held: <span className="text-foreground">
+                            {idea.actualHoldingTimeMinutes < 60 
+                              ? `${idea.actualHoldingTimeMinutes}m` 
+                              : idea.actualHoldingTimeMinutes < 1440 
+                                ? `${Math.round(idea.actualHoldingTimeMinutes / 60)}h`
+                                : `${Math.round(idea.actualHoldingTimeMinutes / 1440)}d`}
+                          </span></span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Secondary Badges Row - Lotto, Signals, etc */}
+          <div className="flex flex-wrap items-center gap-1.5">
             {/* Lotto Play Badge */}
             {idea.isLottoPlay && (
               <Badge variant="outline" className="flex items-center gap-1 text-[10px] h-5 font-semibold bg-amber-500/10 text-amber-500 border-amber-500/30">
@@ -795,24 +883,6 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
             </div>
           )}
 
-          {/* Confidence Score Detail */}
-          {idea.confidenceScore && idea.confidenceScore > 0 && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Signal Confidence:</span>
-              <Badge 
-                variant="outline"
-                className={cn(
-                  "font-bold text-[10px]",
-                  idea.confidenceScore >= 75 ? "bg-green-500/20 text-green-400 border-green-500/50" :
-                  idea.confidenceScore >= 60 ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/50" :
-                  idea.confidenceScore >= 50 ? "bg-amber-500/20 text-amber-400 border-amber-500/50" :
-                  "bg-muted/30 text-muted-foreground border-muted"
-                )}
-              >
-                {Math.round(idea.confidenceScore)}%
-              </Badge>
-            </div>
-          )}
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 pt-2 border-t border-border/50">

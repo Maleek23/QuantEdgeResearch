@@ -25,7 +25,7 @@ import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, 
 import { isWeekend, getNextTradingWeekStart, cn, getMarketStatus } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
 import { WatchlistSpotlight } from "@/components/watchlist-spotlight";
-import { getPerformanceGrade } from "@/lib/performance-grade";
+import { getSignalGrade, getResolutionReasonLabel } from "@/lib/signal-grade";
 import { AIResearchPanel } from "@/components/ai-research-panel";
 import { UsageBadge } from "@/components/tier-gate";
 import { useTier } from "@/hooks/useTier";
@@ -38,7 +38,6 @@ export default function TradeDeskPage() {
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
   const [activeAssetType, setActiveAssetType] = useState<"stock" | "penny_stock" | "option" | "crypto" | "all">("all");
-  const [activeGrade, setActiveGrade] = useState<"all" | "A" | "B" | "C">("all");
   const [dateRange, setDateRange] = useState<string>('all');
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -68,7 +67,7 @@ export default function TradeDeskPage() {
   // Reset pagination when filters change
   useEffect(() => {
     setVisibleCount(50);
-  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, activeGrade, sourceTab, statusView, activeTimeframe, tradeTypeFilter]);
+  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, sourceTab, statusView, activeTimeframe, tradeTypeFilter]);
   
   const { toast } = useToast();
   
@@ -382,7 +381,8 @@ export default function TradeDeskPage() {
     
     const matchesSource = activeSource === "all" || idea.source === activeSource;
     const matchesAssetType = activeAssetType === "all" || idea.assetType === activeAssetType;
-    const matchesGrade = activeGrade === "all" || idea.probabilityBand?.startsWith(activeGrade) || false;
+    // Legacy activeGrade is always "all" - real filtering happens via gradeFilter with signal counts
+    const matchesGrade = true;
     
     const ideaDate = parseISO(idea.timestamp);
     const matchesDateRange = dateRange === 'all' || (!isBefore(ideaDate, rangeStart) || ideaDate.getTime() === rangeStart.getTime());
@@ -462,16 +462,17 @@ export default function TradeDeskPage() {
       filtered = filtered.filter(idea => idea.assetType === assetTypeFilter);
     }
 
-    // 2. Grade filter
+    // 2. Grade filter - NOW uses signal-based grading (matches Discord cards)
     if (gradeFilter !== 'all') {
       filtered = filtered.filter(idea => {
         if (gradeFilter === 'LOTTO') return idea.isLottoPlay;
         
-        const grade = getPerformanceGrade(idea.confidenceScore).grade;
-        if (gradeFilter === 'A') return grade === 'A+' || grade === 'A';
-        if (gradeFilter === 'B') return grade === 'B+' || grade === 'B';
-        if (gradeFilter === 'C') return grade === 'C+' || grade === 'C';
-        if (gradeFilter === 'D') return grade === 'D';
+        // Use signal-based grade for consistency with Discord cards
+        const signalGrade = getSignalGrade(idea.qualitySignals);
+        if (gradeFilter === 'A') return signalGrade.grade === 'A+' || signalGrade.grade === 'A';
+        if (gradeFilter === 'B') return signalGrade.grade === 'B';
+        if (gradeFilter === 'C') return signalGrade.grade === 'C';
+        if (gradeFilter === 'D') return signalGrade.grade === 'D';
         return true;
       });
     }
@@ -561,7 +562,10 @@ export default function TradeDeskPage() {
           const bExp = new Date(b.expiryDate || b.exitBy || b.timestamp).getTime();
           return aExp - bExp;
         case 'confidence':
-          return b.confidenceScore - a.confidenceScore;
+          // Sort by signal count (signal strength) - more signals = higher strength
+          const aSignals = (a.qualitySignals?.length || 0);
+          const bSignals = (b.qualitySignals?.length || 0);
+          return bSignals - aSignals;
         case 'rr':
           return b.riskRewardRatio - a.riskRewardRatio;
         case 'price_asc':
@@ -942,6 +946,7 @@ export default function TradeDeskPage() {
               <SelectItem value="active">Active</SelectItem>
               <SelectItem value="won">Winners</SelectItem>
               <SelectItem value="lost">Losers</SelectItem>
+              <SelectItem value="expired">Expired (Audit)</SelectItem>
             </SelectContent>
           </Select>
           {(symbolSearch || statusFilter !== 'all') && (
@@ -1040,7 +1045,7 @@ export default function TradeDeskPage() {
                       <SelectItem value="priority">Priority</SelectItem>
                       <SelectItem value="price_asc">Cheapest First</SelectItem>
                       <SelectItem value="price_desc">Expensive First</SelectItem>
-                      <SelectItem value="confidence">Confidence</SelectItem>
+                      <SelectItem value="confidence">Signal Strength</SelectItem>
                       <SelectItem value="rr">Risk/Reward</SelectItem>
                       <SelectItem value="expiry">Expiry Date</SelectItem>
                       <SelectItem value="timestamp">Newest</SelectItem>

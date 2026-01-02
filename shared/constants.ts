@@ -162,36 +162,43 @@ export const ENGINE_COLORS: Record<string, { border: string; text: string; bg: s
 /**
  * SIGNAL STRENGTH BANDS (Replaces misleading confidence bands)
  * 
+ * CANONICAL grading used across Discord cards AND Dashboard.
  * These bands represent SIGNAL CONSENSUS, not probability.
- * A = Strong consensus (5+ signals agree)
- * B+ = Good consensus (4 signals)
- * B = Moderate (3 signals)
- * C+ = Weak (2 signals)
- * C = Minimal (1 signal)
- * D = Conflicting/None (0 signals)
+ * A+ = Exceptional (5+ signals agree)
+ * A = Strong (4 signals)
+ * B = Good (3 signals)
+ * C = Average (2 signals)
+ * D = Weak (0-1 signals)
  */
 export const SIGNAL_STRENGTH_BANDS = {
-  A: { min: 5, label: 'A', description: 'Strong Consensus', color: 'green' },
-  'B+': { min: 4, label: 'B+', description: 'Good Consensus', color: 'green' },
-  B: { min: 3, label: 'B', description: 'Moderate', color: 'cyan' },
-  'C+': { min: 2, label: 'C+', description: 'Weak', color: 'amber' },
-  C: { min: 1, label: 'C', description: 'Minimal', color: 'amber' },
-  D: { min: 0, label: 'D', description: 'Avoid', color: 'red' },
+  'A+': { min: 5, label: 'A+', description: 'Exceptional - All indicators aligned', color: 'green' },
+  A: { min: 4, label: 'A', description: 'Strong - Most indicators aligned', color: 'green' },
+  B: { min: 3, label: 'B', description: 'Good - Multiple indicators aligned', color: 'cyan' },
+  C: { min: 2, label: 'C', description: 'Average - Some indicators aligned', color: 'amber' },
+  D: { min: 0, label: 'D', description: 'Weak - Few indicators aligned', color: 'red' },
 } as const;
 
 export type SignalStrengthBand = keyof typeof SIGNAL_STRENGTH_BANDS;
 
 /**
  * Get Signal Strength band from signal count
- * This is what the A/B/C grades now represent - signal consensus
+ * CANONICAL function - used by Discord cards AND Dashboard for consistency
  */
 export function getSignalStrengthBand(signalCount: number): SignalStrengthBand {
-  if (signalCount >= 5) return 'A';
-  if (signalCount >= 4) return 'B+';
+  if (signalCount >= 5) return 'A+';
+  if (signalCount >= 4) return 'A';
   if (signalCount >= 3) return 'B';
-  if (signalCount >= 2) return 'C+';
-  if (signalCount >= 1) return 'C';
+  if (signalCount >= 2) return 'C';
   return 'D';
+}
+
+/**
+ * Get signal label for Discord cards (e.g., "A+ Signal")
+ */
+export function getSignalLabel(signalCount: number): string {
+  const band = getSignalStrengthBand(signalCount);
+  if (band === 'D') return 'Low Signal';
+  return `${band} Signal`;
 }
 
 /**
@@ -199,16 +206,14 @@ export function getSignalStrengthBand(signalCount: number): SignalStrengthBand {
  */
 export function getSignalStrengthStyles(band: SignalStrengthBand): { bg: string; text: string; border: string } {
   switch (band) {
-    case 'A':
+    case 'A+':
       return { bg: 'bg-green-500/20', text: 'text-green-400', border: 'border-green-500/50' };
-    case 'B+':
+    case 'A':
       return { bg: 'bg-green-500/15', text: 'text-green-400', border: 'border-green-500/40' };
     case 'B':
       return { bg: 'bg-cyan-500/20', text: 'text-cyan-400', border: 'border-cyan-500/50' };
-    case 'C+':
-      return { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/50' };
     case 'C':
-      return { bg: 'bg-amber-500/15', text: 'text-amber-400', border: 'border-amber-500/40' };
+      return { bg: 'bg-amber-500/20', text: 'text-amber-400', border: 'border-amber-500/50' };
     case 'D':
     default:
       return { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/50' };

@@ -1,5 +1,6 @@
 // Discord webhook service for automated trade alerts
 import type { TradeIdea } from "@shared/schema";
+import { getSignalLabel } from "@shared/constants";
 import { logger } from './logger';
 
 // GLOBAL DISABLE FLAG - Set to true to stop all Discord notifications
@@ -92,8 +93,8 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
         inline: true
       },
       {
-        name: '⭐ Grade',
-        value: idea.probabilityBand || 'N/A',
+        name: '⭐ Signal Grade',
+        value: getSignalLabel(idea.qualitySignals?.length || 0),
         inline: true
       },
       {
@@ -333,12 +334,9 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
     // Format actionably: emoji SYMBOL TYPE $entry→$target (signals)
     const formatIdea = (idea: TradeIdea) => {
       const emoji = idea.direction === 'long' ? '🟢' : '🔴';
-      // Signal strength instead of misleading confidence %
+      // Signal strength using canonical function for consistency with dashboard
       const signalCount = idea.qualitySignals?.length || 0;
-      const signalLabel = signalCount >= 5 ? 'A+ Signal' : 
-                          signalCount >= 4 ? 'A Signal' :
-                          signalCount >= 3 ? 'B Signal' :
-                          signalCount >= 2 ? 'C Signal' : 'Low Signal';
+      const signalLabel = getSignalLabel(signalCount);
       
       // Calculate gain target
       const gainPct = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(1);

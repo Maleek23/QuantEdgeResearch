@@ -8,7 +8,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, ExternalLink
 import { format, parseISO } from "date-fns";
 import type { TradeIdea } from "@shared/schema";
 import { cn } from "@/lib/utils";
-import { getPerformanceGrade } from "@/lib/performance-grade";
+import { getSignalGrade } from "@/lib/signal-grade";
 
 type SortColumn = 'symbol' | 'assetType' | 'direction' | 'entry' | 'exit' | 'pnl' | 'status' | 'exitDate';
 type SortDirection = 'asc' | 'desc';
@@ -243,29 +243,21 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                         <p className="font-semibold">{selectedTrade.holdingPeriod.toUpperCase()}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground text-xs">Confidence Score</p>
-                        <p className="font-mono font-bold">{selectedTrade.confidenceScore?.toFixed(0) || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground text-xs">Grade</p>
+                        <p className="text-muted-foreground text-xs">Signal Grade</p>
                         <div className="flex flex-col gap-1">
-                          {selectedTrade.probabilityBand || (selectedTrade.confidenceScore != null) ? (
-                            <>
-                              <Badge variant="outline" className="w-fit">
-                                {selectedTrade.probabilityBand || getPerformanceGrade(selectedTrade.confidenceScore!).grade}
-                              </Badge>
-                              {selectedTrade.confidenceScore != null && (() => {
-                                const gradeInfo = getPerformanceGrade(selectedTrade.confidenceScore);
-                                return (
-                                  <div className="text-xs text-muted-foreground">
-                                    {gradeInfo.description} ({gradeInfo.expectedWinRate}% expected WR)
-                                  </div>
-                                );
-                              })()}
-                            </>
-                          ) : (
-                            <Badge variant="outline" className="w-fit">N/A</Badge>
-                          )}
+                          {(() => {
+                            const signalGrade = getSignalGrade(selectedTrade.qualitySignals);
+                            return (
+                              <>
+                                <Badge variant="outline" className={cn("w-fit", signalGrade.color)}>
+                                  {signalGrade.label}
+                                </Badge>
+                                <div className="text-xs text-muted-foreground">
+                                  {signalGrade.description}
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                       <div>
