@@ -5,15 +5,31 @@ import { shouldBlockSymbol } from "./earnings-service";
 import { enrichOptionIdea } from "./options-enricher";
 import { validateTradeWithChart } from "./chart-analysis";
 
+// Penny stock tickers to emphasize during evening "Tomorrow's Playbook" sessions
+const PENNY_STOCK_TICKERS = [
+  // Quantum Computing ($1-10 range)
+  'RGTI', 'QUBT', 'QBTS', 'ARQQ', 'QMCO',
+  // Nuclear ($1-5 range)
+  'DNN', 'URG', 'LTBR', 'NNE', 'OKLO', 'SMR', 'UEC', 'UUUU',
+  // AI Penny Stocks
+  'BBAI', 'SOUN',
+  // Other Volatile Penny Stocks
+  'MARA', 'RIOT', 'WULF', 'CLSK', 'APLD', 'BTBT', 'HUT', 'BITF',
+  // Biotech/Healthcare Penny Plays
+  'NVAX', 'SRNE', 'BNGO', 'NKLA', 'GOEV', 'FFIE', 'MULN'
+];
+
 /**
  * Automated Daily Idea Generation Service
  * Generates fresh AI trade ideas every weekday at 9:30 AM CT (market open)
+ * Also generates "Tomorrow's Playbook" ideas at 8:30 PM CT for next-day trading
  */
 class AutoIdeaGenerator {
   private intervalId: NodeJS.Timeout | null = null;
   private isGenerating = false;
   private lastRunTime: Date | null = null;
   private lastRunSuccess = false;
+  private lastGeneratedCount = 0;
 
   /**
    * Start the automated idea generation service
@@ -75,20 +91,21 @@ class AutoIdeaGenerator {
       return;
     }
 
-    // Generate ideas at multiple times during market hours:
-    // 9:30 AM (market open), 11:00 AM (mid-morning), 1:30 PM (afternoon)
+    // Generate ideas at multiple times during market hours + evening for tomorrow:
+    // 9:30 AM (market open), 11:00 AM (mid-morning), 1:30 PM (afternoon), 8:30 PM (tomorrow's playbook)
     // This ensures we don't miss opportunities if server restarts
     const generationWindows = [
-      { hour: 9, minStart: 30, minEnd: 35 },   // 9:30-9:35 AM CT - Market open
-      { hour: 11, minStart: 0, minEnd: 5 },    // 11:00-11:05 AM CT - Mid-morning
-      { hour: 13, minStart: 30, minEnd: 35 },  // 1:30-1:35 PM CT - Afternoon
+      { hour: 9, minStart: 30, minEnd: 35, label: '9:30 AM', isEvening: false },   // 9:30-9:35 AM CT - Market open
+      { hour: 11, minStart: 0, minEnd: 5, label: '11:00 AM', isEvening: false },    // 11:00-11:05 AM CT - Mid-morning
+      { hour: 13, minStart: 30, minEnd: 35, label: '1:30 PM', isEvening: false },  // 1:30-1:35 PM CT - Afternoon
+      { hour: 20, minStart: 30, minEnd: 35, label: '8:30 PM', isEvening: true },   // 8:30-8:35 PM CT - Tomorrow's Playbook
     ];
     
-    const isGenerationWindow = generationWindows.some(
+    const currentWindow = generationWindows.find(
       window => hour === window.hour && minute >= window.minStart && minute < window.minEnd
     );
     
-    if (!isGenerationWindow) {
+    if (!currentWindow) {
       return;
     }
 
@@ -101,21 +118,30 @@ class AutoIdeaGenerator {
     }
 
     // Time to generate!
-    await this.generateFreshIdeas();
+    await this.generateFreshIdeas(currentWindow.isEvening, currentWindow.label);
   }
 
   /**
    * Generate fresh AI trade ideas with full risk validation
+   * @param isEveningSession - If true, this is the "Tomorrow's Playbook" session with penny stock focus
+   * @param timeLabel - Human-readable time label for logging
    */
-  private async generateFreshIdeas(): Promise<void> {
+  private async generateFreshIdeas(isEveningSession = false, timeLabel = '9:30 AM'): Promise<number> {
     this.isGenerating = true;
     this.lastRunTime = new Date();
+    this.lastGeneratedCount = 0;
 
     try {
       const nowCT = new Date(this.lastRunTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
-      const hour = nowCT.getHours();
-      const timeLabel = hour === 9 ? '9:30 AM' : hour === 11 ? '11:00 AM' : '1:30 PM';
-      logger.info(`🎯 [AUTO-GEN] Generating fresh AI ideas for ${nowCT.toLocaleDateString('en-US')} at ${timeLabel} CT`);
+      
+      // 🌙 TOMORROW'S PLAYBOOK: Evening session for next-day trading
+      const sessionLabel = isEveningSession ? "🌙 [TOMORROW'S PLAYBOOK]" : "🎯 [AUTO-GEN]";
+      logger.info(`${sessionLabel} Generating fresh AI ideas for ${nowCT.toLocaleDateString('en-US')} at ${timeLabel} CT`);
+      
+      if (isEveningSession) {
+        logger.info(`🌙 [TOMORROW'S PLAYBOOK] Evening session - focusing on penny stocks and lotto plays for tomorrow's trading`);
+        logger.info(`🌙 [TOMORROW'S PLAYBOOK] Target tickers: ${PENNY_STOCK_TICKERS.slice(0, 10).join(', ')}...`);
+      }
 
       // 🚫 DEDUPLICATION: Only block symbols that have open AI-generated ideas
       // Allow different engines (lotto, flow, quant) to have ideas for same symbol
@@ -126,7 +152,21 @@ class AutoIdeaGenerator {
           .map((idea: any) => idea.symbol.toUpperCase())
       );
 
-      const marketContext = "Current market conditions with focus on stocks, options, and crypto";
+      // Build market context - add penny stock emphasis for evening sessions
+      let marketContext = "Current market conditions with focus on stocks, options, and crypto";
+      if (isEveningSession) {
+        const pennyTickers = PENNY_STOCK_TICKERS.join(', ');
+        marketContext = `TOMORROW'S PLAYBOOK - Evening research session for next-day trading opportunities. 
+Focus heavily on penny stocks and lotto plays with high volatility potential. 
+Priority tickers to analyze: ${pennyTickers}.
+Look for: 
+1. Quantum computing plays (IONQ, RGTI, QUBT, QBTS) - next big tech wave
+2. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition momentum
+3. AI penny stocks (BBAI, SOUN) - AI bubble opportunities
+4. Crypto miners (MARA, RIOT, WULF, CLSK) - Bitcoin correlation plays
+5. Speculative biotech/EV (NVAX, NKLA, GOEV) - high risk/reward
+Generate swing trade and lotto option ideas with asymmetric risk/reward. Include OTM call options for potential 5-10x returns.`;
+      }
       const aiIdeas = await generateTradeIdeas(marketContext);
 
       // 🛡️ Apply strict risk validation to all AI-generated ideas
@@ -365,13 +405,18 @@ class AutoIdeaGenerator {
       if (savedIdeas.length > 0) {
         logger.info(`✅ [AUTO-GEN] Successfully generated ${savedIdeas.length} fresh AI trade ideas`);
         this.lastRunSuccess = true;
+        this.lastGeneratedCount = savedIdeas.length;
       } else {
         logger.warn('⚠️  [AUTO-GEN] No ideas generated - all rejected or AI unavailable');
         this.lastRunSuccess = false;
+        this.lastGeneratedCount = 0;
       }
+      return savedIdeas.length;
     } catch (error: any) {
       logger.error('[AUTO-GEN] Failed to generate ideas:', error);
       this.lastRunSuccess = false;
+      this.lastGeneratedCount = 0;
+      return 0;
     } finally {
       this.isGenerating = false;
     }
@@ -385,7 +430,8 @@ class AutoIdeaGenerator {
       running: this.intervalId !== null,
       isGenerating: this.isGenerating,
       lastRunTime: this.lastRunTime,
-      lastRunSuccess: this.lastRunSuccess
+      lastRunSuccess: this.lastRunSuccess,
+      lastGeneratedCount: this.lastGeneratedCount
     };
   }
 
@@ -394,6 +440,22 @@ class AutoIdeaGenerator {
    */
   async manualGenerate(): Promise<void> {
     await this.generateFreshIdeas();
+  }
+
+  /**
+   * Force immediate idea generation regardless of time windows
+   * Can be called from API routes for on-demand generation
+   * @param focusPennyStocks - If true, emphasize penny stocks and lotto plays (like evening session)
+   * @returns Number of ideas generated
+   */
+  async forceGenerate(focusPennyStocks = false): Promise<number> {
+    if (this.isGenerating) {
+      logger.warn('⚠️ [FORCE-GEN] Generation already in progress, skipping...');
+      return 0;
+    }
+    
+    logger.info(`🚀 [FORCE-GEN] Manual idea generation triggered (penny stock focus: ${focusPennyStocks})`);
+    return await this.generateFreshIdeas(focusPennyStocks, 'On-Demand');
   }
 }
 

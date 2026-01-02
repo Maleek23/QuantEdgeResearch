@@ -29,8 +29,10 @@ import {
   quantGenerationLimiter,
   marketDataLimiter,
   adminLimiter,
-  researchAssistantLimiter
+  researchAssistantLimiter,
+  ideaGenerationOnDemandLimiter
 } from "./rate-limiter";
+import { autoIdeaGenerator } from "./auto-idea-generator";
 import { requireAdmin, generateAdminToken, verifyAdminToken } from "./auth";
 import { getSession, setupAuth } from "./replitAuth";
 import { setupGoogleAuth } from "./googleAuth";
@@ -2323,6 +2325,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to fetch trade audit trail:", error);
       res.status(500).json({ error: "Failed to fetch trade audit trail" });
+    }
+  });
+
+  // 🚀 On-demand idea generation - trigger immediate AI idea generation
+  app.post("/api/ideas/generate-now", isAuthenticated, ideaGenerationOnDemandLimiter, async (req: any, res) => {
+    try {
+      const userId = req.session?.userId;
+      const focusPennyStocks = req.body?.focusPennyStocks === true;
+      
+      logger.info(`🚀 [API] On-demand idea generation requested by user ${userId} (penny focus: ${focusPennyStocks})`);
+      
+      // Check if generation is already in progress
+      const status = autoIdeaGenerator.getStatus();
+      if (status.isGenerating) {
+        return res.status(409).json({ 
+          error: "Generation already in progress",
+          message: "Idea generation is currently running. Please wait for it to complete."
+        });
+      }
+      
+      // Trigger immediate generation
+      const ideasGenerated = await autoIdeaGenerator.forceGenerate(focusPennyStocks);
+      
+      logger.info(`🚀 [API] On-demand generation complete: ${ideasGenerated} ideas generated for user ${userId}`);
+      
+      res.json({ 
+        success: true,
+        ideasGenerated,
+        message: ideasGenerated > 0 
+          ? `Successfully generated ${ideasGenerated} new trade idea${ideasGenerated !== 1 ? 's' : ''}`
+          : 'No new ideas generated - all candidates were filtered by risk validation'
+      });
+    } catch (error: any) {
+      logger.error('[API] On-demand idea generation failed:', error);
+      res.status(500).json({ 
+        error: "Failed to generate ideas",
+        message: "An error occurred during idea generation. Please try again later."
+      });
+    }
+  });
+
+  // 📊 Get auto-generator status
+  app.get("/api/ideas/generator-status", isAuthenticated, async (req, res) => {
+    try {
+      const status = autoIdeaGenerator.getStatus();
+      res.json(status);
+    } catch (error: any) {
+      logger.error('[API] Failed to get generator status:', error);
+      res.status(500).json({ error: "Failed to get generator status" });
     }
   });
 

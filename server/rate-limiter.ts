@@ -127,3 +127,24 @@ export const adminLimiter = rateLimit({
     });
   },
 });
+
+// On-demand idea generation limiter - 1 request per 5 minutes per user
+export const ideaGenerationOnDemandLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 1,
+  message: 'Idea generation limit exceeded. Please wait 5 minutes before generating again.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  validate: false,
+  handler: (req, res) => {
+    logger.warn('On-demand idea generation rate limit exceeded', {
+      ip: req.ip,
+      path: req.path,
+    });
+    res.status(429).json({
+      error: 'Generation limit exceeded',
+      message: 'You can only generate ideas once every 5 minutes. Please wait and try again.',
+      retryAfter: 5 * 60, // 5 minutes in seconds
+    });
+  },
+});
