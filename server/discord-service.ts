@@ -212,7 +212,7 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
     const embed = formatTradeIdeaEmbed(idea);
     const sourceLabel = idea.source === 'ai' ? 'AI' : idea.source === 'quant' ? 'QUANT' : idea.source === 'hybrid' ? 'HYBRID' : 'FLOW';
     const message: DiscordMessage = {
-      content: `${CHANNEL_HEADERS.TRADE_ALERTS} │ **${sourceLabel} TRADE** → ${idea.symbol}`,
+      content: `🎯 **${sourceLabel} TRADE** → ${idea.symbol} │ ${CHANNEL_HEADERS.TRADE_ALERTS}`,
       embeds: [embed]
     };
     
@@ -324,7 +324,7 @@ export async function sendDiscordAlert(alert: {
       ? `${alert.optionType.toUpperCase()}${alert.strike ? ` $${alert.strike}` : ''}${alert.expiry ? ` ${alert.expiry}` : ''}` 
       : alert.assetType === 'crypto' ? 'Crypto' : 'Shares';
     const message: DiscordMessage = {
-      content: `${CHANNEL_HEADERS.TRADE_ALERTS} │ ${alertEmoji} **WATCHLIST** → ${alert.symbol} ${assetDetail}`,
+      content: `${alertEmoji} **WATCHLIST ALERT** → ${alert.symbol} ${assetDetail} │ ${CHANNEL_HEADERS.TRADE_ALERTS}`,
       embeds: [embed]
     };
     
@@ -449,7 +449,7 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
     };
     
     const message: DiscordMessage = {
-      content: `${CHANNEL_HEADERS.TRADE_ALERTS} │ 📢 **BATCH ALERT** → ${ideas.length} ${sourceLabel} Ideas`,
+      content: `📢 **BATCH ALERT** → ${ideas.length} ${sourceLabel} Ideas │ ${CHANNEL_HEADERS.TRADE_ALERTS}`,
       embeds: [embed]
     };
     
@@ -532,7 +532,7 @@ export async function sendFuturesTradesToDiscord(ideas: TradeIdea[]): Promise<vo
     };
     
     const message: DiscordMessage = {
-      content: `${CHANNEL_HEADERS.FUTURES} │ **${ideas.length} FUTURES TRADES** → NQ/GC Ideas`,
+      content: `🔮 **${ideas.length} FUTURES TRADES** → NQ/GC Ideas │ ${CHANNEL_HEADERS.FUTURES}`,
       embeds: [embed]
     };
     
@@ -636,7 +636,7 @@ export async function sendChartAnalysisToDiscord(analysis: {
     };
     
     const message: DiscordMessage = {
-      content: `${CHANNEL_HEADERS.CHART_ANALYSIS} │ **TECHNICAL BREAKDOWN** → ${analysis.symbol.toUpperCase()} ${sentimentEmoji}`,
+      content: `📊 **CHART ANALYSIS** → ${analysis.symbol.toUpperCase()} ${sentimentEmoji} │ ${CHANNEL_HEADERS.CHART_ANALYSIS}`,
       embeds: [embed]
     };
     
@@ -753,7 +753,7 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
     }
     
     const message: DiscordMessage = {
-      content: `${CHANNEL_HEADERS.LOTTO} │ **LOTTO ALERT** → ${idea.symbol} ${(idea.optionType || 'OPT').toUpperCase()} $${idea.strikePrice} exp ${expiryFormatted}`,
+      content: `🎰 **LOTTO ALERT** → ${idea.symbol} ${(idea.optionType || 'OPT').toUpperCase()} $${idea.strikePrice} exp ${expiryFormatted} │ ${CHANNEL_HEADERS.LOTTO}`,
       embeds: [embed]
     };
     
@@ -843,7 +843,7 @@ export async function sendBotTradeEntryToDiscord(position: {
     };
     
     const message: DiscordMessage = {
-      content: `${CHANNEL_HEADERS.LOTTO} │ **BOT ENTRY** → ${position.symbol} ${(position.optionType || '').toUpperCase()} $${position.strikePrice} x${position.quantity} @ $${position.entryPrice.toFixed(2)}`,
+      content: `🤖 **BOT ENTRY** → ${position.symbol} ${(position.optionType || '').toUpperCase()} $${position.strikePrice} x${position.quantity} @ $${position.entryPrice.toFixed(2)} │ ${CHANNEL_HEADERS.LOTTO}`,
       embeds: [embed]
     };
     
@@ -929,7 +929,7 @@ export async function sendBotTradeExitToDiscord(position: {
     };
     
     const message: DiscordMessage = {
-      content: `${CHANNEL_HEADERS.LOTTO} │ ${emoji} **BOT EXIT** → ${position.symbol} | ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | ${reasonText}`,
+      content: `${emoji} **BOT EXIT** → ${position.symbol} | ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | ${reasonText} │ ${CHANNEL_HEADERS.LOTTO}`,
       embeds: [embed]
     };
     
@@ -1011,7 +1011,7 @@ export async function sendWeeklyWatchlistToDiscord(items: Array<{
     };
     
     const message: DiscordMessage = {
-      content: `${CHANNEL_HEADERS.WEEKLY_WATCHLIST} │ **WEEKLY SUMMARY** → ${items.length} items tracked`,
+      content: `📋 **WEEKLY WATCHLIST** → ${items.length} items tracked │ ${CHANNEL_HEADERS.WEEKLY_WATCHLIST}`,
       embeds: [embed]
     };
     
@@ -1146,7 +1146,7 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
     };
     
     const message: DiscordMessage = {
-      content: `${CHANNEL_HEADERS.GAINS} │ **NEXT WEEK PREMIUM PICKS** → ${picks.length} curated plays`,
+      content: `🎯 **NEXT WEEK PREMIUM PICKS** → ${picks.length} curated plays │ ${CHANNEL_HEADERS.GAINS}`,
       embeds: [embed]
     };
     
@@ -1255,7 +1255,7 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
     };
     
     const message: DiscordMessage = {
-      content: `${CHANNEL_HEADERS.TRADE_ALERTS} │ ☀️ **DAILY PREVIEW** → Top Trade Ideas`,
+      content: `☀️ **DAILY PREVIEW** → Top Trade Ideas │ ${CHANNEL_HEADERS.TRADE_ALERTS}`,
       embeds: [embed]
     };
     
@@ -1370,7 +1370,7 @@ export async function sendGainsToDiscord(trade: {
     };
     
     const message: DiscordMessage = {
-      content: `${CHANNEL_HEADERS.GAINS} │ ${gainEmoji} **WINNER** → ${trade.symbol} **+${trade.percentGain.toFixed(1)}%**`,
+      content: `${gainEmoji} **WINNER** → ${trade.symbol} **+${trade.percentGain.toFixed(1)}%** │ ${CHANNEL_HEADERS.GAINS}`,
       embeds: [embed]
     };
     
