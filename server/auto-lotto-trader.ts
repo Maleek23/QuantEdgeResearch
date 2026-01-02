@@ -18,16 +18,49 @@ import {
   determineMarketRegime
 } from "./technical-indicators";
 
-// Separate portfolios for Options and Futures
+// Separate portfolios for Options, Futures, and Crypto
 const OPTIONS_PORTFOLIO_NAME = "Auto-Lotto Options";
 const FUTURES_PORTFOLIO_NAME = "Auto-Lotto Futures";
+const CRYPTO_PORTFOLIO_NAME = "Auto-Lotto Crypto";
 const SYSTEM_USER_ID = "system-auto-trader";
 const STARTING_CAPITAL = 300; // $300 per portfolio
 const MAX_POSITION_SIZE = 50;
 const FUTURES_MAX_POSITION_SIZE_PER_TRADE = 100;
+const CRYPTO_MAX_POSITION_SIZE = 100; // Max $100 per crypto trade
 
 let optionsPortfolio: PaperPortfolio | null = null;
 let futuresPortfolio: PaperPortfolio | null = null;
+let cryptoPortfolio: PaperPortfolio | null = null;
+
+// Crypto trading configuration
+const CRYPTO_SCAN_COINS = [
+  { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
+  { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' },
+  { id: 'solana', symbol: 'SOL', name: 'Solana' },
+  { id: 'render-token', symbol: 'RENDER', name: 'Render' },
+  { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin' },
+  { id: 'cardano', symbol: 'ADA', name: 'Cardano' },
+  { id: 'avalanche-2', symbol: 'AVAX', name: 'Avalanche' },
+  { id: 'chainlink', symbol: 'LINK', name: 'Chainlink' },
+  { id: 'polkadot', symbol: 'DOT', name: 'Polkadot' },
+  { id: 'polygon', symbol: 'MATIC', name: 'Polygon' },
+  { id: 'sui', symbol: 'SUI', name: 'Sui' },
+  { id: 'pepe', symbol: 'PEPE', name: 'Pepe' },
+  { id: 'bonk', symbol: 'BONK', name: 'Bonk' },
+];
+
+interface CryptoOpportunity {
+  coinId: string;
+  symbol: string;
+  name: string;
+  price: number;
+  change24h: number;
+  volume24h: number;
+  marketCap: number;
+  direction: 'long' | 'short';
+  signals: string[];
+  confidence: number;
+}
 
 interface BotDecision {
   action: 'enter' | 'skip' | 'wait';
@@ -164,6 +197,372 @@ export async function getFuturesPortfolio(): Promise<PaperPortfolio | null> {
 // Legacy function for backward compatibility - returns options portfolio
 export async function getLottoPortfolio(): Promise<PaperPortfolio | null> {
   return getOptionsPortfolio();
+}
+
+export async function getCryptoPortfolio(): Promise<PaperPortfolio | null> {
+  try {
+    if (cryptoPortfolio) {
+      return cryptoPortfolio;
+    }
+
+    const portfolios = await storage.getPaperPortfoliosByUser(SYSTEM_USER_ID);
+    const existing = portfolios.find(p => p.name === CRYPTO_PORTFOLIO_NAME);
+    
+    if (existing) {
+      cryptoPortfolio = existing;
+      logger.info(`🪙 [CRYPTO BOT] Found portfolio: ${existing.id} (Balance: $${existing.cashBalance.toFixed(2)})`);
+      return existing;
+    }
+
+    const newPortfolio = await storage.createPaperPortfolio({
+      userId: SYSTEM_USER_ID,
+      name: CRYPTO_PORTFOLIO_NAME,
+      startingCapital: STARTING_CAPITAL,
+      cashBalance: STARTING_CAPITAL,
+      totalValue: STARTING_CAPITAL,
+      maxPositionSize: CRYPTO_MAX_POSITION_SIZE,
+      riskPerTrade: 0.05,
+    });
+
+    cryptoPortfolio = newPortfolio;
+    logger.info(`🪙 [CRYPTO BOT] Created new portfolio: ${newPortfolio.id} with $${STARTING_CAPITAL}`);
+    return newPortfolio;
+  } catch (error) {
+    logger.error("🪙 [CRYPTO BOT] Failed to get/create portfolio:", error);
+    return null;
+  }
+}
+
+/**
+ * Fetch crypto prices from CoinGecko
+ */
+async function fetchCryptoPrices(): Promise<Map<string, { price: number; change24h: number; volume: number; marketCap: number }>> {
+  const priceMap = new Map();
+  
+  try {
+    const ids = CRYPTO_SCAN_COINS.map(c => c.id).join(',');
+    const response = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true`
+    );
+    
+    if (!response.ok) {
+      logger.warn(`🪙 [CRYPTO BOT] CoinGecko API returned ${response.status}`);
+      return priceMap;
+    }
+    
+    const data = await response.json();
+    
+    for (const coin of CRYPTO_SCAN_COINS) {
+      const coinData = data[coin.id];
+      if (coinData) {
+        priceMap.set(coin.symbol, {
+          price: coinData.usd || 0,
+          change24h: coinData.usd_24h_change || 0,
+          volume: coinData.usd_24h_vol || 0,
+          marketCap: coinData.usd_market_cap || 0
+        });
+      }
+    }
+    
+    logger.info(`🪙 [CRYPTO BOT] Fetched prices for ${priceMap.size} coins`);
+  } catch (error) {
+    logger.error("🪙 [CRYPTO BOT] Failed to fetch crypto prices:", error);
+  }
+  
+  return priceMap;
+}
+
+/**
+ * Analyze crypto opportunity and generate signals
+ */
+function analyzeCryptoOpportunity(
+  coin: { id: string; symbol: string; name: string },
+  data: { price: number; change24h: number; volume: number; marketCap: number }
+): CryptoOpportunity | null {
+  const signals: string[] = [];
+  let score = 50;
+  
+  const { price, change24h, volume, marketCap } = data;
+  
+  // Skip if no price
+  if (!price || price <= 0) return null;
+  
+  // Momentum analysis
+  if (Math.abs(change24h) > 5) {
+    signals.push(`${change24h > 0 ? '📈' : '📉'} ${Math.abs(change24h).toFixed(1)}% 24h move`);
+    score += change24h > 0 ? 15 : -5;
+  }
+  
+  // Strong momentum (>10%)
+  if (Math.abs(change24h) > 10) {
+    signals.push(`🔥 Strong ${change24h > 0 ? 'uptrend' : 'downtrend'}`);
+    score += change24h > 0 ? 10 : -10;
+  }
+  
+  // Volume analysis (relative to market cap)
+  const volumeToMcap = marketCap > 0 ? (volume / marketCap) * 100 : 0;
+  if (volumeToMcap > 10) {
+    signals.push(`📊 High volume (${volumeToMcap.toFixed(1)}% of mcap)`);
+    score += 10;
+  }
+  
+  // Determine direction based on momentum
+  const direction: 'long' | 'short' = change24h > 2 ? 'long' : change24h < -2 ? 'short' : 'long';
+  
+  // Only proceed if we have meaningful signals
+  if (signals.length === 0 || score < 55) return null;
+  
+  return {
+    coinId: coin.id,
+    symbol: coin.symbol,
+    name: coin.name,
+    price,
+    change24h,
+    volume24h: volume,
+    marketCap,
+    direction,
+    signals,
+    confidence: Math.min(85, score)
+  };
+}
+
+/**
+ * Run crypto bot scan and execute trades
+ */
+export async function runCryptoBotScan(): Promise<void> {
+  logger.info(`🪙 [CRYPTO BOT] Starting crypto scan...`);
+  
+  try {
+    const portfolio = await getCryptoPortfolio();
+    if (!portfolio) {
+      logger.error("🪙 [CRYPTO BOT] No portfolio available");
+      return;
+    }
+    
+    // Check if we have enough balance
+    if (portfolio.cashBalance < 10) {
+      logger.info(`🪙 [CRYPTO BOT] Insufficient balance: $${portfolio.cashBalance.toFixed(2)}`);
+      return;
+    }
+    
+    // Check existing positions - limit to 3 concurrent
+    const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+    const openPositions = positions.filter(p => p.status === 'open');
+    
+    if (openPositions.length >= 3) {
+      logger.info(`🪙 [CRYPTO BOT] Max positions reached (${openPositions.length}/3)`);
+      return;
+    }
+    
+    // Fetch crypto prices
+    const priceMap = await fetchCryptoPrices();
+    if (priceMap.size === 0) {
+      logger.warn(`🪙 [CRYPTO BOT] No prices available`);
+      return;
+    }
+    
+    // Find opportunities
+    const opportunities: CryptoOpportunity[] = [];
+    
+    for (const coin of CRYPTO_SCAN_COINS) {
+      const data = priceMap.get(coin.symbol);
+      if (!data) continue;
+      
+      // Skip if already have position in this coin
+      if (openPositions.some(p => p.symbol === coin.symbol)) continue;
+      
+      const opportunity = analyzeCryptoOpportunity(coin, data);
+      if (opportunity) {
+        opportunities.push(opportunity);
+      }
+    }
+    
+    if (opportunities.length === 0) {
+      logger.info(`🪙 [CRYPTO BOT] No crypto opportunities found`);
+      return;
+    }
+    
+    // Sort by confidence and take best
+    opportunities.sort((a, b) => b.confidence - a.confidence);
+    const bestOpp = opportunities[0];
+    
+    logger.info(`🪙 [CRYPTO BOT] Best opportunity: ${bestOpp.symbol} (${bestOpp.direction}) - Confidence: ${bestOpp.confidence}%`);
+    
+    // Calculate position size (max $100 or 30% of balance)
+    const maxSize = Math.min(CRYPTO_MAX_POSITION_SIZE, portfolio.cashBalance * 0.3);
+    const quantity = maxSize / bestOpp.price;
+    
+    // Set targets based on direction
+    const targetMultiplier = bestOpp.direction === 'long' ? 1.15 : 0.85;
+    const stopMultiplier = bestOpp.direction === 'long' ? 0.93 : 1.07;
+    const targetPrice = bestOpp.price * targetMultiplier;
+    const stopLoss = bestOpp.price * stopMultiplier;
+    
+    // Create trade idea
+    const ideaData: InsertTradeIdea = {
+      symbol: bestOpp.symbol,
+      assetType: 'crypto',
+      direction: bestOpp.direction,
+      entryPrice: bestOpp.price,
+      targetPrice,
+      stopLoss,
+      riskRewardRatio: 2.1,
+      confidenceScore: bestOpp.confidence,
+      qualitySignals: bestOpp.signals,
+      probabilityBand: getLetterGrade(bestOpp.confidence),
+      holdingPeriod: 'swing',
+      catalyst: `${bestOpp.name} momentum: ${bestOpp.change24h > 0 ? '+' : ''}${bestOpp.change24h.toFixed(1)}% 24h`,
+      analysis: `🪙 CRYPTO BOT TRADE\n\n` +
+        `${bestOpp.name} (${bestOpp.symbol})\n` +
+        `Direction: ${bestOpp.direction.toUpperCase()}\n` +
+        `Entry: $${bestOpp.price.toFixed(4)}\n` +
+        `Target: $${targetPrice.toFixed(4)} (+15%)\n` +
+        `Stop: $${stopLoss.toFixed(4)} (-7%)\n\n` +
+        `Signals: ${bestOpp.signals.join(', ')}\n\n` +
+        `⚠️ Crypto is 24/7 - monitor positions regularly`,
+      sessionContext: 'Crypto Bot',
+      timestamp: new Date().toISOString(),
+      source: 'bot' as any,
+      status: 'published',
+      riskProfile: 'speculative',
+      dataSourceUsed: 'coingecko',
+      outcomeStatus: 'open',
+    };
+    
+    // Save and execute
+    const savedIdea = await storage.createTradeIdea(ideaData);
+    
+    // Create paper position
+    const position = await storage.createPaperPosition({
+      portfolioId: portfolio.id,
+      symbol: bestOpp.symbol,
+      assetType: 'crypto',
+      direction: bestOpp.direction,
+      quantity,
+      entryPrice: bestOpp.price,
+      currentPrice: bestOpp.price,
+      targetPrice,
+      stopLoss,
+      status: 'open',
+      tradeIdeaId: savedIdea.id,
+    });
+    
+    // Update portfolio balance
+    const cost = quantity * bestOpp.price;
+    await storage.updatePaperPortfolio(portfolio.id, {
+      cashBalance: portfolio.cashBalance - cost,
+    });
+    
+    logger.info(`🪙 [CRYPTO BOT] ✅ TRADE EXECUTED: ${bestOpp.symbol} x${quantity.toFixed(6)} @ $${bestOpp.price.toFixed(4)}`);
+    
+    // Send Discord notification
+    try {
+      const { sendCryptoBotTradeToDiscord } = await import('./discord-service');
+      await sendCryptoBotTradeToDiscord({
+        symbol: bestOpp.symbol,
+        name: bestOpp.name,
+        direction: bestOpp.direction,
+        entryPrice: bestOpp.price,
+        quantity,
+        targetPrice,
+        stopLoss,
+        signals: bestOpp.signals,
+      });
+    } catch (discordError) {
+      logger.warn(`🪙 [CRYPTO BOT] Discord notification failed:`, discordError);
+    }
+    
+    // Refresh portfolio cache
+    const updated = await storage.getPaperPortfolioById(portfolio.id);
+    if (updated) cryptoPortfolio = updated;
+    
+  } catch (error) {
+    logger.error("🪙 [CRYPTO BOT] Scan error:", error);
+  }
+}
+
+/**
+ * Monitor crypto positions for stops/targets
+ */
+export async function monitorCryptoPositions(): Promise<void> {
+  try {
+    const portfolio = await getCryptoPortfolio();
+    if (!portfolio) return;
+    
+    const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+    const openPositions = positions.filter(p => p.status === 'open');
+    
+    if (openPositions.length === 0) {
+      return;
+    }
+    
+    logger.info(`🪙 [CRYPTO BOT] Monitoring ${openPositions.length} open crypto positions...`);
+    
+    const priceMap = await fetchCryptoPrices();
+    
+    for (const pos of openPositions) {
+      const data = priceMap.get(pos.symbol);
+      if (!data) continue;
+      
+      const currentPrice = data.price;
+      const entryPrice = typeof pos.entryPrice === 'string' ? parseFloat(pos.entryPrice) : pos.entryPrice;
+      const stopLoss = pos.stopLoss ? (typeof pos.stopLoss === 'string' ? parseFloat(pos.stopLoss) : pos.stopLoss) : null;
+      const targetPrice = pos.targetPrice ? (typeof pos.targetPrice === 'string' ? parseFloat(pos.targetPrice) : pos.targetPrice) : null;
+      
+      const direction = pos.direction || 'long';
+      let pnlPercent: number;
+      
+      if (direction === 'long') {
+        pnlPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
+      } else {
+        pnlPercent = ((entryPrice - currentPrice) / entryPrice) * 100;
+      }
+      
+      // Update current price
+      await storage.updatePaperPosition(pos.id, { currentPrice });
+      
+      // Check stop loss
+      if (stopLoss && (
+        (direction === 'long' && currentPrice <= stopLoss) ||
+        (direction === 'short' && currentPrice >= stopLoss)
+      )) {
+        logger.info(`🪙 [CRYPTO BOT] ❌ STOP HIT: ${pos.symbol} @ $${currentPrice.toFixed(4)}`);
+        const quantity = typeof pos.quantity === 'string' ? parseFloat(pos.quantity) : pos.quantity;
+        const pnl = (currentPrice - entryPrice) * quantity * (direction === 'long' ? 1 : -1);
+        
+        await storage.closePaperPosition(pos.id, currentPrice, 'hit_stop');
+        await storage.updatePaperPortfolio(portfolio.id, {
+          cashBalance: portfolio.cashBalance + (quantity * currentPrice),
+        });
+        continue;
+      }
+      
+      // Check target
+      if (targetPrice && (
+        (direction === 'long' && currentPrice >= targetPrice) ||
+        (direction === 'short' && currentPrice <= targetPrice)
+      )) {
+        logger.info(`🪙 [CRYPTO BOT] 🎯 TARGET HIT: ${pos.symbol} @ $${currentPrice.toFixed(4)}`);
+        const quantity = typeof pos.quantity === 'string' ? parseFloat(pos.quantity) : pos.quantity;
+        const pnl = (currentPrice - entryPrice) * quantity * (direction === 'long' ? 1 : -1);
+        
+        await storage.closePaperPosition(pos.id, currentPrice, 'hit_target');
+        await storage.updatePaperPortfolio(portfolio.id, {
+          cashBalance: portfolio.cashBalance + (quantity * currentPrice),
+        });
+        continue;
+      }
+      
+      logger.debug(`🪙 [CRYPTO BOT] ${pos.symbol}: ${direction} @ $${entryPrice.toFixed(4)} → $${currentPrice.toFixed(4)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%)`);
+    }
+    
+    // Refresh portfolio cache
+    const updated = await storage.getPaperPortfolioById(portfolio.id);
+    if (updated) cryptoPortfolio = updated;
+    
+  } catch (error) {
+    logger.error("🪙 [CRYPTO BOT] Monitor error:", error);
+  }
 }
 
 // BLACKLISTED SYMBOLS - historically poor performers (0% or very low win rate)

@@ -928,6 +928,20 @@ app.use((req, res, next) => {
     
     log('🔮 Futures Bot started - scanning NQ/GC every 15 minutes during CME hours (nearly 24/7)');
     
+    // Crypto bot - runs 24/7 since crypto markets never close
+    cron.default.schedule('*/20 * * * *', async () => {
+      try {
+        logger.info('🪙 [CRYPTO-BOT] Starting crypto market scan...');
+        const { runCryptoBotScan, monitorCryptoPositions } = await import('./auto-lotto-trader');
+        await runCryptoBotScan();
+        await monitorCryptoPositions();
+      } catch (error: any) {
+        logger.error('🪙 [CRYPTO-BOT] Crypto scan failed:', error);
+      }
+    });
+    
+    log('🪙 Crypto Bot started - scanning 13 major coins every 20 minutes (24/7 markets)');
+    
     // Daily summary to Discord at 8:00 AM CT (before market open)
     let lastDailySummaryDate: string | null = null;
     

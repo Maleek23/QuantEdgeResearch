@@ -1,5 +1,8 @@
 // Penny Stock Moonshot Scanner
-// Scans for penny stocks ($0.50-$10) with potential for 100-200%+ gains
+// Scans for penny stocks across multiple tiers:
+// - Ultra-Low: $0.0001-$0.10 (true sub-penny OTC)
+// - Low: $0.10-$0.50 (penny territory)
+// - Standard: $0.50-$10 (higher liquidity plays)
 // Runs at 4:00 AM CT (premarket), 9:30 AM CT (market open), 8:00 PM CT (afterhours)
 
 import type { InsertTradeIdea } from "@shared/schema";
@@ -8,6 +11,28 @@ import { logger } from './logger';
 import { storage } from './storage';
 import { formatInTimeZone } from 'date-fns-tz';
 
+// TRUE SUB-PENNY STOCKS ($0.0001 - $0.20 range)
+// These are OTC/Pink Sheets with extreme volatility potential
+const SUB_PENNY_TICKERS = [
+  // Sub-Penny Mining/Resources (often $0.001-$0.05)
+  'HYSR', 'DPLS', 'OZSC', 'MINE', 'SHMP', 'ILUS', 'ABML', 'CLSK', 'CBDD',
+  // Sub-Penny Cannabis (often $0.01-$0.10)
+  'MCOA', 'PLIN', 'GRCU', 'MJNE', 'HEMP', 'GWSO', 'ACBFF',
+  // Sub-Penny Tech/AI (often $0.001-$0.20)
+  'MMEX', 'PAOG', 'BIEI', 'IMHC', 'DSCR', 'GTCH', 'AITX', 'WDLF',
+  // Sub-Penny Biotech (volatile healthcare)
+  'ASTI', 'BRTX', 'NSPR', 'NEPT', 'HPNN', 'CBBT',
+  // Sub-Penny Crypto/Blockchain ($0.001-$0.10)
+  'HIVE', 'BFCH', 'BTCS', 'WKEY', 'DMGGF', 'HUTMF', 'SDIG',
+  // Sub-Penny EV/Clean Energy
+  'PUGE', 'EVIO', 'SNPW', 'EEENF', 'MDCN', 'ALPP',
+  // Sub-Penny Retail/Consumer
+  'TSNP', 'MAXD', 'PRMO', 'AIAD', 'HCMC', 'SING',
+  // Sub-Penny Speculative (HIGH RISK)
+  'SEGI', 'VBHI', 'GEGI', 'ICOA', 'FERN', 'ENZC', 'EEENF', 'XSPA'
+];
+
+// STANDARD PENNY STOCKS ($0.50-$10 range)
 const PENNY_SCAN_TICKERS = [
   // Quantum Computing ($1-10 range)
   'RGTI', 'QUBT', 'QBTS', 'ARQQ', 'QMCO', 'IONQ',
@@ -31,6 +56,13 @@ const PENNY_SCAN_TICKERS = [
   'SOFI', 'HOOD', 'PATH', 'OPEN', 'WISH', 'CLOV'
 ];
 
+// Price tier configuration
+const PRICE_TIERS = {
+  ultraLow: { min: 0.0001, max: 0.10, label: 'Ultra-Low ($0.0001-$0.10)' },
+  low: { min: 0.10, max: 0.50, label: 'Low ($0.10-$0.50)' },
+  standard: { min: 0.50, max: 10.00, label: 'Standard ($0.50-$10)' }
+};
+
 interface PennyMoonshotCandidate {
   symbol: string;
   currentPrice: number;
@@ -45,6 +77,126 @@ interface PennyMoonshotCandidate {
   moonshotPotential: number;
   catalyst: string;
   signals: string[];
+}
+
+// Helper to format ultra-low prices with proper precision
+export function formatPennyPrice(price: number): string {
+  if (price < 0.0001) return price.toExponential(2);
+  if (price < 0.001) return price.toFixed(6);
+  if (price < 0.01) return price.toFixed(5);
+  if (price < 0.1) return price.toFixed(4);
+  if (price < 1) return price.toFixed(3);
+  return price.toFixed(2);
+}
+
+// Scan sub-penny stocks ($0.0001 - $0.20 range)
+export async function scanSubPennyMoonshots(): Promise<PennyMoonshotCandidate[]> {
+  logger.info('💎 [SUB-PENNY-SCAN] Scanning for ultra-low penny stocks ($0.0001-$0.20)...');
+  
+  const candidates: PennyMoonshotCandidate[] = [];
+  const batchSize = 8;
+  
+  for (let i = 0; i < SUB_PENNY_TICKERS.length; i += batchSize) {
+    const batch = SUB_PENNY_TICKERS.slice(i, i + batchSize);
+    
+    const batchResults = await Promise.all(
+      batch.map(async (symbol) => {
+        try {
+          const quote = await getTradierQuote(symbol);
+          if (!quote) return null;
+          
+          const price = quote.last || quote.close;
+          if (!price || price <= 0 || price > 0.20) return null;
+          
+          const volume = quote.volume || 0;
+          const avgVolume = quote.average_volume || 1;
+          const volumeRatio = avgVolume > 0 ? volume / avgVolume : 0;
+          const changePercent = quote.change_percentage || 0;
+          
+          const gapPercent = quote.prevclose && quote.prevclose > 0 
+            ? ((quote.open - quote.prevclose) / quote.prevclose) * 100 
+            : 0;
+          
+          const high52Week = quote.week_52_high || price;
+          const low52Week = quote.week_52_low || price;
+          const distanceFrom52Low = low52Week > 0 ? ((price - low52Week) / low52Week) * 100 : 0;
+          
+          const signals: string[] = [];
+          let moonshotScore = 0;
+          
+          if (price < 0.01) {
+            signals.push(`💎 Sub-penny: $${formatPennyPrice(price)}`);
+            moonshotScore += 30;
+          } else if (price < 0.05) {
+            signals.push(`💰 Micro-penny: $${formatPennyPrice(price)}`);
+            moonshotScore += 20;
+          }
+          
+          if (Math.abs(changePercent) > 10) {
+            signals.push(`${changePercent > 0 ? '🚀' : '💥'} ${Math.abs(changePercent).toFixed(0)}% move`);
+            moonshotScore += 25;
+          }
+          
+          if (volumeRatio >= 1.5) {
+            signals.push(`🔥 ${volumeRatio.toFixed(1)}x vol`);
+            moonshotScore += 20;
+          }
+          
+          if (high52Week > 0 && price < high52Week * 0.2) {
+            const recoveryPotential = ((high52Week - price) / price * 100).toFixed(0);
+            signals.push(`🎯 ${recoveryPotential}%+ potential`);
+            moonshotScore += 25;
+          }
+          
+          const hasActivity = volume >= 50000 || volumeRatio >= 1.5 || Math.abs(changePercent) > 5;
+          if (!hasActivity) return null;
+          
+          const moonshotPotential = high52Week > 0 && price < high52Week 
+            ? ((high52Week - price) / price * 100)
+            : 200;
+          
+          let catalyst = 'Sub-penny momentum detected';
+          if (volumeRatio >= 3) catalyst = 'MAJOR volume spike - possible accumulation';
+          else if (Math.abs(changePercent) > 20) catalyst = 'Explosive move - potential runner';
+          else if (price < 0.01) catalyst = 'Sub-cent play - extreme risk/reward';
+          
+          return {
+            symbol,
+            currentPrice: price,
+            changePercent,
+            volume,
+            avgVolume,
+            volumeRatio,
+            gapPercent,
+            high52Week,
+            low52Week,
+            distanceFrom52Low,
+            moonshotPotential,
+            catalyst,
+            signals
+          };
+        } catch (error) {
+          logger.debug(`💎 [SUB-PENNY-SCAN] ${symbol} not available:`, error);
+          return null;
+        }
+      })
+    );
+    
+    candidates.push(...batchResults.filter((c): c is PennyMoonshotCandidate => c !== null));
+    
+    if (i + batchSize < SUB_PENNY_TICKERS.length) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+  }
+  
+  candidates.sort((a, b) => {
+    const scoreA = (Math.abs(a.changePercent) * 3) + (a.volumeRatio * 15) + (a.moonshotPotential * 0.1);
+    const scoreB = (Math.abs(b.changePercent) * 3) + (b.volumeRatio * 15) + (b.moonshotPotential * 0.1);
+    return scoreB - scoreA;
+  });
+  
+  logger.info(`💎 [SUB-PENNY-SCAN] Found ${candidates.length} sub-penny opportunities`);
+  return candidates.slice(0, 10);
 }
 
 export async function scanPennyMoonshots(): Promise<PennyMoonshotCandidate[]> {
@@ -229,8 +381,8 @@ export async function storePennyIdeas(candidates: PennyMoonshotCandidate[]): Pro
   
   for (const candidate of candidates.slice(0, 5)) {
     try {
-      const existingIdeas = await storage.getTradeIdeas();
-      const hasDuplicate = existingIdeas.some(idea => 
+      const existingIdeas = await storage.getAllTradeIdeas();
+      const hasDuplicate = existingIdeas.some((idea: any) => 
         idea.symbol === candidate.symbol && 
         idea.source === 'penny-scanner' &&
         idea.outcomeStatus === 'open' &&
@@ -297,25 +449,86 @@ export async function storePennyIdeas(candidates: PennyMoonshotCandidate[]): Pro
   return storedCount;
 }
 
-export async function runPennyScan(): Promise<{ candidates: PennyMoonshotCandidate[]; storedCount: number }> {
-  logger.info('🚀 [PENNY-SCAN] Starting penny moonshot scan...');
+export async function runPennyScan(): Promise<{ candidates: PennyMoonshotCandidate[]; storedCount: number; subPennyCandidates?: PennyMoonshotCandidate[] }> {
+  logger.info('🚀 [PENNY-SCAN] Starting comprehensive penny scan (all tiers)...');
   
   try {
-    const candidates = await scanPennyMoonshots();
+    const [standardCandidates, subPennyCandidates] = await Promise.all([
+      scanPennyMoonshots(),
+      scanSubPennyMoonshots()
+    ]);
     
-    if (candidates.length > 0) {
-      await sendPennyScanToDiscord(candidates);
-      const storedCount = await storePennyIdeas(candidates);
-      
-      logger.info(`🚀 [PENNY-SCAN] Scan complete: ${candidates.length} candidates, ${storedCount} stored`);
-      return { candidates, storedCount };
+    const allCandidates = [...standardCandidates, ...subPennyCandidates];
+    let storedCount = 0;
+    
+    if (standardCandidates.length > 0) {
+      await sendPennyScanToDiscord(standardCandidates);
+      storedCount += await storePennyIdeas(standardCandidates);
     }
     
-    logger.info('🚀 [PENNY-SCAN] Scan complete: No moonshot candidates found');
-    return { candidates: [], storedCount: 0 };
+    if (subPennyCandidates.length > 0) {
+      await sendSubPennyScanToDiscord(subPennyCandidates);
+      storedCount += await storePennyIdeas(subPennyCandidates);
+    }
+    
+    logger.info(`🚀 [PENNY-SCAN] Scan complete: ${standardCandidates.length} standard + ${subPennyCandidates.length} sub-penny, ${storedCount} stored`);
+    return { candidates: standardCandidates, subPennyCandidates, storedCount };
   } catch (error) {
     logger.error('🚀 [PENNY-SCAN] Scan failed:', error);
     return { candidates: [], storedCount: 0 };
+  }
+}
+
+async function sendSubPennyScanToDiscord(candidates: PennyMoonshotCandidate[]): Promise<void> {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    logger.warn('💎 [SUB-PENNY-SCAN] Discord webhook URL not configured');
+    return;
+  }
+  
+  if (candidates.length === 0) return;
+  
+  try {
+    const nowCT = formatInTimeZone(new Date(), 'America/Chicago', 'h:mm a');
+    
+    let message = '💎 **SUB-PENNY SCANNER** ($0.0001-$0.20)\n';
+    message += '━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+    
+    for (const candidate of candidates.slice(0, 5)) {
+      const volumeDisplay = candidate.volume >= 1000000 
+        ? `${(candidate.volume / 1000000).toFixed(1)}M` 
+        : `${(candidate.volume / 1000).toFixed(0)}K`;
+      
+      const changeEmoji = candidate.changePercent > 0 ? '🟢' : '🔴';
+      const changeSign = candidate.changePercent > 0 ? '+' : '';
+      
+      message += `**$${candidate.symbol}** - $${formatPennyPrice(candidate.currentPrice)} (${changeSign}${candidate.changePercent.toFixed(1)}%) ${changeEmoji}\n`;
+      message += `📊 Volume: ${volumeDisplay} (${candidate.volumeRatio.toFixed(1)}x avg)\n`;
+      message += `💡 ${candidate.catalyst}\n`;
+      message += `🎯 Potential: ${candidate.moonshotPotential.toFixed(0)}%+\n`;
+      if (candidate.signals.length > 0) {
+        message += `📡 ${candidate.signals.join(' | ')}\n`;
+      }
+      message += '\n';
+    }
+    
+    message += '⚠️ **EXTREME RISK - OTC/Pink Sheets - Trade MICRO positions only!**\n';
+    message += `_Scanned at ${nowCT} CT_`;
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: message }),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Discord webhook failed: ${response.status}`);
+    }
+    
+    logger.info(`💎 [SUB-PENNY-SCAN] Discord alert sent for ${candidates.length} sub-penny picks`);
+  } catch (error) {
+    logger.error('💎 [SUB-PENNY-SCAN] Failed to send Discord alert:', error);
   }
 }
 

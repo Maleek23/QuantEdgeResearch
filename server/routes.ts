@@ -7319,8 +7319,75 @@ FORMATTING:
       });
     } catch (error: any) {
       logger.error("Chart analysis error:", error);
+      
+      // QUANT ENGINE FALLBACK: When AI fails, use technical indicators
+      const isRateLimitError = error?.message?.includes('rate limit') || 
+                               error?.message?.includes('quota') ||
+                               error?.message?.includes('temporarily unavailable');
+      
+      if (isRateLimitError && req.body?.symbol) {
+        try {
+          logger.info(`📊 [QUANT-FALLBACK] Using quantitative engine for ${req.body.symbol}`);
+          const { calculateEnhancedSignalScore } = await import("./technical-indicators");
+          const { getTradierHistoryOHLC } = await import("./tradier-api");
+          
+          const history = await getTradierHistoryOHLC(req.body.symbol, 60);
+          
+          if (history && history.length >= 20) {
+            const prices = history.map((h: any) => h.close);
+            const highs = history.map((h: any) => h.high);
+            const lows = history.map((h: any) => h.low);
+            const volumes = history.map((h: any) => h.volume);
+            
+            const quantSignals = calculateEnhancedSignalScore(prices, highs, lows, volumes);
+            const currentPrice = prices[prices.length - 1];
+            
+            const isBullish = quantSignals.direction === 'bullish';
+            const entryPrice = currentPrice;
+            const targetPrice = isBullish ? currentPrice * 1.05 : currentPrice * 0.95;
+            const stopLoss = isBullish ? currentPrice * 0.97 : currentPrice * 1.03;
+            
+            const quantAnalysis = {
+              patterns: quantSignals.signals,
+              supportLevels: [Math.min(...lows.slice(-20))],
+              resistanceLevels: [Math.max(...highs.slice(-20))],
+              entryPoint: entryPrice,
+              targetPrice: targetPrice,
+              stopLoss: stopLoss,
+              riskRewardRatio: 1.7,
+              sentiment: quantSignals.direction,
+              analysis: `**QUANT ENGINE ANALYSIS** (AI unavailable)\n\n` +
+                `📊 Signal Score: ${quantSignals.score}/100\n` +
+                `📈 Direction: ${quantSignals.direction.toUpperCase()}\n` +
+                `🎯 Confidence: ${quantSignals.confidence}%\n\n` +
+                `**Signals Detected:**\n${quantSignals.signals.map(s => `• ${s}`).join('\n')}\n\n` +
+                `**Key Levels:**\n` +
+                `• Current: $${currentPrice.toFixed(2)}\n` +
+                `• Entry: $${entryPrice.toFixed(2)}\n` +
+                `• Target: $${targetPrice.toFixed(2)}\n` +
+                `• Stop: $${stopLoss.toFixed(2)}\n\n` +
+                `⚠️ This analysis uses quantitative indicators only. For detailed pattern recognition, try again when AI is available.`,
+              confidence: quantSignals.confidence,
+              timeframe: req.body.timeframe || 'daily',
+              isQuantFallback: true
+            };
+            
+            logger.info(`✅ [QUANT-FALLBACK] Generated analysis for ${req.body.symbol}: ${quantSignals.direction}`);
+            return res.json({
+              ...quantAnalysis,
+              currentPrice,
+              quantEngineUsed: true,
+              aiUnavailableReason: 'Rate limits reached - using quantitative analysis'
+            });
+          }
+        } catch (quantError: any) {
+          logger.error("Quant fallback also failed:", quantError?.message);
+        }
+      }
+      
       res.status(500).json({ 
-        error: error?.message || "Failed to analyze chart. Please try again."
+        error: error?.message || "Failed to analyze chart. Please try again.",
+        suggestion: "Try the Quant Engine signals on the Trade Desk for immediate analysis."
       });
     }
   });
