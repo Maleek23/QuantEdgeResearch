@@ -478,25 +478,26 @@ export default function AutomationsPage() {
                 </div>
               </div>
 
-                  {optionsFlow?.todayFlows && optionsFlow.todayFlows.length > 0 && (
-                    <div className="space-y-2">
-                      {optionsFlow.todayFlows.slice(0, 5).map((flow: any, i: number) => (
-                        <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <Badge variant={flow.sentiment === 'bullish' ? 'default' : flow.sentiment === 'bearish' ? 'destructive' : 'secondary'}>
-                              {flow.sentiment}
-                            </Badge>
-                            <span className="font-medium">{flow.symbol}</span>
-                            <span className="text-muted-foreground">{flow.optionType?.toUpperCase()} ${flow.strikePrice}</span>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-medium">${(flow.premium / 1000).toFixed(0)}k</div>
-                            <div className="text-xs text-muted-foreground">Score: {flow.unusualScore}</div>
-                          </div>
+              {optionsFlow?.todayFlows && optionsFlow.todayFlows.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-3">Recent Unusual Flows</h4>
+                  <div className="space-y-2">
+                    {optionsFlow.todayFlows.slice(0, 5).map((flow: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Badge variant={flow.sentiment === 'bullish' ? 'default' : flow.sentiment === 'bearish' ? 'destructive' : 'secondary'}>
+                            {flow.sentiment}
+                          </Badge>
+                          <span className="font-medium">{flow.symbol}</span>
+                          <span className="text-muted-foreground">{flow.optionType?.toUpperCase()} ${flow.strikePrice}</span>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        <div className="text-right">
+                          <div className="font-medium">${(flow.premium / 1000).toFixed(0)}k</div>
+                          <div className="text-xs text-muted-foreground">Score: {flow.unusualScore}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -574,11 +575,11 @@ export default function AutomationsPage() {
                           <Badge variant={ticker.sentiment === 'bullish' ? 'default' : ticker.sentiment === 'bearish' ? 'destructive' : 'secondary'}>
                             {ticker.sentiment}
                           </Badge>
-                          <span className="font-medium">${ticker.symbol}</span>
+                          <span className="font-medium">{ticker.symbol}</span>
                         </div>
                         <div className="text-right">
-                          <div className="font-medium">{ticker.mentionCount} mentions</div>
-                          <div className="text-xs text-muted-foreground">Score: {ticker.sentimentScore?.toFixed(0)}</div>
+                          <div className="font-medium">{ticker.mentionCount as number} mentions</div>
+                          <div className="text-xs text-muted-foreground">Score: {(ticker.sentimentScore as number)?.toFixed(0)}</div>
                         </div>
                       </div>
                     ))}
@@ -632,20 +633,20 @@ export default function AutomationsPage() {
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <div className="text-sm text-muted-foreground">Period</div>
-                      <div className="font-medium">{(weeklyReport as any)?.period?.start} - {(weeklyReport as any)?.period?.end}</div>
+                      <div className="font-medium">{(weeklyReport as any)?.period?.start as React.ReactNode} - {(weeklyReport as any)?.period?.end as React.ReactNode}</div>
                     </div>
                     <div>
                       <div className="text-sm text-muted-foreground">Total Trades</div>
-                      <div className="font-medium">{(weeklyReport as any)?.summary?.totalTrades || 0}</div>
+                      <div className="font-medium">{(weeklyReport as any)?.summary?.totalTrades as React.ReactNode || 0}</div>
                     </div>
                     <div>
                       <div className="text-sm text-muted-foreground">Win Rate</div>
-                      <div className="font-medium">{((weeklyReport as any)?.summary?.winRate || 0).toFixed(1)}%</div>
+                      <div className="font-medium">{((weeklyReport as any)?.summary?.winRate as number || 0).toFixed(1)}%</div>
                     </div>
                     <div>
                       <div className="text-sm text-muted-foreground">Total P&L</div>
-                      <div className={`font-medium ${((weeklyReport as any)?.summary?.totalPnL || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {((weeklyReport as any)?.summary?.totalPnL || 0) >= 0 ? '+' : ''}{((weeklyReport as any)?.summary?.totalPnL || 0).toFixed(1)}%
+                      <div className={`font-medium ${((weeklyReport as any)?.summary?.totalPnL as number || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {((weeklyReport as any)?.summary?.totalPnL as number || 0) >= 0 ? '+' : ''}{((weeklyReport as any)?.summary?.totalPnL as number || 0).toFixed(1)}%
                       </div>
                     </div>
                   </div>
@@ -654,8 +655,8 @@ export default function AutomationsPage() {
                     <div>
                       <h5 className="text-sm font-medium mb-2">Insights</h5>
                       <ul className="text-sm text-muted-foreground space-y-1">
-                        {(weeklyReport as any).insights.map((insight: string, i: number) => (
-                          <li key={i}>{insight}</li>
+                        {(weeklyReport as any).insights.map((insight: any, i: number) => (
+                          <li key={i}>{String(insight)}</li>
                         ))}
                       </ul>
                     </div>
@@ -665,8 +666,8 @@ export default function AutomationsPage() {
                     <div>
                       <h5 className="text-sm font-medium mb-2">Recommendations</h5>
                       <ul className="text-sm text-muted-foreground space-y-1">
-                        {(weeklyReport as any).recommendations.map((rec: string, i: number) => (
-                          <li key={i}>{rec}</li>
+                        {(weeklyReport as any).recommendations.map((rec: any, i: number) => (
+                          <li key={i}>{String(rec)}</li>
                         ))}
                       </ul>
                     </div>
