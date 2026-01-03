@@ -4628,16 +4628,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const { setManualOverride, getWeightForSignal } = await import("./dynamic-signal-weights");
-      setManualOverride(signalName, weight);
-      
+      const previousWeight = setManualOverride(signalName, weight);
       const newWeight = await getWeightForSignal(signalName);
       
       res.json({
         success: true,
         signalName,
-        previousWeight: 'dynamic',
+        previousWeight,
         newWeight,
-        message: `Override set: ${signalName} = ${weight}x (freedom preserved)`
+        message: `Override set: ${signalName} = ${newWeight}x (was ${previousWeight.toFixed(2)}x)`
       });
     } catch (error) {
       logger.error("Signal override error:", error);
@@ -4649,18 +4648,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/signal-weights/override/:signalName", requireAdmin, async (req, res) => {
     try {
       const { signalName } = req.params;
-      const { removeManualOverride } = await import("./dynamic-signal-weights");
+      const { removeManualOverride, getWeightForSignal } = await import("./dynamic-signal-weights");
       
-      removeManualOverride(signalName);
+      const existed = removeManualOverride(signalName);
+      const newWeight = await getWeightForSignal(signalName);
       
       res.json({
         success: true,
         signalName,
-        message: `Override removed for ${signalName}, returning to dynamic weighting`
+        existed,
+        newWeight,
+        message: existed 
+          ? `Override removed for ${signalName}, now using dynamic weight ${newWeight.toFixed(2)}x`
+          : `No override existed for ${signalName}`
       });
     } catch (error) {
       logger.error("Signal override removal error:", error);
       res.status(500).json({ error: "Failed to remove signal override" });
+    }
+  });
+
+  // Get all manual overrides
+  app.get("/api/signal-weights/overrides", async (req, res) => {
+    try {
+      const { getManualOverrides } = await import("./dynamic-signal-weights");
+      const overrides = getManualOverrides();
+      
+      res.json({
+        count: overrides.size,
+        overrides: Object.fromEntries(overrides)
+      });
+    } catch (error) {
+      logger.error("Get overrides error:", error);
+      res.status(500).json({ error: "Failed to get overrides" });
     }
   });
 

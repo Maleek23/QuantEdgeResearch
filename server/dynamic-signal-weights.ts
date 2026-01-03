@@ -19,16 +19,16 @@ export interface WeightingConfig {
   maxWeight: number;
   baselineWinRate: number;
   enableDynamicWeights: boolean;
-  manualOverrides: Record<string, number>;
 }
 
-const DEFAULT_CONFIG: WeightingConfig = {
+const CONFIG: WeightingConfig = {
   minWeight: 0.25,
   maxWeight: 2.5,
   baselineWinRate: 50,
   enableDynamicWeights: true,
-  manualOverrides: {},
 };
+
+const manualOverrides: Map<string, number> = new Map();
 
 let cachedWeights: Map<string, SignalWeight> = new Map();
 let lastCacheTime: number = 0;
@@ -36,8 +36,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 
 export function calculateDynamicWeight(
   winRate: number,
-  totalTrades: number,
-  config: WeightingConfig = DEFAULT_CONFIG
+  totalTrades: number
 ): { weight: number; confidence: 'high' | 'medium' | 'low' | 'untested' } {
   let confidence: 'high' | 'medium' | 'low' | 'untested';
   if (totalTrades >= 50) confidence = 'high';
@@ -45,11 +44,11 @@ export function calculateDynamicWeight(
   else if (totalTrades >= 5) confidence = 'low';
   else confidence = 'untested';
 
-  if (!config.enableDynamicWeights) {
+  if (!CONFIG.enableDynamicWeights) {
     return { weight: 1.0, confidence };
   }
 
-  let rawWeight = winRate / config.baselineWinRate;
+  let rawWeight = winRate / CONFIG.baselineWinRate;
   
   if (confidence === 'untested') {
     rawWeight = Math.max(rawWeight, 0.8);
@@ -58,16 +57,39 @@ export function calculateDynamicWeight(
   }
 
   const clampedWeight = Math.max(
-    config.minWeight,
-    Math.min(config.maxWeight, rawWeight)
+    CONFIG.minWeight,
+    Math.min(CONFIG.maxWeight, rawWeight)
   );
 
   return { weight: clampedWeight, confidence };
 }
 
-export async function refreshSignalWeights(
-  config: WeightingConfig = DEFAULT_CONFIG
-): Promise<Map<string, SignalWeight>> {
+function applyOverridesToCache(): void {
+  for (const [signalName, overrideWeight] of Array.from(manualOverrides.entries())) {
+    const existing = cachedWeights.get(signalName);
+    if (existing) {
+      cachedWeights.set(signalName, {
+        ...existing,
+        dynamicWeight: overrideWeight,
+        isOverridden: true,
+        overrideWeight,
+      });
+    } else {
+      cachedWeights.set(signalName, {
+        signalName,
+        baseWeight: 1.0,
+        dynamicWeight: overrideWeight,
+        winRate: 0,
+        totalTrades: 0,
+        confidence: 'untested',
+        isOverridden: true,
+        overrideWeight,
+      });
+    }
+  }
+}
+
+export async function refreshSignalWeights(): Promise<Map<string, SignalWeight>> {
   logger.info("🔄 [DYNAMIC-WEIGHTS] Refreshing signal weights from attribution data...");
 
   try {
@@ -81,13 +103,12 @@ export async function refreshSignalWeights(
     for (const signal of signals) {
       const { weight, confidence } = calculateDynamicWeight(
         signal.winRate,
-        signal.totalTrades,
-        config
+        signal.totalTrades
       );
 
-      const isOverridden = config.manualOverrides.hasOwnProperty(signal.signalName);
+      const isOverridden = manualOverrides.has(signal.signalName);
       const finalWeight = isOverridden 
-        ? config.manualOverrides[signal.signalName] 
+        ? manualOverrides.get(signal.signalName)! 
         : weight;
 
       newWeights.set(signal.signalName, {
@@ -98,14 +119,15 @@ export async function refreshSignalWeights(
         totalTrades: signal.totalTrades,
         confidence,
         isOverridden,
-        overrideWeight: isOverridden ? config.manualOverrides[signal.signalName] : undefined,
+        overrideWeight: isOverridden ? manualOverrides.get(signal.signalName) : undefined,
       });
     }
 
     cachedWeights = newWeights;
+    applyOverridesToCache();
     lastCacheTime = Date.now();
 
-    logger.info(`✅ [DYNAMIC-WEIGHTS] Loaded ${newWeights.size} signal weights`);
+    logger.info(`✅ [DYNAMIC-WEIGHTS] Loaded ${newWeights.size} signal weights (${manualOverrides.size} overrides)`);
     
     const topBoosted = Array.from(newWeights.values())
       .filter(w => w.dynamicWeight > 1.5)
@@ -125,7 +147,7 @@ export async function refreshSignalWeights(
       logger.info(`📉 [DYNAMIC-WEIGHTS] Reduced influence signals: ${reduced.map(w => `${w.signalName}(${w.dynamicWeight.toFixed(2)}x)`).join(', ')}`);
     }
 
-    return newWeights;
+    return cachedWeights;
 
   } catch (error) {
     logger.error(`❌ [DYNAMIC-WEIGHTS] Failed to refresh weights: ${error}`);
@@ -133,23 +155,22 @@ export async function refreshSignalWeights(
   }
 }
 
-export async function getSignalWeights(
-  config: WeightingConfig = DEFAULT_CONFIG
-): Promise<Map<string, SignalWeight>> {
+export async function getSignalWeights(): Promise<Map<string, SignalWeight>> {
   const now = Date.now();
   
   if (cachedWeights.size === 0 || (now - lastCacheTime) > CACHE_TTL_MS) {
-    return refreshSignalWeights(config);
+    return refreshSignalWeights();
   }
 
   return cachedWeights;
 }
 
-export async function getWeightForSignal(
-  signalName: string,
-  config: WeightingConfig = DEFAULT_CONFIG
-): Promise<number> {
-  const weights = await getSignalWeights(config);
+export async function getWeightForSignal(signalName: string): Promise<number> {
+  if (manualOverrides.has(signalName)) {
+    return manualOverrides.get(signalName)!;
+  }
+  
+  const weights = await getSignalWeights();
   const signalWeight = weights.get(signalName);
   
   if (!signalWeight) {
@@ -161,14 +182,13 @@ export async function getWeightForSignal(
 
 export async function calculateWeightedConfidence(
   signals: string[],
-  baseConfidence: number,
-  config: WeightingConfig = DEFAULT_CONFIG
+  baseConfidence: number
 ): Promise<{
   adjustedConfidence: number;
   signalContributions: Array<{ signal: string; weight: number; contribution: number }>;
   totalWeightMultiplier: number;
 }> {
-  const weights = await getSignalWeights(config);
+  const weights = await getSignalWeights();
   
   if (signals.length === 0) {
     return {
@@ -182,7 +202,8 @@ export async function calculateWeightedConfidence(
   const contributions: Array<{ signal: string; weight: number; contribution: number }> = [];
 
   for (const signal of signals) {
-    const weight = weights.get(signal)?.dynamicWeight ?? 1.0;
+    const override = manualOverrides.get(signal);
+    const weight = override ?? weights.get(signal)?.dynamicWeight ?? 1.0;
     totalWeight += weight;
     contributions.push({
       signal,
@@ -205,25 +226,62 @@ export async function calculateWeightedConfidence(
   };
 }
 
-export function setManualOverride(
-  signalName: string,
-  weight: number,
-  config: WeightingConfig = DEFAULT_CONFIG
-): void {
-  config.manualOverrides[signalName] = Math.max(0.1, Math.min(3.0, weight));
-  logger.info(`🔧 [DYNAMIC-WEIGHTS] Manual override set: ${signalName} = ${weight}x`);
+export function setManualOverride(signalName: string, weight: number): number {
+  const clampedWeight = Math.max(0.1, Math.min(3.0, weight));
   
-  lastCacheTime = 0;
+  const previousWeight = manualOverrides.get(signalName) ?? 
+    cachedWeights.get(signalName)?.dynamicWeight ?? 1.0;
+  
+  manualOverrides.set(signalName, clampedWeight);
+  
+  const existing = cachedWeights.get(signalName);
+  if (existing) {
+    cachedWeights.set(signalName, {
+      ...existing,
+      dynamicWeight: clampedWeight,
+      isOverridden: true,
+      overrideWeight: clampedWeight,
+    });
+  } else {
+    cachedWeights.set(signalName, {
+      signalName,
+      baseWeight: 1.0,
+      dynamicWeight: clampedWeight,
+      winRate: 0,
+      totalTrades: 0,
+      confidence: 'untested',
+      isOverridden: true,
+      overrideWeight: clampedWeight,
+    });
+  }
+  
+  logger.info(`🔧 [DYNAMIC-WEIGHTS] Manual override set: ${signalName} = ${clampedWeight}x (was ${previousWeight.toFixed(2)}x)`);
+  
+  return previousWeight;
 }
 
-export function removeManualOverride(
-  signalName: string,
-  config: WeightingConfig = DEFAULT_CONFIG
-): void {
-  delete config.manualOverrides[signalName];
+export function removeManualOverride(signalName: string): boolean {
+  const existed = manualOverrides.has(signalName);
+  manualOverrides.delete(signalName);
+  
+  const existing = cachedWeights.get(signalName);
+  if (existing && existing.isOverridden) {
+    const { weight } = calculateDynamicWeight(existing.winRate, existing.totalTrades);
+    cachedWeights.set(signalName, {
+      ...existing,
+      dynamicWeight: weight,
+      isOverridden: false,
+      overrideWeight: undefined,
+    });
+  }
+  
   logger.info(`🔧 [DYNAMIC-WEIGHTS] Manual override removed: ${signalName}`);
   
-  lastCacheTime = 0;
+  return existed;
+}
+
+export function getManualOverrides(): Map<string, number> {
+  return new Map(manualOverrides);
 }
 
 export async function getWeightsSummary(): Promise<{
@@ -245,7 +303,7 @@ export async function getWeightsSummary(): Promise<{
   const overridden = weightArray.filter(w => w.isOverridden);
 
   return {
-    enabled: DEFAULT_CONFIG.enableDynamicWeights,
+    enabled: CONFIG.enableDynamicWeights,
     totalSignals: weightArray.length,
     boostedCount: boosted.length,
     reducedCount: reduced.length,
