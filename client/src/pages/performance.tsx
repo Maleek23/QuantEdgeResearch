@@ -38,6 +38,7 @@ const CalibrationCurve = lazy(() => import("@/components/calibration-curve"));
 const EngineActualPerformance = lazy(() => import("@/components/engine-actual-performance"));
 const StreakTracker = lazy(() => import("@/components/streak-tracker"));
 const LossPatternsDashboard = lazy(() => import("@/components/loss-patterns-dashboard"));
+const SignalAttributionDashboard = lazy(() => import("@/components/signal-attribution-dashboard"));
 import { PerformanceLeaderboard } from "@/components/performance-leaderboard";
 
 // Loading fallback for lazy components
@@ -1954,6 +1955,17 @@ export default function PerformancePage() {
               </p>
               <Suspense fallback={<ChartSkeleton />}>
                 <LossPatternsDashboard />
+              </Suspense>
+            </div>
+            
+            <div className="glass-card rounded-lg p-6 border-l-2 border-l-cyan-500">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Signal Intelligence</p>
+              <h2 className="text-xl font-semibold mb-2 text-cyan-400">Signal Attribution</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Which indicators drive winning trades? Track signal-level win rates to optimize your strategy.
+              </p>
+              <Suspense fallback={<ChartSkeleton />}>
+                <SignalAttributionDashboard />
               </Suspense>
             </div>
           </div>
