@@ -2659,11 +2659,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updatePaperPortfolio(id: string, updates: Partial<PaperPortfolio>): Promise<PaperPortfolio | undefined> {
+    // DEFENSIVE CHECK: Prevent negative cash balance updates
+    // This ensures bots can't accidentally overdraw accounts
+    if (updates.cashBalance !== undefined && updates.cashBalance < 0) {
+      console.warn(`[STORAGE] ⚠️ Attempted to set negative cash balance: $${updates.cashBalance.toFixed(2)} for portfolio ${id}`);
+      console.warn(`[STORAGE] ⚠️ This indicates a bug in position sizing or P&L calculation. Clamping to $0.`);
+      // Clamp to 0 - this prevents cascading errors but indicates a bug that needs fixing
+      updates.cashBalance = 0;
+    }
+    
     const [updated] = await db.update(paperPortfoliosTable)
       .set({ ...updates, updatedAt: new Date() })
       .where(eq(paperPortfoliosTable.id, id))
       .returning();
     return updated || undefined;
+  }
+  
+  // Helper to validate cash before opening a position
+  async validateCashForTrade(portfolioId: string, requiredCash: number): Promise<{ valid: boolean; available: number; error?: string }> {
+    const portfolio = await this.getPaperPortfolioById(portfolioId);
+    if (!portfolio) {
+      return { valid: false, available: 0, error: 'Portfolio not found' };
+    }
+    if (portfolio.cashBalance < requiredCash) {
+      return { 
+        valid: false, 
+        available: portfolio.cashBalance, 
+        error: `Insufficient cash: need $${requiredCash.toFixed(2)}, have $${portfolio.cashBalance.toFixed(2)}` 
+      };
+    }
+    return { valid: true, available: portfolio.cashBalance };
   }
 
   async deletePaperPortfolio(id: string): Promise<boolean> {

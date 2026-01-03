@@ -847,8 +847,17 @@ export async function runCryptoBotScan(): Promise<void> {
       return;
     }
     
-    // Calculate position size using preferences (maxPositionSize or 30% of balance)
-    const maxSize = Math.min(prefs.maxPositionSize, portfolio.cashBalance * (prefs.cryptoAllocation / 100));
+    // Calculate position size using preferences (maxPositionSize or allocation % of balance)
+    // CRITICAL: Ensure we don't exceed available cash
+    const allocationAmount = portfolio.cashBalance * (prefs.cryptoAllocation / 100);
+    const maxSize = Math.min(prefs.maxPositionSize, allocationAmount, portfolio.cashBalance);
+    
+    // Validate sufficient cash before trade
+    if (maxSize <= 0 || portfolio.cashBalance < 10) {
+      logger.warn(`🪙 [CRYPTO BOT] Insufficient cash for trade: $${portfolio.cashBalance.toFixed(2)} available`);
+      return;
+    }
+    
     const quantity = maxSize / bestOpp.price;
     logger.debug(`🪙 [CRYPTO BOT] Position size: $${maxSize.toFixed(2)} (${quantity.toFixed(6)} ${bestOpp.symbol})`)
     
