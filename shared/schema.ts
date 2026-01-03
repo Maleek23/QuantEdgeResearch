@@ -1200,3 +1200,52 @@ export const lossAnalysis = pgTable("loss_analysis", {
 export const insertLossAnalysisSchema = createInsertSchema(lossAnalysis).omit({ id: true, createdAt: true, analyzedAt: true });
 export type InsertLossAnalysis = z.infer<typeof insertLossAnalysisSchema>;
 export type LossAnalysis = typeof lossAnalysis.$inferSelect;
+
+// Signal Attribution Analytics - Tracks win/loss rates per indicator
+export const signalPerformance = pgTable("signal_performance", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  signalName: text("signal_name").notNull().unique(), // e.g., "RSI2_MEAN_REVERSION", "MACD_GOLDEN_CROSS"
+  
+  // Win/Loss Statistics
+  totalTrades: integer("total_trades").notNull().default(0),
+  winCount: integer("win_count").notNull().default(0),
+  lossCount: integer("loss_count").notNull().default(0),
+  openCount: integer("open_count").notNull().default(0),
+  
+  // Performance Metrics
+  winRate: real("win_rate").notNull().default(0), // 0-100 percentage
+  avgWinPercent: real("avg_win_percent").notNull().default(0), // Average % gain on wins
+  avgLossPercent: real("avg_loss_percent").notNull().default(0), // Average % loss on losses
+  profitFactor: real("profit_factor").notNull().default(0), // Total wins / Total losses
+  expectancy: real("expectancy").notNull().default(0), // Expected value per trade
+  
+  // By Asset Type
+  stockWinRate: real("stock_win_rate").default(0),
+  optionWinRate: real("option_win_rate").default(0),
+  cryptoWinRate: real("crypto_win_rate").default(0),
+  
+  // Trend Data (last 30 trades)
+  recentWinRate: real("recent_win_rate").default(0), // Win rate of most recent 30 trades
+  trendDirection: text("trend_direction").$type<'improving' | 'declining' | 'stable'>().default('stable'),
+  
+  // Confidence Score (calculated)
+  reliabilityScore: real("reliability_score").default(0), // 0-100, higher = more reliable signal
+  sampleSizeGrade: text("sample_size_grade").$type<'A' | 'B' | 'C' | 'D' | 'F'>().default('F'), // Based on # of trades
+  
+  // Metadata
+  lastCalculatedAt: timestamp("last_calculated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSignalPerformanceSchema = createInsertSchema(signalPerformance).omit({ id: true, createdAt: true, lastCalculatedAt: true });
+export type InsertSignalPerformance = z.infer<typeof insertSignalPerformanceSchema>;
+export type SignalPerformance = typeof signalPerformance.$inferSelect;
+
+// Signal Performance by Time Period - For trend analysis
+export interface SignalTrendData {
+  signalName: string;
+  period: 'day' | 'week' | 'month' | 'all_time';
+  winRate: number;
+  totalTrades: number;
+  profitFactor: number;
+}
