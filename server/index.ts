@@ -942,6 +942,25 @@ app.use((req, res, next) => {
     
     log('🪙 Crypto Bot started - scanning 13 major coins every 20 minutes (24/7 markets)');
     
+    // Prop Firm Mode - Conservative futures trading during CME hours
+    cron.default.schedule('*/10 * * * *', async () => {
+      try {
+        const { isCMEOpen, runPropFirmBotScan, monitorPropFirmPositions } = await import('./auto-lotto-trader');
+        
+        if (!isCMEOpen()) {
+          return; // Silent skip when market is closed
+        }
+        
+        logger.info('🏆 [PROP-FIRM] Starting prop firm scan...');
+        await runPropFirmBotScan();
+        await monitorPropFirmPositions();
+      } catch (error: any) {
+        logger.error('🏆 [PROP-FIRM] Scan failed:', error);
+      }
+    });
+    
+    log('🏆 Prop Firm Bot started - conservative NQ trading every 10 minutes during CME hours');
+    
     // Daily summary to Discord at 8:00 AM CT (before market open)
     let lastDailySummaryDate: string | null = null;
     

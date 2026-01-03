@@ -16,7 +16,8 @@ import {
   AlertTriangle, Activity, Zap, Clock, CheckCircle2, XCircle, 
   RefreshCw, Shield, Calendar, Bell, BellOff, LogIn, Radio, Atom, 
   Radiation, FlaskConical, Bitcoin, Search, BarChart3, Wallet, 
-  PiggyBank, ArrowUpRight, ArrowDownRight, LineChart, Download, FileText
+  PiggyBank, ArrowUpRight, ArrowDownRight, LineChart, Download, FileText,
+  Trophy, ShieldCheck, AlertCircle
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NumberTicker } from "@/components/magicui/number-ticker";
@@ -61,6 +62,50 @@ interface AutoLottoBotData {
   isAdmin?: boolean;
 }
 
+interface PropFirmData {
+  status: 'active' | 'locked' | 'initializing';
+  message?: string;
+  portfolio: {
+    balance: number;
+    startingCapital: number;
+    dailyPnL: number;
+    totalPnL: number;
+    drawdown: number;
+    progressToTarget: number;
+  } | null;
+  rules: {
+    dailyLossLimit: number;
+    maxDrawdown: number;
+    profitTarget: number;
+    maxContracts: number;
+  };
+  stats: {
+    daysTraded: number;
+    tradesCount: number;
+    winRate: string;
+    isWithinRules: boolean;
+    ruleViolations: string[];
+  } | null;
+  openPositions: Array<{
+    symbol: string;
+    direction: string;
+    entryPrice: number;
+    currentPrice: number;
+    unrealizedPnL: number;
+    stopLoss: number;
+    targetPrice: number;
+  }>;
+  recentTrades: Array<{
+    symbol: string;
+    direction: string;
+    entryPrice: number;
+    exitPrice: number;
+    realizedPnL: number;
+    exitReason: string;
+    timestamp: string;
+  }>;
+}
+
 function getWeekRange() {
   const now = new Date();
   const dayOfWeek = now.getDay();
@@ -94,6 +139,12 @@ export default function WatchlistBotPage() {
   const { data: tradeIdeas = [] } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
     enabled: !!user,
+  });
+
+  const { data: propFirmData, isLoading: propFirmLoading } = useQuery<PropFirmData>({
+    queryKey: ['/api/prop-firm-mode'],
+    enabled: !!user && activeTab === 'prop-firm',
+    refetchInterval: 30000,
   });
 
   const dailyIdeas = useMemo(() => {
@@ -162,7 +213,7 @@ export default function WatchlistBotPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="watchlist" className="gap-2" data-testid="tab-watchlist">
             <Eye className="h-4 w-4" />
             My Watchlist
@@ -170,6 +221,10 @@ export default function WatchlistBotPage() {
           <TabsTrigger value="bot" className="gap-2" data-testid="tab-bot">
             <Bot className="h-4 w-4 text-pink-400" />
             Auto-Lotto
+          </TabsTrigger>
+          <TabsTrigger value="prop-firm" className="gap-2" data-testid="tab-prop-firm">
+            <Trophy className="h-4 w-4 text-amber-400" />
+            Prop Firm
           </TabsTrigger>
         </TabsList>
 
@@ -1246,6 +1301,398 @@ export default function WatchlistBotPage() {
             </>
           );
           })()}
+        </TabsContent>
+
+        {/* Prop Firm Mode Tab */}
+        <TabsContent value="prop-firm" className="space-y-6">
+          <Card className="glass-card border-amber-500/30">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-lg bg-amber-500/10">
+                    <Trophy className="h-6 w-6 text-amber-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      Prop Firm Mode
+                      {propFirmData?.status === 'active' && (
+                        <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                          <ShieldCheck className="h-3 w-3 mr-1" />
+                          Active
+                        </Badge>
+                      )}
+                      {propFirmData?.status === 'locked' && (
+                        <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Locked
+                        </Badge>
+                      )}
+                    </CardTitle>
+                    <CardDescription>
+                      Conservative NQ futures trading for funded account evaluation (Topstep-style)
+                    </CardDescription>
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+
+          {propFirmLoading ? (
+            <Card className="glass-card">
+              <CardContent className="p-8 text-center">
+                <RefreshCw className="h-8 w-8 animate-spin mx-auto text-amber-400" />
+                <p className="mt-2 text-muted-foreground">Loading Prop Firm data...</p>
+              </CardContent>
+            </Card>
+          ) : !propFirmData || propFirmData.status === 'initializing' ? (
+            <Card className="glass-card">
+              <CardContent className="p-8 text-center">
+                <Trophy className="h-12 w-12 mx-auto text-amber-400/50 mb-4" />
+                <h3 className="text-lg font-semibold">Prop Firm Mode Starting</h3>
+                <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+                  The prop firm trading bot is initializing. It runs every 10 minutes during CME market hours with conservative risk parameters.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Account Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="stat-glass hover-elevate">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Account Balance</p>
+                        <p className="text-2xl font-bold font-mono tabular-nums">
+                          {formatCurrency(propFirmData.portfolio?.balance || 50000)}
+                        </p>
+                      </div>
+                      <Wallet className="h-8 w-8 text-amber-400/50" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="stat-glass hover-elevate">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Daily P&L</p>
+                        <p className={cn(
+                          "text-2xl font-bold font-mono tabular-nums",
+                          (propFirmData.portfolio?.dailyPnL || 0) >= 0 ? "text-green-400" : "text-red-400"
+                        )}>
+                          {(propFirmData.portfolio?.dailyPnL || 0) >= 0 ? '+' : ''}{formatCurrency(propFirmData.portfolio?.dailyPnL || 0)}
+                        </p>
+                      </div>
+                      <Activity className="h-8 w-8 text-cyan-400/50" />
+                    </div>
+                    <div className="mt-2">
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Daily Loss Limit</span>
+                        <span className="text-red-400">-{formatCurrency(propFirmData.rules?.dailyLossLimit || 1000)}</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                        <div 
+                          className={cn(
+                            "h-full transition-all",
+                            (propFirmData.portfolio?.dailyPnL || 0) >= 0 ? "bg-green-500" : "bg-red-500"
+                          )}
+                          style={{ 
+                            width: `${Math.min(100, Math.abs((propFirmData.portfolio?.dailyPnL || 0) / (propFirmData.rules?.dailyLossLimit || 1000)) * 100)}%` 
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="stat-glass hover-elevate">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total P&L</p>
+                        <p className={cn(
+                          "text-2xl font-bold font-mono tabular-nums",
+                          (propFirmData.portfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400"
+                        )}>
+                          {(propFirmData.portfolio?.totalPnL || 0) >= 0 ? '+' : ''}{formatCurrency(propFirmData.portfolio?.totalPnL || 0)}
+                        </p>
+                      </div>
+                      <TrendingUp className="h-8 w-8 text-green-400/50" />
+                    </div>
+                    <div className="mt-2">
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Progress to Target</span>
+                        <span className="text-green-400">{formatCurrency(propFirmData.rules?.profitTarget || 3000)}</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-green-500 transition-all"
+                          style={{ width: `${Math.min(100, propFirmData.portfolio?.progressToTarget || 0)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="stat-glass hover-elevate">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Max Drawdown</p>
+                        <p className={cn(
+                          "text-2xl font-bold font-mono tabular-nums",
+                          (propFirmData.portfolio?.drawdown || 0) > 1500 ? "text-red-400" : "text-amber-400"
+                        )}>
+                          -{formatCurrency(propFirmData.portfolio?.drawdown || 0)}
+                        </p>
+                      </div>
+                      <Shield className="h-8 w-8 text-amber-400/50" />
+                    </div>
+                    <div className="mt-2">
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Limit</span>
+                        <span className="text-red-400">-{formatCurrency(propFirmData.rules?.maxDrawdown || 2500)}</span>
+                      </div>
+                      <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                        <div 
+                          className={cn(
+                            "h-full transition-all",
+                            (propFirmData.portfolio?.drawdown || 0) > 1500 ? "bg-red-500" : "bg-amber-500"
+                          )}
+                          style={{ 
+                            width: `${Math.min(100, ((propFirmData.portfolio?.drawdown || 0) / (propFirmData.rules?.maxDrawdown || 2500)) * 100)}%` 
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Trading Rules */}
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-amber-400" />
+                    Evaluation Rules
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Starting Capital</p>
+                      <p className="font-mono font-bold">{formatCurrency(50000)}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Daily Loss Limit</p>
+                      <p className="font-mono font-bold text-red-400">-{formatCurrency(propFirmData.rules?.dailyLossLimit || 1000)}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Max Drawdown</p>
+                      <p className="font-mono font-bold text-red-400">-{formatCurrency(propFirmData.rules?.maxDrawdown || 2500)}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Profit Target</p>
+                      <p className="font-mono font-bold text-green-400">+{formatCurrency(propFirmData.rules?.profitTarget || 3000)}</p>
+                    </div>
+                  </div>
+
+                  {propFirmData.stats?.ruleViolations && propFirmData.stats.ruleViolations.length > 0 && (
+                    <div className="mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                      <p className="text-sm font-medium text-red-400 flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" />
+                        Rule Violations
+                      </p>
+                      <ul className="mt-2 text-sm text-red-300/80 space-y-1">
+                        {propFirmData.stats.ruleViolations.map((violation, i) => (
+                          <li key={i}>• {violation}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Performance Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="stat-glass">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-amber-500/10">
+                      <Calendar className="h-6 w-6 text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Days Traded</p>
+                      <p className="text-2xl font-bold font-mono tabular-nums">{propFirmData.stats?.daysTraded || 0}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="stat-glass">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-cyan-500/10">
+                      <BarChart3 className="h-6 w-6 text-cyan-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Trades</p>
+                      <p className="text-2xl font-bold font-mono tabular-nums">{propFirmData.stats?.tradesCount || 0}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="stat-glass">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-green-500/10">
+                      <Target className="h-6 w-6 text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Win Rate</p>
+                      <p className="text-2xl font-bold font-mono tabular-nums">{propFirmData.stats?.winRate || '0.0'}%</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Open Positions */}
+              {propFirmData.openPositions && propFirmData.openPositions.length > 0 && (
+                <Card className="glass-card">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Activity className="h-5 w-5 text-green-400" />
+                      Open Positions ({propFirmData.openPositions.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {propFirmData.openPositions.map((position, idx) => (
+                        <div 
+                          key={idx}
+                          className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                          data-testid={`prop-firm-position-${idx}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Badge className={cn(
+                              "text-xs",
+                              position.direction === 'long' 
+                                ? "bg-green-500/10 text-green-400 border-green-500/30"
+                                : "bg-red-500/10 text-red-400 border-red-500/30"
+                            )}>
+                              {position.direction.toUpperCase()}
+                            </Badge>
+                            <span className="font-mono font-bold">{position.symbol}</span>
+                          </div>
+                          <div className="flex items-center gap-6">
+                            <div className="text-right">
+                              <p className="text-xs text-muted-foreground">Entry</p>
+                              <p className="font-mono">{formatCurrency(position.entryPrice)}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-muted-foreground">Current</p>
+                              <p className="font-mono">{formatCurrency(position.currentPrice)}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-muted-foreground">P&L</p>
+                              <p className={cn(
+                                "font-mono font-bold",
+                                position.unrealizedPnL >= 0 ? "text-green-400" : "text-red-400"
+                              )}>
+                                {position.unrealizedPnL >= 0 ? '+' : ''}{formatCurrency(position.unrealizedPnL)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Recent Trades */}
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-cyan-400" />
+                    Recent Trades
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {propFirmData.recentTrades && propFirmData.recentTrades.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-slate-700">
+                            <TableHead className="text-xs font-medium uppercase tracking-wider">Symbol</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider">Direction</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Entry</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Exit</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider text-right">P&L</TableHead>
+                            <TableHead className="text-xs font-medium uppercase tracking-wider">Reason</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {propFirmData.recentTrades.map((trade, idx) => (
+                            <TableRow 
+                              key={idx}
+                              className={cn(
+                                "border-slate-700/50",
+                                trade.realizedPnL >= 0 ? "bg-green-500/5" : "bg-red-500/5"
+                              )}
+                            >
+                              <TableCell className="font-mono font-bold">{trade.symbol}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={cn(
+                                  "text-xs",
+                                  trade.direction === 'long'
+                                    ? "bg-green-500/10 text-green-400 border-green-500/30"
+                                    : "bg-red-500/10 text-red-400 border-red-500/30"
+                                )}>
+                                  {trade.direction.toUpperCase()}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right font-mono tabular-nums">{formatCurrency(trade.entryPrice)}</TableCell>
+                              <TableCell className="text-right font-mono tabular-nums">{formatCurrency(trade.exitPrice)}</TableCell>
+                              <TableCell className={cn(
+                                "text-right font-mono tabular-nums font-semibold",
+                                trade.realizedPnL >= 0 ? "text-green-400" : "text-red-400"
+                              )}>
+                                {trade.realizedPnL >= 0 ? '+' : ''}{formatCurrency(trade.realizedPnL)}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs">
+                                  {trade.exitReason || 'Manual'}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No trades yet. The bot will take positions during CME hours when high-probability setups appear.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Educational Disclaimer */}
+              <Card className="glass-card border-amber-500/20">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-muted-foreground">
+                      <p className="font-medium text-amber-400 mb-1">Paper Trading Simulation</p>
+                      <p>
+                        This is a simulated prop firm evaluation using paper trading. Results are for educational and research purposes only. 
+                        Real prop firm evaluations have additional rules and requirements. Past simulated performance does not guarantee future results.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>

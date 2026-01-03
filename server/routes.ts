@@ -9645,6 +9645,74 @@ FORMATTING:
     }
   });
 
+  // GET /api/prop-firm-mode - Get Prop Firm Mode stats and status
+  app.get("/api/prop-firm-mode", async (_req: Request, res: Response) => {
+    try {
+      const { getPropFirmStats } = await import("./auto-lotto-trader");
+      const stats = await getPropFirmStats();
+      
+      if (!stats) {
+        return res.json({
+          status: 'initializing',
+          message: 'Prop Firm Mode is starting up...',
+          portfolio: null,
+          stats: null,
+        });
+      }
+      
+      // Get open positions
+      const positions = await storage.getPaperPositionsByPortfolio(stats.portfolio!.id);
+      const openPositions = positions.filter(p => p.status === 'open');
+      const closedPositions = positions.filter(p => p.status === 'closed').slice(-10); // Last 10 trades
+      
+      res.json({
+        status: stats.isWithinRules ? 'active' : 'locked',
+        portfolio: {
+          balance: stats.portfolio?.totalValue || 50000,
+          startingCapital: 50000,
+          dailyPnL: stats.dailyPnL,
+          totalPnL: stats.totalPnL,
+          drawdown: stats.drawdown,
+          progressToTarget: Math.min(100, (stats.totalPnL / 3000) * 100),
+        },
+        rules: {
+          dailyLossLimit: 1000,
+          maxDrawdown: 2500,
+          profitTarget: 3000,
+          maxContracts: 2,
+        },
+        stats: {
+          daysTraded: stats.daysTraded,
+          tradesCount: stats.tradesCount,
+          winRate: stats.winRate.toFixed(1),
+          isWithinRules: stats.isWithinRules,
+          ruleViolations: stats.ruleViolations,
+        },
+        openPositions: openPositions.map(p => ({
+          symbol: p.symbol,
+          direction: p.direction,
+          entryPrice: p.entryPrice,
+          currentPrice: p.currentPrice,
+          unrealizedPnL: p.unrealizedPnL,
+          stopLoss: p.stopLoss,
+          targetPrice: p.targetPrice,
+        })),
+        recentTrades: closedPositions.map(p => ({
+          symbol: p.symbol,
+          direction: p.direction,
+          entryPrice: p.entryPrice,
+          exitPrice: p.exitPrice,
+          realizedPnL: p.realizedPnL,
+          exitReason: p.exitReason,
+          timestamp: p.exitTime || p.entryTime,
+        })),
+      });
+    } catch (error: any) {
+      logger.error("Error fetching prop firm mode data", { error });
+      res.status(500).json({ error: "Failed to fetch prop firm data" });
+    }
+  });
+
   // GET /api/next-week-picks - Generate premium picks for next week (bot-style)
   app.get("/api/next-week-picks", async (_req: Request, res: Response) => {
     try {

@@ -3004,11 +3004,33 @@ export class DatabaseStorage implements IStorage {
     if (!position) return undefined;
 
     const now = new Date().toISOString();
-    const multiplier = position.assetType === 'option' ? 100 : 1;
-    const directionMultiplier = position.direction === 'long' ? 1 : -1;
     
-    const realizedPnL = (exitPrice - position.entryPrice) * position.quantity * multiplier * directionMultiplier;
-    const realizedPnLPercent = ((exitPrice - position.entryPrice) / position.entryPrice) * 100 * directionMultiplier;
+    // Calculate proper multiplier based on asset type
+    let multiplier = 1;
+    if (position.assetType === 'option') {
+      multiplier = 100; // Options: 100 shares per contract
+    } else if (position.assetType === 'future') {
+      // Futures use point-based P&L calculation
+      const symbol = position.symbol || '';
+      if (symbol.startsWith('NQ') || symbol === 'NQ') {
+        multiplier = 20; // NQ: $20 per point
+      } else if (symbol.startsWith('GC') || symbol === 'GC') {
+        multiplier = 100; // GC: $100 per point (10 per tick, 10 ticks per point)
+      } else {
+        multiplier = 20; // Default to NQ
+      }
+    }
+    
+    const directionMultiplier = position.direction === 'long' ? 1 : -1;
+    const priceDiff = exitPrice - position.entryPrice;
+    
+    // For futures: P&L = price difference * multiplier * contracts
+    // For options: P&L = price difference * 100 * contracts  
+    // For stocks/crypto: P&L = price difference * quantity
+    const realizedPnL = priceDiff * position.quantity * multiplier * directionMultiplier;
+    const realizedPnLPercent = position.entryPrice > 0 
+      ? (priceDiff / position.entryPrice) * 100 * directionMultiplier 
+      : 0;
 
     const [updated] = await db.update(paperPositionsTable)
       .set({
@@ -3025,7 +3047,17 @@ export class DatabaseStorage implements IStorage {
     if (updated) {
       const portfolio = await this.getPaperPortfolioById(position.portfolioId);
       if (portfolio) {
-        const positionCost = position.entryPrice * position.quantity * multiplier;
+        // For futures, we return margin + P&L
+        // For options/stocks, we return notional cost + P&L
+        let positionCost: number;
+        if (position.assetType === 'future') {
+          // Futures use margin-based position sizing
+          // Since futures use margin and the P&L is the full gain/loss, just return the margin
+          positionCost = 100; // Standard margin per contract for paper trading
+        } else {
+          positionCost = position.entryPrice * position.quantity * multiplier;
+        }
+        
         await this.updatePaperPortfolio(portfolio.id, {
           cashBalance: portfolio.cashBalance + positionCost + realizedPnL,
           totalPnL: portfolio.totalPnL + realizedPnL,
