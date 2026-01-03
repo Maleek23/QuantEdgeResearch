@@ -323,12 +323,30 @@ interface LottoOpportunity {
 }
 
 // Day trade tickers: High volatility, good for 0-7 DTE plays
+// User's priority watchlist - ensures all favorite tickers are scanned first
 const DAY_TRADE_TICKERS = [
-  'TSLA', 'NVDA', 'AMD', 'SPY', 'QQQ', 'AAPL', 'META', 'GOOGL', 'AMZN', 'NFLX',
-  'IONQ', 'RGTI', 'QUBT', 'QBTS', 'MARA', 'RIOT', 'COIN', 'SOFI', 'HOOD', 'PLTR',
-  'UPST', 'AI', 'C3AI', 'SOXL', 'TQQQ', 'MSFT', 'GOOG', 'ADBE', 'CRM',
-  'AVGO', 'SMCI', 'ARM', 'PANW', 'MSTR', 'BABA', 'NIO', 'XPEV', 'LI',
-  'SQ', 'PYPL', 'SHOP', 'SE', 'MELI', 'SNOW', 'DDOG', 'ZS', 'CRWD', 'NET'
+  // Major indices & leveraged ETFs
+  'SPY', 'QQQ', 'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'ARKK', 'TQQQ', 'SOXL',
+  // Mega-cap tech
+  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA', 'AMD', 'AVGO', 'NFLX',
+  // Semiconductors
+  'ARM', 'SMCI', 'MRVL', 'QCOM', 'INTC', 'MU',
+  // AI & Growth
+  'PLTR', 'SNOW', 'CRWD', 'AI', 'IONQ', 'RGTI', 'QUBT', 'QBTS',
+  // Crypto-adjacent
+  'MSTR', 'COIN', 'HOOD', 'MARA', 'RIOT',
+  // Fintech
+  'SOFI', 'AFRM', 'SQ', 'PYPL', 'UPST',
+  // SaaS & Cloud
+  'CRM', 'SHOP', 'DDOG', 'NET', 'ZS', 'PANW', 'ADBE', 'NOW', 'WDAY',
+  // EVs & Clean energy
+  'RIVN', 'LCID', 'NIO', 'XPEV', 'ENPH', 'FSLR', 'LI',
+  // Financials & Healthcare
+  'JPM', 'GS', 'BAC', 'V', 'MA', 'UNH', 'LLY', 'JNJ', 'MRNA', 'PFE',
+  // Consumer & Industrial
+  'BA', 'DIS', 'WMT', 'HD', 'MCD', 'COST',
+  // Additional high-vol names
+  'BABA', 'SE', 'MELI', 'C3AI', 'GOOG'
 ];
 
 // Swing trade tickers: Expanded universe (S&P 500 and high liquidity names)

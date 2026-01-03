@@ -466,11 +466,10 @@ export default function AutomationsPage() {
                 <h4 className="font-medium mb-3">Strategy Settings</h4>
                 <div className="grid gap-4 md:grid-cols-3">
                   <div>
-                    <Label>Tickers Watchlist</Label>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {quantBot?.settings.tickers.map(ticker => (
-                        <Badge key={ticker} variant="outline">{ticker}</Badge>
-                      ))}
+                    <Label>Scan Universe</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="default" className="bg-cyan-600">500+ Tickers</Badge>
+                      <span className="text-xs text-muted-foreground">Full market coverage + dynamic movers</span>
                     </div>
                   </div>
                   <div>
@@ -542,11 +541,10 @@ export default function AutomationsPage() {
               </div>
 
               <div>
-                <h4 className="font-medium mb-3">Watchlist</h4>
-                <div className="flex flex-wrap gap-1">
-                  {optionsFlow?.settings.watchlist.map(ticker => (
-                    <Badge key={ticker} variant="outline">{ticker}</Badge>
-                  ))}
+                <h4 className="font-medium mb-3">Scan Universe</h4>
+                <div className="flex items-center gap-2">
+                  <Badge variant="default" className="bg-purple-600">500+ Tickers</Badge>
+                  <span className="text-xs text-muted-foreground">S&P 500 + growth stocks + penny stocks + ETFs</span>
                 </div>
               </div>
 
