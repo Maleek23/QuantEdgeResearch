@@ -106,6 +106,21 @@ interface PropFirmData {
   }>;
 }
 
+interface CryptoBotData {
+  status: 'active' | 'inactive';
+  portfolio: {
+    id: string;
+    cashBalance: number;
+    totalValue: number;
+    startingCapital: number;
+  } | null;
+  openPositions: number;
+  maxPositions: number;
+  coinsTracked: number;
+  pricesAvailable: number;
+  canTrade: boolean;
+}
+
 function getWeekRange() {
   const now = new Date();
   const dayOfWeek = now.getDay();
@@ -145,6 +160,12 @@ export default function WatchlistBotPage() {
     queryKey: ['/api/prop-firm-mode'],
     enabled: !!user && activeTab === 'prop-firm',
     refetchInterval: 30000,
+  });
+
+  const { data: cryptoData } = useQuery<CryptoBotData>({
+    queryKey: ['/api/crypto-bot/status'],
+    enabled: !!user && activeTab === 'bot',
+    refetchInterval: 60000,
   });
 
   const dailyIdeas = useMemo(() => {
@@ -602,6 +623,10 @@ export default function WatchlistBotPage() {
                     <BarChart3 className="h-3 w-3 mr-1" />
                     Futures
                   </Badge>
+                  <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/30">
+                    <Bitcoin className="h-3 w-3 mr-1" />
+                    Crypto
+                  </Badge>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground font-mono">
@@ -869,6 +894,59 @@ export default function WatchlistBotPage() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Crypto Portfolio */}
+                <Card className="glass-card bg-gradient-to-br from-amber-500/5 to-orange-500/5 border-amber-500/20 relative overflow-hidden">
+                  <BorderBeam size={250} duration={12} delay={9} colorFrom="#f59e0b" colorTo="#ea580c" />
+                  <CardContent className="p-5 relative z-10">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center border border-amber-500/30">
+                        <Bitcoin className="h-5 w-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">Crypto Trading</p>
+                        <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/30">
+                          Paper
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Account Value</p>
+                        {showMetrics && cryptoData?.portfolio ? (
+                          <div className="text-2xl font-bold font-mono tabular-nums" data-testid="text-crypto-balance">
+                            <NumberTicker 
+                              value={cryptoData.portfolio.totalValue} 
+                              prefix="$"
+                              decimalPlaces={2}
+                              className="text-foreground"
+                            />
+                          </div>
+                        ) : (
+                          <p className="text-xl text-muted-foreground">{cryptoData?.portfolio ? formatCurrency(cryptoData.portfolio.totalValue) : 'Loading...'}</p>
+                        )}
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Starting</span>
+                        <span className="font-mono">{formatCurrency(cryptoData?.portfolio?.startingCapital || 300)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Realized P&L</span>
+                        {showMetrics && cryptoData?.portfolio ? (
+                          <span className={cn("font-mono font-medium", ((cryptoData.portfolio.totalValue - cryptoData.portfolio.startingCapital)) >= 0 ? "text-green-400" : "text-red-400")}>
+                            {(cryptoData.portfolio.totalValue - cryptoData.portfolio.startingCapital) >= 0 ? '+' : ''}{formatCurrency(cryptoData.portfolio.totalValue - cryptoData.portfolio.startingCapital)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">--</span>
+                        )}
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Positions</span>
+                        <span className="font-mono">{cryptoData?.openPositions || 0} open / {cryptoData?.maxPositions || 3} max</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
               {/* Account Summary Bar */}
@@ -973,7 +1051,7 @@ export default function WatchlistBotPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* Options Performance */}
                       <div className="p-4 rounded-lg border border-purple-500/20 bg-gradient-to-br from-purple-500/5 to-pink-500/5">
                         <div className="flex items-center gap-2 mb-3">
@@ -1079,6 +1157,59 @@ export default function WatchlistBotPage() {
                           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                             <Clock className="h-3 w-3" />
                             Active 24/7 (CME hours)
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Crypto Performance */}
+                      <div className="p-4 rounded-lg border border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="h-8 w-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                            <Bitcoin className="h-4 w-4 text-amber-400" />
+                          </div>
+                          <span className="font-semibold">Crypto Trading</span>
+                          <Badge variant="outline" className="text-[9px] bg-amber-500/10 text-amber-400 border-amber-500/30">
+                            24/7
+                          </Badge>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Status</span>
+                            <span className={cn(
+                              "font-mono font-bold",
+                              cryptoData?.status === 'active' ? "text-green-400" : "text-amber-400"
+                            )}>
+                              {cryptoData?.status === 'active' ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Positions</span>
+                            <span className="font-mono">
+                              <span className="text-amber-400">{cryptoData?.openPositions || 0}</span>
+                              <span className="text-muted-foreground"> / </span>
+                              <span className="text-muted-foreground">{cryptoData?.maxPositions || 3} max</span>
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Total P&L</span>
+                            <span className={cn(
+                              "font-mono font-bold",
+                              ((cryptoData?.portfolio?.totalValue || 0) - (cryptoData?.portfolio?.startingCapital || 300)) >= 0 ? "text-green-400" : "text-red-400"
+                            )}>
+                              {((cryptoData?.portfolio?.totalValue || 0) - (cryptoData?.portfolio?.startingCapital || 300)) >= 0 ? '+' : ''}{formatCurrency((cryptoData?.portfolio?.totalValue || 0) - (cryptoData?.portfolio?.startingCapital || 300))}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Coins Tracked</span>
+                            <span className="font-mono">
+                              {cryptoData?.coinsTracked || 0}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-amber-500/20">
+                          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            Active 24/7 (CoinGecko)
                           </div>
                         </div>
                       </div>
