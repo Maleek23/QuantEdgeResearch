@@ -229,11 +229,15 @@ Metrics Strip:  grid-cols-2 sm:grid-cols-4 gap-4
 
 **Data Display Rules**:
 1. All numbers use `font-mono tabular-nums`
-2. Positive values: `text-green-400`
-3. Negative values: `text-red-400`
+2. Positive values: `text-green-600 dark:text-green-400`
+3. Negative values: `text-red-600 dark:text-red-400`
 4. Percentages include % symbol
 5. Currency includes $ symbol
 6. Large numbers use compact notation (1.2K, 3.5M)
+7. All accent colors must use light/dark variants for readability:
+   - Cyan: `text-cyan-600 dark:text-cyan-400`
+   - Purple: `text-purple-600 dark:text-purple-400`
+   - Amber: `text-amber-600 dark:text-amber-400`
 
 ## Animation Guidelines
 
@@ -277,6 +281,7 @@ Metrics Strip:  grid-cols-2 sm:grid-cols-4 gap-4
 | 2025-12-31 | Simplified Sidebar header (QE badge + tagline) | App sidebar |
 | 2025-12-31 | Applied graph-grid background to MainContentWrapper | All authenticated pages |
 | 2026-01-03 | Performance page redesign: 3-tier layout (Executive Overview KPI strip, Engine Accordion, simplified Data Audit), 62% code reduction | Performance page |
+| 2026-01-03 | Light mode optimization: theme-aware glass utilities, semantic color tokens, accent color light/dark variants | All pages |
 
 ---
 

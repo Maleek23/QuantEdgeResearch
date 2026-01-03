@@ -327,11 +327,21 @@
   box-shadow: 0 6px 24px rgba(255, 159, 10, 0.25);
 }
 
-.glass-card {
+/* Dark mode glass card */
+.dark .glass-card {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+/* Light mode glass card - clean white with subtle shadow */
+.glass-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 /* Graph Grid Background - Tech-minimalist pattern */
@@ -405,17 +415,30 @@
   border: 1px solid rgba(6, 182, 212, 0.2);
 }
 
-/* Quant card with left accent */
-.quant-card {
+/* Quant card with left accent - Dark mode */
+.dark .quant-card {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-left: 2px solid rgba(6, 182, 212, 0.5);
 }
 
-/* Glass subtle - for badges/pills */
-.glass-subtle {
+/* Quant card with left accent - Light mode */
+.quant-card {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-left: 2px solid rgba(6, 182, 212, 0.6);
+}
+
+/* Glass subtle - for badges/pills - Dark mode */
+.dark .glass-subtle {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Glass subtle - for badges/pills - Light mode */
+.glass-subtle {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 /* Crisp text rendering for statistics over glass backgrounds */
@@ -423,15 +446,26 @@
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.dark .stat-text {
   text-shadow: 0 0 1px rgba(0, 0, 0, 0.3);
 }
 
-/* Inner stat container with solid background for better contrast */
-.stat-glass {
+/* Inner stat container - Dark mode */
+.dark .stat-glass {
   background: rgba(0, 0, 0, 0.25);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Inner stat container - Light mode */
+.stat-glass {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 @layer base {

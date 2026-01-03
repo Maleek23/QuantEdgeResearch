@@ -82,7 +82,7 @@ export default function Dashboard() {
     color?: string;
     testId?: string;
   }) => (
-    <Card className="glass-card border-slate-700/50 hover-elevate" data-testid={testId}>
+    <Card className="glass-card border-border/50 hover-elevate" data-testid={testId}>
       <CardContent className="p-5">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
@@ -90,11 +90,11 @@ export default function Dashboard() {
             <p 
               className={cn(
                 "text-2xl font-bold font-mono tabular-nums",
-                color === "cyan" && "text-cyan-400",
-                color === "green" && "text-green-400",
-                color === "red" && "text-red-400",
-                color === "purple" && "text-purple-400",
-                color === "amber" && "text-amber-400",
+                color === "cyan" && "text-cyan-600 dark:text-cyan-400",
+                color === "green" && "text-green-600 dark:text-green-400",
+                color === "red" && "text-red-600 dark:text-red-400",
+                color === "purple" && "text-purple-600 dark:text-purple-400",
+                color === "amber" && "text-amber-600 dark:text-amber-400",
               )}
               data-testid={testId ? `${testId}-value` : undefined}
             >
@@ -102,27 +102,27 @@ export default function Dashboard() {
             </p>
             {subtitle && (
               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                {trend === 'up' && <TrendingUp className="h-3 w-3 text-green-400" />}
-                {trend === 'down' && <TrendingDown className="h-3 w-3 text-red-400" />}
+                {trend === 'up' && <TrendingUp className="h-3 w-3 text-green-600 dark:text-green-400" />}
+                {trend === 'down' && <TrendingDown className="h-3 w-3 text-red-600 dark:text-red-400" />}
                 {subtitle}
               </p>
             )}
           </div>
           <div className={cn(
             "p-2 rounded-lg",
-            color === "cyan" && "bg-cyan-500/10",
-            color === "green" && "bg-green-500/10",
-            color === "red" && "bg-red-500/10",
-            color === "purple" && "bg-purple-500/10",
-            color === "amber" && "bg-amber-500/10",
+            color === "cyan" && "bg-cyan-500/10 dark:bg-cyan-500/10",
+            color === "green" && "bg-green-500/10 dark:bg-green-500/10",
+            color === "red" && "bg-red-500/10 dark:bg-red-500/10",
+            color === "purple" && "bg-purple-500/10 dark:bg-purple-500/10",
+            color === "amber" && "bg-amber-500/10 dark:bg-amber-500/10",
           )}>
             <Icon className={cn(
               "h-5 w-5",
-              color === "cyan" && "text-cyan-400",
-              color === "green" && "text-green-400",
-              color === "red" && "text-red-400",
-              color === "purple" && "text-purple-400",
-              color === "amber" && "text-amber-400",
+              color === "cyan" && "text-cyan-600 dark:text-cyan-400",
+              color === "green" && "text-green-600 dark:text-green-400",
+              color === "red" && "text-red-600 dark:text-red-400",
+              color === "purple" && "text-purple-600 dark:text-purple-400",
+              color === "amber" && "text-amber-600 dark:text-amber-400",
             )} />
           </div>
         </div>
@@ -141,10 +141,10 @@ export default function Dashboard() {
     centerLabel?: string;
     testId?: string;
   }) => (
-    <Card className="glass-card border-slate-700/50" data-testid={testId}>
+    <Card className="glass-card border-border/50" data-testid={testId}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <PieChart className="h-4 w-4 text-purple-400" />
+          <PieChart className="h-4 w-4 text-purple-600 dark:text-purple-400" />
           {title}
         </CardTitle>
       </CardHeader>
@@ -228,7 +228,7 @@ export default function Dashboard() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <BarChart3 className="h-6 w-6 text-cyan-400" />
+              <BarChart3 className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
               Dashboard
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -292,10 +292,10 @@ export default function Dashboard() {
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Weekly Performance Bar Chart */}
-          <Card className="glass-card border-slate-700/50 lg:col-span-2">
+          <Card className="glass-card border-border/50 lg:col-span-2">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-cyan-400" />
+                <BarChart3 className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
                 Weekly Performance
               </CardTitle>
             </CardHeader>
@@ -303,16 +303,18 @@ export default function Dashboard() {
               <div className="h-[250px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.weeklyPerformance} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
                     <XAxis 
                       dataKey="day" 
-                      stroke="#64748b" 
+                      className="text-muted-foreground" 
+                      stroke="currentColor"
                       fontSize={12} 
                       tickLine={false}
                       axisLine={false}
                     />
                     <YAxis 
-                      stroke="#64748b" 
+                      className="text-muted-foreground"
+                      stroke="currentColor"
                       fontSize={12} 
                       tickLine={false}
                       axisLine={false}
@@ -320,10 +322,11 @@ export default function Dashboard() {
                     />
                     <Tooltip 
                       contentStyle={{ 
-                        backgroundColor: '#1e293b', 
-                        border: '1px solid #334155',
+                        backgroundColor: 'hsl(var(--card))', 
+                        border: '1px solid hsl(var(--border))',
                         borderRadius: '8px',
-                        fontSize: '12px'
+                        fontSize: '12px',
+                        color: 'hsl(var(--foreground))'
                       }}
                       formatter={(value: number) => [`$${value.toLocaleString()}`, 'P&L']}
                     />
@@ -365,10 +368,10 @@ export default function Dashboard() {
           />
 
           {/* Daily Market Brief */}
-          <Card className="glass-card border-slate-700/50 lg:col-span-2" data-testid="card-market-brief">
+          <Card className="glass-card border-border/50 lg:col-span-2" data-testid="card-market-brief">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Brain className="h-4 w-4 text-purple-400" />
+                <Brain className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                 Daily Market Brief
               </CardTitle>
             </CardHeader>
@@ -384,8 +387,8 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/30">
-                    <Zap className="h-4 w-4 text-amber-400 mt-0.5" />
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5" />
                     <div>
                       <p className="text-sm font-medium">Market Update</p>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -394,8 +397,8 @@ export default function Dashboard() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/30">
-                    <Rocket className="h-4 w-4 text-cyan-400 mt-0.5" />
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <Rocket className="h-4 w-4 text-cyan-600 dark:text-cyan-400 mt-0.5" />
                     <div>
                       <p className="text-sm font-medium">Top Movers</p>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -404,8 +407,8 @@ export default function Dashboard() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-800/30">
-                    <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5" />
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5" />
                     <div>
                       <p className="text-sm font-medium">Risk Watch</p>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -421,10 +424,10 @@ export default function Dashboard() {
         </div>
 
         {/* System Status */}
-        <Card className="glass-card border-slate-700/50">
+        <Card className="glass-card border-border/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Activity className="h-4 w-4 text-green-400" />
+              <Activity className="h-4 w-4 text-green-600 dark:text-green-400" />
               System Status
             </CardTitle>
           </CardHeader>
@@ -440,7 +443,7 @@ export default function Dashboard() {
               ].map((system, i) => (
                 <div 
                   key={i}
-                  className="flex items-center gap-2 p-3 rounded-lg bg-slate-800/30 border border-slate-700/30"
+                  className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/30"
                   data-testid={`status-${system.name.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   <system.icon className="h-4 w-4 text-muted-foreground" />
@@ -452,8 +455,8 @@ export default function Dashboard() {
                     className={cn(
                       "text-[10px] px-1.5 py-0",
                       system.status === 'active' 
-                        ? "border-green-500 text-green-400" 
-                        : "border-amber-500 text-amber-400"
+                        ? "border-green-500 text-green-600 dark:text-green-400" 
+                        : "border-amber-500 text-amber-600 dark:text-amber-400"
                     )}
                   >
                     {system.status === 'active' ? 'Online' : 'Offline'}
@@ -467,10 +470,10 @@ export default function Dashboard() {
         {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Link href="/trade-desk" data-testid="link-quick-trade-desk">
-            <Card className="glass-card border-slate-700/50 hover-elevate cursor-pointer h-full">
+            <Card className="glass-card border-border/50 hover-elevate cursor-pointer h-full">
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-cyan-500/10">
-                  <Target className="h-5 w-5 text-cyan-400" />
+                  <Target className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
                 </div>
                 <div>
                   <p className="text-sm font-medium">Trade Desk</p>
@@ -480,10 +483,10 @@ export default function Dashboard() {
             </Card>
           </Link>
           <Link href="/watchlist-bot" data-testid="link-quick-watchlist">
-            <Card className="glass-card border-slate-700/50 hover-elevate cursor-pointer h-full">
+            <Card className="glass-card border-border/50 hover-elevate cursor-pointer h-full">
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-purple-500/10">
-                  <Rocket className="h-5 w-5 text-purple-400" />
+                  <Rocket className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
                   <p className="text-sm font-medium">Watchlist Bot</p>
@@ -493,10 +496,10 @@ export default function Dashboard() {
             </Card>
           </Link>
           <Link href="/performance" data-testid="link-quick-performance">
-            <Card className="glass-card border-slate-700/50 hover-elevate cursor-pointer h-full">
+            <Card className="glass-card border-border/50 hover-elevate cursor-pointer h-full">
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-green-500/10">
-                  <BarChart3 className="h-5 w-5 text-green-400" />
+                  <BarChart3 className="h-5 w-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
                   <p className="text-sm font-medium">Performance</p>
@@ -506,10 +509,10 @@ export default function Dashboard() {
             </Card>
           </Link>
           <Link href="/market-scanner" data-testid="link-quick-scanner">
-            <Card className="glass-card border-slate-700/50 hover-elevate cursor-pointer h-full">
+            <Card className="glass-card border-border/50 hover-elevate cursor-pointer h-full">
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-amber-500/10">
-                  <Zap className="h-5 w-5 text-amber-400" />
+                  <Zap className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
                   <p className="text-sm font-medium">Market Scanner</p>
@@ -521,12 +524,12 @@ export default function Dashboard() {
         </div>
 
         {/* Educational Disclaimer */}
-        <Card className="glass-card border-amber-500/20">
+        <Card className="glass-card border-amber-500/20 dark:border-amber-500/20">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                <span className="font-medium text-amber-400">Educational Disclaimer:</span>{" "}
+                <span className="font-medium text-amber-600 dark:text-amber-400">Educational Disclaimer:</span>{" "}
                 This dashboard is for research and educational purposes only. All data shown is based on paper trading 
                 simulations and historical analysis. Past performance does not guarantee future results. 
                 Not financial advice.
