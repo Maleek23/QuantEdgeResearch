@@ -11105,6 +11105,271 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ==========================================
+  // AUTOMATION BOTS - Quant Mean-Reversion, Weekly Reports, Options Flow, Social Sentiment
+  // ==========================================
+
+  // Quant Mean-Reversion Bot endpoints
+  app.get("/api/automations/quant-bot/status", async (_req, res) => {
+    try {
+      const { getQuantBotStatus } = await import("./quant-mean-reversion-bot");
+      const status = getQuantBotStatus();
+      res.json(status);
+    } catch (error) {
+      logger.error("Error getting quant bot status", { error });
+      res.status(500).json({ error: "Failed to get quant bot status" });
+    }
+  });
+
+  app.post("/api/automations/quant-bot/toggle", requireAdmin, async (req, res) => {
+    try {
+      const { active } = req.body;
+      const { setQuantBotActive, getQuantBotStatus } = await import("./quant-mean-reversion-bot");
+      setQuantBotActive(active);
+      res.json(getQuantBotStatus());
+    } catch (error) {
+      logger.error("Error toggling quant bot", { error });
+      res.status(500).json({ error: "Failed to toggle quant bot" });
+    }
+  });
+
+  app.post("/api/automations/quant-bot/scan", requireAdmin, async (_req, res) => {
+    try {
+      const { runQuantBotScan, getQuantBotStatus } = await import("./quant-mean-reversion-bot");
+      await runQuantBotScan();
+      res.json(getQuantBotStatus());
+    } catch (error) {
+      logger.error("Error running quant bot scan", { error });
+      res.status(500).json({ error: "Failed to run quant bot scan" });
+    }
+  });
+
+  app.get("/api/automations/quant-bot/metrics", async (_req, res) => {
+    try {
+      const { calculatePerformanceMetrics } = await import("./quant-mean-reversion-bot");
+      const metrics = await calculatePerformanceMetrics();
+      res.json(metrics);
+    } catch (error) {
+      logger.error("Error getting quant bot metrics", { error });
+      res.status(500).json({ error: "Failed to get quant bot metrics" });
+    }
+  });
+
+  app.post("/api/automations/quant-bot/settings", requireAdmin, async (req, res) => {
+    try {
+      const { updateQuantBotSettings, getQuantBotStatus } = await import("./quant-mean-reversion-bot");
+      updateQuantBotSettings(req.body);
+      res.json(getQuantBotStatus());
+    } catch (error) {
+      logger.error("Error updating quant bot settings", { error });
+      res.status(500).json({ error: "Failed to update quant bot settings" });
+    }
+  });
+
+  // Weekly Performance Report endpoints
+  app.get("/api/automations/weekly-report/settings", async (_req, res) => {
+    try {
+      const { getReportSettings } = await import("./weekly-performance-report");
+      const settings = getReportSettings();
+      res.json(settings);
+    } catch (error) {
+      logger.error("Error getting report settings", { error });
+      res.status(500).json({ error: "Failed to get report settings" });
+    }
+  });
+
+  app.post("/api/automations/weekly-report/settings", requireAdmin, async (req, res) => {
+    try {
+      const { updateReportSettings, getReportSettings } = await import("./weekly-performance-report");
+      updateReportSettings(req.body);
+      res.json(getReportSettings());
+    } catch (error) {
+      logger.error("Error updating report settings", { error });
+      res.status(500).json({ error: "Failed to update report settings" });
+    }
+  });
+
+  app.post("/api/automations/weekly-report/generate", requireAdmin, async (_req, res) => {
+    try {
+      const { runWeeklyReport } = await import("./weekly-performance-report");
+      const report = await runWeeklyReport();
+      res.json(report);
+    } catch (error) {
+      logger.error("Error generating weekly report", { error });
+      res.status(500).json({ error: "Failed to generate weekly report" });
+    }
+  });
+
+  app.get("/api/automations/weekly-report/preview", async (_req, res) => {
+    try {
+      const { generateWeeklyReport } = await import("./weekly-performance-report");
+      const report = await generateWeeklyReport();
+      res.json(report);
+    } catch (error) {
+      logger.error("Error previewing weekly report", { error });
+      res.status(500).json({ error: "Failed to preview weekly report" });
+    }
+  });
+
+  // Options Flow Scanner endpoints
+  app.get("/api/automations/options-flow/status", async (_req, res) => {
+    try {
+      const { getOptionsFlowStatus } = await import("./options-flow-scanner");
+      const status = getOptionsFlowStatus();
+      res.json(status);
+    } catch (error) {
+      logger.error("Error getting options flow status", { error });
+      res.status(500).json({ error: "Failed to get options flow status" });
+    }
+  });
+
+  app.post("/api/automations/options-flow/toggle", requireAdmin, async (req, res) => {
+    try {
+      const { active } = req.body;
+      const { setOptionsFlowActive, getOptionsFlowStatus } = await import("./options-flow-scanner");
+      setOptionsFlowActive(active);
+      res.json(getOptionsFlowStatus());
+    } catch (error) {
+      logger.error("Error toggling options flow scanner", { error });
+      res.status(500).json({ error: "Failed to toggle options flow scanner" });
+    }
+  });
+
+  app.post("/api/automations/options-flow/scan", requireAdmin, async (_req, res) => {
+    try {
+      const { scanOptionsFlow } = await import("./options-flow-scanner");
+      const flows = await scanOptionsFlow();
+      res.json({ flows });
+    } catch (error) {
+      logger.error("Error scanning options flow", { error });
+      res.status(500).json({ error: "Failed to scan options flow" });
+    }
+  });
+
+  app.get("/api/automations/options-flow/today", async (_req, res) => {
+    try {
+      const { getTodayFlows } = await import("./options-flow-scanner");
+      const flows = getTodayFlows();
+      res.json(flows);
+    } catch (error) {
+      logger.error("Error getting today's flows", { error });
+      res.status(500).json({ error: "Failed to get today's flows" });
+    }
+  });
+
+  app.post("/api/automations/options-flow/settings", requireAdmin, async (req, res) => {
+    try {
+      const { updateOptionsFlowSettings, getOptionsFlowStatus } = await import("./options-flow-scanner");
+      updateOptionsFlowSettings(req.body);
+      res.json(getOptionsFlowStatus());
+    } catch (error) {
+      logger.error("Error updating options flow settings", { error });
+      res.status(500).json({ error: "Failed to update options flow settings" });
+    }
+  });
+
+  // Social Sentiment Scanner endpoints
+  app.get("/api/automations/social-sentiment/status", async (_req, res) => {
+    try {
+      const { getSocialSentimentStatus } = await import("./social-sentiment-scanner");
+      const status = getSocialSentimentStatus();
+      res.json(status);
+    } catch (error) {
+      logger.error("Error getting social sentiment status", { error });
+      res.status(500).json({ error: "Failed to get social sentiment status" });
+    }
+  });
+
+  app.post("/api/automations/social-sentiment/toggle", requireAdmin, async (req, res) => {
+    try {
+      const { active } = req.body;
+      const { setSocialSentimentActive, getSocialSentimentStatus } = await import("./social-sentiment-scanner");
+      setSocialSentimentActive(active);
+      res.json(getSocialSentimentStatus());
+    } catch (error) {
+      logger.error("Error toggling social sentiment scanner", { error });
+      res.status(500).json({ error: "Failed to toggle social sentiment scanner" });
+    }
+  });
+
+  app.post("/api/automations/social-sentiment/scan", requireAdmin, async (_req, res) => {
+    try {
+      const { scanSocialSentiment } = await import("./social-sentiment-scanner");
+      const result = await scanSocialSentiment();
+      res.json(result);
+    } catch (error) {
+      logger.error("Error scanning social sentiment", { error });
+      res.status(500).json({ error: "Failed to scan social sentiment" });
+    }
+  });
+
+  app.get("/api/automations/social-sentiment/trending", async (_req, res) => {
+    try {
+      const { getTrendingTickers } = await import("./social-sentiment-scanner");
+      const trending = getTrendingTickers();
+      res.json(trending);
+    } catch (error) {
+      logger.error("Error getting trending tickers", { error });
+      res.status(500).json({ error: "Failed to get trending tickers" });
+    }
+  });
+
+  app.get("/api/automations/social-sentiment/mentions", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const { getRecentMentions } = await import("./social-sentiment-scanner");
+      const mentions = getRecentMentions(limit);
+      res.json(mentions);
+    } catch (error) {
+      logger.error("Error getting recent mentions", { error });
+      res.status(500).json({ error: "Failed to get recent mentions" });
+    }
+  });
+
+  app.post("/api/automations/social-sentiment/analyze", async (req, res) => {
+    try {
+      const { text } = req.body;
+      const { analyzeText } = await import("./social-sentiment-scanner");
+      const result = analyzeText(text || '');
+      res.json(result);
+    } catch (error) {
+      logger.error("Error analyzing text", { error });
+      res.status(500).json({ error: "Failed to analyze text" });
+    }
+  });
+
+  app.post("/api/automations/social-sentiment/settings", requireAdmin, async (req, res) => {
+    try {
+      const { updateSocialSentimentSettings, getSocialSentimentStatus } = await import("./social-sentiment-scanner");
+      updateSocialSentimentSettings(req.body);
+      res.json(getSocialSentimentStatus());
+    } catch (error) {
+      logger.error("Error updating social sentiment settings", { error });
+      res.status(500).json({ error: "Failed to update social sentiment settings" });
+    }
+  });
+
+  // Aggregated automations status endpoint
+  app.get("/api/automations/status", async (_req, res) => {
+    try {
+      const [quantBot, optionsFlow, socialSentiment, weeklyReport] = await Promise.all([
+        import("./quant-mean-reversion-bot").then(m => m.getQuantBotStatus()),
+        import("./options-flow-scanner").then(m => m.getOptionsFlowStatus()),
+        import("./social-sentiment-scanner").then(m => m.getSocialSentimentStatus()),
+        import("./weekly-performance-report").then(m => m.getReportSettings()),
+      ]);
+      res.json({
+        quantBot,
+        optionsFlow,
+        socialSentiment,
+        weeklyReport,
+      });
+    } catch (error) {
+      logger.error("Error getting automations status", { error });
+      res.status(500).json({ error: "Failed to get automations status" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

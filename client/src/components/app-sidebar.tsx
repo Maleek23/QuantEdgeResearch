@@ -45,6 +45,7 @@ const researchItems: NavItem[] = [
 
 // Automated Trading - bots and automation
 const automationItems: NavItem[] = [
+  { title: "Automations Hub", url: "/automations", icon: Zap, badge: "NEW" },
   { title: "Auto-Lotto Bot", url: "/watchlist-bot", icon: Bot, badge: "LIVE" },
 ];
 

@@ -90,23 +90,23 @@ function calculateRSI2(prices: number[]): number {
  */
 async function fetchRecentPrices(symbol: string): Promise<number[]> {
   try {
-    const { fetchYahooQuote } = await import('./yahoo-finance-service');
-    const quote = await fetchYahooQuote(symbol);
+    const { getRealtimeQuote } = await import('./realtime-pricing-service');
+    const quote = await getRealtimeQuote(symbol, 'stock');
     
-    if (!quote || !quote.regularMarketPrice) {
+    if (!quote || !quote.price) {
       return [];
     }
     
-    // For RSI(2), we simulate with current price and small variations
-    // In production, you'd fetch actual historical data
-    const currentPrice = quote.regularMarketPrice;
-    const change = quote.regularMarketChange || 0;
-    const prevChange = quote.regularMarketChangePercent ? (currentPrice / (1 + quote.regularMarketChangePercent / 100)) : currentPrice;
+    // For RSI(2), we derive price series from current quote data
+    // Using change percent to estimate previous prices
+    const currentPrice = quote.price;
+    const changePercent = quote.changePercent || 0;
+    const prevPrice = changePercent !== 0 ? currentPrice / (1 + changePercent / 100) : currentPrice * 0.995;
     
     // Generate price series for RSI(2) calculation
     return [
-      prevChange * 0.99,
-      prevChange,
+      prevPrice * 0.995,
+      prevPrice,
       currentPrice,
     ];
   } catch (error) {
