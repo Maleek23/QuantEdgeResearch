@@ -217,6 +217,7 @@ interface AutoLottoBotPerformance {
     totalPnL: number;
     avgPnL: number;
     openPositions: number;
+    unrealizedPnL: number;
   };
   options: {
     totalTrades: number;
@@ -1053,13 +1054,13 @@ export default function PerformancePage() {
                           {autoLottoBotData.bestTrade.symbol}
                         </span>
                         <Badge variant="outline" className="text-xs capitalize">
-                          {autoLottoBotData.bestTrade.optionType}
+                          {autoLottoBotData.bestTrade.optionType || 'N/A'}
                         </Badge>
                       </div>
                       <p className="text-2xl font-bold font-mono tabular-nums text-green-400" data-testid="text-best-trade-pnl">
-                        +${autoLottoBotData.bestTrade.pnl.toFixed(2)}
+                        +${(autoLottoBotData.bestTrade.pnl ?? 0).toFixed(2)}
                       </p>
-                      {autoLottoBotData.bestTrade.pnlPercent && (
+                      {autoLottoBotData.bestTrade.pnlPercent != null && (
                         <p className="text-xs text-green-400/80">
                           +{autoLottoBotData.bestTrade.pnlPercent.toFixed(1)}%
                         </p>
@@ -1087,13 +1088,13 @@ export default function PerformancePage() {
                           {autoLottoBotData.worstTrade.symbol}
                         </span>
                         <Badge variant="outline" className="text-xs capitalize">
-                          {autoLottoBotData.worstTrade.optionType}
+                          {autoLottoBotData.worstTrade.optionType || 'N/A'}
                         </Badge>
                       </div>
                       <p className="text-2xl font-bold font-mono tabular-nums text-red-400" data-testid="text-worst-trade-pnl">
-                        ${autoLottoBotData.worstTrade.pnl.toFixed(2)}
+                        ${(autoLottoBotData.worstTrade.pnl ?? 0).toFixed(2)}
                       </p>
-                      {autoLottoBotData.worstTrade.pnlPercent && (
+                      {autoLottoBotData.worstTrade.pnlPercent != null && (
                         <p className="text-xs text-red-400/80">
                           {autoLottoBotData.worstTrade.pnlPercent.toFixed(1)}%
                         </p>
@@ -1118,9 +1119,9 @@ export default function PerformancePage() {
                     <p className="text-xs text-muted-foreground">Unrealized P&L</p>
                     <p className={cn(
                       "text-2xl font-bold font-mono tabular-nums",
-                      autoLottoBotData.unrealizedPnL >= 0 ? "text-green-400" : "text-red-400"
+                      (autoLottoBotData.overall.unrealizedPnL ?? 0) >= 0 ? "text-green-400" : "text-red-400"
                     )} data-testid="text-unrealized-pnl">
-                      {autoLottoBotData.unrealizedPnL >= 0 ? '+' : ''}${autoLottoBotData.unrealizedPnL.toFixed(2)}
+                      {(autoLottoBotData.overall.unrealizedPnL ?? 0) >= 0 ? '+' : ''}${(autoLottoBotData.overall.unrealizedPnL ?? 0).toFixed(2)}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {autoLottoBotData.overall.openPositions} position{autoLottoBotData.overall.openPositions !== 1 ? 's' : ''} open
@@ -1144,52 +1145,56 @@ export default function PerformancePage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {autoLottoBotData.recentTrades.slice(0, 8).map((trade, idx) => (
-                      <div 
-                        key={idx}
-                        className="flex items-center justify-between p-3 rounded-lg bg-background/50 hover-elevate"
-                        data-testid={`recent-trade-${idx}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "w-2 h-2 rounded-full",
-                            trade.realizedPnL >= 0 ? "bg-green-400" : "bg-red-400"
-                          )} />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-sm">{trade.symbol}</span>
-                              <Badge variant="outline" className="text-[10px] capitalize">
-                                {trade.optionType}
-                              </Badge>
-                              {trade.strikePrice && (
-                                <span className="text-xs text-muted-foreground">${trade.strikePrice}</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
-                              <span className="capitalize">{trade.exitReason?.replace(/_/g, ' ') || 'closed'}</span>
-                              <span>•</span>
-                              <span>{trade.closedAt ? format(new Date(trade.closedAt), 'MMM d, h:mm a') : 'N/A'}</span>
+                    {autoLottoBotData.recentTrades.slice(0, 8).map((trade, idx) => {
+                      const pnl = trade.realizedPnL ?? 0;
+                      const pnlPercent = trade.realizedPnLPercent;
+                      return (
+                        <div 
+                          key={idx}
+                          className="flex items-center justify-between p-3 rounded-lg bg-background/50 hover-elevate"
+                          data-testid={`recent-trade-${idx}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={cn(
+                              "w-2 h-2 rounded-full",
+                              pnl >= 0 ? "bg-green-400" : "bg-red-400"
+                            )} />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-sm">{trade.symbol}</span>
+                                <Badge variant="outline" className="text-[10px] capitalize">
+                                  {trade.optionType || 'N/A'}
+                                </Badge>
+                                {trade.strikePrice && (
+                                  <span className="text-xs text-muted-foreground">${trade.strikePrice}</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                                <span className="capitalize">{trade.exitReason?.replace(/_/g, ' ') || 'closed'}</span>
+                                <span>•</span>
+                                <span>{trade.closedAt ? format(new Date(trade.closedAt), 'MMM d, h:mm a') : 'N/A'}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="text-right">
-                          <p className={cn(
-                            "font-bold font-mono tabular-nums",
-                            trade.realizedPnL >= 0 ? "text-green-400" : "text-red-400"
-                          )}>
-                            {trade.realizedPnL >= 0 ? '+' : ''}${trade.realizedPnL.toFixed(2)}
-                          </p>
-                          {trade.realizedPnLPercent && (
+                          <div className="text-right">
                             <p className={cn(
-                              "text-xs font-mono",
-                              trade.realizedPnLPercent >= 0 ? "text-green-400/70" : "text-red-400/70"
+                              "font-bold font-mono tabular-nums",
+                              pnl >= 0 ? "text-green-400" : "text-red-400"
                             )}>
-                              {trade.realizedPnLPercent >= 0 ? '+' : ''}{trade.realizedPnLPercent.toFixed(1)}%
+                              {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
                             </p>
-                          )}
+                            {pnlPercent != null && (
+                              <p className={cn(
+                                "text-xs font-mono",
+                                pnlPercent >= 0 ? "text-green-400/70" : "text-red-400/70"
+                              )}>
+                                {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(1)}%
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
