@@ -947,405 +947,264 @@ export default function TradeDeskPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <p className="text-xs text-muted-foreground font-medium tracking-wide uppercase mb-1">
-            {format(new Date(), 'EEEE, MMM d')}
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-page-title">Research Desk</h1>
-          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <Activity className="h-4 w-4" />
-              <span className="font-medium text-foreground">{activeIdeas.length}</span> active
-            </span>
-            {newIdeasCount > 0 && (
-              <span className="flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-cyan-500" />
-                <span className="font-medium text-foreground">{newIdeasCount}</span> fresh
-              </span>
-            )}
+    <div className="max-w-5xl mx-auto px-4 py-6 space-y-8">
+      {/* Clean Minimal Header */}
+      <header className="space-y-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">Research</h1>
+            <p className="text-muted-foreground mt-1">
+              {activeIdeas.length} active briefs {newIdeasCount > 0 && <span className="text-cyan-500">· {newIdeasCount} new</span>}
+            </p>
           </div>
-          {/* Market Status Banner - shows when market is not open */}
-          {marketStatus.session !== 'open' && (
-            <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-sm" data-testid="banner-market-status">
-              <Clock className="h-4 w-4 text-amber-400 flex-shrink-0" />
-              <span className="text-muted-foreground">
-                <span className="text-amber-400 font-medium">{marketStatus.label}</span>
-                {marketStatus.nextOpen && <span className="mx-1">·</span>}
-                {marketStatus.nextOpen && <span>Opens {marketStatus.nextOpen}</span>}
-                <span className="hidden sm:inline mx-1">·</span>
-                <span className="hidden sm:inline">{marketStatus.message}</span>
-              </span>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] })}
-            title="Refresh"
-            data-testid="button-refresh-ideas"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <UsageBadge className="mr-1" data-testid="badge-usage-remaining" />
+          <div className="flex items-center gap-2">
+            <UsageBadge className="mr-1" data-testid="badge-usage-remaining" />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] })}
+              title="Refresh"
+              data-testid="button-refresh-ideas"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
-                className="bg-cyan-500 text-slate-950 gap-2"
+                className="bg-foreground text-background gap-2"
                 size="default"
                 disabled={!canGenerateTradeIdea()}
                 data-testid="button-generate-ideas"
               >
                 <Sparkles className="h-4 w-4" />
                 Generate
-                <ChevronDown className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            {/* Show selected timeframe at top if not 'all' */}
-            {activeTimeframe !== 'all' && (
-              <div className="px-2 py-1.5 text-xs text-cyan-400 border-b border-border/50 mb-1">
-                Generating for: {TIMEFRAME_LABELS[activeTimeframe]}
-              </div>
-            )}
-            
-            {/* Recommended - Best for most users */}
-            <DropdownMenuItem
-              onClick={() => generateHybridIdeas.mutate(activeTimeframe)}
-              disabled={generateHybridIdeas.isPending}
-              data-testid="menu-generate-hybrid"
-              className="font-medium"
-            >
-              <Sparkles className="h-4 w-4 mr-2 text-cyan-400" />
-              Smart Picks
-              <span className="ml-auto bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs">Best</span>
-            </DropdownMenuItem>
-            
-            <DropdownMenuSeparator />
-            
-            {/* Individual Engines */}
-            <div className="px-2 py-1.5 text-xs text-muted-foreground">By Strategy</div>
-            <DropdownMenuItem
-              onClick={() => generateQuantIdeas.mutate(activeTimeframe)}
-              disabled={generateQuantIdeas.isPending}
-              data-testid="menu-generate-quant"
-            >
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Quant Signals
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => generateAIIdeas.mutate(activeTimeframe)}
-              disabled={generateAIIdeas.isPending}
-              data-testid="menu-generate-ai"
-            >
-              <Bot className="h-4 w-4 mr-2" />
-              AI Analysis
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => generateNewsIdeas.mutate(activeTimeframe)}
-              disabled={generateNewsIdeas.isPending}
-              data-testid="menu-generate-news"
-            >
-              <Newspaper className="h-4 w-4 mr-2" />
-              Breaking News
-            </DropdownMenuItem>
-            
-            <DropdownMenuSeparator />
-            
-            {/* Options Focused */}
-            <div className="px-2 py-1.5 text-xs text-muted-foreground">Options</div>
-            <DropdownMenuItem
-              onClick={() => generateFlowIdeas.mutate(activeTimeframe)}
-              disabled={generateFlowIdeas.isPending}
-              data-testid="menu-generate-flow"
-            >
-              <Activity className="h-4 w-4 mr-2" />
-              Flow Scanner {activeTimeframe !== 'all' && `(${TIMEFRAME_LABELS[activeTimeframe]})`}
-              <span className="ml-auto text-[10px] text-muted-foreground">+ Lotto</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* AI Research Assistant - Claude-powered Q&A */}
-      <AIResearchPanel />
-
-      {/* Quick Symbol Search & Analysis */}
-      <Card className="border-border/50 bg-card/50">
-        <CardHeader className="p-3 pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Search className="h-4 w-4" />
-            Quick Analysis
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-3 pt-0">
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="flex-1 min-w-[180px] relative">
-              <div className="relative">
-                <Input
-                  ref={searchInputRef}
-                  placeholder="Search RKLB, TSLA, BTC..."
-                  value={analyzeSymbol}
-                  onChange={(e) => setAnalyzeSymbol(e.target.value.toUpperCase())}
-                  onFocus={() => symbolSearchResults.length > 0 && setShowSearchResults(true)}
-                  className="font-mono uppercase pr-8 h-9"
-                  data-testid="input-analyze-symbol"
-                />
-                {isSearching && (
-                  <RefreshCw className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                )}
-              </div>
-              {showSearchResults && symbolSearchResults.length > 0 && (
-                <div 
-                  ref={searchResultsRef}
-                  className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-60 overflow-y-auto"
-                >
-                  {symbolSearchResults.map((result, idx) => (
-                    <div
-                      key={`${result.symbol}-${idx}`}
-                      role="button"
-                      tabIndex={0}
-                      className="w-full px-3 py-2 text-left hover:bg-accent flex items-center justify-between gap-2 border-b last:border-b-0 cursor-pointer"
-                      onClick={() => handleSelectSymbol(result.symbol, result.type)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSelectSymbol(result.symbol, result.type)}
-                      data-testid={`search-result-${result.symbol}`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-mono font-bold text-sm">{result.symbol}</span>
-                        <span className="text-xs text-muted-foreground truncate">{result.description}</span>
-                      </div>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded border border-border bg-muted/50 shrink-0">
-                        {result.type === 'crypto' ? 'Crypto' : result.type?.toUpperCase() || 'Stock'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <Select value={analyzeAssetType} onValueChange={(v: "stock" | "option" | "crypto") => setAnalyzeAssetType(v)}>
-              <SelectTrigger className="w-[100px] h-9" data-testid="select-analyze-asset-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="stock">Shares</SelectItem>
-                <SelectItem value="option">Options</SelectItem>
-                <SelectItem value="crypto">Crypto</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {analyzeAssetType === 'option' && (
-              <Select value={analyzeOptionType} onValueChange={(v: "call" | "put") => setAnalyzeOptionType(v)}>
-                <SelectTrigger className="w-[80px] h-9" data-testid="select-analyze-option-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="call">Call</SelectItem>
-                  <SelectItem value="put">Put</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-
-            <Button
-              onClick={() => analyzePlayMutation.mutate()}
-              disabled={analyzePlayMutation.isPending || !analyzeSymbol.trim()}
-              className="h-9"
-              data-testid="button-submit-analyze"
-            >
-              {analyzePlayMutation.isPending ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                  Analyze
-                </>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Engine/Source Tabs with Gradient Icons */}
-      <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Engine</p>
-        <div className="flex flex-wrap items-center gap-2">
-          {([
-            { value: 'all', label: 'All', icon: Activity, gradient: 'from-slate-500 to-slate-600' },
-            { value: 'ai', label: 'AI', icon: Bot, gradient: 'from-purple-500 to-purple-600' },
-            { value: 'quant', label: 'Quant', icon: BarChart3, gradient: 'from-blue-500 to-blue-600' },
-            { value: 'flow', label: 'Flow', icon: Activity, gradient: 'from-cyan-500 to-cyan-600' },
-            { value: 'chart_analysis', label: 'Chart', icon: Eye, gradient: 'from-amber-500 to-amber-600' },
-            { value: 'hybrid', label: 'Hybrid', icon: Sparkles, gradient: 'from-orange-500 to-orange-600' },
-            { value: 'news', label: 'News', icon: Newspaper, gradient: 'from-yellow-500 to-yellow-600' },
-            { value: 'manual', label: 'Manual', icon: FileText, gradient: 'from-gray-500 to-gray-600' },
-          ] as const).map(({ value, label, icon: Icon, gradient }) => (
-            <Button
-              key={value}
-              variant={sourceTab === value ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setSourceTab(value as IdeaSource | "all")}
-              className={cn(
-                "gap-2 hover-elevate",
-                sourceTab === value 
-                  ? "bg-background border border-border shadow-sm"
-                  : "text-muted-foreground"
-              )}
-              data-testid={`tab-source-${value}`}
-            >
-              <div className={cn(
-                "h-5 w-5 rounded flex items-center justify-center bg-gradient-to-br",
-                gradient
-              )}>
-                <Icon className="h-3 w-3 text-white" />
-              </div>
-              {label}
-              <span className="ml-0.5 text-[10px] font-mono opacity-70">
-                {sourceCounts[value] || 0}
-              </span>
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {/* Trade Type + Timeframe Filter Bar */}
-      <div className="flex flex-wrap items-center gap-4">
-        {/* Trade Type Toggle - Day vs Swing (PDT-friendly default) */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Trade Type</span>
-          <div className="flex items-center gap-1 border border-border/50 rounded-lg p-1">
-            {([
-              { value: 'swing', label: 'Swing', tooltip: '1-5 day holds (PDT-friendly)' },
-              { value: 'day', label: 'Day', tooltip: 'Same-day trades' },
-              { value: 'all', label: 'All', tooltip: 'Show all trades' },
-            ] as const).map(({ value, label, tooltip }) => (
-              <Button
-                key={value}
-                variant={tradeTypeFilter === value ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setTradeTypeFilter(value)}
-                className={cn(
-                  "gap-1.5 whitespace-nowrap hover-elevate",
-                  tradeTypeFilter === value 
-                    ? value === 'swing' 
-                      ? "bg-cyan-500/10 text-cyan-500"
-                      : "bg-amber-500/10 text-amber-500"
-                    : "text-muted-foreground"
-                )}
-                title={tooltip}
-                data-testid={`tab-tradetype-${value}`}
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onClick={() => generateHybridIdeas.mutate(activeTimeframe)}
+                disabled={generateHybridIdeas.isPending}
+                data-testid="menu-generate-hybrid"
               >
-                {label}
-                <span className="ml-0.5 text-[10px] font-mono opacity-70">
-                  {tradeTypeCounts[value]}
+                <Sparkles className="h-4 w-4 mr-2" />
+                Smart Picks
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => generateQuantIdeas.mutate(activeTimeframe)}
+                disabled={generateQuantIdeas.isPending}
+                data-testid="menu-generate-quant"
+              >
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Quant Signals
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => generateAIIdeas.mutate(activeTimeframe)}
+                disabled={generateAIIdeas.isPending}
+                data-testid="menu-generate-ai"
+              >
+                <Bot className="h-4 w-4 mr-2" />
+                AI Analysis
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => generateFlowIdeas.mutate(activeTimeframe)}
+                disabled={generateFlowIdeas.isPending}
+                data-testid="menu-generate-flow"
+              >
+                <Activity className="h-4 w-4 mr-2" />
+                Options Flow
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          </div>
+        </div>
+        
+        {/* Market Status - Subtle inline indicator */}
+        {marketStatus.session !== 'open' && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="banner-market-status">
+            <div className="h-2 w-2 rounded-full bg-amber-500/60" />
+            <span>{marketStatus.label}</span>
+            {marketStatus.nextOpen && <span>· Opens {marketStatus.nextOpen}</span>}
+          </div>
+        )}
+      </header>
+
+      {/* Minimal Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+        <Input
+          ref={searchInputRef}
+          placeholder="Search or analyze any symbol..."
+          value={analyzeSymbol}
+          onChange={(e) => setAnalyzeSymbol(e.target.value.toUpperCase())}
+          onFocus={() => symbolSearchResults.length > 0 && setShowSearchResults(true)}
+          className="pl-12 pr-32 h-12 text-base bg-muted/30 border-0 focus-visible:ring-1"
+          data-testid="input-analyze-symbol"
+        />
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+          {isSearching && <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />}
+          <Button
+            onClick={() => analyzePlayMutation.mutate()}
+            disabled={analyzePlayMutation.isPending || !analyzeSymbol.trim()}
+            size="sm"
+            data-testid="button-submit-analyze"
+          >
+            {analyzePlayMutation.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Analyze"}
+          </Button>
+        </div>
+        {showSearchResults && symbolSearchResults.length > 0 && (
+          <div 
+            ref={searchResultsRef}
+            className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg max-h-64 overflow-y-auto"
+          >
+            {symbolSearchResults.map((result, idx) => (
+              <div
+                key={`${result.symbol}-${idx}`}
+                role="button"
+                tabIndex={0}
+                className="w-full px-4 py-3 text-left hover:bg-accent/50 flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                onClick={() => handleSelectSymbol(result.symbol, result.type)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSelectSymbol(result.symbol, result.type)}
+                data-testid={`search-result-${result.symbol}`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="font-mono font-semibold">{result.symbol}</span>
+                  <span className="text-sm text-muted-foreground truncate">{result.description}</span>
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {result.type === 'crypto' ? 'Crypto' : 'Stock'}
                 </span>
-              </Button>
+              </div>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* AI Research Assistant */}
+      <AIResearchPanel />
+
+      {/* Compact Filters Bar */}
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <span className="text-muted-foreground">Filter by:</span>
+        {([
+          { value: 'all', label: 'All' },
+          { value: 'ai', label: 'AI' },
+          { value: 'quant', label: 'Quant' },
+          { value: 'flow', label: 'Flow' },
+          { value: 'hybrid', label: 'Hybrid' },
+        ] as const).map(({ value, label }) => (
+          <button
+            key={value}
+            onClick={() => setSourceTab(value as IdeaSource | "all")}
+            className={cn(
+              "px-3 py-1.5 rounded-md text-sm transition-colors",
+              sourceTab === value 
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            data-testid={`tab-source-${value}`}
+          >
+            {label}
+            {sourceCounts[value] > 0 && (
+              <span className="ml-1.5 text-xs opacity-70">{sourceCounts[value]}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Compact Filter Row */}
+      <div className="flex flex-wrap items-center gap-6 py-3 border-y border-border/30">
+        {/* Trade Type */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">Type:</span>
+          {(['swing', 'day', 'all'] as const).map((value) => (
+            <button
+              key={value}
+              onClick={() => setTradeTypeFilter(value)}
+              className={cn(
+                "text-sm capitalize",
+                tradeTypeFilter === value 
+                  ? "text-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              data-testid={`tab-tradetype-${value}`}
+            >
+              {value}
+            </button>
+          ))}
         </div>
 
-        {/* Timeframe Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Horizon</span>
-        <div className="flex items-center gap-1 border border-border/50 rounded-lg p-1">
-          {(['all', 'today_tomorrow', 'few_days', 'next_week', 'next_month'] as TimeframeBucket[]).map((timeframe) => (
-            <Button
+        {/* Timeframe */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">Horizon:</span>
+          {(['all', 'today_tomorrow', 'few_days', 'next_week'] as TimeframeBucket[]).map((timeframe) => (
+            <button
               key={timeframe}
-              variant={activeTimeframe === timeframe ? 'default' : 'ghost'}
-              size="sm"
               onClick={() => setActiveTimeframe(timeframe)}
               className={cn(
-                "gap-1.5 whitespace-nowrap hover-elevate",
+                "text-sm",
                 activeTimeframe === timeframe 
-                  ? "bg-cyan-500/10 text-cyan-500" 
-                  : "text-muted-foreground"
+                  ? "text-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground"
               )}
               data-testid={`tab-timeframe-${timeframe}`}
             >
               {TIMEFRAME_LABELS[timeframe]}
-              <span className="ml-0.5 text-[10px] font-mono opacity-70">
-                {timeframeCounts[timeframe]}
-              </span>
-            </Button>
+            </button>
           ))}
         </div>
-        
-        {activeTimeframe !== 'all' && canGenerateTradeIdea() && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => generateTimeframeIdeas.mutate(activeTimeframe)}
-            disabled={generateTimeframeIdeas.isPending}
-            className="gap-1.5 whitespace-nowrap"
-            data-testid="button-generate-timeframe"
-          >
-            {generateTimeframeIdeas.isPending ? (
-              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5" />
-            )}
-            Generate
-          </Button>
-        )}
-        </div>
-      </div>
 
-      {/* Search + Filters */}
-      <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Filters</p>
+        {/* Status Filter */}
         <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder="Search symbols..."
-              value={symbolSearch}
-              onChange={(e) => setSymbolSearch(e.target.value.toUpperCase())}
-              className="pl-10"
-              data-testid="filter-symbol-search"
-            />
-          </div>
+          <span className="text-xs text-muted-foreground">Status:</span>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[120px] hover-elevate" data-testid="filter-status">
-              <SelectValue placeholder="Status" />
+            <SelectTrigger className="w-[100px] h-8 text-sm border-0 bg-transparent" data-testid="filter-status">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="active">Active</SelectItem>
               <SelectItem value="won">Winners</SelectItem>
               <SelectItem value="lost">Losers</SelectItem>
-              <SelectItem value="expired">Expired (Audit)</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Symbol Search - Inline */}
+        <div className="flex items-center gap-2 ml-auto">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Symbol..."
+              value={symbolSearch}
+              onChange={(e) => setSymbolSearch(e.target.value.toUpperCase())}
+              className="pl-8 h-8 w-28 text-sm bg-transparent border-0 focus-visible:ring-1"
+              data-testid="filter-symbol-search"
+            />
+          </div>
           {(symbolSearch || statusFilter !== 'all') && (
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
               onClick={() => {
                 setSymbolSearch('');
                 setStatusFilter('all');
               }}
-              className="hover-elevate"
+              className="h-8 px-2 text-xs"
               data-testid="button-clear-filters"
             >
-              <X className="h-4 w-4" />
+              Clear
             </Button>
           )}
         </div>
       </div>
 
-      {/* Weekend Notice */}
+      {/* Market Status */}
       {isWeekend() && (
-        <div className="glass-card flex items-center gap-3 p-4 rounded-lg border-l-2 border-l-amber-500" data-testid="weekend-preview-section">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center">
-            <Clock className="h-4 w-4 text-white" />
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Markets open <span className="text-foreground font-medium">{format(getNextTradingWeekStart(), 'EEEE, MMM d')}</span> at 9:30 AM CT
-          </p>
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 text-sm" data-testid="weekend-preview-section">
+          <Clock className="h-4 w-4 text-amber-500" />
+          <span className="text-muted-foreground">Markets closed.</span>
+          <span className="text-foreground">Opens {format(getNextTradingWeekStart(), 'EEEE, MMM d')} at 9:30 AM CT</span>
         </div>
       )}
 
@@ -1362,114 +1221,71 @@ export default function TradeDeskPage() {
             ))}
           </div>
         ) : filteredAndSortedIdeas.length === 0 ? (
-          /* Enhanced Empty State - Glassmorphism */
-          <div className="glass-card rounded-xl border-dashed border-2 border-white/10">
-            <div className="flex flex-col items-center justify-center py-20 px-6">
-              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center mb-6">
-                <BarChart3 className="h-10 w-10 text-white" />
-              </div>
-              <h3 className="text-2xl font-bold mb-2">No Research Briefs Found</h3>
-              <p className="text-muted-foreground text-center max-w-md mb-4">
-                {tradeIdeas.length === 0 
-                  ? "Start generating research briefs using the buttons in the toolbar above. Each engine uses different strategies to identify patterns."
-                  : statusFilter === 'active'
-                    ? "No active research briefs match your filters. Try showing all statuses or adjusting other filters."
-                    : "No briefs match your current filters. Try adjusting the filters above or generate new analysis."}
-              </p>
-              {statusFilter !== 'all' && tradeIdeas.length > 0 && (
-                <Button
-                  variant="glass"
-                  onClick={() => setStatusFilter('all')}
-                  className="mb-4"
-                  data-testid="button-show-all-statuses"
-                >
-                  Show All Statuses
-                </Button>
-              )}
-              <p className="text-sm text-muted-foreground text-center">
-                {statusFilter === 'active' && "Tip: By default, only ACTIVE briefs are shown to reduce clutter"}
-              </p>
-            </div>
+          <div className="py-16 text-center">
+            <h3 className="text-lg font-semibold mb-2">No Research Briefs Found</h3>
+            <p className="text-muted-foreground max-w-md mx-auto mb-4">
+              {tradeIdeas.length === 0 
+                ? "Generate research briefs using the toolbar above."
+                : "No briefs match your current filters."}
+            </p>
+            {statusFilter !== 'all' && tradeIdeas.length > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => setStatusFilter('all')}
+                data-testid="button-show-all-statuses"
+              >
+                Show All
+              </Button>
+            )}
           </div>
         ) : (
           <>
-            {/* SECTION 1: Active Research - Glassmorphism */}
+            {/* Active Research Section */}
             <div className="space-y-4">
-              <div className="glass-card rounded-xl p-4 flex items-center justify-between gap-4 border-l-2 border-l-cyan-500">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Active Research</h2>
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center">
-                    <Activity className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Active Research</p>
-                    <span className="text-lg font-semibold">{activeIdeas.length} open patterns</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {/* Sort By Dropdown */}
                   <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-[140px] h-8 glass-secondary border-white/10 hover-elevate" data-testid="select-sort-by">
-                      <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-                      <SelectValue placeholder="Sort by" />
+                    <SelectTrigger className="w-[120px] h-8 text-sm border-0 bg-transparent" data-testid="select-sort-by">
+                      <SelectValue placeholder="Sort" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="priority">Priority</SelectItem>
-                      <SelectItem value="price_asc">Cheapest First</SelectItem>
-                      <SelectItem value="price_desc">Expensive First</SelectItem>
-                      <SelectItem value="confidence">Signal Strength</SelectItem>
-                      <SelectItem value="rr">Risk/Reward</SelectItem>
-                      <SelectItem value="expiry">Expiry Date</SelectItem>
+                      <SelectItem value="confidence">Strength</SelectItem>
+                      <SelectItem value="rr">R:R</SelectItem>
+                      <SelectItem value="expiry">Expiry</SelectItem>
                       <SelectItem value="timestamp">Newest</SelectItem>
                     </SelectContent>
                   </Select>
-                  
-                  {/* View Mode Toggle */}
-                  <div className="flex items-center glass-secondary rounded-md p-0.5">
+                  <div className="flex items-center rounded-md border">
                     <Button
-                      variant={viewMode === "list" ? "glass" : "ghost"}
-                      size="sm"
+                      variant={viewMode === "list" ? "secondary" : "ghost"}
+                      size="icon"
                       onClick={() => setViewMode("list")}
-                      className="h-7 px-2 hover-elevate"
                       data-testid="button-view-list"
+                      className="h-8 w-8 rounded-none rounded-l-md"
                     >
                       <List className="h-4 w-4" />
                     </Button>
                     <Button
-                      variant={viewMode === "grid" ? "glass" : "ghost"}
-                      size="sm"
+                      variant={viewMode === "grid" ? "secondary" : "ghost"}
+                      size="icon"
                       onClick={() => setViewMode("grid")}
-                      className="h-7 px-2 hover-elevate"
                       data-testid="button-view-grid"
+                      className="h-8 w-8 rounded-none rounded-r-md"
                     >
                       <LayoutGrid className="h-4 w-4" />
                     </Button>
                   </div>
-                  {expandedIdeaId && (
-                    <Button
-                      variant="glass-secondary"
-                      size="sm"
-                      onClick={handleCollapseAll}
-                      className="gap-1.5"
-                      data-testid="button-collapse-all"
-                    >
-                      <X className="h-4 w-4" />
-                      Collapse
-                    </Button>
-                  )}
                 </div>
               </div>
 
               {activeIdeas.length === 0 ? (
-                <div className="glass-card rounded-xl border-dashed border-2 border-white/10">
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <div className="h-14 w-14 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center mb-3">
-                      <Activity className="h-7 w-7 text-white" />
-                    </div>
-                    <p className="text-muted-foreground text-sm">No active research briefs match your filters</p>
-                  </div>
+                <div className="py-16 text-center">
+                  <p className="text-muted-foreground">No active research briefs match your filters</p>
                 </div>
               ) : (
-                <Accordion type="single" collapsible className="space-y-4" defaultValue={Object.entries(groupedIdeas)[0]?.[0]}>
+                <Accordion type="single" collapsible className="space-y-2" defaultValue={Object.entries(groupedIdeas)[0]?.[0]}>
                   {Object.entries(groupedIdeas)
                     .sort(([a], [b]) => {
                       const order = { 'stock': 0, 'penny_stock': 1, 'option': 2, 'future': 3, 'crypto': 4 };
@@ -1477,10 +1293,10 @@ export default function TradeDeskPage() {
                     })
                     .map(([assetType, ideas]) => {
                       const assetTypeLabels = {
-                        'stock': 'Stock Shares',
+                        'stock': 'Stocks',
                         'penny_stock': 'Penny Stocks',
-                        'option': 'Stock Options',
-                        'future': 'Futures (CME)',
+                        'option': 'Options',
+                        'future': 'Futures',
                         'crypto': 'Crypto'
                       };
                       const label = assetTypeLabels[assetType as keyof typeof assetTypeLabels] || assetType;
@@ -1488,16 +1304,16 @@ export default function TradeDeskPage() {
                       const stats = calculateGroupStats(ideas);
                       
                       return (
-                        <AccordionItem key={assetType} value={assetType} className="glass-card rounded-xl border-white/10">
-                          <AccordionTrigger className="px-4 hover:no-underline" data-testid={`accordion-asset-${assetType}`}>
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <span className="font-semibold">{label}</span>
-                              <span className="bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs" data-testid={`badge-count-${assetType}`}>
-                                {ideas.length} idea{ideas.length !== 1 ? 's' : ''}
-                              </span>
+                        <AccordionItem key={assetType} value={assetType} className="border rounded-lg">
+                          <AccordionTrigger className="px-4 py-3 hover:no-underline" data-testid={`accordion-asset-${assetType}`}>
+                            <div className="flex items-center gap-3">
+                              <span className="font-medium">{label}</span>
+                              <Badge variant="secondary" className="text-xs" data-testid={`badge-count-${assetType}`}>
+                                {ideas.length}
+                              </Badge>
                               {stats.avgRR > 0 && (
-                                <span className="bg-white/10 text-cyan-400 rounded px-2 py-0.5 text-xs font-mono">
-                                  {stats.avgRR.toFixed(1)}x R:R
+                                <span className="text-xs text-muted-foreground font-mono">
+                                  {stats.avgRR.toFixed(1)}:1 avg
                                 </span>
                               )}
                             </div>
@@ -1521,51 +1337,35 @@ export default function TradeDeskPage() {
                 </Accordion>
               )}
 
-              {/* Load More Button for Displayed Briefs */}
+              {/* Load More */}
               {displayIdeas.length > 0 && visibleCount < displayIdeas.length && (
                 <div className="flex justify-center pt-4">
                   <Button
-                    variant="glass-secondary"
-                    size="lg"
+                    variant="outline"
                     onClick={() => setVisibleCount(prev => prev + 50)}
-                    className="gap-2"
                     data-testid="button-load-more"
                   >
-                    Load More {statusFilter === 'won' ? 'Winners' : statusFilter === 'lost' ? 'Losers' : 'Active'}
-                    <span className="ml-1 bg-white/10 text-muted-foreground rounded px-2 py-0.5 text-xs">
-                      {Math.min(50, displayIdeas.length - visibleCount)} more
-                    </span>
+                    Load more ({Math.min(50, displayIdeas.length - visibleCount)} remaining)
                   </Button>
                 </div>
               )}
             </div>
 
-            {/* SECTION 2: Closed Patterns Summary - Glassmorphism */}
+            {/* Performance Summary */}
             {closedIdeas.length > 0 && (
-              <div className="glass-card rounded-xl p-4 mt-4 border-l-2 border-l-blue-500">
-                <div className="flex items-center justify-between gap-4 flex-wrap">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                      <BarChart3 className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Recent Performance</p>
-                    </div>
-                    <span className="bg-green-500/20 text-green-400 rounded px-2 py-0.5 text-xs border border-green-500/30">
-                      {closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target').length} wins
-                    </span>
-                    <span className="bg-red-500/20 text-red-400 rounded px-2 py-0.5 text-xs border border-red-500/30">
-                      {closedIdeas.filter(i => isRealLoss(i)).length} losses
-                    </span>
-                    <span className="text-xs text-muted-foreground">({closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target' || isRealLoss(i)).length} decided)</span>
-                  </div>
-                  <Button variant="glass" size="sm" asChild className="gap-1.5 hover-elevate" data-testid="link-view-performance">
-                    <a href="/performance">
-                      <BarChart3 className="h-4 w-4" />
-                      View Performance
-                    </a>
-                  </Button>
+              <div className="flex items-center justify-between py-4 border-t mt-4">
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="text-muted-foreground">Recent:</span>
+                  <span className="text-green-500">
+                    {closedIdeas.filter(i => normalizeStatus(i.outcomeStatus) === 'hit_target').length} wins
+                  </span>
+                  <span className="text-red-500">
+                    {closedIdeas.filter(i => isRealLoss(i)).length} losses
+                  </span>
                 </div>
+                <Button variant="ghost" size="sm" asChild data-testid="link-view-performance">
+                  <a href="/performance">View Performance</a>
+                </Button>
               </div>
             )}
           </>
