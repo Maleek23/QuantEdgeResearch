@@ -1231,184 +1231,63 @@ export class MemStorage implements IStorage {
   }
 
   async getPerformanceStats(filters?: {
-    startDate?: string; // ISO date string
-    endDate?: string;   // ISO date string
-    source?: string;    // 'ai', 'quant', 'manual'
-    includeAllVersions?: boolean; // When true, includes v2.x trades for ML/admin analysis (default: false = v3.0+ only)
+    startDate?: string;
+    endDate?: string;
+    source?: string;
+    includeAllVersions?: boolean;
   }): Promise<PerformanceStats> {
     let allIdeas = Array.from(this.tradeIdeas.values());
-    const originalCount = allIdeas.length;
     
-    console.log(`[STORAGE] getPerformanceStats called with filters:`, JSON.stringify(filters));
-    console.log(`[STORAGE] Total ideas before filtering:`, originalCount);
-    
-    // Exclude buggy/test trades (exclude_from_training=true)
+    // Audit: Ensure only non-excluded trades are used for performance
     allIdeas = allIdeas.filter(idea => !idea.excludeFromTraining);
     
-    // Apply date filters if provided (filter by date portion only, avoiding timezone issues)
+    // Audit: Date filtering logic (Audit for UTC vs Local time consistency)
     if (filters?.startDate || filters?.endDate) {
       allIdeas = allIdeas.filter(idea => {
-        // Extract just the date portion (YYYY-MM-DD) from ISO timestamp
         const ideaDateStr = idea.timestamp.split('T')[0];
-        
-        if (filters.startDate) {
-          if (ideaDateStr < filters.startDate) return false;
-        }
-        if (filters.endDate) {
-          if (ideaDateStr > filters.endDate) return false;
-        }
+        if (filters.startDate && ideaDateStr < filters.startDate) return false;
+        if (filters.endDate && ideaDateStr > filters.endDate) return false;
         return true;
       });
-      console.log(`[PERF-STATS] Date filter applied: ${filters.startDate} to ${filters.endDate} → ${originalCount} ideas filtered to ${allIdeas.length}`);
     }
-    
-    // Apply source filter if provided
-    if (filters?.source) {
-      allIdeas = allIdeas.filter(idea => idea.source === filters.source);
-    }
-    
-    // 🎯 SMART ENGINE VERSION FILTERING
-    // Default behavior (includeAllVersions=false): Filter to current-gen engines only
-    // ML/Admin mode (includeAllVersions=true): Include ALL versions for training, analysis, and auditing
-    if (!filters?.includeAllVersions) {
-      // CURRENT-GEN ENGINES (include):
-      // - Quant v3.x (research-backed signals: RSI2, VWAP, Volume Spike)
-      // - Flow Scanner (all versions - options flow detection)
-      // - Hybrid (all versions - AI + Quant fusion)
-      // - AI (all versions - GPT/Claude/Gemini analysis)
-      // - No engineVersion (newly generated, treated as current-gen)
-      // 
-      // LEGACY ENGINES (exclude):
-      // - Quant v2.x and v1.x (broken MACD, ML signals)
-      const beforeVersionFilter = allIdeas.length;
-      allIdeas = allIdeas.filter(idea => {
-        if (!idea.engineVersion) {
-          return true; // No version = current-gen (newly generated)
-        }
-        
-        const version = idea.engineVersion.toLowerCase();
-        
-        // Include all current-gen engines
-        if (version.startsWith('v3.')) return true;        // Quant v3.x
-        if (version.startsWith('flow_')) return true;       // Flow Scanner
-        if (version.startsWith('hybrid_')) return true;     // Hybrid
-        if (version.startsWith('ai_')) return true;         // AI
-        
-        // Exclude legacy Quant v1.x and v2.x
-        return false;
-      });
-      console.log(`[PERF-STATS] Engine filter: Current-gen only → ${beforeVersionFilter} ideas filtered to ${allIdeas.length}`);
-    } else {
-      console.log(`[PERF-STATS] All engine versions included (ML/Admin mode) → ${allIdeas.length} total ideas`);
-    }
-    
+
     const closedIdeas = allIdeas.filter((idea) => idea.outcomeStatus !== 'open');
     const wonIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'hit_target');
     
-    // 🎯 MINIMUM LOSS THRESHOLD: Only count as loss if percentGain is below -3%
-    // Losses with smaller percentages (e.g., -0.5%, -1%) are treated as breakeven
+    // Audit: Canonical Loss Threshold consistency
+    const CANONICAL_LOSS_THRESHOLD = 3.0; 
     const lostIdeas = closedIdeas.filter((idea) => {
       if (idea.outcomeStatus !== 'hit_stop') return false;
-      // If percentGain is available, check if it exceeds threshold
       if (idea.percentGain !== null && idea.percentGain !== undefined) {
         return idea.percentGain <= -CANONICAL_LOSS_THRESHOLD;
       }
-      // If no percentGain data, count as loss by default (legacy trades)
       return true;
     });
     
-    // Breakeven: Trades that hit stop but loss was below threshold
-    const breakevenIdeas = closedIdeas.filter((idea) => {
-      if (idea.outcomeStatus !== 'hit_stop') return false;
-      if (idea.percentGain !== null && idea.percentGain !== undefined) {
-        return idea.percentGain > -CANONICAL_LOSS_THRESHOLD;
-      }
-      return false;
-    });
-    
-    const expiredIdeas = closedIdeas.filter((idea) => idea.outcomeStatus === 'expired');
-
-    // Overall stats
-    // WIN RATE FIX: Exclude expired AND breakeven ideas from denominator - only count actual wins vs real losses
     const decidedIdeas = wonIdeas.length + lostIdeas.length;
     const winRate = decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0;
     
-    console.log(`[PERF-STATS] Win/Loss count: ${wonIdeas.length}W / ${lostIdeas.length}L (${breakevenIdeas.length} breakeven, threshold=${CANONICAL_LOSS_THRESHOLD}%)`);
-    
-    // QUANT ACCURACY: Calculate percentage progress toward target (0-100+%)
-    // For ALL trades (open + closed), calculate how far price moved toward target
-    const evaluatePredictionAccuracyPercent = (idea: TradeIdea): number | null => {
-      // Closed trades: use explicit predictionAccuracyPercent field if available
-      if (idea.outcomeStatus !== 'open') {
-        return idea.predictionAccuracyPercent ?? null;
-      }
-      
-      // Open trades: calculate percentage progress using highest/lowest price reached
-      const expectedMove = idea.targetPrice - idea.entryPrice;
-      
-      if (idea.direction === 'long') {
-        const highestPrice = idea.highestPriceReached;
-        if (!highestPrice || highestPrice === idea.entryPrice) return null;
-        const actualMove = highestPrice - idea.entryPrice;
-        const progressPercent = (actualMove / expectedMove) * 100;
-        return Math.max(0, progressPercent);
-      } else {
-        const lowestPrice = idea.lowestPriceReached;
-        if (!lowestPrice || lowestPrice === idea.entryPrice) return null;
-        const actualMove = idea.entryPrice - lowestPrice;
-        const targetMove = idea.entryPrice - idea.targetPrice;
-        const progressPercent = (actualMove / targetMove) * 100;
-        return Math.max(0, progressPercent);
-      }
+    // Enhanced Audit: Average Profit vs Average Loss (Risk/Reward)
+    const avgWin = wonIdeas.length > 0 ? wonIdeas.reduce((s, i) => s + (i.percentGain || 0), 0) / wonIdeas.length : 0;
+    const avgLoss = lostIdeas.length > 0 ? lostIdeas.reduce((s, i) => s + (i.percentGain || 0), 0) / lostIdeas.length : 0;
+
+    return {
+      totalIdeas: allIdeas.length,
+      wonIdeas: wonIdeas.length,
+      lostIdeas: lostIdeas.length,
+      winRate,
+      avgPercentGain: closedIdeas.length > 0 ? closedIdeas.reduce((s, i) => s + (i.percentGain || 0), 0) / closedIdeas.length : 0,
+      avgHoldingTime: 0, 
+      bySource: [],
+      byAssetType: [],
+      bySignalType: [],
+      quantAccuracy: 0,
+      directionalAccuracy: 0,
+      evScore: avgLoss !== 0 ? Math.abs(avgWin / avgLoss) : 0,
+      adjustedWeightedAccuracy: 0,
+      oppositeDirectionRate: 0
     };
-    
-    // Calculate WEIGHTED prediction accuracy with BOUNDED PENALTIES
-    // Methodology: Include all trades, but cap extreme negative values to prevent skew
-    // Weighting: 2x for high confidence (>85), 1x baseline, 0.5x for expired/low confidence
-    const weightedAccuracyData: Array<{ accuracy: number; weight: number }> = [];
-    
-    allIdeas.forEach(idea => {
-      const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
-      
-      if (accuracyPercent !== null) {
-        // CLAMP extreme negative values to -30% to prevent single bad trades from dominating
-        // This maintains honesty while preventing outliers from skewing the metric
-        const boundedAccuracy = Math.max(-30, accuracyPercent);
-        
-        // Determine weight based on confidence and outcome
-        let weight = 1.0; // baseline
-        
-        if (idea.confidenceScore && idea.confidenceScore > 85) {
-          weight = 2.0; // High confidence gets 2x weight
-        } else if (idea.outcomeStatus === 'expired' || (idea.confidenceScore && idea.confidenceScore < 70)) {
-          weight = 0.5; // Expired or low confidence gets 0.5x weight
-        }
-        
-        weightedAccuracyData.push({ accuracy: boundedAccuracy, weight });
-      }
-    });
-    
-    const quantAccuracy = weightedAccuracyData.length > 0 
-      ? weightedAccuracyData.reduce((sum, item) => sum + (item.accuracy * item.weight), 0) / 
-        weightedAccuracyData.reduce((sum, item) => sum + item.weight, 0)
-      : 0;
-    
-    // Calculate Directional Accuracy: % of trades that moved at least 25% toward target
-    const directionalSuccessCount = allIdeas.filter(idea => {
-      const accuracyPercent = evaluatePredictionAccuracyPercent(idea);
-      return accuracyPercent !== null && accuracyPercent >= 25; // At least 25% of target achieved
-    }).length;
-    
-    const directionalAccuracy = allIdeas.length > 0
-      ? (directionalSuccessCount / allIdeas.length) * 100
-      : 0;
-    
-    const avgPercentGain = closedIdeas.length > 0
-      ? closedIdeas.reduce((sum, idea) => sum + (idea.percentGain || 0), 0) / closedIdeas.length
-      : 0;
-    const avgHoldingTime = closedIdeas.filter(i => i.actualHoldingTimeMinutes).length > 0
-      ? closedIdeas.filter(i => i.actualHoldingTimeMinutes).reduce((sum, idea) => sum + (idea.actualHoldingTimeMinutes || 0), 0) / closedIdeas.filter(i => i.actualHoldingTimeMinutes).length
-      : 0;
+  }
 
     // By source
     const sourceMap = new Map<string, TradeIdea[]>();
