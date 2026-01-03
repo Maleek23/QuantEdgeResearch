@@ -141,6 +141,7 @@ export default function WatchlistBotPage() {
   const [newSymbol, setNewSymbol] = useState("");
   const [newAssetType, setNewAssetType] = useState<string>("stock");
   const [activeTab, setActiveTab] = useState("bot");
+  const [portfolioTab, setPortfolioTab] = useState<"options" | "futures" | "crypto">("options");
 
   const { data: watchlistItems = [], isLoading: watchlistLoading, refetch: refetchWatchlist } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
@@ -793,167 +794,168 @@ export default function WatchlistBotPage() {
                 </CardContent>
               </Card>
 
-              {/* Dual Portfolio Header - Options & Futures */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Options Portfolio */}
-                <Card className="glass-card bg-gradient-to-br from-pink-500/5 to-purple-500/5 border-pink-500/20 relative overflow-hidden">
-                  <BorderBeam size={250} duration={12} colorFrom="#ec4899" colorTo="#a855f7" />
-                  <CardContent className="p-5 relative z-10">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center border border-pink-500/30">
-                        <Target className="h-5 w-5 text-pink-400" />
+              {/* Portfolio Tabs - Options, Futures, Crypto */}
+              <Card className="glass-card">
+                <Tabs value={portfolioTab} onValueChange={(v) => setPortfolioTab(v as "options" | "futures" | "crypto")} className="w-full">
+                  <CardHeader className="pb-3">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <CardTitle className="flex items-center gap-2">
+                          <Wallet className="h-5 w-5 text-cyan-400" />
+                          Portfolio Dashboard
+                        </CardTitle>
+                        <TabsList className="bg-slate-800/50">
+                          <TabsTrigger 
+                            value="options" 
+                            className="data-[state=active]:bg-pink-500/20 data-[state=active]:text-pink-400"
+                            data-testid="tab-options"
+                          >
+                            <Target className="h-4 w-4 mr-1.5" />
+                            Options
+                          </TabsTrigger>
+                          <TabsTrigger 
+                            value="futures"
+                            className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400"
+                            data-testid="tab-futures"
+                          >
+                            <BarChart3 className="h-4 w-4 mr-1.5" />
+                            Futures
+                          </TabsTrigger>
+                          <TabsTrigger 
+                            value="crypto"
+                            className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400"
+                            data-testid="tab-crypto"
+                          >
+                            <Bitcoin className="h-4 w-4 mr-1.5" />
+                            Crypto
+                          </TabsTrigger>
+                        </TabsList>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold">Options Lotto</p>
-                        <Badge variant="outline" className="text-xs bg-pink-500/10 text-pink-400 border-pink-500/30">
-                          Paper
-                        </Badge>
-                      </div>
+                      <Badge variant="outline" className="text-xs bg-slate-500/10 text-slate-400 border-slate-500/30">
+                        Paper Trading
+                      </Badge>
                     </div>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Account Value</p>
-                        {showMetrics ? (
-                          <div className="text-2xl font-bold font-mono tabular-nums" data-testid="text-options-balance">
-                            <NumberTicker 
-                              value={accountBalance} 
-                              prefix="$"
-                              decimalPlaces={2}
-                              className="text-foreground"
-                            />
-                          </div>
-                        ) : (
-                          <p className="text-xl text-muted-foreground">Hidden</p>
-                        )}
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {/* Options Tab */}
+                    <TabsContent value="options" className="mt-0">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-lg bg-gradient-to-br from-pink-500/5 to-purple-500/5 border border-pink-500/20">
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Account Value</p>
+                          {showMetrics ? (
+                            <div className="text-xl font-bold font-mono tabular-nums text-pink-400" data-testid="text-options-balance">
+                              <NumberTicker value={accountBalance} prefix="$" decimalPlaces={2} className="text-pink-400" />
+                            </div>
+                          ) : (
+                            <p className="text-lg text-muted-foreground">Hidden</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Starting Capital</p>
+                          <p className="text-lg font-mono">{formatCurrency(botData.portfolio?.startingCapital || 300)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Realized P&L</p>
+                          {showMetrics ? (
+                            <p className={cn("text-lg font-bold font-mono", totalRealizedPnL >= 0 ? "text-green-400" : "text-red-400")}>
+                              {totalRealizedPnL >= 0 ? '+' : '-'}{formatCurrency(Math.abs(totalRealizedPnL))}
+                            </p>
+                          ) : (
+                            <p className="text-lg text-muted-foreground">Hidden</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Positions</p>
+                          <p className="text-lg font-mono">
+                            <span className="text-green-400">{openPositions.filter(p => p.assetType === 'option').length}</span>
+                            <span className="text-muted-foreground"> open / </span>
+                            <span>{closedPositions.filter(p => p.assetType === 'option').length}</span>
+                            <span className="text-muted-foreground"> closed</span>
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Starting</span>
-                        <span className="font-mono">{formatCurrency(botData.portfolio?.startingCapital || 300)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Realized P&L</span>
-                        {showMetrics ? (
-                          <span className={cn("font-mono font-medium", totalRealizedPnL >= 0 ? "text-green-400" : "text-red-400")}>
-                            {totalRealizedPnL >= 0 ? '+' : ''}<NumberTicker value={Math.abs(totalRealizedPnL)} prefix="$" decimalPlaces={2} />
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">Hidden</span>
-                        )}
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Positions</span>
-                        <span className="font-mono">{openPositions.length} open / {closedPositions.length} closed</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </TabsContent>
 
-                {/* Futures Portfolio */}
-                <Card className="glass-card bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border-cyan-500/20 relative overflow-hidden">
-                  <BorderBeam size={250} duration={12} delay={6} colorFrom="#22d3ee" colorTo="#3b82f6" />
-                  <CardContent className="p-5 relative z-10">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center border border-cyan-500/30">
-                        <BarChart3 className="h-5 w-5 text-cyan-400" />
+                    {/* Futures Tab */}
+                    <TabsContent value="futures" className="mt-0">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-lg bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border border-cyan-500/20">
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Account Value</p>
+                          {showMetrics ? (
+                            <div className="text-xl font-bold font-mono tabular-nums text-cyan-400" data-testid="text-futures-balance">
+                              <NumberTicker value={(botData.futuresPortfolio?.startingCapital || 300) + (botData.futuresPortfolio?.totalPnL || 0)} prefix="$" decimalPlaces={2} className="text-cyan-400" />
+                            </div>
+                          ) : (
+                            <p className="text-lg text-muted-foreground">Hidden</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Starting Capital</p>
+                          <p className="text-lg font-mono">{formatCurrency(botData.futuresPortfolio?.startingCapital || 300)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Realized P&L</p>
+                          {showMetrics ? (
+                            <p className={cn("text-lg font-bold font-mono", (botData.futuresPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
+                              {(botData.futuresPortfolio?.totalPnL || 0) >= 0 ? '+' : '-'}{formatCurrency(Math.abs(botData.futuresPortfolio?.totalPnL || 0))}
+                            </p>
+                          ) : (
+                            <p className="text-lg text-muted-foreground">Hidden</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Positions</p>
+                          <p className="text-lg font-mono">
+                            <span className="text-green-400">{botData.futuresPortfolio?.openPositions || 0}</span>
+                            <span className="text-muted-foreground"> open / </span>
+                            <span>{botData.futuresPortfolio?.closedPositions || 0}</span>
+                            <span className="text-muted-foreground"> closed</span>
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold">Futures Trading</p>
-                        <Badge variant="outline" className="text-xs bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
-                          Paper
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Account Value</p>
-                        {showMetrics ? (
-                          <div className="text-2xl font-bold font-mono tabular-nums" data-testid="text-futures-balance">
-                            <NumberTicker 
-                              value={(botData.futuresPortfolio?.startingCapital || 300) + (botData.futuresPortfolio?.totalPnL || 0)} 
-                              prefix="$"
-                              decimalPlaces={2}
-                              className="text-foreground"
-                            />
-                          </div>
-                        ) : (
-                          <p className="text-xl text-muted-foreground">Hidden</p>
-                        )}
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Starting</span>
-                        <span className="font-mono">{formatCurrency(botData.futuresPortfolio?.startingCapital || 300)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Realized P&L</span>
-                        {showMetrics ? (
-                          <span className={cn("font-mono font-medium", (botData.futuresPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
-                            {(botData.futuresPortfolio?.totalPnL || 0) >= 0 ? '+' : ''}<NumberTicker value={Math.abs(botData.futuresPortfolio?.totalPnL || 0)} prefix="$" decimalPlaces={2} />
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">Hidden</span>
-                        )}
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Positions</span>
-                        <span className="font-mono">{botData.futuresPortfolio?.openPositions || 0} open / {botData.futuresPortfolio?.closedPositions || 0} closed</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </TabsContent>
 
-                {/* Crypto Portfolio */}
-                <Card className="glass-card bg-gradient-to-br from-amber-500/5 to-orange-500/5 border-amber-500/20 relative overflow-hidden">
-                  <BorderBeam size={250} duration={12} delay={9} colorFrom="#f59e0b" colorTo="#ea580c" />
-                  <CardContent className="p-5 relative z-10">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center border border-amber-500/30">
-                        <Bitcoin className="h-5 w-5 text-amber-400" />
+                    {/* Crypto Tab */}
+                    <TabsContent value="crypto" className="mt-0">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-lg bg-gradient-to-br from-amber-500/5 to-orange-500/5 border border-amber-500/20">
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Account Value</p>
+                          {showMetrics && cryptoData?.portfolio ? (
+                            <div className="text-xl font-bold font-mono tabular-nums text-amber-400" data-testid="text-crypto-balance">
+                              <NumberTicker value={cryptoData.portfolio.totalValue} prefix="$" decimalPlaces={2} className="text-amber-400" />
+                            </div>
+                          ) : (
+                            <p className="text-lg text-muted-foreground">{cryptoData?.portfolio ? formatCurrency(cryptoData.portfolio.totalValue) : 'Loading...'}</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Starting Capital</p>
+                          <p className="text-lg font-mono">{formatCurrency(cryptoData?.portfolio?.startingCapital || 300)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Realized P&L</p>
+                          {showMetrics && cryptoData?.portfolio ? (
+                            <p className={cn("text-lg font-bold font-mono", (cryptoData.portfolio.totalValue - cryptoData.portfolio.startingCapital) >= 0 ? "text-green-400" : "text-red-400")}>
+                              {(cryptoData.portfolio.totalValue - cryptoData.portfolio.startingCapital) >= 0 ? '+' : '-'}{formatCurrency(Math.abs(cryptoData.portfolio.totalValue - cryptoData.portfolio.startingCapital))}
+                            </p>
+                          ) : (
+                            <p className="text-lg text-muted-foreground">--</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Positions</p>
+                          <p className="text-lg font-mono">
+                            <span className="text-green-400">{cryptoData?.openPositions || 0}</span>
+                            <span className="text-muted-foreground"> open / </span>
+                            <span>{cryptoData?.maxPositions || 3}</span>
+                            <span className="text-muted-foreground"> max</span>
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold">Crypto Trading</p>
-                        <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/30">
-                          Paper
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Account Value</p>
-                        {showMetrics && cryptoData?.portfolio ? (
-                          <div className="text-2xl font-bold font-mono tabular-nums" data-testid="text-crypto-balance">
-                            <NumberTicker 
-                              value={cryptoData.portfolio.totalValue} 
-                              prefix="$"
-                              decimalPlaces={2}
-                              className="text-foreground"
-                            />
-                          </div>
-                        ) : (
-                          <p className="text-xl text-muted-foreground">{cryptoData?.portfolio ? formatCurrency(cryptoData.portfolio.totalValue) : 'Loading...'}</p>
-                        )}
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Starting</span>
-                        <span className="font-mono">{formatCurrency(cryptoData?.portfolio?.startingCapital || 300)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Realized P&L</span>
-                        {showMetrics && cryptoData?.portfolio ? (
-                          <span className={cn("font-mono font-medium", ((cryptoData.portfolio.totalValue - cryptoData.portfolio.startingCapital)) >= 0 ? "text-green-400" : "text-red-400")}>
-                            {(cryptoData.portfolio.totalValue - cryptoData.portfolio.startingCapital) >= 0 ? '+' : ''}{formatCurrency(cryptoData.portfolio.totalValue - cryptoData.portfolio.startingCapital)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">--</span>
-                        )}
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Positions</span>
-                        <span className="font-mono">{cryptoData?.openPositions || 0} open / {cryptoData?.maxPositions || 3} max</span>
-                      </div>
-                    </div>
+                    </TabsContent>
                   </CardContent>
-                </Card>
-              </div>
+                </Tabs>
+              </Card>
 
               {/* Account Summary Bar */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1224,23 +1226,38 @@ export default function WatchlistBotPage() {
                 </Card>
               )}
 
-              {/* Open Positions Table */}
+              {/* Open Positions Table - Filtered by Portfolio Tab */}
               <Card className="glass-card">
                 <CardHeader className="pb-3">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                       <CardTitle className="flex items-center gap-2">
-                        <Zap className="h-5 w-5 text-pink-400" />
-                        Open Positions
-                        {openPositions.length > 0 && (
-                          <Badge variant="outline" className="ml-2 font-mono text-xs">
-                            {openPositions.length}
+                        {portfolioTab === 'options' && <Target className="h-5 w-5 text-pink-400" />}
+                        {portfolioTab === 'futures' && <BarChart3 className="h-5 w-5 text-cyan-400" />}
+                        {portfolioTab === 'crypto' && <Bitcoin className="h-5 w-5 text-amber-400" />}
+                        {portfolioTab === 'options' ? 'Options' : portfolioTab === 'futures' ? 'Futures' : 'Crypto'} Open Positions
+                        {openPositions.filter(p => 
+                          portfolioTab === 'options' ? p.assetType === 'option' : 
+                          portfolioTab === 'futures' ? p.assetType === 'future' : 
+                          p.assetType === 'crypto'
+                        ).length > 0 && (
+                          <Badge variant="outline" className={cn(
+                            "ml-2 font-mono text-xs",
+                            portfolioTab === 'options' ? "bg-pink-500/10 text-pink-400 border-pink-500/30" :
+                            portfolioTab === 'futures' ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30" :
+                            "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                          )}>
+                            {openPositions.filter(p => 
+                              portfolioTab === 'options' ? p.assetType === 'option' : 
+                              portfolioTab === 'futures' ? p.assetType === 'future' : 
+                              p.assetType === 'crypto'
+                            ).length}
                           </Badge>
                         )}
                       </CardTitle>
                       <CardDescription>
                         {botData.isAdmin 
-                          ? "Active lotto trades currently held by the bot"
+                          ? `Active ${portfolioTab} trades currently held by the bot`
                           : "Position details are only visible to administrators"
                         }
                       </CardDescription>
@@ -1254,12 +1271,23 @@ export default function WatchlistBotPage() {
                       <p>Individual trade details are restricted.</p>
                       <p className="text-xs mt-2">Aggregated performance stats are shown above.</p>
                     </div>
-                  ) : openPositions.length === 0 ? (
+                  ) : openPositions.filter(p => 
+                      portfolioTab === 'options' ? p.assetType === 'option' : 
+                      portfolioTab === 'futures' ? p.assetType === 'future' : 
+                      p.assetType === 'crypto'
+                    ).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
-                      <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center mx-auto mb-2">
-                        <Zap className="h-6 w-6 text-pink-400" />
+                      <div className={cn(
+                        "h-12 w-12 rounded-lg flex items-center justify-center mx-auto mb-2",
+                        portfolioTab === 'options' ? "bg-gradient-to-br from-pink-500/20 to-purple-500/20" :
+                        portfolioTab === 'futures' ? "bg-gradient-to-br from-cyan-500/20 to-blue-500/20" :
+                        "bg-gradient-to-br from-amber-500/20 to-orange-500/20"
+                      )}>
+                        {portfolioTab === 'options' && <Target className="h-6 w-6 text-pink-400" />}
+                        {portfolioTab === 'futures' && <BarChart3 className="h-6 w-6 text-cyan-400" />}
+                        {portfolioTab === 'crypto' && <Bitcoin className="h-6 w-6 text-amber-400" />}
                       </div>
-                      <p>No open positions. Bot will enter trades when lotto opportunities arise.</p>
+                      <p>No open {portfolioTab} positions. Bot will enter trades when opportunities arise.</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -1277,7 +1305,13 @@ export default function WatchlistBotPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {openPositions.map((position) => {
+                          {openPositions
+                            .filter(p => 
+                              portfolioTab === 'options' ? p.assetType === 'option' : 
+                              portfolioTab === 'futures' ? p.assetType === 'future' : 
+                              p.assetType === 'crypto'
+                            )
+                            .map((position) => {
                             const multiplier = position.assetType === 'option' ? 100 : (position.assetType === 'future' ? 50 : 1);
                             const marketValue = (position.currentPrice || position.entryPrice) * position.quantity * (position.assetType === 'crypto' ? 1 : multiplier);
                             const costBasis = position.entryPrice * position.quantity * (position.assetType === 'crypto' ? 1 : multiplier);
@@ -1365,21 +1399,36 @@ export default function WatchlistBotPage() {
                 </CardContent>
               </Card>
 
-              {/* Trading History */}
+              {/* Trading History - Filtered by Portfolio Tab */}
               <Card className="glass-card">
                 <CardHeader className="pb-3">
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                       <CardTitle className="flex items-center gap-2">
-                        <Clock className="h-5 w-5 text-purple-400" />
-                        Trading History
-                        {closedPositions.length > 0 && (
-                          <Badge variant="outline" className="ml-2 font-mono text-xs">
-                            {closedPositions.length}
+                        {portfolioTab === 'options' && <Target className="h-5 w-5 text-pink-400" />}
+                        {portfolioTab === 'futures' && <BarChart3 className="h-5 w-5 text-cyan-400" />}
+                        {portfolioTab === 'crypto' && <Bitcoin className="h-5 w-5 text-amber-400" />}
+                        {portfolioTab === 'options' ? 'Options' : portfolioTab === 'futures' ? 'Futures' : 'Crypto'} Trade History
+                        {closedPositions.filter(p => 
+                          portfolioTab === 'options' ? p.assetType === 'option' : 
+                          portfolioTab === 'futures' ? p.assetType === 'future' : 
+                          p.assetType === 'crypto'
+                        ).length > 0 && (
+                          <Badge variant="outline" className={cn(
+                            "ml-2 font-mono text-xs",
+                            portfolioTab === 'options' ? "bg-pink-500/10 text-pink-400 border-pink-500/30" :
+                            portfolioTab === 'futures' ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30" :
+                            "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                          )}>
+                            {closedPositions.filter(p => 
+                              portfolioTab === 'options' ? p.assetType === 'option' : 
+                              portfolioTab === 'futures' ? p.assetType === 'future' : 
+                              p.assetType === 'crypto'
+                            ).length}
                           </Badge>
                         )}
                       </CardTitle>
-                      <CardDescription>Closed trades with realized P&L</CardDescription>
+                      <CardDescription>Closed {portfolioTab} trades with realized P&L</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
@@ -1389,10 +1438,14 @@ export default function WatchlistBotPage() {
                       <Shield className="h-8 w-8 mx-auto mb-2 text-slate-400" />
                       <p>Trade history is restricted to administrators.</p>
                     </div>
-                  ) : closedPositions.length === 0 ? (
+                  ) : closedPositions.filter(p => 
+                      portfolioTab === 'options' ? p.assetType === 'option' : 
+                      portfolioTab === 'futures' ? p.assetType === 'future' : 
+                      p.assetType === 'crypto'
+                    ).length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p>No closed trades yet.</p>
+                      <p>No closed {portfolioTab} trades yet.</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -1409,7 +1462,14 @@ export default function WatchlistBotPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {closedPositions.slice(0, 10).map((position) => (
+                          {closedPositions
+                            .filter(p => 
+                              portfolioTab === 'options' ? p.assetType === 'option' : 
+                              portfolioTab === 'futures' ? p.assetType === 'future' : 
+                              p.assetType === 'crypto'
+                            )
+                            .slice(0, 10)
+                            .map((position) => (
                             <TableRow 
                               key={position.id} 
                               className={cn(
