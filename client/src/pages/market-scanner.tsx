@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,9 +20,13 @@ import {
   Lightbulb,
   AlertTriangle,
   Zap,
-  Star
+  Star,
+  Send
 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { SiDiscord } from "react-icons/si";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface SmartWatchlistPick {
   symbol: string;
@@ -316,6 +320,38 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
 export default function MarketScanner() {
   const [timeframe, setTimeframe] = useState<string>("day");
   const [category, setCategory] = useState<string>("all");
+  const { toast } = useToast();
+
+  // Send Smart Watchlist to Discord
+  const sendToDiscordMutation = useMutation({
+    mutationFn: async (picks: SmartWatchlistPick[]) => {
+      const response = await apiRequest("POST", "/api/watchlist/send-quantbot", {
+        items: picks.map(p => ({
+          symbol: p.symbol,
+          name: p.name,
+          currentPrice: p.currentPrice,
+          changePercent: p.changePercent,
+          direction: p.direction,
+          thesis: p.tradeIdea.thesis,
+          riskLevel: p.tradeIdea.riskLevel,
+        }))
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Sent to Discord",
+        description: data.message || `Smart Watchlist sent to QuantBot channel`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Discord Error",
+        description: error.message || "Failed to send to Discord",
+        variant: "destructive",
+      });
+    },
+  });
 
   const moversQuery = useQuery<MoversResponse>({
     queryKey: ["/api/market-scanner/movers", timeframe, category],
@@ -459,11 +495,30 @@ export default function MarketScanner() {
                     Top 15 curated stocks with trade ideas based on {timeframeLabels[timeframe].toLowerCase()} analysis
                   </CardDescription>
                 </div>
+                <div className="flex items-center gap-2">
                 {watchlistQuery.data && (
                   <Badge variant="outline" className="text-cyan-400 border-cyan-500/30">
                     {watchlistQuery.data.count} picks
                   </Badge>
                 )}
+                {watchlistQuery.data && watchlistQuery.data.picks.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-[#5865F2] border-[#5865F2]/30 hover:bg-[#5865F2]/10"
+                    onClick={() => sendToDiscordMutation.mutate(watchlistQuery.data!.picks)}
+                    disabled={sendToDiscordMutation.isPending}
+                    data-testid="button-send-watchlist-discord"
+                  >
+                    {sendToDiscordMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                    ) : (
+                      <SiDiscord className="w-4 h-4 mr-1" />
+                    )}
+                    Send to Discord
+                  </Button>
+                )}
+              </div>
               </div>
             </CardHeader>
             <CardContent>
