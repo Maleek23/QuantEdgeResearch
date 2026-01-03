@@ -1,7 +1,7 @@
 import { 
   TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
   Sun, Moon, Home, BookOpen, Bot, Zap, Shield, ExternalLink,
-  Upload, Database, LineChart, Search
+  Upload, Database, LineChart, Search, User
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -61,7 +61,8 @@ const learnItems: NavItem[] = [
   { title: "Academy", url: "/academy", icon: BookOpen },
 ];
 
-const settingsItems: NavItem[] = [
+const accountItems: NavItem[] = [
+  { title: "My Account", url: "/my-account", icon: User },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
@@ -266,7 +267,7 @@ export function AppSidebar() {
         {/* Account & Settings */}
         <NavSection 
           label="Account" 
-          items={settingsItems} 
+          items={accountItems} 
           location={location} 
           onNavigate={handleNavigation}
         />

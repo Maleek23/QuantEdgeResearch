@@ -47,6 +47,7 @@ const Features = lazy(() => import("@/pages/features"));
 const BacktestPage = lazy(() => import("@/pages/backtest"));
 const TechnicalGuide = lazy(() => import("@/pages/technical-guide"));
 const MarketScanner = lazy(() => import("@/pages/market-scanner"));
+const MyAccountPage = lazy(() => import("@/pages/my-account"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function PageLoader() {
@@ -116,6 +117,7 @@ function Router() {
       <Route path="/blog/:slug" component={BlogPost} />
       
       {/* System Pages */}
+      <Route path="/my-account" component={MyAccountPage} />
       <Route path="/settings" component={SettingsPage} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/admin" component={AdminPanel} />
