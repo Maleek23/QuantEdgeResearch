@@ -7,10 +7,41 @@ import { logger } from './logger';
 const DISCORD_DISABLED = false;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// DEDUPLICATION SYSTEM - Prevents duplicate Discord messages
+// QUALITY GATE - Only high-quality alerts reach Discord
+// ═══════════════════════════════════════════════════════════════════════════
+const MIN_SIGNALS_REQUIRED = 3; // B grade minimum (3/5 signals)
+const MIN_CONFIDENCE_REQUIRED = 65; // B grade confidence
+
+// Check if idea meets quality threshold to be sent to Discord
+export function meetsQualityThreshold(idea: { 
+  qualitySignals?: string[] | null; 
+  confidenceScore?: number | null;
+  assetType?: string;
+}): boolean {
+  const signalCount = idea.qualitySignals?.length || 0;
+  const confidence = idea.confidenceScore || 50;
+  
+  // Must have either 3+ signals OR 65%+ confidence
+  return signalCount >= MIN_SIGNALS_REQUIRED || confidence >= MIN_CONFIDENCE_REQUIRED;
+}
+
+// Check if this is a GEM (A+ or A grade) - gets special highlighting
+export function isGemTrade(idea: { 
+  qualitySignals?: string[] | null; 
+  confidenceScore?: number | null;
+}): boolean {
+  const signalCount = idea.qualitySignals?.length || 0;
+  const confidence = idea.confidenceScore || 50;
+  return signalCount >= 4 || confidence >= 85;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DEDUPLICATION & COOLDOWN SYSTEM - Prevents spam
 // ═══════════════════════════════════════════════════════════════════════════
 const recentMessages = new Map<string, number>(); // hash -> timestamp
-const DEDUP_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
+const symbolCooldowns = new Map<string, number>(); // symbol -> timestamp
+const DEDUP_WINDOW_MS = 30 * 60 * 1000; // 30 minutes for exact duplicates
+const SYMBOL_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes per symbol
 
 function generateMessageHash(type: string, key: string): string {
   return `${type}:${key}`;
@@ -32,6 +63,28 @@ function isDuplicateMessage(hash: string): boolean {
   }
   
   recentMessages.set(hash, now);
+  return false;
+}
+
+// Check symbol-level cooldown to prevent spam (e.g., ASTS alerted 3x in 2 mins)
+export function isSymbolOnCooldown(symbol: string, source: string): boolean {
+  const now = Date.now();
+  const key = `${symbol}:${source}`;
+  
+  // Clean old entries
+  for (const [k, timestamp] of Array.from(symbolCooldowns.entries())) {
+    if (now - timestamp > SYMBOL_COOLDOWN_MS) {
+      symbolCooldowns.delete(k);
+    }
+  }
+  
+  if (symbolCooldowns.has(key)) {
+    const elapsed = Math.round((now - symbolCooldowns.get(key)!) / 1000 / 60);
+    logger.info(`🚫 [DISCORD-COOLDOWN] ${symbol} on cooldown (${elapsed}m since last alert)`);
+    return true;
+  }
+  
+  symbolCooldowns.set(key, now);
   return false;
 }
 
@@ -260,6 +313,18 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
     return;
   }
   
+  // QUALITY GATE: Only send B grade or higher (3+ signals or 65%+ confidence)
+  if (!meetsQualityThreshold(idea)) {
+    const signalCount = idea.qualitySignals?.length || 0;
+    logger.info(`📨 [QUALITY-GATE] Skipping ${idea.symbol} - only ${signalCount}/5 signals (below B grade threshold)`);
+    return;
+  }
+  
+  // SYMBOL COOLDOWN: Prevent spam (same symbol within 15 min)
+  if (isSymbolOnCooldown(idea.symbol, idea.source || 'trade')) {
+    return; // Already logged in isSymbolOnCooldown
+  }
+  
   // DEDUP: Create unique key for this trade idea
   const optionKey = idea.assetType === 'option' ? `${idea.optionType}_${idea.strikePrice}_${idea.expiryDate}` : '';
   const dedupKey = `${idea.symbol}_${idea.direction}_${idea.source}_${optionKey}_${idea.entryPrice?.toFixed(2)}`;
@@ -442,9 +507,24 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
     return;
   }
   
+  // QUALITY GATE: Only send B grade or higher (3+ signals or 65%+ confidence)
+  const qualityIdeas = ideas.filter(idea => meetsQualityThreshold(idea));
+  
+  if (qualityIdeas.length === 0) {
+    logger.info(`📨 [QUALITY-GATE] No B+ grade ideas in batch of ${ideas.length} - skipping Discord`);
+    return;
+  }
+  
+  if (qualityIdeas.length < ideas.length) {
+    logger.info(`📨 [QUALITY-GATE] Filtered ${ideas.length - qualityIdeas.length} low-signal ideas, sending ${qualityIdeas.length}`);
+  }
+  
+  // Use filtered ideas from here
+  const filteredIdeas = qualityIdeas;
+  
   // DEDUP: Create unique key for this batch (source + symbols sorted)
-  const symbols = ideas.map(i => i.symbol).sort().join(',');
-  const dedupKey = `${source}_${ideas.length}_${symbols.substring(0, 100)}`;
+  const symbols = filteredIdeas.map(i => i.symbol).sort().join(',');
+  const dedupKey = `${source}_${filteredIdeas.length}_${symbols.substring(0, 100)}`;
   const hash = generateMessageHash('batch', dedupKey);
   
   if (isDuplicateMessage(hash)) {
@@ -464,8 +544,12 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
                  COLORS.QUANT;
     
     // ACTIONABLE FORMAT: Show asset type, entry→target, and signal count (not misleading %)
-    const longIdeas = ideas.filter(i => i.direction === 'long');
-    const shortIdeas = ideas.filter(i => i.direction === 'short');
+    const longIdeas = filteredIdeas.filter(i => i.direction === 'long');
+    const shortIdeas = filteredIdeas.filter(i => i.direction === 'short');
+    
+    // Check for GEMs (A+ trades) to highlight
+    const gems = filteredIdeas.filter(i => isGemTrade(i));
+    const hasGems = gems.length > 0;
     
     // Format actionably with QuantEdge grading: emoji SYMBOL TYPE $entry→$target Grade
     const formatIdea = (idea: TradeIdea) => {
@@ -494,7 +578,11 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
     };
     
     // Limit to top 8 ideas (sorted by signal count then R:R) to keep readable
-    const sortedIdeas = [...ideas].sort((a, b) => {
+    // Put GEMs first, then sort by signals
+    const sortedIdeas = [...filteredIdeas].sort((a, b) => {
+      const aIsGem = isGemTrade(a) ? 1 : 0;
+      const bIsGem = isGemTrade(b) ? 1 : 0;
+      if (bIsGem !== aIsGem) return bIsGem - aIsGem;
       const aSignals = a.qualitySignals?.length || 0;
       const bSignals = b.qualitySignals?.length || 0;
       if (bSignals !== aSignals) return bSignals - aSignals;
@@ -502,18 +590,21 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
     });
     const topIdeas = sortedIdeas.slice(0, 8);
     const summary = topIdeas.map(formatIdea).join('\n');
-    const remainingCount = ideas.length - topIdeas.length;
+    const remainingCount = filteredIdeas.length - topIdeas.length;
     const moreText = remainingCount > 0 ? `\n_+${remainingCount} more in dashboard_` : '';
     
     // Calculate stats with QuantEdge grading
-    const avgSignals = Math.round(ideas.reduce((sum, i) => sum + (i.qualitySignals?.length || 0), 0) / ideas.length);
-    const avgRR = (ideas.reduce((sum, i) => sum + (i.riskRewardRatio || 0), 0) / ideas.length).toFixed(1);
-    const avgConfidence = Math.round(ideas.reduce((sum, i) => sum + (i.confidenceScore || 50), 0) / ideas.length);
+    const avgSignals = Math.round(filteredIdeas.reduce((sum, i) => sum + (i.qualitySignals?.length || 0), 0) / filteredIdeas.length);
+    const avgRR = (filteredIdeas.reduce((sum, i) => sum + (i.riskRewardRatio || 0), 0) / filteredIdeas.length).toFixed(1);
+    const avgConfidence = Math.round(filteredIdeas.reduce((sum, i) => sum + (i.confidenceScore || 50), 0) / filteredIdeas.length);
     const avgGrade = getLetterGrade(avgConfidence);
     const avgGradeEmoji = getGradeEmoji(avgConfidence);
     
+    // Add GEM indicator to title if we have high-quality trades
+    const gemIndicator = hasGems ? ' 💎' : '';
+    
     const embed: DiscordEmbed = {
-      title: `${sourceLabel} - ${ideas.length} Trade Ideas`,
+      title: `${sourceLabel} - ${filteredIdeas.length} Trade Ideas${gemIndicator}`,
       description: summary + moreText,
       color,
       fields: [

@@ -649,9 +649,13 @@ class PennyScanner {
     
     if (!currentWindow) return;
 
+    // Prevent duplicate scans - require 3 hours between runs (was 2)
     if (this.lastRunTime) {
       const hoursSinceLastRun = (now.getTime() - this.lastRunTime.getTime()) / (1000 * 60 * 60);
-      if (hoursSinceLastRun < 2) return;
+      if (hoursSinceLastRun < 3) {
+        logger.info(`🚀 [PENNY-SCAN] Skipping - only ${hoursSinceLastRun.toFixed(1)}h since last run`);
+        return;
+      }
     }
 
     this.isRunning = true;
