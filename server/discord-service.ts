@@ -973,6 +973,7 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
 // This is separate from trade ideas (research signals) which go to #trade-alerts
 export async function sendBotTradeEntryToDiscord(position: {
   symbol: string;
+  assetType?: string | null;
   optionType?: string | null;
   strikePrice?: number | null;
   expiryDate?: string | null;
@@ -983,8 +984,10 @@ export async function sendBotTradeEntryToDiscord(position: {
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
-  // Bot entries go to dedicated QUANTBOT channel (separate from trade ideas)
-  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
+  // Route to specific channel based on asset type
+  const webhookUrl = position.assetType === 'future' 
+    ? (process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL)
+    : (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL);
   
   if (!webhookUrl) {
     return;
@@ -1059,6 +1062,7 @@ export async function sendBotTradeEntryToDiscord(position: {
 // Winning trades ALSO go to #gains via sendGainsToDiscord
 export async function sendBotTradeExitToDiscord(position: {
   symbol: string;
+  assetType?: string | null;
   optionType?: string | null;
   strikePrice?: number | null;
   entryPrice: number;
@@ -1069,8 +1073,10 @@ export async function sendBotTradeExitToDiscord(position: {
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
-  // Bot exits go to dedicated QUANTBOT channel
-  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
+  // Route to specific channel based on asset type
+  const webhookUrl = position.assetType === 'future'
+    ? (process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL)
+    : (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL);
   
   if (!webhookUrl) {
     return;
