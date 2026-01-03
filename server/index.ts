@@ -1103,5 +1103,127 @@ app.use((req, res, next) => {
     });
     
     log('📋 Weekly Watchlist started - sending to Discord every Sunday at 6:00 PM CT');
+    
+    // ============================================================================
+    // PLATFORM REPORT GENERATOR CRON JOBS
+    // ============================================================================
+    
+    // Daily Report: 5:00 PM CT (after market close) on weekdays
+    let lastDailyReportDate = '';
+    cron.default.schedule('*/5 * * * *', async () => {
+      try {
+        const ctTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const dayOfWeek = ctTime.getDay(); // 0 = Sunday, 6 = Saturday
+        const hour = ctTime.getHours();
+        const minute = ctTime.getMinutes();
+        const dateKey = ctTime.toISOString().split('T')[0];
+        
+        // Check if it's weekday 5:00 PM CT (hour = 17, minute = 0-4)
+        const isDailyReportTime = dayOfWeek >= 1 && dayOfWeek <= 5 && hour === 17 && minute >= 0 && minute < 5;
+        
+        if (!isDailyReportTime) {
+          return;
+        }
+        
+        // Check if we already generated today
+        if (lastDailyReportDate === dateKey) {
+          return;
+        }
+        
+        lastDailyReportDate = dateKey;
+        
+        logger.info('📊 [DAILY-REPORT] Generating end-of-day platform report...');
+        
+        const { generateDailyReport } = await import('./report-generator');
+        const report = await generateDailyReport();
+        
+        logger.info(`📊 [DAILY-REPORT] Report generated successfully: ${report.id} (${report.totalIdeasGenerated} ideas, ${report.overallWinRate?.toFixed(1)}% win rate)`);
+        
+      } catch (error: any) {
+        logger.error('📊 [DAILY-REPORT] Failed to generate daily report:', error);
+      }
+    });
+    
+    log('📊 Daily Report Generator started - generating at 5:00 PM CT weekdays');
+    
+    // Weekly Report: Sunday 11:59 PM CT
+    let lastWeeklyReportDate = '';
+    cron.default.schedule('*/5 * * * *', async () => {
+      try {
+        const ctTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const dayOfWeek = ctTime.getDay(); // 0 = Sunday
+        const hour = ctTime.getHours();
+        const minute = ctTime.getMinutes();
+        const dateKey = ctTime.toISOString().split('T')[0];
+        
+        // Check if it's Sunday 11:55-11:59 PM CT (hour = 23, minute = 55-59)
+        const isWeeklyReportTime = dayOfWeek === 0 && hour === 23 && minute >= 55 && minute <= 59;
+        
+        if (!isWeeklyReportTime) {
+          return;
+        }
+        
+        // Check if we already generated this week
+        if (lastWeeklyReportDate === dateKey) {
+          return;
+        }
+        
+        lastWeeklyReportDate = dateKey;
+        
+        logger.info('📈 [WEEKLY-REPORT] Generating weekly platform report...');
+        
+        const { generateWeeklyReport } = await import('./report-generator');
+        const report = await generateWeeklyReport();
+        
+        logger.info(`📈 [WEEKLY-REPORT] Report generated successfully: ${report.id} (${report.totalIdeasGenerated} ideas, ${report.overallWinRate?.toFixed(1)}% win rate)`);
+        
+      } catch (error: any) {
+        logger.error('📈 [WEEKLY-REPORT] Failed to generate weekly report:', error);
+      }
+    });
+    
+    log('📈 Weekly Report Generator started - generating Sundays at 11:59 PM CT');
+    
+    // Monthly Report: 1st of each month at 12:01 AM CT
+    let lastMonthlyReportMonth = '';
+    cron.default.schedule('*/5 * * * *', async () => {
+      try {
+        const ctTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const day = ctTime.getDate();
+        const hour = ctTime.getHours();
+        const minute = ctTime.getMinutes();
+        const monthKey = `${ctTime.getFullYear()}-${String(ctTime.getMonth() + 1).padStart(2, '0')}`;
+        
+        // Check if it's 1st of month at 12:00-12:05 AM CT
+        const isMonthlyReportTime = day === 1 && hour === 0 && minute >= 0 && minute < 5;
+        
+        if (!isMonthlyReportTime) {
+          return;
+        }
+        
+        // Check if we already generated for this month
+        if (lastMonthlyReportMonth === monthKey) {
+          return;
+        }
+        
+        lastMonthlyReportMonth = monthKey;
+        
+        // Generate report for previous month
+        const prevMonth = ctTime.getMonth() === 0 ? 12 : ctTime.getMonth();
+        const prevYear = ctTime.getMonth() === 0 ? ctTime.getFullYear() - 1 : ctTime.getFullYear();
+        
+        logger.info(`📅 [MONTHLY-REPORT] Generating monthly platform report for ${prevYear}-${String(prevMonth).padStart(2, '0')}...`);
+        
+        const { generateMonthlyReport } = await import('./report-generator');
+        const report = await generateMonthlyReport(prevYear, prevMonth);
+        
+        logger.info(`📅 [MONTHLY-REPORT] Report generated successfully: ${report.id} (${report.totalIdeasGenerated} ideas, ${report.overallWinRate?.toFixed(1)}% win rate)`);
+        
+      } catch (error: any) {
+        logger.error('📅 [MONTHLY-REPORT] Failed to generate monthly report:', error);
+      }
+    });
+    
+    log('📅 Monthly Report Generator started - generating 1st of month at 12:01 AM CT');
   });
 })();
