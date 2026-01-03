@@ -9534,13 +9534,14 @@ FORMATTING:
       let cryptoStats = null;
       let cryptoPositions: any[] = [];
       if (cryptoPortfolio) {
-        const { getCryptoPrice } = await import("./market-api");
+        const { fetchCryptoPrice } = await import("./market-api");
         cryptoPositions = await storage.getPaperPositionsByPortfolio(cryptoPortfolio.id);
         
         // Update open crypto positions with current prices
         for (const pos of cryptoPositions.filter(p => p.status === 'open')) {
           try {
-            const currentPrice = await getCryptoPrice(pos.symbol);
+            const cryptoData = await fetchCryptoPrice(pos.symbol);
+            const currentPrice = cryptoData?.currentPrice;
             if (currentPrice && currentPrice > 0) {
               const entryPrice = typeof pos.entryPrice === 'string' ? parseFloat(pos.entryPrice) : pos.entryPrice;
               const quantity = parseFloat(pos.quantity?.toString() || '1');
@@ -9658,6 +9659,149 @@ FORMATTING:
     } catch (error: any) {
       logger.error("Error fetching auto-lotto bot data", { error });
       res.status(500).json({ error: "Failed to fetch bot data" });
+    }
+  });
+
+  // GET /api/auto-lotto-bot/realtime-pnl - Lightweight endpoint for real-time P&L updates
+  // Can be polled frequently (every 3s) to show live unrealized P&L as prices change
+  app.get("/api/auto-lotto-bot/realtime-pnl", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const { getOptionsPortfolio, getFuturesPortfolio, getCryptoPortfolio } = await import("./auto-lotto-trader");
+      const { getCryptoPrice: getRealtimeCryptoPrice, getFuturesPrice: getRealtimeFuturesPrice } = await import("./realtime-price-service");
+      const { fetchCryptoPrice } = await import("./market-api");
+      const { getFuturesPrice: getFallbackFuturesPrice } = await import("./futures-data-service");
+      
+      const optionsPortfolio = await getOptionsPortfolio();
+      const futuresPortfolio = await getFuturesPortfolio();
+      const cryptoPortfolio = await getCryptoPortfolio();
+      
+      const positions: Array<{
+        id: number;
+        symbol: string;
+        assetType: string;
+        direction: string;
+        quantity: number;
+        entryPrice: number;
+        currentPrice: number;
+        unrealizedPnL: number;
+        portfolioType: string;
+      }> = [];
+      
+      let totalUnrealizedPnL = 0;
+      
+      // Get open options positions
+      if (optionsPortfolio) {
+        const optionsPositions = await storage.getPaperPositionsByPortfolio(optionsPortfolio.id);
+        for (const pos of optionsPositions.filter(p => p.status === 'open')) {
+          const entryPrice = typeof pos.entryPrice === 'string' ? parseFloat(pos.entryPrice) : pos.entryPrice;
+          const quantity = parseFloat(pos.quantity?.toString() || '1');
+          const multiplier = pos.assetType === 'option' ? 100 : 1;
+          const direction = pos.direction || 'long';
+          const currentPrice: number = typeof pos.currentPrice === 'number' ? pos.currentPrice : entryPrice;
+          // For long positions, profit when price goes up; for short positions, profit when price goes down
+          const priceDiff = direction === 'long' ? currentPrice - entryPrice : entryPrice - currentPrice;
+          const unrealizedPnL = priceDiff * quantity * multiplier;
+          
+          positions.push({
+            id: pos.id,
+            symbol: pos.symbol,
+            assetType: pos.assetType || 'option',
+            direction,
+            quantity,
+            entryPrice: Number(entryPrice),
+            currentPrice: Number(currentPrice),
+            unrealizedPnL,
+            portfolioType: 'options'
+          });
+          totalUnrealizedPnL += unrealizedPnL;
+        }
+      }
+      
+      // Get open futures positions with real-time prices
+      if (futuresPortfolio) {
+        const futuresPositions = await storage.getPaperPositionsByPortfolio(futuresPortfolio.id);
+        for (const pos of futuresPositions.filter(p => p.status === 'open')) {
+          const entryPrice = typeof pos.entryPrice === 'string' ? parseFloat(pos.entryPrice) : pos.entryPrice;
+          const quantity = parseFloat(pos.quantity?.toString() || '1');
+          const symbol = pos.symbol.toUpperCase();
+          const multiplier = symbol.startsWith('GC') ? 100 : 20;
+          const direction = pos.direction || 'long';
+          
+          // Try real-time price first, then fallback
+          let currentPrice: number = typeof pos.currentPrice === 'number' ? pos.currentPrice : entryPrice;
+          const realtimeCache = getRealtimeFuturesPrice(symbol.replace(/=F$/, ''));
+          if (realtimeCache?.price) {
+            currentPrice = realtimeCache.price;
+          } else {
+            try {
+              const fallbackPrice = await getFallbackFuturesPrice(symbol);
+              if (fallbackPrice) currentPrice = fallbackPrice;
+            } catch (e) { /* use cached */ }
+          }
+          
+          const pointDiff = direction === 'long' ? currentPrice - entryPrice : entryPrice - currentPrice;
+          const unrealizedPnL = pointDiff * multiplier * quantity;
+          
+          positions.push({
+            id: pos.id,
+            symbol,
+            assetType: 'futures',
+            direction,
+            quantity,
+            entryPrice: Number(entryPrice),
+            currentPrice: Number(currentPrice),
+            unrealizedPnL,
+            portfolioType: 'futures'
+          });
+          totalUnrealizedPnL += unrealizedPnL;
+        }
+      }
+      
+      // Get open crypto positions with real-time prices
+      if (cryptoPortfolio) {
+        const cryptoPositions = await storage.getPaperPositionsByPortfolio(cryptoPortfolio.id);
+        for (const pos of cryptoPositions.filter(p => p.status === 'open')) {
+          const entryPrice = typeof pos.entryPrice === 'string' ? parseFloat(pos.entryPrice) : pos.entryPrice;
+          const quantity = parseFloat(pos.quantity?.toString() || '1');
+          const symbol = pos.symbol.toUpperCase();
+          
+          // Try real-time price first (Coinbase WebSocket), then fallback
+          let currentPrice: number = typeof pos.currentPrice === 'number' ? pos.currentPrice : entryPrice;
+          const realtimeCache = getRealtimeCryptoPrice(symbol);
+          if (realtimeCache?.price) {
+            currentPrice = realtimeCache.price;
+          } else {
+            try {
+              const cryptoData = await fetchCryptoPrice(symbol);
+              if (cryptoData?.currentPrice) currentPrice = cryptoData.currentPrice;
+            } catch (e) { /* use cached */ }
+          }
+          
+          const unrealizedPnL = (currentPrice - entryPrice) * quantity;
+          
+          positions.push({
+            id: pos.id,
+            symbol,
+            assetType: 'crypto',
+            direction: 'long',
+            quantity,
+            entryPrice: Number(entryPrice),
+            currentPrice: Number(currentPrice),
+            unrealizedPnL,
+            portfolioType: 'crypto'
+          });
+          totalUnrealizedPnL += unrealizedPnL;
+        }
+      }
+      
+      res.json({
+        positions,
+        totalUnrealizedPnL,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      logger.error("Error fetching realtime P&L", { error });
+      res.status(500).json({ error: "Failed to fetch realtime P&L" });
     }
   });
 

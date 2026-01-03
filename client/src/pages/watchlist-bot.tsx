@@ -168,7 +168,30 @@ export default function WatchlistBotPage() {
   const { data: cryptoData } = useQuery<CryptoBotData>({
     queryKey: ['/api/crypto-bot/status'],
     enabled: !!user && activeTab === 'bot',
-    refetchInterval: 15000, // Real-time updates every 15 seconds
+    refetchInterval: 15000,
+  });
+
+  // Real-time P&L updates - polls every 3 seconds for live price updates
+  interface RealtimePnLData {
+    positions: Array<{
+      id: number;
+      symbol: string;
+      assetType: string;
+      direction: string;
+      quantity: number;
+      entryPrice: number;
+      currentPrice: number;
+      unrealizedPnL: number;
+      portfolioType: string;
+    }>;
+    totalUnrealizedPnL: number;
+    timestamp: string;
+  }
+  
+  const { data: realtimePnL } = useQuery<RealtimePnLData>({
+    queryKey: ['/api/auto-lotto-bot/realtime-pnl'],
+    enabled: !!user && activeTab === 'bot',
+    refetchInterval: 3000, // Poll every 3 seconds for live P&L
   });
 
   const dailyIdeas = useMemo(() => {
@@ -574,7 +597,8 @@ export default function WatchlistBotPage() {
             const closedPositions = allPositions.filter(p => p.status === 'closed');
             
             const totalRealizedPnL = botData.stats?.totalRealizedPnL || 0;
-            const totalUnrealizedPnL = botData.stats?.totalUnrealizedPnL || 0;
+            // Use real-time P&L if available, otherwise fallback to bot data
+            const totalUnrealizedPnL = realtimePnL?.totalUnrealizedPnL ?? botData.stats?.totalUnrealizedPnL ?? 0;
             const startingCapital = botData.portfolio?.startingCapital || 300;
             const accountBalance = startingCapital + totalRealizedPnL;
             
@@ -1313,10 +1337,15 @@ export default function WatchlistBotPage() {
                               p.assetType === 'crypto'
                             )
                             .map((position) => {
+                            // Use real-time price if available
+                            const realtimePos = realtimePnL?.positions?.find(rp => rp.id === Number(position.id));
+                            const livePrice = realtimePos?.currentPrice ?? position.currentPrice ?? position.entryPrice;
+                            const livePnL = realtimePos?.unrealizedPnL;
+                            
                             const multiplier = position.assetType === 'option' ? 100 : (position.assetType === 'future' ? 50 : 1);
-                            const marketValue = (position.currentPrice || position.entryPrice) * position.quantity * (position.assetType === 'crypto' ? 1 : multiplier);
+                            const marketValue = livePrice * position.quantity * (position.assetType === 'crypto' ? 1 : multiplier);
                             const costBasis = position.entryPrice * position.quantity * (position.assetType === 'crypto' ? 1 : multiplier);
-                            const pnl = position.unrealizedPnL || (marketValue - costBasis);
+                            const pnl = livePnL ?? position.unrealizedPnL ?? (marketValue - costBasis);
                             const returnPct = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
                             
                             const formatCryptoQty = (qty: number) => {
@@ -1342,8 +1371,8 @@ export default function WatchlistBotPage() {
                               : formatCurrency(position.entryPrice);
                               
                             const displayCurrentPrice = position.assetType === 'crypto'
-                              ? formatCryptoPrice(position.currentPrice || position.entryPrice)
-                              : formatCurrency(position.currentPrice || position.entryPrice);
+                              ? formatCryptoPrice(livePrice)
+                              : formatCurrency(livePrice);
                             
                             return (
                               <TableRow key={position.id} className="border-slate-700/50 hover-elevate" data-testid={`open-position-${position.id}`}>
