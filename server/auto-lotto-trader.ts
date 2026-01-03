@@ -324,33 +324,77 @@ interface LottoOpportunity {
 // Day trade tickers: High volatility, good for 0-7 DTE plays
 const DAY_TRADE_TICKERS = [
   'TSLA', 'NVDA', 'AMD', 'SPY', 'QQQ', 'AAPL', 'META', 'GOOGL', 'AMZN', 'NFLX',
-  'IONQ', 'RGTI', 'QUBT', 'QBTS', 'MARA', 'RIOT', 'COIN', 'SOFI', 'HOOD', 'PLTR'
+  'IONQ', 'RGTI', 'QUBT', 'QBTS', 'MARA', 'RIOT', 'COIN', 'SOFI', 'HOOD', 'PLTR',
+  'UPST', 'AI', 'C3AI', 'SOXL', 'TQQQ', 'MSFT', 'GOOG', 'ADBE', 'CRM',
+  'AVGO', 'SMCI', 'ARM', 'PANW', 'MSTR', 'BABA', 'NIO', 'XPEV', 'LI',
+  'SQ', 'PYPL', 'SHOP', 'SE', 'MELI', 'SNOW', 'DDOG', 'ZS', 'CRWD', 'NET'
 ];
 
-// Swing trade tickers: Good for 8-45 DTE plays (earnings, catalyst-driven, sector rotations)
+// Swing trade tickers: Expanded universe (S&P 500 and high liquidity names)
 const SWING_TRADE_TICKERS = [
-  // Mega caps with options liquidity (steady swings)
-  'MSFT', 'AAPL', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA',
-  // Growth & momentum (multi-day moves)
-  'CRM', 'NOW', 'SNOW', 'CRWD', 'NET', 'DDOG', 'MDB', 'ZS',
-  // Financials & cyclicals (rate-sensitive)
-  'JPM', 'GS', 'MS', 'V', 'MA', 'AXP',
-  // Energy (oil/gas swings)
-  'XOM', 'CVX', 'OXY', 'SLB', 'HAL',
-  // Space/Defense (govt contracts, launches)
-  'RKLB', 'LUNR', 'RDW', 'LMT', 'RTX', 'NOC',
-  // Biotech (FDA catalysts)
-  'MRNA', 'BNTX', 'REGN', 'VRTX',
-  // Retail/Consumer (earnings plays)
-  'COST', 'WMT', 'TGT', 'LULU', 'NKE',
-  // Semiconductors (sector rotations)
-  'AVGO', 'QCOM', 'MU', 'MRVL', 'ARM', 'ASML',
-  // Chinese ADRs (high volatility, news-driven)
-  'BIDU', 'BABA', 'JD', 'PDD', 'NIO', 'XPEV', 'LI', 'BILI', 'TME', 'KWEB'
+  // Technology (Software & Hardware)
+  'MSFT', 'AAPL', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA', 'CRM', 'NOW', 'SNOW',
+  'CRWD', 'NET', 'DDOG', 'MDB', 'ZS', 'OKTA', 'PANW', 'FTNT', 'SPLK', 'ORCL',
+  'IBM', 'CSCO', 'ACN', 'INTU', 'ADBE', 'SAP', 'VMW', 'ADSK', 'TEAM', 'WDAY',
+  // Semiconductors
+  'AVGO', 'QCOM', 'MU', 'MRVL', 'ARM', 'ASML', 'LRCX', 'AMAT', 'KLAC', 'TXN',
+  'ADI', 'NXPI', 'ON', 'MCHP', 'STML', 'GFS', 'INTC', 'TSM', 'AMD',
+  // Financials
+  'JPM', 'GS', 'MS', 'V', 'MA', 'AXP', 'BAC', 'WFC', 'C', 'BLK',
+  'PYPL', 'SQ', 'COIN', 'HOOD', 'SOFI', 'UPST', 'AFRM', 'LC', 'PINS', 'SNAP',
+  'SCHW', 'IBKR', 'TROW', 'MET', 'PRU', 'AIG', 'CB', 'PGR', 'TRV', 'ALL',
+  // Healthcare & Biotech
+  'LLY', 'UNH', 'JNJ', 'ABBV', 'MRK', 'PFE', 'TMO', 'ABT', 'DHR', 'ISRG',
+  'MRNA', 'BNTX', 'REGN', 'VRTX', 'GILD', 'AMGN', 'BIIB', 'BMY', 'CVS', 'ELV',
+  'HUM', 'CI', 'CNC', 'MOH', 'HCA', 'SYK', 'BSX', 'EW', 'ZBH', 'BAX',
+  // Energy & Industrials
+  'XOM', 'CVX', 'OXY', 'SLB', 'HAL', 'COP', 'EOG', 'PXD', 'MPC', 'PSX',
+  'BA', 'GE', 'HON', 'CAT', 'DE', 'LMT', 'RTX', 'NOC', 'GD', 'TDG',
+  'UPS', 'FDX', 'UNP', 'CSX', 'NSC', 'WM', 'RSG', 'EMR', 'ETN', 'ITW',
+  // Consumer Discretionary & Retail
+  'COST', 'WMT', 'TGT', 'LULU', 'NKE', 'HD', 'LOW', 'AMZN', 'EBAY', 'ETSY',
+  'TJX', 'ROST', 'ORLY', 'AZO', 'SBUX', 'MCD', 'YUM', 'DRI', 'BKNG', 'MAR',
+  'HLT', 'RCL', 'CCL', 'NCLH', 'GM', 'F', 'STLA', 'RIVN', 'LCID', 'DKNG',
+  // Communication Services & ADRs
+  'DIS', 'NFLX', 'CMCSA', 'CHTR', 'TMUS', 'VZ', 'T', 'SNAP',
+  'BABA', 'JD', 'PDD', 'BIDU', 'NIO', 'XPEV', 'LI', 'BILI', 'TME', 'KWEB',
+  // Defensive & Utilities
+  'PG', 'KO', 'PEP', 'PM', 'MO', 'MDLZ', 'CL', 'KMB', 'GIS', 'K',
+  'NEE', 'DUK', 'SO', 'D', 'AEP', 'EXC', 'XEL', 'ED', 'PEG', 'WEC'
+];
+
+// Expanded Scannable Universe (A-Z high liquidity tickers)
+const EXPANDED_SCAN_UNIVERSE = [
+  'A', 'AA', 'AAL', 'AAPL', 'ABBV', 'ABT', 'ACN', 'ADBE', 'ADI', 'ADM', 'ADP', 'ADSK', 'AEE', 'AEP', 'AES', 'AFRM', 'AIG', 'AI', 'AKAM', 'ALB', 'ALGN', 'ALK', 'ALL', 'ALLE', 'AMAT', 'AMCR', 'AMD', 'AME', 'AMGN', 'AMP', 'AMZN', 'ANET', 'ANSS', 'AON', 'AOS', 'APA', 'APD', 'APH', 'APO', 'APT', 'ARE', 'ARM', 'ASML', 'ATO', 'ATVI', 'AVB', 'AVGO', 'AVY', 'AWK', 'AXP', 'AZO',
+  'BA', 'BABA', 'BAC', 'BALL', 'BAX', 'BBWI', 'BBY', 'BDX', 'BEN', 'BF.B', 'BIIB', 'BILI', 'BIO', 'BK', 'BKNG', 'BKR', 'BLK', 'BMY', 'BNTX', 'BONK', 'BR', 'BRK.B', 'BSX', 'BWA', 'BXP',
+  'C', 'CAG', 'CAH', 'CARR', 'CAT', 'CB', 'CBOE', 'CBRE', 'CCI', 'CCL', 'CDNS', 'CDW', 'CE', 'CEG', 'CF', 'CFG', 'CHD', 'CHRW', 'CHTR', 'CI', 'CINF', 'CL', 'CLSK', 'CLX', 'CMA', 'CMCSA', 'CME', 'CMG', 'CMI', 'CMS', 'CNC', 'CNP', 'COF', 'COIN', 'COO', 'COP', 'COST', 'CPB', 'CPRT', 'CPT', 'CRL', 'CRM', 'CSCO', 'CSGP', 'CSX', 'CTAS', 'CTLT', 'CTRA', 'CTSH', 'CTVA', 'CVS', 'CVX', 'CZR',
+  'D', 'DAL', 'DD', 'DDOG', 'DE', 'DFS', 'DG', 'DGX', 'DHI', 'DHR', 'DIS', 'DISH', 'DLR', 'DLTR', 'DOCU', 'DOV', 'DOW', 'DPZ', 'DRI', 'DTE', 'DUK', 'DVA', 'DVN', 'DXCM',
+  'EA', 'EBAY', 'ECL', 'ED', 'EFX', 'EIX', 'EL', 'ELV', 'EMN', 'EMR', 'ENPH', 'EOG', 'EPAM', 'EQIX', 'EQT', 'ERIE', 'ES', 'ESS', 'ETN', 'ETR', 'ETSY', 'EVRG', 'EW', 'EXC', 'EXPD', 'EXPE', 'EXR',
+  'F', 'FANG', 'FAST', 'FCX', 'FDS', 'FDX', 'FE', 'FFIV', 'FICO', 'FIS', 'FISV', 'FITB', 'FLT', 'FMC', 'FOXA', 'FRT', 'FSLR', 'FTNT', 'FTV',
+  'GD', 'GE', 'GEN', 'GILD', 'GIS', 'GL', 'GLW', 'GM', 'GNRC', 'GOOG', 'GOOGL', 'GPC', 'GPN', 'GRMN', 'GS', 'GWRE', 'GWW',
+  'HAL', 'HAS', 'HBAN', 'HCA', 'HD', 'HES', 'HIG', 'HII', 'HLT', 'HOLX', 'HON', 'HOOD', 'HPE', 'HPQ', 'HRL', 'HSIC', 'HST', 'HSY', 'HUM', 'HWM',
+  'IBM', 'ICE', 'IDXX', 'IEX', 'IFF', 'ILMN', 'INCY', 'INTC', 'INTU', 'INVH', 'IONQ', 'IP', 'IPG', 'IQV', 'IR', 'IRM', 'ISRG', 'IT', 'ITW', 'IVZ',
+  'JBHT', 'JCI', 'JD', 'JKHY', 'JJSF', 'JNJ', 'JNPR', 'JPM', 'JWN',
+  'K', 'KDP', 'KEY', 'KEYS', 'KHC', 'KIM', 'KLAC', 'KMB', 'KMI', 'KMX', 'KO', 'KR', 'KWEB',
+  'L', 'LDOS', 'LEN', 'LH', 'LHX', 'LI', 'LIN', 'LKQ', 'LLY', 'LMT', 'LNC', 'LNT', 'LOW', 'LRCX', 'LULU', 'LUNR', 'LUV', 'LVS', 'LW', 'LYB', 'LYV',
+  'M', 'MA', 'MAA', 'MAR', 'MARA', 'MAS', 'MCD', 'MCHP', 'MCK', 'MCO', 'MDLZ', 'MDT', 'MET', 'META', 'MGM', 'MHK', 'MKC', 'MKTX', 'MLM', 'MMC', 'MMM', 'MNST', 'MO', 'MOH', 'MOS', 'MPC', 'MPWR', 'MRK', 'MRNA', 'MRO', 'MRVL', 'MS', 'MSCI', 'MSFT', 'MSI', 'MSTR', 'MTB', 'MTCH', 'MTD', 'MU',
+  'NCLH', 'NDAQ', 'NDSN', 'NEE', 'NEM', 'NET', 'NFLX', 'NI', 'NKE', 'NIO', 'NNE', 'NOC', 'NOW', 'NRG', 'NSC', 'NTAP', 'NTRS', 'NUE', 'NVDA', 'NVR', 'NWL', 'NWS', 'NXPI',
+  'O', 'ODFL', 'OKE', 'OKTA', 'OMC', 'ON', 'ORCL', 'ORLY', 'OTIS', 'OXY',
+  'PANW', 'PARA', 'PAYX', 'PAYC', 'PBI', 'PCAR', 'PCG', 'PDD', 'PEG', 'PEP', 'PFE', 'PFG', 'PG', 'PGR', 'PH', 'PHM', 'PKG', 'PLD', 'PLTR', 'PM', 'PNC', 'PNR', 'PNW', 'POOL', 'PPG', 'PPL', 'PRU', 'PSA', 'PSX', 'PTC', 'PWR', 'PYPL',
+  'QCOM', 'QRVO', 'QUBT', 'QBTS',
+  'RCL', 'RDW', 'RE', 'REG', 'REGN', 'RF', 'RHI', 'RJF', 'RL', 'RMD', 'ROK', 'ROL', 'ROP', 'ROST', 'RSG', 'RTX', 'RVTY', 'RWD', 'RKLB',
+  'S', 'SBAC', 'SBUX', 'SCHW', 'SE', 'SEE', 'SHW', 'SIRI', 'SIVB', 'SJM', 'SLB', 'SNA', 'SNAP', 'SNPS', 'SNOW', 'SO', 'SOFI', 'SOL', 'SPG', 'SPGI', 'SPLK', 'SPR', 'SPY', 'SQ', 'SRE', 'STE', 'STT', 'STX', 'STZ', 'SWK', 'SWKS', 'SYF', 'SYK', 'SYY',
+  'T', 'TAP', 'TDG', 'TDY', 'TECH', 'TEL', 'TER', 'TFC', 'TFX', 'TGT', 'TJX', 'TMO', 'TMUS', 'TROW', 'TRV', 'TRMB', 'TSLA', 'TSN', 'TT', 'TTWO', 'TXN', 'TXT', 'TYL',
+  'UAL', 'UDR', 'UHS', 'ULTA', 'UNH', 'UNP', 'UPS', 'URI', 'USB',
+  'V', 'VFC', 'VLO', 'VMC', 'VRSK', 'VRSN', 'VRTX', 'VTR', 'VTRS', 'VZ',
+  'W', 'WAB', 'WAT', 'WBA', 'WBD', 'WDC', 'WEC', 'WELL', 'WFC', 'WHR', 'WM', 'WMB', 'WMT', 'WRB', 'WST', 'WTW', 'WY', 'WYNN',
+  'XEL', 'XOM', 'XRAY', 'XPEV', 'XYL',
+  'YUM',
+  'Z', 'ZBH', 'ZBRA', 'ZION', 'ZTS', 'ZS'
 ];
 
 // Combined for general scanning (deduplicated)
-const BOT_SCAN_TICKERS = Array.from(new Set([...DAY_TRADE_TICKERS, ...SWING_TRADE_TICKERS]));
+const BOT_SCAN_TICKERS = Array.from(new Set([...DAY_TRADE_TICKERS, ...SWING_TRADE_TICKERS, ...EXPANDED_SCAN_UNIVERSE]));
 
 const FUTURES_SYMBOLS: ('NQ' | 'GC')[] = ['NQ', 'GC'];
 
