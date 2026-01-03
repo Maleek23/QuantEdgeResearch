@@ -344,7 +344,8 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
   
   // ALL research/trade ideas go to main #trade-alerts channel
   // Bot entries go to QUANTBOT channel via separate sendBotTradeEntryToDiscord function
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  // USER REQUEST: Routing specifically to dedicated bot channel if available
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
     logger.warn('⚠️ Discord webhook URL not configured - skipping alert');
@@ -503,7 +504,8 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
   
   // ALL research/trade ideas go to main #trade-alerts channel
   // Bot entries go to QUANTBOT channel via separate sendBotTradeEntryToDiscord function
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  // USER REQUEST: Routing specifically to dedicated bot channel if available
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
     logger.warn('⚠️ No Discord webhook configured - skipping notification');
@@ -1152,90 +1154,9 @@ export async function sendCryptoBotTradeToDiscord(trade: {
   stopLoss: number;
   signals: string[];
 }): Promise<void> {
-  if (DISCORD_DISABLED) return;
-  
-  // Bot entries for crypto go to dedicated QUANTBOT channel
-  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
-  
-  if (!webhookUrl) {
-    return;
-  }
-  
-  try {
-    const isLong = trade.direction === 'long';
-    const color = isLong ? 0x22c55e : 0xef4444;
-    const directionEmoji = isLong ? '📈' : '📉';
-    const positionValue = trade.entryPrice * trade.quantity;
-    
-    // Bot entries go to dedicated QUANTBOT channel
-    const cryptoWebhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
-    
-    if (!cryptoWebhookUrl) {
-      return;
-    }
-
-    const embed: DiscordEmbed = {
-      title: `🪙 CRYPTO BOT: ${trade.symbol} ${trade.direction.toUpperCase()}`,
-      description: `Crypto Bot opened a new ${trade.name} position`,
-      color,
-      fields: [
-        {
-          name: '💰 Entry Price',
-          value: `$${trade.entryPrice.toFixed(4)}`,
-          inline: true
-        },
-        {
-          name: '📦 Quantity',
-          value: `${trade.quantity.toFixed(6)} ${trade.symbol}`,
-          inline: true
-        },
-        {
-          name: '💵 Position Value',
-          value: `$${positionValue.toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: '🎯 Target (+15%)',
-          value: `$${trade.targetPrice.toFixed(4)}`,
-          inline: true
-        },
-        {
-          name: '🛡️ Stop (-7%)',
-          value: `$${trade.stopLoss.toFixed(4)}`,
-          inline: true
-        },
-        {
-          name: `${directionEmoji} Direction`,
-          value: trade.direction.toUpperCase(),
-          inline: true
-        },
-        {
-          name: '📊 Signals',
-          value: trade.signals.join('\n') || 'Momentum trade',
-          inline: false
-        }
-      ],
-      footer: {
-        text: '🪙 Crypto Bot | Paper Trading | 24/7 Markets'
-      },
-      timestamp: new Date().toISOString()
-    };
-    
-    const message: DiscordMessage = {
-      content: `🪙 **CRYPTO BOT ENTRY** → ${trade.symbol} ${trade.direction.toUpperCase()} @ $${trade.entryPrice.toFixed(4)} | Value: $${positionValue.toFixed(2)}`,
-      embeds: [embed]
-    };
-    
-    await fetch(cryptoWebhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-    });
-    
-    logger.info(`✅ Discord crypto bot entry sent: ${trade.symbol} ${trade.direction}`);
-  } catch (error) {
-    logger.error('❌ Failed to send Discord crypto bot notification:', error);
-  }
+  // USER REQUEST: ONLY options to Discord. Crypto bot trades only on platform.
+  logger.info(`🪙 [CRYPTO-BOT] Skipping Discord notification for ${trade.symbol} (Options-only policy)`);
+  return;
 }
 
 // Send weekly watchlist summary to dedicated channel
