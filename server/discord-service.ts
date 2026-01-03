@@ -7,32 +7,40 @@ import { logger } from './logger';
 const DISCORD_DISABLED = false;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// QUALITY GATE - Only high-quality alerts reach Discord
+// QUALITY GATE - Only MEDIUM/HIGH confidence, multi-validated alerts reach Discord
 // ═══════════════════════════════════════════════════════════════════════════
-const MIN_SIGNALS_REQUIRED = 3; // B grade minimum (3/5 signals)
-const MIN_CONFIDENCE_REQUIRED = 65; // B grade confidence
+const MIN_SIGNALS_REQUIRED = 4; // A grade minimum (4/5 signals = multi-engine validated)
+const MIN_CONFIDENCE_REQUIRED = 70; // Medium/High confidence only
 
 // Check if idea meets quality threshold to be sent to Discord
+// Requires BOTH high confidence AND multi-engine validation
 export function meetsQualityThreshold(idea: { 
   qualitySignals?: string[] | null; 
   confidenceScore?: number | null;
   assetType?: string;
+  source?: string;
 }): boolean {
   const signalCount = idea.qualitySignals?.length || 0;
   const confidence = idea.confidenceScore || 50;
   
-  // Must have either 3+ signals OR 65%+ confidence
-  return signalCount >= MIN_SIGNALS_REQUIRED || confidence >= MIN_CONFIDENCE_REQUIRED;
+  // STRICT: Must have 70%+ confidence AND 4+ signals (multi-engine validation)
+  // This ensures only trades verified by AI, quant, technical analysis make it through
+  const meetsConfidence = confidence >= MIN_CONFIDENCE_REQUIRED;
+  const meetsSignals = signalCount >= MIN_SIGNALS_REQUIRED;
+  
+  // Require BOTH for maximum quality
+  return meetsConfidence && meetsSignals;
 }
 
-// Check if this is a GEM (A+ or A grade) - gets special highlighting
+// Check if this is a GEM (A+ grade) - gets special highlighting
 export function isGemTrade(idea: { 
   qualitySignals?: string[] | null; 
   confidenceScore?: number | null;
 }): boolean {
   const signalCount = idea.qualitySignals?.length || 0;
   const confidence = idea.confidenceScore || 50;
-  return signalCount >= 4 || confidence >= 85;
+  // A+ grade: 5 signals AND 85%+ confidence
+  return signalCount >= 5 && confidence >= 85;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
