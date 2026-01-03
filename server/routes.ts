@@ -9405,9 +9405,10 @@ FORMATTING:
   // Returns aggregated stats publicly, detailed positions only for admin
   app.get("/api/auto-lotto-bot", isAuthenticated, async (req: any, res: Response) => {
     try {
-      const { getOptionsPortfolio, getFuturesPortfolio } = await import("./auto-lotto-trader");
+      const { getOptionsPortfolio, getFuturesPortfolio, getCryptoPortfolio } = await import("./auto-lotto-trader");
       const optionsPortfolio = await getOptionsPortfolio();
       const futuresPortfolio = await getFuturesPortfolio();
+      const cryptoPortfolio = await getCryptoPortfolio();
       
       // Use options portfolio as main for backward compatibility
       const portfolio = optionsPortfolio;
@@ -9469,6 +9470,30 @@ FORMATTING:
         };
       }
       
+      // Get crypto portfolio stats if available
+      let cryptoStats = null;
+      let cryptoPositions: any[] = [];
+      if (cryptoPortfolio) {
+        cryptoPositions = await storage.getPaperPositionsByPortfolio(cryptoPortfolio.id);
+        const cryptoOpen = cryptoPositions.filter(p => p.status === 'open');
+        const cryptoClosed = cryptoPositions.filter(p => p.status === 'closed');
+        const cryptoWithOutcome = cryptoClosed.filter(p => (p.realizedPnL || 0) !== 0);
+        const cryptoWins = cryptoWithOutcome.filter(p => (p.realizedPnL || 0) > 0).length;
+        const cryptoLosses = cryptoWithOutcome.filter(p => (p.realizedPnL || 0) < 0).length;
+        cryptoStats = {
+          name: cryptoPortfolio.name,
+          startingCapital: cryptoPortfolio.startingCapital,
+          cashBalance: cryptoPortfolio.cashBalance,
+          totalValue: cryptoPortfolio.totalValue,
+          totalPnL: cryptoPortfolio.totalPnL,
+          openPositions: cryptoOpen.length,
+          closedPositions: cryptoClosed.length,
+          wins: cryptoWins,
+          losses: cryptoLosses,
+          winRate: cryptoWithOutcome.length > 0 ? (cryptoWins / cryptoWithOutcome.length * 100).toFixed(1) : '0',
+        };
+      }
+      
       if (isAdmin) {
         // Admin gets full access
         res.json({
@@ -9481,8 +9506,10 @@ FORMATTING:
             createdAt: portfolio.createdAt,
           },
           futuresPortfolio: futuresStats,
+          cryptoPortfolio: cryptoStats,
           positions: positions.slice(0, 50),
           futuresPositions: futuresPositions.slice(0, 20),
+          cryptoPositions: cryptoPositions.slice(0, 20),
           stats: {
             openPositions: openPositions.length,
             closedPositions: closedPositions.length,
@@ -9513,8 +9540,14 @@ FORMATTING:
             startingCapital: futuresStats.startingCapital,
             cashBalance: futuresStats.cashBalance,
           } : null,
+          cryptoPortfolio: cryptoStats ? {
+            name: cryptoStats.name,
+            startingCapital: cryptoStats.startingCapital,
+            cashBalance: cryptoStats.cashBalance,
+          } : null,
           positions: [], // Never show positions to non-admin
           futuresPositions: [],
+          cryptoPositions: [],
           stats: hasStatisticalValidity ? {
             openPositions: openPositions.length,
             closedPositions: closedPositions.length,

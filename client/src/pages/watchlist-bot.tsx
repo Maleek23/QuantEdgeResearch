@@ -43,8 +43,10 @@ interface PortfolioStats {
 interface AutoLottoBotData {
   portfolio: PortfolioStats | null;
   futuresPortfolio?: PortfolioStats | null;
+  cryptoPortfolio?: PortfolioStats | null;
   positions: PaperPosition[];
   futuresPositions?: PaperPosition[];
+  cryptoPositions?: PaperPosition[];
   stats: {
     openPositions: number | null;
     closedPositions: number;
@@ -562,8 +564,12 @@ export default function WatchlistBotPage() {
             const closedCount = botData.stats?.closedPositions || 0;
             const sampleSize = botData.stats?.sampleSize || 20;
             
-            const openPositions = botData.positions.filter(p => p.status === 'open');
-            const closedPositions = botData.positions.filter(p => p.status === 'closed');
+            const allPositions = [
+              ...botData.positions,
+              ...(botData.cryptoPositions || [])
+            ];
+            const openPositions = allPositions.filter(p => p.status === 'open');
+            const closedPositions = allPositions.filter(p => p.status === 'closed');
             
             const totalRealizedPnL = botData.stats?.totalRealizedPnL || 0;
             const totalUnrealizedPnL = botData.stats?.totalUnrealizedPnL || 0;
@@ -1273,10 +1279,13 @@ export default function WatchlistBotPage() {
                         <TableBody>
                           {openPositions.map((position) => {
                             const multiplier = position.assetType === 'option' ? 100 : (position.assetType === 'future' ? 50 : 1);
-                            const marketValue = (position.currentPrice || position.entryPrice) * position.quantity * multiplier;
-                            const costBasis = position.entryPrice * position.quantity * multiplier;
+                            const marketValue = (position.currentPrice || position.entryPrice) * position.quantity * (position.assetType === 'crypto' ? 1 : multiplier);
+                            const costBasis = position.entryPrice * position.quantity * (position.assetType === 'crypto' ? 1 : multiplier);
                             const pnl = position.unrealizedPnL || (marketValue - costBasis);
                             const returnPct = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
+                            const displayQty = position.assetType === 'crypto' 
+                              ? (position.quantity > 1000000 ? `${(position.quantity / 1000000).toFixed(2)}M` : position.quantity > 1000 ? `${(position.quantity / 1000).toFixed(2)}K` : position.quantity.toFixed(2))
+                              : position.quantity;
                             
                             return (
                               <TableRow key={position.id} className="border-slate-700/50 hover-elevate" data-testid={`open-position-${position.id}`}>
@@ -1286,16 +1295,18 @@ export default function WatchlistBotPage() {
                                     "text-xs",
                                     position.assetType === 'future' 
                                       ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
-                                      : position.optionType === 'call'
-                                        ? "bg-green-500/10 text-green-400 border-green-500/30"
-                                        : "bg-red-500/10 text-red-400 border-red-500/30"
+                                      : position.assetType === 'crypto'
+                                        ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                                        : position.optionType === 'call'
+                                          ? "bg-green-500/10 text-green-400 border-green-500/30"
+                                          : "bg-red-500/10 text-red-400 border-red-500/30"
                                   )}>
-                                    {position.assetType === 'future' ? 'FUTURES' : position.optionType?.toUpperCase() || 'OPTION'}
+                                    {position.assetType === 'future' ? 'FUTURES' : position.assetType === 'crypto' ? 'CRYPTO' : position.optionType?.toUpperCase() || 'OPTION'}
                                   </Badge>
                                 </TableCell>
-                                <TableCell className="text-right font-mono tabular-nums">{position.quantity}</TableCell>
-                                <TableCell className="text-right font-mono tabular-nums">{formatCurrency(position.entryPrice)}</TableCell>
-                                <TableCell className="text-right font-mono tabular-nums">{formatCurrency(position.currentPrice || position.entryPrice)}</TableCell>
+                                <TableCell className="text-right font-mono tabular-nums">{displayQty}</TableCell>
+                                <TableCell className="text-right font-mono tabular-nums">{position.assetType === 'crypto' && position.entryPrice < 0.01 ? `$${position.entryPrice.toExponential(2)}` : formatCurrency(position.entryPrice)}</TableCell>
+                                <TableCell className="text-right font-mono tabular-nums">{position.assetType === 'crypto' && (position.currentPrice || position.entryPrice) < 0.01 ? `$${(position.currentPrice || position.entryPrice).toExponential(2)}` : formatCurrency(position.currentPrice || position.entryPrice)}</TableCell>
                                 <TableCell className="text-right font-mono tabular-nums">{formatCurrency(marketValue)}</TableCell>
                                 <TableCell className={cn(
                                   "text-right font-mono tabular-nums font-semibold",
