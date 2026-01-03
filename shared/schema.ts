@@ -1364,3 +1364,81 @@ export const autoLottoPreferencesFormSchema = insertAutoLottoPreferencesSchema.e
   optionsMinDelta: z.coerce.number().min(0.05).max(0.50),
   optionsMaxDelta: z.coerce.number().min(0.10).max(0.60),
 });
+
+// ============================================================================
+// PLATFORM REPORTS - Daily/Weekly/Monthly Analytics Reports
+// ============================================================================
+
+export type ReportPeriod = 'daily' | 'weekly' | 'monthly';
+export type ReportStatus = 'generating' | 'completed' | 'failed';
+
+export const platformReports = pgTable("platform_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  period: text("period").$type<ReportPeriod>().notNull(),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  status: text("status").$type<ReportStatus>().notNull().default('generating'),
+  
+  // Trade Idea Stats
+  totalIdeasGenerated: integer("total_ideas_generated").default(0),
+  aiIdeasGenerated: integer("ai_ideas_generated").default(0),
+  quantIdeasGenerated: integer("quant_ideas_generated").default(0),
+  hybridIdeasGenerated: integer("hybrid_ideas_generated").default(0),
+  
+  // Performance Metrics
+  totalTradesResolved: integer("total_trades_resolved").default(0),
+  totalWins: integer("total_wins").default(0),
+  totalLosses: integer("total_losses").default(0),
+  overallWinRate: real("overall_win_rate"),
+  avgGainPercent: real("avg_gain_percent"),
+  avgLossPercent: real("avg_loss_percent"),
+  totalPnlPercent: real("total_pnl_percent"),
+  
+  // Engine-Specific Performance
+  aiWinRate: real("ai_win_rate"),
+  quantWinRate: real("quant_win_rate"),
+  hybridWinRate: real("hybrid_win_rate"),
+  bestPerformingEngine: text("best_performing_engine"),
+  
+  // Bot Activity Stats
+  autoLottoTrades: integer("auto_lotto_trades").default(0),
+  autoLottoPnl: real("auto_lotto_pnl").default(0),
+  futuresBotTrades: integer("futures_bot_trades").default(0),
+  futuresBotPnl: real("futures_bot_pnl").default(0),
+  cryptoBotTrades: integer("crypto_bot_trades").default(0),
+  cryptoBotPnl: real("crypto_bot_pnl").default(0),
+  propFirmTrades: integer("prop_firm_trades").default(0),
+  propFirmPnl: real("prop_firm_pnl").default(0),
+  
+  // Scanner Activity
+  optionsFlowAlerts: integer("options_flow_alerts").default(0),
+  marketScannerSymbolsTracked: integer("market_scanner_symbols_tracked").default(0),
+  ctTrackerMentions: integer("ct_tracker_mentions").default(0),
+  ctTrackerAutoTrades: integer("ct_tracker_auto_trades").default(0),
+  
+  // Asset Type Breakdown
+  stockTradeCount: integer("stock_trade_count").default(0),
+  optionsTradeCount: integer("options_trade_count").default(0),
+  cryptoTradeCount: integer("crypto_trade_count").default(0),
+  futuresTradeCount: integer("futures_trade_count").default(0),
+  
+  // Top Performers
+  topWinningSymbols: jsonb("top_winning_symbols"),
+  topLosingSymbols: jsonb("top_losing_symbols"),
+  
+  // User Engagement (optional)
+  activeUsers: integer("active_users").default(0),
+  newUsers: integer("new_users").default(0),
+  
+  // Full report data as JSON for detailed breakdown
+  reportData: jsonb("report_data"),
+  
+  generatedBy: varchar("generated_by"),
+  generatedAt: timestamp("generated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPlatformReportSchema = createInsertSchema(platformReports).omit({ id: true, createdAt: true, generatedAt: true });
+export type InsertPlatformReport = z.infer<typeof insertPlatformReportSchema>;
+export type PlatformReport = typeof platformReports.$inferSelect;

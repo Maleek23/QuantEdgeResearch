@@ -64,6 +64,9 @@ import type {
   BlogPostStatus,
   AutoLottoPreferences,
   InsertAutoLottoPreferences,
+  PlatformReport,
+  InsertPlatformReport,
+  ReportPeriod,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
@@ -99,6 +102,7 @@ import {
   LossAnalysis,
   futuresResearchBriefs,
   autoLottoPreferences,
+  platformReports,
 } from "@shared/schema";
 
 // ========================================
@@ -3246,6 +3250,54 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return created;
     }
+  }
+
+  // ==========================================
+  // PLATFORM REPORTS - Daily/Weekly/Monthly Analytics
+  // ==========================================
+
+  async getPlatformReports(period?: ReportPeriod, limit: number = 50): Promise<PlatformReport[]> {
+    if (period) {
+      return await db.select().from(platformReports)
+        .where(eq(platformReports.period, period))
+        .orderBy(desc(platformReports.generatedAt))
+        .limit(limit);
+    }
+    return await db.select().from(platformReports)
+      .orderBy(desc(platformReports.generatedAt))
+      .limit(limit);
+  }
+
+  async getPlatformReportById(id: string): Promise<PlatformReport | null> {
+    const [report] = await db.select().from(platformReports)
+      .where(eq(platformReports.id, id));
+    return report || null;
+  }
+
+  async getLatestReportByPeriod(period: ReportPeriod): Promise<PlatformReport | null> {
+    const [report] = await db.select().from(platformReports)
+      .where(eq(platformReports.period, period))
+      .orderBy(desc(platformReports.generatedAt))
+      .limit(1);
+    return report || null;
+  }
+
+  async createPlatformReport(report: InsertPlatformReport): Promise<PlatformReport> {
+    const [created] = await db.insert(platformReports).values(report as any).returning();
+    return created;
+  }
+
+  async updatePlatformReport(id: string, updates: Partial<InsertPlatformReport>): Promise<PlatformReport | null> {
+    const [updated] = await db.update(platformReports)
+      .set(updates as any)
+      .where(eq(platformReports.id, id))
+      .returning();
+    return updated || null;
+  }
+
+  async deletePlatformReport(id: string): Promise<boolean> {
+    await db.delete(platformReports).where(eq(platformReports.id, id));
+    return true;
   }
 }
 

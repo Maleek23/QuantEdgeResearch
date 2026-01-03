@@ -1583,6 +1583,319 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // PLATFORM REPORTS - Admin Analytics Dashboard
+  // ============================================
+
+  // GET /api/admin/reports - List all reports with optional period filter
+  app.get("/api/admin/reports", requireAdmin, async (req, res) => {
+    try {
+      const period = req.query.period as 'daily' | 'weekly' | 'monthly' | undefined;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const reports = await storage.getPlatformReports(period, limit);
+      res.json(reports);
+    } catch (error) {
+      logError(error as Error, { context: 'get platform reports' });
+      res.status(500).json({ error: "Failed to fetch reports" });
+    }
+  });
+
+  // GET /api/admin/reports/latest - Get latest reports for each period
+  app.get("/api/admin/reports/latest", requireAdmin, async (_req, res) => {
+    try {
+      const [daily, weekly, monthly] = await Promise.all([
+        storage.getLatestReportByPeriod('daily'),
+        storage.getLatestReportByPeriod('weekly'),
+        storage.getLatestReportByPeriod('monthly'),
+      ]);
+      res.json({ daily, weekly, monthly });
+    } catch (error) {
+      logError(error as Error, { context: 'get latest reports' });
+      res.status(500).json({ error: "Failed to fetch latest reports" });
+    }
+  });
+
+  // GET /api/admin/reports/stats - Real-time platform stats
+  app.get("/api/admin/reports/stats", requireAdmin, async (_req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const weekStart = new Date(todayStart);
+      weekStart.setDate(weekStart.getDate() - 7);
+      const monthStart = new Date(todayStart);
+      monthStart.setMonth(monthStart.getMonth() - 1);
+
+      // Filter ideas by source
+      const aiIdeas = allIdeas.filter(i => i.source === 'ai');
+      const quantIdeas = allIdeas.filter(i => i.source === 'quant');
+      const hybridIdeas = allIdeas.filter(i => i.source === 'hybrid');
+      const flowIdeas = allIdeas.filter(i => i.source === 'flow');
+      const lottoIdeas = allIdeas.filter(i => i.source === 'lotto');
+
+      // Calculate win rates
+      const calculateWinRate = (ideas: typeof allIdeas) => {
+        const decided = ideas.filter(i => i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'hit_stop');
+        if (decided.length === 0) return null;
+        const wins = decided.filter(i => i.outcomeStatus === 'hit_target').length;
+        return (wins / decided.length) * 100;
+      };
+
+      // Asset breakdown
+      const byAsset = {
+        stock: allIdeas.filter(i => i.assetType === 'stock' || i.assetType === 'penny_stock').length,
+        options: allIdeas.filter(i => i.assetType === 'option').length,
+        crypto: allIdeas.filter(i => i.assetType === 'crypto').length,
+        futures: allIdeas.filter(i => i.assetType === 'future').length,
+      };
+
+      // Top performers calculation
+      const symbolStats = new Map<string, { wins: number; losses: number; totalPnl: number }>();
+      allIdeas.filter(i => i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'hit_stop')
+        .forEach(idea => {
+          const stats = symbolStats.get(idea.symbol) || { wins: 0, losses: 0, totalPnl: 0 };
+          if (idea.outcomeStatus === 'hit_target') {
+            stats.wins++;
+            stats.totalPnl += idea.percentGain || 0;
+          } else {
+            stats.losses++;
+            stats.totalPnl += idea.percentGain || 0;
+          }
+          symbolStats.set(idea.symbol, stats);
+        });
+
+      const sortedByWins = Array.from(symbolStats.entries())
+        .map(([symbol, stats]) => ({ symbol, ...stats, winRate: stats.wins / (stats.wins + stats.losses) * 100 }))
+        .sort((a, b) => b.wins - a.wins)
+        .slice(0, 10);
+
+      const sortedByLosses = Array.from(symbolStats.entries())
+        .map(([symbol, stats]) => ({ symbol, ...stats, winRate: stats.wins / (stats.wins + stats.losses) * 100 }))
+        .sort((a, b) => b.losses - a.losses)
+        .slice(0, 10);
+
+      // Engine comparison
+      const engines = [
+        { name: 'ai', ideas: aiIdeas },
+        { name: 'quant', ideas: quantIdeas },
+        { name: 'hybrid', ideas: hybridIdeas },
+        { name: 'flow', ideas: flowIdeas },
+        { name: 'lotto', ideas: lottoIdeas },
+      ].map(e => {
+        const decided = e.ideas.filter(i => i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'hit_stop');
+        const wins = decided.filter(i => i.outcomeStatus === 'hit_target').length;
+        const losses = decided.filter(i => i.outcomeStatus === 'hit_stop').length;
+        const avgGain = decided.filter(i => i.percentGain && i.percentGain > 0)
+          .reduce((sum, i) => sum + (i.percentGain || 0), 0) / (wins || 1);
+        const avgLoss = decided.filter(i => i.percentGain && i.percentGain < 0)
+          .reduce((sum, i) => sum + Math.abs(i.percentGain || 0), 0) / (losses || 1);
+        return {
+          engine: e.name,
+          totalIdeas: e.ideas.length,
+          trades: decided.length,
+          wins,
+          losses,
+          winRate: decided.length > 0 ? (wins / decided.length) * 100 : null,
+          avgGain,
+          avgLoss,
+        };
+      });
+
+      const bestEngine = engines.reduce((best, e) => 
+        (e.winRate || 0) > (best?.winRate || 0) ? e : best, engines[0]);
+
+      // Bot activity - get from paper trading positions
+      const autoLottoPositions = await storage.getPaperPositions(1).catch(() => []);
+      const closedBotTrades = autoLottoPositions.filter(p => p.status === 'closed');
+      const autoLottoStats = {
+        trades: closedBotTrades.length,
+        pnl: closedBotTrades.reduce((sum, p) => sum + (p.realizedPnL || 0), 0),
+      };
+
+      res.json({
+        summary: {
+          totalIdeas: allIdeas.length,
+          openIdeas: allIdeas.filter(i => i.outcomeStatus === 'open').length,
+          resolvedIdeas: allIdeas.filter(i => i.outcomeStatus !== 'open').length,
+          overallWinRate: calculateWinRate(allIdeas),
+        },
+        engines,
+        bestEngine: bestEngine?.engine,
+        byAsset,
+        topWinners: sortedByWins,
+        topLosers: sortedByLosses,
+        botActivity: {
+          autoLotto: autoLottoStats,
+          futures: { trades: 0, pnl: 0 },
+          crypto: { trades: 0, pnl: 0 },
+          propFirm: { trades: 0, pnl: 0 },
+        },
+        scannerActivity: {
+          optionsFlowAlerts: flowIdeas.length,
+          marketScannerSymbols: new Set(allIdeas.map(i => i.symbol)).size,
+          ctTrackerMentions: 0,
+          ctTrackerAutoTrades: 0,
+        },
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'get platform stats' });
+      res.status(500).json({ error: "Failed to fetch platform stats" });
+    }
+  });
+
+  // GET /api/admin/reports/:id - Get specific report
+  app.get("/api/admin/reports/:id", requireAdmin, async (req, res) => {
+    try {
+      const report = await storage.getPlatformReportById(req.params.id);
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+      res.json(report);
+    } catch (error) {
+      logError(error as Error, { context: 'get platform report' });
+      res.status(500).json({ error: "Failed to fetch report" });
+    }
+  });
+
+  // POST /api/admin/reports/generate - Generate new report
+  app.post("/api/admin/reports/generate", requireAdmin, async (req, res) => {
+    try {
+      const { period } = req.body as { period: 'daily' | 'weekly' | 'monthly' };
+      if (!['daily', 'weekly', 'monthly'].includes(period)) {
+        return res.status(400).json({ error: "Invalid period. Must be daily, weekly, or monthly" });
+      }
+
+      const now = new Date();
+      let startDate: Date;
+      let endDate = now;
+
+      switch (period) {
+        case 'daily':
+          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          break;
+        case 'weekly':
+          startDate = new Date(now);
+          startDate.setDate(startDate.getDate() - 7);
+          break;
+        case 'monthly':
+          startDate = new Date(now);
+          startDate.setMonth(startDate.getMonth() - 1);
+          break;
+      }
+
+      // Create initial report entry
+      const report = await storage.createPlatformReport({
+        period,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        status: 'generating',
+      });
+
+      // Generate report data
+      const allIdeas = await storage.getAllTradeIdeas();
+      const periodIdeas = allIdeas.filter(idea => {
+        const ideaDate = new Date(idea.timestamp);
+        return ideaDate >= startDate && ideaDate <= endDate;
+      });
+
+      const aiIdeas = periodIdeas.filter(i => i.source === 'ai');
+      const quantIdeas = periodIdeas.filter(i => i.source === 'quant');
+      const hybridIdeas = periodIdeas.filter(i => i.source === 'hybrid');
+
+      const calculateStats = (ideas: typeof periodIdeas) => {
+        const decided = ideas.filter(i => i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'hit_stop');
+        const wins = decided.filter(i => i.outcomeStatus === 'hit_target').length;
+        const losses = decided.filter(i => i.outcomeStatus === 'hit_stop').length;
+        const avgGain = decided.filter(i => i.percentGain && i.percentGain > 0)
+          .reduce((sum, i) => sum + (i.percentGain || 0), 0) / (wins || 1);
+        const avgLoss = decided.filter(i => i.percentGain && i.percentGain < 0)
+          .reduce((sum, i) => sum + Math.abs(i.percentGain || 0), 0) / (losses || 1);
+        return {
+          total: decided.length,
+          wins,
+          losses,
+          winRate: decided.length > 0 ? (wins / decided.length) * 100 : null,
+          avgGain: avgGain || 0,
+          avgLoss: avgLoss || 0,
+        };
+      };
+
+      const overall = calculateStats(periodIdeas);
+      const aiStats = calculateStats(aiIdeas);
+      const quantStats = calculateStats(quantIdeas);
+      const hybridStats = calculateStats(hybridIdeas);
+
+      const engines = [
+        { name: 'ai', winRate: aiStats.winRate },
+        { name: 'quant', winRate: quantStats.winRate },
+        { name: 'hybrid', winRate: hybridStats.winRate },
+      ].filter(e => e.winRate !== null);
+      const bestEngine = engines.reduce((best, e) => 
+        (e.winRate || 0) > (best?.winRate || 0) ? e : best, engines[0])?.name;
+
+      // Top symbols
+      const symbolStats = new Map<string, { wins: number; losses: number; pnl: number }>();
+      periodIdeas.filter(i => i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'hit_stop')
+        .forEach(idea => {
+          const stats = symbolStats.get(idea.symbol) || { wins: 0, losses: 0, pnl: 0 };
+          if (idea.outcomeStatus === 'hit_target') {
+            stats.wins++;
+          } else {
+            stats.losses++;
+          }
+          stats.pnl += idea.percentGain || 0;
+          symbolStats.set(idea.symbol, stats);
+        });
+
+      const topWinners = Array.from(symbolStats.entries())
+        .map(([symbol, s]) => ({ symbol, wins: s.wins, losses: s.losses, pnl: s.pnl }))
+        .sort((a, b) => b.wins - a.wins)
+        .slice(0, 5);
+
+      const topLosers = Array.from(symbolStats.entries())
+        .map(([symbol, s]) => ({ symbol, wins: s.wins, losses: s.losses, pnl: s.pnl }))
+        .sort((a, b) => b.losses - a.losses)
+        .slice(0, 5);
+
+      // Update report with computed data
+      const updatedReport = await storage.updatePlatformReport(report.id, {
+        status: 'completed',
+        totalIdeasGenerated: periodIdeas.length,
+        aiIdeasGenerated: aiIdeas.length,
+        quantIdeasGenerated: quantIdeas.length,
+        hybridIdeasGenerated: hybridIdeas.length,
+        totalTradesResolved: overall.total,
+        totalWins: overall.wins,
+        totalLosses: overall.losses,
+        overallWinRate: overall.winRate,
+        avgGainPercent: overall.avgGain,
+        avgLossPercent: overall.avgLoss,
+        aiWinRate: aiStats.winRate,
+        quantWinRate: quantStats.winRate,
+        hybridWinRate: hybridStats.winRate,
+        bestPerformingEngine: bestEngine,
+        stockTradeCount: periodIdeas.filter(i => i.assetType === 'stock' || i.assetType === 'penny_stock').length,
+        optionsTradeCount: periodIdeas.filter(i => i.assetType === 'option').length,
+        cryptoTradeCount: periodIdeas.filter(i => i.assetType === 'crypto').length,
+        futuresTradeCount: periodIdeas.filter(i => i.assetType === 'future').length,
+        topWinningSymbols: topWinners,
+        topLosingSymbols: topLosers,
+        reportData: {
+          aiStats,
+          quantStats,
+          hybridStats,
+          allSymbolStats: Array.from(symbolStats.entries()).map(([symbol, s]) => ({ symbol, ...s })),
+        },
+      });
+
+      logger.info(`Platform report generated`, { period, reportId: report.id });
+      res.json(updatedReport);
+    } catch (error) {
+      logError(error as Error, { context: 'generate platform report' });
+      res.status(500).json({ error: "Failed to generate report" });
+    }
+  });
+
   // Market Data Routes
   // Market data cache (2-minute TTL for fresher price updates)
   let marketDataCache: { data: any; timestamp: number } | null = null;
