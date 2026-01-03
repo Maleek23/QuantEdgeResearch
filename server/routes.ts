@@ -6906,7 +6906,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Remove items not in incoming list (if requested)
       if (removeUnlisted) {
-        for (const [symbol, item] of existingSymbols) {
+        const entries = Array.from(existingSymbols.entries());
+        for (const [symbol, item] of entries) {
           if (!incomingSymbols.has(symbol)) {
             await storage.removeFromWatchlist(item.id);
             results.removed++;

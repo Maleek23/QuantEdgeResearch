@@ -335,6 +335,43 @@ export default function WatchlistBotPage() {
     },
   });
 
+  // Add/Remove from Annual Watchlist
+  const [newBreakout, setNewBreakout] = useState({ symbol: '', sector: '', entry: '', target: '', conviction: 'medium', thesis: '' });
+  
+  const addBreakoutMutation = useMutation({
+    mutationFn: async (data: typeof newBreakout) => {
+      return apiRequest('POST', '/api/annual-watchlist/add', {
+        symbol: data.symbol,
+        sector: data.sector,
+        entry: parseFloat(data.entry) || null,
+        target: parseFloat(data.target) || null,
+        conviction: data.conviction,
+        thesis: data.thesis,
+      });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/annual-watchlist'] });
+      toast({ title: data.action === 'updated' ? "Updated" : "Added", description: `${newBreakout.symbol} ${data.action} in breakout list` });
+      setNewBreakout({ symbol: '', sector: '', entry: '', target: '', conviction: 'medium', thesis: '' });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to add", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const removeBreakoutMutation = useMutation({
+    mutationFn: async (symbol: string) => {
+      return apiRequest('DELETE', `/api/annual-watchlist/${symbol}`);
+    },
+    onSuccess: (_data: any, symbol: string) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/annual-watchlist'] });
+      toast({ title: "Removed", description: `${symbol} removed from breakout list` });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to remove", description: error.message, variant: "destructive" });
+    },
+  });
+
   // Preferences query and state
   const { data: preferences, isLoading: preferencesLoading } = useQuery<AutoLottoPreferences>({
     queryKey: ['/api/auto-lotto-bot/preferences'],
@@ -2572,10 +2609,80 @@ export default function WatchlistBotPage() {
                     </Card>
                   </div>
 
+                  {/* Quick Add Form */}
+                  <Card className="bg-slate-800/30 border-slate-700/50 mb-4">
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Plus className="h-4 w-4 text-emerald-400" />
+                        <span className="text-sm font-medium">Quick Add / Update</span>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
+                        <Input
+                          placeholder="Symbol"
+                          value={newBreakout.symbol}
+                          onChange={(e) => setNewBreakout({ ...newBreakout, symbol: e.target.value.toUpperCase() })}
+                          className="h-8 text-sm bg-slate-900/50 border-slate-700"
+                          data-testid="input-breakout-symbol"
+                        />
+                        <Input
+                          placeholder="Sector"
+                          value={newBreakout.sector}
+                          onChange={(e) => setNewBreakout({ ...newBreakout, sector: e.target.value })}
+                          className="h-8 text-sm bg-slate-900/50 border-slate-700"
+                          data-testid="input-breakout-sector"
+                        />
+                        <Input
+                          placeholder="Entry $"
+                          value={newBreakout.entry}
+                          onChange={(e) => setNewBreakout({ ...newBreakout, entry: e.target.value })}
+                          className="h-8 text-sm bg-slate-900/50 border-slate-700"
+                          data-testid="input-breakout-entry"
+                        />
+                        <Input
+                          placeholder="Target $"
+                          value={newBreakout.target}
+                          onChange={(e) => setNewBreakout({ ...newBreakout, target: e.target.value })}
+                          className="h-8 text-sm bg-slate-900/50 border-slate-700"
+                          data-testid="input-breakout-target"
+                        />
+                        <Select value={newBreakout.conviction} onValueChange={(v) => setNewBreakout({ ...newBreakout, conviction: v })}>
+                          <SelectTrigger className="h-8 text-sm bg-slate-900/50 border-slate-700" data-testid="select-breakout-conviction">
+                            <SelectValue placeholder="Conviction" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="speculative">Speculative</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          placeholder="Thesis..."
+                          value={newBreakout.thesis}
+                          onChange={(e) => setNewBreakout({ ...newBreakout, thesis: e.target.value })}
+                          className="h-8 text-sm bg-slate-900/50 border-slate-700 md:col-span-1"
+                          data-testid="input-breakout-thesis"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => addBreakoutMutation.mutate(newBreakout)}
+                          disabled={!newBreakout.symbol.trim() || addBreakoutMutation.isPending}
+                          className="h-8 bg-emerald-500 hover:bg-emerald-400 text-slate-950"
+                          data-testid="button-add-breakout"
+                        >
+                          {addBreakoutMutation.isPending ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Add new stocks or update existing ones. Changes persist across sessions.
+                      </p>
+                    </CardContent>
+                  </Card>
+
                   {/* Breakout Table - Compact to fit 15-20 items */}
                   <Table className="text-sm">
                     <TableHeader>
                       <TableRow className="border-slate-700">
+                        <TableHead className="py-2 w-8"></TableHead>
                         <TableHead className="py-2">Symbol</TableHead>
                         <TableHead className="py-2">Sector</TableHead>
                         <TableHead className="py-2 text-right">Entry</TableHead>
@@ -2586,12 +2693,24 @@ export default function WatchlistBotPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {annualBreakouts.slice(0, 20).map((stock) => {
+                      {annualBreakouts.map((stock) => {
                         const upside = stock.yearlyTargetPrice && stock.startOfYearPrice
                           ? ((stock.yearlyTargetPrice - stock.startOfYearPrice) / stock.startOfYearPrice) * 100
                           : 0;
                         return (
                           <TableRow key={stock.id} className="border-slate-700/50 hover:bg-slate-800/30" data-testid={`row-breakout-${stock.symbol}`}>
+                            <TableCell className="py-1.5 w-8">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-red-400/50 hover:text-red-400 hover:bg-red-500/10"
+                                onClick={() => removeBreakoutMutation.mutate(stock.symbol)}
+                                disabled={removeBreakoutMutation.isPending}
+                                data-testid={`button-remove-breakout-${stock.symbol}`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </TableCell>
                             <TableCell className="py-1.5 font-mono font-bold text-cyan-400" data-testid={`text-symbol-${stock.symbol}`}>
                               {stock.symbol}
                             </TableCell>
