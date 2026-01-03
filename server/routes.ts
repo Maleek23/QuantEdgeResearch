@@ -9805,6 +9805,91 @@ FORMATTING:
     }
   });
 
+  // GET /api/auto-lotto-bot/preferences - Get user's trading preferences
+  app.get("/api/auto-lotto-bot/preferences", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const preferences = await storage.getAutoLottoPreferences(userId);
+      
+      if (!preferences) {
+        // Return default preferences if none exist
+        return res.json({
+          userId,
+          riskTolerance: 'moderate',
+          maxPositionSize: 100,
+          maxConcurrentTrades: 5,
+          dailyLossLimit: 200,
+          optionsAllocation: 40,
+          futuresAllocation: 30,
+          cryptoAllocation: 30,
+          enableOptions: true,
+          enableFutures: true,
+          enableCrypto: true,
+          enablePropFirm: false,
+          optionsPreferredDte: 7,
+          optionsMaxDte: 14,
+          optionsMinDelta: 0.20,
+          optionsMaxDelta: 0.40,
+          optionsPreferCalls: true,
+          optionsPreferPuts: true,
+          optionsPreferredSymbols: [],
+          futuresPreferredContracts: ['NQ', 'ES', 'GC'],
+          futuresMaxContracts: 2,
+          futuresStopPoints: 15,
+          futuresTargetPoints: 30,
+          cryptoPreferredCoins: ['BTC', 'ETH', 'SOL'],
+          cryptoEnableMemeCoins: false,
+          cryptoMaxLeverageMultiplier: 1.0,
+          minConfidenceScore: 70,
+          preferredHoldingPeriod: 'day',
+          minRiskRewardRatio: 2.0,
+          useDynamicExits: true,
+          tradePreMarket: false,
+          tradeRegularHours: true,
+          tradeAfterHours: false,
+          preferredEntryWindows: ['09:30-11:00', '14:00-15:30'],
+          enableDiscordAlerts: true,
+          enableEmailAlerts: false,
+          alertOnEntry: true,
+          alertOnExit: true,
+          alertOnDailyLimit: true,
+          automationMode: 'paper_only',
+          requireConfirmation: true,
+        });
+      }
+      
+      res.json(preferences);
+    } catch (error: any) {
+      logger.error("Error fetching auto lotto preferences", { error });
+      res.status(500).json({ error: "Failed to fetch preferences" });
+    }
+  });
+
+  // PUT /api/auto-lotto-bot/preferences - Update user's trading preferences
+  app.put("/api/auto-lotto-bot/preferences", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      const preferences = await storage.upsertAutoLottoPreferences({
+        ...req.body,
+        userId,
+      });
+      
+      logger.info(`[PREFERENCES] Updated auto lotto preferences for user ${userId}`);
+      res.json(preferences);
+    } catch (error: any) {
+      logger.error("Error updating auto lotto preferences", { error });
+      res.status(500).json({ error: "Failed to update preferences" });
+    }
+  });
+
   // GET /api/auto-lotto-bot/coverage - Get the bot's market coverage and activity
   app.get("/api/auto-lotto-bot/coverage", async (_req: Request, res: Response) => {
     try {

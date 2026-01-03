@@ -62,6 +62,8 @@ import type {
   BlogPost,
   InsertBlogPost,
   BlogPostStatus,
+  AutoLottoPreferences,
+  InsertAutoLottoPreferences,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
@@ -96,6 +98,7 @@ import {
   InsertLossAnalysis,
   LossAnalysis,
   futuresResearchBriefs,
+  autoLottoPreferences,
 } from "@shared/schema";
 
 // ========================================
@@ -441,6 +444,10 @@ export interface IStorage {
   getLossAnalysisByTradeId(tradeIdeaId: string): Promise<LossAnalysis | null>;
   getAllLossAnalyses(): Promise<LossAnalysis[]>;
   getLossPatterns(): Promise<{ pattern: string; count: number; avgLoss: number }[]>;
+
+  // Auto Lotto Preferences
+  getAutoLottoPreferences(userId: string): Promise<AutoLottoPreferences | null>;
+  upsertAutoLottoPreferences(prefs: InsertAutoLottoPreferences): Promise<AutoLottoPreferences>;
 }
 
 export class MemStorage implements IStorage {
@@ -3492,6 +3499,33 @@ export class DatabaseStorage implements IStorage {
       count: r.count,
       avgLoss: r.avgLoss || 0,
     }));
+  }
+
+  // Auto Lotto Preferences
+  async getAutoLottoPreferences(userId: string): Promise<AutoLottoPreferences | null> {
+    const [result] = await db.select().from(autoLottoPreferences)
+      .where(eq(autoLottoPreferences.userId, userId));
+    return result || null;
+  }
+
+  async upsertAutoLottoPreferences(prefs: InsertAutoLottoPreferences): Promise<AutoLottoPreferences> {
+    const existing = await this.getAutoLottoPreferences(prefs.userId);
+    
+    if (existing) {
+      const [updated] = await db.update(autoLottoPreferences)
+        .set({
+          ...prefs as any,
+          updatedAt: new Date(),
+        })
+        .where(eq(autoLottoPreferences.userId, prefs.userId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db.insert(autoLottoPreferences)
+        .values(prefs as any)
+        .returning();
+      return created;
+    }
   }
 }
 

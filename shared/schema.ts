@@ -1249,3 +1249,91 @@ export interface SignalTrendData {
   totalTrades: number;
   profitFactor: number;
 }
+
+// Auto Lotto Bot Preferences - Personalized trading strategy settings
+export const autoLottoPreferences = pgTable("auto_lotto_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique(),
+  
+  // Risk Profile Settings
+  riskTolerance: text("risk_tolerance").$type<'conservative' | 'moderate' | 'aggressive'>().notNull().default('moderate'),
+  maxPositionSize: real("max_position_size").notNull().default(100), // Max $ per trade
+  maxConcurrentTrades: integer("max_concurrent_trades").notNull().default(5),
+  dailyLossLimit: real("daily_loss_limit").default(200), // Stop trading after this daily loss
+  
+  // Capital Allocation
+  optionsAllocation: real("options_allocation").notNull().default(40), // % of capital for options
+  futuresAllocation: real("futures_allocation").notNull().default(30), // % for futures
+  cryptoAllocation: real("crypto_allocation").notNull().default(30), // % for crypto
+  
+  // Asset Type Preferences
+  enableOptions: boolean("enable_options").notNull().default(true),
+  enableFutures: boolean("enable_futures").notNull().default(true),
+  enableCrypto: boolean("enable_crypto").notNull().default(true),
+  enablePropFirm: boolean("enable_prop_firm").notNull().default(false),
+  
+  // Options Strategy Preferences
+  optionsPreferredDte: integer("options_preferred_dte").notNull().default(7), // Days to expiration
+  optionsMaxDte: integer("options_max_dte").notNull().default(14),
+  optionsMinDelta: real("options_min_delta").notNull().default(0.20),
+  optionsMaxDelta: real("options_max_delta").notNull().default(0.40),
+  optionsPreferCalls: boolean("options_prefer_calls").notNull().default(true),
+  optionsPreferPuts: boolean("options_prefer_puts").notNull().default(true),
+  optionsPreferredSymbols: text("options_preferred_symbols").array(), // Specific tickers to watch
+  
+  // Futures Strategy Preferences
+  futuresPreferredContracts: text("futures_preferred_contracts").array().default(sql`ARRAY['NQ', 'ES', 'GC']::text[]`),
+  futuresMaxContracts: integer("futures_max_contracts").notNull().default(2),
+  futuresStopPoints: integer("futures_stop_points").notNull().default(15), // Stop loss in points
+  futuresTargetPoints: integer("futures_target_points").notNull().default(30), // Profit target in points
+  
+  // Crypto Strategy Preferences
+  cryptoPreferredCoins: text("crypto_preferred_coins").array().default(sql`ARRAY['BTC', 'ETH', 'SOL']::text[]`),
+  cryptoEnableMemeCoins: boolean("crypto_enable_meme_coins").notNull().default(false), // PEPE, BONK, DOGE
+  cryptoMaxLeverageMultiplier: real("crypto_max_leverage_multiplier").notNull().default(1.0), // 1.0 = no leverage
+  
+  // Entry/Exit Rules
+  minConfidenceScore: integer("min_confidence_score").notNull().default(70), // 0-100, minimum score to enter
+  preferredHoldingPeriod: text("preferred_holding_period").$type<'day' | 'swing' | 'position'>().notNull().default('day'),
+  minRiskRewardRatio: real("min_risk_reward_ratio").notNull().default(2.0), // Minimum R:R to take trade
+  useDynamicExits: boolean("use_dynamic_exits").notNull().default(true), // Use trailing stops
+  
+  // Trading Session Preferences
+  tradePreMarket: boolean("trade_pre_market").notNull().default(false),
+  tradeRegularHours: boolean("trade_regular_hours").notNull().default(true),
+  tradeAfterHours: boolean("trade_after_hours").notNull().default(false),
+  preferredEntryWindows: text("preferred_entry_windows").array().default(sql`ARRAY['09:30-11:00', '14:00-15:30']::text[]`), // CT times
+  
+  // Notifications & Alerts
+  enableDiscordAlerts: boolean("enable_discord_alerts").notNull().default(true),
+  enableEmailAlerts: boolean("enable_email_alerts").notNull().default(false),
+  alertOnEntry: boolean("alert_on_entry").notNull().default(true),
+  alertOnExit: boolean("alert_on_exit").notNull().default(true),
+  alertOnDailyLimit: boolean("alert_on_daily_limit").notNull().default(true),
+  
+  // Automation Level
+  automationMode: text("automation_mode").$type<'full_auto' | 'signals_only' | 'paper_only'>().notNull().default('paper_only'),
+  requireConfirmation: boolean("require_confirmation").notNull().default(true), // Require user confirmation before entry
+  
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAutoLottoPreferencesSchema = createInsertSchema(autoLottoPreferences).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertAutoLottoPreferences = z.infer<typeof insertAutoLottoPreferencesSchema>;
+export type AutoLottoPreferences = typeof autoLottoPreferences.$inferSelect;
+
+// Zod schema for frontend form validation with extended rules
+export const autoLottoPreferencesFormSchema = insertAutoLottoPreferencesSchema.extend({
+  maxPositionSize: z.coerce.number().min(10).max(1000),
+  maxConcurrentTrades: z.coerce.number().min(1).max(20),
+  dailyLossLimit: z.coerce.number().min(50).max(5000).optional(),
+  optionsAllocation: z.coerce.number().min(0).max(100),
+  futuresAllocation: z.coerce.number().min(0).max(100),
+  cryptoAllocation: z.coerce.number().min(0).max(100),
+  minConfidenceScore: z.coerce.number().min(50).max(95),
+  minRiskRewardRatio: z.coerce.number().min(1.0).max(10.0),
+  optionsMinDelta: z.coerce.number().min(0.05).max(0.50),
+  optionsMaxDelta: z.coerce.number().min(0.10).max(0.60),
+});
