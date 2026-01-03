@@ -42,6 +42,7 @@ import { syncDocumentationToNotion } from "./notion-sync";
 import * as paperTradingService from "./paper-trading-service";
 import { telemetryService } from "./telemetry-service";
 import { analyzeLoss, analyzeAllLosses, getLossSummary } from "./loss-analyzer";
+import { calculateSignalAttribution, getSignalPerformanceFromCache } from "./signal-attribution";
 import { getReliabilityGrade, getLetterGrade } from "./grading";
 import { 
   insertPaperPortfolioSchema, 
@@ -4496,6 +4497,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Trade loss analysis error:", error);
       res.status(500).json({ error: "Failed to fetch trade analysis" });
+    }
+  });
+
+  // ========================================
+  // SIGNAL ATTRIBUTION ANALYTICS ENDPOINTS
+  // ========================================
+
+  // Get cached signal performance data (fast)
+  app.get("/api/signal-attribution", async (req, res) => {
+    try {
+      const signals = await getSignalPerformanceFromCache();
+      
+      if (signals.length === 0) {
+        return res.json({
+          signals: [],
+          topPerformers: [],
+          worstPerformers: [],
+          totalTradesAnalyzed: 0,
+          overallWinRate: 0,
+          lastUpdated: null,
+          message: "No signal data available. Run recalculation to populate."
+        });
+      }
+      
+      const qualifiedSignals = signals.filter(s => s.totalTrades >= 10);
+      const topPerformers = qualifiedSignals
+        .filter(s => s.winRate >= 60)
+        .sort((a, b) => b.reliabilityScore - a.reliabilityScore)
+        .slice(0, 5);
+      const worstPerformers = qualifiedSignals
+        .filter(s => s.winRate < 50)
+        .sort((a, b) => a.winRate - b.winRate)
+        .slice(0, 5);
+      
+      res.json({
+        signals: signals.sort((a, b) => b.reliabilityScore - a.reliabilityScore),
+        topPerformers,
+        worstPerformers,
+        totalSignals: signals.length,
+        lastUpdated: signals[0]?.signalName ? new Date().toISOString() : null
+      });
+    } catch (error) {
+      logger.error("Signal attribution fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch signal attribution data" });
+    }
+  });
+
+  // Recalculate signal performance (admin only, slower)
+  app.post("/api/signal-attribution/recalculate", requireAdmin, async (req, res) => {
+    try {
+      const result = await calculateSignalAttribution();
+      res.json({
+        success: true,
+        message: `Analyzed ${result.signals.length} signals from ${result.totalTradesAnalyzed} trades`,
+        ...result
+      });
+    } catch (error) {
+      logger.error("Signal attribution recalculation error:", error);
+      res.status(500).json({ error: "Failed to recalculate signal attribution" });
+    }
+  });
+
+  // Get top performing signals (quick summary)
+  app.get("/api/signal-attribution/top", async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit as string) || 10, 20);
+      const signals = await getSignalPerformanceFromCache();
+      
+      const qualified = signals
+        .filter(s => s.totalTrades >= 10 && s.winRate >= 50)
+        .sort((a, b) => b.reliabilityScore - a.reliabilityScore)
+        .slice(0, limit);
+      
+      res.json({
+        topSignals: qualified,
+        totalQualified: signals.filter(s => s.totalTrades >= 10).length
+      });
+    } catch (error) {
+      logger.error("Top signals fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch top signals" });
     }
   });
 
