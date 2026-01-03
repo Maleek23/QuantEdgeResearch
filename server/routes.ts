@@ -9939,6 +9939,10 @@ FORMATTING:
       
       const preferences = await storage.upsertAutoLottoPreferences(cleanedPrefs as any);
       
+      // Clear cached preferences in auto-lotto-trader to pick up new settings
+      const { clearPreferencesCache } = await import("./auto-lotto-trader");
+      clearPreferencesCache();
+      
       logger.info(`[PREFERENCES] Updated auto lotto preferences for user ${userId}`);
       res.json(preferences);
     } catch (error: any) {

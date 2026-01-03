@@ -5,7 +5,7 @@ import { getTradierQuote, getTradierOptionsChainsByDTE } from "./tradier-api";
 import { calculateLottoTargets, getLottoThresholds } from "./lotto-detector";
 import { getLetterGrade } from "./grading";
 import { formatInTimeZone } from "date-fns-tz";
-import { TradeIdea, PaperPortfolio, InsertTradeIdea } from "@shared/schema";
+import { TradeIdea, PaperPortfolio, InsertTradeIdea, AutoLottoPreferences } from "@shared/schema";
 import { isUSMarketOpen, isCMEMarketOpen, normalizeDateString } from "@shared/market-calendar";
 import { logger } from "./logger";
 import { getMarketContext, getEntryTiming, checkDynamicExit, MarketContext } from "./market-context-service";
@@ -17,6 +17,125 @@ import {
   calculateADX,
   determineMarketRegime
 } from "./technical-indicators";
+
+// User preferences interface with defaults
+interface BotPreferences {
+  riskTolerance: 'conservative' | 'moderate' | 'aggressive';
+  maxPositionSize: number;
+  maxConcurrentTrades: number;
+  dailyLossLimit: number;
+  enableOptions: boolean;
+  enableFutures: boolean;
+  enableCrypto: boolean;
+  enablePropFirm: boolean;
+  optionsAllocation: number;
+  futuresAllocation: number;
+  cryptoAllocation: number;
+  minConfidenceScore: number;
+  minRiskRewardRatio: number;
+  tradePreMarket: boolean;
+  tradeRegularHours: boolean;
+  tradeAfterHours: boolean;
+  enableDiscordAlerts: boolean;
+  futuresMaxContracts: number;
+  futuresStopPoints: number;
+  futuresTargetPoints: number;
+  cryptoPreferredCoins: string[];
+  cryptoEnableMemeCoins: boolean;
+}
+
+// Default preferences (used when no user prefs are set)
+const DEFAULT_PREFERENCES: BotPreferences = {
+  riskTolerance: 'moderate',
+  maxPositionSize: 100,
+  maxConcurrentTrades: 5,
+  dailyLossLimit: 200,
+  enableOptions: true,
+  enableFutures: true,
+  enableCrypto: true,
+  enablePropFirm: false,
+  optionsAllocation: 40,
+  futuresAllocation: 30,
+  cryptoAllocation: 30,
+  minConfidenceScore: 70,
+  minRiskRewardRatio: 2.0,
+  tradePreMarket: false,
+  tradeRegularHours: true,
+  tradeAfterHours: false,
+  enableDiscordAlerts: true,
+  futuresMaxContracts: 2,
+  futuresStopPoints: 15,
+  futuresTargetPoints: 30,
+  cryptoPreferredCoins: ['BTC', 'ETH', 'SOL'],
+  cryptoEnableMemeCoins: false,
+};
+
+// Cached preferences with expiry
+let cachedPreferences: BotPreferences | null = null;
+let preferencesLastFetched = 0;
+const PREFERENCES_CACHE_TTL = 60000; // 1 minute cache
+
+/**
+ * Get bot preferences for the system user, with fallback to defaults
+ */
+async function getBotPreferences(): Promise<BotPreferences> {
+  const now = Date.now();
+  
+  // Use cached preferences if still valid
+  if (cachedPreferences && (now - preferencesLastFetched) < PREFERENCES_CACHE_TTL) {
+    return cachedPreferences;
+  }
+  
+  try {
+    // Fetch from database (system user preferences)
+    const userPrefs = await storage.getAutoLottoPreferences(SYSTEM_USER_ID);
+    
+    if (userPrefs) {
+      cachedPreferences = {
+        riskTolerance: userPrefs.riskTolerance as 'conservative' | 'moderate' | 'aggressive',
+        maxPositionSize: userPrefs.maxPositionSize,
+        maxConcurrentTrades: userPrefs.maxConcurrentTrades,
+        dailyLossLimit: userPrefs.dailyLossLimit,
+        enableOptions: userPrefs.enableOptions,
+        enableFutures: userPrefs.enableFutures,
+        enableCrypto: userPrefs.enableCrypto,
+        enablePropFirm: userPrefs.enablePropFirm,
+        optionsAllocation: userPrefs.optionsAllocation,
+        futuresAllocation: userPrefs.futuresAllocation,
+        cryptoAllocation: userPrefs.cryptoAllocation,
+        minConfidenceScore: userPrefs.minConfidenceScore,
+        minRiskRewardRatio: userPrefs.minRiskRewardRatio,
+        tradePreMarket: userPrefs.tradePreMarket,
+        tradeRegularHours: userPrefs.tradeRegularHours,
+        tradeAfterHours: userPrefs.tradeAfterHours,
+        enableDiscordAlerts: userPrefs.enableDiscordAlerts,
+        futuresMaxContracts: userPrefs.futuresMaxContracts,
+        futuresStopPoints: userPrefs.futuresStopPoints,
+        futuresTargetPoints: userPrefs.futuresTargetPoints,
+        cryptoPreferredCoins: userPrefs.cryptoPreferredCoins || ['BTC', 'ETH', 'SOL'],
+        cryptoEnableMemeCoins: userPrefs.cryptoEnableMemeCoins,
+      };
+      preferencesLastFetched = now;
+      logger.debug(`[BOT-PREFS] Loaded user preferences: ${cachedPreferences.riskTolerance}, maxPos=$${cachedPreferences.maxPositionSize}`);
+      return cachedPreferences;
+    }
+  } catch (error) {
+    logger.debug(`[BOT-PREFS] Using defaults (no user preferences found)`);
+  }
+  
+  // Return defaults if no user preferences
+  cachedPreferences = { ...DEFAULT_PREFERENCES };
+  preferencesLastFetched = now;
+  return cachedPreferences;
+}
+
+/**
+ * Clear cached preferences (call after user updates their settings)
+ */
+export function clearPreferencesCache(): void {
+  cachedPreferences = null;
+  preferencesLastFetched = 0;
+}
 
 // Separate portfolios for Options, Futures, and Crypto
 const OPTIONS_PORTFOLIO_NAME = "Auto-Lotto Options";
@@ -252,7 +371,18 @@ export function isCMEOpen(): boolean {
 
 export async function getOptionsPortfolio(): Promise<PaperPortfolio | null> {
   try {
+    // Load user preferences to sync maxPositionSize
+    const prefs = await getBotPreferences();
+    
     if (optionsPortfolio) {
+      // Sync maxPositionSize from preferences if different
+      if (optionsPortfolio.maxPositionSize !== prefs.maxPositionSize) {
+        await storage.updatePaperPortfolio(optionsPortfolio.id, {
+          maxPositionSize: prefs.maxPositionSize,
+        });
+        optionsPortfolio.maxPositionSize = prefs.maxPositionSize;
+        logger.debug(`🎰 [OPTIONS BOT] Synced maxPositionSize to $${prefs.maxPositionSize}`);
+      }
       return optionsPortfolio;
     }
 
@@ -260,6 +390,14 @@ export async function getOptionsPortfolio(): Promise<PaperPortfolio | null> {
     const existing = portfolios.find(p => p.name === OPTIONS_PORTFOLIO_NAME);
     
     if (existing) {
+      // Sync maxPositionSize from preferences
+      if (existing.maxPositionSize !== prefs.maxPositionSize) {
+        await storage.updatePaperPortfolio(existing.id, {
+          maxPositionSize: prefs.maxPositionSize,
+        });
+        existing.maxPositionSize = prefs.maxPositionSize;
+        logger.debug(`🎰 [OPTIONS BOT] Synced maxPositionSize to $${prefs.maxPositionSize}`);
+      }
       optionsPortfolio = existing;
       logger.info(`🎰 [OPTIONS BOT] Found portfolio: ${existing.id} (Balance: $${existing.cashBalance.toFixed(2)})`);
       return existing;
@@ -271,12 +409,12 @@ export async function getOptionsPortfolio(): Promise<PaperPortfolio | null> {
       startingCapital: STARTING_CAPITAL,
       cashBalance: STARTING_CAPITAL,
       totalValue: STARTING_CAPITAL,
-      maxPositionSize: MAX_POSITION_SIZE,
+      maxPositionSize: prefs.maxPositionSize,  // Use preferences
       riskPerTrade: 0.05,
     });
 
     optionsPortfolio = newPortfolio;
-    logger.info(`🎰 [OPTIONS BOT] Created new portfolio: ${newPortfolio.id} with $${STARTING_CAPITAL}`);
+    logger.info(`🎰 [OPTIONS BOT] Created new portfolio: ${newPortfolio.id} with $${STARTING_CAPITAL}, maxPos=$${prefs.maxPositionSize}`);
     return newPortfolio;
   } catch (error) {
     logger.error("🎰 [OPTIONS BOT] Failed to get/create portfolio:", error);
@@ -497,11 +635,21 @@ function analyzeCryptoOpportunity(
 
 /**
  * Run crypto bot scan and execute trades
+ * Now uses user preferences for position limits and coin selection
  */
 export async function runCryptoBotScan(): Promise<void> {
   logger.info(`🪙 [CRYPTO BOT] Starting crypto scan...`);
   
   try {
+    // Load user preferences
+    const prefs = await getBotPreferences();
+    
+    // Check if crypto trading is enabled
+    if (!prefs.enableCrypto) {
+      logger.info(`🪙 [CRYPTO BOT] Crypto trading disabled by user preferences`);
+      return;
+    }
+    
     const portfolio = await getCryptoPortfolio();
     if (!portfolio) {
       logger.error("🪙 [CRYPTO BOT] No portfolio available");
@@ -514,12 +662,12 @@ export async function runCryptoBotScan(): Promise<void> {
       return;
     }
     
-    // Check existing positions - limit to 3 concurrent
+    // Check existing positions using preference for max concurrent trades
     const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
     const openPositions = positions.filter(p => p.status === 'open');
     
-    if (openPositions.length >= 3) {
-      logger.info(`🪙 [CRYPTO BOT] Max positions reached (${openPositions.length}/3)`);
+    if (openPositions.length >= prefs.maxConcurrentTrades) {
+      logger.info(`🪙 [CRYPTO BOT] Max positions reached (${openPositions.length}/${prefs.maxConcurrentTrades})`);
       return;
     }
     
@@ -557,9 +705,16 @@ export async function runCryptoBotScan(): Promise<void> {
     
     logger.info(`🪙 [CRYPTO BOT] Best opportunity: ${bestOpp.symbol} (${bestOpp.direction}) - Confidence: ${bestOpp.confidence}%`);
     
-    // Calculate position size (max $100 or 30% of balance)
-    const maxSize = Math.min(CRYPTO_MAX_POSITION_SIZE, portfolio.cashBalance * 0.3);
+    // Apply minimum confidence score from preferences
+    if (bestOpp.confidence < prefs.minConfidenceScore) {
+      logger.info(`🪙 [CRYPTO BOT] Best opportunity confidence ${bestOpp.confidence}% < min ${prefs.minConfidenceScore}%`);
+      return;
+    }
+    
+    // Calculate position size using preferences (maxPositionSize or 30% of balance)
+    const maxSize = Math.min(prefs.maxPositionSize, portfolio.cashBalance * (prefs.cryptoAllocation / 100));
     const quantity = maxSize / bestOpp.price;
+    logger.debug(`🪙 [CRYPTO BOT] Position size: $${maxSize.toFixed(2)} (${quantity.toFixed(6)} ${bestOpp.symbol})`)
     
     // Set targets based on direction
     const targetMultiplier = bestOpp.direction === 'long' ? 1.15 : 0.85;
@@ -1146,9 +1301,19 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
 
 /**
  * MAIN BOT FUNCTION: Scans market and makes autonomous trading decisions
+ * Now uses user preferences for position limits, confidence thresholds, and trading hours
  */
 export async function runAutonomousBotScan(): Promise<void> {
   try {
+    // Load user preferences
+    const prefs = await getBotPreferences();
+    
+    // Check if options trading is enabled
+    if (!prefs.enableOptions) {
+      logger.info(`🤖 [BOT] Options trading disabled by user preferences`);
+      return;
+    }
+    
     const now = new Date();
     const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
     const day = etTime.getDay();
@@ -1156,12 +1321,24 @@ export async function runAutonomousBotScan(): Promise<void> {
     const minute = etTime.getMinutes();
     const timeInMinutes = hour * 60 + minute;
     
-    if (day === 0 || day === 6 || timeInMinutes < 570 || timeInMinutes >= 960) {
-      logger.info(`🤖 [BOT] Market closed - skipping autonomous scan`);
+    // Check trading hours based on preferences
+    const isPreMarket = timeInMinutes >= 240 && timeInMinutes < 570; // 4:00 AM - 9:30 AM
+    const isRegularHours = timeInMinutes >= 570 && timeInMinutes < 960; // 9:30 AM - 4:00 PM
+    const isAfterHours = timeInMinutes >= 960 && timeInMinutes < 1200; // 4:00 PM - 8:00 PM
+    
+    const canTrade = (day !== 0 && day !== 6) && (
+      (prefs.tradePreMarket && isPreMarket) ||
+      (prefs.tradeRegularHours && isRegularHours) ||
+      (prefs.tradeAfterHours && isAfterHours)
+    );
+    
+    if (!canTrade) {
+      logger.info(`🤖 [BOT] Outside trading hours per preferences - skipping scan`);
       return;
     }
     
     logger.info(`🤖 [BOT] ========== AUTONOMOUS SCAN STARTED ==========`);
+    logger.debug(`🤖 [BOT] Prefs: ${prefs.riskTolerance} risk, max ${prefs.maxConcurrentTrades} positions, $${prefs.maxPositionSize} max size`);
     
     // 📊 MARKET CONTEXT ANALYSIS - Check overall market conditions before trading
     const marketContext = await getMarketContext();
@@ -1181,8 +1358,9 @@ export async function runAutonomousBotScan(): Promise<void> {
     const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
     const openPositions = positions.filter(p => p.status === 'open');
     
-    if (openPositions.length >= 3) {
-      logger.info(`🤖 [BOT] Already have ${openPositions.length} open positions - waiting for exits`);
+    // Use user preference for max concurrent trades
+    if (openPositions.length >= prefs.maxConcurrentTrades) {
+      logger.info(`🤖 [BOT] Already have ${openPositions.length}/${prefs.maxConcurrentTrades} open positions - waiting for exits`);
       return;
     }
     
@@ -1216,6 +1394,12 @@ export async function runAutonomousBotScan(): Promise<void> {
         // 📊 ENTRY TIMING CHECK - Should we enter now or wait?
         const entryTiming = getEntryTiming(quote, opp.optionType, marketContext);
         
+        // Apply minimum confidence score from preferences
+        if (decision.confidence < prefs.minConfidenceScore) {
+          logger.debug(`🤖 [BOT] ⛔ ${ticker}: Confidence ${decision.confidence}% < min ${prefs.minConfidenceScore}%`);
+          continue;
+        }
+        
         if (decision.action === 'enter' && entryTiming.shouldEnterNow) {
           logger.info(`🤖 [BOT] ✅ ${ticker} ${opp.optionType.toUpperCase()} $${opp.strike}: ${decision.reason} | ${entryTiming.reason}`);
           
@@ -1241,20 +1425,23 @@ export async function runAutonomousBotScan(): Promise<void> {
       if (result.success && result.position) {
         logger.info(`🤖 [BOT] ✅ TRADE EXECUTED: ${opp.symbol} x${result.position.quantity} @ $${opp.price.toFixed(2)}`);
         
-        try {
-          await sendBotTradeEntryToDiscord({
-            symbol: opp.symbol,
-            optionType: opp.optionType,
-            strikePrice: opp.strike,
-            expiryDate: opp.expiration,
-            entryPrice: opp.price,
-            quantity: result.position.quantity,
-            targetPrice: ideaData.targetPrice,
-            stopLoss: ideaData.stopLoss,
-          });
-          logger.info(`🤖 [BOT] 📱 Discord entry notification sent`);
-        } catch (discordError) {
-          logger.warn(`🤖 [BOT] Discord notification failed:`, discordError);
+        // Send Discord notification only if enabled in preferences
+        if (prefs.enableDiscordAlerts) {
+          try {
+            await sendBotTradeEntryToDiscord({
+              symbol: opp.symbol,
+              optionType: opp.optionType,
+              strikePrice: opp.strike,
+              expiryDate: opp.expiration,
+              entryPrice: opp.price,
+              quantity: result.position.quantity,
+              targetPrice: ideaData.targetPrice,
+              stopLoss: ideaData.stopLoss,
+            });
+            logger.info(`🤖 [BOT] 📱 Discord entry notification sent`);
+          } catch (discordError) {
+            logger.warn(`🤖 [BOT] Discord notification failed:`, discordError);
+          }
         }
         
         const updated = await storage.getPaperPortfolioById(portfolio.id);
@@ -1467,15 +1654,26 @@ export async function monitorLottoPositions(): Promise<void> {
 
 /**
  * FUTURES TRADING - Scan and execute futures trades during CME market hours
+ * Now uses user preferences for position limits and trading parameters
  */
 export async function runFuturesBotScan(): Promise<void> {
   try {
+    // Load user preferences
+    const prefs = await getBotPreferences();
+    
+    // Check if futures trading is enabled
+    if (!prefs.enableFutures) {
+      logger.info(`🔮 [FUTURES-BOT] Futures trading disabled by user preferences`);
+      return;
+    }
+    
     if (!isCMEOpen()) {
       logger.info(`🔮 [FUTURES-BOT] CME market closed - skipping futures scan`);
       return;
     }
     
     logger.info(`🔮 [FUTURES-BOT] ========== FUTURES SCAN STARTED ==========`);
+    logger.debug(`🔮 [FUTURES-BOT] Prefs: max ${prefs.futuresMaxContracts} contracts, stop=${prefs.futuresStopPoints}pts, target=${prefs.futuresTargetPoints}pts`);
     
     const portfolio = await getFuturesPortfolio();
     if (!portfolio) {
@@ -1488,8 +1686,9 @@ export async function runFuturesBotScan(): Promise<void> {
     const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
     const openFuturesPositions = positions.filter(p => p.status === 'open' && p.assetType === 'future');
     
-    if (openFuturesPositions.length >= 1) {
-      logger.info(`🔮 [FUTURES-BOT] Already have ${openFuturesPositions.length} open futures - waiting for exit`);
+    // Use preference for max contracts
+    if (openFuturesPositions.length >= prefs.futuresMaxContracts) {
+      logger.info(`🔮 [FUTURES-BOT] Already have ${openFuturesPositions.length}/${prefs.futuresMaxContracts} open futures - waiting for exit`);
       return;
     }
     
@@ -1582,20 +1781,37 @@ export async function runFuturesBotScan(): Promise<void> {
       
       // EXECUTE FUTURES TRADE
       // For paper trading futures with a small portfolio, we use margin-based position sizing
-      // Risk per trade = $100 max (from FUTURES_MAX_POSITION_SIZE_PER_TRADE) or 30% of cash
+      // Risk per trade from preferences or 30% of cash
       // This represents the margin/risk amount, NOT the full contract notional value
       try {
-        const marginRequired = Math.min(FUTURES_MAX_POSITION_SIZE_PER_TRADE, portfolio.cashBalance * 0.3);
+        const marginRequired = Math.min(prefs.maxPositionSize, portfolio.cashBalance * (prefs.futuresAllocation / 100));
         const quantity = 1; // Paper trade 1 micro contract at a time
+        
+        // Check confidence meets threshold
+        if (bestFuturesOpp.confidence < prefs.minConfidenceScore) {
+          logger.info(`🔮 [FUTURES-BOT] Confidence ${bestFuturesOpp.confidence}% < min ${prefs.minConfidenceScore}% - skipping`);
+          return;
+        }
         
         if (marginRequired <= portfolio.cashBalance && marginRequired >= 10) {
           const entryPrice = bestFuturesOpp.price;
-          const stopLoss = bestFuturesOpp.direction === 'long' 
-            ? entryPrice * 0.98  // 2% stop for futures
-            : entryPrice * 1.02;
-          const targetPrice = bestFuturesOpp.direction === 'long'
-            ? entryPrice * 1.04  // 4% target for futures
-            : entryPrice * 0.96;
+          
+          // Use stop/target points from preferences for NQ (e.g., 15 stop / 30 target)
+          // For other contracts, use percentage-based stops
+          const isNQ = bestFuturesOpp.symbol === 'NQ';
+          const stopLoss = isNQ
+            ? (bestFuturesOpp.direction === 'long' 
+                ? entryPrice - prefs.futuresStopPoints  // Use points from prefs
+                : entryPrice + prefs.futuresStopPoints)
+            : (bestFuturesOpp.direction === 'long' ? entryPrice * 0.98 : entryPrice * 1.02);
+          
+          const targetPrice = isNQ
+            ? (bestFuturesOpp.direction === 'long'
+                ? entryPrice + prefs.futuresTargetPoints  // Use points from prefs
+                : entryPrice - prefs.futuresTargetPoints)
+            : (bestFuturesOpp.direction === 'long' ? entryPrice * 1.04 : entryPrice * 0.96);
+          
+          logger.debug(`🔮 [FUTURES-BOT] Using prefs: stop=${prefs.futuresStopPoints}pts, target=${prefs.futuresTargetPoints}pts`);
           
           const position = await storage.createPaperPosition({
             portfolioId: portfolio.id,
