@@ -9445,11 +9445,34 @@ FORMATTING:
       
       // For admin: show all data
       // For non-admin: only show data once minimum sample size is met
-      // Get futures portfolio stats if available
+      // Get futures portfolio stats if available (update prices first)
       let futuresStats = null;
       let futuresPositions: any[] = [];
       if (futuresPortfolio) {
+        // Update futures positions with live prices before returning data
+        const { getFuturesPrice } = await import("./futures-data-service");
         futuresPositions = await storage.getPaperPositionsByPortfolio(futuresPortfolio.id);
+        
+        // Update open futures positions with current prices
+        for (const pos of futuresPositions.filter(p => p.status === 'open')) {
+          try {
+            const currentPrice = await getFuturesPrice(pos.symbol);
+            if (currentPrice && currentPrice > 0) {
+              const entryPrice = typeof pos.entryPrice === 'string' ? parseFloat(pos.entryPrice) : pos.entryPrice;
+              const direction = pos.direction || 'long';
+              const quantity = parseFloat(pos.quantity?.toString() || '1');
+              const symbol = pos.symbol.toUpperCase();
+              const multiplier = symbol.startsWith('GC') ? 100 : 20; // GC=$100/point, NQ=$20/point
+              const pointDiff = direction === 'long' ? currentPrice - entryPrice : entryPrice - currentPrice;
+              const unrealizedPnL = pointDiff * multiplier * quantity;
+              
+              await storage.updatePaperPosition(pos.id, { currentPrice, unrealizedPnL });
+              pos.currentPrice = currentPrice;
+              pos.unrealizedPnL = unrealizedPnL;
+            }
+          } catch (e) { /* continue */ }
+        }
+        
         const futuresOpen = futuresPositions.filter(p => p.status === 'open');
         const futuresClosed = futuresPositions.filter(p => p.status === 'closed');
         // Only count trades with non-zero P&L for win rate
@@ -9470,11 +9493,29 @@ FORMATTING:
         };
       }
       
-      // Get crypto portfolio stats if available
+      // Get crypto portfolio stats if available (update prices first)
       let cryptoStats = null;
       let cryptoPositions: any[] = [];
       if (cryptoPortfolio) {
+        const { getCryptoPrice } = await import("./market-api");
         cryptoPositions = await storage.getPaperPositionsByPortfolio(cryptoPortfolio.id);
+        
+        // Update open crypto positions with current prices
+        for (const pos of cryptoPositions.filter(p => p.status === 'open')) {
+          try {
+            const currentPrice = await getCryptoPrice(pos.symbol);
+            if (currentPrice && currentPrice > 0) {
+              const entryPrice = typeof pos.entryPrice === 'string' ? parseFloat(pos.entryPrice) : pos.entryPrice;
+              const quantity = parseFloat(pos.quantity?.toString() || '1');
+              const unrealizedPnL = (currentPrice - entryPrice) * quantity;
+              
+              await storage.updatePaperPosition(pos.id, { currentPrice, unrealizedPnL });
+              pos.currentPrice = currentPrice;
+              pos.unrealizedPnL = unrealizedPnL;
+            }
+          } catch (e) { /* continue */ }
+        }
+        
         const cryptoOpen = cryptoPositions.filter(p => p.status === 'open');
         const cryptoClosed = cryptoPositions.filter(p => p.status === 'closed');
         const cryptoWithOutcome = cryptoClosed.filter(p => (p.realizedPnL || 0) !== 0);
