@@ -31,6 +31,7 @@ import { useAuth } from "@/hooks/useAuth";
 import type { EngineHealthAlert } from "@shared/schema";
 import { ENGINE_LABELS, ENGINE_COLORS, SIGNAL_STRENGTH_BAND_LABELS } from "@shared/constants";
 import { RiskDisclosure } from "@/components/risk-disclosure";
+import { PageHeader } from "@/components/page-header";
 
 // Lazy load heavy visualization components for better initial load performance
 const SymbolLeaderboard = lazy(() => import("@/components/symbol-leaderboard"));
@@ -1118,33 +1119,36 @@ export default function PerformancePage() {
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-performance-title">Performance Analytics</h1>
-          <p className="text-sm text-muted-foreground">Separate tracking for Bot trades vs Research ideas</p>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleValidate}
-            disabled={isValidating}
-            data-testid="button-validate-ideas"
-          >
-            <Activity className={`w-4 h-4 mr-1 ${isValidating ? 'animate-spin' : ''}`} />
-            {isValidating ? 'Validating...' : 'Validate Ideas'}
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={handleExport}
-            data-testid="button-export-csv"
-          >
-            <Download className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
+      <PageHeader 
+        label="Analytics"
+        title="Performance"
+        description="Track your trading performance metrics and analytics"
+        icon={Target}
+        iconColor="text-green-400"
+        iconGradient="from-green-500/20 to-emerald-500/20"
+        actions={
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleValidate}
+              disabled={isValidating}
+              data-testid="button-validate-ideas"
+            >
+              <Activity className={`w-4 h-4 mr-1 ${isValidating ? 'animate-spin' : ''}`} />
+              {isValidating ? 'Validating...' : 'Validate Ideas'}
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleExport}
+              data-testid="button-export-csv"
+            >
+              <Download className="w-4 h-4" />
+            </Button>
+          </div>
+        }
+      />
 
       {/* Main Tabs */}
       <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">

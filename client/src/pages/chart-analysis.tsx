@@ -17,6 +17,7 @@ import {
   ChevronRight, Database, BookOpen, Trophy, Plus, Search, RefreshCw,
   Filter, Eye, History, ArrowRight, TrendingUpDown
 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { SiDiscord } from "react-icons/si";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -1819,19 +1820,14 @@ export default function ChartAnalysis() {
 
   return (
     <div className="container mx-auto p-4 lg:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-semibold flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center">
-              <LineChart className="h-5 w-5 text-white" />
-            </div>
-            Chart Analysis
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            AI-powered chart analysis, pattern detection, and backtesting
-          </p>
-        </div>
-      </div>
+      <PageHeader 
+        label="Technical Analysis"
+        title="Chart Analysis"
+        description="Visual pattern detection and technical indicators"
+        icon={LineChart}
+        iconColor="text-purple-400"
+        iconGradient="from-purple-500/20 to-pink-500/20"
+      />
 
       <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-6" data-testid="tabs-main-navigation">

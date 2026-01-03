@@ -19,8 +19,9 @@ import type { MarketData, Catalyst, WatchlistItem } from "@shared/schema";
 import { 
   TrendingUp, TrendingDown, DollarSign, Activity, RefreshCw, Clock, ArrowUp, ArrowDown, 
   Star, BarChart3, ArrowUpRight, ArrowDownRight, Calendar, LineChart, Target, 
-  Lightbulb, AlertTriangle, Zap, Loader2, Search 
+  Lightbulb, AlertTriangle, Zap, Loader2, Search, BarChart2 
 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { getMarketSession, formatCTTime, formatCurrency, formatPercent } from "@/lib/utils";
 
 interface SmartWatchlistPick {
@@ -437,19 +438,24 @@ export default function MarketPage() {
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Market Intelligence</p>
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight" data-testid="text-page-title">Market & Scanner</h1>
-          <div className="flex items-center gap-3 mt-3">
+      <PageHeader 
+        label="Market Intelligence"
+        title="Market Overview"
+        description="Track 500+ stocks across multiple sectors and timeframes"
+        icon={BarChart2}
+        iconColor="text-cyan-400"
+        actions={
+          <div className="flex items-center gap-3 flex-wrap">
             <MarketSessionBadge session={currentSession} data-testid="badge-market-session" />
             <div className="flex items-center gap-2 text-muted-foreground">
               <Clock className="h-4 w-4 text-cyan-400" />
               <span className="text-sm font-medium font-mono" data-testid="text-current-time">{currentTime} CT</span>
             </div>
           </div>
-        </div>
+        }
+      />
 
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-4">
         <div className="flex items-center gap-3">
           <SymbolSearch />
           {mainTab === "overview" && (

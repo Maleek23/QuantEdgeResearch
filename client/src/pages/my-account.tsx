@@ -17,10 +17,7 @@ import {
   Star,
   ChevronRight,
   Sparkles,
-  Target,
-  Activity,
   Calendar,
-  Clock,
   Shield,
   Zap,
   Bot,
@@ -37,38 +34,6 @@ interface UserData {
   profileImageUrl?: string;
   subscriptionTier: string;
   createdAt: string;
-}
-
-interface PerformanceStats {
-  totalTrades: number;
-  wins: number;
-  losses: number;
-  winRate: number;
-  totalPnL: number;
-  openPositions: number;
-}
-
-interface Position {
-  id: number;
-  symbol: string;
-  status: 'open' | 'closed';
-  realizedPnL?: number;
-  unrealizedPnL?: number;
-  entryPrice: number;
-  quantity: number;
-  direction: 'long' | 'short';
-  createdAt: string;
-}
-
-interface Portfolio {
-  id: number;
-  name: string;
-  balance: number;
-}
-
-interface PortfolioData {
-  positions: Position[];
-  portfolios: Portfolio[];
 }
 
 interface TierLimits {
@@ -98,10 +63,6 @@ export default function MyAccountPage() {
 
   const { data: preferences } = useQuery({
     queryKey: ['/api/preferences'],
-  });
-
-  const { data: portfolioData } = useQuery<PortfolioData>({
-    queryKey: ['/api/bot/positions'],
   });
 
   const { data: tierData } = useQuery<TierData>({
@@ -154,14 +115,6 @@ export default function MyAccountPage() {
     ? formatDistanceToNow(new Date(user.createdAt), { addSuffix: true })
     : 'Recently';
 
-  const positions = portfolioData?.positions || [];
-  const openPositions = positions.filter((p) => p.status === 'open');
-  const closedPositions = positions.filter((p) => p.status === 'closed');
-  const wins = closedPositions.filter((p) => (p.realizedPnL || 0) > 0).length;
-  const losses = closedPositions.filter((p) => (p.realizedPnL || 0) <= 0).length;
-  const winRate = closedPositions.length > 0 ? (wins / closedPositions.length) * 100 : 0;
-  const totalPnL = positions.reduce((sum, p) => sum + (p.realizedPnL || p.unrealizedPnL || 0), 0);
-
   const getTierBadge = (tier: string) => {
     switch (tier?.toLowerCase()) {
       case 'pro':
@@ -211,70 +164,28 @@ export default function MyAccountPage() {
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="glass-card border-l-2 border-l-cyan-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Open Positions</p>
-                <p className="text-2xl font-semibold font-mono tabular-nums mt-1" data-testid="text-open-positions">{openPositions.length}</p>
+      {/* Analytics Link */}
+      <Card className="glass-card border-l-2 border-l-cyan-500">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-cyan-500/10 flex items-center justify-center">
+                <BarChart3 className="h-6 w-6 text-cyan-400" />
               </div>
-              <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                <Activity className="h-5 w-5 text-cyan-400" />
+              <div>
+                <h3 className="text-lg font-semibold">Trading Analytics</h3>
+                <p className="text-sm text-muted-foreground">Analyze your win rate, P&L history, and performance metrics</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card border-l-2 border-l-green-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Win Rate</p>
-                <p className="text-2xl font-semibold font-mono tabular-nums mt-1" data-testid="text-win-rate">
-                  {closedPositions.length > 0 ? `${winRate.toFixed(1)}%` : 'N/A'}
-                </p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                <Target className="h-5 w-5 text-green-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card border-l-2 border-l-purple-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Total P&L</p>
-                <p className={`text-2xl font-semibold font-mono tabular-nums mt-1 ${totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-total-pnl">
-                  {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
-                </p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-purple-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card border-l-2 border-l-amber-500">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Record</p>
-                <p className="text-2xl font-semibold font-mono tabular-nums mt-1" data-testid="text-record">
-                  {wins}W / {losses}L
-                </p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-amber-400" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            <Link href="/performance">
+              <Button variant="outline" className="gap-2" data-testid="button-view-analytics">
+                View Analytics
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Main Content Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -389,57 +300,6 @@ export default function MyAccountPage() {
               </CardContent>
             </Card>
           </div>
-
-          {/* Recent Activity */}
-          <Card className="glass-card">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Clock className="h-5 w-5 text-cyan-400" />
-                Recent Positions
-              </CardTitle>
-              <CardDescription>Your latest trading activity</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {positions.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No positions yet. Start trading with the Auto-Lotto Bot!</p>
-                  <Link href="/watchlist-bot">
-                    <Button variant="outline" size="sm" className="mt-4">
-                      Go to Bot
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {positions.slice(0, 5).map((position: any, index: number) => (
-                    <div key={position.id || index} className="flex items-center justify-between p-3 rounded-lg bg-muted/10 hover-elevate">
-                      <div className="flex items-center gap-3">
-                        <Badge variant={position.status === 'open' ? 'default' : 'secondary'}>
-                          {position.status}
-                        </Badge>
-                        <div>
-                          <p className="font-medium">{position.symbol}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {position.assetType} • {position.direction}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-medium font-mono tabular-nums ${(position.unrealizedPnL || position.realizedPnL || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {(position.unrealizedPnL || position.realizedPnL || 0) >= 0 ? '+' : ''}
-                          ${(position.unrealizedPnL || position.realizedPnL || 0).toFixed(2)}
-                        </p>
-                        <p className="text-xs text-muted-foreground font-mono tabular-nums">
-                          {position.quantity}x @ ${Number(position.entryPrice).toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Preferences Tab */}

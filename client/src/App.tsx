@@ -83,7 +83,12 @@ function Router() {
         <Route path="/" component={SmartLanding} />
       <Route path="/features" component={Features} />
         <Route path="/landing" component={Landing} />
-      <Route path="/home" component={HomePage} />
+      <Route path="/home">
+        <Redirect to="/trade-desk" />
+      </Route>
+      <Route path="/dashboard">
+        <Redirect to="/trade-desk" />
+      </Route>
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/trade-desk" component={TradeDeskPage} />
@@ -96,7 +101,9 @@ function Router() {
       <Route path="/backtest" component={BacktestPage} />
       <Route path="/performance" component={PerformancePage} />
       <Route path="/trade-ideas/:id/audit" component={TradeAudit} />
-      <Route path="/data-audit" component={DataAuditCenter} />
+      <Route path="/data-audit">
+        <Redirect to="/performance" />
+      </Route>
       <Route path="/market" component={MarketPage} />
       <Route path="/market-scanner" component={MarketScanner} />
       <Route path="/futures" component={FuturesPage} />

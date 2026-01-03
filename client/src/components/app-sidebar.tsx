@@ -30,12 +30,7 @@ interface NavItem {
   badge?: string;
 }
 
-// Main overview
-const overviewItems: NavItem[] = [
-  { title: "Dashboard", url: "/home", icon: Home },
-];
-
-// Research - unified trading research (Trade Desk handles all assets)
+// Research - unified trading research hub (Trade Desk is the main dashboard)
 const researchItems: NavItem[] = [
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
   { title: "Futures", url: "/futures", icon: LineChart },
@@ -77,7 +72,7 @@ function SidebarHeaderContent() {
   return (
     <div className="py-4 px-2">
       <button 
-        onClick={() => setLocation("/home")} 
+        onClick={() => setLocation("/trade-desk")} 
         data-testid="nav-logo" 
         className="flex items-center gap-3 cursor-pointer w-full"
       >
@@ -218,16 +213,7 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent className="gap-0 py-2">
-        {/* Dashboard */}
-        <NavSection 
-          label="Overview" 
-          items={overviewItems} 
-          location={location} 
-          onNavigate={handleNavigation}
-          showLabel={false}
-        />
-        
-        {/* Research - Trade Desk & Market Data */}
+        {/* Research - Trade Desk (Main Dashboard) & Market Data */}
         <NavSection 
           label="Research" 
           items={researchItems} 

@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Settings, DollarSign, Bell, Eye, Zap, AlertTriangle } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import type { UserPreferences } from "@shared/schema";
 
 export default function SettingsPage() {
@@ -75,24 +76,12 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
-      {/* Header - Glassmorphism with gradient */}
-      <div className="relative overflow-hidden rounded-xl glass-card p-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10" />
-        <div className="relative z-10">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-            Configuration
-          </p>
-          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight flex items-center gap-3" data-testid="text-page-title">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/30 flex items-center justify-center">
-              <Settings className="h-5 w-5 text-cyan-400" />
-            </div>
-            Settings
-          </h1>
-          <p className="text-sm text-muted-foreground mt-2">
-            Customize your QuantEdge experience
-          </p>
-        </div>
-      </div>
+      <PageHeader 
+        label="Configuration"
+        title="Settings"
+        description="Customize your QuantEdge experience"
+        icon={Settings}
+      />
 
       <Tabs defaultValue="trading" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4 glass-card" data-testid="tabs-settings">

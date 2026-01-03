@@ -27,8 +27,10 @@ import {
   ArrowDownRight,
   Loader2,
   FileText,
-  Zap
+  Zap,
+  LineChart
 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { formatInTimeZone } from "date-fns-tz";
 import { format } from "date-fns";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -393,21 +395,15 @@ export default function FuturesPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="relative overflow-hidden rounded-xl glass-card p-6">
-        <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 via-transparent to-cyan-400/10" />
-        <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Futures Research
-            </p>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3" data-testid="text-page-title">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-green-500 to-green-600 shadow-lg">
-                <Brain className="h-6 w-6 text-white" />
-              </div>
-              Futures Research Desk
-            </h1>
-            <p className="text-muted-foreground mt-1">AI-powered futures analysis - 24-hour markets</p>
-            <div className="flex items-center gap-3 mt-3 flex-wrap">
+      <PageHeader 
+        label="Futures"
+        title="Futures Research"
+        description="Real-time futures quotes and research briefs"
+        icon={LineChart}
+        iconColor="text-cyan-400"
+        actions={
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-3 mr-4 flex-wrap">
               <SessionIndicator session={currentSession} />
               <div className="flex items-center gap-2 glass rounded-lg px-3 py-1.5">
                 <Clock className="h-4 w-4 text-cyan-400" />
@@ -418,9 +414,6 @@ export default function FuturesPage() {
                 <span className="text-sm font-medium" data-testid="text-et-time">{etTime} ET</span>
               </div>
             </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
             <Button
               variant="default"
               size="sm"
@@ -449,8 +442,8 @@ export default function FuturesPage() {
               <RefreshCw className={`h-4 w-4 ${isFetchingQuotes ? 'animate-spin' : ''}`} />
             </Button>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <div className="glass-card rounded-xl p-4">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
