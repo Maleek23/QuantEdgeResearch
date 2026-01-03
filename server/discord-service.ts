@@ -1830,3 +1830,115 @@ export async function sendGainsToDiscord(trade: {
     logger.error('❌ Failed to send Discord gains alert:', error);
   }
 }
+
+// Engine labels for Discord display
+const ENGINE_LABELS_DISCORD: Record<string, string> = {
+  ai: "AI Engine",
+  quant: "Quant Engine",
+  hybrid: "Hybrid Engine",
+  flow: "Flow Scanner",
+  lotto: "Lotto Scanner",
+};
+
+/**
+ * Send Platform Report Notification to Discord
+ * Called after daily/weekly/monthly reports are generated
+ */
+export async function sendReportNotificationToDiscord(report: {
+  period: string;
+  startDate: string;
+  endDate: string;
+  totalIdeasGenerated: number;
+  overallWinRate: number | null;
+  totalPnlPercent: number | null;
+  bestPerformingEngine: string | null;
+  totalWins?: number;
+  totalLosses?: number;
+}): Promise<void> {
+  if (DISCORD_DISABLED) {
+    logger.warn('⚠️ Discord is DISABLED - skipping report notification');
+    return;
+  }
+  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    logger.info('⚠️ Discord webhook URL not configured - skipping report notification');
+    return;
+  }
+  
+  try {
+    const periodLabel = report.period.charAt(0).toUpperCase() + report.period.slice(1);
+    const pnl = report.totalPnlPercent || 0;
+    const isPositive = pnl >= 0;
+    const color = isPositive ? 0x22c55e : 0xef4444; // Green for positive, red for negative
+    
+    const periodEmoji = report.period === 'daily' ? '📅' : report.period === 'weekly' ? '📆' : '🗓️';
+    const pnlEmoji = isPositive ? '📈' : '📉';
+    const winRate = report.overallWinRate?.toFixed(1) || '—';
+    const bestEngine = ENGINE_LABELS_DISCORD[report.bestPerformingEngine || ''] || 'N/A';
+    
+    const embed: DiscordEmbed = {
+      title: `${periodEmoji} ${periodLabel} Platform Report`,
+      description: `**Report Period:** ${report.startDate} to ${report.endDate}\n\nPlatform performance summary for the ${report.period} period.`,
+      color,
+      fields: [
+        {
+          name: '💡 Ideas Generated',
+          value: String(report.totalIdeasGenerated),
+          inline: true
+        },
+        {
+          name: '🎯 Win Rate',
+          value: `${winRate}%`,
+          inline: true
+        },
+        {
+          name: `${pnlEmoji} Total P&L`,
+          value: `${isPositive ? '+' : ''}${pnl.toFixed(2)}%`,
+          inline: true
+        },
+        {
+          name: '🏆 Best Engine',
+          value: bestEngine,
+          inline: true
+        },
+        {
+          name: '✅ Wins',
+          value: String(report.totalWins || 0),
+          inline: true
+        },
+        {
+          name: '❌ Losses',
+          value: String(report.totalLosses || 0),
+          inline: true
+        }
+      ],
+      footer: {
+        text: 'QuantEdge Research • Automated Report'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    const message: DiscordMessage = {
+      content: `📊 **${periodLabel.toUpperCase()} REPORT GENERATED** │ ${periodEmoji} ${report.startDate} to ${report.endDate}`,
+      embeds: [embed]
+    };
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+    
+    if (response.ok) {
+      logger.info(`✅ Discord report notification sent: ${periodLabel} report`);
+    } else {
+      logger.error(`❌ Discord report webhook failed: ${response.status}`);
+    }
+  } catch (error) {
+    logger.error('❌ Failed to send Discord report notification:', error);
+  }
+}

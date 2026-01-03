@@ -41,7 +41,9 @@ import {
   ArrowRight,
   Clock,
   AlertTriangle,
+  Download,
 } from "lucide-react";
+import { generatePlatformReportPDF } from "@/lib/pdf-export";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
@@ -432,6 +434,27 @@ export default function AdminReportsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Download PDF Button */}
+          {latestReports?.[selectedPeriod] && (
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const report = latestReports[selectedPeriod];
+                  if (report) {
+                    generatePlatformReportPDF(report as any);
+                    toast({ title: "PDF Downloaded", description: `${selectedPeriod} report PDF generated successfully` });
+                  }
+                }}
+                className="border-cyan-500/30 hover:border-cyan-500"
+                data-testid="button-download-pdf"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download {selectedPeriod.charAt(0).toUpperCase() + selectedPeriod.slice(1)} Report PDF
+              </Button>
+            </div>
+          )}
 
           {/* Asset Distribution Pie Chart */}
           <div className="grid gap-6 lg:grid-cols-2">

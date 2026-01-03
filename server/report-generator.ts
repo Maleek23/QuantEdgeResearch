@@ -10,6 +10,7 @@ import { logger } from './logger';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays } from 'date-fns';
 import { formatInTimeZone, toZonedTime } from 'date-fns-tz';
 import type { PlatformReport, InsertPlatformReport, TradeIdea, IdeaSource, ReportPeriod } from '@shared/schema';
+import { sendReportNotificationToDiscord } from './discord-service';
 
 const CT_TIMEZONE = 'America/Chicago';
 
@@ -347,6 +348,20 @@ export async function generateDailyReport(date?: Date): Promise<PlatformReport> 
     
     const created = await storage.createPlatformReport(report);
     logger.info(`[REPORT-GEN] Daily report created: ${created.id}`);
+    
+    // Send Discord notification (optional - won't fail if webhook not configured)
+    await sendReportNotificationToDiscord({
+      period: 'daily',
+      startDate: startStr,
+      endDate: endStr,
+      totalIdeasGenerated: todayIdeas.length,
+      overallWinRate: stats.winRate,
+      totalPnlPercent: stats.totalPnl,
+      bestPerformingEngine: bestEngine?.engine || null,
+      totalWins: stats.wins,
+      totalLosses: stats.losses,
+    }).catch(err => logger.warn('[REPORT-GEN] Discord notification failed (non-fatal):', err));
+    
     return created;
   } catch (error) {
     logger.error('[REPORT-GEN] Failed to generate daily report:', error);
@@ -461,6 +476,20 @@ export async function generateWeeklyReport(endDate?: Date): Promise<PlatformRepo
     
     const created = await storage.createPlatformReport(report);
     logger.info(`[REPORT-GEN] Weekly report created: ${created.id}`);
+    
+    // Send Discord notification (optional - won't fail if webhook not configured)
+    await sendReportNotificationToDiscord({
+      period: 'weekly',
+      startDate: startStr,
+      endDate: endStr,
+      totalIdeasGenerated: weekIdeas.length,
+      overallWinRate: stats.winRate,
+      totalPnlPercent: stats.totalPnl,
+      bestPerformingEngine: bestEngine?.engine || null,
+      totalWins: stats.wins,
+      totalLosses: stats.losses,
+    }).catch(err => logger.warn('[REPORT-GEN] Discord notification failed (non-fatal):', err));
+    
     return created;
   } catch (error) {
     logger.error('[REPORT-GEN] Failed to generate weekly report:', error);
@@ -589,6 +618,20 @@ export async function generateMonthlyReport(year: number, month: number): Promis
     
     const created = await storage.createPlatformReport(report);
     logger.info(`[REPORT-GEN] Monthly report created: ${created.id}`);
+    
+    // Send Discord notification (optional - won't fail if webhook not configured)
+    await sendReportNotificationToDiscord({
+      period: 'monthly',
+      startDate: startStr,
+      endDate: endStr,
+      totalIdeasGenerated: monthIdeas.length,
+      overallWinRate: stats.winRate,
+      totalPnlPercent: stats.totalPnl,
+      bestPerformingEngine: bestEngine?.engine || null,
+      totalWins: stats.wins,
+      totalLosses: stats.losses,
+    }).catch(err => logger.warn('[REPORT-GEN] Discord notification failed (non-fatal):', err));
+    
     return created;
   } catch (error) {
     logger.error('[REPORT-GEN] Failed to generate monthly report:', error);

@@ -101,3 +101,290 @@ export async function generateDailyTradeAnalysisPDF(ideas: any[]) {
 
   doc.save(`QuantEdge_Analysis_${new Date().toISOString().split('T')[0]}.pdf`);
 }
+
+// Engine labels for display
+const ENGINE_LABELS: Record<string, string> = {
+  ai: "AI Engine",
+  quant: "Quant Engine",
+  hybrid: "Hybrid Engine",
+  flow: "Flow Scanner",
+  lotto: "Lotto Scanner",
+};
+
+interface PlatformReportData {
+  id?: string;
+  period: string;
+  startDate: string;
+  endDate: string;
+  totalIdeasGenerated: number;
+  aiIdeasGenerated?: number;
+  quantIdeasGenerated?: number;
+  hybridIdeasGenerated?: number;
+  totalTradesResolved?: number;
+  totalWins?: number;
+  totalLosses?: number;
+  overallWinRate?: number | null;
+  avgGainPercent?: number | null;
+  avgLossPercent?: number | null;
+  totalPnlPercent?: number | null;
+  aiWinRate?: number | null;
+  quantWinRate?: number | null;
+  hybridWinRate?: number | null;
+  bestPerformingEngine?: string | null;
+  autoLottoTrades?: number;
+  autoLottoPnl?: number | null;
+  futuresBotTrades?: number;
+  futuresBotPnl?: number | null;
+  cryptoBotTrades?: number;
+  cryptoBotPnl?: number | null;
+  propFirmTrades?: number;
+  propFirmPnl?: number | null;
+  stockTradeCount?: number;
+  optionsTradeCount?: number;
+  cryptoTradeCount?: number;
+  futuresTradeCount?: number;
+  topWinningSymbols?: Array<{ symbol: string; wins: number; losses: number; totalPnl: number }>;
+  topLosingSymbols?: Array<{ symbol: string; wins: number; losses: number; totalPnl: number }>;
+  reportData?: {
+    enginePerformance?: Array<{
+      engine: string;
+      generated: number;
+      resolved: number;
+      wins: number;
+      losses: number;
+      winRate: number;
+    }>;
+  };
+}
+
+export function generatePlatformReportPDF(report: PlatformReportData) {
+  const doc = new jsPDF();
+  const periodLabel = report.period.charAt(0).toUpperCase() + report.period.slice(1);
+  
+  // Header - Dark blue background
+  doc.setFillColor(15, 23, 42); // slate-900
+  doc.rect(0, 0, 210, 45, 'F');
+  
+  // Logo / Title
+  doc.setTextColor(34, 211, 238); // cyan-400
+  doc.setFontSize(26);
+  doc.setFont('helvetica', 'bold');
+  doc.text('QuantEdge Research', 14, 22);
+  
+  // Subtitle
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${periodLabel} Platform Report`, 14, 32);
+  
+  // Date range - right aligned
+  doc.setFontSize(10);
+  doc.setTextColor(148, 163, 184); // slate-400
+  const dateRange = `${report.startDate} to ${report.endDate}`;
+  doc.text(dateRange, 196, 32, { align: 'right' });
+  
+  let yPos = 55;
+  
+  // Executive Summary Section
+  doc.setFillColor(241, 245, 249); // slate-100
+  doc.rect(14, yPos, 182, 8, 'F');
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('EXECUTIVE SUMMARY', 18, yPos + 6);
+  yPos += 14;
+  
+  // Key Metrics Table
+  const winRate = report.overallWinRate?.toFixed(1) || '—';
+  const totalPnl = report.totalPnlPercent?.toFixed(2) || '—';
+  const pnlColor = (report.totalPnlPercent || 0) >= 0 ? [34, 197, 94] : [239, 68, 68]; // green or red
+  
+  const summaryData = [
+    ['Ideas Generated', String(report.totalIdeasGenerated), 'Trades Resolved', String(report.totalTradesResolved || 0)],
+    ['Total Wins', String(report.totalWins || 0), 'Total Losses', String(report.totalLosses || 0)],
+    ['Win Rate', `${winRate}%`, 'Total P&L', `${totalPnl}%`],
+    ['Best Engine', ENGINE_LABELS[report.bestPerformingEngine || ''] || '—', 'Avg Gain', `${report.avgGainPercent?.toFixed(2) || '—'}%`],
+  ];
+  
+  doc.autoTable({
+    startY: yPos,
+    head: [],
+    body: summaryData,
+    theme: 'plain',
+    styles: { fontSize: 10, cellPadding: 3 },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 35, textColor: [100, 116, 139] },
+      1: { cellWidth: 50, textColor: [15, 23, 42] },
+      2: { fontStyle: 'bold', cellWidth: 35, textColor: [100, 116, 139] },
+      3: { cellWidth: 50, textColor: [15, 23, 42] },
+    },
+  });
+  
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+  
+  // Engine Performance Section
+  doc.setFillColor(241, 245, 249);
+  doc.rect(14, yPos, 182, 8, 'F');
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('ENGINE PERFORMANCE COMPARISON', 18, yPos + 6);
+  yPos += 12;
+  
+  const engineData: (string | number)[][] = [
+    ['Engine', 'Generated', 'Resolved', 'Wins', 'Losses', 'Win Rate'],
+  ];
+  
+  // Add engine-specific data from reportData if available
+  if (report.reportData?.enginePerformance) {
+    for (const eng of report.reportData.enginePerformance) {
+      engineData.push([
+        ENGINE_LABELS[eng.engine] || eng.engine,
+        eng.generated,
+        eng.resolved,
+        eng.wins,
+        eng.losses,
+        `${eng.winRate?.toFixed(1) || '—'}%`,
+      ]);
+    }
+  } else {
+    // Fallback to top-level data
+    if (report.aiIdeasGenerated) {
+      engineData.push(['AI Engine', report.aiIdeasGenerated, '—', '—', '—', `${report.aiWinRate?.toFixed(1) || '—'}%`]);
+    }
+    if (report.quantIdeasGenerated) {
+      engineData.push(['Quant Engine', report.quantIdeasGenerated, '—', '—', '—', `${report.quantWinRate?.toFixed(1) || '—'}%`]);
+    }
+    if (report.hybridIdeasGenerated) {
+      engineData.push(['Hybrid Engine', report.hybridIdeasGenerated, '—', '—', '—', `${report.hybridWinRate?.toFixed(1) || '—'}%`]);
+    }
+  }
+  
+  doc.autoTable({
+    startY: yPos,
+    head: [engineData[0]],
+    body: engineData.slice(1),
+    theme: 'striped',
+    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold' },
+    styles: { fontSize: 9, cellPadding: 2 },
+  });
+  
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+  
+  // Check if we need a new page
+  if (yPos > 200) {
+    doc.addPage();
+    yPos = 20;
+  }
+  
+  // Bot Activity Section
+  doc.setFillColor(241, 245, 249);
+  doc.rect(14, yPos, 182, 8, 'F');
+  doc.setTextColor(15, 23, 42);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('BOT ACTIVITY SUMMARY', 18, yPos + 6);
+  yPos += 12;
+  
+  const botData = [
+    ['Bot Type', 'Trades', 'P&L'],
+    ['Auto-Lotto', String(report.autoLottoTrades || 0), `${report.autoLottoPnl?.toFixed(2) || '0.00'}%`],
+    ['Futures Bot', String(report.futuresBotTrades || 0), `${report.futuresBotPnl?.toFixed(2) || '0.00'}%`],
+    ['Crypto Bot', String(report.cryptoBotTrades || 0), `${report.cryptoBotPnl?.toFixed(2) || '0.00'}%`],
+    ['Prop Firm', String(report.propFirmTrades || 0), `${report.propFirmPnl?.toFixed(2) || '0.00'}%`],
+  ];
+  
+  doc.autoTable({
+    startY: yPos,
+    head: [botData[0]],
+    body: botData.slice(1),
+    theme: 'striped',
+    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold' },
+    styles: { fontSize: 9, cellPadding: 2 },
+    columnStyles: {
+      0: { cellWidth: 60 },
+      1: { cellWidth: 40 },
+      2: { cellWidth: 40 },
+    },
+  });
+  
+  yPos = (doc as any).lastAutoTable.finalY + 15;
+  
+  // Check if we need a new page
+  if (yPos > 200) {
+    doc.addPage();
+    yPos = 20;
+  }
+  
+  // Top Winning Symbols
+  if (report.topWinningSymbols && report.topWinningSymbols.length > 0) {
+    doc.setFillColor(241, 245, 249);
+    doc.rect(14, yPos, 182, 8, 'F');
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TOP WINNING SYMBOLS', 18, yPos + 6);
+    yPos += 12;
+    
+    const winnerData = [['Symbol', 'Wins', 'Losses', 'Total P&L']];
+    for (const sym of report.topWinningSymbols.slice(0, 5)) {
+      winnerData.push([sym.symbol, String(sym.wins), String(sym.losses), `+${sym.totalPnl.toFixed(2)}%`]);
+    }
+    
+    doc.autoTable({
+      startY: yPos,
+      head: [winnerData[0]],
+      body: winnerData.slice(1),
+      theme: 'striped',
+      headStyles: { fillColor: [34, 197, 94], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 2 },
+    });
+    
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+  }
+  
+  // Top Losing Symbols
+  if (report.topLosingSymbols && report.topLosingSymbols.length > 0) {
+    // Check if we need a new page
+    if (yPos > 230) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
+    doc.setFillColor(241, 245, 249);
+    doc.rect(14, yPos, 182, 8, 'F');
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TOP LOSING SYMBOLS', 18, yPos + 6);
+    yPos += 12;
+    
+    const loserData = [['Symbol', 'Wins', 'Losses', 'Total P&L']];
+    for (const sym of report.topLosingSymbols.slice(0, 5)) {
+      loserData.push([sym.symbol, String(sym.wins), String(sym.losses), `${sym.totalPnl.toFixed(2)}%`]);
+    }
+    
+    doc.autoTable({
+      startY: yPos,
+      head: [loserData[0]],
+      body: loserData.slice(1),
+      theme: 'striped',
+      headStyles: { fillColor: [239, 68, 68], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 2 },
+    });
+  }
+  
+  // Footer on all pages
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text('Confidential - For Educational & Research Purposes Only. Not Financial Advice.', 105, 285, { align: 'center' });
+    doc.text(`Generated: ${new Date().toLocaleString()} | Page ${i} of ${pageCount}`, 105, 290, { align: 'center' });
+  }
+  
+  // Generate filename
+  const dateStr = report.startDate.replace(/-/g, '');
+  doc.save(`quantedge-report-${report.period}-${dateStr}.pdf`);
+}
