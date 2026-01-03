@@ -20,7 +20,52 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, IdeaSource, MarketData, Catalyst } from "@shared/schema";
-import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock, Info, Activity, Newspaper, Bot, AlertTriangle, FileText, Eye, ArrowUpDown } from "lucide-react";
+import { 
+  TrendingUp, 
+  Target, 
+  Shield, 
+  Clock, 
+  ChevronRight, 
+  Filter, 
+  Search,
+  ArrowUpRight,
+  ArrowDownRight,
+  Zap,
+  Activity,
+  BarChart3,
+  Bot,
+  Brain,
+  Star,
+  Loader2,
+  CalendarClock,
+  ChevronDown,
+  Info,
+  List,
+  LayoutGrid,
+  TrendingUp as TrendingUpIcon,
+  X,
+  XCircle,
+  CheckCircle,
+  FileText,
+  AlertTriangle,
+  Newspaper,
+  Calendar as CalendarIcon,
+  RefreshCw,
+  Sparkles,
+  UserPlus,
+  Eye,
+  ArrowUpDown,
+  SlidersHorizontal
+} from "lucide-react";
+import { formatCurrency, formatPercent } from "@/lib/utils";
+
+function TimingDisplay({ minutes }: { minutes: number }) {
+  if (minutes <= 0) return <Badge variant="destructive">Expired</Badge>;
+  if (minutes < 60) return <Badge variant="outline" className="text-amber-400 border-amber-400/30">{minutes}m left</Badge>;
+  const hours = Math.floor(minutes / 60);
+  return <Badge variant="outline" className="text-cyan-400 border-cyan-400/30">{hours}h left</Badge>;
+}
+
 import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, subYears, isAfter, isBefore } from "date-fns";
 import { isWeekend, getNextTradingWeekStart, cn, getMarketStatus } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
@@ -136,8 +181,8 @@ export default function TradeDeskPage() {
 
   const { data: tradeIdeas = [], isLoading: ideasLoading } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
-    refetchInterval: 60000, // 60s for trading data (prices included in response)
-    staleTime: 30000, // Fresh for 30s - reduces duplicate fetches
+    refetchInterval: 5000, // FAST UPDATE: 5s for active trading
+    staleTime: 2000,
   });
 
   const { data: marketData = [] } = useQuery<MarketData[]>({

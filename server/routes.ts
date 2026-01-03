@@ -5369,7 +5369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             r.direction,
             r.optionType || '',
             r.strikePrice || '',
-            r.optionExpiry || '',
+            r.expiryDate || '',
             r.dteAtIdea ?? '',
             `"${r.ideaTimeFormatted}"`,
             r.ideaDayOfWeek,

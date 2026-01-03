@@ -24,13 +24,38 @@ const FUTURES_PORTFOLIO_NAME = "Auto-Lotto Futures";
 const CRYPTO_PORTFOLIO_NAME = "Auto-Lotto Crypto";
 const SYSTEM_USER_ID = "system-auto-trader";
 const STARTING_CAPITAL = 300; // $300 per portfolio
-const MAX_POSITION_SIZE = 50;
+const MAX_POSITION_SIZE = 100; // $100 max per trade for better utilization
 const FUTURES_MAX_POSITION_SIZE_PER_TRADE = 100;
-const CRYPTO_MAX_POSITION_SIZE = 100; // Max $100 per crypto trade
+const CRYPTO_MAX_POSITION_SIZE = 100; 
 
 let optionsPortfolio: PaperPortfolio | null = null;
 let futuresPortfolio: PaperPortfolio | null = null;
 let cryptoPortfolio: PaperPortfolio | null = null;
+
+// Re-initialize portfolios to ensure $300 balance if they exist but have different starting capital
+export async function syncPortfolios(): Promise<void> {
+  const portfolios = [
+    { name: OPTIONS_PORTFOLIO_NAME, size: MAX_POSITION_SIZE },
+    { name: FUTURES_PORTFOLIO_NAME, size: FUTURES_MAX_POSITION_SIZE_PER_TRADE },
+    { name: CRYPTO_PORTFOLIO_NAME, size: CRYPTO_MAX_POSITION_SIZE }
+  ];
+
+  for (const p of portfolios) {
+    const existing = await storage.getPaperPortfoliosByUser(SYSTEM_USER_ID);
+    const found = existing.find(ep => ep.name === p.name);
+    if (!found) {
+      await storage.createPaperPortfolio({
+        userId: SYSTEM_USER_ID,
+        name: p.name,
+        startingCapital: STARTING_CAPITAL,
+        cashBalance: STARTING_CAPITAL,
+        totalValue: STARTING_CAPITAL,
+        maxPositionSize: p.size,
+        riskPerTrade: 0.1, // More aggressive risk
+      });
+    }
+  }
+}
 
 // Crypto trading configuration
 export const CRYPTO_SCAN_COINS = [
@@ -492,6 +517,7 @@ export async function runCryptoBotScan(): Promise<void> {
       stopLoss,
       status: 'open',
       tradeIdeaId: savedIdea.id,
+      entryTime: new Date().toISOString(),
     });
     
     // Update portfolio balance
@@ -1486,6 +1512,28 @@ export async function runFuturesBotScan(): Promise<void> {
             stopLoss: stopLoss,
             targetPrice: targetPrice,
             entryTime: new Date().toISOString(),
+          });
+          
+          // CREATE TRADE IDEA FOR TRADE DESK
+          await storage.createTradeIdea({
+            symbol: bestFuturesOpp.contractCode,
+            assetType: 'future',
+            direction: bestFuturesOpp.direction,
+            entryPrice: entryPrice,
+            targetPrice: targetPrice,
+            stopLoss: stopLoss,
+            riskRewardRatio: 2.0, // 4% target / 2% stop
+            confidenceScore: bestFuturesOpp.confidence,
+            qualitySignals: bestFuturesOpp.signals,
+            probabilityBand: bestFuturesOpp.confidence >= 80 ? 'A' : 'B',
+            holdingPeriod: 'day',
+            catalyst: `Futures Setup: ${bestFuturesOpp.signals.join(', ')}`,
+            analysis: `🔮 FUTURES BOT ANALYSIS\n\n${bestFuturesOpp.contractCode} showing ${bestFuturesOpp.direction.toUpperCase()} momentum.\n\nStructure: ${bestFuturesOpp.signals.join(' | ')}`,
+            sessionContext: 'Futures Bot',
+            source: 'quant',
+            status: 'published',
+            outcomeStatus: 'open',
+            timestamp: new Date().toISOString()
           });
           
           // Update portfolio cash - subtract MARGIN amount, not full contract value

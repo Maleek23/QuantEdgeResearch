@@ -20,7 +20,7 @@ export default function MarketPage() {
   const [selectedSymbol, setSelectedSymbol] = useState<MarketData | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
-  const [nextRefresh, setNextRefresh] = useState<number>(60);
+  const [nextRefresh, setNextRefresh] = useState<number>(10);
   const { toast } = useToast();
   
   const currentSession = getMarketSession();
@@ -46,7 +46,7 @@ export default function MarketPage() {
     },
     onSuccess: () => {
       setLastUpdate(new Date());
-      setNextRefresh(60);
+      setNextRefresh(10);
       queryClient.invalidateQueries({ queryKey: ['/api/market-data'] });
     },
     onError: () => {
@@ -63,7 +63,7 @@ export default function MarketPage() {
       setNextRefresh((prev) => {
         if (prev <= 1) {
           refreshPricesMutation.mutate();
-          return 60;
+          return 10;
         }
         return prev - 1;
       });

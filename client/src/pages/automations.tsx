@@ -115,7 +115,7 @@ export default function AutomationsPage() {
 
   const { data: status, isLoading } = useQuery<AutomationsStatus>({
     queryKey: ["/api/automations/status"],
-    refetchInterval: 30000,
+    refetchInterval: 5000,
   });
 
   const { data: weeklyReport } = useQuery({
@@ -478,26 +478,25 @@ export default function AutomationsPage() {
                 </div>
               </div>
 
-              {optionsFlow?.todayFlows && optionsFlow.todayFlows.length > 0 && (
-                <div>
-                  <h4 className="font-medium mb-3">Recent Unusual Flows</h4>
-                  <div className="space-y-2">
-                    {optionsFlow.todayFlows.slice(0, 5).map((flow: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Badge variant={flow.sentiment === 'bullish' ? 'default' : flow.sentiment === 'bearish' ? 'destructive' : 'secondary'}>
-                            {flow.sentiment}
-                          </Badge>
-                          <span className="font-medium">{flow.symbol}</span>
-                          <span className="text-muted-foreground">{flow.optionType?.toUpperCase()} ${flow.strikePrice}</span>
+                  {optionsFlow?.todayFlows && optionsFlow.todayFlows.length > 0 && (
+                    <div className="space-y-2">
+                      {optionsFlow.todayFlows.slice(0, 5).map((flow: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Badge variant={flow.sentiment === 'bullish' ? 'default' : flow.sentiment === 'bearish' ? 'destructive' : 'secondary'}>
+                              {flow.sentiment}
+                            </Badge>
+                            <span className="font-medium">{flow.symbol}</span>
+                            <span className="text-muted-foreground">{flow.optionType?.toUpperCase()} ${flow.strikePrice}</span>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium">${(flow.premium / 1000).toFixed(0)}k</div>
+                            <div className="text-xs text-muted-foreground">Score: {flow.unusualScore}</div>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="font-medium">${(flow.premium / 1000).toFixed(0)}k</div>
-                          <div className="text-xs text-muted-foreground">Score: {flow.unusualScore}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
