@@ -982,7 +982,12 @@ export async function sendBotTradeEntryToDiscord(position: {
   targetPrice?: number | null;
   stopLoss?: number | null;
 }): Promise<void> {
-  if (DISCORD_DISABLED) return;
+  logger.info(`📱 [DISCORD] sendBotTradeEntryToDiscord called for ${position.symbol}`);
+  
+  if (DISCORD_DISABLED) {
+    logger.warn(`📱 [DISCORD] DISABLED - skipping entry notification for ${position.symbol}`);
+    return;
+  }
   
   // Route to specific channel based on asset type
   const webhookUrl = position.assetType === 'future' 
@@ -990,8 +995,11 @@ export async function sendBotTradeEntryToDiscord(position: {
     : (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL);
   
   if (!webhookUrl) {
+    logger.warn(`📱 [DISCORD] No webhook URL configured - skipping entry notification for ${position.symbol}`);
     return;
   }
+  
+  logger.info(`📱 [DISCORD] Sending entry notification to webhook for ${position.symbol}...`);
   
   try {
     const isCall = position.optionType === 'call';
@@ -1071,7 +1079,12 @@ export async function sendBotTradeExitToDiscord(position: {
   realizedPnL?: number | null;
   exitReason?: string | null;
 }): Promise<void> {
-  if (DISCORD_DISABLED) return;
+  logger.info(`📱 [DISCORD] sendBotTradeExitToDiscord called for ${position.symbol}`);
+  
+  if (DISCORD_DISABLED) {
+    logger.warn(`📱 [DISCORD] DISABLED - skipping exit notification for ${position.symbol}`);
+    return;
+  }
   
   // Route to specific channel based on asset type
   const webhookUrl = position.assetType === 'future'
@@ -1079,8 +1092,11 @@ export async function sendBotTradeExitToDiscord(position: {
     : (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL);
   
   if (!webhookUrl) {
+    logger.warn(`📱 [DISCORD] No webhook URL configured - skipping exit notification for ${position.symbol}`);
     return;
   }
+  
+  logger.info(`📱 [DISCORD] Sending exit notification to webhook for ${position.symbol}...`);
   
   try {
     const pnl = position.realizedPnL || 0;

@@ -10,6 +10,7 @@ import { isUSMarketOpen, isCMEMarketOpen, normalizeDateString } from "@shared/ma
 import { logger } from "./logger";
 import { getMarketContext, getEntryTiming, checkDynamicExit, MarketContext } from "./market-context-service";
 import { getActiveFuturesContract, getFuturesPrice } from "./futures-data-service";
+import { getTopMovers } from "./market-scanner";
 import { 
   calculateEnhancedSignalScore, 
   detectCandlestickPatterns,
@@ -395,6 +396,79 @@ const EXPANDED_SCAN_UNIVERSE = [
 
 // Combined for general scanning (deduplicated)
 const BOT_SCAN_TICKERS = Array.from(new Set([...DAY_TRADE_TICKERS, ...SWING_TRADE_TICKERS, ...EXPANDED_SCAN_UNIVERSE]));
+
+// Cache for market scanner movers
+let moversCache: { tickers: string[]; timestamp: number } | null = null;
+const MOVERS_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+/**
+ * Get dynamic movers from market scanner across multiple timeframes
+ * Finds stocks with big price moves that could continue or reverse - ideal for lotto plays
+ */
+async function getDynamicMovers(): Promise<string[]> {
+  const now = Date.now();
+  
+  if (moversCache && (now - moversCache.timestamp) < MOVERS_CACHE_TTL) {
+    logger.debug(`🔍 [SCANNER] Using cached movers: ${moversCache.tickers.length} tickers`);
+    return moversCache.tickers;
+  }
+  
+  try {
+    logger.info(`🔍 [SCANNER] Fetching dynamic movers from market scanner...`);
+    
+    const dynamicTickers = new Set<string>();
+    
+    // Get top movers across multiple timeframes for maximum opportunity detection
+    const timeframes: ('day' | 'week' | 'month' | 'year')[] = ['day', 'week', 'month', 'year'];
+    
+    for (const timeframe of timeframes) {
+      try {
+        const movers = await getTopMovers(timeframe, 'all', 20);
+        
+        // Add top gainers (momentum plays - could continue up)
+        for (const stock of movers.gainers.slice(0, 10)) {
+          if (stock.symbol && stock.currentPrice > 1) { // Skip penny stocks under $1
+            dynamicTickers.add(stock.symbol);
+            logger.debug(`🔍 [SCANNER] +${timeframe.toUpperCase()} GAINER: ${stock.symbol} +${stock.dayChangePercent?.toFixed(1)}%`);
+          }
+        }
+        
+        // Add top losers (reversal plays - could bounce)
+        for (const stock of movers.losers.slice(0, 10)) {
+          if (stock.symbol && stock.currentPrice > 1) {
+            dynamicTickers.add(stock.symbol);
+            logger.debug(`🔍 [SCANNER] -${timeframe.toUpperCase()} LOSER: ${stock.symbol} ${stock.dayChangePercent?.toFixed(1)}%`);
+          }
+        }
+      } catch (err) {
+        logger.warn(`🔍 [SCANNER] Failed to get ${timeframe} movers:`, err);
+      }
+    }
+    
+    // Also get growth and penny stock movers for high volatility plays
+    try {
+      const growthMovers = await getTopMovers('day', 'growth', 15);
+      for (const stock of [...growthMovers.gainers.slice(0, 8), ...growthMovers.losers.slice(0, 5)]) {
+        if (stock.symbol && stock.currentPrice > 1) {
+          dynamicTickers.add(stock.symbol);
+        }
+      }
+    } catch (err) {
+      logger.debug(`🔍 [SCANNER] Growth movers fetch skipped`);
+    }
+    
+    const tickerArray = Array.from(dynamicTickers);
+    
+    moversCache = { tickers: tickerArray, timestamp: now };
+    
+    logger.info(`🔍 [SCANNER] Found ${tickerArray.length} dynamic movers across timeframes`);
+    return tickerArray;
+    
+  } catch (error) {
+    logger.error(`🔍 [SCANNER] Error fetching dynamic movers:`, error);
+    return [];
+  }
+}
 
 const FUTURES_SYMBOLS: ('NQ' | 'GC')[] = ['NQ', 'GC'];
 
@@ -1413,7 +1487,17 @@ export async function runAutonomousBotScan(): Promise<void> {
     const openSymbols = new Set(openPositions.map(p => p.symbol));
     let bestOpportunity: { opp: LottoOpportunity; decision: BotDecision; entryTiming: { shouldEnterNow: boolean; reason: string } } | null = null;
     
-    for (const ticker of BOT_SCAN_TICKERS) {
+    // 🔍 DYNAMIC MOVERS: Get top movers from market scanner first (big price moves = opportunity)
+    const dynamicMovers = await getDynamicMovers();
+    if (dynamicMovers.length > 0) {
+      logger.info(`🔍 [BOT] Scanning ${dynamicMovers.length} dynamic movers from market scanner FIRST (prioritized)`);
+    }
+    
+    // Combine dynamic movers (priority) with static list, deduplicated
+    const combinedTickers = [...new Set([...dynamicMovers, ...BOT_SCAN_TICKERS])];
+    logger.info(`🤖 [BOT] Total scan universe: ${combinedTickers.length} tickers (${dynamicMovers.length} dynamic + static list)`);
+    
+    for (const ticker of combinedTickers) {
       if (openSymbols.has(ticker)) continue;
       
       // 📊 CHECK HISTORICAL PERFORMANCE - Skip blacklisted symbols
@@ -1435,6 +1519,13 @@ export async function runAutonomousBotScan(): Promise<void> {
         if (symbolCheck.boost > 0) {
           decision.confidence = Math.min(100, decision.confidence + symbolCheck.boost);
           decision.signals.push('PREFERRED_SYMBOL');
+        }
+        
+        // 🔍 DYNAMIC MOVER BOOST: Extra confidence for stocks from market scanner (they have momentum!)
+        if (dynamicMovers.includes(ticker)) {
+          decision.confidence = Math.min(100, decision.confidence + 8);
+          decision.signals.push('MARKET_SCANNER_MOVER');
+          logger.debug(`🔍 [BOT] +8 boost for ${ticker} (dynamic mover from scanner)`);
         }
         
         // 📊 ENTRY TIMING CHECK - Should we enter now or wait?
@@ -1471,24 +1562,23 @@ export async function runAutonomousBotScan(): Promise<void> {
       if (result.success && result.position) {
         logger.info(`🤖 [BOT] ✅ TRADE EXECUTED: ${opp.symbol} x${result.position.quantity} @ $${opp.price.toFixed(2)}`);
         
-        // Send Discord notification only if enabled in preferences
-        if (prefs.enableDiscordAlerts) {
-          try {
-            await sendBotTradeEntryToDiscord({
-              symbol: opp.symbol,
-              assetType: 'option',
-              optionType: opp.optionType,
-              strikePrice: opp.strike,
-              expiryDate: opp.expiration,
-              entryPrice: opp.price,
-              quantity: result.position.quantity,
-              targetPrice: ideaData.targetPrice,
-              stopLoss: ideaData.stopLoss,
-            });
-            logger.info(`🤖 [BOT] 📱 Discord entry notification sent`);
-          } catch (discordError) {
-            logger.warn(`🤖 [BOT] Discord notification failed:`, discordError);
-          }
+        // Send Discord notification for all bot entries (always notify on trades)
+        try {
+          logger.info(`🤖 [BOT] 📱 Sending Discord ENTRY notification for ${opp.symbol}...`);
+          await sendBotTradeEntryToDiscord({
+            symbol: opp.symbol,
+            assetType: 'option',
+            optionType: opp.optionType,
+            strikePrice: opp.strike,
+            expiryDate: opp.expiration,
+            entryPrice: opp.price,
+            quantity: result.position.quantity,
+            targetPrice: ideaData.targetPrice,
+            stopLoss: ideaData.stopLoss,
+          });
+          logger.info(`🤖 [BOT] 📱✅ Discord ENTRY notification SENT for ${opp.symbol}`);
+        } catch (discordError) {
+          logger.error(`🤖 [BOT] 📱❌ Discord ENTRY notification FAILED for ${opp.symbol}:`, discordError);
         }
         
         const updated = await storage.getPaperPortfolioById(portfolio.id);
@@ -1545,7 +1635,9 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
     if (result.success && result.position) {
       logger.info(`🤖 [BOT] ✅ Executed: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} x${result.position.quantity} @ $${idea.entryPrice.toFixed(2)}`);
       
+      // Always send Discord notification for bot entries
       try {
+        logger.info(`🤖 [BOT] 📱 Sending Discord ENTRY notification for ${idea.symbol}...`);
         await sendBotTradeEntryToDiscord({
           symbol: idea.symbol,
           assetType: idea.assetType || 'option',
@@ -1557,9 +1649,9 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
           targetPrice: idea.targetPrice,
           stopLoss: idea.stopLoss,
         });
-        logger.info(`🤖 [BOT] 📱 Discord entry notification sent`);
+        logger.info(`🤖 [BOT] 📱✅ Discord ENTRY notification SENT for ${idea.symbol}`);
       } catch (discordError) {
-        logger.warn(`🤖 [BOT] Discord notification failed:`, discordError);
+        logger.error(`🤖 [BOT] 📱❌ Discord ENTRY notification FAILED for ${idea.symbol}:`, discordError);
       }
       
       const updated = await storage.getPaperPortfolioById(portfolio.id);
@@ -1645,7 +1737,8 @@ export async function monitorLottoPositions(): Promise<void> {
             realizedPnL: pnl,
           });
           
-          // Send Discord notification
+          // Send Discord notification for exit
+          logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
           await sendBotTradeExitToDiscord({
             symbol: pos.symbol,
             assetType: pos.assetType || 'option',
@@ -1658,7 +1751,7 @@ export async function monitorLottoPositions(): Promise<void> {
             exitReason: `${exitSignal.exitType}: ${exitSignal.reason}`,
           });
           
-          logger.info(`🤖 [BOT] 📱 Dynamic exit completed: ${pos.symbol} P&L: $${pnl.toFixed(2)}`);
+          logger.info(`🤖 [BOT] 📱✅ Discord EXIT notification SENT for ${pos.symbol} | P&L: $${pnl.toFixed(2)}`);
         } catch (exitError) {
           logger.error(`🤖 [BOT] Failed to execute dynamic exit for ${pos.symbol}:`, exitError);
         }
@@ -1677,6 +1770,7 @@ export async function monitorLottoPositions(): Promise<void> {
         logger.info(`${emoji} [BOT] Closed ${pos.symbol}: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pos.exitReason})`);
         
         try {
+          logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
           await sendBotTradeExitToDiscord({
             symbol: pos.symbol,
             assetType: pos.assetType || 'option',
@@ -1688,9 +1782,9 @@ export async function monitorLottoPositions(): Promise<void> {
             realizedPnL: pos.realizedPnL,
             exitReason: pos.exitReason,
           });
-          logger.info(`🤖 [BOT] 📱 Discord exit notification sent for ${pos.symbol}`);
+          logger.info(`🤖 [BOT] 📱✅ Discord EXIT notification SENT for ${pos.symbol}`);
         } catch (discordError) {
-          logger.warn(`🤖 [BOT] Discord exit notification failed:`, discordError);
+          logger.error(`🤖 [BOT] 📱❌ Discord EXIT notification FAILED for ${pos.symbol}:`, discordError);
         }
       }
       
