@@ -6,6 +6,35 @@ import { logger } from './logger';
 // GLOBAL DISABLE FLAG - Set to true to stop all Discord notifications
 const DISCORD_DISABLED = false;
 
+// ═══════════════════════════════════════════════════════════════════════════
+// DEDUPLICATION SYSTEM - Prevents duplicate Discord messages
+// ═══════════════════════════════════════════════════════════════════════════
+const recentMessages = new Map<string, number>(); // hash -> timestamp
+const DEDUP_WINDOW_MS = 30 * 60 * 1000; // 30 minutes
+
+function generateMessageHash(type: string, key: string): string {
+  return `${type}:${key}`;
+}
+
+function isDuplicateMessage(hash: string): boolean {
+  const now = Date.now();
+  
+  // Clean old entries (older than window)
+  for (const [key, timestamp] of Array.from(recentMessages.entries())) {
+    if (now - timestamp > DEDUP_WINDOW_MS) {
+      recentMessages.delete(key);
+    }
+  }
+  
+  if (recentMessages.has(hash)) {
+    logger.info(`🚫 [DISCORD-DEDUP] Skipping duplicate: ${hash}`);
+    return true;
+  }
+  
+  recentMessages.set(hash, now);
+  return false;
+}
+
 /**
  * DISCORD CHANNEL ORGANIZATION
  * 
@@ -207,6 +236,15 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
     return;
   }
   
+  // DEDUP: Create unique key for this trade idea
+  const optionKey = idea.assetType === 'option' ? `${idea.optionType}_${idea.strikePrice}_${idea.expiryDate}` : '';
+  const dedupKey = `${idea.symbol}_${idea.direction}_${idea.source}_${optionKey}_${idea.entryPrice?.toFixed(2)}`;
+  const hash = generateMessageHash('trade', dedupKey);
+  
+  if (isDuplicateMessage(hash)) {
+    return; // Skip duplicate
+  }
+  
   // ALL research/trade ideas go to main #trade-alerts channel
   // Bot entries go to QUANTBOT channel via separate sendBotTradeEntryToDiscord function
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
@@ -378,6 +416,15 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
   if (ideas.length === 0) {
     logger.info('📨 No ideas to send to Discord');
     return;
+  }
+  
+  // DEDUP: Create unique key for this batch (source + symbols sorted)
+  const symbols = ideas.map(i => i.symbol).sort().join(',');
+  const dedupKey = `${source}_${ideas.length}_${symbols.substring(0, 100)}`;
+  const hash = generateMessageHash('batch', dedupKey);
+  
+  if (isDuplicateMessage(hash)) {
+    return; // Skip duplicate batch
   }
   
   try {
