@@ -299,6 +299,7 @@ export interface IStorage {
   getAllWatchlist(): Promise<WatchlistItem[]>;
   getWatchlistItem(id: string): Promise<WatchlistItem | undefined>;
   getWatchlistByUser(userId: string): Promise<WatchlistItem[]>;
+  getWatchlistByCategory(category: string): Promise<WatchlistItem[]>;
   addToWatchlist(item: InsertWatchlist): Promise<WatchlistItem>;
   updateWatchlistItem(id: string, data: Partial<WatchlistItem>): Promise<WatchlistItem | undefined>;
   removeFromWatchlist(id: string): Promise<boolean>;
@@ -1319,6 +1320,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.watchlist.values()).filter(item => item.userId === userId);
   }
 
+  async getWatchlistByCategory(category: string): Promise<WatchlistItem[]> {
+    return Array.from(this.watchlist.values()).filter(item => item.category === category);
+  }
+
   async addToWatchlist(item: InsertWatchlist): Promise<WatchlistItem> {
     const id = randomUUID();
     const watchlistItem: WatchlistItem = { ...item, id } as WatchlistItem;
@@ -2289,6 +2294,12 @@ export class DatabaseStorage implements IStorage {
   async getWatchlistByUser(userId: string): Promise<WatchlistItem[]> {
     return await db.select().from(watchlistTable)
       .where(eq(watchlistTable.userId, userId))
+      .orderBy(desc(watchlistTable.addedAt));
+  }
+
+  async getWatchlistByCategory(category: string): Promise<WatchlistItem[]> {
+    return await db.select().from(watchlistTable)
+      .where(eq(watchlistTable.category, category))
       .orderBy(desc(watchlistTable.addedAt));
   }
 
