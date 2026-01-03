@@ -1,7 +1,7 @@
 import { 
   TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
   Sun, Moon, Home, BookOpen, Bot, Zap, Shield, ExternalLink,
-  Upload, Database, LineChart, User, FileBarChart, Lock
+  Upload, Database, LineChart, User, FileBarChart, Lock, LayoutDashboard
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -30,8 +30,9 @@ interface NavItem {
   badge?: string;
 }
 
-// Research - unified trading research hub (Trade Desk is the main dashboard)
+// Research - unified trading research hub
 const researchItems: NavItem[] = [
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
   { title: "Futures", url: "/futures", icon: LineChart },
   { title: "Market", url: "/market", icon: BarChart2, badge: "500+" },

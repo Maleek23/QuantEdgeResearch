@@ -51,6 +51,7 @@ const BacktestPage = lazy(() => import("@/pages/backtest"));
 const TechnicalGuide = lazy(() => import("@/pages/technical-guide"));
 const MarketScanner = lazy(() => import("@/pages/market-scanner"));
 const MyAccountPage = lazy(() => import("@/pages/my-account"));
+const Dashboard = lazy(() => import("@/pages/dashboard"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function PageLoader() {
@@ -87,9 +88,7 @@ function Router() {
       <Route path="/home">
         <Redirect to="/trade-desk" />
       </Route>
-      <Route path="/dashboard">
-        <Redirect to="/trade-desk" />
-      </Route>
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/trade-desk" component={TradeDeskPage} />
@@ -140,9 +139,6 @@ function Router() {
       <Route path="/terms" component={TermsOfService} />
       
       {/* Redirects - Consolidated Pages */}
-      <Route path="/dashboard">
-        <Redirect to="/trade-desk" />
-      </Route>
       <Route path="/trade-ideas">
         <Redirect to="/trade-desk" />
       </Route>
