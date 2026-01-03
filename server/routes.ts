@@ -12737,6 +12737,211 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ============================================
+  // UNIVERSAL IDEA GENERATOR - Generate trade ideas from ANY source
+  // ============================================
+
+  // POST /api/universal-ideas - Generate a trade idea from any source
+  app.post("/api/universal-ideas", isAuthenticated, async (req: any, res) => {
+    try {
+      const { 
+        generateUniversalTradeIdea, 
+        createAndSaveUniversalIdea 
+      } = await import("./universal-idea-generator");
+      
+      const { symbol, source, assetType, direction, signals, save = false, ...rest } = req.body;
+      
+      if (!symbol || !source || !assetType || !direction || !signals) {
+        return res.status(400).json({ 
+          error: "Missing required fields: symbol, source, assetType, direction, signals" 
+        });
+      }
+      
+      const input = {
+        symbol,
+        source,
+        assetType,
+        direction,
+        signals,
+        ...rest
+      };
+      
+      if (save) {
+        const success = await createAndSaveUniversalIdea(input);
+        if (success) {
+          res.json({ success: true, message: `Trade idea for ${symbol} saved successfully` });
+        } else {
+          res.status(500).json({ error: `Failed to create trade idea for ${symbol}` });
+        }
+      } else {
+        const idea = await generateUniversalTradeIdea(input);
+        if (idea) {
+          res.json({ success: true, idea });
+        } else {
+          res.status(500).json({ error: `Failed to generate trade idea for ${symbol}` });
+        }
+      }
+    } catch (error: any) {
+      logger.error("Error generating universal trade idea", { error });
+      res.status(500).json({ error: "Failed to generate trade idea" });
+    }
+  });
+
+  // POST /api/universal-ideas/from-watchlist - Generate idea from watchlist item
+  app.post("/api/universal-ideas/from-watchlist", isAuthenticated, async (req: any, res) => {
+    try {
+      const { generateIdeaFromWatchlist } = await import("./universal-idea-generator");
+      const { symbol, signals, assetType = 'stock' } = req.body;
+      
+      if (!symbol || !signals || signals.length === 0) {
+        return res.status(400).json({ error: "Symbol and at least one signal required" });
+      }
+      
+      const idea = await generateIdeaFromWatchlist(symbol, signals, assetType);
+      if (idea) {
+        await storage.createTradeIdea(idea);
+        res.json({ success: true, idea });
+      } else {
+        res.status(500).json({ error: `Failed to generate watchlist idea for ${symbol}` });
+      }
+    } catch (error: any) {
+      logger.error("Error generating watchlist idea", { error });
+      res.status(500).json({ error: "Failed to generate watchlist idea" });
+    }
+  });
+
+  // POST /api/universal-ideas/from-scanner - Generate idea from market scanner mover
+  app.post("/api/universal-ideas/from-scanner", isAuthenticated, async (req: any, res) => {
+    try {
+      const { generateIdeaFromScanner } = await import("./universal-idea-generator");
+      const { symbol, changePercent, timeframe, additionalSignals = [] } = req.body;
+      
+      if (!symbol || changePercent === undefined || !timeframe) {
+        return res.status(400).json({ error: "Symbol, changePercent, and timeframe required" });
+      }
+      
+      const idea = await generateIdeaFromScanner(symbol, changePercent, timeframe, additionalSignals);
+      if (idea) {
+        await storage.createTradeIdea(idea);
+        res.json({ success: true, idea });
+      } else {
+        res.status(500).json({ error: `Failed to generate scanner idea for ${symbol}` });
+      }
+    } catch (error: any) {
+      logger.error("Error generating scanner idea", { error });
+      res.status(500).json({ error: "Failed to generate scanner idea" });
+    }
+  });
+
+  // POST /api/universal-ideas/from-flow - Generate idea from options flow alert
+  app.post("/api/universal-ideas/from-flow", isAuthenticated, async (req: any, res) => {
+    try {
+      const { generateIdeaFromFlow } = await import("./universal-idea-generator");
+      const { 
+        symbol, optionType, strikePrice, expiryDate, 
+        premium, unusualScore, additionalSignals = [] 
+      } = req.body;
+      
+      if (!symbol || !optionType || !strikePrice || !expiryDate) {
+        return res.status(400).json({ 
+          error: "Symbol, optionType, strikePrice, and expiryDate required" 
+        });
+      }
+      
+      const idea = await generateIdeaFromFlow(
+        symbol, optionType, strikePrice, expiryDate, 
+        premium || 0, unusualScore || 50, additionalSignals
+      );
+      
+      if (idea) {
+        await storage.createTradeIdea(idea);
+        res.json({ success: true, idea });
+      } else {
+        res.status(500).json({ error: `Failed to generate flow idea for ${symbol}` });
+      }
+    } catch (error: any) {
+      logger.error("Error generating flow idea", { error });
+      res.status(500).json({ error: "Failed to generate flow idea" });
+    }
+  });
+
+  // POST /api/universal-ideas/from-social - Generate idea from social sentiment
+  app.post("/api/universal-ideas/from-social", isAuthenticated, async (req: any, res) => {
+    try {
+      const { generateIdeaFromSocial } = await import("./universal-idea-generator");
+      const { 
+        symbol, sentiment, mentionCount, 
+        influencerName, additionalSignals = [] 
+      } = req.body;
+      
+      if (!symbol || !sentiment || mentionCount === undefined) {
+        return res.status(400).json({ error: "Symbol, sentiment, and mentionCount required" });
+      }
+      
+      const idea = await generateIdeaFromSocial(
+        symbol, sentiment, mentionCount, influencerName, additionalSignals
+      );
+      
+      if (idea) {
+        await storage.createTradeIdea(idea);
+        res.json({ success: true, idea });
+      } else {
+        res.status(500).json({ error: `Failed to generate social idea for ${symbol}` });
+      }
+    } catch (error: any) {
+      logger.error("Error generating social idea", { error });
+      res.status(500).json({ error: "Failed to generate social idea" });
+    }
+  });
+
+  // POST /api/universal-ideas/from-chart - Generate idea from chart pattern
+  app.post("/api/universal-ideas/from-chart-pattern", isAuthenticated, async (req: any, res) => {
+    try {
+      const { generateIdeaFromChart } = await import("./universal-idea-generator");
+      const { 
+        symbol, patternType, direction, 
+        supportLevel, resistanceLevel, additionalSignals = [] 
+      } = req.body;
+      
+      if (!symbol || !patternType || !direction) {
+        return res.status(400).json({ error: "Symbol, patternType, and direction required" });
+      }
+      
+      const idea = await generateIdeaFromChart(
+        symbol, patternType, direction, supportLevel, resistanceLevel, additionalSignals
+      );
+      
+      if (idea) {
+        await storage.createTradeIdea(idea);
+        res.json({ success: true, idea });
+      } else {
+        res.status(500).json({ error: `Failed to generate chart idea for ${symbol}` });
+      }
+    } catch (error: any) {
+      logger.error("Error generating chart idea", { error });
+      res.status(500).json({ error: "Failed to generate chart idea" });
+    }
+  });
+
+  // GET /api/universal-ideas/signal-weights - Get available signals and their weights
+  app.get("/api/universal-ideas/signal-weights", async (_req, res) => {
+    try {
+      const { SIGNAL_WEIGHTS, SOURCE_BASE_CONFIDENCE } = await import("./universal-idea-generator");
+      res.json({
+        signalWeights: SIGNAL_WEIGHTS,
+        sourceBaseConfidence: SOURCE_BASE_CONFIDENCE,
+        sources: [
+          'watchlist', 'market_scanner', 'options_flow', 'social_sentiment',
+          'chart_analysis', 'quant_signal', 'ai_analysis', 'manual',
+          'crypto_scanner', 'news_catalyst', 'earnings_play', 'sector_rotation'
+        ]
+      });
+    } catch (error: any) {
+      logger.error("Error fetching signal weights", { error });
+      res.status(500).json({ error: "Failed to fetch signal weights" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

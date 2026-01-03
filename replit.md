@@ -157,6 +157,53 @@ Located in `client/src/pages/ct-tracker.tsx`, tracks crypto influencer calls and
 - `GET /api/ct/top-tickers` - Get trending tickers by mention count
 - `POST /api/ct/copy-trade` - Manually copy a trade to paper portfolio
 
+## Universal Idea Generator
+Located in `server/universal-idea-generator.ts`, this system provides a unified interface for generating trade ideas with confidence scores from ANY platform source.
+
+**Supported Sources:**
+- `watchlist` - From user's watchlist when setup detected
+- `market_scanner` - From market scanner movers (top gainers/losers)
+- `options_flow` - From unusual options activity detection
+- `social_sentiment` - From CT Tracker / social media mentions
+- `chart_analysis` - From technical chart pattern detection
+- `quant_signal` - From quantitative engine signals
+- `ai_analysis` - From AI engine analysis
+- `manual` - User-submitted ideas
+- `crypto_scanner` - From crypto-specific scanning
+- `news_catalyst` - From news/catalyst detection
+- `earnings_play` - From earnings calendar setups
+- `sector_rotation` - From sector analysis
+
+**Confidence Calculation:**
+Each source has a base confidence (40-60%), then signals add weighted points:
+- Technical signals: RSI_OVERSOLD (+12), BREAKOUT (+12), VOLUME_SURGE (+10)
+- Options flow: SWEEP_DETECTED (+15), UNUSUAL_CALL_FLOW (+12), LARGE_PREMIUM (+12)
+- Chart patterns: CUP_HANDLE (+14), GOLDEN_CROSS (+15), DOUBLE_BOTTOM (+12)
+- Social signals: INFLUENCER_MENTION (+10), TRENDING_TICKER (+8)
+- Confluence bonuses: 3+ signals (+5), 5+ signals (+10 additional)
+
+**Letter Grading:**
+- A+ (85+), A (80-84), A- (75-79), B+ (70-74), B (65-69), B- (60-64)
+- C+ (55-59), C (50-54), C- (45-49), D (40-44), F (<40)
+
+**API Endpoints:**
+- `POST /api/universal-ideas` - Generate idea from any source
+- `POST /api/universal-ideas/from-watchlist` - Generate from watchlist item
+- `POST /api/universal-ideas/from-scanner` - Generate from market scanner
+- `POST /api/universal-ideas/from-flow` - Generate from options flow
+- `POST /api/universal-ideas/from-social` - Generate from social sentiment
+- `POST /api/universal-ideas/from-chart-pattern` - Generate from chart pattern
+- `GET /api/universal-ideas/signal-weights` - Get all signal weights and sources
+
+**Helper Functions:**
+- `generateUniversalTradeIdea(input)` - Core generator function
+- `createAndSaveUniversalIdea(input)` - Generate and persist to database
+- `generateIdeaFromWatchlist(symbol, signals)` - Watchlist helper
+- `generateIdeaFromScanner(symbol, change, timeframe)` - Scanner helper
+- `generateIdeaFromFlow(symbol, optionType, strike, expiry, premium)` - Flow helper
+- `generateIdeaFromSocial(symbol, sentiment, mentionCount)` - Social helper
+- `generateIdeaFromChart(symbol, pattern, direction)` - Chart helper
+
 ## Platform Reports System
 Located in `server/report-generator.ts`, the Platform Reports System provides comprehensive daily, weekly, and monthly analytics for all platform activities.
 
