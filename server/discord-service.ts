@@ -1368,9 +1368,13 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
     const nowCT = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
     const dateStr = nowCT.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     
-    // Filter to open ideas with strong signals (3+ indicators), sorted by signal count then R:R
+    // Filter to OPTIONS ONLY (calls/puts) with strong signals, sorted by signal count then R:R
     const topIdeas = ideas
-      .filter(i => i.outcomeStatus === 'open' && (i.qualitySignals?.length || 0) >= 2)
+      .filter(i => 
+        i.outcomeStatus === 'open' && 
+        i.assetType === 'option' &&  // Only calls and puts
+        (i.qualitySignals?.length || 0) >= 2
+      )
       .sort((a, b) => {
         const aSignals = a.qualitySignals?.length || 0;
         const bSignals = b.qualitySignals?.length || 0;
@@ -1380,11 +1384,11 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
       .slice(0, 5);
     
     if (topIdeas.length === 0) {
-      logger.info('📭 No high-signal open ideas for daily summary');
+      logger.info('📭 No high-signal options plays for daily preview');
       return;
     }
     
-    // Format top ideas with actionable trade info
+    // Format options plays with actionable trade info
     const ideaList = topIdeas.map((idea, i) => {
       const emoji = idea.direction === 'long' ? '🟢' : '🔴';
       const sourceIcon = idea.source === 'ai' ? '🧠' : idea.source === 'quant' ? '✨' : idea.source === 'hybrid' ? '🎯' : idea.source === 'flow' ? '📊' : '📝';
@@ -1392,40 +1396,35 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
       const signalGrade = signalCount >= 5 ? 'A+' : signalCount >= 4 ? 'A' : signalCount >= 3 ? 'B' : signalCount >= 2 ? 'C' : 'D';
       const gainPct = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(1);
       
-      let typeLabel: string;
-      if (idea.assetType === 'option') {
-        const optType = idea.optionType?.toUpperCase() || 'OPT';
-        const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
-        const exp = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
-        typeLabel = `${optType} ${strike} ${exp}`.trim();
-      } else if (idea.assetType === 'crypto') {
-        typeLabel = 'CRYPTO';
-      } else {
-        typeLabel = 'SHARES';
-      }
+      // Options-only formatting (calls and puts)
+      const optType = idea.optionType?.toUpperCase() || 'OPT';
+      const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
+      const exp = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
+      const typeLabel = `${optType} ${strike} ${exp}`.trim();
+      
       return `${i + 1}. ${emoji} **${idea.symbol}** ${typeLabel} | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${signalGrade} (${signalCount}/5) ${sourceIcon}`;
     }).join('\n');
     
-    // Calculate stats
-    const totalOpen = ideas.filter(i => i.outcomeStatus === 'open').length;
-    const longCount = topIdeas.filter(i => i.direction === 'long').length;
-    const shortCount = topIdeas.filter(i => i.direction === 'short').length;
+    // Calculate stats for options plays
+    const totalOptions = ideas.filter(i => i.outcomeStatus === 'open' && i.assetType === 'option').length;
+    const callCount = topIdeas.filter(i => i.optionType === 'call').length;
+    const putCount = topIdeas.filter(i => i.optionType === 'put').length;
     const avgSignals = Math.round(topIdeas.reduce((sum, i) => sum + (i.qualitySignals?.length || 0), 0) / topIdeas.length);
     const avgRR = (topIdeas.reduce((sum, i) => sum + (i.riskRewardRatio || 0), 0) / topIdeas.length).toFixed(1);
     
     const embed: DiscordEmbed = {
-      title: `📈 Daily Trading Preview - ${dateStr}`,
-      description: `**Top ${topIdeas.length} Trade Ideas Today**\n\n${ideaList}`,
+      title: `📈 Daily Options Preview - ${dateStr}`,
+      description: `**Top ${topIdeas.length} Options Plays Today**\n\n${ideaList}`,
       color: 0x3b82f6, // Blue
       fields: [
         {
-          name: '📊 Total Open',
-          value: `${totalOpen} ideas`,
+          name: '📊 Open Options',
+          value: `${totalOptions} plays`,
           inline: true
         },
         {
-          name: '📈 Direction',
-          value: `${longCount} Long • ${shortCount} Short`,
+          name: '📞 Calls/Puts',
+          value: `${callCount} Calls • ${putCount} Puts`,
           inline: true
         },
         {
@@ -1441,7 +1440,7 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
     };
     
     const message: DiscordMessage = {
-      content: `☀️ **DAILY PREVIEW** → Top Trade Ideas │ ${CHANNEL_HEADERS.TRADE_ALERTS}`,
+      content: `☀️ **DAILY OPTIONS PREVIEW** → Top Calls & Puts │ ${CHANNEL_HEADERS.TRADE_ALERTS}`,
       embeds: [embed]
     };
     
