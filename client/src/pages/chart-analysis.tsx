@@ -28,7 +28,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { createChart, IChartApi, ISeriesApi, CandlestickData, LineData, Time } from "lightweight-charts";
+import { createChart, IChartApi, ISeriesApi, CandlestickData, LineData, Time, CandlestickSeries, LineSeries, createSeriesMarkers } from "lightweight-charts";
 
 interface PatternData {
   name: string;
@@ -737,7 +737,7 @@ function PatternSearchTab() {
     
     chartRef.current = chart;
     
-    const candleSeries = chart.addCandlestickSeries({
+    const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: "#22c55e",
       downColor: "#ef4444",
       borderUpColor: "#22c55e",
@@ -756,7 +756,7 @@ function PatternSearchTab() {
     candleSeries.setData(candleData);
     
     if (patternData.bbSeries?.length) {
-      const bbUpper = chart.addLineSeries({
+      const bbUpper = chart.addSeries(LineSeries, {
         color: "#60a5fa",
         lineWidth: 1,
         lineStyle: 2,
@@ -764,7 +764,7 @@ function PatternSearchTab() {
         lastValueVisible: false,
       });
       
-      const bbMiddle = chart.addLineSeries({
+      const bbMiddle = chart.addSeries(LineSeries, {
         color: "#94a3b8",
         lineWidth: 1,
         lineStyle: 2,
@@ -772,7 +772,7 @@ function PatternSearchTab() {
         lastValueVisible: false,
       });
       
-      const bbLower = chart.addLineSeries({
+      const bbLower = chart.addSeries(LineSeries, {
         color: "#60a5fa",
         lineWidth: 1,
         lineStyle: 2,
@@ -800,7 +800,7 @@ function PatternSearchTab() {
     
     if (patternData.patterns.length > 0) {
       const lastCandle = patternData.candles[patternData.candles.length - 1];
-      const markers = patternData.patterns.map((pattern) => {
+      const markers = patternData.patterns.map((pattern, index) => {
         const markerColor = pattern.type === "bullish" ? "#22c55e" : pattern.type === "bearish" ? "#ef4444" : "#f59e0b";
         const position = pattern.type === "bullish" ? "belowBar" : "aboveBar";
         const shape = pattern.type === "bullish" ? "arrowUp" : pattern.type === "bearish" ? "arrowDown" : "circle";
@@ -811,9 +811,10 @@ function PatternSearchTab() {
           color: markerColor,
           shape: shape as "arrowUp" | "arrowDown" | "circle",
           text: pattern.name,
+          id: `marker-${index}`,
         };
       });
-      candleSeries.setMarkers(markers);
+      createSeriesMarkers(candleSeries, markers);
     }
     
     chart.timeScale().fitContent();
@@ -862,13 +863,13 @@ function PatternSearchTab() {
     
     rsiChartRef.current = chart;
     
-    const rsiSeries = chart.addLineSeries({
+    const rsiSeries = chart.addSeries(LineSeries, {
       color: "#8b5cf6",
       lineWidth: 2,
       priceLineVisible: false,
     });
     
-    const overboughtLine = chart.addLineSeries({
+    const overboughtLine = chart.addSeries(LineSeries, {
       color: "#ef4444",
       lineWidth: 1,
       lineStyle: 2,
@@ -876,7 +877,7 @@ function PatternSearchTab() {
       lastValueVisible: false,
     });
     
-    const oversoldLine = chart.addLineSeries({
+    const oversoldLine = chart.addSeries(LineSeries, {
       color: "#22c55e",
       lineWidth: 1,
       lineStyle: 2,
