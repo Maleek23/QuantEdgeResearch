@@ -764,8 +764,8 @@ export default function PerformancePage() {
                     data-testid={`pulse-engine-${engineKey}`}
                   >
                     <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded" style={{ backgroundColor: `${config.color}20` }}>
-                        <Icon className="h-3 w-3" style={{ color: config.color }} />
+                      <div className={cn("p-1.5 rounded", config.bgClass)}>
+                        <Icon className={cn("h-3 w-3", config.textClass)} />
                       </div>
                       <span className="text-xs font-medium">{config.label}</span>
                       {alertCount > 0 && (
