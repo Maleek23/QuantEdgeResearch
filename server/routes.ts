@@ -5021,6 +5021,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 🤖 BOT TRADES VIEW - Enhanced endpoint with asset type filtering
+  // Shows all positions across all bot portfolios with live P&L
+  app.get("/api/bot-trades", async (req, res) => {
+    try {
+      const assetTypeFilter = req.query.assetType as string | undefined;
+      const statusFilter = req.query.status as string || 'all';
+      
+      // Get all paper portfolios
+      const portfolios = await storage.getAllPaperPortfolios();
+      
+      // Get all positions across all portfolios
+      let allPositions: any[] = [];
+      for (const portfolio of portfolios) {
+        // Skip user portfolios (only show bot portfolios)
+        if (!portfolio.name.toLowerCase().includes('auto-lotto') && 
+            !portfolio.name.toLowerCase().includes('bot')) {
+          continue;
+        }
+        
+        const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+        allPositions = allPositions.concat(positions.map(p => ({ 
+          ...p, 
+          portfolioName: portfolio.name,
+          portfolioId: portfolio.id,
+          botType: portfolio.name.toLowerCase().includes('options') ? 'options' : 
+                   portfolio.name.toLowerCase().includes('futures') ? 'futures' : 
+                   portfolio.name.toLowerCase().includes('crypto') ? 'crypto' : 'stock'
+        })));
+      }
+      
+      // Apply asset type filter
+      if (assetTypeFilter && assetTypeFilter !== 'all') {
+        allPositions = allPositions.filter(p => {
+          if (assetTypeFilter === 'options') return p.assetType === 'option';
+          if (assetTypeFilter === 'crypto') return p.assetType === 'crypto';
+          if (assetTypeFilter === 'futures') return p.assetType === 'futures';
+          if (assetTypeFilter === 'stock') return p.assetType === 'stock';
+          return true;
+        });
+      }
+      
+      // Apply status filter
+      if (statusFilter !== 'all') {
+        allPositions = allPositions.filter(p => p.status === statusFilter);
+      }
+      
+      // Sort by created time descending (newest first)
+      allPositions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      // Get portfolio summaries
+      const portfolioSummaries = portfolios
+        .filter(p => p.name.toLowerCase().includes('auto-lotto') || p.name.toLowerCase().includes('bot'))
+        .map(portfolio => {
+          const portfolioPositions = allPositions.filter(p => p.portfolioId === portfolio.id);
+          const openPositions = portfolioPositions.filter(p => p.status === 'open');
+          const closedPositions = portfolioPositions.filter(p => p.status === 'closed');
+          const wins = closedPositions.filter(p => (p.realizedPnL || 0) > 0);
+          const totalRealizedPnL = closedPositions.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
+          const totalUnrealizedPnL = openPositions.reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0);
+          
+          return {
+            id: portfolio.id,
+            name: portfolio.name,
+            cashBalance: portfolio.cashBalance,
+            totalValue: portfolio.totalValue,
+            startingCapital: portfolio.startingCapital,
+            openPositions: openPositions.length,
+            closedPositions: closedPositions.length,
+            winRate: closedPositions.length > 0 ? Math.round((wins.length / closedPositions.length) * 100) : 0,
+            realizedPnL: Math.round(totalRealizedPnL * 100) / 100,
+            unrealizedPnL: Math.round(totalUnrealizedPnL * 100) / 100,
+            botType: portfolio.name.toLowerCase().includes('options') ? 'options' : 
+                     portfolio.name.toLowerCase().includes('futures') ? 'futures' : 
+                     portfolio.name.toLowerCase().includes('crypto') ? 'crypto' : 'stock'
+          };
+        });
+      
+      // Format positions for display
+      const formattedPositions = allPositions.map(p => ({
+        id: p.id,
+        symbol: p.symbol,
+        assetType: p.assetType,
+        direction: p.direction,
+        quantity: p.quantity,
+        entryPrice: p.entryPrice,
+        currentPrice: p.currentPrice,
+        targetPrice: p.targetPrice,
+        stopLoss: p.stopLoss,
+        status: p.status,
+        unrealizedPnL: p.unrealizedPnL,
+        unrealizedPnLPercent: p.unrealizedPnLPercent,
+        realizedPnL: p.realizedPnL,
+        realizedPnLPercent: p.realizedPnLPercent,
+        exitReason: p.exitReason,
+        optionType: p.optionType,
+        strikePrice: p.strikePrice,
+        expiryDate: p.expiryDate,
+        entryTime: p.entryTime,
+        exitTime: p.exitTime,
+        createdAt: p.createdAt,
+        portfolioName: p.portfolioName,
+        botType: p.botType,
+      }));
+      
+      res.json({
+        positions: formattedPositions,
+        portfolios: portfolioSummaries,
+        summary: {
+          totalPositions: allPositions.length,
+          openPositions: allPositions.filter(p => p.status === 'open').length,
+          closedPositions: allPositions.filter(p => p.status === 'closed').length,
+          byAssetType: {
+            options: allPositions.filter(p => p.assetType === 'option').length,
+            crypto: allPositions.filter(p => p.assetType === 'crypto').length,
+            futures: allPositions.filter(p => p.assetType === 'futures').length,
+            stock: allPositions.filter(p => p.assetType === 'stock').length,
+          }
+        },
+        lastUpdated: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error("Bot trades endpoint error:", error);
+      res.status(500).json({ error: "Failed to fetch bot trades" });
+    }
+  });
+
   // 🔍 FULL AUDIT EXPORT - Complete transparency on all bot trades
   // Shows entry time, entry price, exit details - everything for verification
   app.get("/api/audit/auto-lotto-bot", async (req, res) => {
