@@ -2542,76 +2542,75 @@ export default function WatchlistBotPage() {
                     </Card>
                   </div>
 
-                  {/* Breakout Table */}
-                  <ScrollArea className="h-[500px]">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="border-slate-700">
-                          <TableHead>Symbol</TableHead>
-                          <TableHead>Sector</TableHead>
-                          <TableHead className="text-right">Entry</TableHead>
-                          <TableHead className="text-right">Target</TableHead>
-                          <TableHead className="text-right">Upside</TableHead>
-                          <TableHead>Conviction</TableHead>
-                          <TableHead className="max-w-[300px]">Thesis</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {annualBreakouts.map((stock) => {
-                          const upside = stock.yearlyTargetPrice && stock.startOfYearPrice
-                            ? ((stock.yearlyTargetPrice - stock.startOfYearPrice) / stock.startOfYearPrice) * 100
-                            : 0;
-                          return (
-                            <TableRow key={stock.id} className="border-slate-700 hover:bg-slate-800/50" data-testid={`row-breakout-${stock.symbol}`}>
-                              <TableCell className="font-mono font-bold text-cyan-400" data-testid={`text-symbol-${stock.symbol}`}>
-                                {stock.symbol}
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className="text-xs" data-testid={`badge-sector-${stock.symbol}`}>
-                                  {stock.sector || 'Unknown'}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right font-mono" data-testid={`text-entry-${stock.symbol}`}>
-                                ${stock.startOfYearPrice?.toFixed(2) || '-'}
-                              </TableCell>
-                              <TableCell className="text-right font-mono text-emerald-400" data-testid={`text-target-${stock.symbol}`}>
-                                ${stock.yearlyTargetPrice?.toFixed(0) || '-'}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <Badge 
-                                  className={cn(
-                                    "font-mono",
-                                    upside >= 100 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
-                                    upside >= 50 ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" :
-                                    "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                                  )}
-                                  data-testid={`badge-upside-${stock.symbol}`}
-                                >
-                                  +{upside.toFixed(0)}%
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <Badge 
-                                  variant="outline"
-                                  className={cn(
-                                    stock.conviction === 'high' ? "border-emerald-500 text-emerald-400" :
-                                    stock.conviction === 'medium' ? "border-cyan-500 text-cyan-400" :
-                                    "border-amber-500 text-amber-400"
-                                  )}
-                                  data-testid={`badge-conviction-${stock.symbol}`}
-                                >
-                                  {stock.conviction || 'medium'}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="max-w-[300px] text-sm text-muted-foreground truncate" data-testid={`text-thesis-${stock.symbol}`}>
-                                {stock.thesis || '-'}
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
+                  {/* Breakout Table - Compact to fit 15-20 items */}
+                  <Table className="text-sm">
+                    <TableHeader>
+                      <TableRow className="border-slate-700">
+                        <TableHead className="py-2">Symbol</TableHead>
+                        <TableHead className="py-2">Sector</TableHead>
+                        <TableHead className="py-2 text-right">Entry</TableHead>
+                        <TableHead className="py-2 text-right">Target</TableHead>
+                        <TableHead className="py-2 text-right">Upside</TableHead>
+                        <TableHead className="py-2">Conviction</TableHead>
+                        <TableHead className="py-2 max-w-[250px]">Thesis</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {annualBreakouts.slice(0, 20).map((stock) => {
+                        const upside = stock.yearlyTargetPrice && stock.startOfYearPrice
+                          ? ((stock.yearlyTargetPrice - stock.startOfYearPrice) / stock.startOfYearPrice) * 100
+                          : 0;
+                        return (
+                          <TableRow key={stock.id} className="border-slate-700/50 hover:bg-slate-800/30" data-testid={`row-breakout-${stock.symbol}`}>
+                            <TableCell className="py-1.5 font-mono font-bold text-cyan-400" data-testid={`text-symbol-${stock.symbol}`}>
+                              {stock.symbol}
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0" data-testid={`badge-sector-${stock.symbol}`}>
+                                {stock.sector || 'Unknown'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="py-1.5 text-right font-mono text-xs" data-testid={`text-entry-${stock.symbol}`}>
+                              ${stock.startOfYearPrice?.toFixed(2) || '-'}
+                            </TableCell>
+                            <TableCell className="py-1.5 text-right font-mono text-xs text-emerald-400" data-testid={`text-target-${stock.symbol}`}>
+                              ${stock.yearlyTargetPrice?.toFixed(0) || '-'}
+                            </TableCell>
+                            <TableCell className="py-1.5 text-right">
+                              <Badge 
+                                className={cn(
+                                  "font-mono text-[10px] px-1.5 py-0",
+                                  upside >= 100 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
+                                  upside >= 50 ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" :
+                                  "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                                )}
+                                data-testid={`badge-upside-${stock.symbol}`}
+                              >
+                                +{upside.toFixed(0)}%
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="py-1.5">
+                              <Badge 
+                                variant="outline"
+                                className={cn(
+                                  "text-[10px] px-1.5 py-0",
+                                  stock.conviction === 'high' ? "border-emerald-500 text-emerald-400" :
+                                  stock.conviction === 'medium' ? "border-cyan-500 text-cyan-400" :
+                                  "border-amber-500 text-amber-400"
+                                )}
+                                data-testid={`badge-conviction-${stock.symbol}`}
+                              >
+                                {stock.conviction || 'medium'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="py-1.5 max-w-[250px] text-xs text-muted-foreground truncate" data-testid={`text-thesis-${stock.symbol}`}>
+                              {stock.thesis || '-'}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
               )}
             </CardContent>
