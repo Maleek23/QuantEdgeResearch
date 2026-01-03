@@ -1283,16 +1283,43 @@ export default function WatchlistBotPage() {
                             const costBasis = position.entryPrice * position.quantity * (position.assetType === 'crypto' ? 1 : multiplier);
                             const pnl = position.unrealizedPnL || (marketValue - costBasis);
                             const returnPct = costBasis > 0 ? (pnl / costBasis) * 100 : 0;
+                            
+                            const formatCryptoQty = (qty: number) => {
+                              if (qty >= 1000000) return `${(qty / 1000000).toFixed(1)}M`;
+                              if (qty >= 1000) return `${(qty / 1000).toFixed(1)}K`;
+                              if (qty >= 1) return qty.toFixed(1);
+                              return qty.toFixed(4);
+                            };
+                            
+                            const formatCryptoPrice = (price: number) => {
+                              if (price < 0.0001) return `$${price.toFixed(8)}`;
+                              if (price < 0.01) return `$${price.toFixed(6)}`;
+                              if (price < 1) return `$${price.toFixed(4)}`;
+                              return formatCurrency(price);
+                            };
+                            
                             const displayQty = position.assetType === 'crypto' 
-                              ? (position.quantity > 1000000 ? `${(position.quantity / 1000000).toFixed(2)}M` : position.quantity > 1000 ? `${(position.quantity / 1000).toFixed(2)}K` : position.quantity.toFixed(2))
+                              ? formatCryptoQty(position.quantity)
                               : position.quantity;
+                            
+                            const displayEntryPrice = position.assetType === 'crypto' 
+                              ? formatCryptoPrice(position.entryPrice)
+                              : formatCurrency(position.entryPrice);
+                              
+                            const displayCurrentPrice = position.assetType === 'crypto'
+                              ? formatCryptoPrice(position.currentPrice || position.entryPrice)
+                              : formatCurrency(position.currentPrice || position.entryPrice);
                             
                             return (
                               <TableRow key={position.id} className="border-slate-700/50 hover-elevate" data-testid={`open-position-${position.id}`}>
-                                <TableCell className="font-mono font-bold">{position.symbol}</TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono font-bold text-base">{position.symbol}</span>
+                                  </div>
+                                </TableCell>
                                 <TableCell>
                                   <Badge variant="outline" className={cn(
-                                    "text-xs",
+                                    "text-xs font-medium",
                                     position.assetType === 'future' 
                                       ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
                                       : position.assetType === 'crypto'
@@ -1301,27 +1328,32 @@ export default function WatchlistBotPage() {
                                           ? "bg-green-500/10 text-green-400 border-green-500/30"
                                           : "bg-red-500/10 text-red-400 border-red-500/30"
                                   )}>
-                                    {position.assetType === 'future' ? 'FUTURES' : position.assetType === 'crypto' ? 'CRYPTO' : position.optionType?.toUpperCase() || 'OPTION'}
+                                    {position.assetType === 'future' ? 'FUTURES' : position.assetType === 'crypto' ? 'SPOT' : position.optionType?.toUpperCase() || 'OPTION'}
                                   </Badge>
                                 </TableCell>
-                                <TableCell className="text-right font-mono tabular-nums">{displayQty}</TableCell>
-                                <TableCell className="text-right font-mono tabular-nums">{position.assetType === 'crypto' && position.entryPrice < 0.01 ? `$${position.entryPrice.toExponential(2)}` : formatCurrency(position.entryPrice)}</TableCell>
-                                <TableCell className="text-right font-mono tabular-nums">{position.assetType === 'crypto' && (position.currentPrice || position.entryPrice) < 0.01 ? `$${(position.currentPrice || position.entryPrice).toExponential(2)}` : formatCurrency(position.currentPrice || position.entryPrice)}</TableCell>
-                                <TableCell className="text-right font-mono tabular-nums">{formatCurrency(marketValue)}</TableCell>
+                                <TableCell className="text-right">
+                                  <span className="font-mono tabular-nums text-sm">{displayQty}</span>
+                                  {position.assetType === 'crypto' && position.quantity >= 1000 && (
+                                    <span className="text-xs text-muted-foreground ml-1">coins</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right font-mono tabular-nums text-sm">{displayEntryPrice}</TableCell>
+                                <TableCell className="text-right font-mono tabular-nums text-sm">{displayCurrentPrice}</TableCell>
+                                <TableCell className="text-right font-mono tabular-nums text-sm font-medium">{formatCurrency(marketValue)}</TableCell>
                                 <TableCell className={cn(
-                                  "text-right font-mono tabular-nums font-semibold",
+                                  "text-right font-mono tabular-nums text-sm font-semibold",
                                   pnl >= 0 ? "text-green-400" : "text-red-400"
                                 )}>
                                   <div className="flex items-center justify-end gap-1">
                                     {pnl >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                                    {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)}
+                                    {pnl >= 0 ? '+' : ''}{formatCurrency(Math.abs(pnl))}
                                   </div>
                                 </TableCell>
                                 <TableCell className={cn(
-                                  "text-right font-mono tabular-nums font-semibold",
+                                  "text-right font-mono tabular-nums text-sm font-semibold",
                                   returnPct >= 0 ? "text-green-400" : "text-red-400"
                                 )}>
-                                  {returnPct >= 0 ? '+' : ''}{returnPct.toFixed(2)}%
+                                  {returnPct >= 0 ? '+' : ''}{returnPct.toFixed(1)}%
                                 </TableCell>
                               </TableRow>
                             );
