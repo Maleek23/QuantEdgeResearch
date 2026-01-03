@@ -1154,7 +1154,8 @@ export async function sendCryptoBotTradeToDiscord(trade: {
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  // Bot entries for crypto go to dedicated QUANTBOT channel
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
     return;
@@ -1166,6 +1167,13 @@ export async function sendCryptoBotTradeToDiscord(trade: {
     const directionEmoji = isLong ? '📈' : '📉';
     const positionValue = trade.entryPrice * trade.quantity;
     
+    // Bot entries go to dedicated QUANTBOT channel
+    const cryptoWebhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
+    
+    if (!cryptoWebhookUrl) {
+      return;
+    }
+
     const embed: DiscordEmbed = {
       title: `🪙 CRYPTO BOT: ${trade.symbol} ${trade.direction.toUpperCase()}`,
       description: `Crypto Bot opened a new ${trade.name} position`,
@@ -1218,7 +1226,7 @@ export async function sendCryptoBotTradeToDiscord(trade: {
       embeds: [embed]
     };
     
-    await fetch(webhookUrl, {
+    await fetch(cryptoWebhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(message),
