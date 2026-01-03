@@ -4580,6 +4580,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============== DYNAMIC SIGNAL WEIGHTS ==============
+  // Soft-weighting system: adapts based on performance but never rejects signals
+  
+  // Get current signal weights summary
+  app.get("/api/signal-weights", async (req, res) => {
+    try {
+      const { getWeightsSummary, getSignalWeights } = await import("./dynamic-signal-weights");
+      const summary = await getWeightsSummary();
+      const allWeights = await getSignalWeights();
+      
+      res.json({
+        ...summary,
+        allWeights: Array.from(allWeights.values())
+          .sort((a, b) => b.dynamicWeight - a.dynamicWeight)
+      });
+    } catch (error) {
+      logger.error("Signal weights fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch signal weights" });
+    }
+  });
+
+  // Refresh signal weights from attribution data
+  app.post("/api/signal-weights/refresh", requireAdmin, async (req, res) => {
+    try {
+      const { refreshSignalWeights } = await import("./dynamic-signal-weights");
+      const weights = await refreshSignalWeights();
+      
+      res.json({
+        success: true,
+        message: `Refreshed ${weights.size} signal weights`,
+        totalWeights: weights.size
+      });
+    } catch (error) {
+      logger.error("Signal weights refresh error:", error);
+      res.status(500).json({ error: "Failed to refresh signal weights" });
+    }
+  });
+
+  // Set manual override for a signal (freedom to catch new patterns)
+  app.post("/api/signal-weights/override", requireAdmin, async (req, res) => {
+    try {
+      const { signalName, weight } = req.body;
+      
+      if (!signalName || typeof weight !== 'number') {
+        return res.status(400).json({ error: "signalName and weight required" });
+      }
+      
+      const { setManualOverride, getWeightForSignal } = await import("./dynamic-signal-weights");
+      setManualOverride(signalName, weight);
+      
+      const newWeight = await getWeightForSignal(signalName);
+      
+      res.json({
+        success: true,
+        signalName,
+        previousWeight: 'dynamic',
+        newWeight,
+        message: `Override set: ${signalName} = ${weight}x (freedom preserved)`
+      });
+    } catch (error) {
+      logger.error("Signal override error:", error);
+      res.status(500).json({ error: "Failed to set signal override" });
+    }
+  });
+
+  // Remove manual override (return to dynamic weighting)
+  app.delete("/api/signal-weights/override/:signalName", requireAdmin, async (req, res) => {
+    try {
+      const { signalName } = req.params;
+      const { removeManualOverride } = await import("./dynamic-signal-weights");
+      
+      removeManualOverride(signalName);
+      
+      res.json({
+        success: true,
+        signalName,
+        message: `Override removed for ${signalName}, returning to dynamic weighting`
+      });
+    } catch (error) {
+      logger.error("Signal override removal error:", error);
+      res.status(500).json({ error: "Failed to remove signal override" });
+    }
+  });
+
+  // Calculate weighted confidence for a set of signals (preview what bot would do)
+  app.post("/api/signal-weights/calculate", async (req, res) => {
+    try {
+      const { signals, baseConfidence } = req.body;
+      
+      if (!Array.isArray(signals) || typeof baseConfidence !== 'number') {
+        return res.status(400).json({ error: "signals array and baseConfidence required" });
+      }
+      
+      const { calculateWeightedConfidence } = await import("./dynamic-signal-weights");
+      const result = await calculateWeightedConfidence(signals, baseConfidence);
+      
+      res.json(result);
+    } catch (error) {
+      logger.error("Weighted confidence calculation error:", error);
+      res.status(500).json({ error: "Failed to calculate weighted confidence" });
+    }
+  });
+
   // Engine vs Signal Strength Correlation Matrix
   // Shows win rate for each engine at each signal strength level
   // HONEST DATA: Uses actual qualitySignals.length, not fake confidence scores
