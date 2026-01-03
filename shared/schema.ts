@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, real, integer, boolean, timestamp, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, real, integer, boolean, timestamp, index, jsonb, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -541,7 +541,7 @@ export const activeTrades = pgTable("active_trades", {
   
   // Entry Details
   entryPrice: real("entry_price").notNull(), // Price paid for option/stock
-  quantity: integer("quantity").notNull().default(1), // Number of contracts/shares
+  quantity: doublePrecision("quantity").notNull().default(1), // Number of contracts/shares (decimal for crypto)
   entryTime: text("entry_time").notNull(), // ISO timestamp
   
   // Targets & Stops
@@ -654,7 +654,7 @@ export const paperPositions = pgTable("paper_positions", {
   
   // Entry
   entryPrice: real("entry_price").notNull(),
-  quantity: integer("quantity").notNull(),
+  quantity: doublePrecision("quantity").notNull(), // Decimal for crypto fractional units
   entryTime: text("entry_time").notNull(),
   
   // Targets
