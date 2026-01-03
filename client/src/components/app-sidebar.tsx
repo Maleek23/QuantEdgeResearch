@@ -1,7 +1,7 @@
 import { 
   TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
   Sun, Moon, Home, BookOpen, Bot, Zap, Shield, ExternalLink,
-  Upload, Database, LineChart, Search, User, FileBarChart
+  Upload, Database, LineChart, User, FileBarChart
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -39,8 +39,7 @@ const overviewItems: NavItem[] = [
 const researchItems: NavItem[] = [
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
   { title: "Futures", url: "/futures", icon: LineChart },
-  { title: "Market Data", url: "/market", icon: BarChart2 },
-  { title: "Market Scanner", url: "/market-scanner", icon: Search, badge: "500+" },
+  { title: "Market", url: "/market", icon: BarChart2, badge: "500+" },
 ];
 
 // Automations - all automated trading tools
@@ -49,11 +48,10 @@ const automationItems: NavItem[] = [
   { title: "Auto-Lotto Bot", url: "/watchlist-bot", icon: Bot, badge: "LIVE" },
 ];
 
-// Analytics - performance and analysis tools
+// Analytics - performance and analysis tools (Data Audit is now part of Performance page)
 const analyticsItems: NavItem[] = [
   { title: "Performance", url: "/performance", icon: Target },
   { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
-  { title: "Data Audit", url: "/data-audit", icon: Database },
 ];
 
 // Learning resources - consolidated into Academy

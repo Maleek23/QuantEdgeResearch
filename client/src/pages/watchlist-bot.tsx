@@ -267,7 +267,7 @@ export default function WatchlistBotPage() {
   const dailyIdeas = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     return tradeIdeas.filter(idea => 
-      idea.createdAt && idea.createdAt.startsWith(today)
+      idea.timestamp && idea.timestamp.startsWith(today)
     ).sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
   }, [tradeIdeas]);
 

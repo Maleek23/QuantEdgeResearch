@@ -1,10 +1,13 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { lazy, Suspense } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { WatchSuggestions } from "@/components/watch-suggestions";
+import { LivePnLCard } from "@/components/live-pnl-card";
+import { WebGLErrorBoundary } from "@/components/webgl-error-boundary";
 import type { TradeIdea } from "@shared/schema";
 import { Link } from "wouter";
 import { 
@@ -26,6 +29,8 @@ import { cn } from "@/lib/utils";
 import { getPerformanceGrade } from "@/lib/performance-grade";
 import { isRealLoss } from "@shared/constants";
 import { RiskDisclosure } from "@/components/risk-disclosure";
+
+const MarketGlobe = lazy(() => import("@/components/market-globe"));
 
 export default function HomePage() {
   const { toast } = useToast();
@@ -192,6 +197,31 @@ export default function HomePage() {
             <p className="text-sm text-muted-foreground mt-1">This week</p>
           </Card>
         </div>
+      </div>
+
+      {/* Live P&L and 3D Globe Section */}
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+        <LivePnLCard />
+        <Card className="overflow-hidden bg-gradient-to-br from-slate-900/50 to-slate-800/50 border-slate-700/50">
+          <div className="h-[200px] relative">
+            <WebGLErrorBoundary>
+              <Suspense fallback={
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  <div className="text-center">
+                    <Activity className="h-8 w-8 mx-auto mb-2 animate-pulse text-cyan-400" />
+                    <span className="text-sm">Loading 3D...</span>
+                  </div>
+                </div>
+              }>
+                <MarketGlobe className="h-full w-full" />
+              </Suspense>
+            </WebGLErrorBoundary>
+            <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-xs text-muted-foreground">
+              <span>Global Market Activity</span>
+              <span className="text-cyan-400">Real-time Data</span>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Today's Top Signals */}

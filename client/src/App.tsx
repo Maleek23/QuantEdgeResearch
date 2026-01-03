@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Loader2 } from "lucide-react";
@@ -230,9 +231,11 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
           <TooltipProvider>
-            <ScrollParticles />
-            <Router />
-            <Toaster />
+            <RealtimePricesProvider>
+              <ScrollParticles />
+              <Router />
+              <Toaster />
+            </RealtimePricesProvider>
           </TooltipProvider>
         </ThemeProvider>
       </QueryClientProvider>
@@ -244,14 +247,16 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="dark" storageKey="quantedge-theme">
         <TooltipProvider>
-          <ScrollParticles />
-          <SidebarProvider style={style as React.CSSProperties}>
-            <div className="flex h-screen w-full">
-              <AppSidebar />
-              <MainContentWrapper />
-            </div>
-          </SidebarProvider>
-          <Toaster />
+          <RealtimePricesProvider>
+            <ScrollParticles />
+            <SidebarProvider style={style as React.CSSProperties}>
+              <div className="flex h-screen w-full">
+                <AppSidebar />
+                <MainContentWrapper />
+              </div>
+            </SidebarProvider>
+            <Toaster />
+          </RealtimePricesProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
