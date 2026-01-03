@@ -339,19 +339,21 @@ export default function WatchlistBotPage() {
   const [newBreakout, setNewBreakout] = useState({ symbol: '', sector: '', entry: '', target: '', conviction: 'medium', thesis: '' });
   
   const addBreakoutMutation = useMutation({
-    mutationFn: async (data: typeof newBreakout) => {
+    mutationFn: async (data: { symbol: string; sector: string; entry: string; target: string; conviction: string; thesis: string }) => {
+      const entryVal = parseFloat(data.entry);
+      const targetVal = parseFloat(data.target);
       return apiRequest('POST', '/api/annual-watchlist/add', {
-        symbol: data.symbol,
-        sector: data.sector,
-        entry: parseFloat(data.entry) || null,
-        target: parseFloat(data.target) || null,
+        symbol: data.symbol.trim().toUpperCase(),
+        sector: data.sector.trim(),
+        entry: !isNaN(entryVal) ? entryVal : null,
+        target: !isNaN(targetVal) ? targetVal : null,
         conviction: data.conviction,
-        thesis: data.thesis,
+        thesis: data.thesis.trim(),
       });
     },
-    onSuccess: (data: any) => {
+    onSuccess: (response: any, submittedData) => {
       queryClient.invalidateQueries({ queryKey: ['/api/annual-watchlist'] });
-      toast({ title: data.action === 'updated' ? "Updated" : "Added", description: `${newBreakout.symbol} ${data.action} in breakout list` });
+      toast({ title: response.action === 'updated' ? "Updated" : "Added", description: `${submittedData.symbol.toUpperCase()} ${response.action} in breakout list` });
       setNewBreakout({ symbol: '', sector: '', entry: '', target: '', conviction: 'medium', thesis: '' });
     },
     onError: (error: Error) => {
@@ -2664,7 +2666,14 @@ export default function WatchlistBotPage() {
                         />
                         <Button
                           size="sm"
-                          onClick={() => addBreakoutMutation.mutate(newBreakout)}
+                          onClick={() => {
+                            const sym = newBreakout.symbol.trim().toUpperCase();
+                            if (!sym || sym.length < 1 || sym.length > 10) {
+                              toast({ title: "Invalid symbol", description: "Enter a valid stock ticker (1-10 chars)", variant: "destructive" });
+                              return;
+                            }
+                            addBreakoutMutation.mutate(newBreakout);
+                          }}
                           disabled={!newBreakout.symbol.trim() || addBreakoutMutation.isPending}
                           className="h-8 bg-emerald-500 hover:bg-emerald-400 text-slate-950"
                           data-testid="button-add-breakout"
