@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, BookOpen, Target, Brain, Calculator, TrendingUp, Clock, Shield, ChevronRight, Lightbulb, BarChart2, DollarSign, Heart, Scale, Compass } from "lucide-react";
+import { GraduationCap, BookOpen, Target, Brain, Calculator, TrendingUp, Clock, Shield, ChevronRight, Lightbulb, BarChart2, DollarSign, Heart, Scale, Compass, FileText } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Academy() {
@@ -196,6 +196,52 @@ export default function Academy() {
           </div>
         </div>
 
+        {/* Quick Links to Other Resources */}
+        <div className="grid sm:grid-cols-3 gap-4 mb-8">
+          <Link href="/technical-guide">
+            <Card className="glass-card hover-elevate h-full border-slate-700/50 cursor-pointer" data-testid="link-technical-guide">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0">
+                  <BookOpen className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-sm">Technical Guide</h3>
+                  <p className="text-xs text-muted-foreground">Indicator reference</p>
+                </div>
+                <ChevronRight className="h-4 w-4 ml-auto text-muted-foreground" />
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/trading-rules">
+            <Card className="glass-card hover-elevate h-full border-slate-700/50 cursor-pointer" data-testid="link-trading-rules">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center flex-shrink-0">
+                  <Shield className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-sm">Trading Rules</h3>
+                  <p className="text-xs text-muted-foreground">Risk management</p>
+                </div>
+                <ChevronRight className="h-4 w-4 ml-auto text-muted-foreground" />
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/blog">
+            <Card className="glass-card hover-elevate h-full border-slate-700/50 cursor-pointer" data-testid="link-blog">
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-sm">Blog</h3>
+                  <p className="text-xs text-muted-foreground">Market insights</p>
+                </div>
+                <ChevronRight className="h-4 w-4 ml-auto text-muted-foreground" />
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
         {/* Introduction */}
         <div className="glass-card rounded-xl p-6 mb-8 border border-slate-700/50">
           <div className="flex items-start gap-4">
@@ -218,29 +264,6 @@ export default function Academy() {
         {renderCourseSection("Risk Management", riskManagement)}
         {renderCourseSection("Trading Psychology", psychology)}
         {renderCourseSection("Options Trading", options)}
-
-        {/* Blog Link */}
-        <div className="glass-card rounded-xl p-6 mb-8 border border-slate-700/50">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-start gap-4">
-              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/20 flex-shrink-0">
-                <BookOpen className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">Want More?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Check out the blog for in-depth articles on specific trading topics.
-                </p>
-              </div>
-            </div>
-            <Link href="/blog">
-              <Button variant="outline" size="sm" className="border-slate-700" data-testid="button-visit-blog">
-                Visit Blog
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </Link>
-          </div>
-        </div>
 
         {/* Disclaimer */}
         <div className="glass-card rounded-xl p-5 border border-slate-700/50 border-l-2 border-l-amber-500/50">

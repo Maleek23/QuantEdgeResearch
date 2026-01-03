@@ -1,8 +1,7 @@
 import { 
   TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
-  Sun, Moon, Upload, Home, BookOpen,
-  GraduationCap, FileText, Database, Bot, Zap, Shield, ExternalLink,
-  Bitcoin, LineChart
+  Sun, Moon, Home, BookOpen, Bot, Zap, Shield, ExternalLink,
+  Upload, Database, LineChart
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -31,43 +30,34 @@ interface NavItem {
   badge?: string;
 }
 
-// Main navigation - overview and research
+// Main overview
 const overviewItems: NavItem[] = [
   { title: "Dashboard", url: "/home", icon: Home },
 ];
 
-// Trading Research - core research functionality by asset class
+// Research - unified trading research (Trade Desk handles all assets)
 const researchItems: NavItem[] = [
-  { title: "Stocks & Options", url: "/trade-desk", icon: TrendingUp },
-  { title: "Crypto", url: "/crypto", icon: Bitcoin },
-  { title: "Futures", url: "/futures", icon: Zap },
+  { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
+  { title: "Futures", url: "/futures", icon: LineChart },
+  { title: "Market Data", url: "/market", icon: BarChart2 },
 ];
 
-// Automated Trading - bots and automation
+// Automations - all automated trading tools
 const automationItems: NavItem[] = [
   { title: "Automations Hub", url: "/automations", icon: Zap, badge: "NEW" },
   { title: "Auto-Lotto Bot", url: "/watchlist-bot", icon: Bot, badge: "LIVE" },
 ];
 
-// Analysis Tools
-const analysisItems: NavItem[] = [
-  { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
+// Analytics - performance and analysis tools
+const analyticsItems: NavItem[] = [
   { title: "Performance", url: "/performance", icon: Target },
-  { title: "Signal Weights", url: "/signal-weights", icon: LineChart },
+  { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
   { title: "Data Audit", url: "/data-audit", icon: Database },
 ];
 
-// Market Data
-const marketItems: NavItem[] = [
-  { title: "Market Data", url: "/market", icon: BarChart2 },
-];
-
-// Learning resources
-const resourceItems: NavItem[] = [
-  { title: "Technical Guide", url: "/technical-guide", icon: BookOpen },
-  { title: "Trading Rules", url: "/trading-rules", icon: Shield },
-  { title: "Academy", url: "/academy", icon: GraduationCap },
-  { title: "Blog", url: "/blog", icon: FileText },
+// Learning resources - consolidated into Academy
+const learnItems: NavItem[] = [
+  { title: "Academy", url: "/academy", icon: BookOpen },
 ];
 
 const settingsItems: NavItem[] = [
@@ -227,7 +217,7 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent className="gap-0 py-2">
-        {/* Overview - Dashboard */}
+        {/* Dashboard */}
         <NavSection 
           label="Overview" 
           items={overviewItems} 
@@ -236,7 +226,7 @@ export function AppSidebar() {
           showLabel={false}
         />
         
-        {/* Research by Asset Class */}
+        {/* Research - Trade Desk & Market Data */}
         <NavSection 
           label="Research" 
           items={researchItems} 
@@ -244,9 +234,9 @@ export function AppSidebar() {
           onNavigate={handleNavigation}
         />
         
-        {/* Automated Trading */}
+        {/* Automations */}
         <NavSection 
-          label="Automation" 
+          label="Automations" 
           items={automationItems} 
           location={location} 
           onNavigate={handleNavigation}
@@ -254,33 +244,25 @@ export function AppSidebar() {
         
         <SidebarSeparator className="my-1 mx-4 opacity-30" />
         
-        {/* Analysis Tools */}
+        {/* Analytics */}
         <NavSection 
-          label="Analysis" 
-          items={analysisItems} 
-          location={location} 
-          onNavigate={handleNavigation}
-        />
-        
-        {/* Market Data */}
-        <NavSection 
-          label="Data" 
-          items={marketItems} 
+          label="Analytics" 
+          items={analyticsItems} 
           location={location} 
           onNavigate={handleNavigation}
         />
         
         <SidebarSeparator className="my-1 mx-4 opacity-30" />
         
-        {/* Learning Resources */}
+        {/* Learn - Academy hub */}
         <NavSection 
           label="Learn" 
-          items={resourceItems} 
+          items={learnItems} 
           location={location} 
           onNavigate={handleNavigation}
         />
         
-        {/* Settings */}
+        {/* Account & Settings */}
         <NavSection 
           label="Account" 
           items={settingsItems} 
