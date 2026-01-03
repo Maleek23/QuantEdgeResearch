@@ -1175,13 +1175,13 @@ export class MemStorage implements IStorage {
       const ideaTime = new Date(idea.timestamp);
       const priceDiff = Math.abs(idea.entryPrice - entryPrice) / entryPrice;
       
-      // Base conditions
+      // Base conditions - check ALL open ideas regardless of source
+      // This prevents duplicate ideas like multiple DOGE trades from different generation runs
       let matches = (
         idea.symbol === symbol &&
         idea.direction === direction &&
         priceDiff <= priceThreshold &&
         ideaTime >= cutoffTime &&
-        idea.source === 'quant' && // Only check quant ideas
         idea.outcomeStatus === 'open' // Only check open ideas
       );
       
@@ -1822,12 +1822,12 @@ export class DatabaseStorage implements IStorage {
     const cutoffTime = new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
     const tolerance = entryPrice * 0.02; // 2% price tolerance
 
-    // Build base query conditions
+    // Build base query conditions - check ALL open ideas regardless of source
+    // This prevents duplicate ideas like multiple DOGE trades from different generation runs
     const conditions = [
       eq(tradeIdeas.symbol, symbol),
       eq(tradeIdeas.direction, direction),
       gte(tradeIdeas.timestamp, cutoffTime),
-      eq(tradeIdeas.source, 'quant'), // Only check quant ideas to prevent duplicates
       eq(tradeIdeas.outcomeStatus, 'open') // Only check open ideas
     ];
 

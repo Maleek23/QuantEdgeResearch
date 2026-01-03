@@ -984,8 +984,18 @@ export async function monitorCryptoPositions(): Promise<void> {
         pnlPercent = ((entryPrice - currentPrice) / entryPrice) * 100;
       }
       
-      // Update current price
-      await storage.updatePaperPosition(pos.id, { currentPrice });
+      // Calculate unrealized P&L
+      const quantity = typeof pos.quantity === 'string' ? parseFloat(pos.quantity) : pos.quantity;
+      const unrealizedPnL = direction === 'long' 
+        ? (currentPrice - entryPrice) * quantity
+        : (entryPrice - currentPrice) * quantity;
+      
+      // Update current price AND unrealized P&L
+      await storage.updatePaperPosition(pos.id, { 
+        currentPrice,
+        unrealizedPnL,
+        unrealizedPnLPercent: pnlPercent,
+      });
       
       // Check stop loss
       if (stopLoss && (
