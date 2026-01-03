@@ -863,6 +863,10 @@ export const ctSources = pgTable("ct_sources", {
   isVerified: boolean("is_verified").default(false), // Admin-verified influencer
   category: text("category"), // 'analyst' | 'whale' | 'news' | 'degen'
   
+  // Auto-follow settings
+  autoFollowTrades: boolean("auto_follow_trades").default(false), // Auto-paper-trade their calls
+  maxAutoTradeSize: real("max_auto_trade_size").default(100), // Max position size for auto-trades
+  
   createdAt: timestamp("created_at").defaultNow(),
 });
 

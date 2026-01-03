@@ -10959,6 +10959,99 @@ FORMATTING:
     }
   });
 
+  // PATCH /api/ct/sources/:id - Update source settings (auto-follow, etc.)
+  app.patch("/api/ct/sources/:id", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { autoFollowTrades, maxAutoTradeSize, isActive, displayName, category } = req.body;
+      
+      const source = await storage.getCTSourceById(id);
+      if (!source) {
+        return res.status(404).json({ error: "Source not found" });
+      }
+      
+      // Update the source
+      const updateData: any = {};
+      if (autoFollowTrades !== undefined) updateData.autoFollowTrades = autoFollowTrades;
+      if (maxAutoTradeSize !== undefined) updateData.maxAutoTradeSize = maxAutoTradeSize;
+      if (isActive !== undefined) updateData.isActive = isActive;
+      if (displayName !== undefined) updateData.displayName = displayName;
+      if (category !== undefined) updateData.category = category;
+      
+      const updated = await storage.updateCTSource(id, updateData);
+      logger.info("CT source updated", { id, updates: updateData });
+      res.json(updated);
+    } catch (error: any) {
+      logger.error("Error updating CT source", { error });
+      res.status(500).json({ error: "Failed to update source" });
+    }
+  });
+
+  // POST /api/ct/copy-trade - Copy a trade from CT mention to paper trading
+  app.post("/api/ct/copy-trade", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const { symbol, direction, quantity, reason, sourceHandle, mentionId } = req.body;
+      
+      if (!symbol || !direction) {
+        return res.status(400).json({ error: "Symbol and direction are required" });
+      }
+      
+      // Get current price (crypto for now)
+      const { getRealtimePrices } = await import("./realtime-price-service");
+      const prices = getRealtimePrices();
+      
+      // Check if it's crypto (by checking common crypto symbols)
+      const cryptoSymbols = ['BTC', 'ETH', 'SOL', 'AVAX', 'MATIC', 'ARB', 'DOGE', 'SHIB', 'XRP', 'ADA', 'DOT', 'LINK', 'UNI', 'AAVE'];
+      const isCrypto = cryptoSymbols.includes(symbol.toUpperCase().replace('$', ''));
+      
+      let currentPrice: number | undefined;
+      if (isCrypto) {
+        const cleanSymbol = symbol.toUpperCase().replace('$', '');
+        currentPrice = prices[cleanSymbol] || prices[`${cleanSymbol}-USD`];
+      }
+      
+      if (!currentPrice) {
+        return res.status(400).json({ error: `Could not get price for ${symbol}. Please try again later.` });
+      }
+      
+      const userId = req.user?.id || 'system';
+      const positionSize = quantity || 100; // Default $100 position size
+      const positionQuantity = positionSize / currentPrice;
+      
+      // Create paper position
+      const position = await storage.createPaperPosition({
+        portfolioId: 1, // Crypto portfolio
+        symbol: symbol.toUpperCase().replace('$', ''),
+        assetType: 'crypto',
+        direction: direction as 'long' | 'short',
+        entryPrice: currentPrice.toString(),
+        quantity: positionQuantity.toString(),
+        status: 'open',
+        stopLoss: null,
+        takeProfit: null,
+        entryReason: reason || `Copied from ${sourceHandle || 'CT source'}`,
+        entrySignals: [`Social trade from ${sourceHandle || 'CT tracker'}`],
+      });
+      
+      logger.info("CT trade copied to paper trading", { 
+        symbol, 
+        direction, 
+        price: currentPrice,
+        sourceHandle,
+        positionId: position.id
+      });
+      
+      res.json({ 
+        success: true, 
+        position,
+        message: `Copied ${direction} trade on ${symbol} @ $${currentPrice.toFixed(2)}`
+      });
+    } catch (error: any) {
+      logger.error("Error copying CT trade", { error });
+      res.status(500).json({ error: "Failed to copy trade" });
+    }
+  });
+
   // POST /api/ct/generate-mock - Generate mock data for testing (admin only)
   app.post("/api/ct/generate-mock", isAuthenticated, requireAdmin, async (req: any, res: Response) => {
     try {

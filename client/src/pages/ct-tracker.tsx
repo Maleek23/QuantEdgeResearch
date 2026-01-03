@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
@@ -31,6 +33,8 @@ import {
   AtSign,
   Hash,
   Send,
+  Zap,
+  Settings,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -46,6 +50,8 @@ interface CTSource {
   mentionCount: number;
   successRate?: number;
   createdAt: string;
+  autoFollowTrades?: boolean;
+  maxAutoTradeSize?: number;
 }
 
 interface CTMention {
@@ -313,7 +319,31 @@ function StatsCard({ title, value, subtitle, icon: Icon }: { title: string; valu
   );
 }
 
-function SourceCard({ source, onDelete }: { source: CTSource; onDelete: () => void }) {
+function SourceCard({ source, onDelete, onRefresh }: { source: CTSource; onDelete: () => void; onRefresh: () => void }) {
+  const { toast } = useToast();
+  
+  const toggleAutoFollow = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      return apiRequest("PATCH", `/api/ct/sources/${source.id}`, {
+        autoFollowTrades: enabled,
+        maxAutoTradeSize: enabled ? 100 : null
+      });
+    },
+    onSuccess: (_data, variables) => {
+      const wasEnabled = variables;
+      toast({ 
+        title: wasEnabled ? "Auto-follow enabled" : "Auto-follow disabled",
+        description: wasEnabled 
+          ? "New calls from this source will be auto-copied with $100 max position size"
+          : "You will no longer automatically copy trades from this source"
+      });
+      onRefresh();
+    },
+    onError: () => {
+      toast({ title: "Failed to update auto-follow settings", variant: "destructive" });
+    }
+  });
+
   return (
     <div className="flex items-center gap-4 p-4 rounded-lg glass-card hover-elevate" data-testid={`source-row-${source.id}`}>
       <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
@@ -323,6 +353,12 @@ function SourceCard({ source, onDelete }: { source: CTSource; onDelete: () => vo
         <div className="flex items-center gap-2 flex-wrap">
           <p className="font-medium truncate">{source.displayName}</p>
           <PlatformBadge platform={source.platform} />
+          {source.autoFollowTrades && (
+            <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-xs">
+              <Zap className="h-3 w-3 mr-1" />
+              Auto-follow
+            </Badge>
+          )}
         </div>
         <p className="text-sm text-muted-foreground">@{source.handle}</p>
       </div>
@@ -337,6 +373,21 @@ function SourceCard({ source, onDelete }: { source: CTSource; onDelete: () => vo
           {source.successRate.toFixed(0)}% success
         </Badge>
       )}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={source.autoFollowTrades ?? false}
+              onCheckedChange={(checked) => toggleAutoFollow.mutate(checked)}
+              disabled={toggleAutoFollow.isPending}
+              data-testid={`switch-auto-follow-${source.id}`}
+            />
+          </div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{source.autoFollowTrades ? "Disable auto-follow trades" : "Enable auto-follow trades ($100 max)"}</p>
+        </TooltipContent>
+      </Tooltip>
       <Button size="icon" variant="ghost" onClick={onDelete} data-testid={`button-delete-source-${source.id}`}>
         <Trash2 className="h-4 w-4 text-destructive" />
       </Button>
@@ -582,6 +633,7 @@ export default function CTTracker() {
                     key={source.id}
                     source={source}
                     onDelete={() => deleteSourceMutation.mutate(source.id)}
+                    onRefresh={() => queryClient.invalidateQueries({ queryKey: ["/api/ct/sources"] })}
                   />
                 ))}
               </div>

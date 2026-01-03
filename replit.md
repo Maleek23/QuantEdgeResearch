@@ -132,3 +132,27 @@ Located in `server/market-scanner.ts`, the Market Scanner tracks 500+ stocks acr
 - Yahoo Finance API with 5-minute cache TTL
 - Batch processing (10 stocks at a time, 100ms delay between batches)
 - Automatic rate limiting and error handling
+
+## CT Tracker (Crypto Twitter Tracker)
+Located in `client/src/pages/ct-tracker.tsx`, tracks crypto influencer calls and sentiment.
+
+**Features:**
+- Track Twitter/X, Bluesky, Reddit, Discord, Telegram influencers
+- Auto-detect ticker mentions and sentiment (bullish/bearish/neutral)
+- Performance tracking for influencer calls
+- Top trending tickers analysis
+
+**Auto-Follow Trades:**
+- Toggle per source to automatically copy trades from tracked influencers
+- Default max position size: $100 (designed for small accounts)
+- Uses real-time crypto prices from Coinbase WebSocket for accurate entry pricing
+- API: `PATCH /api/ct/sources/:id` with `autoFollowTrades: boolean, maxAutoTradeSize: number`
+
+**API Endpoints:**
+- `GET /api/ct/sources` - List tracked influencer sources
+- `POST /api/ct/sources` - Add new source
+- `PATCH /api/ct/sources/:id` - Update source settings (auto-follow, etc.)
+- `DELETE /api/ct/sources/:id` - Remove source
+- `GET /api/ct/mentions` - Get recent mentions with sentiment
+- `GET /api/ct/top-tickers` - Get trending tickers by mention count
+- `POST /api/ct/copy-trade` - Manually copy a trade to paper portfolio

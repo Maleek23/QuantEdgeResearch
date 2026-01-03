@@ -42,16 +42,38 @@ interface ScannerStatus {
   };
 }
 
+// Expanded watchlist for options flow scanning (50+ high-volume optionable stocks)
+const DEFAULT_OPTIONS_WATCHLIST = [
+  // Major Indices & ETFs
+  'SPY', 'QQQ', 'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'ARKK', 'TQQQ', 'SOXL',
+  // Mega-Cap Tech
+  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA', 'AMD', 'AVGO', 'NFLX',
+  // AI & Semiconductors
+  'ARM', 'SMCI', 'PLTR', 'SNOW', 'CRWD', 'AI', 'MRVL', 'QCOM', 'INTC', 'MU',
+  // High Volatility Favorites
+  'IONQ', 'RGTI', 'QUBT', 'MSTR', 'COIN', 'HOOD', 'SOFI', 'AFRM', 'SQ', 'PYPL',
+  // Growth & Momentum
+  'CRM', 'SHOP', 'DDOG', 'NET', 'ZS', 'PANW', 'ADBE', 'NOW', 'WDAY',
+  // EV & Energy
+  'RIVN', 'LCID', 'NIO', 'XPEV', 'ENPH', 'FSLR',
+  // Financials
+  'JPM', 'GS', 'BAC', 'V', 'MA',
+  // Healthcare
+  'UNH', 'LLY', 'JNJ', 'MRNA', 'PFE',
+  // Other High Volume
+  'BA', 'DIS', 'WMT', 'HD', 'MCD', 'COST'
+];
+
 let scannerStatus: ScannerStatus = {
   isActive: false,
   lastScan: null,
   flowsDetected: 0,
   todayFlows: [],
   settings: {
-    minPremium: 100000, // $100k minimum premium
-    minVolumeOIRatio: 2.0, // Volume 2x open interest
-    watchlist: ['SPY', 'QQQ', 'META', 'GOOGL', 'NVDA', 'TSLA', 'AAPL', 'MSFT', 'AMZN', 'AMD'],
-    alertThreshold: 75, // Unusual score threshold
+    minPremium: 50000, // Lowered to $50k minimum premium (better for smaller flows)
+    minVolumeOIRatio: 1.5, // Lowered threshold for unusual volume
+    watchlist: DEFAULT_OPTIONS_WATCHLIST,
+    alertThreshold: 70, // Slightly lower threshold to catch more activity
   },
 };
 

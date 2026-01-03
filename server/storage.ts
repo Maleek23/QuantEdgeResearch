@@ -381,6 +381,7 @@ export interface IStorage {
   createCTSource(source: InsertCTSource): Promise<CTSource>;
   getCTSources(): Promise<CTSource[]>;
   getCTSourceById(id: string): Promise<CTSource | undefined>;
+  updateCTSource(id: string, updates: Partial<CTSource>): Promise<CTSource>;
   deleteCTSource(id: string): Promise<boolean>;
   createCTMention(mention: InsertCTMention): Promise<CTMention>;
   getCTMentions(hours?: number): Promise<CTMention[]>;
@@ -2888,6 +2889,14 @@ export class DatabaseStorage implements IStorage {
   async getCTSourceById(id: string): Promise<CTSource | undefined> {
     const [source] = await db.select().from(ctSources).where(eq(ctSources.id, id));
     return source || undefined;
+  }
+
+  async updateCTSource(id: string, updates: Partial<CTSource>): Promise<CTSource> {
+    const [updated] = await db.update(ctSources)
+      .set(updates as any)
+      .where(eq(ctSources.id, id))
+      .returning();
+    return updated;
   }
 
   async deleteCTSource(id: string): Promise<boolean> {
