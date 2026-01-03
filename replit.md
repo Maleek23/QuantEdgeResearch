@@ -105,3 +105,30 @@ Located in `server/auto-lotto-trader.ts`, Prop Firm Mode is a conservative futur
 - Each bot has separate portfolios: options, futures, crypto, prop-firm
 - Daily P&L tracked in-memory (`propFirmDailyPnL`), resets at start of each trading day
 - Paper positions use flat $100 margin per contract (not full notional value)
+
+## Market Scanner
+Located in `server/market-scanner.ts`, the Market Scanner tracks 500+ stocks across multiple timeframes.
+
+**Stock Universe Categories:**
+- **sp500:** 155 symbols including S&P 500 components and major tech stocks
+- **growth:** 70 growth/momentum stocks (AI, quantum computing, crypto miners, nuclear)
+- **penny:** 50 penny stocks (EVs, space, clean energy, biotech)
+- **etf:** 50 ETFs (index, sector, leveraged)
+- **all:** Combined universe (325+ unique symbols)
+
+**API Endpoints:**
+- `GET /api/market-scanner` - Scan stocks by category, with optional historical data
+- `GET /api/market-scanner/movers` - Get top gainers/losers by timeframe
+- `GET /api/market-scanner/sectors` - Sector performance via ETF proxies
+
+**Timeframes:**
+- day: Daily change
+- week: 5-day change
+- month: 22-day change
+- ytd: Year-to-date change
+- year: 52-week change
+
+**Data Source:**
+- Yahoo Finance API with 5-minute cache TTL
+- Batch processing (10 stocks at a time, 100ms delay between batches)
+- Automatic rate limiting and error handling

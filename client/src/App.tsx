@@ -46,6 +46,7 @@ const FuturesPage = lazy(() => import("@/pages/futures"));
 const Features = lazy(() => import("@/pages/features"));
 const BacktestPage = lazy(() => import("@/pages/backtest"));
 const TechnicalGuide = lazy(() => import("@/pages/technical-guide"));
+const MarketScanner = lazy(() => import("@/pages/market-scanner"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function PageLoader() {
@@ -94,6 +95,7 @@ function Router() {
       <Route path="/trade-ideas/:id/audit" component={TradeAudit} />
       <Route path="/data-audit" component={DataAuditCenter} />
       <Route path="/market" component={MarketPage} />
+      <Route path="/market-scanner" component={MarketScanner} />
       <Route path="/futures" component={FuturesPage} />
       <Route path="/futures-research">
         <Redirect to="/futures" />

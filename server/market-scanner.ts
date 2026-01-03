@@ -46,7 +46,9 @@ interface YahooQuoteResult {
 }
 
 const scannerCache = new Map<string, { data: StockPerformance[]; timestamp: number }>();
+const moversCache = new Map<string, { data: { gainers: StockPerformance[]; losers: StockPerformance[] }; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const MOVERS_CACHE_TTL = 2 * 60 * 1000; // 2 minutes for movers
 
 const SP500_SYMBOLS = [
   'AAPL', 'MSFT', 'AMZN', 'NVDA', 'GOOGL', 'META', 'TSLA', 'BRK-B', 'UNH', 'XOM',
@@ -277,9 +279,18 @@ export async function getTopMovers(
   category: 'all' | 'sp500' | 'growth' | 'penny' | 'etf' = 'all',
   limit: number = 50
 ): Promise<{ gainers: StockPerformance[]; losers: StockPerformance[] }> {
+  const moversCacheKey = `movers_${timeframe}_${category}_${limit}`;
+  
+  const cachedMovers = moversCache.get(moversCacheKey);
+  if (cachedMovers && Date.now() - cachedMovers.timestamp < MOVERS_CACHE_TTL) {
+    logger.debug(`[SCANNER] Using cached movers for ${timeframe}/${category}`);
+    return cachedMovers.data;
+  }
+
   const symbols = getStockUniverse(category);
   const includeHistorical = timeframe !== 'day';
   
+  logger.info(`[SCANNER] Fetching top movers: ${timeframe}/${category} (${symbols.length} symbols)`);
   const stocks = await scanStockPerformance(symbols, includeHistorical);
   
   let sortField: keyof StockPerformance;
@@ -302,16 +313,25 @@ export async function getTopMovers(
 
   const validStocks = stocks.filter(s => s[sortField] !== undefined && s[sortField] !== null);
   
+  if (validStocks.length === 0) {
+    logger.warn(`[SCANNER] No valid stocks found for ${timeframe}/${category}`);
+  }
+  
   const sorted = validStocks.sort((a, b) => {
     const aVal = a[sortField] as number;
     const bVal = b[sortField] as number;
     return bVal - aVal;
   });
 
-  return {
+  const result = {
     gainers: sorted.slice(0, limit),
     losers: sorted.slice(-limit).reverse(),
   };
+
+  moversCache.set(moversCacheKey, { data: result, timestamp: Date.now() });
+  logger.info(`[SCANNER] Cached movers: ${result.gainers.length} gainers, ${result.losers.length} losers`);
+  
+  return result;
 }
 
 export async function getSectorPerformance(): Promise<Record<string, { avg: number; count: number }>> {

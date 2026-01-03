@@ -1,7 +1,7 @@
 import { 
   TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
   Sun, Moon, Home, BookOpen, Bot, Zap, Shield, ExternalLink,
-  Upload, Database, LineChart
+  Upload, Database, LineChart, Search
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -40,6 +40,7 @@ const researchItems: NavItem[] = [
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
   { title: "Futures", url: "/futures", icon: LineChart },
   { title: "Market Data", url: "/market", icon: BarChart2 },
+  { title: "Market Scanner", url: "/market-scanner", icon: Search, badge: "500+" },
 ];
 
 // Automations - all automated trading tools
