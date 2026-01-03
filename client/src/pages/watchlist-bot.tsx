@@ -298,6 +298,25 @@ export default function WatchlistBotPage() {
     },
   });
 
+  const sendToQuantBotMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('POST', '/api/watchlist/send-quantbot');
+    },
+    onSuccess: (data: any) => {
+      toast({ 
+        title: "Sent to Discord", 
+        description: data.message || `Sent ${data.count} items to QuantBot channel`
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Failed to send", 
+        description: "Could not send watchlist to Discord",
+        variant: "destructive"
+      });
+    },
+  });
+
   // Preferences query and state
   const { data: preferences, isLoading: preferencesLoading } = useQuery<AutoLottoPreferences>({
     queryKey: ['/api/auto-lotto-bot/preferences'],
@@ -368,10 +387,22 @@ export default function WatchlistBotPage() {
             Weekly Watchlist
           </h1>
         </div>
-        <Button variant="outline" className="border-slate-700" onClick={() => refetchWatchlist()} data-testid="button-refresh-watchlist">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
+            onClick={() => sendToQuantBotMutation.mutate()}
+            disabled={sendToQuantBotMutation.isPending || watchlistItems.length === 0}
+            data-testid="button-send-discord"
+          >
+            <SiDiscord className="h-4 w-4 mr-2" />
+            {sendToQuantBotMutation.isPending ? "Sending..." : "Send to Discord"}
+          </Button>
+          <Button variant="outline" className="border-slate-700" onClick={() => refetchWatchlist()} data-testid="button-refresh-watchlist">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">

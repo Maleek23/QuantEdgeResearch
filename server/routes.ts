@@ -6409,6 +6409,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send regular watchlist to QuantBot Discord channel
+  app.post("/api/watchlist/send-quantbot", async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const items = await storage.getWatchlistByUser(userId.toString());
+      
+      if (items.length === 0) {
+        return res.status(400).json({ error: "No items in watchlist to send" });
+      }
+      
+      const { sendWatchlistToQuantBot } = await import('./discord-service');
+      
+      const result = await sendWatchlistToQuantBot(items.map((item: any) => ({
+        symbol: item.symbol,
+        assetType: item.assetType,
+        notes: item.notes,
+        entryAlertPrice: item.entryAlertPrice,
+        targetAlertPrice: item.targetAlertPrice,
+        stopAlertPrice: item.stopAlertPrice,
+      })));
+      
+      if (result.success) {
+        console.log(`📨 Sent ${items.length} watchlist items to QuantBot Discord`);
+        res.json({ success: true, message: result.message, count: items.length });
+      } else {
+        res.status(500).json({ error: result.message });
+      }
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/watchlist/send-quantbot' });
+      res.status(500).json({ error: "Failed to send watchlist to QuantBot" });
+    }
+  });
+
   // Watch Suggestions - Stocks to watch based on multiple catalyst reasons
   app.get("/api/watch-suggestions", async (_req, res) => {
     try {

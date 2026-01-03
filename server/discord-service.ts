@@ -1165,6 +1165,95 @@ export async function sendCryptoBotTradeToDiscord(trade: {
   return;
 }
 
+// Send watchlist items to QuantBot channel (for bot page watchlist)
+export async function sendWatchlistToQuantBot(items: Array<{
+  symbol: string;
+  assetType: string;
+  notes?: string | null;
+  entryAlertPrice?: number | null;
+  targetAlertPrice?: number | null;
+  stopAlertPrice?: number | null;
+}>): Promise<{ success: boolean; message: string }> {
+  if (DISCORD_DISABLED) return { success: false, message: 'Discord disabled' };
+  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    logger.info('⚠️ DISCORD_WEBHOOK_QUANTBOT not configured - skipping watchlist to QuantBot');
+    return { success: false, message: 'Discord webhook not configured' };
+  }
+  
+  if (items.length === 0) {
+    logger.info('📭 No watchlist items to send to QuantBot');
+    return { success: false, message: 'No items to send' };
+  }
+  
+  try {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Chicago' });
+    
+    // Format watchlist items with trade details
+    const itemList = items.slice(0, 15).map((item, i) => {
+      const typeIcon = item.assetType === 'crypto' ? '₿' : item.assetType === 'option' ? '📋' : '📈';
+      const entry = item.entryAlertPrice ? `Entry $${item.entryAlertPrice.toFixed(2)}` : '';
+      const target = item.targetAlertPrice ? `Target $${item.targetAlertPrice.toFixed(2)}` : '';
+      const stop = item.stopAlertPrice ? `Stop $${item.stopAlertPrice.toFixed(2)}` : '';
+      const levels = [entry, target, stop].filter(Boolean).join(' • ');
+      const notesStr = item.notes ? `\n   _${item.notes.substring(0, 60)}${item.notes.length > 60 ? '...' : ''}_` : '';
+      return `${i + 1}. ${typeIcon} **${item.symbol}** ${levels ? `→ ${levels}` : ''}${notesStr}`;
+    }).join('\n');
+    
+    // Count by asset type
+    const stocks = items.filter(i => i.assetType === 'stock').length;
+    const options = items.filter(i => i.assetType === 'option').length;
+    const crypto = items.filter(i => i.assetType === 'crypto').length;
+    
+    const embed: DiscordEmbed = {
+      title: `🤖 QuantBot Watchlist - ${dateStr} CT`,
+      description: `**${items.length} Items Under Surveillance**\n\n${itemList}`,
+      color: 0x06b6d4, // Cyan for QuantBot
+      fields: [
+        {
+          name: '📊 Asset Mix',
+          value: `${stocks} Stocks • ${options} Options • ${crypto} Crypto`,
+          inline: true
+        },
+        {
+          name: '🎯 With Alerts',
+          value: `${items.filter(i => i.entryAlertPrice || i.targetAlertPrice || i.stopAlertPrice).length} of ${items.length}`,
+          inline: true
+        }
+      ],
+      footer: {
+        text: '⚠️ Research only - not financial advice | QuantEdge QuantBot'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    const message: DiscordMessage = {
+      content: `🤖 **QUANTBOT WATCHLIST** → ${items.length} items on radar │ ${CHANNEL_HEADERS.LOTTO}`,
+      embeds: [embed]
+    };
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    });
+    
+    if (response.ok) {
+      logger.info(`✅ Discord QuantBot watchlist sent: ${items.length} items`);
+      return { success: true, message: `Sent ${items.length} items to QuantBot channel` };
+    } else {
+      logger.warn(`⚠️ Discord QuantBot webhook failed: ${response.status}`);
+      return { success: false, message: `Discord error: ${response.status}` };
+    }
+  } catch (error) {
+    logger.error('❌ Failed to send QuantBot watchlist:', error);
+    return { success: false, message: 'Failed to send to Discord' };
+  }
+}
+
 // Send weekly watchlist summary to dedicated channel
 export async function sendWeeklyWatchlistToDiscord(items: Array<{
   symbol: string;
