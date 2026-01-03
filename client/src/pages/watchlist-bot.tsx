@@ -567,6 +567,7 @@ export default function WatchlistBotPage() {
             
             const allPositions = [
               ...botData.positions,
+              ...(botData.futuresPositions || []),
               ...(botData.cryptoPositions || [])
             ];
             const openPositions = allPositions.filter(p => p.status === 'open');
