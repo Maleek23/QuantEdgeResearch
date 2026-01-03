@@ -9877,10 +9877,67 @@ FORMATTING:
         return res.status(401).json({ error: "Not authenticated" });
       }
       
-      const preferences = await storage.upsertAutoLottoPreferences({
+      // Fetch existing preferences to merge with incoming partial update
+      const existing = await storage.getAutoLottoPreferences(userId);
+      
+      // Define defaults for new users
+      const defaults = {
+        riskTolerance: 'moderate' as const,
+        maxPositionSize: 100,
+        maxConcurrentTrades: 5,
+        dailyLossLimit: 200,
+        optionsAllocation: 40,
+        futuresAllocation: 30,
+        cryptoAllocation: 30,
+        enableOptions: true,
+        enableFutures: true,
+        enableCrypto: true,
+        enablePropFirm: false,
+        optionsPreferredDte: 7,
+        optionsMaxDte: 14,
+        optionsMinDelta: 0.20,
+        optionsMaxDelta: 0.40,
+        optionsPreferCalls: true,
+        optionsPreferPuts: true,
+        optionsPreferredSymbols: [],
+        futuresPreferredContracts: ['NQ', 'ES', 'GC'],
+        futuresMaxContracts: 2,
+        futuresStopPoints: 15,
+        futuresTargetPoints: 30,
+        cryptoPreferredCoins: ['BTC', 'ETH', 'SOL'],
+        cryptoEnableMemeCoins: false,
+        cryptoMaxLeverageMultiplier: 1.0,
+        minConfidenceScore: 70,
+        preferredHoldingPeriod: 'day' as const,
+        minRiskRewardRatio: 2.0,
+        useDynamicExits: true,
+        tradePreMarket: false,
+        tradeRegularHours: true,
+        tradeAfterHours: false,
+        preferredEntryWindows: ['09:30-11:00', '14:00-15:30'],
+        enableDiscordAlerts: true,
+        enableEmailAlerts: false,
+        alertOnEntry: true,
+        alertOnExit: true,
+        alertOnDailyLimit: true,
+        automationMode: 'paper_only' as const,
+        requireConfirmation: true,
+      };
+      
+      // Merge: existing values -> defaults -> incoming updates
+      const mergedPrefs = {
+        ...defaults,
+        ...(existing || {}),
         ...req.body,
         userId,
-      });
+      };
+      
+      // Remove any undefined values to prevent database issues
+      const cleanedPrefs = Object.fromEntries(
+        Object.entries(mergedPrefs).filter(([_, v]) => v !== undefined)
+      );
+      
+      const preferences = await storage.upsertAutoLottoPreferences(cleanedPrefs as any);
       
       logger.info(`[PREFERENCES] Updated auto lotto preferences for user ${userId}`);
       res.json(preferences);

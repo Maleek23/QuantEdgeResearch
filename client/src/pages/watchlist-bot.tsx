@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency, cn } from "@/lib/utils";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -17,7 +20,7 @@ import {
   RefreshCw, Shield, Calendar, Bell, BellOff, LogIn, Radio, Atom, 
   Radiation, FlaskConical, Bitcoin, Search, BarChart3, Wallet, 
   PiggyBank, ArrowUpRight, ArrowDownRight, LineChart, Download, FileText,
-  Trophy, ShieldCheck, AlertCircle
+  Trophy, ShieldCheck, AlertCircle, Settings, Save, Sliders
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NumberTicker } from "@/components/magicui/number-ticker";
@@ -121,6 +124,50 @@ interface CryptoBotData {
   coinsTracked: number;
   pricesAvailable: number;
   canTrade: boolean;
+}
+
+interface AutoLottoPreferences {
+  userId: string;
+  riskTolerance: 'conservative' | 'moderate' | 'aggressive';
+  maxPositionSize: number;
+  maxConcurrentTrades: number;
+  dailyLossLimit: number | null;
+  optionsAllocation: number;
+  futuresAllocation: number;
+  cryptoAllocation: number;
+  enableOptions: boolean;
+  enableFutures: boolean;
+  enableCrypto: boolean;
+  enablePropFirm: boolean;
+  optionsPreferredDte: number;
+  optionsMaxDte: number;
+  optionsMinDelta: number;
+  optionsMaxDelta: number;
+  optionsPreferCalls: boolean;
+  optionsPreferPuts: boolean;
+  optionsPreferredSymbols: string[];
+  futuresPreferredContracts: string[];
+  futuresMaxContracts: number;
+  futuresStopPoints: number;
+  futuresTargetPoints: number;
+  cryptoPreferredCoins: string[];
+  cryptoEnableMemeCoins: boolean;
+  cryptoMaxLeverageMultiplier: number;
+  minConfidenceScore: number;
+  preferredHoldingPeriod: 'day' | 'swing' | 'position';
+  minRiskRewardRatio: number;
+  useDynamicExits: boolean;
+  tradePreMarket: boolean;
+  tradeRegularHours: boolean;
+  tradeAfterHours: boolean;
+  preferredEntryWindows: string[];
+  enableDiscordAlerts: boolean;
+  enableEmailAlerts: boolean;
+  alertOnEntry: boolean;
+  alertOnExit: boolean;
+  alertOnDailyLimit: boolean;
+  automationMode: 'paper_only' | 'live_with_confirmation' | 'fully_automated';
+  requireConfirmation: boolean;
 }
 
 function getWeekRange() {
@@ -228,6 +275,51 @@ export default function WatchlistBotPage() {
     },
   });
 
+  // Preferences query and state
+  const { data: preferences, isLoading: preferencesLoading } = useQuery<AutoLottoPreferences>({
+    queryKey: ['/api/auto-lotto-bot/preferences'],
+    enabled: !!user && activeTab === 'preferences',
+  });
+
+  const [localPrefs, setLocalPrefs] = useState<Partial<AutoLottoPreferences>>({});
+  
+  // Sync local prefs when loaded from server
+  useEffect(() => {
+    if (preferences) {
+      setLocalPrefs(preferences);
+    }
+  }, [preferences]);
+
+  const updatePreferencesMutation = useMutation({
+    mutationFn: async (prefs: Partial<AutoLottoPreferences>) => {
+      return apiRequest('PUT', '/api/auto-lotto-bot/preferences', prefs);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/auto-lotto-bot/preferences'] });
+      toast({ title: "Preferences saved", description: "Your trading preferences have been updated." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to save preferences", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleSavePreferences = () => {
+    updatePreferencesMutation.mutate(localPrefs);
+  };
+
+  const updateLocalPref = <K extends keyof AutoLottoPreferences>(key: K, value: AutoLottoPreferences[K]) => {
+    // Guard against NaN for numeric values
+    if (typeof value === 'number' && isNaN(value)) {
+      return; // Don't update if NaN
+    }
+    setLocalPrefs(prev => ({ ...prev, [key]: value }));
+  };
+  
+  const parseNumericInput = (value: string, fallback: number): number => {
+    const parsed = Number(value);
+    return isNaN(parsed) ? fallback : parsed;
+  };
+
   const handleAddToWatchlist = () => {
     if (!newSymbol.trim()) return;
     addWatchlistMutation.mutate({ symbol: newSymbol.toUpperCase(), assetType: newAssetType });
@@ -260,10 +352,10 @@ export default function WatchlistBotPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full max-w-lg grid-cols-3">
+        <TabsList className="grid w-full max-w-2xl grid-cols-4">
           <TabsTrigger value="watchlist" className="gap-2" data-testid="tab-watchlist">
             <Eye className="h-4 w-4" />
-            My Watchlist
+            Watchlist
           </TabsTrigger>
           <TabsTrigger value="bot" className="gap-2" data-testid="tab-bot">
             <Bot className="h-4 w-4 text-pink-400" />
@@ -272,6 +364,10 @@ export default function WatchlistBotPage() {
           <TabsTrigger value="prop-firm" className="gap-2" data-testid="tab-prop-firm">
             <Trophy className="h-4 w-4 text-amber-400" />
             Prop Firm
+          </TabsTrigger>
+          <TabsTrigger value="preferences" className="gap-2" data-testid="tab-preferences">
+            <Sliders className="h-4 w-4 text-cyan-400" />
+            Strategy
           </TabsTrigger>
         </TabsList>
 
@@ -1950,6 +2046,352 @@ export default function WatchlistBotPage() {
                       <p>
                         This is a simulated prop firm evaluation using paper trading. Results are for educational and research purposes only. 
                         Real prop firm evaluations have additional rules and requirements. Past simulated performance does not guarantee future results.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </TabsContent>
+
+        {/* Strategy Preferences Tab */}
+        <TabsContent value="preferences" className="space-y-6">
+          {!user ? (
+            <Card className="glass-card">
+              <CardContent className="p-8 text-center">
+                <LogIn className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">Login Required</h3>
+                <p className="text-muted-foreground mb-4">Sign in to customize your trading strategy preferences.</p>
+              </CardContent>
+            </Card>
+          ) : preferencesLoading ? (
+            <Card className="glass-card">
+              <CardContent className="p-8 text-center">
+                <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-cyan-400" />
+                <p className="text-muted-foreground">Loading your preferences...</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Save Button Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold flex items-center gap-2">
+                    <Sliders className="h-5 w-5 text-cyan-400" />
+                    Trading Strategy Preferences
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Customize how the Auto Lotto Bot generates and executes trades
+                  </p>
+                </div>
+                <Button 
+                  onClick={handleSavePreferences}
+                  disabled={updatePreferencesMutation.isPending}
+                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                  data-testid="button-save-preferences"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {updatePreferencesMutation.isPending ? 'Saving...' : 'Save Preferences'}
+                </Button>
+              </div>
+
+              {/* Risk Profile Section */}
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Shield className="h-5 w-5 text-amber-400" />
+                    Risk Profile
+                  </CardTitle>
+                  <CardDescription>Define your overall risk tolerance and position limits</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="risk-tolerance">Risk Tolerance</Label>
+                      <Select 
+                        value={localPrefs.riskTolerance || 'moderate'} 
+                        onValueChange={(v) => updateLocalPref('riskTolerance', v as AutoLottoPreferences['riskTolerance'])}
+                      >
+                        <SelectTrigger id="risk-tolerance" data-testid="select-risk-tolerance">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="conservative">Conservative - Lower risk, smaller positions</SelectItem>
+                          <SelectItem value="moderate">Moderate - Balanced approach</SelectItem>
+                          <SelectItem value="aggressive">Aggressive - Higher risk for higher returns</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="max-position">Max Position Size ($)</Label>
+                      <Input 
+                        id="max-position"
+                        type="number" 
+                        value={localPrefs.maxPositionSize ?? 100}
+                        onChange={(e) => updateLocalPref('maxPositionSize', parseNumericInput(e.target.value, 100))}
+                        data-testid="input-max-position"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="max-trades">Max Concurrent Trades</Label>
+                      <Input 
+                        id="max-trades"
+                        type="number" 
+                        value={localPrefs.maxConcurrentTrades ?? 5}
+                        onChange={(e) => updateLocalPref('maxConcurrentTrades', parseNumericInput(e.target.value, 5))}
+                        data-testid="input-max-trades"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="daily-loss">Daily Loss Limit ($)</Label>
+                      <Input 
+                        id="daily-loss"
+                        type="number" 
+                        value={localPrefs.dailyLossLimit ?? 200}
+                        onChange={(e) => updateLocalPref('dailyLossLimit', parseNumericInput(e.target.value, 200))}
+                        data-testid="input-daily-loss"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>Minimum Confidence Score: {localPrefs.minConfidenceScore || 70}%</Label>
+                    <Slider 
+                      value={[localPrefs.minConfidenceScore || 70]}
+                      onValueChange={([v]) => updateLocalPref('minConfidenceScore', v)}
+                      min={50}
+                      max={95}
+                      step={5}
+                      className="w-full"
+                      data-testid="slider-confidence"
+                    />
+                    <p className="text-xs text-muted-foreground">Only take trades with confidence score above this threshold</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Asset Allocation Section */}
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <PiggyBank className="h-5 w-5 text-green-400" />
+                    Asset Allocation
+                  </CardTitle>
+                  <CardDescription>Choose which markets to trade and allocation percentages</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-lg border border-slate-700 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 rounded-lg bg-purple-500/10">
+                            <Target className="h-4 w-4 text-purple-400" />
+                          </div>
+                          <span className="font-medium">Options</span>
+                        </div>
+                        <Switch 
+                          checked={localPrefs.enableOptions ?? true}
+                          onCheckedChange={(v) => updateLocalPref('enableOptions', v)}
+                          data-testid="switch-enable-options"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Allocation: {localPrefs.optionsAllocation || 40}%</Label>
+                        <Slider 
+                          value={[localPrefs.optionsAllocation || 40]}
+                          onValueChange={([v]) => updateLocalPref('optionsAllocation', v)}
+                          min={0}
+                          max={100}
+                          step={5}
+                          disabled={!localPrefs.enableOptions}
+                          data-testid="slider-options-allocation"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-lg border border-slate-700 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 rounded-lg bg-cyan-500/10">
+                            <LineChart className="h-4 w-4 text-cyan-400" />
+                          </div>
+                          <span className="font-medium">Futures</span>
+                        </div>
+                        <Switch 
+                          checked={localPrefs.enableFutures ?? true}
+                          onCheckedChange={(v) => updateLocalPref('enableFutures', v)}
+                          data-testid="switch-enable-futures"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Allocation: {localPrefs.futuresAllocation || 30}%</Label>
+                        <Slider 
+                          value={[localPrefs.futuresAllocation || 30]}
+                          onValueChange={([v]) => updateLocalPref('futuresAllocation', v)}
+                          min={0}
+                          max={100}
+                          step={5}
+                          disabled={!localPrefs.enableFutures}
+                          data-testid="slider-futures-allocation"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-lg border border-slate-700 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 rounded-lg bg-amber-500/10">
+                            <Bitcoin className="h-4 w-4 text-amber-400" />
+                          </div>
+                          <span className="font-medium">Crypto</span>
+                        </div>
+                        <Switch 
+                          checked={localPrefs.enableCrypto ?? true}
+                          onCheckedChange={(v) => updateLocalPref('enableCrypto', v)}
+                          data-testid="switch-enable-crypto"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Allocation: {localPrefs.cryptoAllocation || 30}%</Label>
+                        <Slider 
+                          value={[localPrefs.cryptoAllocation || 30]}
+                          onValueChange={([v]) => updateLocalPref('cryptoAllocation', v)}
+                          min={0}
+                          max={100}
+                          step={5}
+                          disabled={!localPrefs.enableCrypto}
+                          data-testid="slider-crypto-allocation"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Trading Hours Section */}
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Clock className="h-5 w-5 text-blue-400" />
+                    Trading Hours
+                  </CardTitle>
+                  <CardDescription>Define when the bot is allowed to trade</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700">
+                      <Label htmlFor="pre-market" className="cursor-pointer">Pre-Market (4:00 - 9:30 AM ET)</Label>
+                      <Switch 
+                        id="pre-market"
+                        checked={localPrefs.tradePreMarket ?? false}
+                        onCheckedChange={(v) => updateLocalPref('tradePreMarket', v)}
+                        data-testid="switch-pre-market"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700">
+                      <Label htmlFor="regular-hours" className="cursor-pointer">Regular Hours (9:30 AM - 4:00 PM ET)</Label>
+                      <Switch 
+                        id="regular-hours"
+                        checked={localPrefs.tradeRegularHours ?? true}
+                        onCheckedChange={(v) => updateLocalPref('tradeRegularHours', v)}
+                        data-testid="switch-regular-hours"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700">
+                      <Label htmlFor="after-hours" className="cursor-pointer">After-Hours (4:00 - 8:00 PM ET)</Label>
+                      <Switch 
+                        id="after-hours"
+                        checked={localPrefs.tradeAfterHours ?? false}
+                        onCheckedChange={(v) => updateLocalPref('tradeAfterHours', v)}
+                        data-testid="switch-after-hours"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Preferred Holding Period</Label>
+                    <Select 
+                      value={localPrefs.preferredHoldingPeriod || 'day'} 
+                      onValueChange={(v) => updateLocalPref('preferredHoldingPeriod', v as AutoLottoPreferences['preferredHoldingPeriod'])}
+                    >
+                      <SelectTrigger data-testid="select-holding-period">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="day">Day Trade - Exit by market close</SelectItem>
+                        <SelectItem value="swing">Swing Trade - Hold 2-5 days</SelectItem>
+                        <SelectItem value="position">Position Trade - Hold 1-2 weeks</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Alerts Section */}
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Bell className="h-5 w-5 text-rose-400" />
+                    Notifications
+                  </CardTitle>
+                  <CardDescription>Configure how you receive trade alerts</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700">
+                      <div className="flex items-center gap-2">
+                        <SiDiscord className="h-4 w-4 text-indigo-400" />
+                        <Label htmlFor="discord-alerts" className="cursor-pointer">Discord Alerts</Label>
+                      </div>
+                      <Switch 
+                        id="discord-alerts"
+                        checked={localPrefs.enableDiscordAlerts ?? true}
+                        onCheckedChange={(v) => updateLocalPref('enableDiscordAlerts', v)}
+                        data-testid="switch-discord-alerts"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700">
+                      <Label htmlFor="alert-entry" className="cursor-pointer">Alert on Trade Entry</Label>
+                      <Switch 
+                        id="alert-entry"
+                        checked={localPrefs.alertOnEntry ?? true}
+                        onCheckedChange={(v) => updateLocalPref('alertOnEntry', v)}
+                        data-testid="switch-alert-entry"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700">
+                      <Label htmlFor="alert-exit" className="cursor-pointer">Alert on Trade Exit</Label>
+                      <Switch 
+                        id="alert-exit"
+                        checked={localPrefs.alertOnExit ?? true}
+                        onCheckedChange={(v) => updateLocalPref('alertOnExit', v)}
+                        data-testid="switch-alert-exit"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 rounded-lg border border-slate-700">
+                      <Label htmlFor="alert-daily-limit" className="cursor-pointer">Alert on Daily Limit Hit</Label>
+                      <Switch 
+                        id="alert-daily-limit"
+                        checked={localPrefs.alertOnDailyLimit ?? true}
+                        onCheckedChange={(v) => updateLocalPref('alertOnDailyLimit', v)}
+                        data-testid="switch-alert-daily-limit"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Educational Disclaimer */}
+              <Card className="glass-card border-amber-500/20">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-muted-foreground">
+                      <p className="font-medium text-amber-400 mb-1">Personalized Strategy Settings</p>
+                      <p>
+                        These preferences customize your paper trading experience. Changes take effect on the next trading cycle.
+                        All trades are simulated for research and educational purposes only.
                       </p>
                     </div>
                   </div>
