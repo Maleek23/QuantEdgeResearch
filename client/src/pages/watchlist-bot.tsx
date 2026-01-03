@@ -149,7 +149,7 @@ export default function WatchlistBotPage() {
   const { data: botData, isLoading: botLoading, refetch: refetchBot, error: botError } = useQuery<AutoLottoBotData>({
     queryKey: ['/api/auto-lotto-bot'],
     enabled: !!user,
-    refetchInterval: 60000,
+    refetchInterval: 15000, // Real-time updates every 15 seconds
     retry: false,
   });
 
@@ -167,7 +167,7 @@ export default function WatchlistBotPage() {
   const { data: cryptoData } = useQuery<CryptoBotData>({
     queryKey: ['/api/crypto-bot/status'],
     enabled: !!user && activeTab === 'bot',
-    refetchInterval: 60000,
+    refetchInterval: 15000, // Real-time updates every 15 seconds
   });
 
   const dailyIdeas = useMemo(() => {
@@ -1333,7 +1333,7 @@ export default function WatchlistBotPage() {
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <span className="font-mono tabular-nums text-sm">{displayQty}</span>
-                                  {position.assetType === 'crypto' && position.quantity >= 1000 && (
+                                  {position.assetType === 'crypto' && (
                                     <span className="text-xs text-muted-foreground ml-1">coins</span>
                                   )}
                                 </TableCell>
@@ -1346,7 +1346,7 @@ export default function WatchlistBotPage() {
                                 )}>
                                   <div className="flex items-center justify-end gap-1">
                                     {pnl >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                                    {pnl >= 0 ? '+' : ''}{formatCurrency(Math.abs(pnl))}
+                                    {pnl >= 0 ? '+' : '-'}{formatCurrency(Math.abs(pnl))}
                                   </div>
                                 </TableCell>
                                 <TableCell className={cn(
