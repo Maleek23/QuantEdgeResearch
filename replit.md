@@ -156,3 +156,39 @@ Located in `client/src/pages/ct-tracker.tsx`, tracks crypto influencer calls and
 - `GET /api/ct/mentions` - Get recent mentions with sentiment
 - `GET /api/ct/top-tickers` - Get trending tickers by mention count
 - `POST /api/ct/copy-trade` - Manually copy a trade to paper portfolio
+
+## Platform Reports System
+Located in `server/report-generator.ts`, the Platform Reports System provides comprehensive daily, weekly, and monthly analytics for all platform activities.
+
+**Report Types:**
+- **Daily Reports:** Generated at 5:00 PM CT (after market close) on weekdays
+- **Weekly Reports:** Generated Sunday at 11:59 PM CT
+- **Monthly Reports:** Generated 1st of each month at 12:01 AM CT
+
+**Report Contents:**
+- Trade idea generation statistics by engine (AI, Quant, Hybrid, Flow, Lotto)
+- Win/loss performance metrics (win rate, average gains/losses, expectancy)
+- Bot activity summary (Auto-Lotto, Futures, Crypto, Prop Firm trades and P&L)
+- Scanner activity (Options Flow alerts, Market Scanner symbols, CT Tracker mentions)
+- Asset type breakdown (stocks, options, crypto, futures)
+- Top winning and losing symbols
+
+**Key Functions:**
+- `generateDailyReport(date?: Date)` - Creates end-of-day report
+- `generateWeeklyReport(endDate?: Date)` - Aggregates 7 days of data
+- `generateMonthlyReport(year, month)` - Full month summary
+
+**API Endpoints (Admin-Only):**
+- `GET /api/admin/reports` - List all reports (with period filter)
+- `GET /api/admin/reports/latest` - Get latest daily/weekly/monthly reports
+- `GET /api/admin/reports/stats` - Real-time platform statistics
+- `GET /api/admin/reports/:id` - Get specific report details
+- `POST /api/admin/reports/generate` - Manually generate a report
+
+**Features:**
+- PDF export capability (uses jsPDF with professional formatting)
+- Discord webhook notifications when reports are generated
+- Glassmorphism-styled dashboard at `/admin/reports`
+- Historical report archive with trend analysis
+
+**Database Table:** `platform_reports` stores all generated reports with full metrics breakdown
