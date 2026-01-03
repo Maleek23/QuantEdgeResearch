@@ -1,7 +1,8 @@
 import { 
   TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
   Sun, Moon, Upload, Home, BookOpen,
-  GraduationCap, FileText, Database, Bot, Zap, Shield, ExternalLink
+  GraduationCap, FileText, Database, Bot, Zap, Shield, ExternalLink,
+  Bitcoin, LineChart
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -16,6 +17,7 @@ import {
   SidebarHeader,
   SidebarFooter,
   useSidebar,
+  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,22 +28,40 @@ interface NavItem {
   title: string;
   url: string;
   icon: any;
+  badge?: string;
 }
 
-const mainItems: NavItem[] = [
+// Main navigation - overview and research
+const overviewItems: NavItem[] = [
   { title: "Dashboard", url: "/home", icon: Home },
-  { title: "Research Desk", url: "/trade-desk", icon: TrendingUp },
-  { title: "Futures", url: "/futures", icon: Zap },
-  { title: "Auto-Lotto Bot", url: "/watchlist-bot", icon: Bot },
 ];
 
+// Trading Research - core research functionality by asset class
+const researchItems: NavItem[] = [
+  { title: "Stocks & Options", url: "/trade-desk", icon: TrendingUp },
+  { title: "Crypto", url: "/crypto", icon: Bitcoin },
+  { title: "Futures", url: "/futures", icon: Zap },
+];
+
+// Automated Trading - bots and automation
+const automationItems: NavItem[] = [
+  { title: "Auto-Lotto Bot", url: "/watchlist-bot", icon: Bot, badge: "LIVE" },
+];
+
+// Analysis Tools
 const analysisItems: NavItem[] = [
   { title: "Chart Analysis", url: "/chart-analysis", icon: Upload },
   { title: "Performance", url: "/performance", icon: Target },
+  { title: "Signal Weights", url: "/signal-weights", icon: LineChart },
   { title: "Data Audit", url: "/data-audit", icon: Database },
+];
+
+// Market Data
+const marketItems: NavItem[] = [
   { title: "Market Data", url: "/market", icon: BarChart2 },
 ];
 
+// Learning resources
 const resourceItems: NavItem[] = [
   { title: "Technical Guide", url: "/technical-guide", icon: BookOpen },
   { title: "Trading Rules", url: "/trading-rules", icon: Shield },
@@ -129,11 +149,13 @@ function NavSection({
   items, 
   location, 
   onNavigate,
+  showLabel = true,
 }: { 
   label: string; 
   items: NavItem[]; 
   location: string; 
   onNavigate: (url: string) => void;
+  showLabel?: boolean;
 }) {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
@@ -141,9 +163,9 @@ function NavSection({
   if (items.length === 0) return null;
 
   return (
-    <SidebarGroup className="py-2 px-2">
-      {!isCollapsed && (
-        <SidebarGroupLabel className="mb-1 px-2 text-[10px] uppercase tracking-widest text-muted-foreground/60 font-medium">
+    <SidebarGroup className="py-1.5 px-2">
+      {!isCollapsed && showLabel && (
+        <SidebarGroupLabel className="mb-1 px-2 text-[10px] uppercase tracking-widest text-muted-foreground/50 font-medium">
           {label}
         </SidebarGroupLabel>
       )}
@@ -156,7 +178,7 @@ function NavSection({
                 <SidebarMenuButton 
                   isActive={isActive}
                   onClick={() => onNavigate(item.url)}
-                  data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-')}`}
+                  data-testid={`nav-${item.title.toLowerCase().replace(/ /g, '-').replace(/&/g, '')}`}
                   tooltip={item.title}
                   className={`
                     h-9 px-2 rounded-md transition-colors
@@ -169,6 +191,11 @@ function NavSection({
                   <item.icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-cyan-500 dark:text-cyan-400' : ''}`} />
                   {!isCollapsed && (
                     <span className="flex-1 truncate text-sm">{item.title}</span>
+                  )}
+                  {!isCollapsed && item.badge && (
+                    <span className="ml-auto text-[9px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 dark:text-emerald-400">
+                      {item.badge}
+                    </span>
                   )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -199,13 +226,34 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent className="gap-0 py-2">
+        {/* Overview - Dashboard */}
+        <NavSection 
+          label="Overview" 
+          items={overviewItems} 
+          location={location} 
+          onNavigate={handleNavigation}
+          showLabel={false}
+        />
+        
+        {/* Research by Asset Class */}
         <NavSection 
           label="Research" 
-          items={mainItems} 
+          items={researchItems} 
           location={location} 
           onNavigate={handleNavigation}
         />
         
+        {/* Automated Trading */}
+        <NavSection 
+          label="Automation" 
+          items={automationItems} 
+          location={location} 
+          onNavigate={handleNavigation}
+        />
+        
+        <SidebarSeparator className="my-1 mx-4 opacity-30" />
+        
+        {/* Analysis Tools */}
         <NavSection 
           label="Analysis" 
           items={analysisItems} 
@@ -213,6 +261,17 @@ export function AppSidebar() {
           onNavigate={handleNavigation}
         />
         
+        {/* Market Data */}
+        <NavSection 
+          label="Data" 
+          items={marketItems} 
+          location={location} 
+          onNavigate={handleNavigation}
+        />
+        
+        <SidebarSeparator className="my-1 mx-4 opacity-30" />
+        
+        {/* Learning Resources */}
         <NavSection 
           label="Learn" 
           items={resourceItems} 
@@ -220,6 +279,7 @@ export function AppSidebar() {
           onNavigate={handleNavigation}
         />
         
+        {/* Settings */}
         <NavSection 
           label="Account" 
           items={settingsItems} 

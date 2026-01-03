@@ -96,6 +96,11 @@ function Router() {
       <Route path="/futures-research">
         <Redirect to="/futures" />
       </Route>
+      <Route path="/crypto">
+        {/* Crypto redirects to trade desk with crypto focus */}
+        <Redirect to="/trade-desk?asset=crypto" />
+      </Route>
+      <Route path="/signal-weights" component={PerformancePage} />
       
       {/* Research & Community Pages */}
       <Route path="/technical-guide" component={TechnicalGuide} />
