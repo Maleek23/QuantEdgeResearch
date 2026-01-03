@@ -407,8 +407,6 @@ export default function AutomationsPage() {
                 </div>
               </CardContent>
             </Card>
-
-            <Card className="hover-elevate">
           </div>
         </TabsContent>
 

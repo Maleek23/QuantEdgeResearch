@@ -6387,6 +6387,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Market Scanner Routes - Scan 500+ stocks across timeframes
+  app.get("/api/market-scanner", async (req, res) => {
+    try {
+      const { scanStockPerformance, getStockUniverse } = await import('./market-scanner');
+      const category = (req.query.category as string) || 'all';
+      const includeHistorical = req.query.historical === 'true';
+      const limit = parseInt(req.query.limit as string) || 100;
+      
+      const validCategories = ['all', 'sp500', 'growth', 'penny', 'etf'];
+      if (!validCategories.includes(category)) {
+        return res.status(400).json({ error: `Invalid category. Must be one of: ${validCategories.join(', ')}` });
+      }
+      
+      const symbols = getStockUniverse(category as any).slice(0, limit);
+      const results = await scanStockPerformance(symbols, includeHistorical);
+      
+      res.json({
+        category,
+        count: results.length,
+        includeHistorical,
+        data: results,
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/market-scanner' });
+      res.status(500).json({ error: "Failed to scan market" });
+    }
+  });
+
+  app.get("/api/market-scanner/movers", async (req, res) => {
+    try {
+      const { getTopMovers } = await import('./market-scanner');
+      const timeframe = (req.query.timeframe as string) || 'day';
+      const category = (req.query.category as string) || 'all';
+      const limit = parseInt(req.query.limit as string) || 20;
+      
+      const validTimeframes = ['day', 'week', 'month', 'ytd', 'year'];
+      const validCategories = ['all', 'sp500', 'growth', 'penny', 'etf'];
+      
+      if (!validTimeframes.includes(timeframe)) {
+        return res.status(400).json({ error: `Invalid timeframe. Must be one of: ${validTimeframes.join(', ')}` });
+      }
+      if (!validCategories.includes(category)) {
+        return res.status(400).json({ error: `Invalid category. Must be one of: ${validCategories.join(', ')}` });
+      }
+      
+      const movers = await getTopMovers(timeframe as any, category as any, limit);
+      
+      res.json({
+        timeframe,
+        category,
+        gainers: movers.gainers,
+        losers: movers.losers,
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/market-scanner/movers' });
+      res.status(500).json({ error: "Failed to get top movers" });
+    }
+  });
+
+  app.get("/api/market-scanner/sectors", async (_req, res) => {
+    try {
+      const { getSectorPerformance } = await import('./market-scanner');
+      const sectors = await getSectorPerformance();
+      res.json(sectors);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/market-scanner/sectors' });
+      res.status(500).json({ error: "Failed to get sector performance" });
+    }
+  });
+
   // Options Data Routes
   app.get("/api/options/:symbol", async (req, res) => {
     try {
