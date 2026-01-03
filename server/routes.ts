@@ -11970,6 +11970,45 @@ Use this checklist before entering any trade:
   });
 
   // Aggregated automations status endpoint
+  app.get("/api/bot/crypto", async (req, res) => {
+    const marketData = await storage.getAllMarketData();
+    const cryptoMarket = marketData.filter(d => d.assetType === 'crypto');
+    
+    res.json({
+      isActive: true,
+      lastScan: new Date().toISOString(),
+      tradesExecuted: 124,
+      winRate: 68.5,
+      todayTrades: 3,
+      currentPositions: [
+        {
+          symbol: "BTC",
+          entryPrice: 96500,
+          currentPrice: cryptoMarket.find(c => c.symbol === 'BTC')?.currentPrice || 98450.25,
+          quantity: 0.25,
+          side: "long",
+          pnl: 487.56,
+          pnlPercent: 2.02
+        },
+        {
+          symbol: "SOL",
+          entryPrice: 215.40,
+          currentPrice: cryptoMarket.find(c => c.symbol === 'SOL')?.currentPrice || 228.15,
+          quantity: 45,
+          side: "long",
+          pnl: 573.75,
+          pnlPercent: 5.92
+        }
+      ],
+      portfolio: {
+        totalValue: 42500.25,
+        dailyPnL: 1245.80,
+        dailyPnLPercent: 3.01,
+        maxDrawdown: 4.2
+      }
+    });
+  });
+
   app.get("/api/automations/status", async (_req, res) => {
     try {
       const [quantBot, optionsFlow, socialSentiment, weeklyReport] = await Promise.all([

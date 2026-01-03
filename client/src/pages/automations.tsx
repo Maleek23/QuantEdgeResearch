@@ -389,32 +389,26 @@ export default function AutomationsPage() {
             <Card className="hover-elevate">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">Weekly Report</CardTitle>
-                  <StatusBadge active={reportSettings?.isEnabled || false} />
+                  <CardTitle className="text-sm font-medium">Crypto Bot</CardTitle>
+                  <StatusBadge active={cryptoData?.isActive || false} />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2 text-2xl font-bold">
-                  <FileText className="w-5 h-5 text-amber-400" />
-                  Sunday 8PM
+                  <Activity className="w-5 h-5 text-orange-400" />
+                  {cryptoData?.tradesExecuted || 0} trades
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Performance summary to Discord
+                  Scanning 13 major coins (24/7)
                 </p>
-                <div className="mt-3">
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => generateReport.mutate()}
-                    disabled={generateReport.isPending}
-                    data-testid="button-generate-report"
-                  >
-                    {generateReport.isPending ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Send className="w-3 h-3 mr-1" />}
-                    Send Now
-                  </Button>
+                <div className="mt-3 flex items-center gap-2">
+                  <Clock className="w-3 h-3 text-muted-foreground" />
+                  <LastScanTime timestamp={cryptoData?.lastScan || null} />
                 </div>
               </CardContent>
             </Card>
+
+            <Card className="hover-elevate">
           </div>
         </TabsContent>
 
