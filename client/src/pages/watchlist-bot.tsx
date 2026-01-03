@@ -20,7 +20,7 @@ import {
   RefreshCw, Shield, Calendar, Bell, BellOff, LogIn, Radio, Atom, 
   Radiation, FlaskConical, Bitcoin, Search, BarChart3, Wallet, 
   PiggyBank, ArrowUpRight, ArrowDownRight, LineChart, Download, FileText,
-  Trophy, ShieldCheck, AlertCircle, Settings, Save, Sliders
+  Trophy, ShieldCheck, AlertCircle, Settings, Save, Sliders, Rocket, Sparkles
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NumberTicker } from "@/components/magicui/number-ticker";
@@ -218,6 +218,29 @@ export default function WatchlistBotPage() {
     refetchInterval: 15000,
   });
 
+  // Annual Breakout Watchlist - curated stocks with $70+ breakout potential
+  const { data: annualBreakouts = [], isLoading: annualLoading, refetch: refetchAnnual } = useQuery<WatchlistItem[]>({
+    queryKey: ['/api/annual-watchlist'],
+    enabled: activeTab === 'annual',
+    staleTime: 60000, // 1 minute
+  });
+
+  // Seed annual watchlist if empty
+  const seedAnnualMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/annual-watchlist/seed', { method: 'POST' });
+      if (!response.ok) throw new Error('Failed to seed annual watchlist');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/annual-watchlist'] });
+      toast({ title: "Annual Watchlist Seeded", description: `Added ${data.count} breakout candidates` });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Seed Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   // Real-time P&L updates - polls every 3 seconds for live price updates
   interface RealtimePnLData {
     positions: Array<{
@@ -352,10 +375,14 @@ export default function WatchlistBotPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full max-w-2xl grid-cols-4">
+        <TabsList className="grid w-full max-w-3xl grid-cols-5">
           <TabsTrigger value="watchlist" className="gap-2" data-testid="tab-watchlist">
             <Eye className="h-4 w-4" />
             Watchlist
+          </TabsTrigger>
+          <TabsTrigger value="annual" className="gap-2" data-testid="tab-annual">
+            <Rocket className="h-4 w-4 text-emerald-400" />
+            Breakouts
           </TabsTrigger>
           <TabsTrigger value="bot" className="gap-2" data-testid="tab-bot">
             <Bot className="h-4 w-4 text-pink-400" />
@@ -2399,6 +2426,182 @@ export default function WatchlistBotPage() {
               </Card>
             </>
           )}
+        </TabsContent>
+
+        {/* Annual Breakout Watchlist Tab */}
+        <TabsContent value="annual" className="space-y-6">
+          <Card className="glass-card border-emerald-500/20">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Rocket className="h-5 w-5 text-emerald-400" />
+                    2026 Breakout Candidates
+                  </CardTitle>
+                  <CardDescription>
+                    Curated stocks with $70+ price target potential. Track thesis and conviction over the year.
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  {annualBreakouts.length === 0 && (
+                    <Button 
+                      onClick={() => seedAnnualMutation.mutate()}
+                      disabled={seedAnnualMutation.isPending}
+                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950"
+                      data-testid="button-seed-annual"
+                    >
+                      {seedAnnualMutation.isPending ? (
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-4 w-4 mr-2" />
+                      )}
+                      Load Breakout Candidates
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={() => refetchAnnual()} data-testid="button-refresh-annual">
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {annualLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <RefreshCw className="h-8 w-8 animate-spin text-emerald-400" />
+                </div>
+              ) : annualBreakouts.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Rocket className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg font-medium mb-2">No breakout candidates loaded</p>
+                  <p className="text-sm">Click "Load Breakout Candidates" to seed the curated list of 20 high-potential stocks</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <Card className="bg-slate-800/50 border-slate-700">
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Candidates</p>
+                        <p className="text-2xl font-bold text-emerald-400">{annualBreakouts.length}</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-slate-800/50 border-slate-700">
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider">High Conviction</p>
+                        <p className="text-2xl font-bold text-cyan-400">
+                          {annualBreakouts.filter(b => b.conviction === 'high').length}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-slate-800/50 border-slate-700">
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Sectors</p>
+                        <p className="text-2xl font-bold text-purple-400">
+                          {new Set(annualBreakouts.map(b => b.sector).filter(Boolean)).size}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-slate-800/50 border-slate-700">
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Avg Target</p>
+                        <p className="text-2xl font-bold text-amber-400">
+                          ${Math.round(annualBreakouts.reduce((sum, b) => sum + (b.yearlyTargetPrice || 0), 0) / annualBreakouts.length)}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Breakout Table */}
+                  <ScrollArea className="h-[500px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-slate-700">
+                          <TableHead>Symbol</TableHead>
+                          <TableHead>Sector</TableHead>
+                          <TableHead className="text-right">Entry</TableHead>
+                          <TableHead className="text-right">Target</TableHead>
+                          <TableHead className="text-right">Upside</TableHead>
+                          <TableHead>Conviction</TableHead>
+                          <TableHead className="max-w-[300px]">Thesis</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {annualBreakouts.map((stock) => {
+                          const upside = stock.yearlyTargetPrice && stock.startOfYearPrice
+                            ? ((stock.yearlyTargetPrice - stock.startOfYearPrice) / stock.startOfYearPrice) * 100
+                            : 0;
+                          return (
+                            <TableRow key={stock.id} className="border-slate-700 hover:bg-slate-800/50" data-testid={`row-breakout-${stock.symbol}`}>
+                              <TableCell className="font-mono font-bold text-cyan-400" data-testid={`text-symbol-${stock.symbol}`}>
+                                {stock.symbol}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs" data-testid={`badge-sector-${stock.symbol}`}>
+                                  {stock.sector || 'Unknown'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right font-mono" data-testid={`text-entry-${stock.symbol}`}>
+                                ${stock.startOfYearPrice?.toFixed(2) || '-'}
+                              </TableCell>
+                              <TableCell className="text-right font-mono text-emerald-400" data-testid={`text-target-${stock.symbol}`}>
+                                ${stock.yearlyTargetPrice?.toFixed(0) || '-'}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Badge 
+                                  className={cn(
+                                    "font-mono",
+                                    upside >= 100 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
+                                    upside >= 50 ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" :
+                                    "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                                  )}
+                                  data-testid={`badge-upside-${stock.symbol}`}
+                                >
+                                  +{upside.toFixed(0)}%
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge 
+                                  variant="outline"
+                                  className={cn(
+                                    stock.conviction === 'high' ? "border-emerald-500 text-emerald-400" :
+                                    stock.conviction === 'medium' ? "border-cyan-500 text-cyan-400" :
+                                    "border-amber-500 text-amber-400"
+                                  )}
+                                  data-testid={`badge-conviction-${stock.symbol}`}
+                                >
+                                  {stock.conviction || 'medium'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="max-w-[300px] text-sm text-muted-foreground truncate" data-testid={`text-thesis-${stock.symbol}`}>
+                                {stock.thesis || '-'}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Educational Disclaimer */}
+          <Card className="glass-card border-amber-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-muted-foreground">
+                  <p className="font-medium text-amber-400 mb-1">Research & Educational Purposes Only</p>
+                  <p>
+                    These breakout candidates are curated for research and educational tracking only. 
+                    Price targets are speculative and based on analyst estimates and technical analysis.
+                    This is NOT financial advice. Always do your own research before investing.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
