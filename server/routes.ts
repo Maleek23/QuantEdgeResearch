@@ -9556,6 +9556,55 @@ FORMATTING:
     }
   });
 
+  // GET /api/paper/positions/:positionId/analysis - Get detailed position analysis with entry reasoning
+  app.get("/api/paper/positions/:positionId/analysis", async (req: any, res: Response) => {
+    try {
+      const { positionId } = req.params;
+      
+      const position = await storage.getPaperPositionById(positionId);
+      if (!position) {
+        return res.status(404).json({ error: "Position not found" });
+      }
+      
+      // Get linked trade idea if available for full context
+      let tradeIdea = null;
+      if (position.tradeIdeaId) {
+        tradeIdea = await storage.getTradeIdeaById(position.tradeIdeaId);
+      }
+      
+      // Parse entry signals if stored as JSON string
+      let parsedSignals = [];
+      if (position.entrySignals) {
+        try {
+          parsedSignals = typeof position.entrySignals === 'string' 
+            ? JSON.parse(position.entrySignals) 
+            : position.entrySignals;
+        } catch (e) {
+          parsedSignals = [];
+        }
+      }
+      
+      res.json({
+        position: {
+          ...position,
+          entrySignals: parsedSignals,
+        },
+        tradeIdea: tradeIdea ? {
+          catalyst: tradeIdea.catalyst,
+          analysis: tradeIdea.analysis,
+          qualitySignals: tradeIdea.qualitySignals,
+          confidenceScore: tradeIdea.confidenceScore,
+          probabilityBand: tradeIdea.probabilityBand,
+          source: tradeIdea.source,
+          holdingPeriod: tradeIdea.holdingPeriod,
+        } : null,
+      });
+    } catch (error: any) {
+      logger.error("Error fetching position analysis", { error });
+      res.status(500).json({ error: "Failed to fetch position analysis" });
+    }
+  });
+
   // POST /api/paper/positions/:positionId/close - Close a position manually
   app.post("/api/paper/positions/:positionId/close", isAuthenticated, async (req: any, res: Response) => {
     try {

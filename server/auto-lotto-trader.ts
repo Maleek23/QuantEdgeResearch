@@ -2279,7 +2279,7 @@ export async function runPropFirmBotScan(): Promise<void> {
     
     const savedIdea = await storage.createTradeIdea(ideaData);
     
-    // Create paper position
+    // Create paper position with entry reasoning
     await storage.createPaperPosition({
       portfolioId: portfolio.id,
       symbol: contract.contractCode,
@@ -2293,6 +2293,8 @@ export async function runPropFirmBotScan(): Promise<void> {
       status: 'open',
       tradeIdeaId: savedIdea.id,
       entryTime: new Date().toISOString(),
+      entryReason: `🏆 PROP FIRM: ${contract.contractCode} ${direction.toUpperCase()} @ $${entryPrice.toFixed(2)} - Confidence ${score}%`,
+      entrySignals: JSON.stringify(signals),
     });
     
     // Deduct margin
