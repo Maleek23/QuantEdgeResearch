@@ -2051,6 +2051,7 @@ export class DatabaseStorage implements IStorage {
 
     // WIN RATE FIX: Exclude expired ideas from denominator - only count actual wins vs losses
     const decidedIdeas = wonIdeas.length + lostIdeas.length;
+    const winRate = decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0;
 
     // QUANT ACCURACY: Calculate percentage progress toward target (0-100+%)
     // For ALL trades (open + closed), calculate how far price moved toward target
@@ -2221,7 +2222,7 @@ export class DatabaseStorage implements IStorage {
         wonIdeas: wonIdeas.length,
         lostIdeas: lostIdeas.length,
         expiredIdeas: expiredIdeas.length,
-        winRate: decidedIdeas > 0 ? (wonIdeas.length / decidedIdeas) * 100 : 0,
+        winRate,
         quantAccuracy,
         directionalAccuracy,
         avgPercentGain: calculateAvg(closedGains),
