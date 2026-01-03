@@ -2205,13 +2205,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isAdmin = adminEmail !== "" && user?.email === adminEmail;
       }
       
+      // Quality filter: ?quality=high filters to 70%+ confidence AND 4+ signals
+      const qualityFilter = req.query.quality as string;
+      
       // Admin sees all ideas, logged-in users see system-generated ideas + their own
       // System-generated ideas have user_id = NULL and should be visible to all users
-      const ideas = isAdmin 
+      let ideas = isAdmin 
         ? await storage.getAllTradeIdeas()
         : userId 
           ? await storage.getTradeIdeasForUser(userId) // Gets system ideas + user's own
           : [];
+      
+      // Apply quality filter if requested (70%+ confidence AND 4+ signals)
+      if (qualityFilter === 'high') {
+        const beforeCount = ideas.length;
+        ideas = ideas.filter(idea => {
+          const confidence = idea.confidenceScore || 50;
+          const signalCount = idea.qualitySignals?.length || 0;
+          return confidence >= 70 && signalCount >= 4;
+        });
+        logger.info(`[TRADE-IDEAS] Quality filter applied: ${beforeCount} -> ${ideas.length} ideas`);
+      }
       
       const hitTargetCount = ideas.filter(i => i.outcomeStatus === 'hit_target').length;
       const openCount = ideas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus).length;
@@ -5270,8 +5284,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Calculate DTE at idea generation for options
         let dteAtIdea: number | null = null;
-        if (idea.assetType === 'option' && idea.optionExpiry) {
-          const expiry = new Date(idea.optionExpiry);
+        if (idea.assetType === 'option' && idea.expiryDate) {
+          const expiry = new Date(idea.expiryDate);
           dteAtIdea = Math.ceil((expiry.getTime() - ideaTime.getTime()) / (1000 * 60 * 60 * 24));
         }
         
@@ -5283,7 +5297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           direction: idea.direction,
           optionType: idea.optionType || null,
           strikePrice: idea.strikePrice || null,
-          optionExpiry: idea.optionExpiry || null,
+          expiryDate: idea.expiryDate || null,
           dteAtIdea,
           
           // Idea timing with market context
