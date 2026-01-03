@@ -6773,6 +6773,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add single item to annual breakout watchlist
+  app.post("/api/annual-watchlist/add", async (req: any, res) => {
+    try {
+      const { symbol, sector, entry, target, conviction, thesis } = req.body;
+      
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+      
+      // Check if symbol already exists
+      const existing = await storage.getWatchlistByCategory('annual_breakout');
+      const existingItem = existing.find(item => item.symbol.toUpperCase() === symbol.toUpperCase());
+      
+      if (existingItem) {
+        // Update existing item
+        const updated = await storage.updateWatchlistItem(existingItem.id, {
+          sector: sector || existingItem.sector,
+          startOfYearPrice: entry || existingItem.startOfYearPrice,
+          yearlyTargetPrice: target || existingItem.yearlyTargetPrice,
+          conviction: conviction || existingItem.conviction,
+          thesis: thesis || existingItem.thesis,
+          priceUpdatedAt: new Date().toISOString(),
+        });
+        return res.json({ success: true, action: 'updated', item: updated });
+      }
+      
+      // Add new item
+      const now = new Date().toISOString();
+      const item = await storage.addToWatchlist({
+        symbol: symbol.toUpperCase(),
+        assetType: 'stock',
+        addedAt: now,
+        category: 'annual_breakout',
+        thesis: thesis || '',
+        conviction: conviction || 'medium',
+        sector: sector || 'Unknown',
+        startOfYearPrice: entry || null,
+        yearlyTargetPrice: target || null,
+        currentPrice: entry || null,
+        priceUpdatedAt: now,
+        notes: `Breakout Candidate - ${sector || 'Unknown'}`,
+        alertsEnabled: true,
+        discordAlertsEnabled: true,
+      });
+      
+      logger.info(`[ANNUAL-WATCHLIST] Added ${symbol} to annual breakout list`);
+      res.status(201).json({ success: true, action: 'added', item });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/annual-watchlist/add' });
+      res.status(500).json({ error: "Failed to add to annual watchlist" });
+    }
+  });
+
+  // Remove item from annual breakout watchlist by symbol
+  app.delete("/api/annual-watchlist/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const existing = await storage.getWatchlistByCategory('annual_breakout');
+      const item = existing.find(i => i.symbol.toUpperCase() === symbol.toUpperCase());
+      
+      if (!item) {
+        return res.status(404).json({ error: `${symbol} not found in annual watchlist` });
+      }
+      
+      await storage.removeFromWatchlist(item.id);
+      logger.info(`[ANNUAL-WATCHLIST] Removed ${symbol} from annual breakout list`);
+      res.json({ success: true, message: `${symbol} removed from annual watchlist` });
+    } catch (error) {
+      logError(error as Error, { context: 'DELETE /api/annual-watchlist/:symbol' });
+      res.status(500).json({ error: "Failed to remove from annual watchlist" });
+    }
+  });
+
+  // Bulk update annual watchlist (update existing, add new, optionally remove old)
+  app.post("/api/annual-watchlist/sync", async (req: any, res) => {
+    try {
+      const { items, removeUnlisted = false } = req.body;
+      
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "items must be a non-empty array" });
+      }
+      
+      const existing = await storage.getWatchlistByCategory('annual_breakout');
+      const existingSymbols = new Map(existing.map(item => [item.symbol.toUpperCase(), item]));
+      const incomingSymbols = new Set(items.map((item: any) => item.symbol.toUpperCase()));
+      
+      const results = { added: 0, updated: 0, removed: 0, errors: [] as string[] };
+      const now = new Date().toISOString();
+      
+      // Add or update items
+      for (const item of items) {
+        try {
+          const symbol = item.symbol.toUpperCase();
+          const existingItem = existingSymbols.get(symbol);
+          
+          if (existingItem) {
+            // Update existing
+            await storage.updateWatchlistItem(existingItem.id, {
+              sector: item.sector || existingItem.sector,
+              startOfYearPrice: item.entry || existingItem.startOfYearPrice,
+              yearlyTargetPrice: item.target || existingItem.yearlyTargetPrice,
+              conviction: item.conviction || existingItem.conviction,
+              thesis: item.thesis || existingItem.thesis,
+              priceUpdatedAt: now,
+            });
+            results.updated++;
+          } else {
+            // Add new
+            await storage.addToWatchlist({
+              symbol,
+              assetType: 'stock',
+              addedAt: now,
+              category: 'annual_breakout',
+              thesis: item.thesis || '',
+              conviction: item.conviction || 'medium',
+              sector: item.sector || 'Unknown',
+              startOfYearPrice: item.entry || null,
+              yearlyTargetPrice: item.target || null,
+              currentPrice: item.entry || null,
+              priceUpdatedAt: now,
+              notes: `Breakout Candidate - ${item.sector || 'Unknown'}`,
+              alertsEnabled: true,
+              discordAlertsEnabled: true,
+            });
+            results.added++;
+          }
+        } catch (e: any) {
+          results.errors.push(`${item.symbol}: ${e.message}`);
+        }
+      }
+      
+      // Remove items not in incoming list (if requested)
+      if (removeUnlisted) {
+        for (const [symbol, item] of existingSymbols) {
+          if (!incomingSymbols.has(symbol)) {
+            await storage.removeFromWatchlist(item.id);
+            results.removed++;
+          }
+        }
+      }
+      
+      logger.info(`[ANNUAL-WATCHLIST] Sync complete: added=${results.added}, updated=${results.updated}, removed=${results.removed}`);
+      res.json({ 
+        success: true, 
+        message: `Synced annual watchlist: ${results.added} added, ${results.updated} updated, ${results.removed} removed`,
+        results 
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/annual-watchlist/sync' });
+      res.status(500).json({ error: "Failed to sync annual watchlist" });
+    }
+  });
+
   // Send regular watchlist to QuantBot Discord channel
   app.post("/api/watchlist/send-quantbot", async (req: any, res) => {
     try {
