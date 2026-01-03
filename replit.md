@@ -70,3 +70,31 @@ Located in `server/timing-intelligence.ts`, this system calculates optimal entry
 - `holdingPeriod`: Explicit override ('day' | 'swing' | 'position')
 - `exitWindowMinutes`: Always recalculated from final `exitBy` timestamp for consistency
 - `exitBy`: ISO timestamp of exit deadline
+
+## Prop Firm Mode
+Located in `server/auto-lotto-trader.ts`, Prop Firm Mode is a conservative futures trading system designed for funded account evaluations (e.g., Topstep).
+
+**Account Parameters:**
+- Starting Capital: $50,000
+- Daily Loss Limit: $1,000
+- Max Drawdown: $2,500
+- Profit Target: $3,000
+- Max Contracts: 2 (NQ only)
+
+**Risk Management:**
+- 15-point stop loss, 30-point target (2:1 R:R)
+- Force-liquidation when risk limits are breached
+- Only trades during CME hours and optimal sessions (9:30-11:00 AM, 2:00-3:30 PM CT)
+- Requires 70%+ confidence score for entry
+
+**P&L Calculation:**
+- Futures use point-based P&L with contract multipliers:
+  - NQ (E-mini Nasdaq): $20 per point
+  - GC (Gold): $100 per point
+- Options use $100 multiplier (100 shares per contract)
+- `closePaperPosition` in `server/storage.ts` is the single source of truth for portfolio updates
+
+**Data Architecture:**
+- Each bot has separate portfolios: options, futures, crypto, prop-firm
+- Daily P&L tracked in-memory (`propFirmDailyPnL`), resets at start of each trading day
+- Paper positions use flat $100 margin per contract (not full notional value)
