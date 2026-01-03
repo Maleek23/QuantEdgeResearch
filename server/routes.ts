@@ -9557,13 +9557,20 @@ FORMATTING:
   });
 
   // GET /api/paper/positions/:positionId/analysis - Get detailed position analysis with entry reasoning
-  app.get("/api/paper/positions/:positionId/analysis", async (req: any, res: Response) => {
+  app.get("/api/paper/positions/:positionId/analysis", isAuthenticated, async (req: any, res: Response) => {
     try {
+      const userId = req.session?.userId;
       const { positionId } = req.params;
       
       const position = await storage.getPaperPositionById(positionId);
       if (!position) {
         return res.status(404).json({ error: "Position not found" });
+      }
+      
+      // Verify ownership
+      const portfolio = await storage.getPaperPortfolioById(position.portfolioId);
+      if (!portfolio || portfolio.userId !== userId) {
+        return res.status(401).json({ error: "Unauthorized" });
       }
       
       // Get linked trade idea if available for full context
