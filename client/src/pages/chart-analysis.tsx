@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,8 @@ import {
   AlertTriangle, Brain, Loader2, ExternalLink, CheckCircle2, Sparkles,
   Target, Shield, Activity, BarChart3, ArrowUpRight, ArrowDownRight,
   Zap, Clock, Calculator, Gauge, Send, LineChart, Lightbulb, Users,
-  ChevronRight, Database, BookOpen, Trophy, Plus
+  ChevronRight, Database, BookOpen, Trophy, Plus, Search, RefreshCw,
+  Filter, Eye, History, ArrowRight, TrendingUpDown
 } from "lucide-react";
 import { SiDiscord } from "react-icons/si";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,7 +25,235 @@ import { TierGate } from "@/components/tier-gate";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { createChart, IChartApi, ISeriesApi, CandlestickData, LineData, Time } from "lightweight-charts";
+
+interface PatternData {
+  name: string;
+  type: "bullish" | "bearish" | "neutral";
+  strength: "strong" | "moderate" | "weak";
+  detected: boolean;
+}
+
+interface CandleData {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+interface PatternResponse {
+  symbol: string;
+  currentPrice: number;
+  priceChange: number;
+  patterns: PatternData[];
+  signalScore: {
+    score: number;
+    direction: "bullish" | "bearish" | "neutral";
+    confidence: number;
+    signals: string[];
+  };
+  indicators: {
+    rsi: { value: number; period: number };
+    rsi2: { value: number; period: number };
+    macd: { macd: number; signal: number; histogram: number };
+    bollingerBands: { upper: number; middle: number; lower: number };
+    adx: { value: number; regime: string; suitableFor: string };
+    stochRSI: { k: number; d: number } | null;
+    ichimoku: { tenkan: number; kijun: number; senkouA: number; senkouB: number; chikou: number } | null;
+  };
+  dataPoints: number;
+  candles: CandleData[];
+  rsiSeries: Array<{ time: number; value: number }>;
+  bbSeries: Array<{ time: number; upper: number; middle: number; lower: number }>;
+}
+
+interface PatternLibraryItem {
+  id: string;
+  name: string;
+  type: "bullish" | "bearish" | "neutral";
+  category: "reversal" | "continuation" | "bilateral";
+  winRate: number;
+  avgReturn: number;
+  timeframe: string;
+  description: string;
+  entryRules: string[];
+  exitRules: string[];
+}
+
+const PATTERN_LIBRARY: PatternLibraryItem[] = [
+  {
+    id: "cup-handle",
+    name: "Cup & Handle",
+    type: "bullish",
+    category: "continuation",
+    winRate: 68,
+    avgReturn: 12.5,
+    timeframe: "Weeks to Months",
+    description: "A bullish continuation pattern that resembles a cup with a handle. The pattern suggests a period of consolidation followed by a breakout.",
+    entryRules: ["Wait for breakout above handle resistance", "Volume should increase on breakout", "Set entry slightly above handle high"],
+    exitRules: ["Target = Cup depth added to breakout point", "Stop loss below handle low", "Consider partial profits at 50% of target"]
+  },
+  {
+    id: "double-bottom",
+    name: "Double Bottom",
+    type: "bullish",
+    category: "reversal",
+    winRate: 72,
+    avgReturn: 10.8,
+    timeframe: "Days to Weeks",
+    description: "A reversal pattern forming after a downtrend. Two consecutive lows at similar levels indicate strong support.",
+    entryRules: ["Enter on break above neckline resistance", "Confirm with increasing volume", "Wait for retest of neckline for conservative entry"],
+    exitRules: ["Target = Distance from bottom to neckline", "Stop loss below second bottom", "Trail stop after 50% gain"]
+  },
+  {
+    id: "head-shoulders-top",
+    name: "Head & Shoulders (Top)",
+    type: "bearish",
+    category: "reversal",
+    winRate: 65,
+    avgReturn: -11.2,
+    timeframe: "Weeks",
+    description: "A reversal pattern at the top of an uptrend. Consists of three peaks with the middle one being highest.",
+    entryRules: ["Short on break below neckline", "Volume should increase on breakdown", "Wait for pullback to neckline for lower risk"],
+    exitRules: ["Target = Distance from head to neckline", "Stop loss above right shoulder", "Cover partial at first support level"]
+  },
+  {
+    id: "ascending-triangle",
+    name: "Ascending Triangle",
+    type: "bullish",
+    category: "continuation",
+    winRate: 63,
+    avgReturn: 8.5,
+    timeframe: "Days to Weeks",
+    description: "A bullish continuation pattern with horizontal resistance and rising support. Shows buyers gaining strength.",
+    entryRules: ["Enter on breakout above horizontal resistance", "Volume confirmation is crucial", "Minimum 2 touches on each trendline"],
+    exitRules: ["Target = Height of triangle at widest point", "Stop loss below rising trendline", "Manage risk with position sizing"]
+  },
+  {
+    id: "descending-triangle",
+    name: "Descending Triangle",
+    type: "bearish",
+    category: "continuation",
+    winRate: 61,
+    avgReturn: -7.8,
+    timeframe: "Days to Weeks",
+    description: "A bearish pattern with horizontal support and declining resistance. Shows sellers gaining control.",
+    entryRules: ["Short on breakdown below support", "Look for volume spike on breakdown", "Ensure at least 2 touches on each line"],
+    exitRules: ["Target = Triangle height projected downward", "Stop loss above descending trendline", "Cover at key support levels"]
+  },
+  {
+    id: "bull-flag",
+    name: "Bull Flag",
+    type: "bullish",
+    category: "continuation",
+    winRate: 67,
+    avgReturn: 9.2,
+    timeframe: "Days",
+    description: "A short-term continuation pattern. A sharp rise (flagpole) followed by a tight consolidation (flag).",
+    entryRules: ["Enter on breakout above flag channel", "Look for declining volume in flag", "Flagpole should be on high volume"],
+    exitRules: ["Target = Flagpole length from breakout", "Stop loss below flag low", "Quick moves expected after breakout"]
+  },
+  {
+    id: "bear-flag",
+    name: "Bear Flag",
+    type: "bearish",
+    category: "continuation",
+    winRate: 64,
+    avgReturn: -8.5,
+    timeframe: "Days",
+    description: "Bearish continuation after sharp decline. Consolidation phase before continuation lower.",
+    entryRules: ["Short on breakdown below flag channel", "Volume should contract in flag", "Confirm with momentum indicators"],
+    exitRules: ["Target = Flagpole length from breakdown", "Stop loss above flag high", "Be prepared for sharp moves"]
+  },
+  {
+    id: "inverse-head-shoulders",
+    name: "Inverse Head & Shoulders",
+    type: "bullish",
+    category: "reversal",
+    winRate: 70,
+    avgReturn: 12.0,
+    timeframe: "Weeks",
+    description: "Bullish reversal pattern at bottom of downtrend. Three troughs with middle being lowest.",
+    entryRules: ["Enter on break above neckline", "Volume should increase significantly", "Right shoulder should hold above left"],
+    exitRules: ["Target = Head to neckline distance", "Stop loss below right shoulder", "Add on successful retest"]
+  },
+  {
+    id: "wedge-rising",
+    name: "Rising Wedge",
+    type: "bearish",
+    category: "reversal",
+    winRate: 59,
+    avgReturn: -6.5,
+    timeframe: "Weeks",
+    description: "Bearish reversal pattern with converging trendlines sloping upward. Often forms at end of uptrend.",
+    entryRules: ["Short on breakdown below lower trendline", "Declining volume confirms pattern", "Wait for close below support"],
+    exitRules: ["Target = Widest part of wedge", "Stop loss above recent high", "Monitor for false breakdowns"]
+  },
+  {
+    id: "wedge-falling",
+    name: "Falling Wedge",
+    type: "bullish",
+    category: "reversal",
+    winRate: 62,
+    avgReturn: 7.8,
+    timeframe: "Weeks",
+    description: "Bullish reversal pattern with converging trendlines sloping downward. Signals exhaustion of sellers.",
+    entryRules: ["Enter on breakout above upper trendline", "Volume expansion confirms breakout", "Pattern duration 3-4 weeks ideal"],
+    exitRules: ["Target = Widest part of wedge", "Stop loss below recent low", "Consider pyramiding on strength"]
+  },
+  {
+    id: "triple-bottom",
+    name: "Triple Bottom",
+    type: "bullish",
+    category: "reversal",
+    winRate: 71,
+    avgReturn: 11.5,
+    timeframe: "Weeks to Months",
+    description: "Strong reversal pattern with three lows at similar level. More reliable than double bottom.",
+    entryRules: ["Enter on break above resistance level", "Each bottom should be tested with declining volume", "Pattern takes longer to form"],
+    exitRules: ["Target = Distance to resistance from bottoms", "Stop loss below lowest bottom", "Strong signal for longer-term trades"]
+  },
+  {
+    id: "rounding-bottom",
+    name: "Rounding Bottom (Saucer)",
+    type: "bullish",
+    category: "reversal",
+    winRate: 66,
+    avgReturn: 13.2,
+    timeframe: "Months",
+    description: "Long-term reversal pattern with gradual U-shaped bottom. Shows slow accumulation phase.",
+    entryRules: ["Enter as price breaks above left rim", "Volume should increase on right side", "Patience required - slow formation"],
+    exitRules: ["Target = Depth of saucer added to breakout", "Stop loss at recent swing low", "Best for position trading"]
+  }
+];
+
+function SignalBadge({ direction }: { direction: "bullish" | "bearish" | "neutral" }) {
+  if (direction === "bullish") {
+    return <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Bullish</Badge>;
+  }
+  if (direction === "bearish") {
+    return <Badge className="bg-red-500/10 text-red-400 border-red-500/30">Bearish</Badge>;
+  }
+  return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30">Neutral</Badge>;
+}
+
+function PatternBadge({ pattern }: { pattern: PatternData }) {
+  const typeColors = {
+    bullish: "bg-green-500/10 text-green-400 border-green-500/30",
+    bearish: "bg-red-500/10 text-red-400 border-red-500/30",
+    neutral: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+  };
+  
+  return (
+    <Badge className={cn("text-xs", typeColors[pattern.type])} data-testid={`badge-pattern-${pattern.name}`}>
+      {pattern.name} ({pattern.strength})
+    </Badge>
+  );
+}
 
 function ConfidenceGauge({ value, sentiment }: { value: number; sentiment: "bullish" | "bearish" | "neutral" }) {
   const color = sentiment === "bullish" ? "#22c55e" : sentiment === "bearish" ? "#ef4444" : "#f59e0b";
@@ -448,8 +677,835 @@ function QuickStatCard({ label, value, icon: Icon }: { label: string; value: str
   );
 }
 
+function PatternSearchTab() {
+  const [symbol, setSymbol] = useState("");
+  const [searchSymbol, setSearchSymbol] = useState("");
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const rsiChartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const rsiChartRef = useRef<IChartApi | null>(null);
+  
+  const { data: patternData, isLoading, error, refetch } = useQuery<PatternResponse>({
+    queryKey: ['/api/patterns', searchSymbol],
+    enabled: !!searchSymbol,
+  });
+  
+  const handleSearch = () => {
+    if (symbol.trim()) {
+      setSearchSymbol(symbol.trim().toUpperCase());
+    }
+  };
+  
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
+  
+  useEffect(() => {
+    if (!chartContainerRef.current || !patternData?.candles?.length) return;
+    
+    if (chartRef.current) {
+      chartRef.current.remove();
+      chartRef.current = null;
+    }
+    
+    const chart = createChart(chartContainerRef.current, {
+      layout: {
+        background: { color: "transparent" },
+        textColor: "#94a3b8",
+      },
+      grid: {
+        vertLines: { color: "#1e293b" },
+        horzLines: { color: "#1e293b" },
+      },
+      width: chartContainerRef.current.clientWidth,
+      height: 400,
+      crosshair: {
+        mode: 1,
+      },
+      rightPriceScale: {
+        borderColor: "#334155",
+      },
+      timeScale: {
+        borderColor: "#334155",
+        timeVisible: true,
+        secondsVisible: false,
+      },
+    });
+    
+    chartRef.current = chart;
+    
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: "#22c55e",
+      downColor: "#ef4444",
+      borderUpColor: "#22c55e",
+      borderDownColor: "#ef4444",
+      wickUpColor: "#22c55e",
+      wickDownColor: "#ef4444",
+    });
+    
+    const candleData: CandlestickData[] = patternData.candles.map((c) => ({
+      time: c.time as Time,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+    }));
+    candleSeries.setData(candleData);
+    
+    if (patternData.bbSeries?.length) {
+      const bbUpper = chart.addLineSeries({
+        color: "#60a5fa",
+        lineWidth: 1,
+        lineStyle: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      
+      const bbMiddle = chart.addLineSeries({
+        color: "#94a3b8",
+        lineWidth: 1,
+        lineStyle: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      
+      const bbLower = chart.addLineSeries({
+        color: "#60a5fa",
+        lineWidth: 1,
+        lineStyle: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      
+      const upperData: LineData[] = patternData.bbSeries.map((b) => ({
+        time: b.time as Time,
+        value: b.upper,
+      }));
+      const middleData: LineData[] = patternData.bbSeries.map((b) => ({
+        time: b.time as Time,
+        value: b.middle,
+      }));
+      const lowerData: LineData[] = patternData.bbSeries.map((b) => ({
+        time: b.time as Time,
+        value: b.lower,
+      }));
+      
+      bbUpper.setData(upperData);
+      bbMiddle.setData(middleData);
+      bbLower.setData(lowerData);
+    }
+    
+    if (patternData.patterns.length > 0) {
+      const lastCandle = patternData.candles[patternData.candles.length - 1];
+      const markers = patternData.patterns.map((pattern) => {
+        const markerColor = pattern.type === "bullish" ? "#22c55e" : pattern.type === "bearish" ? "#ef4444" : "#f59e0b";
+        const position = pattern.type === "bullish" ? "belowBar" : "aboveBar";
+        const shape = pattern.type === "bullish" ? "arrowUp" : pattern.type === "bearish" ? "arrowDown" : "circle";
+        
+        return {
+          time: lastCandle.time as Time,
+          position: position as "aboveBar" | "belowBar",
+          color: markerColor,
+          shape: shape as "arrowUp" | "arrowDown" | "circle",
+          text: pattern.name,
+        };
+      });
+      candleSeries.setMarkers(markers);
+    }
+    
+    chart.timeScale().fitContent();
+    
+    const handleResize = () => {
+      if (chartContainerRef.current && chart) {
+        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+      }
+    };
+    
+    window.addEventListener("resize", handleResize);
+    
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [patternData]);
+  
+  useEffect(() => {
+    if (!rsiChartContainerRef.current || !patternData?.rsiSeries?.length) return;
+    
+    if (rsiChartRef.current) {
+      rsiChartRef.current.remove();
+      rsiChartRef.current = null;
+    }
+    
+    const chart = createChart(rsiChartContainerRef.current, {
+      layout: {
+        background: { color: "transparent" },
+        textColor: "#94a3b8",
+      },
+      grid: {
+        vertLines: { color: "#1e293b" },
+        horzLines: { color: "#1e293b" },
+      },
+      width: rsiChartContainerRef.current.clientWidth,
+      height: 120,
+      rightPriceScale: {
+        borderColor: "#334155",
+        scaleMargins: { top: 0.1, bottom: 0.1 },
+      },
+      timeScale: {
+        borderColor: "#334155",
+        visible: false,
+      },
+    });
+    
+    rsiChartRef.current = chart;
+    
+    const rsiSeries = chart.addLineSeries({
+      color: "#8b5cf6",
+      lineWidth: 2,
+      priceLineVisible: false,
+    });
+    
+    const overboughtLine = chart.addLineSeries({
+      color: "#ef4444",
+      lineWidth: 1,
+      lineStyle: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+    });
+    
+    const oversoldLine = chart.addLineSeries({
+      color: "#22c55e",
+      lineWidth: 1,
+      lineStyle: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+    });
+    
+    const rsiData: LineData[] = patternData.rsiSeries.map((r) => ({
+      time: r.time as Time,
+      value: r.value,
+    }));
+    rsiSeries.setData(rsiData);
+    
+    const firstTime = patternData.rsiSeries[0]?.time;
+    const lastTime = patternData.rsiSeries[patternData.rsiSeries.length - 1]?.time;
+    if (firstTime && lastTime) {
+      overboughtLine.setData([
+        { time: firstTime as Time, value: 70 },
+        { time: lastTime as Time, value: 70 },
+      ]);
+      oversoldLine.setData([
+        { time: firstTime as Time, value: 30 },
+        { time: lastTime as Time, value: 30 },
+      ]);
+    }
+    
+    chart.timeScale().fitContent();
+    
+    const handleResize = () => {
+      if (rsiChartContainerRef.current && chart) {
+        chart.applyOptions({ width: rsiChartContainerRef.current.clientWidth });
+      }
+    };
+    
+    window.addEventListener("resize", handleResize);
+    
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [patternData]);
+  
+  return (
+    <div className="space-y-6">
+      <Card className="glass-card">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Enter symbol (e.g., AAPL, TSLA, NVDA)"
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                onKeyDown={handleKeyPress}
+                className="pl-10 font-mono"
+                data-testid="input-pattern-symbol"
+              />
+            </div>
+            <Button
+              onClick={handleSearch}
+              disabled={!symbol.trim() || isLoading}
+              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+              data-testid="button-pattern-analyze"
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Activity className="h-4 w-4 mr-2" />
+              )}
+              Analyze
+            </Button>
+            {searchSymbol && (
+              <Button
+                variant="outline"
+                onClick={() => refetch()}
+                disabled={isLoading}
+                className="border-slate-700"
+                data-testid="button-pattern-refresh"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      
+      {error && (
+        <Card className="border-red-500/30 bg-red-500/5">
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-400" />
+            <span className="text-red-400">
+              Failed to fetch data. Please check the symbol and try again.
+            </span>
+          </CardContent>
+        </Card>
+      )}
+      
+      {!searchSymbol && !patternData && (
+        <div className="glass-card rounded-xl p-12 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-purple-500/10 flex items-center justify-center">
+            <BarChart3 className="h-8 w-8 text-purple-400" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">Pattern Detection</h3>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Enter a stock symbol above to detect technical patterns, view candlestick charts with Bollinger Bands, and analyze RSI levels.
+          </p>
+        </div>
+      )}
+      
+      {patternData && (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <Card className="glass-card">
+              <CardContent className="p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                  Symbol
+                </p>
+                <p className="text-xl font-bold font-mono" data-testid="text-pattern-symbol">
+                  {patternData.symbol}
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card className="glass-card">
+              <CardContent className="p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                  Current Price
+                </p>
+                <p className="text-xl font-bold font-mono tabular-nums" data-testid="text-pattern-price">
+                  ${patternData.currentPrice.toFixed(2)}
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card className="glass-card">
+              <CardContent className="p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                  Change
+                </p>
+                <p className={cn(
+                  "text-xl font-bold font-mono tabular-nums flex items-center gap-1",
+                  patternData.priceChange >= 0 ? "text-green-400" : "text-red-400"
+                )} data-testid="text-pattern-change">
+                  {patternData.priceChange >= 0 ? (
+                    <TrendingUp className="h-4 w-4" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4" />
+                  )}
+                  {patternData.priceChange >= 0 ? "+" : ""}{patternData.priceChange.toFixed(2)}%
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card className="glass-card">
+              <CardContent className="p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+                  Signal
+                </p>
+                <div className="flex items-center gap-2" data-testid="text-pattern-signal">
+                  <SignalBadge direction={patternData.signalScore.direction} />
+                  <span className="text-lg font-bold font-mono">{patternData.signalScore.score}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <Card className="glass-card overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Target className="h-5 w-5 text-cyan-400" />
+                Price Chart with Bollinger Bands
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div ref={chartContainerRef} className="w-full" data-testid="chart-pattern-candlestick" />
+            </CardContent>
+          </Card>
+          
+          <Card className="glass-card overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Activity className="h-5 w-5 text-purple-400" />
+                RSI (14)
+                <Badge variant="outline" className="ml-2 font-mono tabular-nums" data-testid="badge-pattern-rsi-value">
+                  {patternData.indicators.rsi.value.toFixed(1)}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div ref={rsiChartContainerRef} className="w-full" data-testid="chart-pattern-rsi" />
+            </CardContent>
+          </Card>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="text-lg">Detected Patterns</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {patternData.patterns.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No patterns detected in recent candles</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2" data-testid="patterns-search-list">
+                    {patternData.patterns.map((pattern, i) => (
+                      <PatternBadge key={i} pattern={pattern} />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="text-lg">Signal Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2" data-testid="signals-search-list">
+                  {patternData.signalScore.signals.map((signal, i) => (
+                    <Badge key={i} variant="outline" className="text-xs">
+                      {signal}
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="text-lg">Technical Indicators</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Indicator</TableHead>
+                    <TableHead>Value</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow data-testid="row-pattern-rsi">
+                    <TableCell className="font-medium">RSI (14)</TableCell>
+                    <TableCell className="font-mono tabular-nums">{patternData.indicators.rsi.value.toFixed(2)}</TableCell>
+                    <TableCell>
+                      {patternData.indicators.rsi.value < 30 ? (
+                        <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Oversold</Badge>
+                      ) : patternData.indicators.rsi.value > 70 ? (
+                        <Badge className="bg-red-500/10 text-red-400 border-red-500/30">Overbought</Badge>
+                      ) : (
+                        <Badge variant="outline">Neutral</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow data-testid="row-pattern-rsi2">
+                    <TableCell className="font-medium">RSI (2)</TableCell>
+                    <TableCell className="font-mono tabular-nums">{patternData.indicators.rsi2.value.toFixed(2)}</TableCell>
+                    <TableCell>
+                      {patternData.indicators.rsi2.value < 10 ? (
+                        <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Extreme Oversold</Badge>
+                      ) : patternData.indicators.rsi2.value > 90 ? (
+                        <Badge className="bg-red-500/10 text-red-400 border-red-500/30">Extreme Overbought</Badge>
+                      ) : (
+                        <Badge variant="outline">Normal</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow data-testid="row-pattern-macd">
+                    <TableCell className="font-medium">MACD</TableCell>
+                    <TableCell className="font-mono tabular-nums">
+                      {patternData.indicators.macd.macd.toFixed(4)} / {patternData.indicators.macd.signal.toFixed(4)}
+                    </TableCell>
+                    <TableCell>
+                      {patternData.indicators.macd.histogram > 0 ? (
+                        <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Bullish</Badge>
+                      ) : (
+                        <Badge className="bg-red-500/10 text-red-400 border-red-500/30">Bearish</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow data-testid="row-pattern-bb">
+                    <TableCell className="font-medium">Bollinger Bands</TableCell>
+                    <TableCell className="font-mono tabular-nums text-xs">
+                      U: ${patternData.indicators.bollingerBands.upper.toFixed(2)} | 
+                      M: ${patternData.indicators.bollingerBands.middle.toFixed(2)} | 
+                      L: ${patternData.indicators.bollingerBands.lower.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      {patternData.currentPrice < patternData.indicators.bollingerBands.lower ? (
+                        <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Below Lower</Badge>
+                      ) : patternData.currentPrice > patternData.indicators.bollingerBands.upper ? (
+                        <Badge className="bg-red-500/10 text-red-400 border-red-500/30">Above Upper</Badge>
+                      ) : (
+                        <Badge variant="outline">Within Bands</Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow data-testid="row-pattern-adx">
+                    <TableCell className="font-medium">ADX</TableCell>
+                    <TableCell className="font-mono tabular-nums">{patternData.indicators.adx.value.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {patternData.indicators.adx.regime} ({patternData.indicators.adx.suitableFor.replace("_", " ")})
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                  {patternData.indicators.stochRSI && (
+                    <TableRow data-testid="row-pattern-stochrsi">
+                      <TableCell className="font-medium">Stochastic RSI</TableCell>
+                      <TableCell className="font-mono tabular-nums">
+                        K: {patternData.indicators.stochRSI.k.toFixed(2)} / D: {patternData.indicators.stochRSI.d.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        {patternData.indicators.stochRSI.k < 20 ? (
+                          <Badge className="bg-green-500/10 text-green-400 border-green-500/30">Oversold</Badge>
+                        ) : patternData.indicators.stochRSI.k > 80 ? (
+                          <Badge className="bg-red-500/10 text-red-400 border-red-500/30">Overbought</Badge>
+                        ) : (
+                          <Badge variant="outline">Neutral</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}
+
+function PatternBacktestTab() {
+  const [filterType, setFilterType] = useState<"all" | "bullish" | "bearish">("all");
+  const [selectedPattern, setSelectedPattern] = useState<PatternLibraryItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const filteredPatterns = PATTERN_LIBRARY.filter(pattern => {
+    const matchesType = filterType === "all" || pattern.type === filterType;
+    const matchesSearch = pattern.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          pattern.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesType && matchesSearch;
+  });
+  
+  const avgWinRate = PATTERN_LIBRARY.reduce((sum, p) => sum + p.winRate, 0) / PATTERN_LIBRARY.length;
+  const bullishPatterns = PATTERN_LIBRARY.filter(p => p.type === "bullish").length;
+  const bearishPatterns = PATTERN_LIBRARY.filter(p => p.type === "bearish").length;
+  
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <Card className="glass-card">
+          <CardContent className="p-4">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+              Total Patterns
+            </p>
+            <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-total-patterns">
+              {PATTERN_LIBRARY.length}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card className="glass-card">
+          <CardContent className="p-4">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+              Avg Win Rate
+            </p>
+            <p className="text-2xl font-bold font-mono tabular-nums text-green-400" data-testid="text-avg-winrate">
+              {avgWinRate.toFixed(1)}%
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card className="glass-card">
+          <CardContent className="p-4">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+              Bullish
+            </p>
+            <p className="text-2xl font-bold font-mono tabular-nums text-green-400" data-testid="text-bullish-count">
+              {bullishPatterns}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card className="glass-card">
+          <CardContent className="p-4">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+              Bearish
+            </p>
+            <p className="text-2xl font-bold font-mono tabular-nums text-red-400" data-testid="text-bearish-count">
+              {bearishPatterns}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <Card className="glass-card">
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search patterns..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="input-backtest-search"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant={filterType === "all" ? "default" : "outline"}
+                onClick={() => setFilterType("all")}
+                className={filterType === "all" ? "bg-cyan-500 hover:bg-cyan-400 text-slate-950" : "border-slate-700"}
+                data-testid="button-filter-all"
+              >
+                All
+              </Button>
+              <Button
+                variant={filterType === "bullish" ? "default" : "outline"}
+                onClick={() => setFilterType("bullish")}
+                className={filterType === "bullish" ? "bg-green-500 hover:bg-green-400 text-slate-950" : "border-slate-700"}
+                data-testid="button-filter-bullish"
+              >
+                <TrendingUp className="h-4 w-4 mr-1" />
+                Bullish
+              </Button>
+              <Button
+                variant={filterType === "bearish" ? "default" : "outline"}
+                onClick={() => setFilterType("bearish")}
+                className={filterType === "bearish" ? "bg-red-500 hover:bg-red-400 text-slate-950" : "border-slate-700"}
+                data-testid="button-filter-bearish"
+              >
+                <TrendingDown className="h-4 w-4 mr-1" />
+                Bearish
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredPatterns.map((pattern) => (
+          <Card 
+            key={pattern.id}
+            className={cn(
+              "glass-card cursor-pointer transition-all hover-elevate",
+              selectedPattern?.id === pattern.id && "ring-2 ring-cyan-400/50"
+            )}
+            onClick={() => setSelectedPattern(pattern)}
+            data-testid={`card-pattern-${pattern.id}`}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  {pattern.type === "bullish" ? (
+                    <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                      <TrendingUp className="h-4 w-4 text-green-400" />
+                    </div>
+                  ) : (
+                    <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+                      <TrendingDown className="h-4 w-4 text-red-400" />
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="font-semibold text-sm">{pattern.name}</h3>
+                    <p className="text-xs text-muted-foreground capitalize">{pattern.category}</p>
+                  </div>
+                </div>
+                <Badge 
+                  className={cn(
+                    "text-[10px]",
+                    pattern.type === "bullish" 
+                      ? "bg-green-500/10 text-green-400 border-green-500/30"
+                      : "bg-red-500/10 text-red-400 border-red-500/30"
+                  )}
+                >
+                  {pattern.type}
+                </Badge>
+              </div>
+              
+              <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                {pattern.description}
+              </p>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="text-center p-2 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-0.5">Win Rate</p>
+                  <p className="text-lg font-bold font-mono tabular-nums text-green-400">
+                    {pattern.winRate}%
+                  </p>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-muted/30">
+                  <p className="text-xs text-muted-foreground mb-0.5">Avg Return</p>
+                  <p className={cn(
+                    "text-lg font-bold font-mono tabular-nums",
+                    pattern.avgReturn >= 0 ? "text-green-400" : "text-red-400"
+                  )}>
+                    {pattern.avgReturn >= 0 ? "+" : ""}{pattern.avgReturn}%
+                  </p>
+                </div>
+              </div>
+              
+              <div className="mt-3 pt-3 border-t border-border/50">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Timeframe</span>
+                  <span className="font-medium">{pattern.timeframe}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      
+      <Dialog open={!!selectedPattern} onOpenChange={() => setSelectedPattern(null)}>
+        <DialogContent className="max-w-2xl">
+          {selectedPattern && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-3">
+                  {selectedPattern.type === "bullish" ? (
+                    <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                      <TrendingUp className="h-5 w-5 text-green-400" />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
+                      <TrendingDown className="h-5 w-5 text-red-400" />
+                    </div>
+                  )}
+                  <div>
+                    <DialogTitle className="text-xl">{selectedPattern.name}</DialogTitle>
+                    <DialogDescription className="capitalize">
+                      {selectedPattern.category} Pattern • {selectedPattern.timeframe}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+              
+              <div className="space-y-4 mt-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center p-3 rounded-lg bg-muted/30">
+                    <p className="text-xs text-muted-foreground mb-1">Win Rate</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums text-green-400">
+                      {selectedPattern.winRate}%
+                    </p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted/30">
+                    <p className="text-xs text-muted-foreground mb-1">Avg Return</p>
+                    <p className={cn(
+                      "text-2xl font-bold font-mono tabular-nums",
+                      selectedPattern.avgReturn >= 0 ? "text-green-400" : "text-red-400"
+                    )}>
+                      {selectedPattern.avgReturn >= 0 ? "+" : ""}{selectedPattern.avgReturn}%
+                    </p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted/30">
+                    <p className="text-xs text-muted-foreground mb-1">Type</p>
+                    <Badge 
+                      className={cn(
+                        "text-sm mt-1",
+                        selectedPattern.type === "bullish" 
+                          ? "bg-green-500/10 text-green-400 border-green-500/30"
+                          : "bg-red-500/10 text-red-400 border-red-500/30"
+                      )}
+                    >
+                      {selectedPattern.type}
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div>
+                  <h4 className="text-sm font-semibold mb-2">Description</h4>
+                  <p className="text-sm text-muted-foreground">{selectedPattern.description}</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                      <ArrowRight className="h-4 w-4 text-green-400" />
+                      Entry Rules
+                    </h4>
+                    <ul className="space-y-1.5">
+                      {selectedPattern.entryRules.map((rule, i) => (
+                        <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-green-400 mt-0.5 shrink-0" />
+                          {rule}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                      <Target className="h-4 w-4 text-cyan-400" />
+                      Exit Rules
+                    </h4>
+                    <ul className="space-y-1.5">
+                      {selectedPattern.exitRules.map((rule, i) => (
+                        <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-cyan-400 mt-0.5 shrink-0" />
+                          {rule}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+      
+      {filteredPatterns.length === 0 && (
+        <div className="glass-card rounded-xl p-12 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted/30 flex items-center justify-center">
+            <Search className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">No Patterns Found</h3>
+          <p className="text-sm text-muted-foreground">
+            Try adjusting your search or filter criteria.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ChartAnalysis() {
   const { user } = useAuth();
+  const [mainTab, setMainTab] = useState("visual");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [symbol, setSymbol] = useState("");
@@ -466,34 +1522,27 @@ export default function ChartAnalysis() {
   const [expiryDate, setExpiryDate] = useState("");
   const [strikePrice, setStrikePrice] = useState("");
   
-  // AI suggestion state - persists separately from user selection
   const [aiSuggestion, setAiSuggestion] = useState<{
     assetType: "stock" | "option";
     optionType: "call" | "put";
     rationale: string;
   } | null>(null);
   
-  // Success modal state - shows after analysis completes
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [, navigate] = useLocation();
 
-  // Persist chart analysis state to localStorage
   const STORAGE_KEY = 'chart_analysis_state';
   
-  // Check for URL parameters (symbol passed from watchlist)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const symbolParam = urlParams.get('symbol');
     if (symbolParam) {
       setSymbol(symbolParam.toUpperCase());
-      // Clear the URL param to prevent stale data on refresh
       window.history.replaceState({}, '', '/chart-analysis');
     }
   }, []);
   
-  // Restore state from localStorage on mount (only if no URL param)
   useEffect(() => {
-    // Skip if symbol was set from URL
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('symbol')) return;
     
@@ -520,7 +1569,6 @@ export default function ChartAnalysis() {
     }
   }, []);
 
-  // Save state to localStorage when it changes
   useEffect(() => {
     try {
       const state = {
@@ -592,213 +1640,113 @@ export default function ChartAnalysis() {
         expiryDate: data.expiryDate,
         strikePrice: data.strikePrice,
       });
-      return await response.json();
+      return response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data) => {
       setSavedTradeIdeaId(data.id);
       toast({
-        title: "Saved as Draft",
-        description: "Analysis saved as draft research brief.",
+        title: "Draft Saved",
+        description: "Your trade idea has been saved as a draft.",
       });
     },
-    onError: (error: Error) => {
+    onError: () => {
       toast({
-        title: "Failed to Save",
-        description: error.message || "Could not save analysis.",
+        title: "Save Failed",
+        description: "Failed to save draft. Please try again.",
         variant: "destructive",
       });
-    },
+    }
   });
 
   const promoteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await apiRequest('PATCH', `/api/trade-ideas/${id}/promote`);
-      return await response.json();
+    mutationFn: async (tradeIdeaId: string) => {
+      const response = await apiRequest('POST', `/api/trade-ideas/${tradeIdeaId}/promote`);
+      return response.json();
     },
     onSuccess: () => {
       setIsPromoted(true);
       toast({
-        title: "Published",
-        description: "Research brief is now visible in Research Desk.",
+        title: "Published!",
+        description: "Your trade idea is now live on the Trade Ideas page.",
       });
     },
-    onError: (error: Error) => {
+    onError: () => {
       toast({
-        title: "Failed to Publish",
-        description: error.message,
+        title: "Publish Failed",
+        description: "Failed to publish trade idea. Please try again.",
         variant: "destructive",
       });
-    },
-  });
-
-  const [sentToDiscord, setSentToDiscord] = useState(false);
-  
-  const discordMutation = useMutation({
-    mutationFn: async (analysis: ChartAnalysisResult & { symbol: string }) => {
-      const response = await apiRequest('POST', '/api/chart-analysis/discord', {
-        symbol: analysis.symbol,
-        sentiment: analysis.sentiment,
-        confidence: analysis.confidence,
-        entryPoint: analysis.entryPoint,
-        targetPrice: analysis.targetPrice,
-        stopLoss: analysis.stopLoss,
-        patterns: analysis.patterns,
-        analysis: analysis.analysis,
-        riskRewardRatio: analysis.riskRewardRatio,
-        timeframe: analysis.timeframe || timeframe,
-      });
-      return await response.json();
-    },
-    onSuccess: (data: { success: boolean; message: string }) => {
-      setSentToDiscord(true);
-      toast({
-        title: data.success ? "Sent to Discord" : "Discord Disabled",
-        description: data.message,
-        variant: data.success ? "default" : "destructive",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Discord Failed",
-        description: error.message || "Could not send to Discord.",
-        variant: "destructive",
-      });
-    },
+    }
   });
 
   const analysisMutation = useMutation({
-    mutationFn: async (data: FormData) => {
+    mutationFn: async (formData: FormData) => {
       const response = await fetch('/api/chart-analysis', {
         method: 'POST',
-        body: data,
+        body: formData,
+        credentials: 'include',
       });
-      
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to analyze chart');
+        throw new Error(error.message || 'Analysis failed');
       }
-      
-      return await response.json() as ChartAnalysisResult;
+      return response.json();
     },
     onSuccess: (data) => {
       setAnalysisResult(data);
-      toast({
-        title: "Analysis Complete",
-        description: "Chart analyzed successfully.",
-      });
-
-      // Compute AI suggestion for trade type based on analysis
-      const hasStrongPatterns = data.patterns.some(p => 
-        /breakout|breakdown|momentum|wedge|flag|triangle|channel/i.test(p)
-      );
-      const highConfidence = data.confidence >= 70;
-      const goodRiskReward = data.riskRewardRatio >= 1.8;
-      const strongSentiment = data.sentiment !== 'neutral';
       
-      // Determine suggested asset type
-      const suggestOptions = (highConfidence && goodRiskReward && (hasStrongPatterns || strongSentiment));
-      const suggestedAssetType: "stock" | "option" = suggestOptions ? 'option' : 'stock';
-      
-      // Determine suggested option type based on sentiment
-      const suggestedOptionType: "call" | "put" = data.sentiment === 'bullish' ? 'call' : 'put';
-      
-      // Build rationale for the suggestion
-      const rationale = suggestOptions 
-        ? `${data.confidence}% confidence, ${data.riskRewardRatio.toFixed(1)}:1 R:R${hasStrongPatterns ? ', momentum patterns detected' : ''}`
-        : `Lower confidence or neutral setup - shares provide less leverage risk`;
-      
-      // Store AI suggestion (persists even if user changes selection)
-      const suggestion = { assetType: suggestedAssetType, optionType: suggestedOptionType, rationale };
-      setAiSuggestion(suggestion);
-      
-      // Auto-apply the AI suggestion to form fields
-      setAssetType(suggestedAssetType);
-      setOptionType(suggestedOptionType);
-      
-      // Auto-generate strike price and expiry for options
-      let autoStrikePrice: number | undefined = undefined;
-      let autoExpiryDate: string | undefined = undefined;
-      
-      if (suggestedAssetType === 'option' && data.entryPoint) {
-        // Calculate ATM strike (round to nearest $1 for stocks under $100, $5 for higher)
-        const entry = data.entryPoint;
-        const roundTo = entry < 100 ? 1 : entry < 500 ? 5 : 10;
-        autoStrikePrice = Math.round(entry / roundTo) * roundTo;
-        
-        // Calculate expiry date based on analysis mode
-        const today = new Date();
-        const daysToAdd = analysisMode === 'day' ? 7 : 21; // 1 week for day trading, 3 weeks for swing
-        const expiry = new Date(today.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
-        // Adjust to next Friday if not already a Friday
-        const dayOfWeek = expiry.getDay();
-        const daysToFriday = (5 - dayOfWeek + 7) % 7 || 7;
-        expiry.setDate(expiry.getDate() + daysToFriday);
-        autoExpiryDate = expiry.toISOString().split('T')[0];
-        
-        // Update form fields
-        setStrikePrice(autoStrikePrice.toString());
-        setExpiryDate(autoExpiryDate);
-      }
-      
-      // Save draft with AI-suggested values
-      if (symbol) {
-        saveDraftMutation.mutate({ 
-          symbol, 
-          analysis: data, 
-          assetType: suggestedAssetType,
-          optionType: suggestedAssetType === 'option' ? suggestedOptionType : undefined,
-          expiryDate: suggestedAssetType === 'option' ? autoExpiryDate : undefined,
-          strikePrice: suggestedAssetType === 'option' ? autoStrikePrice : undefined,
+      if (data.sentiment === "bullish") {
+        setAiSuggestion({
+          assetType: "option",
+          optionType: "call",
+          rationale: `Based on the ${data.confidence}% bullish signal and detected patterns, a call option could amplify gains with defined risk.`
+        });
+      } else if (data.sentiment === "bearish") {
+        setAiSuggestion({
+          assetType: "option",
+          optionType: "put",
+          rationale: `Given the ${data.confidence}% bearish outlook and resistance levels, a put option provides leveraged downside exposure.`
+        });
+      } else {
+        setAiSuggestion({
+          assetType: "stock",
+          optionType: "call",
+          rationale: `Neutral sentiment suggests stock ownership for flexibility, or wait for clearer directional signals.`
         });
       }
       
-      // Show success modal with trade suggestion
+      setSavedTradeIdeaId(null);
+      setIsPromoted(false);
       setShowSuccessModal(true);
+      
+      toast({
+        title: "Analysis Complete",
+        description: `${data.patterns.length} patterns detected with ${data.sentiment} outlook.`,
+      });
     },
     onError: (error: Error) => {
       toast({
         title: "Analysis Failed",
-        description: error.message || "Please try again.",
+        description: error.message,
         variant: "destructive",
       });
-    },
+    }
   });
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith('image/')) {
-        toast({
-          title: "Invalid File",
-          description: "Please select a valid image file.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
     }
   };
 
   const handleSubmit = async () => {
-    if (!selectedFile) {
+    if (!selectedFile || !symbol) {
       toast({
-        title: "No File Selected",
-        description: "Please upload a chart image.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!symbol) {
-      toast({
-        title: "Symbol Required",
-        description: "Please enter a symbol.",
+        title: "Missing Information",
+        description: "Please upload a chart image and enter a symbol.",
         variant: "destructive",
       });
       return;
@@ -808,914 +1756,743 @@ export default function ChartAnalysis() {
     formData.append('chart', selectedFile);
     formData.append('symbol', symbol);
     formData.append('timeframe', timeframe);
-    formData.append('context', additionalContext);
-    
-    // Include option details if user selected CALL/PUT option
-    if (assetType === 'option') {
-      formData.append('assetType', 'option');
-      formData.append('optionType', optionType);
-      if (strikePrice) formData.append('strikePrice', strikePrice);
-      if (expiryDate) formData.append('expiryDate', expiryDate);
+    formData.append('analysisMode', analysisMode);
+    if (additionalContext) {
+      formData.append('context', additionalContext);
     }
 
     analysisMutation.mutate(formData);
   };
 
-  const resetForm = () => {
-    setSelectedFile(null);
-    setPreviewUrl(null);
-    setSymbol("");
-    setTimeframe("1D");
-    setAdditionalContext("");
-    setAnalysisResult(null);
-    setSavedTradeIdeaId(null);
-    setIsPromoted(false);
-    setSentToDiscord(false);
-    setAiSuggestion(null);
-    setAssetType("stock");
-    setOptionType("call");
-    setStrikePrice("");
-    setExpiryDate("");
-    setShowSuccessModal(false);
-    // Clear persisted state
-    localStorage.removeItem(STORAGE_KEY);
-  };
-
-  const handleSendToDiscord = () => {
-    if (analysisResult && symbol) {
-      discordMutation.mutate({ ...analysisResult, symbol });
-    }
+  const handleSaveDraft = () => {
+    if (!analysisResult || !symbol) return;
+    saveDraftMutation.mutate({
+      symbol,
+      analysis: analysisResult,
+      assetType: aiSuggestion?.assetType || assetType,
+      optionType: aiSuggestion?.assetType === 'option' ? (aiSuggestion?.optionType || optionType) : undefined,
+      expiryDate: expiryDate || undefined,
+      strikePrice: strikePrice ? parseFloat(strikePrice) : undefined,
+    });
   };
 
   const handlePromote = () => {
-    if (savedTradeIdeaId) {
-      promoteMutation.mutate(savedTradeIdeaId);
-    }
+    if (!savedTradeIdeaId) return;
+    promoteMutation.mutate(savedTradeIdeaId);
+  };
+
+  const resetForm = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setAnalysisResult(null);
+    setSavedTradeIdeaId(null);
+    setIsPromoted(false);
+    setAiSuggestion(null);
+    setExpiryDate("");
+    setStrikePrice("");
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const calculateGainPercent = () => {
     if (!analysisResult) return 0;
-    return ((analysisResult.targetPrice - analysisResult.entryPoint) / analysisResult.entryPoint * 100);
+    return ((analysisResult.targetPrice - analysisResult.entryPoint) / analysisResult.entryPoint) * 100;
   };
 
   const calculateRiskPercent = () => {
     if (!analysisResult) return 0;
-    return Math.abs((analysisResult.stopLoss - analysisResult.entryPoint) / analysisResult.entryPoint * 100);
+    return ((analysisResult.entryPoint - analysisResult.stopLoss) / analysisResult.entryPoint) * 100;
   };
 
-  const getValidationWarnings = () => {
-    if (!analysisResult) return [];
+  const validationWarnings = analysisResult ? (() => {
     const warnings: string[] = [];
-    
-    const gainPercent = calculateGainPercent();
-    const riskPercent = calculateRiskPercent();
-    
-    if (gainPercent > 35) {
-      warnings.push(`Target gain of ${gainPercent.toFixed(1)}% may be overly optimistic for equities`);
+    if (analysisResult.riskRewardRatio < 1.5) {
+      warnings.push(`Risk/Reward of ${analysisResult.riskRewardRatio.toFixed(1)}:1 is below recommended 1.5:1 minimum`);
     }
-    if (riskPercent > 6) {
-      warnings.push(`Stop loss distance of ${riskPercent.toFixed(1)}% exceeds recommended 6% max`);
+    if (calculateRiskPercent() > 5) {
+      warnings.push(`Risk of ${calculateRiskPercent().toFixed(1)}% exceeds recommended 5% max per trade`);
     }
-    if (riskPercent < 0.5) {
-      warnings.push(`Stop loss of ${riskPercent.toFixed(1)}% is too tight - may trigger on noise`);
+    if (analysisResult.confidence < 60) {
+      warnings.push(`Confidence of ${analysisResult.confidence}% is below recommended 60% threshold`);
     }
-    if (analysisResult.riskRewardRatio > 5) {
-      warnings.push(`R:R of ${analysisResult.riskRewardRatio.toFixed(1)}:1 is unusually high - verify levels`);
-    }
-    
     return warnings;
-  };
-
-  const validationWarnings = getValidationWarnings();
-  const userName = (user as any)?.firstName || 'Trader';
+  })() : [];
 
   return (
-    <TierGate feature="chart-analysis">
-    <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6" data-testid="page-chart-analysis">
-      {/* Header */}
-      <div className="flex items-start gap-4">
-        <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/20">
-          <BarChart3 className="h-6 w-6 text-white" />
-        </div>
+    <div className="container mx-auto p-4 lg:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
-            {format(new Date(), 'EEEE, MMMM d')}
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight mb-1">
-            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {userName}!
+          <h1 className="text-2xl sm:text-3xl font-semibold flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center">
+              <LineChart className="h-5 w-5 text-white" />
+            </div>
+            Chart Analysis
           </h1>
-          <p className="text-sm text-muted-foreground">
-            AI-powered chart analysis with pattern detection
+          <p className="text-sm text-muted-foreground mt-1">
+            AI-powered chart analysis, pattern detection, and backtesting
           </p>
         </div>
       </div>
 
-      {/* Analysis Type Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <AnalysisTypeCard 
-          title="Day Trading"
-          description="Intraday opportunities with precise entry and exit points for quick moves."
-          icon={Zap}
-          badge="Popular"
-          badgeVariant="default"
-          isActive={analysisMode === "day"}
-          onClick={() => {
-            setAnalysisMode("day");
-            setTimeframe("15m");
-          }}
-          stats="Best for 15m - 1H charts"
-        />
-        <AnalysisTypeCard 
-          title="Swing Trading"
-          description="Multi-day to multi-week setups with larger profit targets."
-          icon={LineChart}
-          badge="AI Enhanced"
-          badgeVariant="secondary"
-          isActive={analysisMode === "swing"}
-          onClick={() => {
-            setAnalysisMode("swing");
-            setTimeframe("1D");
-          }}
-          stats="Best for 4H - Daily charts"
-        />
-      </div>
+      <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-3 mb-6" data-testid="tabs-main-navigation">
+          <TabsTrigger value="visual" className="gap-2" data-testid="tab-visual-analysis">
+            <ImageIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Visual Analysis</span>
+            <span className="sm:hidden">Visual</span>
+          </TabsTrigger>
+          <TabsTrigger value="search" className="gap-2" data-testid="tab-pattern-search">
+            <Search className="h-4 w-4" />
+            <span className="hidden sm:inline">Pattern Search</span>
+            <span className="sm:hidden">Search</span>
+          </TabsTrigger>
+          <TabsTrigger value="backtest" className="gap-2" data-testid="tab-pattern-backtest">
+            <History className="h-4 w-4" />
+            <span className="hidden sm:inline">Pattern Backtest</span>
+            <span className="sm:hidden">Backtest</span>
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <QuickStatCard label="Charts Analyzed" value={perfStats?.overall?.totalIdeas || 0} icon={BarChart3} />
-        <div className="glass-card rounded-xl p-4 text-center">
-          <div className="h-8 w-8 mx-auto mb-2 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/20 flex items-center justify-center">
-            <Trophy className="h-4 w-4 text-amber-500" />
-          </div>
-          <p className={cn(
-            "text-xl font-bold font-mono tabular-nums",
-            (perfStats?.overall?.winRate || 58) >= 60 ? "text-green-500" : 
-            (perfStats?.overall?.winRate || 58) >= 50 ? "text-amber-500" : "text-red-500"
-          )}>
-            {`${Math.min((perfStats?.overall?.winRate || 58), 58).toFixed(0)}%`}
-          </p>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Win Rate</p>
-        </div>
-        <QuickStatCard label="Analysis Mode" value={analysisMode === "day" ? "Day Trade" : "Swing"} icon={Brain} />
-        <QuickStatCard label="Pattern Detection" value="Active" icon={Target} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 min-w-0">
-        {/* Upload Section - Left Column */}
-        <div className="lg:col-span-2 space-y-4 min-w-0">
-          <div className="glass-card rounded-xl overflow-hidden">
-            <div className="p-4 pb-3 border-b border-border/50">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center">
-                  <Upload className="h-4 w-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold uppercase tracking-wider">Upload Chart</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Drop your {analysisMode === "day" ? "intraday" : "swing"} chart for AI analysis
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="p-4 space-y-4">
-              {/* File Upload Area */}
-              <div 
-                className="relative border-2 border-dashed border-muted-foreground/30 rounded-xl p-4 text-center hover:border-cyan-400/50 transition-colors cursor-pointer bg-muted/20"
-              >
-                <Input
-                  id="chart-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  data-testid="input-chart-upload"
-                />
-                <label htmlFor="chart-upload" className="cursor-pointer block">
-                  {previewUrl ? (
-                    <div className="space-y-2">
-                      <img 
-                        src={previewUrl} 
-                        alt="Chart preview" 
-                        className="max-h-48 mx-auto rounded-lg shadow-lg"
-                      />
-                      <p className="text-xs text-muted-foreground">Click to change</p>
-                    </div>
-                  ) : (
-                    <div className="py-8 space-y-3">
-                      <div className="w-14 h-14 mx-auto rounded-full bg-cyan-500/10 flex items-center justify-center">
-                        <ImageIcon className="h-7 w-7 text-cyan-500" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">Drop chart here or click to upload</p>
-                        <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 10MB</p>
-                      </div>
-                    </div>
-                  )}
-                </label>
-              </div>
-
-              {/* Symbol Input */}
-              <div className="space-y-1.5">
-                <Label htmlFor="symbol" className="text-xs font-medium">Symbol</Label>
-                <Input
-                  id="symbol"
-                  placeholder="AAPL, TSLA, BTC..."
-                  value={symbol}
-                  onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                  className="h-10"
-                  data-testid="input-symbol"
-                />
-              </div>
-
-              {/* Chart Timeframe */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium">Chart Timeframe</Label>
-                <Select value={timeframe} onValueChange={setTimeframe}>
-                  <SelectTrigger className="h-10" data-testid="select-timeframe">
-                    <SelectValue placeholder="Select timeframe" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIMEFRAME_OPTIONS.map((tf) => (
-                      <SelectItem key={tf.value} value={tf.value}>
-                        {tf.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Quick Timeframe Chips */}
-              <div className="flex flex-wrap gap-2">
-                {(analysisMode === "day" 
-                  ? [{ value: "5m", label: "5 Min" }, { value: "15m", label: "15 Min" }, { value: "1H", label: "1 Hour" }]
-                  : [{ value: "4H", label: "4 Hour" }, { value: "1D", label: "Daily" }, { value: "1W", label: "Weekly" }]
-                ).map((tf) => (
-                  <button
-                    key={tf.value}
-                    type="button"
-                    className={`rounded-full px-3 py-1 text-xs cursor-pointer transition-colors ${
-                      timeframe === tf.value 
-                        ? 'bg-cyan-500/20 text-cyan-500 border border-cyan-500/50' 
-                        : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
-                    }`}
-                    onClick={() => setTimeframe(tf.value)}
-                    data-testid={`chip-timeframe-${tf.value.toLowerCase()}`}
-                  >
-                    {tf.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* AI Trade Suggestion - shows after analysis */}
-              {aiSuggestion && (
-                <div className="space-y-3 pt-2 border-t border-border/50">
-                  <div className={`rounded-lg p-4 space-y-2 ${
-                    aiSuggestion.assetType === 'option' 
-                      ? aiSuggestion.optionType === 'call'
-                        ? 'bg-green-500/10 border border-green-500/30'
-                        : 'bg-red-500/10 border border-red-500/30'
-                      : 'bg-cyan-500/10 border border-cyan-500/30'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-cyan-500" />
-                      <span className={`text-lg font-bold ${
-                        aiSuggestion.assetType === 'option'
-                          ? aiSuggestion.optionType === 'call' ? 'text-green-500' : 'text-red-500'
-                          : 'text-cyan-500'
-                      }`}>
-                        {aiSuggestion.assetType === 'option' 
-                          ? `${aiSuggestion.optionType.toUpperCase()} Option` 
-                          : 'Buy Shares'}
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{aiSuggestion.rationale}</p>
-                  </div>
-                  
-                  {/* Only show strike/expiry inputs if options suggested */}
-                  {aiSuggestion.assetType === 'option' && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <Label htmlFor="strike" className="text-xs text-muted-foreground">Strike Price</Label>
-                        <Input
-                          id="strike"
-                          type="number"
-                          placeholder="e.g. 150"
-                          value={strikePrice}
-                          onChange={(e) => setStrikePrice(e.target.value)}
-                          className="h-9 text-xs"
-                          data-testid="input-strike"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="expiry" className="text-xs text-muted-foreground">Expiry Date</Label>
-                        <Input
-                          id="expiry"
-                          type="date"
-                          value={expiryDate}
-                          onChange={(e) => setExpiryDate(e.target.value)}
-                          className="h-9 text-xs"
-                          data-testid="input-expiry"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Context */}
-              <div className="space-y-1.5">
-                <Label htmlFor="context" className="text-xs font-medium">Context (Optional)</Label>
-                <Textarea
-                  id="context"
-                  placeholder="Market conditions, patterns to look for..."
-                  value={additionalContext}
-                  onChange={(e) => setAdditionalContext(e.target.value)}
-                  rows={2}
-                  className="text-sm resize-none"
-                  data-testid="input-context"
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={handleSubmit}
-                  disabled={!selectedFile || !symbol || analysisMutation.isPending}
-                  className="flex-1"
-                  data-testid="button-analyze-chart"
-                >
-                  {analysisMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      <Brain className="h-4 w-4 mr-2" />
-                      Analyze Chart
-                    </>
-                  )}
-                </Button>
-                {(selectedFile || analysisResult) && (
-                  <Button variant="glass-secondary" onClick={resetForm} data-testid="button-reset">
-                    Reset
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Trading Tip Card */}
-          <div className="glass-card rounded-xl p-4 border-l-2 border-l-amber-500">
-            <div className="flex items-start gap-3">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center flex-shrink-0">
-                <Lightbulb className="h-4 w-4 text-white" />
-              </div>
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-amber-500 mb-1">
-                  {analysisMode === "day" ? "Day Trading Tip" : "Swing Trading Tip"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {analysisMode === "day" 
-                    ? "For intraday charts, use 15-minute candles for cleaner signals. Avoid trading during the first 15 minutes of market open."
-                    : "Daily charts work best for swing trades. Look for setups near key support/resistance levels with increasing volume."
-                  }
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Results Section - Right Column */}
-        <div className="lg:col-span-3 space-y-4 min-w-0 overflow-hidden">
-          {analysisResult ? (
-            <>
-              {/* Summary Banner */}
-              <div className={`glass-card rounded-xl overflow-hidden border-l-2 ${
-                analysisResult.sentiment === "bullish" ? "border-l-green-400" :
-                analysisResult.sentiment === "bearish" ? "border-l-red-400" :
-                "border-l-amber-400"
-              }`}>
-                <div className="p-4">
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                        analysisResult.sentiment === "bullish" ? "bg-green-500/10" :
-                        analysisResult.sentiment === "bearish" ? "bg-red-500/10" :
-                        "bg-amber-500/10"
-                      }`}>
-                        {analysisResult.sentiment === "bullish" ? (
-                          <TrendingUp className="h-6 w-6 text-green-500" />
-                        ) : analysisResult.sentiment === "bearish" ? (
-                          <TrendingDown className="h-6 w-6 text-red-500" />
-                        ) : (
-                          <Activity className="h-6 w-6 text-amber-500" />
+        <TabsContent value="visual" className="mt-0">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div className="lg:col-span-2 space-y-4">
+              <div className="glass-card rounded-xl overflow-hidden">
+                <div className="relative h-32 bg-gradient-to-br from-amber-600/20 via-amber-500/10 to-transparent p-4 flex flex-col justify-end">
+                  <div className="absolute top-3 right-3">
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant={analysisMode === "day" ? "default" : "outline"}
+                        onClick={() => setAnalysisMode("day")}
+                        className={cn(
+                          "text-xs h-7 px-2",
+                          analysisMode === "day" && "bg-cyan-500 hover:bg-cyan-400 text-slate-950"
                         )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-lg">{symbol}</span>
-                          <Badge variant="secondary" className="text-[10px]">{timeframe}</Badge>
-                          <Badge variant={analysisResult.sentiment === "bullish" ? "default" : analysisResult.sentiment === "bearish" ? "destructive" : "secondary"} className={cn(
-                            "text-[10px]",
-                            analysisResult.sentiment === "bullish" ? "bg-green-500/10 text-green-500 border-green-500/30" :
-                            analysisResult.sentiment === "bearish" ? "bg-red-500/10 text-red-500 border-red-500/30" :
-                            "bg-muted/10 text-muted-foreground border-muted/30"
-                          )}>
-                            {analysisResult.sentiment.toUpperCase()}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {analysisResult.patterns.length} Patterns Detected • Analysis Complete
-                        </p>
-                      </div>
+                        data-testid="button-mode-day"
+                      >
+                        Day
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={analysisMode === "swing" ? "default" : "outline"}
+                        onClick={() => setAnalysisMode("swing")}
+                        className={cn(
+                          "text-xs h-7 px-2",
+                          analysisMode === "swing" && "bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                        )}
+                        data-testid="button-mode-swing"
+                      >
+                        Swing
+                      </Button>
                     </div>
-                    {savedTradeIdeaId && (
-                      <Badge variant={isPromoted ? "default" : "secondary"} className="text-[10px]">
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        {isPromoted ? "Published" : "Draft Saved"}
-                      </Badge>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold flex items-center gap-2">
+                      <Brain className="h-5 w-5 text-amber-500" />
+                      {analysisMode === "day" ? "Day Trade" : "Swing Trade"} Analysis
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Drop your {analysisMode === "day" ? "intraday" : "swing"} chart for AI analysis
+                    </p>
+                  </div>
+                </div>
+              
+                <div className="p-4 space-y-4">
+                  <div 
+                    className="relative border-2 border-dashed border-muted-foreground/30 rounded-xl p-4 text-center hover:border-cyan-400/50 transition-colors cursor-pointer bg-muted/20"
+                  >
+                    <Input
+                      id="chart-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      data-testid="input-chart-upload"
+                    />
+                    <label htmlFor="chart-upload" className="cursor-pointer block">
+                      {previewUrl ? (
+                        <div className="space-y-2">
+                          <img 
+                            src={previewUrl} 
+                            alt="Chart preview" 
+                            className="max-h-48 mx-auto rounded-lg shadow-lg"
+                          />
+                          <p className="text-xs text-muted-foreground">Click to change</p>
+                        </div>
+                      ) : (
+                        <div className="py-8 space-y-3">
+                          <div className="w-14 h-14 mx-auto rounded-full bg-cyan-500/10 flex items-center justify-center">
+                            <ImageIcon className="h-7 w-7 text-cyan-500" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">Drop chart here or click to upload</p>
+                            <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 10MB</p>
+                          </div>
+                        </div>
+                      )}
+                    </label>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="symbol" className="text-xs font-medium">Symbol</Label>
+                    <Input
+                      id="symbol"
+                      placeholder="AAPL, TSLA, BTC..."
+                      value={symbol}
+                      onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                      className="h-10"
+                      data-testid="input-symbol"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Chart Timeframe</Label>
+                    <Select value={timeframe} onValueChange={setTimeframe}>
+                      <SelectTrigger className="h-10" data-testid="select-timeframe">
+                        <SelectValue placeholder="Select timeframe" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIMEFRAME_OPTIONS.map((tf) => (
+                          <SelectItem key={tf.value} value={tf.value}>
+                            {tf.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {(analysisMode === "day" 
+                      ? [{ value: "5m", label: "5 Min" }, { value: "15m", label: "15 Min" }, { value: "1H", label: "1 Hour" }]
+                      : [{ value: "4H", label: "4 Hour" }, { value: "1D", label: "Daily" }, { value: "1W", label: "Weekly" }]
+                    ).map((tf) => (
+                      <button
+                        key={tf.value}
+                        type="button"
+                        className={`rounded-full px-3 py-1 text-xs cursor-pointer transition-colors ${
+                          timeframe === tf.value 
+                            ? 'bg-cyan-500/20 text-cyan-500 border border-cyan-500/50' 
+                            : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                        }`}
+                        onClick={() => setTimeframe(tf.value)}
+                        data-testid={`chip-timeframe-${tf.value.toLowerCase()}`}
+                      >
+                        {tf.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {aiSuggestion && (
+                    <div className="space-y-3 pt-2 border-t border-border/50">
+                      <div className={`rounded-lg p-4 space-y-2 ${
+                        aiSuggestion.assetType === 'option' 
+                          ? aiSuggestion.optionType === 'call'
+                            ? 'bg-green-500/10 border border-green-500/30'
+                            : 'bg-red-500/10 border border-red-500/30'
+                          : 'bg-cyan-500/10 border border-cyan-500/30'
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-5 w-5 text-cyan-500" />
+                          <span className={`text-lg font-bold ${
+                            aiSuggestion.assetType === 'option'
+                              ? aiSuggestion.optionType === 'call' ? 'text-green-500' : 'text-red-500'
+                              : 'text-cyan-500'
+                          }`}>
+                            {aiSuggestion.assetType === 'option' 
+                              ? `${aiSuggestion.optionType.toUpperCase()} Option` 
+                              : 'Buy Shares'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{aiSuggestion.rationale}</p>
+                      </div>
+                      
+                      {aiSuggestion.assetType === 'option' && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label htmlFor="strike" className="text-xs text-muted-foreground">Strike Price</Label>
+                            <Input
+                              id="strike"
+                              type="number"
+                              placeholder="e.g. 150"
+                              value={strikePrice}
+                              onChange={(e) => setStrikePrice(e.target.value)}
+                              className="h-9 text-xs"
+                              data-testid="input-strike"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="expiry" className="text-xs text-muted-foreground">Expiry Date</Label>
+                            <Input
+                              id="expiry"
+                              type="date"
+                              value={expiryDate}
+                              onChange={(e) => setExpiryDate(e.target.value)}
+                              className="h-9 text-xs"
+                              data-testid="input-expiry"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="context" className="text-xs font-medium">Context (Optional)</Label>
+                    <Textarea
+                      id="context"
+                      placeholder="Market conditions, patterns to look for..."
+                      value={additionalContext}
+                      onChange={(e) => setAdditionalContext(e.target.value)}
+                      rows={2}
+                      className="text-sm resize-none"
+                      data-testid="input-context"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={handleSubmit}
+                      disabled={!selectedFile || !symbol || analysisMutation.isPending}
+                      className="flex-1"
+                      data-testid="button-analyze-chart"
+                    >
+                      {analysisMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Brain className="h-4 w-4 mr-2" />
+                          Analyze Chart
+                        </>
+                      )}
+                    </Button>
+                    {(selectedFile || analysisResult) && (
+                      <Button variant="outline" onClick={resetForm} data-testid="button-reset">
+                        Reset
+                      </Button>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Price Discrepancy Warning */}
-              {analysisResult.priceDiscrepancyWarning && (
-                <div className="glass-card rounded-xl border-l-2 border-l-amber-400 p-4">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
-                    <div className="space-y-2 flex-1">
-                      <p className="text-sm font-semibold text-amber-500">Price Context</p>
-                      <p className="text-sm text-muted-foreground">
-                        {analysisResult.priceDiscrepancyWarning}
-                      </p>
-                    </div>
+              <div className="glass-card rounded-xl p-4 border-l-2 border-l-amber-500">
+                <div className="flex items-start gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center flex-shrink-0">
+                    <Lightbulb className="h-4 w-4 text-white" />
                   </div>
-                </div>
-              )}
-
-              {/* Price Levels Card */}
-              <div className="glass-card rounded-xl p-4">
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="text-center p-3 rounded-lg bg-muted/30 bg-muted/30">
-                    <p className="text-xs text-muted-foreground mb-1">Entry</p>
-                    <p className="text-lg font-bold font-mono font-mono tabular-nums" data-testid="text-entry-point">
-                      ${analysisResult.entryPoint.toFixed(2)}
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wider text-amber-500 mb-1">
+                      {analysisMode === "day" ? "Day Trading Tip" : "Swing Trading Tip"}
                     </p>
-                  </div>
-                  <div className="text-center p-3 rounded-lg bg-green-500/10 bg-muted/30">
-                    <p className="text-xs text-muted-foreground mb-1">Target</p>
-                    <p className="text-lg font-bold font-mono text-green-500 font-mono tabular-nums" data-testid="text-target-price">
-                      ${analysisResult.targetPrice.toFixed(2)}
-                    </p>
-                    <p className="text-xs text-green-500 flex items-center justify-center gap-0.5">
-                      <ArrowUpRight className="h-3 w-3" />
-                      +{calculateGainPercent().toFixed(1)}%
-                    </p>
-                  </div>
-                  <div className="text-center p-3 rounded-lg bg-red-500/10 bg-muted/30">
-                    <p className="text-xs text-muted-foreground mb-1">Stop</p>
-                    <p className="text-lg font-bold font-mono text-red-500 font-mono tabular-nums" data-testid="text-stop-loss">
-                      ${analysisResult.stopLoss.toFixed(2)}
-                    </p>
-                    <p className="text-xs text-red-500 flex items-center justify-center gap-0.5">
-                      <ArrowDownRight className="h-3 w-3" />
-                      -{calculateRiskPercent().toFixed(1)}%
-                    </p>
-                  </div>
-                  <div className="text-center p-3 rounded-lg bg-cyan-500/10 bg-muted/30">
-                    <p className="text-xs text-muted-foreground mb-1">R:R</p>
-                    <p className="text-lg font-bold font-mono text-cyan-500 font-mono tabular-nums" data-testid="text-risk-reward">
-                      {analysisResult.riskRewardRatio.toFixed(1)}:1
+                    <p className="text-xs text-muted-foreground">
+                      {analysisMode === "day" 
+                        ? "For intraday charts, use 15-minute candles for cleaner signals. Avoid trading during the first 15 minutes of market open."
+                        : "Daily charts work best for swing trades. Look for setups near key support/resistance levels with increasing volume."
+                      }
                     </p>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Validation Warnings */}
-              {validationWarnings.length > 0 && (
-                <div className="glass-card rounded-xl border-l-2 border-l-amber-400 p-3">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-amber-500">Validation Alerts</p>
-                      <ul className="text-xs text-muted-foreground space-y-0.5">
-                        {validationWarnings.map((warning, i) => (
-                          <li key={i}>• {warning}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Tabbed Analysis */}
-              <div className="glass-card rounded-xl">
-                <Tabs defaultValue="ai" className="w-full">
-                  <div className="p-4 pb-0">
-                    <TabsList className="grid w-full grid-cols-3">
-                      <TabsTrigger value="ai" className="gap-1.5 text-xs" data-testid="tab-ai-analysis">
-                        <Brain className="h-3.5 w-3.5" />
-                        AI Analysis
-                      </TabsTrigger>
-                      <TabsTrigger value="quant" className="gap-1.5 text-xs" data-testid="tab-quant-signals">
-                        <Calculator className="h-3.5 w-3.5" />
-                        Quant Signals
-                      </TabsTrigger>
-                      <TabsTrigger value="levels" className="gap-1.5 text-xs" data-testid="tab-levels">
-                        <Target className="h-3.5 w-3.5" />
-                        Levels
-                      </TabsTrigger>
-                    </TabsList>
-                  </div>
-                  <div className="p-4 pt-4">
-                    <TabsContent value="ai" className="mt-0 space-y-4">
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
-                          <Label className="text-xs text-muted-foreground mb-2 block">Predicted Trend</Label>
-                          <TrendArrow 
-                            sentiment={analysisResult.sentiment} 
-                            confidence={analysisResult.confidence}
-                            gainPercent={calculateGainPercent()}
-                          />
-                        </div>
-                        <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
-                          <Label className="text-xs text-muted-foreground mb-2 block text-center">Patterns Found</Label>
-                          <div className="text-center" data-testid="patterns-indicator">
-                            <div className="flex items-center justify-center gap-1.5 mb-1">
-                              <Target className="h-4 w-4 text-cyan-500" />
-                              <span className="text-lg font-bold text-foreground font-mono tabular-nums">
-                                {analysisResult.patterns.length}
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              Detected in chart
-                            </p>
+            <div className="lg:col-span-3 space-y-4 min-w-0 overflow-hidden">
+              {analysisResult ? (
+                <>
+                  <div className={`glass-card rounded-xl overflow-hidden border-l-2 ${
+                    analysisResult.sentiment === "bullish" ? "border-l-green-400" :
+                    analysisResult.sentiment === "bearish" ? "border-l-red-400" :
+                    "border-l-amber-400"
+                  }`}>
+                    <div className="p-4">
+                      <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                            analysisResult.sentiment === "bullish" ? "bg-green-500/10" :
+                            analysisResult.sentiment === "bearish" ? "bg-red-500/10" :
+                            "bg-amber-500/10"
+                          }`}>
+                            {analysisResult.sentiment === "bullish" ? (
+                              <TrendingUp className="h-6 w-6 text-green-500" />
+                            ) : analysisResult.sentiment === "bearish" ? (
+                              <TrendingDown className="h-6 w-6 text-red-500" />
+                            ) : (
+                              <Activity className="h-6 w-6 text-amber-500" />
+                            )}
                           </div>
-                        </div>
-                        <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
-                          <Label className="text-xs text-muted-foreground mb-2 block text-center">Valid For</Label>
-                          <div className="text-center" data-testid="validity-indicator">
-                            <div className="flex items-center justify-center gap-1.5 mb-1">
-                              <Clock className="h-4 w-4 text-amber-500" />
-                              <span className="text-lg font-bold text-foreground font-mono tabular-nums" data-testid="text-validity-duration">
-                                {getAnalysisValidity(timeframe).duration}
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground" data-testid="text-validity-warning">
-                              {getAnalysisValidity(timeframe).warning}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
-                        <Label className="text-xs text-muted-foreground mb-3 block">Predicted Price Path</Label>
-                        <PredictedPathChart 
-                          entry={analysisResult.entryPoint}
-                          target={analysisResult.targetPrice}
-                          stop={analysisResult.stopLoss}
-                          sentiment={analysisResult.sentiment}
-                          timeframe={timeframe}
-                        />
-                      </div>
-                      
-                      {quantSignals && quantSignals.length > 0 && (
-                        <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
-                          <SignalMeter signals={quantSignals} />
-                        </div>
-                      )}
-                      
-                      <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
-                        <Label className="text-xs text-muted-foreground mb-3 block">Price Target Range</Label>
-                        <PriceRangeBar 
-                          entry={analysisResult.entryPoint}
-                          target={analysisResult.targetPrice}
-                          stop={analysisResult.stopLoss}
-                          sentiment={analysisResult.sentiment}
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Detected Patterns</Label>
-                        <div className="flex flex-wrap gap-1.5">
-                          {analysisResult.patterns.map((pattern, i) => (
-                            <Badge key={i} variant="secondary" className="text-[10px]">
-                              {pattern}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label className="text-xs text-muted-foreground">Technical Analysis</Label>
-                        <p className="text-sm leading-relaxed" data-testid="text-analysis">
-                          {analysisResult.analysis}
-                        </p>
-                      </div>
-                    </TabsContent>
-
-                    <TabsContent value="quant" className="mt-0 space-y-3">
-                      {quantSignals?.map((signal, i) => (
-                        <div key={i} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
-                          <div className="flex-1">
+                          <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">{signal.name}</span>
-                              <Badge variant={signal.signal === "bullish" ? "default" : signal.signal === "bearish" ? "destructive" : "secondary"} className={cn(
+                              <span className="font-bold text-lg">{symbol}</span>
+                              <Badge variant="secondary" className="text-[10px]">{timeframe}</Badge>
+                              <Badge variant={analysisResult.sentiment === "bullish" ? "default" : analysisResult.sentiment === "bearish" ? "destructive" : "secondary"} className={cn(
                                 "text-[10px]",
-                                signal.signal === "bullish" ? "bg-green-500/10 text-green-500 border-green-500/30" :
-                                signal.signal === "bearish" ? "bg-red-500/10 text-red-500 border-red-500/30" :
+                                analysisResult.sentiment === "bullish" ? "bg-green-500/10 text-green-500 border-green-500/30" :
+                                analysisResult.sentiment === "bearish" ? "bg-red-500/10 text-red-500 border-red-500/30" :
                                 "bg-muted/10 text-muted-foreground border-muted/30"
                               )}>
-                                {signal.signal}
+                                {analysisResult.sentiment.toUpperCase()}
                               </Badge>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">{signal.description}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-bold">{signal.strength}%</p>
-                            <Progress value={signal.strength} className="w-16 h-1.5 mt-1" />
+                            <p className="text-xs text-muted-foreground">
+                              {analysisResult.patterns.length} Patterns Detected • Analysis Complete
+                            </p>
                           </div>
                         </div>
-                      )) || (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          Enter a symbol to see quant signals
-                        </p>
-                      )}
-                    </TabsContent>
+                        {savedTradeIdeaId && (
+                          <Badge variant={isPromoted ? "default" : "secondary"} className="text-[10px]">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            {isPromoted ? "Published" : "Draft Saved"}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
-                    <TabsContent value="levels" className="mt-0">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Shield className="h-3 w-3 text-green-500" />
-                            Support Levels
-                          </Label>
-                          <div className="space-y-1">
-                            {analysisResult.supportLevels.map((level, i) => (
-                              <div key={i} className="flex items-center justify-between p-2 rounded bg-green-500/10">
-                                <span className="text-xs text-muted-foreground">S{i + 1}</span>
-                                <span className="font-mono text-sm text-green-500">${level.toFixed(2)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Target className="h-3 w-3 text-red-500" />
-                            Resistance Levels
-                          </Label>
-                          <div className="space-y-1">
-                            {analysisResult.resistanceLevels.map((level, i) => (
-                              <div key={i} className="flex items-center justify-between p-2 rounded bg-red-500/10">
-                                <span className="text-xs text-muted-foreground">R{i + 1}</span>
-                                <span className="font-mono text-sm text-red-500">${level.toFixed(2)}</span>
-                              </div>
-                            ))}
-                          </div>
+                  {analysisResult.priceDiscrepancyWarning && (
+                    <div className="glass-card rounded-xl border-l-2 border-l-amber-400 p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+                        <div className="space-y-2 flex-1">
+                          <p className="text-sm font-semibold text-amber-500">Price Context</p>
+                          <p className="text-sm text-muted-foreground">
+                            {analysisResult.priceDiscrepancyWarning}
+                          </p>
                         </div>
                       </div>
-                    </TabsContent>
-                  </div>
-                </Tabs>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-2">
-                {savedTradeIdeaId && (
-                  <>
-                    <Button asChild variant="outline" className="flex-1" data-testid="button-view-trade-desk">
-                      <Link href="/trade-desk">
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        Research Desk
-                      </Link>
-                    </Button>
-                    <Button
-                      onClick={handlePromote}
-                      disabled={promoteMutation.isPending || isPromoted}
-                      variant="glass-secondary"
-                      className="flex-1"
-                      data-testid="button-promote"
-                    >
-                      {promoteMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-4 w-4 mr-2" />
-                      )}
-                      {isPromoted ? "Published" : "Publish"}
-                    </Button>
-                  </>
-                )}
-                <Button
-                  onClick={handleSendToDiscord}
-                  disabled={discordMutation.isPending || sentToDiscord}
-                  variant="glass-secondary"
-                  className="flex-1"
-                  data-testid="button-send-discord"
-                >
-                  {discordMutation.isPending ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <SiDiscord className="h-4 w-4 mr-2" />
+                    </div>
                   )}
-                  {sentToDiscord ? "Sent" : "Discord"}
-                </Button>
-              </div>
-            </>
-          ) : (
-            /* Empty State - Feature Cards */
-            <div className="space-y-4">
-              <div className="glass-card rounded-xl p-6 text-center">
-                <div className="w-16 h-16 mx-auto rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center mb-4 shadow-lg shadow-amber-500/20">
-                  <BarChart3 className="h-8 w-8 text-white" />
-                </div>
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Chart Analysis</p>
-                <h3 className="font-semibold text-lg mb-2">Ready to Analyze</h3>
-                <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-4">
-                  Upload a chart screenshot and let AI + Quant engines identify patterns, levels, and trade setups.
-                </p>
-                <div className="flex justify-center gap-2">
-                  <Badge variant="secondary" className="text-[10px] bg-purple-500/10 text-purple-400 border-purple-500/30">
-                    <Brain className="h-3 w-3 mr-1" />
-                    AI Vision
-                  </Badge>
-                  <Badge variant="secondary" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30">
-                    <Calculator className="h-3 w-3 mr-1" />
-                    Quant Engine
-                  </Badge>
-                </div>
-              </div>
 
-              {/* Quick Links */}
-              <div className="grid grid-cols-2 gap-3">
-                <Link href="/chart-database">
-                  <div className="glass-card rounded-xl p-4 hover-elevate cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/20 flex items-center justify-center flex-shrink-0">
-                        <Database className="h-4 w-4 text-amber-500" />
+                  <div className="glass-card rounded-xl p-4">
+                    <div className="grid grid-cols-4 gap-3">
+                      <div className="text-center p-3 rounded-lg bg-muted/30">
+                        <p className="text-xs text-muted-foreground mb-1">Entry</p>
+                        <p className="text-lg font-bold font-mono tabular-nums" data-testid="text-entry-point">
+                          ${analysisResult.entryPoint.toFixed(2)}
+                        </p>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium">Chart Database</p>
-                        <p className="text-xs text-muted-foreground">Browse past analyses</p>
+                      <div className="text-center p-3 rounded-lg bg-green-500/10">
+                        <p className="text-xs text-muted-foreground mb-1">Target</p>
+                        <p className="text-lg font-bold font-mono text-green-500 tabular-nums" data-testid="text-target-price">
+                          ${analysisResult.targetPrice.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-green-500 flex items-center justify-center gap-0.5">
+                          <ArrowUpRight className="h-3 w-3" />
+                          +{calculateGainPercent().toFixed(1)}%
+                        </p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                      <div className="text-center p-3 rounded-lg bg-red-500/10">
+                        <p className="text-xs text-muted-foreground mb-1">Stop</p>
+                        <p className="text-lg font-bold font-mono text-red-500 tabular-nums" data-testid="text-stop-loss">
+                          ${analysisResult.stopLoss.toFixed(2)}
+                        </p>
+                        <p className="text-xs text-red-500 flex items-center justify-center gap-0.5">
+                          <ArrowDownRight className="h-3 w-3" />
+                          -{calculateRiskPercent().toFixed(1)}%
+                        </p>
+                      </div>
+                      <div className="text-center p-3 rounded-lg bg-cyan-500/10">
+                        <p className="text-xs text-muted-foreground mb-1">R:R</p>
+                        <p className="text-lg font-bold font-mono text-cyan-500 tabular-nums" data-testid="text-risk-reward">
+                          {analysisResult.riskRewardRatio.toFixed(1)}:1
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </Link>
-                <Link href="/academy">
-                  <div className="glass-card rounded-xl p-4 hover-elevate cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/20 flex items-center justify-center flex-shrink-0">
-                        <BookOpen className="h-4 w-4 text-amber-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">Learning Center</p>
-                        <p className="text-xs text-muted-foreground">Master chart patterns</p>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
-                    </div>
-                  </div>
-                </Link>
-              </div>
 
-              {/* Features List */}
-              <div className="glass-card rounded-xl p-4">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">What You'll Get</p>
-                <div className="space-y-2">
-                  {[
-                    { icon: Target, text: "Precise entry, target, and stop levels" },
-                    { icon: LineChart, text: "Pattern recognition (head & shoulders, wedges, flags)" },
-                    { icon: Shield, text: "Support and resistance levels" },
-                    { icon: Calculator, text: "Risk/reward ratio calculations" },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <item.icon className="h-4 w-4 text-amber-500" />
-                      <span>{item.text}</span>
+                  {validationWarnings.length > 0 && (
+                    <div className="glass-card rounded-xl border-l-2 border-l-amber-400 p-3">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-amber-500">Validation Alerts</p>
+                          <ul className="text-xs text-muted-foreground space-y-0.5">
+                            {validationWarnings.map((warning, i) => (
+                              <li key={i}>• {warning}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
                     </div>
-                  ))}
+                  )}
+
+                  <div className="glass-card rounded-xl">
+                    <Tabs defaultValue="ai" className="w-full">
+                      <div className="p-4 pb-0">
+                        <TabsList className="grid w-full grid-cols-3">
+                          <TabsTrigger value="ai" className="gap-1.5 text-xs" data-testid="tab-ai-analysis">
+                            <Brain className="h-3.5 w-3.5" />
+                            AI Analysis
+                          </TabsTrigger>
+                          <TabsTrigger value="quant" className="gap-1.5 text-xs" data-testid="tab-quant-signals">
+                            <Calculator className="h-3.5 w-3.5" />
+                            Quant Signals
+                          </TabsTrigger>
+                          <TabsTrigger value="levels" className="gap-1.5 text-xs" data-testid="tab-levels">
+                            <Target className="h-3.5 w-3.5" />
+                            Levels
+                          </TabsTrigger>
+                        </TabsList>
+                      </div>
+                      <div className="p-4 pt-4">
+                        <TabsContent value="ai" className="mt-0 space-y-4">
+                          <div className="grid grid-cols-3 gap-4">
+                            <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
+                              <Label className="text-xs text-muted-foreground mb-2 block">Predicted Trend</Label>
+                              <TrendArrow 
+                                sentiment={analysisResult.sentiment} 
+                                confidence={analysisResult.confidence}
+                                gainPercent={calculateGainPercent()}
+                              />
+                            </div>
+                            <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
+                              <Label className="text-xs text-muted-foreground mb-2 block text-center">Patterns Found</Label>
+                              <div className="text-center" data-testid="patterns-indicator">
+                                <div className="flex items-center justify-center gap-1.5 mb-1">
+                                  <Target className="h-4 w-4 text-cyan-500" />
+                                  <span className="text-lg font-bold text-foreground font-mono tabular-nums">
+                                    {analysisResult.patterns.length}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Detected in chart
+                                </p>
+                              </div>
+                            </div>
+                            <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
+                              <Label className="text-xs text-muted-foreground mb-2 block text-center">Valid For</Label>
+                              <div className="text-center" data-testid="validity-indicator">
+                                <div className="flex items-center justify-center gap-1.5 mb-1">
+                                  <Clock className="h-4 w-4 text-amber-500" />
+                                  <span className="text-lg font-bold text-foreground font-mono tabular-nums" data-testid="text-validity-duration">
+                                    {getAnalysisValidity(timeframe).duration}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground" data-testid="text-validity-warning">
+                                  {getAnalysisValidity(timeframe).warning}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
+                            <Label className="text-xs text-muted-foreground mb-3 block">Predicted Price Path</Label>
+                            <PredictedPathChart 
+                              entry={analysisResult.entryPoint}
+                              target={analysisResult.targetPrice}
+                              stop={analysisResult.stopLoss}
+                              sentiment={analysisResult.sentiment}
+                              timeframe={timeframe}
+                            />
+                          </div>
+                          
+                          {quantSignals && quantSignals.length > 0 && (
+                            <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
+                              <SignalMeter signals={quantSignals} />
+                            </div>
+                          )}
+                          
+                          <div className="p-4 rounded-lg bg-muted/20 border border-muted/50">
+                            <Label className="text-xs text-muted-foreground mb-3 block">Price Target Range</Label>
+                            <PriceRangeBar 
+                              entry={analysisResult.entryPoint}
+                              target={analysisResult.targetPrice}
+                              stop={analysisResult.stopLoss}
+                              sentiment={analysisResult.sentiment}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Detected Patterns</Label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {analysisResult.patterns.map((pattern, i) => (
+                                <Badge key={i} variant="secondary" className="text-[10px]">
+                                  {pattern}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Technical Analysis</Label>
+                            <p className="text-sm leading-relaxed" data-testid="text-analysis">
+                              {analysisResult.analysis}
+                            </p>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="quant" className="mt-0 space-y-3">
+                          {quantSignals?.map((signal, i) => (
+                            <div key={i} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium">{signal.name}</span>
+                                  <Badge variant={signal.signal === "bullish" ? "default" : signal.signal === "bearish" ? "destructive" : "secondary"} className={cn(
+                                    "text-[10px]",
+                                    signal.signal === "bullish" ? "bg-green-500/10 text-green-500 border-green-500/30" :
+                                    signal.signal === "bearish" ? "bg-red-500/10 text-red-500 border-red-500/30" :
+                                    "bg-muted/10 text-muted-foreground border-muted/30"
+                                  )}>
+                                    {signal.signal}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">{signal.description}</p>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-lg font-bold font-mono tabular-nums">{signal.strength}%</span>
+                                <Progress value={signal.strength} className="w-16 h-1.5 mt-1" />
+                              </div>
+                            </div>
+                          ))}
+                        </TabsContent>
+
+                        <TabsContent value="levels" className="mt-0 space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                                <TrendingUp className="h-3 w-3 text-red-400" />
+                                Resistance Levels
+                              </Label>
+                              <div className="space-y-1">
+                                {analysisResult.resistanceLevels.map((level, i) => (
+                                  <div key={i} className="flex items-center justify-between p-2 rounded bg-red-500/10">
+                                    <span className="text-xs text-muted-foreground">R{i + 1}</span>
+                                    <span className="text-sm font-mono font-semibold text-red-400">${level.toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                                <TrendingDown className="h-3 w-3 text-green-400" />
+                                Support Levels
+                              </Label>
+                              <div className="space-y-1">
+                                {analysisResult.supportLevels.map((level, i) => (
+                                  <div key={i} className="flex items-center justify-between p-2 rounded bg-green-500/10">
+                                    <span className="text-xs text-muted-foreground">S{i + 1}</span>
+                                    <span className="text-sm font-mono font-semibold text-green-400">${level.toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </TabsContent>
+                      </div>
+                    </Tabs>
+                  </div>
+
+                  <div className="flex gap-3">
+                    {!savedTradeIdeaId && (
+                      <Button
+                        onClick={handleSaveDraft}
+                        disabled={saveDraftMutation.isPending}
+                        className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                        data-testid="button-save-draft"
+                      >
+                        {saveDraftMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Database className="h-4 w-4 mr-2" />
+                        )}
+                        Save as Draft
+                      </Button>
+                    )}
+                    {savedTradeIdeaId && !isPromoted && (
+                      <Button
+                        onClick={handlePromote}
+                        disabled={promoteMutation.isPending}
+                        className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 text-white"
+                        data-testid="button-publish"
+                      >
+                        {promoteMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4 mr-2" />
+                        )}
+                        Publish to Trade Ideas
+                      </Button>
+                    )}
+                    {isPromoted && (
+                      <Link href="/trade-ideas" className="flex-1">
+                        <Button className="w-full" variant="outline" data-testid="button-view-ideas">
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          View on Trade Ideas
+                        </Button>
+                      </Link>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="glass-card rounded-xl p-12 text-center">
+                  <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/20 flex items-center justify-center">
+                    <LineChart className="h-10 w-10 text-amber-500" />
+                  </div>
+                  <h3 className="font-semibold text-lg mb-2">Ready to Analyze</h3>
+                  <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-4">
+                    Upload a chart screenshot and our AI will identify patterns, key levels, and generate trade recommendations.
+                  </p>
+                  <div className="flex justify-center gap-2">
+                    <Badge variant="outline" className="text-[10px]">
+                      <Brain className="h-3 w-3 mr-1" />
+                      AI Pattern Detection
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px]">
+                      <Target className="h-3 w-3 mr-1" />
+                      Key Levels
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px]">
+                      <Calculator className="h-3 w-3 mr-1" />
+                      Risk Analysis
+                    </Badge>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
-    </div>
-    
-    {/* Success Modal - Trade Suggestion Popup */}
-    <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-      <DialogContent className="max-w-md" data-testid="modal-trade-suggestion">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <CheckCircle2 className="h-6 w-6 text-green-500" />
-            Analysis Complete
-          </DialogTitle>
-          <DialogDescription>
-            AI has analyzed your chart and generated a trade suggestion
-          </DialogDescription>
-        </DialogHeader>
-        
-        {aiSuggestion && analysisResult && (
-          <div className="space-y-4 pt-2">
-            {/* Trade Suggestion Banner */}
-            <div className={`rounded-lg p-4 ${
-              aiSuggestion.assetType === 'option' 
-                ? aiSuggestion.optionType === 'call'
-                  ? 'bg-green-500/20 border border-green-500/50'
-                  : 'bg-red-500/20 border border-red-500/50'
-                : 'bg-cyan-500/20 border border-cyan-500/50'
-            }`}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-lg font-bold">{symbol}</span>
-                <Badge className={
-                  aiSuggestion.assetType === 'option'
-                    ? aiSuggestion.optionType === 'call' ? 'bg-green-500' : 'bg-red-500'
-                    : 'bg-cyan-500'
-                }>
-                  {aiSuggestion.assetType === 'option' 
-                    ? `${aiSuggestion.optionType.toUpperCase()} Option` 
-                    : 'Buy Shares'}
-                </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground">{aiSuggestion.rationale}</p>
-            </div>
-            
-            {/* Key Levels */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="text-center p-3 rounded-lg bg-cyan-500/10">
-                <p className="text-xs text-muted-foreground mb-1">Entry</p>
-                <p className="font-mono font-bold text-cyan-500">${analysisResult.entryPoint.toFixed(2)}</p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-green-500/10">
-                <p className="text-xs text-muted-foreground mb-1">Target</p>
-                <p className="font-mono font-bold text-green-500">${analysisResult.targetPrice.toFixed(2)}</p>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-red-500/10">
-                <p className="text-xs text-muted-foreground mb-1">Stop</p>
-                <p className="font-mono font-bold text-red-500">${analysisResult.stopLoss.toFixed(2)}</p>
-              </div>
-            </div>
-            
-            {/* Option Details (if options suggested) */}
-            {aiSuggestion.assetType === 'option' && strikePrice && expiryDate && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-center p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
-                  <p className="text-xs text-muted-foreground mb-1">Strike Price</p>
-                  <p className="font-mono font-bold text-purple-400">${parseFloat(strikePrice).toFixed(0)}</p>
-                </div>
-                <div className="text-center p-3 rounded-lg bg-purple-500/10 border border-purple-500/30">
-                  <p className="text-xs text-muted-foreground mb-1">Expiry Date</p>
-                  <p className="font-mono font-bold text-purple-400">{expiryDate}</p>
-                </div>
-              </div>
-            )}
-            
-            {/* Stats Row */}
-            <div className="flex justify-between text-sm bg-muted/30 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-cyan-500" />
-                <span className="text-muted-foreground">R:R Ratio</span>
-                <span className="font-bold">{analysisResult.riskRewardRatio.toFixed(1)}:1</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Gauge className="h-4 w-4 text-cyan-500" />
-                <span className="text-muted-foreground">Confidence</span>
-                <span className="font-bold">{analysisResult.confidence}%</span>
-              </div>
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  setShowSuccessModal(false);
-                  navigate('/trade-desk');
-                }}
-                data-testid="button-goto-trade-desk"
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                View in Research Desk
-              </Button>
-              <Button
-                variant="glass-secondary"
-                onClick={() => setShowSuccessModal(false)}
-                data-testid="button-close-modal"
-              >
-                Keep Editing
-              </Button>
-            </div>
-            
-            {/* Disclaimer */}
-            <p className="text-[10px] text-muted-foreground text-center pt-2">
-              Educational research only. Not financial advice. You make your own decisions.
-            </p>
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
-    </TierGate>
+        </TabsContent>
+
+        <TabsContent value="search" className="mt-0">
+          <PatternSearchTab />
+        </TabsContent>
+
+        <TabsContent value="backtest" className="mt-0">
+          <PatternBacktestTab />
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              Analysis Complete
+            </DialogTitle>
+            <DialogDescription>
+              Your chart has been analyzed successfully. Review the results and save as a trade idea.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowSuccessModal(false)}
+              className="flex-1"
+            >
+              Review Results
+            </Button>
+            <Button 
+              onClick={() => {
+                setShowSuccessModal(false);
+                handleSaveDraft();
+              }}
+              className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+            >
+              <Database className="h-4 w-4 mr-2" />
+              Save Draft
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
