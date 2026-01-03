@@ -304,7 +304,7 @@ export default function FuturesPage() {
   const { toast } = useToast();
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [activeTab, setActiveTab] = useState<'research' | 'quotes'>('research');
+  const [activeTab, setActiveTab] = useState<'research' | 'quotes' | 'ideas'>('ideas');
   const [generatingSymbol, setGeneratingSymbol] = useState<string | null>(null);
   
   const { data: quotes = [], isLoading: quotesLoading, refetch: refetchQuotes, isFetching: isFetchingQuotes } = useQuery<FuturesQuote[]>({
@@ -473,8 +473,17 @@ export default function FuturesPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'research' | 'quotes')} className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'research' | 'quotes' | 'ideas')} className="w-full">
         <TabsList className="glass mb-4" data-testid="tabs-futures-main">
+          <TabsTrigger value="ideas" className="gap-2" data-testid="tab-trade-ideas">
+            <Target className="h-4 w-4" />
+            Trade Ideas
+            {researchBriefs.filter(b => b.tradeDirection).length > 0 && (
+              <Badge variant="secondary" className="ml-1 bg-green-500/20 text-green-400">
+                {researchBriefs.filter(b => b.tradeDirection).length}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="research" className="gap-2" data-testid="tab-research-briefs">
             <FileText className="h-4 w-4" />
             Research Briefs
@@ -488,6 +497,169 @@ export default function FuturesPage() {
           </TabsTrigger>
         </TabsList>
 
+        {/* Trade Ideas Tab - Shows only actionable trade setups */}
+        <TabsContent value="ideas" className="space-y-6">
+          {briefsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-[200px] rounded-xl" />
+              ))}
+            </div>
+          ) : researchBriefs.filter(b => b.tradeDirection).length === 0 ? (
+            <Card className="glass-card">
+              <CardContent className="p-12 text-center">
+                <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Trade Ideas Available</h3>
+                <p className="text-muted-foreground mb-4">
+                  Generate research briefs to get AI-powered trade ideas for futures contracts.
+                </p>
+                <Button
+                  onClick={() => generateAllMutation.mutate()}
+                  disabled={generateAllMutation.isPending}
+                  className="gap-2"
+                  data-testid="button-generate-ideas"
+                >
+                  {generateAllMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  {generateAllMutation.isPending ? 'Generating...' : 'Generate Trade Ideas'}
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="stat-glass rounded-lg p-3">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Active Ideas</div>
+                  <div className="text-xl font-bold text-green-400">
+                    {researchBriefs.filter(b => b.tradeDirection).length}
+                  </div>
+                </div>
+                <div className="stat-glass rounded-lg p-3">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Long Setups</div>
+                  <div className="text-xl font-bold text-green-400">
+                    {researchBriefs.filter(b => b.tradeDirection === 'long').length}
+                  </div>
+                </div>
+                <div className="stat-glass rounded-lg p-3">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Short Setups</div>
+                  <div className="text-xl font-bold text-red-400">
+                    {researchBriefs.filter(b => b.tradeDirection === 'short').length}
+                  </div>
+                </div>
+                <div className="stat-glass rounded-lg p-3">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Session</div>
+                  <div className="text-xl font-bold text-cyan-400">
+                    {quotes.length > 0 && quotes[0]?.session ? quotes[0].session.toUpperCase() : 'N/A'}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Trade Ideas Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {researchBriefs
+                  .filter(b => b.tradeDirection && typeof b.tradeDirection === 'string')
+                  .sort((a, b) => {
+                    // Sort by direction (long first) then by bias strength
+                    const dirA = a.tradeDirection || 'long';
+                    const dirB = b.tradeDirection || 'long';
+                    if (dirA !== dirB) {
+                      return dirA === 'long' ? -1 : 1;
+                    }
+                    const strengthOrder: Record<string, number> = { strong: 0, moderate: 1, weak: 2 };
+                    const strengthA = strengthOrder[a.biasStrength || 'moderate'] ?? 2;
+                    const strengthB = strengthOrder[b.biasStrength || 'moderate'] ?? 2;
+                    return strengthA - strengthB;
+                  })
+                  .map((brief) => {
+                    const Icon = CATEGORY_ICONS[brief.symbol] || Activity;
+                    const direction = brief.tradeDirection || 'long';
+                    const isLong = direction === 'long';
+                    const entry = typeof brief.tradeEntry === 'number' ? brief.tradeEntry : 0;
+                    const target = typeof brief.tradeTarget === 'number' ? brief.tradeTarget : 0;
+                    const stop = typeof brief.tradeStop === 'number' ? brief.tradeStop : 0;
+                    const risk = isLong ? Math.abs(entry - stop) : Math.abs(stop - entry);
+                    const reward = isLong ? Math.abs(target - entry) : Math.abs(entry - target);
+                    const rrRatio = risk > 0 && reward > 0 ? (reward / risk).toFixed(2) : 'N/A';
+                    const biasStrengthValue = brief.biasStrength || 'moderate';
+                    
+                    return (
+                      <Card 
+                        key={brief.id}
+                        className={`glass-card hover-elevate ${isLong ? 'border-green-500/20' : 'border-red-500/20'}`}
+                        data-testid={`card-trade-idea-${brief.symbol}`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between gap-3 mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${isLong ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+                                <Icon className={`h-5 w-5 ${isLong ? 'text-green-400' : 'text-red-400'}`} />
+                              </div>
+                              <div>
+                                <div className="font-bold text-lg flex items-center gap-2">
+                                  {brief.symbol}
+                                  <Badge variant={isLong ? 'default' : 'destructive'} className="text-xs">
+                                    {isLong ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
+                                    {direction.toUpperCase()}
+                                  </Badge>
+                                </div>
+                                <div className="text-xs text-muted-foreground">{brief.name}</div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-lg font-bold font-mono">
+                                ${typeof brief.currentPrice === 'number' ? brief.currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2 }) : 'N/A'}
+                              </div>
+                              <Badge variant="outline" className={`text-xs ${biasStrengthValue === 'strong' ? 'border-green-500/30 text-green-400' : ''}`}>
+                                {biasStrengthValue}
+                              </Badge>
+                            </div>
+                          </div>
+                          
+                          {/* Entry/Target/Stop Grid */}
+                          <div className="grid grid-cols-4 gap-2 mb-3">
+                            <div className="p-2 rounded-lg stat-glass text-center">
+                              <div className="text-[10px] text-muted-foreground uppercase">Entry</div>
+                              <div className="font-mono font-medium text-sm">
+                                {entry > 0 ? `$${entry.toFixed(2)}` : 'N/A'}
+                              </div>
+                            </div>
+                            <div className="p-2 rounded-lg stat-glass text-center">
+                              <div className="text-[10px] text-muted-foreground uppercase">Target</div>
+                              <div className="font-mono font-medium text-sm text-green-400">
+                                {target > 0 ? `$${target.toFixed(2)}` : 'N/A'}
+                              </div>
+                            </div>
+                            <div className="p-2 rounded-lg stat-glass text-center">
+                              <div className="text-[10px] text-muted-foreground uppercase">Stop</div>
+                              <div className="font-mono font-medium text-sm text-red-400">
+                                {stop > 0 ? `$${stop.toFixed(2)}` : 'N/A'}
+                              </div>
+                            </div>
+                            <div className="p-2 rounded-lg stat-glass text-center">
+                              <div className="text-[10px] text-muted-foreground uppercase">R:R</div>
+                              <div className="font-mono font-medium text-sm text-cyan-400">{rrRatio}</div>
+                            </div>
+                          </div>
+                          
+                          {/* Rationale */}
+                          {brief.tradeRationale && (
+                            <div className="p-2 rounded-lg bg-muted/30 text-xs text-muted-foreground">
+                              {brief.tradeRationale}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+        
         <TabsContent value="research" className="space-y-6">
           {briefsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

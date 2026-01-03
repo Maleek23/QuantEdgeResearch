@@ -6295,6 +6295,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FUTURES BOT MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Get futures bot status and portfolio
+  app.get("/api/futures-bot/status", async (_req, res) => {
+    try {
+      const { getFuturesPortfolio } = await import("./auto-lotto-trader");
+      const portfolio = await getFuturesPortfolio();
+      
+      if (!portfolio) {
+        return res.json({ 
+          status: 'no_portfolio',
+          message: 'Futures bot portfolio not initialized'
+        });
+      }
+      
+      const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+      const openPositions = positions.filter(p => p.status === 'open');
+      
+      res.json({
+        status: 'active',
+        portfolio: {
+          id: portfolio.id,
+          cashBalance: portfolio.cashBalance,
+          totalValue: portfolio.totalValue,
+          startingCapital: portfolio.startingCapital,
+        },
+        openPositions: openPositions.length,
+        maxPositions: 2,
+        canTrade: portfolio.cashBalance >= 50 && openPositions.length < 2,
+      });
+    } catch (error) {
+      logger.error("Futures bot status error:", error);
+      res.status(500).json({ error: "Failed to get futures bot status" });
+    }
+  });
+  
+  // Manually trigger futures bot scan
+  app.post("/api/futures-bot/scan", requireAdmin, async (_req, res) => {
+    try {
+      const { runFuturesBotScan, monitorFuturesPositions } = await import("./auto-lotto-trader");
+      
+      logger.info("📈 [FUTURES BOT] Manual scan triggered via API");
+      
+      // Run both monitor and scan
+      await monitorFuturesPositions();
+      await runFuturesBotScan();
+      
+      // Get updated status
+      const { getFuturesPortfolio } = await import("./auto-lotto-trader");
+      const portfolio = await getFuturesPortfolio();
+      
+      res.json({
+        success: true,
+        message: "Futures bot scan completed",
+        portfolioBalance: portfolio?.cashBalance || 0,
+      });
+    } catch (error) {
+      logger.error("Futures bot scan error:", error);
+      res.status(500).json({ error: "Failed to run futures bot scan" });
+    }
+  });
+
   // User Preferences Routes
   app.get("/api/preferences", async (_req, res) => {
     try {
