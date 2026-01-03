@@ -176,8 +176,6 @@ function LastScanTime({ timestamp }: { timestamp: string | null }) {
 export default function AutomationsPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("overview");
-  const [assetTypeFilter, setAssetTypeFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
 
   const { data: status, isLoading } = useQuery<AutomationsStatus>({
     queryKey: ["/api/automations/status"],
@@ -186,17 +184,6 @@ export default function AutomationsPage() {
 
   const { data: weeklyReport } = useQuery({
     queryKey: ["/api/automations/weekly-report/preview"],
-  });
-
-  const botTradesQueryKey = `/api/bot-trades?assetType=${assetTypeFilter}&status=${statusFilter}`;
-  const { data: botTradesData, isLoading: botTradesLoading, refetch: refetchBotTrades } = useQuery<BotTradesResponse>({
-    queryKey: ["/api/bot-trades", assetTypeFilter, statusFilter],
-    queryFn: async () => {
-      const response = await fetch(botTradesQueryKey);
-      if (!response.ok) throw new Error("Failed to fetch bot trades");
-      return response.json();
-    },
-    refetchInterval: 10000,
   });
 
   const toggleQuantBot = useMutation({
@@ -292,14 +279,10 @@ export default function AutomationsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-6 w-full max-w-3xl">
+        <TabsList className="grid grid-cols-5 w-full max-w-3xl">
           <TabsTrigger value="overview" data-testid="tab-overview">
             <Activity className="w-4 h-4 mr-2" />
             Overview
-          </TabsTrigger>
-          <TabsTrigger value="bot-trades" data-testid="tab-bot-trades">
-            <Wallet className="w-4 h-4 mr-2" />
-            Bot Trades
           </TabsTrigger>
           <TabsTrigger value="quant-bot" data-testid="tab-quant-bot">
             <Bot className="w-4 h-4 mr-2" />
@@ -417,209 +400,6 @@ export default function AutomationsPage() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-
-        <TabsContent value="bot-trades" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Wallet className="w-5 h-5 text-cyan-400" />
-                    Bot Trading Positions
-                  </CardTitle>
-                  <CardDescription>Live positions from all trading bots (Options, Crypto, Futures)</CardDescription>
-                </div>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm whitespace-nowrap">Asset Type:</Label>
-                    <Select value={assetTypeFilter} onValueChange={setAssetTypeFilter}>
-                      <SelectTrigger className="w-32" data-testid="select-asset-type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        <SelectItem value="options">Options</SelectItem>
-                        <SelectItem value="crypto">Crypto</SelectItem>
-                        <SelectItem value="futures">Futures</SelectItem>
-                        <SelectItem value="stock">Stocks</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm whitespace-nowrap">Status:</Label>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-28" data-testid="select-status">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All</SelectItem>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => refetchBotTrades()}
-                    data-testid="button-refresh-trades"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-1" />
-                    Refresh
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {botTradesLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-                </div>
-              ) : (
-                <>
-                  <div className="grid gap-4 md:grid-cols-4">
-                    {botTradesData?.portfolios?.map((portfolio) => (
-                      <Card key={portfolio.id} className={`hover-elevate border-l-4 ${
-                        portfolio.botType === 'options' ? 'border-l-purple-500' :
-                        portfolio.botType === 'crypto' ? 'border-l-amber-500' :
-                        portfolio.botType === 'futures' ? 'border-l-cyan-500' : 'border-l-green-500'
-                      }`}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-sm">{portfolio.name}</span>
-                            {portfolio.botType === 'options' && <TrendingUp className="w-4 h-4 text-purple-400" />}
-                            {portfolio.botType === 'crypto' && <Bitcoin className="w-4 h-4 text-amber-400" />}
-                            {portfolio.botType === 'futures' && <LineChart className="w-4 h-4 text-cyan-400" />}
-                          </div>
-                          <div className="space-y-1 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Cash:</span>
-                              <span>${portfolio.cashBalance?.toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Open:</span>
-                              <span>{portfolio.openPositions} positions</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Win Rate:</span>
-                              <span className={portfolio.winRate >= 50 ? 'text-green-400' : 'text-red-400'}>
-                                {portfolio.winRate}%
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Realized P&L:</span>
-                              <span className={portfolio.realizedPnL >= 0 ? 'text-green-400' : 'text-red-400'}>
-                                {portfolio.realizedPnL >= 0 ? '+' : ''}{portfolio.realizedPnL?.toFixed(2)}
-                              </span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground border-b pb-3">
-                    <span>Total: <strong className="text-foreground">{botTradesData?.summary?.totalPositions || 0}</strong></span>
-                    <span>Open: <strong className="text-green-400">{botTradesData?.summary?.openPositions || 0}</strong></span>
-                    <span>Closed: <strong className="text-foreground">{botTradesData?.summary?.closedPositions || 0}</strong></span>
-                    <span className="ml-auto">
-                      Options: {botTradesData?.summary?.byAssetType?.options || 0} |
-                      Crypto: {botTradesData?.summary?.byAssetType?.crypto || 0} |
-                      Futures: {botTradesData?.summary?.byAssetType?.futures || 0}
-                    </span>
-                  </div>
-
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {botTradesData?.positions?.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        No positions found for the selected filters
-                      </div>
-                    ) : (
-                      botTradesData?.positions?.map((position) => (
-                        <div 
-                          key={position.id} 
-                          className={`flex items-center justify-between p-3 rounded-lg border ${
-                            position.status === 'open' ? 'bg-muted/30' : 'bg-muted/10'
-                          }`}
-                          data-testid={`position-${position.id}`}
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="flex flex-col">
-                              <div className="flex items-center gap-2">
-                                <Badge variant={
-                                  position.assetType === 'option' ? 'secondary' :
-                                  position.assetType === 'crypto' ? 'outline' : 'default'
-                                } className={`text-xs ${
-                                  position.assetType === 'option' ? 'bg-purple-500/20 text-purple-300' :
-                                  position.assetType === 'crypto' ? 'bg-amber-500/20 text-amber-300' :
-                                  position.assetType === 'futures' ? 'bg-cyan-500/20 text-cyan-300' : ''
-                                }`}>
-                                  {position.assetType}
-                                </Badge>
-                                <span className="font-bold">{position.symbol}</span>
-                                {position.optionType && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {position.strikePrice} {position.optionType?.toUpperCase()} {position.expiryDate}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                <span className={position.direction === 'long' ? 'text-green-400' : 'text-red-400'}>
-                                  {position.direction?.toUpperCase()}
-                                </span>
-                                <span>Qty: {position.quantity?.toFixed(2)}</span>
-                                <span>Entry: ${position.entryPrice?.toFixed(4)}</span>
-                                {position.currentPrice && <span>Current: ${position.currentPrice?.toFixed(4)}</span>}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              {position.status === 'open' ? (
-                                <div className={`flex items-center gap-1 ${
-                                  (position.unrealizedPnL || 0) >= 0 ? 'text-green-400' : 'text-red-400'
-                                }`}>
-                                  {(position.unrealizedPnL || 0) >= 0 ? 
-                                    <ArrowUpRight className="w-4 h-4" /> : 
-                                    <ArrowDownRight className="w-4 h-4" />
-                                  }
-                                  <span className="font-medium">
-                                    ${Math.abs(position.unrealizedPnL || 0).toFixed(2)}
-                                  </span>
-                                  <span className="text-xs">
-                                    ({(position.unrealizedPnLPercent || 0).toFixed(1)}%)
-                                  </span>
-                                </div>
-                              ) : (
-                                <div className={`flex items-center gap-1 ${
-                                  (position.realizedPnL || 0) >= 0 ? 'text-green-400' : 'text-red-400'
-                                }`}>
-                                  <DollarSign className="w-4 h-4" />
-                                  <span className="font-medium">
-                                    ${Math.abs(position.realizedPnL || 0).toFixed(2)}
-                                  </span>
-                                  <span className="text-xs">
-                                    ({(position.realizedPnLPercent || 0).toFixed(1)}%)
-                                  </span>
-                                </div>
-                              )}
-                              {position.exitReason && (
-                                <span className="text-xs text-muted-foreground">{position.exitReason}</span>
-                              )}
-                            </div>
-                            <Badge variant={position.status === 'open' ? 'default' : 'secondary'}>
-                              {position.status}
-                            </Badge>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="quant-bot" className="space-y-4">
@@ -917,11 +697,11 @@ export default function AutomationsPage() {
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <div className="text-sm text-muted-foreground">Period</div>
-                      <div className="font-medium">{(weeklyReport as any)?.period?.start as React.ReactNode} - {(weeklyReport as any)?.period?.end as React.ReactNode}</div>
+                      <div className="font-medium">{String((weeklyReport as any)?.period?.start || '')} - {String((weeklyReport as any)?.period?.end || '')}</div>
                     </div>
                     <div>
                       <div className="text-sm text-muted-foreground">Total Trades</div>
-                      <div className="font-medium">{(weeklyReport as any)?.summary?.totalTrades as React.ReactNode || 0}</div>
+                      <div className="font-medium">{String((weeklyReport as any)?.summary?.totalTrades || 0)}</div>
                     </div>
                     <div>
                       <div className="text-sm text-muted-foreground">Win Rate</div>

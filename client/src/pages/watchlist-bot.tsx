@@ -103,12 +103,53 @@ function getWeekRange() {
   return `${formatDate(monday)} - ${formatDate(friday)}`;
 }
 
+interface BotTradesData {
+  positions: Array<{
+    id: string;
+    symbol: string;
+    assetType: string;
+    direction: string;
+    quantity: number;
+    entryPrice: number;
+    currentPrice: number;
+    status: string;
+    unrealizedPnL: number;
+    unrealizedPnLPercent: number;
+    realizedPnL: number;
+    realizedPnLPercent: number;
+    exitReason?: string;
+    optionType?: string;
+    strikePrice?: number;
+    expiryDate?: string;
+    portfolioName: string;
+    botType: string;
+  }>;
+  portfolios: Array<{
+    id: string;
+    name: string;
+    cashBalance: number;
+    openPositions: number;
+    closedPositions: number;
+    winRate: number;
+    realizedPnL: number;
+    botType: string;
+  }>;
+  summary: {
+    totalPositions: number;
+    openPositions: number;
+    closedPositions: number;
+    byAssetType: { options: number; crypto: number; futures: number; stock: number };
+  };
+}
+
 export default function WatchlistBotPage() {
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
   const [newSymbol, setNewSymbol] = useState("");
   const [newAssetType, setNewAssetType] = useState<string>("stock");
   const [activeTab, setActiveTab] = useState("bot");
+  const [tradesAssetFilter, setTradesAssetFilter] = useState("all");
+  const [tradesStatusFilter, setTradesStatusFilter] = useState("all");
 
   const { data: watchlistItems = [], isLoading: watchlistLoading, refetch: refetchWatchlist } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
@@ -124,6 +165,17 @@ export default function WatchlistBotPage() {
   const { data: coverageData, isLoading: coverageLoading, refetch: refetchCoverage } = useQuery<CoverageData>({
     queryKey: ['/api/auto-lotto-bot/coverage'],
     refetchInterval: 30000,
+  });
+
+  const botTradesUrl = `/api/bot-trades?assetType=${tradesAssetFilter}&status=${tradesStatusFilter}`;
+  const { data: botTradesData, isLoading: botTradesLoading, refetch: refetchBotTrades } = useQuery<BotTradesData>({
+    queryKey: ['/api/bot-trades', tradesAssetFilter, tradesStatusFilter],
+    queryFn: async () => {
+      const response = await fetch(botTradesUrl);
+      if (!response.ok) throw new Error("Failed to fetch bot trades");
+      return response.json();
+    },
+    refetchInterval: 10000,
   });
 
   const { data: tradeIdeas = [] } = useQuery<TradeIdea[]>({
@@ -197,7 +249,7 @@ export default function WatchlistBotPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+        <TabsList className="grid w-full max-w-3xl grid-cols-4">
           <TabsTrigger value="watchlist" className="gap-2" data-testid="tab-watchlist">
             <Eye className="h-4 w-4" />
             My Watchlist
@@ -205,6 +257,10 @@ export default function WatchlistBotPage() {
           <TabsTrigger value="bot" className="gap-2" data-testid="tab-bot">
             <Bot className="h-4 w-4 text-pink-400" />
             Auto-Lotto Bot
+          </TabsTrigger>
+          <TabsTrigger value="trades" className="gap-2" data-testid="tab-trades">
+            <Wallet className="h-4 w-4 text-cyan-400" />
+            Bot Trades
           </TabsTrigger>
           <TabsTrigger value="coverage" className="gap-2" data-testid="tab-coverage">
             <Radio className="h-4 w-4" />
@@ -1285,6 +1341,208 @@ export default function WatchlistBotPage() {
             </>
           );
           })()}
+        </TabsContent>
+
+        {/* Bot Trades Tab - All positions across all bots */}
+        <TabsContent value="trades" className="space-y-6">
+          <Card className="glass-card">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-cyan-400" />
+                    All Bot Trading Positions
+                  </CardTitle>
+                  <CardDescription>Live positions from Options, Crypto, and Futures bots</CardDescription>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Select value={tradesAssetFilter} onValueChange={setTradesAssetFilter}>
+                    <SelectTrigger className="w-32" data-testid="select-trades-asset">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="options">Options</SelectItem>
+                      <SelectItem value="crypto">Crypto</SelectItem>
+                      <SelectItem value="futures">Futures</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={tradesStatusFilter} onValueChange={setTradesStatusFilter}>
+                    <SelectTrigger className="w-28" data-testid="select-trades-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-slate-700"
+                    onClick={() => refetchBotTrades()}
+                    data-testid="button-refresh-bot-trades"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Refresh
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {botTradesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="h-6 w-6 animate-spin text-cyan-400" />
+                </div>
+              ) : (
+                <>
+                  {/* Portfolio Summary Cards */}
+                  <div className="grid gap-4 md:grid-cols-3">
+                    {botTradesData?.portfolios?.map((portfolio) => (
+                      <Card key={portfolio.id} className={cn(
+                        "hover-elevate border-l-4",
+                        portfolio.botType === 'options' ? 'border-l-purple-500 bg-gradient-to-br from-purple-500/5 to-pink-500/5' :
+                        portfolio.botType === 'crypto' ? 'border-l-amber-500 bg-gradient-to-br from-amber-500/5 to-orange-500/5' :
+                        portfolio.botType === 'futures' ? 'border-l-cyan-500 bg-gradient-to-br from-cyan-500/5 to-blue-500/5' : ''
+                      )}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="font-semibold">{portfolio.name}</span>
+                            {portfolio.botType === 'options' && <Target className="h-4 w-4 text-purple-400" />}
+                            {portfolio.botType === 'crypto' && <Bitcoin className="h-4 w-4 text-amber-400" />}
+                            {portfolio.botType === 'futures' && <BarChart3 className="h-4 w-4 text-cyan-400" />}
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Cash:</span>
+                              <span className="font-mono">${portfolio.cashBalance?.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Open:</span>
+                              <span className="font-mono">{portfolio.openPositions} positions</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Win Rate:</span>
+                              <span className={cn("font-mono font-medium", portfolio.winRate >= 50 ? 'text-green-400' : 'text-red-400')}>
+                                {portfolio.winRate}%
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Realized P&L:</span>
+                              <span className={cn("font-mono font-medium", portfolio.realizedPnL >= 0 ? 'text-green-400' : 'text-red-400')}>
+                                {portfolio.realizedPnL >= 0 ? '+' : ''}${portfolio.realizedPnL?.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Summary Bar */}
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground border-b border-slate-700/50 pb-3">
+                    <span>Total: <strong className="text-foreground">{botTradesData?.summary?.totalPositions || 0}</strong></span>
+                    <span>Open: <strong className="text-green-400">{botTradesData?.summary?.openPositions || 0}</strong></span>
+                    <span>Closed: <strong className="text-foreground">{botTradesData?.summary?.closedPositions || 0}</strong></span>
+                    <span className="ml-auto">
+                      Options: {botTradesData?.summary?.byAssetType?.options || 0} |
+                      Crypto: {botTradesData?.summary?.byAssetType?.crypto || 0} |
+                      Futures: {botTradesData?.summary?.byAssetType?.futures || 0}
+                    </span>
+                  </div>
+
+                  {/* Positions List */}
+                  <ScrollArea className="h-[400px]">
+                    <div className="space-y-2">
+                      {botTradesData?.positions?.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No positions found for the selected filters
+                        </div>
+                      ) : (
+                        botTradesData?.positions?.map((position) => (
+                          <div 
+                            key={position.id} 
+                            className={cn(
+                              "flex items-center justify-between p-3 rounded-lg border",
+                              position.status === 'open' ? 'bg-muted/30' : 'bg-muted/10'
+                            )}
+                            data-testid={`bot-position-${position.id}`}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className={cn("text-xs",
+                                    position.assetType === 'option' ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' :
+                                    position.assetType === 'crypto' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' :
+                                    position.assetType === 'futures' ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : ''
+                                  )}>
+                                    {position.assetType}
+                                  </Badge>
+                                  <span className="font-bold font-mono">{position.symbol}</span>
+                                  {position.optionType && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {position.strikePrice} {position.optionType?.toUpperCase()} {position.expiryDate}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                  <span className={position.direction === 'long' ? 'text-green-400' : 'text-red-400'}>
+                                    {position.direction?.toUpperCase()}
+                                  </span>
+                                  <span>Qty: {position.quantity?.toFixed(2)}</span>
+                                  <span>Entry: ${position.entryPrice?.toFixed(4)}</span>
+                                  {position.currentPrice && <span>Current: ${position.currentPrice?.toFixed(4)}</span>}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                {position.status === 'open' ? (
+                                  <div className={cn("flex items-center gap-1",
+                                    (position.unrealizedPnL || 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                                  )}>
+                                    {(position.unrealizedPnL || 0) >= 0 ? 
+                                      <ArrowUpRight className="h-4 w-4" /> : 
+                                      <ArrowDownRight className="h-4 w-4" />
+                                    }
+                                    <span className="font-medium font-mono">
+                                      ${Math.abs(position.unrealizedPnL || 0).toFixed(2)}
+                                    </span>
+                                    <span className="text-xs">
+                                      ({(position.unrealizedPnLPercent || 0).toFixed(1)}%)
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className={cn("flex items-center gap-1",
+                                    (position.realizedPnL || 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                                  )}>
+                                    <DollarSign className="h-4 w-4" />
+                                    <span className="font-medium font-mono">
+                                      ${Math.abs(position.realizedPnL || 0).toFixed(2)}
+                                    </span>
+                                    <span className="text-xs">
+                                      ({(position.realizedPnLPercent || 0).toFixed(1)}%)
+                                    </span>
+                                  </div>
+                                )}
+                                {position.exitReason && (
+                                  <span className="text-xs text-muted-foreground">{position.exitReason}</span>
+                                )}
+                              </div>
+                              <Badge variant={position.status === 'open' ? 'default' : 'secondary'}>
+                                {position.status}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Activity & Coverage Tab */}

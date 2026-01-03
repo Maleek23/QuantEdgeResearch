@@ -5070,16 +5070,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Sort by created time descending (newest first)
       allPositions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       
-      // Get portfolio summaries
+      // Get portfolio summaries - exclude empty portfolios with no trades
       const portfolioSummaries = portfolios
-        .filter(p => p.name.toLowerCase().includes('auto-lotto') || p.name.toLowerCase().includes('bot'))
+        .filter(p => {
+          // Must be a bot portfolio
+          if (!p.name.toLowerCase().includes('auto-lotto') && !p.name.toLowerCase().includes('bot')) {
+            return false;
+          }
+          // Must be a specific bot type (Options, Crypto, Futures) - exclude generic "Auto-Lotto Bot"
+          const hasSpecificType = p.name.toLowerCase().includes('options') || 
+                                  p.name.toLowerCase().includes('crypto') || 
+                                  p.name.toLowerCase().includes('futures');
+          return hasSpecificType;
+        })
         .map(portfolio => {
-          const portfolioPositions = allPositions.filter(p => p.portfolioId === portfolio.id);
-          const openPositions = portfolioPositions.filter(p => p.status === 'open');
-          const closedPositions = portfolioPositions.filter(p => p.status === 'closed');
-          const wins = closedPositions.filter(p => (p.realizedPnL || 0) > 0);
-          const totalRealizedPnL = closedPositions.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
-          const totalUnrealizedPnL = openPositions.reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0);
+          // Use unfiltered positions for portfolio stats (allPositions is already filtered by asset/status for display)
+          const positions = allPositions.filter(pos => pos.portfolioId === portfolio.id);
+          const openPos = positions.filter(p => p.status === 'open');
+          const closedPos = positions.filter(p => p.status === 'closed');
+          const wins = closedPos.filter(p => (p.realizedPnL || 0) > 0);
+          const totalRealizedPnL = closedPos.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
+          const totalUnrealizedPnL = openPos.reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0);
           
           return {
             id: portfolio.id,
@@ -5087,9 +5098,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             cashBalance: portfolio.cashBalance,
             totalValue: portfolio.totalValue,
             startingCapital: portfolio.startingCapital,
-            openPositions: openPositions.length,
-            closedPositions: closedPositions.length,
-            winRate: closedPositions.length > 0 ? Math.round((wins.length / closedPositions.length) * 100) : 0,
+            openPositions: openPos.length,
+            closedPositions: closedPos.length,
+            winRate: closedPos.length > 0 ? Math.round((wins.length / closedPos.length) * 100) : 0,
             realizedPnL: Math.round(totalRealizedPnL * 100) / 100,
             unrealizedPnL: Math.round(totalUnrealizedPnL * 100) / 100,
             botType: portfolio.name.toLowerCase().includes('options') ? 'options' : 
