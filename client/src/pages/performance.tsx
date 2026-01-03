@@ -1040,9 +1040,7 @@ export default function PerformancePage() {
   const handleValidate = async () => {
     setIsValidating(true);
     try {
-      const response = await fetch('/api/performance/validate', {
-        method: 'POST',
-      });
+      const response = await apiRequest('POST', '/api/performance/validate');
       const result = await response.json();
       
       setValidationResults(result.results || []);

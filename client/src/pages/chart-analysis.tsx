@@ -1682,10 +1682,17 @@ export default function ChartAnalysis() {
 
   const analysisMutation = useMutation({
     mutationFn: async (formData: FormData) => {
+      const csrfMatch = document.cookie.match(/csrf_token=([^;]+)/);
+      const csrfToken = csrfMatch ? csrfMatch[1] : null;
+      const headers: Record<string, string> = {};
+      if (csrfToken) {
+        headers['x-csrf-token'] = csrfToken;
+      }
       const response = await fetch('/api/chart-analysis', {
         method: 'POST',
         body: formData,
         credentials: 'include',
+        headers,
       });
       if (!response.ok) {
         const error = await response.json();

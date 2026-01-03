@@ -27,6 +27,7 @@ const PerformancePage = lazy(() => import("@/pages/performance"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
 const AdminPanel = lazy(() => import("@/pages/admin"));
 const AdminReports = lazy(() => import("@/pages/admin-reports"));
+const AdminSecurity = lazy(() => import("@/pages/admin-security"));
 const About = lazy(() => import("@/pages/about"));
 const PrivacyPolicy = lazy(() => import("@/pages/privacy-policy"));
 const TermsOfService = lazy(() => import("@/pages/terms-of-service"));
@@ -131,6 +132,7 @@ function Router() {
       <Route path="/pricing" component={Pricing} />
       <Route path="/admin" component={AdminPanel} />
       <Route path="/admin/reports" component={AdminReports} />
+      <Route path="/admin/security" component={AdminSecurity} />
       <Route path="/about" component={About} />
       
       {/* Legal Pages */}
@@ -232,7 +234,7 @@ function App() {
   };
 
   // Show public landing pages without sidebar (admin page handles its own layout)
-  const publicPages = ['/', '/features', '/login', '/signup', '/admin', '/admin/reports', '/privacy', '/terms'];
+  const publicPages = ['/', '/features', '/login', '/signup', '/admin', '/admin/reports', '/admin/security', '/privacy', '/terms'];
   if (publicPages.includes(location)) {
     return (
       <QueryClientProvider client={queryClient}>

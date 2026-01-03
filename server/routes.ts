@@ -33,7 +33,7 @@ import {
   ideaGenerationOnDemandLimiter
 } from "./rate-limiter";
 import { autoIdeaGenerator } from "./auto-idea-generator";
-import { requireAdmin, generateAdminToken, verifyAdminToken } from "./auth";
+import { requireAdminJWT, generateAdminToken, verifyAdminToken } from "./auth";
 import { getSession, setupAuth } from "./replitAuth";
 import { setupGoogleAuth } from "./googleAuth";
 import { createUser, authenticateUser, sanitizeUser } from "./userAuth";
@@ -66,6 +66,15 @@ import {
   refreshCalibrationCache, 
   formatExitStrategyDisplay 
 } from './confidence-calibration';
+import {
+  logAdminAction,
+  getAuditLogs,
+  getSecurityStats,
+  auditMiddleware,
+  checkLoginBlock,
+  recordFailedLogin,
+  recordSuccessfulLogin,
+} from './audit-logger';
 
 // Session-based authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -719,8 +728,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/admin/login", adminLimiter, (req, res) => {
     try {
-      const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+      const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.socket?.remoteAddress || req.ip || 'unknown';
+      
+      // Check if IP is blocked due to too many failed attempts
+      const blockStatus = checkLoginBlock(clientIp);
+      if (blockStatus.blocked) {
+        logger.warn('Blocked IP attempted admin login', { ip: clientIp });
+        logAdminAction('BLOCKED_LOGIN_ATTEMPT', req, res, { reason: 'IP blocked' });
+        return res.status(429).json({ 
+          error: blockStatus.message,
+          blockedUntil: blockStatus.remainingMs ? new Date(Date.now() + blockStatus.remainingMs).toISOString() : undefined
+        });
+      }
+      
+      const adminPassword = process.env.ADMIN_PASSWORD;
+      if (!adminPassword) {
+        logger.error('CRITICAL: ADMIN_PASSWORD environment variable not set');
+        return res.status(500).json({ error: 'Server configuration error' });
+      }
       if (req.body.password === adminPassword) {
+        // Clear failed attempts on successful login
+        recordSuccessfulLogin(clientIp);
+        
         // Generate JWT token
         const token = generateAdminToken();
         
@@ -732,14 +761,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           maxAge: 24 * 60 * 60 * 1000, // 24 hours
         });
         
-        logger.info('Admin logged in successfully', { ip: req.ip });
+        logger.info('Admin logged in successfully', { ip: clientIp });
+        logAdminAction('ADMIN_LOGIN_SUCCESS', req, res, { ip: clientIp });
+        
         // DO NOT return token in response - it's in HTTP-only cookie
         res.json({ 
           success: true,
           expiresIn: '24h'
         });
       } else {
-        logger.warn('Invalid admin password attempt', { ip: req.ip });
+        // Record failed attempt
+        recordFailedLogin(clientIp);
+        logger.warn('Invalid admin password attempt', { ip: clientIp });
+        logAdminAction('ADMIN_LOGIN_FAILED', req, res, { ip: clientIp, reason: 'invalid_password' });
         res.status(403).json({ error: "Invalid password" });
       }
     } catch (error) {
@@ -759,24 +793,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Legacy endpoint for backward compatibility
-  app.post("/api/admin/verify", adminLimiter, (req, res) => {
-    try {
-      const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
-      if (req.body.password === adminPassword) {
-        logger.info('Admin verified (legacy endpoint)', { ip: req.ip });
-        res.json({ success: true });
-      } else {
-        logger.warn('Invalid admin password (legacy endpoint)', { ip: req.ip });
-        res.status(403).json({ error: "Invalid password" });
-      }
-    } catch (error) {
-      logError(error as Error, { context: 'admin verify' });
-      res.status(500).json({ error: "Internal server error" });
-    }
+  // Simple JWT auth check endpoint (lightweight)
+  app.get("/api/admin/check-auth", requireAdminJWT, (_req, res) => {
+    res.json({ authenticated: true });
   });
 
-  app.get("/api/admin/stats", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/stats", requireAdminJWT, async (_req, res) => {
     try {
       const allUsers = await storage.getAllUsers();
       const allIdeas = await storage.getAllTradeIdeas();
@@ -797,7 +819,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/users", requireAdmin, async (_req, res) => {
+  // Audit Log Endpoints - Security Monitoring
+  app.get("/api/admin/audit-logs", requireAdminJWT, auditMiddleware('VIEW_AUDIT_LOGS'), (req, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 100);
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      const result = getAuditLogs(limit, offset);
+      res.json(result);
+    } catch (error) {
+      logError(error as Error, { context: 'admin/audit-logs' });
+      res.status(500).json({ error: "Failed to fetch audit logs" });
+    }
+  });
+
+  app.get("/api/admin/security-stats", requireAdminJWT, auditMiddleware('VIEW_SECURITY_STATS'), (_req, res) => {
+    try {
+      const stats = getSecurityStats();
+      res.json(stats);
+    } catch (error) {
+      logError(error as Error, { context: 'admin/security-stats' });
+      res.status(500).json({ error: "Failed to fetch security stats" });
+    }
+  });
+
+  app.get("/api/admin/users", requireAdminJWT, async (_req, res) => {
     try {
       const users = await storage.getAllUsers();
       res.json(users);
@@ -806,7 +852,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/ideas", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/ideas", requireAdminJWT, async (_req, res) => {
     try {
       const ideas = await storage.getAllTradeIdeas();
       res.json(ideas);
@@ -816,7 +862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
-  app.get("/api/admin/export-csv", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/export-csv", requireAdminJWT, async (_req, res) => {
     try {
       const ideas = await storage.getAllTradeIdeas();
       const csv = [
@@ -842,7 +888,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // System Health Check (SECURITY: No API key presence disclosure)
-  app.get("/api/admin/system-health", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/system-health", requireAdminJWT, async (_req, res) => {
     try {
       const health = {
         database: { status: 'operational', message: 'PostgreSQL connected' },
@@ -872,7 +918,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI Provider Status - Check configuration and last known status (no live calls)
-  app.get("/api/admin/ai-provider-status", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/ai-provider-status", requireAdminJWT, async (_req, res) => {
     try {
       const results: Record<string, any> = {};
 
@@ -1013,7 +1059,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test AI Provider - Individual provider testing
-  app.post("/api/admin/test-ai", requireAdmin, async (req, res) => {
+  app.post("/api/admin/test-ai", requireAdminJWT, async (req, res) => {
     try {
       const { provider, prompt } = req.body;
       const testPrompt = prompt || "Generate 1-2 bullish trade ideas for NVDA stock based on current market conditions.";
@@ -1047,7 +1093,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Manual Auto-Generation Trigger (Admin Testing) - AI ideas
-  app.post("/api/admin/trigger-auto-gen", requireAdmin, async (_req, res) => {
+  app.post("/api/admin/trigger-auto-gen", requireAdminJWT, async (_req, res) => {
     try {
       const { autoIdeaGenerator } = await import('./auto-idea-generator');
       await autoIdeaGenerator.manualGenerate();
@@ -1064,7 +1110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Manual Quant Generation Trigger (Admin Testing)
-  app.post("/api/admin/trigger-quant", requireAdmin, async (_req, res) => {
+  app.post("/api/admin/trigger-quant", requireAdminJWT, async (_req, res) => {
     try {
       logger.info('📊 [QUANT-MANUAL] Manual quant generation triggered');
       
@@ -1099,7 +1145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Manual Hybrid Generation Trigger (Admin Testing)
-  app.post("/api/admin/trigger-hybrid", requireAdmin, async (_req, res) => {
+  app.post("/api/admin/trigger-hybrid", requireAdminJWT, async (_req, res) => {
     try {
       logger.info('🔀 [HYBRID-MANUAL] Manual hybrid generation triggered');
       const { generateHybridIdeas } = await import('./ai-service');
@@ -1137,7 +1183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Manual Flow Scanner Trigger (Admin Testing)
-  app.post("/api/admin/trigger-flow", requireAdmin, async (_req, res) => {
+  app.post("/api/admin/trigger-flow", requireAdminJWT, async (_req, res) => {
     try {
       logger.info('📊 [FLOW-MANUAL] Manual flow scan triggered');
       const flowIdeas = await scanUnusualOptionsFlow(undefined, true);
@@ -1154,7 +1200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Recent Activity Log
-  app.get("/api/admin/activity", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/activity", requireAdminJWT, async (_req, res) => {
     try {
       const ideas = await storage.getAllTradeIdeas();
       const users = await storage.getAllUsers();
@@ -1184,7 +1230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Monitoring & Alerts endpoints
-  app.get("/api/admin/alerts", requireAdmin, async (req, res) => {
+  app.get("/api/admin/alerts", requireAdminJWT, async (req, res) => {
     try {
       const { monitoringService } = await import('./monitoring-service');
       const category = req.query.category as any;
@@ -1197,7 +1243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/alerts/summary", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/alerts/summary", requireAdminJWT, async (_req, res) => {
     try {
       const { monitoringService } = await import('./monitoring-service');
       const summary = monitoringService.getSummary();
@@ -1207,7 +1253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/alerts/:alertId/resolve", requireAdmin, async (req, res) => {
+  app.post("/api/admin/alerts/:alertId/resolve", requireAdminJWT, async (req, res) => {
     try {
       const { monitoringService } = await import('./monitoring-service');
       monitoringService.resolveAlert(req.params.alertId);
@@ -1217,7 +1263,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/api-metrics", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/api-metrics", requireAdminJWT, async (_req, res) => {
     try {
       const { monitoringService } = await import('./monitoring-service');
       const metrics = monitoringService.getAPIMetrics();
@@ -1228,7 +1274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Database Health endpoint
-  app.get("/api/admin/database-health", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/database-health", requireAdminJWT, async (_req, res) => {
     try {
       const { db } = await import('./db');
       const { sql } = await import('drizzle-orm');
@@ -1273,7 +1319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User Management Routes
-  app.get("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+  app.get("/api/admin/users/:userId", requireAdminJWT, async (req, res) => {
     try {
       const user = await storage.getUserById(req.params.userId);
       if (!user) {
@@ -1294,7 +1340,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+  app.patch("/api/admin/users/:userId", requireAdminJWT, async (req, res) => {
     try {
       const { subscriptionTier, subscriptionStatus } = req.body;
       
@@ -1326,7 +1372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+  app.delete("/api/admin/users/:userId", requireAdminJWT, async (req, res) => {
     try {
       const deleted = await storage.deleteUser(req.params.userId);
       
@@ -1347,7 +1393,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Database Maintenance Routes
-  app.get("/api/admin/maintenance/stats", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/maintenance/stats", requireAdminJWT, async (_req, res) => {
     try {
       const { db } = await import('./db');
       const { sql } = await import('drizzle-orm');
@@ -1385,7 +1431,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 🔧 FIX BAD HOLDING PERIODS: Scan and fix incorrect holding period classifications
-  app.post("/api/admin/maintenance/fix-holding-periods", requireAdmin, async (_req, res) => {
+  app.post("/api/admin/maintenance/fix-holding-periods", requireAdminJWT, async (_req, res) => {
     try {
       const { classifyHoldingPeriodByDuration } = await import('./timing-intelligence');
       
@@ -1455,7 +1501,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // 🗑️ DELETE BAD TRADE: Delete specific trade by ID (for TSLY bad data)
-  app.delete("/api/admin/maintenance/trade/:id", requireAdmin, async (req, res) => {
+  app.delete("/api/admin/maintenance/trade/:id", requireAdminJWT, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteTradeIdea(id);
@@ -1477,7 +1523,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/maintenance/cleanup", requireAdmin, async (req, res) => {
+  app.post("/api/admin/maintenance/cleanup", requireAdminJWT, async (req, res) => {
     try {
       const { daysOld = 30 } = req.body;
       
@@ -1514,7 +1560,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/maintenance/optimize", requireAdmin, async (req, res) => {
+  app.post("/api/admin/maintenance/optimize", requireAdminJWT, async (req, res) => {
     try {
       const { db } = await import('./db');
       const { sql } = await import('drizzle-orm');
@@ -1534,7 +1580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/admin/maintenance/archive-closed", requireAdmin, async (req, res) => {
+  app.post("/api/admin/maintenance/archive-closed", requireAdminJWT, async (req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       const closedIdeas = allIdeas.filter(i => i.outcomeStatus !== 'open');
@@ -1561,7 +1607,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Notion Documentation Sync
-  app.post("/api/admin/sync-notion", requireAdmin, async (_req, res) => {
+  app.post("/api/admin/sync-notion", requireAdminJWT, async (_req, res) => {
     try {
       logger.info('Starting Notion documentation sync');
       const result = await syncDocumentationToNotion();
@@ -1588,7 +1634,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
 
   // GET /api/admin/reports - List all reports with optional period filter
-  app.get("/api/admin/reports", requireAdmin, async (req, res) => {
+  app.get("/api/admin/reports", requireAdminJWT, async (req, res) => {
     try {
       const period = req.query.period as 'daily' | 'weekly' | 'monthly' | undefined;
       const limit = parseInt(req.query.limit as string) || 50;
@@ -1601,7 +1647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/admin/reports/latest - Get latest reports for each period
-  app.get("/api/admin/reports/latest", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/reports/latest", requireAdminJWT, async (_req, res) => {
     try {
       const [daily, weekly, monthly] = await Promise.all([
         storage.getLatestReportByPeriod('daily'),
@@ -1616,7 +1662,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/admin/reports/stats - Real-time platform stats
-  app.get("/api/admin/reports/stats", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/reports/stats", requireAdminJWT, async (_req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       const now = new Date();
@@ -1744,7 +1790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/admin/reports/:id - Get specific report
-  app.get("/api/admin/reports/:id", requireAdmin, async (req, res) => {
+  app.get("/api/admin/reports/:id", requireAdminJWT, async (req, res) => {
     try {
       const report = await storage.getPlatformReportById(req.params.id);
       if (!report) {
@@ -1758,7 +1804,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/admin/reports/generate - Generate new report
-  app.post("/api/admin/reports/generate", requireAdmin, async (req, res) => {
+  app.post("/api/admin/reports/generate", requireAdminJWT, async (req, res) => {
     try {
       const { period } = req.body as { period: 'daily' | 'weekly' | 'monthly' };
       if (!['daily', 'weekly', 'monthly'].includes(period)) {
@@ -3666,7 +3712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // POST /api/trade-ideas/news - Manually trigger news-based trade generation (admin only)
-  app.post("/api/trade-ideas/news", requireAdmin, async (req, res) => {
+  app.post("/api/trade-ideas/news", requireAdminJWT, async (req, res) => {
     try {
       const { fetchBreakingNews } = await import('./news-service');
       const { generateTradeIdeasFromNews } = await import('./ai-service');
@@ -4835,7 +4881,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Analyze all unanalyzed losses (admin trigger)
-  app.post("/api/loss-analysis/analyze-all", requireAdmin, async (req, res) => {
+  app.post("/api/loss-analysis/analyze-all", requireAdminJWT, async (req, res) => {
     try {
       const count = await analyzeAllLosses();
       res.json({ 
@@ -4909,7 +4955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Recalculate signal performance (admin only, slower)
-  app.post("/api/signal-attribution/recalculate", requireAdmin, async (req, res) => {
+  app.post("/api/signal-attribution/recalculate", requireAdminJWT, async (req, res) => {
     try {
       const result = await calculateSignalAttribution();
       res.json({
@@ -4966,7 +5012,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Refresh signal weights from attribution data
-  app.post("/api/signal-weights/refresh", requireAdmin, async (req, res) => {
+  app.post("/api/signal-weights/refresh", requireAdminJWT, async (req, res) => {
     try {
       const { refreshSignalWeights } = await import("./dynamic-signal-weights");
       const weights = await refreshSignalWeights();
@@ -4983,7 +5029,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Set manual override for a signal (freedom to catch new patterns)
-  app.post("/api/signal-weights/override", requireAdmin, async (req, res) => {
+  app.post("/api/signal-weights/override", requireAdminJWT, async (req, res) => {
     try {
       const { signalName, weight } = req.body;
       
@@ -5009,7 +5055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Remove manual override (return to dynamic weighting)
-  app.delete("/api/signal-weights/override/:signalName", requireAdmin, async (req, res) => {
+  app.delete("/api/signal-weights/override/:signalName", requireAdminJWT, async (req, res) => {
     try {
       const { signalName } = req.params;
       const { removeManualOverride, getWeightForSignal } = await import("./dynamic-signal-weights");
@@ -7017,7 +7063,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Manually trigger crypto bot scan
-  app.post("/api/crypto-bot/scan", requireAdmin, async (_req, res) => {
+  app.post("/api/crypto-bot/scan", requireAdminJWT, async (_req, res) => {
     try {
       const { runCryptoBotScan, monitorCryptoPositions } = await import("./auto-lotto-trader");
       
@@ -7081,7 +7127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Manually trigger futures bot scan
-  app.post("/api/futures-bot/scan", requireAdmin, async (_req, res) => {
+  app.post("/api/futures-bot/scan", requireAdminJWT, async (_req, res) => {
     try {
       const { runFuturesBotScan, monitorFuturesPositions } = await import("./auto-lotto-trader");
       
@@ -8915,7 +8961,7 @@ FORMATTING:
   });
 
   // Refresh calibration cache (admin only)
-  app.post("/api/confidence/refresh-cache", requireAdmin, async (_req, res) => {
+  app.post("/api/confidence/refresh-cache", requireAdminJWT, async (_req, res) => {
     try {
       await refreshCalibrationCache();
       res.json({ success: true, message: "Calibration cache refreshed" });
@@ -9249,7 +9295,7 @@ FORMATTING:
   });
 
   // Admin: Manual Trade Validation (force validation of all open trades NOW)
-  app.post("/api/admin/validate-trades", requireAdmin, async (_req, res) => {
+  app.post("/api/admin/validate-trades", requireAdminJWT, async (_req, res) => {
     try {
       const { PerformanceValidator } = await import('./performance-validator');
       const openIdeas = (await storage.getAllTradeIdeas()).filter(i => i.outcomeStatus === 'open');
@@ -9318,7 +9364,7 @@ FORMATTING:
   });
 
   // Admin: Re-validate ALL trades (including expired) - ONE-TIME FIX for date parser bug
-  app.post("/api/admin/revalidate-all-trades", requireAdmin, async (_req, res) => {
+  app.post("/api/admin/revalidate-all-trades", requireAdminJWT, async (_req, res) => {
     try {
       const { PerformanceValidator } = await import('./performance-validator');
       const allIdeas = await storage.getAllTradeIdeas();
@@ -9397,7 +9443,7 @@ FORMATTING:
   });
 
   // Admin: Data Integrity Verification
-  app.get("/api/admin/verify-data-integrity", requireAdmin, async (_req, res) => {
+  app.get("/api/admin/verify-data-integrity", requireAdminJWT, async (_req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       // 🔐 ADMIN MODE: Include ALL engine versions for complete data integrity verification
@@ -9509,7 +9555,7 @@ FORMATTING:
   });
 
   // Admin: Clear test data (ONLY deletes OPEN trades with no outcomes - preserves all closed trades)
-  app.post("/api/admin/clear-test-data", requireAdmin, async (_req, res) => {
+  app.post("/api/admin/clear-test-data", requireAdminJWT, async (_req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       let deletedCount = 0;
@@ -9623,7 +9669,7 @@ FORMATTING:
     }
   });
 
-  app.post("/api/model-cards/initialize", requireAdmin, async (_req, res) => {
+  app.post("/api/model-cards/initialize", requireAdminJWT, async (_req, res) => {
     try {
       // Check if model card already exists
       const existing = await storage.getModelCardByVersion("v2.2.0");
@@ -9668,7 +9714,7 @@ FORMATTING:
   });
 
   // 📊 DIAGNOSTIC EXPORT: Comprehensive data export for LLM analysis
-  app.get("/api/admin/diagnostic-export", requireAdmin, async (req, res) => {
+  app.get("/api/admin/diagnostic-export", requireAdminJWT, async (req, res) => {
     try {
       const daysBack = parseInt(req.query.daysBack as string) || 30;
       const includeRawData = req.query.includeRawData === 'true';
@@ -11366,7 +11412,7 @@ FORMATTING:
   });
 
   // POST /api/ct/generate-mock - Generate mock data for testing (admin only)
-  app.post("/api/ct/generate-mock", isAuthenticated, requireAdmin, async (req: any, res: Response) => {
+  app.post("/api/ct/generate-mock", isAuthenticated, requireAdminJWT, async (req: any, res: Response) => {
     try {
       const { count = 10 } = req.body;
       
@@ -11457,7 +11503,7 @@ FORMATTING:
   });
 
   // POST /api/blog - Create blog post (admin only)
-  app.post("/api/blog", requireAdmin, async (req: Request, res: Response) => {
+  app.post("/api/blog", requireAdminJWT, async (req: Request, res: Response) => {
     try {
       const validatedData = insertBlogPostSchema.parse(req.body);
       const post = await storage.createBlogPost(validatedData);
@@ -11473,7 +11519,7 @@ FORMATTING:
   });
 
   // PATCH /api/blog/:id - Update blog post (admin only)
-  app.patch("/api/blog/:id", requireAdmin, async (req: Request, res: Response) => {
+  app.patch("/api/blog/:id", requireAdminJWT, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const validatedData = insertBlogPostSchema.partial().parse(req.body);
@@ -11495,7 +11541,7 @@ FORMATTING:
   });
 
   // DELETE /api/blog/:id - Delete blog post (admin only)
-  app.delete("/api/blog/:id", requireAdmin, async (req: Request, res: Response) => {
+  app.delete("/api/blog/:id", requireAdminJWT, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteBlogPost(id);
@@ -11537,7 +11583,7 @@ FORMATTING:
   });
 
   // POST /api/admin/seed-blog - Seed educational blog content (admin only)
-  app.post("/api/admin/seed-blog", requireAdmin, async (_req: Request, res: Response) => {
+  app.post("/api/admin/seed-blog", requireAdminJWT, async (_req: Request, res: Response) => {
     try {
       const educationalPosts = [
         {
@@ -12449,7 +12495,7 @@ Use this checklist before entering any trade:
     }
   });
 
-  app.post("/api/automations/quant-bot/toggle", requireAdmin, async (req, res) => {
+  app.post("/api/automations/quant-bot/toggle", requireAdminJWT, async (req, res) => {
     try {
       const { active } = req.body;
       const { setQuantBotActive, getQuantBotStatus } = await import("./quant-mean-reversion-bot");
@@ -12461,7 +12507,7 @@ Use this checklist before entering any trade:
     }
   });
 
-  app.post("/api/automations/quant-bot/scan", requireAdmin, async (_req, res) => {
+  app.post("/api/automations/quant-bot/scan", requireAdminJWT, async (_req, res) => {
     try {
       const { runQuantBotScan, getQuantBotStatus } = await import("./quant-mean-reversion-bot");
       await runQuantBotScan();
@@ -12483,7 +12529,7 @@ Use this checklist before entering any trade:
     }
   });
 
-  app.post("/api/automations/quant-bot/settings", requireAdmin, async (req, res) => {
+  app.post("/api/automations/quant-bot/settings", requireAdminJWT, async (req, res) => {
     try {
       const { updateQuantBotSettings, getQuantBotStatus } = await import("./quant-mean-reversion-bot");
       updateQuantBotSettings(req.body);
@@ -12506,7 +12552,7 @@ Use this checklist before entering any trade:
     }
   });
 
-  app.post("/api/automations/weekly-report/settings", requireAdmin, async (req, res) => {
+  app.post("/api/automations/weekly-report/settings", requireAdminJWT, async (req, res) => {
     try {
       const { updateReportSettings, getReportSettings } = await import("./weekly-performance-report");
       updateReportSettings(req.body);
@@ -12517,7 +12563,7 @@ Use this checklist before entering any trade:
     }
   });
 
-  app.post("/api/automations/weekly-report/generate", requireAdmin, async (_req, res) => {
+  app.post("/api/automations/weekly-report/generate", requireAdminJWT, async (_req, res) => {
     try {
       const { runWeeklyReport } = await import("./weekly-performance-report");
       const report = await runWeeklyReport();
@@ -12551,7 +12597,7 @@ Use this checklist before entering any trade:
     }
   });
 
-  app.post("/api/automations/options-flow/toggle", requireAdmin, async (req, res) => {
+  app.post("/api/automations/options-flow/toggle", requireAdminJWT, async (req, res) => {
     try {
       const { active } = req.body;
       const { setOptionsFlowActive, getOptionsFlowStatus } = await import("./options-flow-scanner");
@@ -12563,7 +12609,7 @@ Use this checklist before entering any trade:
     }
   });
 
-  app.post("/api/automations/options-flow/scan", requireAdmin, async (_req, res) => {
+  app.post("/api/automations/options-flow/scan", requireAdminJWT, async (_req, res) => {
     try {
       const { scanOptionsFlow } = await import("./options-flow-scanner");
       const flows = await scanOptionsFlow();
@@ -12585,7 +12631,7 @@ Use this checklist before entering any trade:
     }
   });
 
-  app.post("/api/automations/options-flow/settings", requireAdmin, async (req, res) => {
+  app.post("/api/automations/options-flow/settings", requireAdminJWT, async (req, res) => {
     try {
       const { updateOptionsFlowSettings, getOptionsFlowStatus } = await import("./options-flow-scanner");
       updateOptionsFlowSettings(req.body);
@@ -12608,7 +12654,7 @@ Use this checklist before entering any trade:
     }
   });
 
-  app.post("/api/automations/social-sentiment/toggle", requireAdmin, async (req, res) => {
+  app.post("/api/automations/social-sentiment/toggle", requireAdminJWT, async (req, res) => {
     try {
       const { active } = req.body;
       const { setSocialSentimentActive, getSocialSentimentStatus } = await import("./social-sentiment-scanner");
@@ -12620,7 +12666,7 @@ Use this checklist before entering any trade:
     }
   });
 
-  app.post("/api/automations/social-sentiment/scan", requireAdmin, async (_req, res) => {
+  app.post("/api/automations/social-sentiment/scan", requireAdminJWT, async (_req, res) => {
     try {
       const { scanSocialSentiment } = await import("./social-sentiment-scanner");
       const result = await scanSocialSentiment();
@@ -12666,7 +12712,7 @@ Use this checklist before entering any trade:
     }
   });
 
-  app.post("/api/automations/social-sentiment/settings", requireAdmin, async (req, res) => {
+  app.post("/api/automations/social-sentiment/settings", requireAdminJWT, async (req, res) => {
     try {
       const { updateSocialSentimentSettings, getSocialSentimentStatus } = await import("./social-sentiment-scanner");
       updateSocialSentimentSettings(req.body);

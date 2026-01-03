@@ -98,7 +98,12 @@ export function requireAdmin(req: Request, res: Response, next: Function) {
   }
   
   // Fallback to password-based auth (legacy - will be deprecated)
-  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) {
+    logger.error('CRITICAL: ADMIN_PASSWORD environment variable not set');
+    return res.status(500).json({ error: 'Server configuration error - admin authentication unavailable' });
+  }
+  
   const providedPassword = req.headers['x-admin-password'] || req.body?.password;
   
   if (providedPassword === adminPassword) {

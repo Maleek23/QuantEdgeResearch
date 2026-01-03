@@ -228,8 +228,7 @@ export default function WatchlistBotPage() {
   // Seed annual watchlist if empty
   const seedAnnualMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/annual-watchlist/seed', { method: 'POST' });
-      if (!response.ok) throw new Error('Failed to seed annual watchlist');
+      const response = await apiRequest('POST', '/api/annual-watchlist/seed');
       return response.json();
     },
     onSuccess: (data) => {

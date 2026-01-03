@@ -121,6 +121,11 @@ interface LatestReports {
   monthly: PlatformReport | null;
 }
 
+function getCSRFToken(): string | null {
+  const match = document.cookie.match(/csrf_token=([^;]+)/);
+  return match ? match[1] : null;
+}
+
 const ENGINE_COLORS: Record<string, string> = {
   ai: "#a855f7",
   quant: "#3b82f6",
@@ -141,17 +146,31 @@ const ASSET_COLORS = ["#06b6d4", "#a855f7", "#10b981", "#f59e0b"];
 
 export default function AdminReportsPage() {
   const [selectedPeriod, setSelectedPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
-  const [adminPassword, setAdminPassword] = useState(() => {
-    return sessionStorage.getItem("adminPassword") || "";
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { toast } = useToast();
+
+  useQuery({
+    queryKey: ["/api/admin/check-auth"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/check-auth", {
+        credentials: "include",
+      });
+      if (res.ok) {
+        setIsAuthenticated(true);
+        return true;
+      }
+      setIsAuthenticated(false);
+      return false;
+    },
+    retry: false,
+  });
 
   const { data: stats, isLoading: statsLoading } = useQuery<PlatformStats>({
     queryKey: ["/api/admin/reports/stats"],
-    enabled: !!adminPassword,
+    enabled: isAuthenticated,
     queryFn: async () => {
       const res = await fetch("/api/admin/reports/stats", {
-        headers: { "x-admin-password": adminPassword },
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch stats");
       return res.json();
@@ -160,10 +179,10 @@ export default function AdminReportsPage() {
 
   const { data: latestReports, isLoading: reportsLoading } = useQuery<LatestReports>({
     queryKey: ["/api/admin/reports/latest"],
-    enabled: !!adminPassword,
+    enabled: isAuthenticated,
     queryFn: async () => {
       const res = await fetch("/api/admin/reports/latest", {
-        headers: { "x-admin-password": adminPassword },
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch reports");
       return res.json();
@@ -172,10 +191,10 @@ export default function AdminReportsPage() {
 
   const { data: allReports, isLoading: allReportsLoading } = useQuery<PlatformReport[]>({
     queryKey: ["/api/admin/reports", selectedPeriod],
-    enabled: !!adminPassword,
+    enabled: isAuthenticated,
     queryFn: async () => {
       const res = await fetch(`/api/admin/reports?period=${selectedPeriod}&limit=10`, {
-        headers: { "x-admin-password": adminPassword },
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch reports");
       return res.json();
@@ -184,12 +203,17 @@ export default function AdminReportsPage() {
 
   const generateReportMutation = useMutation({
     mutationFn: async (period: string) => {
+      const csrfToken = getCSRFToken();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (csrfToken) {
+        headers["x-csrf-token"] = csrfToken;
+      }
       const res = await fetch("/api/admin/reports/generate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-password": adminPassword,
-        },
+        headers,
+        credentials: "include",
         body: JSON.stringify({ period }),
       });
       if (!res.ok) throw new Error("Failed to generate report");
@@ -205,7 +229,7 @@ export default function AdminReportsPage() {
     },
   });
 
-  if (!adminPassword) {
+  if (!isAuthenticated) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
         <Card className="glass-card w-full max-w-md">

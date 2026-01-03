@@ -45,6 +45,11 @@ const LossPatternsDashboard = lazy(() => import("@/components/loss-patterns-dash
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
+function getCSRFToken(): string | null {
+  const match = document.cookie.match(/csrf_token=([^;]+)/);
+  return match ? match[1] : null;
+}
+
 type AuthStep = "pin" | "password" | "authenticated";
 
 export default function AdminPanel() {
@@ -57,11 +62,9 @@ export default function AdminPanel() {
 
   const { data: stats } = useQuery({
     queryKey: ['/api/admin/stats'],
-    enabled: authStep === 'authenticated' && !!adminPassword,
+    enabled: authStep === 'authenticated',
     queryFn: async () => {
-      const res = await fetch('/api/admin/stats', {
-        headers: { 'x-admin-password': adminPassword }
-      });
+      const res = await fetch('/api/admin/stats', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch stats');
       return res.json();
     }
@@ -69,11 +72,9 @@ export default function AdminPanel() {
 
   const { data: users } = useQuery({
     queryKey: ['/api/admin/users'],
-    enabled: authStep === 'authenticated' && !!adminPassword,
+    enabled: authStep === 'authenticated',
     queryFn: async () => {
-      const res = await fetch('/api/admin/users', {
-        headers: { 'x-admin-password': adminPassword }
-      });
+      const res = await fetch('/api/admin/users', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch users');
       return res.json();
     }
@@ -81,11 +82,9 @@ export default function AdminPanel() {
 
   const { data: allIdeas } = useQuery({
     queryKey: ['/api/admin/ideas'],
-    enabled: authStep === 'authenticated' && !!adminPassword,
+    enabled: authStep === 'authenticated',
     queryFn: async () => {
-      const res = await fetch('/api/admin/ideas', {
-        headers: { 'x-admin-password': adminPassword }
-      });
+      const res = await fetch('/api/admin/ideas', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch ideas');
       return res.json();
     }
@@ -93,13 +92,11 @@ export default function AdminPanel() {
 
   const { data: systemHealth } = useQuery({
     queryKey: ['/api/admin/system-health'],
-    enabled: authStep === 'authenticated' && !!adminPassword,
-    refetchInterval: 30000, // 30s for system health
+    enabled: authStep === 'authenticated',
+    refetchInterval: 30000,
     staleTime: 15000,
     queryFn: async () => {
-      const res = await fetch('/api/admin/system-health', {
-        headers: { 'x-admin-password': adminPassword }
-      });
+      const res = await fetch('/api/admin/system-health', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch health');
       return res.json();
     }
@@ -107,11 +104,9 @@ export default function AdminPanel() {
 
   const { data: activities } = useQuery({
     queryKey: ['/api/admin/activity'],
-    enabled: authStep === 'authenticated' && !!adminPassword,
+    enabled: authStep === 'authenticated',
     queryFn: async () => {
-      const res = await fetch('/api/admin/activity', {
-        headers: { 'x-admin-password': adminPassword }
-      });
+      const res = await fetch('/api/admin/activity', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch activity');
       return res.json();
     }
@@ -119,13 +114,11 @@ export default function AdminPanel() {
 
   const { data: alerts } = useQuery({
     queryKey: ['/api/admin/alerts'],
-    enabled: authStep === 'authenticated' && !!adminPassword,
-    refetchInterval: 15000, // 15s for alerts (critical)
+    enabled: authStep === 'authenticated',
+    refetchInterval: 15000,
     staleTime: 10000,
     queryFn: async () => {
-      const res = await fetch('/api/admin/alerts', {
-        headers: { 'x-admin-password': adminPassword }
-      });
+      const res = await fetch('/api/admin/alerts', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch alerts');
       return res.json();
     }
@@ -133,13 +126,11 @@ export default function AdminPanel() {
 
   const { data: alertSummary } = useQuery({
     queryKey: ['/api/admin/alerts/summary'],
-    enabled: authStep === 'authenticated' && !!adminPassword,
-    refetchInterval: 15000, // 15s for alerts
+    enabled: authStep === 'authenticated',
+    refetchInterval: 15000,
     staleTime: 10000,
     queryFn: async () => {
-      const res = await fetch('/api/admin/alerts/summary', {
-        headers: { 'x-admin-password': adminPassword }
-      });
+      const res = await fetch('/api/admin/alerts/summary', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch summary');
       return res.json();
     }
@@ -147,13 +138,11 @@ export default function AdminPanel() {
 
   const { data: apiMetrics } = useQuery({
     queryKey: ['/api/admin/api-metrics'],
-    enabled: authStep === 'authenticated' && !!adminPassword,
-    refetchInterval: 30000, // 30s for metrics
+    enabled: authStep === 'authenticated',
+    refetchInterval: 30000,
     staleTime: 15000,
     queryFn: async () => {
-      const res = await fetch('/api/admin/api-metrics', {
-        headers: { 'x-admin-password': adminPassword }
-      });
+      const res = await fetch('/api/admin/api-metrics', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch metrics');
       return res.json();
     }
@@ -161,27 +150,22 @@ export default function AdminPanel() {
 
   const { data: dbHealth } = useQuery({
     queryKey: ['/api/admin/database-health'],
-    enabled: authStep === 'authenticated' && !!adminPassword,
-    refetchInterval: 60000, // Refresh every minute
+    enabled: authStep === 'authenticated',
+    refetchInterval: 60000,
     queryFn: async () => {
-      const res = await fetch('/api/admin/database-health', {
-        headers: { 'x-admin-password': adminPassword }
-      });
+      const res = await fetch('/api/admin/database-health', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch db health');
       return res.json();
     }
   });
 
-  // AI Provider Status - Real-time health check with billing/quota info
   const { data: aiProviderStatus, isLoading: aiStatusLoading, refetch: refetchAIStatus } = useQuery({
     queryKey: ['/api/admin/ai-provider-status'],
-    enabled: authStep === 'authenticated' && !!adminPassword,
-    refetchInterval: 120000, // 2 min for AI status (expensive check)
+    enabled: authStep === 'authenticated',
+    refetchInterval: 120000,
     staleTime: 60000,
     queryFn: async () => {
-      const res = await fetch('/api/admin/ai-provider-status', {
-        headers: { 'x-admin-password': adminPassword }
-      });
+      const res = await fetch('/api/admin/ai-provider-status', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch AI status');
       return res.json();
     }
@@ -193,13 +177,14 @@ export default function AdminPanel() {
   // User management mutations
   const updateUserTierMutation = useMutation({
     mutationFn: async ({ userId, tier }: { userId: string; tier: string }) => {
+      const csrfToken = getCSRFToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
       const res = await fetch(`/api/admin/users/${userId}/tier`, {
         method: 'PATCH',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-admin-password': adminPassword 
-        },
-        body: JSON.stringify({ tier })
+        headers,
+        body: JSON.stringify({ tier }),
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('Failed to update tier');
       return res.json();
@@ -215,9 +200,13 @@ export default function AdminPanel() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
+      const csrfToken = getCSRFToken();
+      const headers: Record<string, string> = {};
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
-        headers: { 'x-admin-password': adminPassword }
+        headers,
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('Failed to delete user');
       return res.json();
@@ -234,13 +223,14 @@ export default function AdminPanel() {
   // Database maintenance mutations
   const cleanupDatabaseMutation = useMutation({
     mutationFn: async (daysOld: number) => {
+      const csrfToken = getCSRFToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
       const res = await fetch('/api/admin/database/cleanup', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-admin-password': adminPassword 
-        },
-        body: JSON.stringify({ daysOld })
+        headers,
+        body: JSON.stringify({ daysOld }),
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('Cleanup failed');
       return res.json();
@@ -256,13 +246,14 @@ export default function AdminPanel() {
 
   const archiveDatabaseMutation = useMutation({
     mutationFn: async (daysOld: number) => {
+      const csrfToken = getCSRFToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
       const res = await fetch('/api/admin/database/archive', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-admin-password': adminPassword 
-        },
-        body: JSON.stringify({ daysOld })
+        headers,
+        body: JSON.stringify({ daysOld }),
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('Archive failed');
       return res.json();
@@ -278,9 +269,13 @@ export default function AdminPanel() {
 
   const optimizeDatabaseMutation = useMutation({
     mutationFn: async () => {
+      const csrfToken = getCSRFToken();
+      const headers: Record<string, string> = {};
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
       const res = await fetch('/api/admin/database/optimize', {
         method: 'POST',
-        headers: { 'x-admin-password': adminPassword }
+        headers,
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('Optimization failed');
       return res.json();
@@ -296,13 +291,14 @@ export default function AdminPanel() {
 
   const testAIMutation = useMutation({
     mutationFn: async (provider: string) => {
+      const csrfToken = getCSRFToken();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['x-csrf-token'] = csrfToken;
       const res = await fetch('/api/admin/test-ai', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-admin-password': adminPassword 
-        },
-        body: JSON.stringify({ provider, prompt: testPrompt })
+        headers,
+        body: JSON.stringify({ provider, prompt: testPrompt }),
+        credentials: 'include',
       });
       if (!res.ok) throw new Error('AI test failed');
       return res.json();
@@ -352,9 +348,7 @@ export default function AdminPanel() {
 
   const handleExportData = async () => {
     try {
-      const response = await fetch('/api/admin/export-csv', {
-        headers: { 'x-admin-password': adminPassword }
-      });
+      const response = await fetch('/api/admin/export-csv', { credentials: 'include' });
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -920,13 +914,14 @@ export default function AdminPanel() {
                                   value={user.subscriptionTier}
                                   onChange={async (e) => {
                                     try {
+                                      const csrfToken = getCSRFToken();
+                                      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                                      if (csrfToken) headers['x-csrf-token'] = csrfToken;
                                       await fetch(`/api/admin/users/${user.id}`, {
                                         method: 'PATCH',
-                                        headers: { 
-                                          'Content-Type': 'application/json',
-                                          'x-admin-password': adminPassword 
-                                        },
-                                        body: JSON.stringify({ subscriptionTier: e.target.value })
+                                        headers,
+                                        body: JSON.stringify({ subscriptionTier: e.target.value }),
+                                        credentials: 'include',
                                       });
                                       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
                                       toast({ title: 'User tier updated' });
@@ -948,9 +943,13 @@ export default function AdminPanel() {
                                   onClick={async () => {
                                     if (!confirm(`Delete user ${user.email}? This cannot be undone.`)) return;
                                     try {
+                                      const csrfToken = getCSRFToken();
+                                      const headers: Record<string, string> = {};
+                                      if (csrfToken) headers['x-csrf-token'] = csrfToken;
                                       await fetch(`/api/admin/users/${user.id}`, {
                                         method: 'DELETE',
-                                        headers: { 'x-admin-password': adminPassword }
+                                        headers,
+                                        credentials: 'include',
                                       });
                                       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
                                       toast({ title: 'User deleted' });
@@ -1415,9 +1414,13 @@ export default function AdminPanel() {
                     size="sm"
                     onClick={async () => {
                       try {
+                        const csrfToken = getCSRFToken();
+                        const headers: Record<string, string> = {};
+                        if (csrfToken) headers['x-csrf-token'] = csrfToken;
                         const res = await fetch('/api/loss-analysis/analyze-all', {
                           method: 'POST',
-                          headers: { 'x-admin-password': adminPassword }
+                          headers,
+                          credentials: 'include',
                         });
                         const data = await res.json();
                         if (data.success) {

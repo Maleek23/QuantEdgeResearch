@@ -8,6 +8,8 @@ import { logger } from "./logger";
 import { validateTradierAPI } from "./tradier-api";
 import { deriveTimingWindows, verifyTimingUniqueness } from "./timing-intelligence";
 import { initializeRealtimePrices, getRealtimeStatus } from "./realtime-price-service";
+import { securityHeaders } from "./security";
+import { csrfMiddleware, validateCSRF } from "./csrf";
 
 const app = express();
 
@@ -24,9 +26,13 @@ app.use(compression({
   }
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 app.use(cookieParser());
+
+app.use(securityHeaders);
+app.use(csrfMiddleware);
+app.use(validateCSRF);
 
 // SECURITY: Safe logging middleware - prevents sensitive data leakage
 app.use((req, res, next) => {

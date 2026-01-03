@@ -1,7 +1,7 @@
 import { 
   TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
   Sun, Moon, Home, BookOpen, Bot, Zap, Shield, ExternalLink,
-  Upload, Database, LineChart, User, FileBarChart
+  Upload, Database, LineChart, User, FileBarChart, Lock
 } from "lucide-react";
 import { useLocation } from "wouter";
 import {
@@ -62,6 +62,7 @@ const accountItems: NavItem[] = [
 const adminItems: NavItem[] = [
   { title: "Admin", url: "/admin", icon: Shield },
   { title: "Reports", url: "/admin/reports", icon: FileBarChart, badge: "NEW" },
+  { title: "Security", url: "/admin/security", icon: Lock },
 ];
 
 function SidebarHeaderContent() {
