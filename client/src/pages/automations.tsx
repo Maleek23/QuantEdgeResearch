@@ -37,6 +37,17 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+interface CryptoBotData {
+  status: 'active' | 'inactive';
+  openPositions: number;
+  maxPositions: number;
+  coinsTracked: number;
+  portfolio: {
+    totalValue: number;
+    startingCapital: number;
+  };
+}
+
 interface QuantBotStatus {
   isActive: boolean;
   lastScan: string | null;
@@ -179,6 +190,11 @@ export default function AutomationsPage() {
 
   const { data: status, isLoading } = useQuery<AutomationsStatus>({
     queryKey: ["/api/automations/status"],
+    refetchInterval: 5000,
+  });
+
+  const { data: cryptoData } = useQuery<CryptoBotData>({
+    queryKey: ["/api/bot/crypto"],
     refetchInterval: 5000,
   });
 

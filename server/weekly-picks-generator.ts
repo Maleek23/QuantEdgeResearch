@@ -1,3 +1,11 @@
+import Anthropic from '@anthropic-ai/sdk';
+import { formatInTimeZone } from 'date-fns-tz';
+import { logger } from './logger';
+import { storage } from './storage';
+import type { WeeklyPick } from './storage';
+import { getTradierQuote, getTradierOptionsChainsByDTE } from './tradier-api';
+import { calculateLottoTargets, isLottoCandidate } from './lotto-detector';
+
 /**
  * Weekly Premium Picks Generator
  * 
@@ -11,11 +19,6 @@
  * 
  * Focus: Medium-to-High confidence (60%+) plays only
  */
-
-import { logger } from './logger';
-import { getTradierQuote, getTradierOptionsChainsByDTE } from './tradier-api';
-import { calculateLottoTargets, isLottoCandidate } from './lotto-detector';
-import { formatInTimeZone } from 'date-fns-tz';
 
 /**
  * Calculate days until next Monday (for trade entry timing)
@@ -276,7 +279,6 @@ export async function generateNextWeekPicks(): Promise<WeeklyPick[]> {
  */
 async function addAIAnalysisToPicks(picks: WeeklyPick[]): Promise<WeeklyPick[]> {
   try {
-    const Anthropic = require('@anthropic-ai/sdk');
     const client = new Anthropic();
     
     // Generate analysis for all picks in one request for efficiency
