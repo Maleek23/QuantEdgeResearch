@@ -2962,7 +2962,7 @@ export class DatabaseStorage implements IStorage {
       direction: position.direction,
       entryPrice: position.entryPrice,
       quantity: position.quantity,
-      entryTime: position.entryTime,
+      entryTime: position.entryTime || new Date().toISOString(),
       tradeIdeaId: position.tradeIdeaId ?? undefined,
       optionType: position.optionType ?? undefined,
       strikePrice: position.strikePrice ?? undefined,
