@@ -59,7 +59,8 @@ import {
 } from "lucide-react";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 
-function TimingDisplay({ minutes }: { minutes: number }) {
+// Compact expiry badge for quick time-left display
+function ExpiryBadge({ minutes }: { minutes: number }) {
   if (minutes <= 0) return <Badge variant="destructive">Expired</Badge>;
   if (minutes < 60) return <Badge variant="outline" className="text-amber-400 border-amber-400/30">{minutes}m left</Badge>;
   const hours = Math.floor(minutes / 60);
@@ -69,6 +70,7 @@ function TimingDisplay({ minutes }: { minutes: number }) {
 import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, subYears, isAfter, isBefore } from "date-fns";
 import { isWeekend, getNextTradingWeekStart, cn, getMarketStatus } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
+import { TimingDisplay } from "@/components/timing-display";
 import { WatchlistSpotlight } from "@/components/watchlist-spotlight";
 import { getSignalGrade, getResolutionReasonLabel } from "@/lib/signal-grade";
 import { AIResearchPanel } from "@/components/ai-research-panel";
@@ -640,12 +642,16 @@ export default function TradeDeskPage() {
                         </Badge>
                       </td>
                       <td className="px-4 py-3 align-top">
-                        <TimingDisplay 
-                          timestamp={idea.exitBy} 
-                          label="Exit By" 
-                          showCountdown 
-                          className="border-none bg-transparent p-0 h-auto" 
-                        />
+                        {idea.exitBy ? (
+                          <TimingDisplay 
+                            timestamp={idea.exitBy} 
+                            label="Exit By" 
+                            showCountdown 
+                            className="border-none bg-transparent p-0 h-auto" 
+                          />
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 align-top text-right">
                         <div className="flex items-center justify-end gap-1">
