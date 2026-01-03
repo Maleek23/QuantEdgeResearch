@@ -40,6 +40,7 @@ const StreakTracker = lazy(() => import("@/components/streak-tracker"));
 const LossPatternsDashboard = lazy(() => import("@/components/loss-patterns-dashboard"));
 const SignalAttributionDashboard = lazy(() => import("@/components/signal-attribution-dashboard"));
 import { PerformanceLeaderboard } from "@/components/performance-leaderboard";
+import { SignalWeightsPanel } from "@/components/signal-weights-panel";
 
 // Loading fallback for lazy components
 function ChartSkeleton() {
@@ -1967,6 +1968,15 @@ export default function PerformancePage() {
               <Suspense fallback={<ChartSkeleton />}>
                 <SignalAttributionDashboard />
               </Suspense>
+            </div>
+            
+            <div className="glass-card rounded-lg p-6 border-l-2 border-l-purple-500">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Adaptive Optimization</p>
+              <h2 className="text-xl font-semibold mb-2 text-purple-400">Dynamic Signal Weights</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                Automatic weight adjustment based on signal performance. Never rejects - just adjusts influence.
+              </p>
+              <SignalWeightsPanel />
             </div>
           </div>
         </TierGate>
