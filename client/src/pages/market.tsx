@@ -28,6 +28,8 @@ export default function MarketPage() {
 
   const { data: marketData = [], isLoading: marketLoading } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
+    refetchInterval: 10000, // 10s for real-time price updates
+    staleTime: 5000,
   });
 
   const { data: catalysts = [], isLoading: catalystsLoading } = useQuery<Catalyst[]>({

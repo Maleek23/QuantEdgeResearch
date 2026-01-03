@@ -32,8 +32,8 @@ export default function HomePage() {
 
   const { data: tradeIdeas = [], isLoading } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
-    refetchInterval: 60000,
-    staleTime: 30000,
+    refetchInterval: 10000, // 10s for real-time price updates
+    staleTime: 5000,
   });
 
   const generateHybridIdeas = useMutation({

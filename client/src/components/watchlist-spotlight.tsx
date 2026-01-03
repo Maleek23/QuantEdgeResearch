@@ -20,13 +20,13 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
   
   const { data: watchlistItems = [] } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
-    refetchInterval: 60000,
-    staleTime: 30000,
+    refetchInterval: 10000, // 10s for real-time updates
+    staleTime: 5000,
   });
 
   const { data: tradeIdeas = [] } = useQuery<TradeIdea[]>({
     queryKey: ['/api/trade-ideas'],
-    staleTime: 30000,
+    staleTime: 5000,
   });
 
   const handleItemClick = (item: WatchlistItem) => {
@@ -43,8 +43,8 @@ export function WatchlistSpotlight({ maxItems = 5 }: WatchlistSpotlightProps) {
 
   const { data: marketData = [] } = useQuery<MarketData[]>({
     queryKey: ['/api/market-data'],
-    refetchInterval: 60000, // 60s refresh (shares cache with Trade Desk)
-    staleTime: 30000,
+    refetchInterval: 10000, // 10s for real-time price updates
+    staleTime: 5000,
   });
 
   const priceMap = marketData.reduce((acc, data) => {
