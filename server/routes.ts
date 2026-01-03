@@ -6375,6 +6375,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send Annual Breakout Watchlist to Discord
+  app.post("/api/annual-watchlist/send-discord", async (_req, res) => {
+    try {
+      const items = await storage.getWatchlistByCategory('annual_breakout');
+      
+      if (items.length === 0) {
+        return res.status(400).json({ error: "No items in annual watchlist. Use /api/annual-watchlist/seed first." });
+      }
+      
+      const { sendWeeklyWatchlistToDiscord } = await import('./discord-service');
+      
+      // Transform items to match the expected format
+      const formattedItems = items.map(item => ({
+        symbol: item.symbol,
+        assetType: item.assetType as 'stock' | 'option' | 'crypto',
+        entryAlertPrice: item.entryAlertPrice ?? undefined,
+        targetAlertPrice: item.yearlyTargetPrice ?? item.targetAlertPrice ?? undefined,
+        stopAlertPrice: item.stopAlertPrice ?? undefined,
+      }));
+      
+      await sendWeeklyWatchlistToDiscord(formattedItems);
+      
+      console.log(`📨 Sent ${items.length} annual breakout candidates to Discord`);
+      res.json({ 
+        success: true, 
+        message: `Sent ${items.length} annual breakout candidates to Discord`, 
+        count: items.length 
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/annual-watchlist/send-discord' });
+      res.status(500).json({ error: "Failed to send annual watchlist to Discord" });
+    }
+  });
+
   // Watch Suggestions - Stocks to watch based on multiple catalyst reasons
   app.get("/api/watch-suggestions", async (_req, res) => {
     try {
