@@ -688,10 +688,6 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
               <div className="flex items-center gap-1.5 mb-2">
                 <BarChart3 className="h-3.5 w-3.5 text-cyan-400" />
                 <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wide">Technical Analysis</span>
-                <Link href="/backtest" className="text-[10px] text-muted-foreground hover:text-cyan-400 ml-auto flex items-center gap-0.5">
-                  <ExternalLink className="h-2.5 w-2.5" />
-                  Full Analysis
-                </Link>
               </div>
               {patternLoading ? (
                 <div className="grid grid-cols-4 gap-2">
