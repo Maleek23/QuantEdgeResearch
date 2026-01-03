@@ -447,26 +447,30 @@ async function generateLottoTradeIdea(candidate: LottoCandidate): Promise<Insert
     let exitWindowDays: number;
     let holdingPeriod: 'day' | 'swing' | 'position';
     
-    if (dte <= 2) {
-      // 0-2 DTE: True day trade - exit same/next day
-      exitWindowDays = 1;
-      holdingPeriod = 'day';
-    } else if (dte <= 7) {
-      // 3-7 DTE: Weekly swing trade - hold 2-3 days
-      exitWindowDays = Math.min(3, dte - 1); // Exit at least 1 day before expiry
+    // UPDATED: Hold contracts longer - user requested swing trades over day trades
+    if (dte <= 1) {
+      // 0-1 DTE: Short swing - hold 1-2 days (was day trade)
+      exitWindowDays = 2;
+      holdingPeriod = 'swing'; // Changed from 'day' to 'swing'
+    } else if (dte <= 4) {
+      // 2-4 DTE: Swing trade - hold 2-3 days
+      exitWindowDays = Math.min(3, dte); 
       holdingPeriod = 'swing';
-    } else if (dte <= 30) {
-      exitWindowDays = Math.min(7, Math.floor(dte * 0.5)); // 50% of DTE, max 7 days
+    } else if (dte <= 14) {
+      // 5-14 DTE: Extended swing - hold 4-7 days
+      exitWindowDays = Math.min(7, Math.floor(dte * 0.6)); // 60% of DTE, max 7 days
       holdingPeriod = 'swing';
-    } else if (dte <= 90) {
-      exitWindowDays = Math.min(21, Math.floor(dte * 0.3)); // 30% of DTE, max 21 days
+    } else if (dte <= 45) {
+      // 15-45 DTE: Long swing - hold 7-14 days
+      exitWindowDays = Math.min(14, Math.floor(dte * 0.5)); // 50% of DTE, max 14 days
       holdingPeriod = 'swing';
-    } else if (dte <= 365) {
-      exitWindowDays = Math.min(45, Math.floor(dte * 0.15)); // 15% of DTE, max 45 days
+    } else if (dte <= 180) {
+      // 45-180 DTE: Position trade - hold 14-30 days
+      exitWindowDays = Math.min(30, Math.floor(dte * 0.3)); // 30% of DTE, max 30 days
       holdingPeriod = 'position';
     } else {
-      // LEAPS (1+ year out)
-      exitWindowDays = Math.min(90, Math.floor(dte * 0.1)); // 10% of DTE, max 90 days
+      // LEAPS (180+ DTE) - hold 45-60 days
+      exitWindowDays = Math.min(60, Math.floor(dte * 0.2)); // 20% of DTE, max 60 days
       holdingPeriod = 'position';
     }
     

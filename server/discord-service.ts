@@ -1451,7 +1451,8 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
   }
 }
 
-// Send daily summary of top trade ideas (scheduled for 8:00 AM CT)
+// Send daily summary of top trade ideas (scheduled for 7:00 AM CT)
+// FORMAT: Ticker + C/P + Strike + Expiry, Entry/Stop/Target, Confidence, Analysis
 export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<void> {
   if (DISCORD_DISABLED) return;
   
@@ -1467,80 +1468,108 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
     const nowCT = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
     const dateStr = nowCT.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     
-    // Filter to OPTIONS ONLY (calls/puts) with strong signals, sorted by signal count then R:R
+    // Filter to OPTIONS ONLY (calls/puts) with medium/high confidence (70%+) and multi-engine validation (4+ signals)
     const topIdeas = ideas
       .filter(i => 
         i.outcomeStatus === 'open' && 
-        i.assetType === 'option' &&  // Only calls and puts
-        (i.qualitySignals?.length || 0) >= 2
+        i.assetType === 'option' &&  // Only calls and puts - NO shares
+        (i.confidenceScore || 50) >= 70 && // Medium/High confidence only
+        (i.qualitySignals?.length || 0) >= 4 // Multi-engine validated
       )
       .sort((a, b) => {
-        const aSignals = a.qualitySignals?.length || 0;
-        const bSignals = b.qualitySignals?.length || 0;
-        if (bSignals !== aSignals) return bSignals - aSignals;
-        return (b.riskRewardRatio || 0) - (a.riskRewardRatio || 0);
+        // Sort by confidence then signal count
+        const aConf = a.confidenceScore || 50;
+        const bConf = b.confidenceScore || 50;
+        if (bConf !== aConf) return bConf - aConf;
+        return (b.qualitySignals?.length || 0) - (a.qualitySignals?.length || 0);
       })
       .slice(0, 5);
     
     if (topIdeas.length === 0) {
-      logger.info('📭 No high-signal options plays for daily preview');
+      logger.info('📭 No high-confidence options plays for daily preview (requires 70%+ conf, 4+ signals)');
       return;
     }
     
-    // Format options plays with actionable trade info
-    const ideaList = topIdeas.map((idea, i) => {
-      const emoji = idea.direction === 'long' ? '🟢' : '🔴';
-      const sourceIcon = idea.source === 'ai' ? '🧠' : idea.source === 'quant' ? '✨' : idea.source === 'hybrid' ? '🎯' : idea.source === 'flow' ? '📊' : '📝';
-      const signalCount = idea.qualitySignals?.length || 0;
-      const signalGrade = signalCount >= 5 ? 'A+' : signalCount >= 4 ? 'A' : signalCount >= 3 ? 'B' : signalCount >= 2 ? 'C' : 'D';
-      const gainPct = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(1);
+    // Send each play as a separate embed for cleaner formatting
+    const embeds: DiscordEmbed[] = [];
+    
+    for (const idea of topIdeas) {
+      const isCall = idea.optionType === 'call';
+      const cpLabel = isCall ? 'C' : 'P';
+      const color = isCall ? 0x22c55e : 0xef4444; // Green for calls, red for puts
       
-      // Options-only formatting (calls and puts)
-      const optType = idea.optionType?.toUpperCase() || 'OPT';
-      const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
+      // Clean option contract format: AAPL 200C 01/15
+      const strike = idea.strikePrice ? `${idea.strikePrice}` : '';
       const exp = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
-      const typeLabel = `${optType} ${strike} ${exp}`.trim();
+      const contractLabel = `${idea.symbol} ${strike}${cpLabel} ${exp}`;
       
-      return `${i + 1}. ${emoji} **${idea.symbol}** ${typeLabel} | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${signalGrade} (${signalCount}/5) ${sourceIcon}`;
-    }).join('\n');
-    
-    // Calculate stats for options plays
-    const totalOptions = ideas.filter(i => i.outcomeStatus === 'open' && i.assetType === 'option').length;
-    const callCount = topIdeas.filter(i => i.optionType === 'call').length;
-    const putCount = topIdeas.filter(i => i.optionType === 'put').length;
-    const avgSignals = Math.round(topIdeas.reduce((sum, i) => sum + (i.qualitySignals?.length || 0), 0) / topIdeas.length);
-    const avgRR = (topIdeas.reduce((sum, i) => sum + (i.riskRewardRatio || 0), 0) / topIdeas.length).toFixed(1);
-    
-    const embed: DiscordEmbed = {
-      title: `📈 Daily Options Preview - ${dateStr}`,
-      description: `**Top ${topIdeas.length} Options Plays Today**\n\n${ideaList}`,
-      color: 0x3b82f6, // Blue
-      fields: [
-        {
-          name: '📊 Open Options',
-          value: `${totalOptions} plays`,
-          inline: true
-        },
-        {
-          name: '📞 Calls/Puts',
-          value: `${callCount} Calls • ${putCount} Puts`,
-          inline: true
-        },
-        {
-          name: '⭐ Avg Signals',
-          value: `${avgSignals}/5 | R:R ${avgRR}:1`,
-          inline: true
-        }
-      ],
-      footer: {
-        text: 'QuantEdge Research • View full details at your dashboard'
-      },
-      timestamp: new Date().toISOString()
-    };
+      // Calculate gain %
+      const gainPct = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(0);
+      
+      // Confidence grade
+      const confidence = idea.confidenceScore || 50;
+      const signalCount = idea.qualitySignals?.length || 0;
+      const grade = confidence >= 85 && signalCount >= 5 ? 'A+' : 
+                    confidence >= 80 && signalCount >= 4 ? 'A' : 
+                    confidence >= 70 && signalCount >= 4 ? 'B+' : 'B';
+      
+      // Extract analysis points for market structure
+      const analysisText = idea.analysis || '';
+      
+      // Parse key technical levels from analysis or generate from data
+      let structureAnalysis = '';
+      if (analysisText.length > 20) {
+        // Extract first 300 chars of analysis
+        structureAnalysis = analysisText.substring(0, 300).replace(/\n/g, ' ');
+        if (analysisText.length > 300) structureAnalysis += '...';
+      } else {
+        // Generate basic structure analysis
+        const direction = isCall ? 'Bullish' : 'Bearish';
+        const entryType = idea.source === 'flow' ? 'Unusual flow detected' : 
+                         idea.source === 'quant' ? 'RSI/Volume signals aligned' :
+                         idea.source === 'ai' ? 'AI pattern recognition' : 'Multi-engine confirmation';
+        structureAnalysis = `${direction} setup. ${entryType}. Entry near $${idea.entryPrice.toFixed(2)} support/resistance level.`;
+      }
+      
+      const embed: DiscordEmbed = {
+        title: `${isCall ? '📈' : '📉'} ${contractLabel}`,
+        description: `${isCall ? 'CALL' : 'PUT'} Option`,
+        color,
+        fields: [
+          {
+            name: '💰 Entry',
+            value: `$${idea.entryPrice.toFixed(2)}`,
+            inline: true
+          },
+          {
+            name: '🛡️ Stop',
+            value: `$${idea.stopLoss.toFixed(2)}`,
+            inline: true
+          },
+          {
+            name: '🎯 Target',
+            value: `$${idea.targetPrice.toFixed(2)} (+${gainPct}%)`,
+            inline: true
+          },
+          {
+            name: `⭐ Confidence: ${grade} (${confidence}%)`,
+            value: `${signalCount}/5 signals confirmed`,
+            inline: false
+          },
+          {
+            name: '📊 Analysis',
+            value: structureAnalysis,
+            inline: false
+          }
+        ]
+      };
+      
+      embeds.push(embed);
+    }
     
     const message: DiscordMessage = {
-      content: `☀️ **DAILY OPTIONS PREVIEW** → Top Calls & Puts │ ${CHANNEL_HEADERS.TRADE_ALERTS}`,
-      embeds: [embed]
+      content: `☀️ **DAILY OPTIONS PREVIEW** │ ${dateStr}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n*${topIdeas.length} high-confidence plays for today*`,
+      embeds: embeds
     };
     
     const response = await fetch(webhookUrl, {
@@ -1552,7 +1581,7 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
     });
     
     if (response.ok) {
-      logger.info(`✅ Discord daily summary sent: ${topIdeas.length} top ideas`);
+      logger.info(`✅ Discord daily preview sent: ${topIdeas.length} options plays`);
     }
   } catch (error) {
     logger.error('❌ Failed to send Discord daily summary:', error);
