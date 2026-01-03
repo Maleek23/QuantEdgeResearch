@@ -276,6 +276,7 @@ Metrics Strip:  grid-cols-2 sm:grid-cols-4 gap-4
 | 2025-12-31 | Simplified Footer (minimal, monospace) | App layout |
 | 2025-12-31 | Simplified Sidebar header (QE badge + tagline) | App sidebar |
 | 2025-12-31 | Applied graph-grid background to MainContentWrapper | All authenticated pages |
+| 2026-01-03 | Performance page redesign: 3-tier layout (Executive Overview KPI strip, Engine Accordion, simplified Data Audit), 62% code reduction | Performance page |
 
 ---
 
