@@ -384,6 +384,12 @@ export const insertFuturesResearchBriefSchema = createInsertSchema(futuresResear
 export type InsertFuturesResearchBrief = z.infer<typeof insertFuturesResearchBriefSchema>;
 export type FuturesResearchBrief = typeof futuresResearchBriefs.$inferSelect;
 
+// Watchlist Category Types
+export type WatchlistCategory = 'active' | 'annual_breakout' | 'options_watch' | 'swing_candidates' | 'archive';
+
+// Conviction Level for Annual Watchlist
+export type ConvictionLevel = 'high' | 'medium' | 'speculative';
+
 // Watchlist
 export const watchlist = pgTable("watchlist", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -393,6 +399,21 @@ export const watchlist = pgTable("watchlist", {
   targetPrice: real("target_price"),
   notes: text("notes"),
   addedAt: text("added_at").notNull(),
+  
+  // Category for organizing watchlist items
+  category: text("category").$type<WatchlistCategory>().notNull().default('active'),
+  
+  // Annual Breakout Tracking Fields
+  thesis: text("thesis"), // Investment thesis for long-term holds
+  conviction: text("conviction").$type<ConvictionLevel>(), // high, medium, speculative
+  sector: text("sector"), // Sector/industry focus
+  startOfYearPrice: real("start_of_year_price"), // Price at Jan 1
+  yearlyTargetPrice: real("yearly_target_price"), // Target price for the year (e.g., $70+)
+  catalystNotes: text("catalyst_notes"), // Expected catalysts for the year
+  reviewDate: text("review_date"), // Next scheduled review date
+  currentPrice: real("current_price"), // Latest tracked price
+  priceUpdatedAt: text("price_updated_at"), // When current_price was last updated
+  ytdPerformance: real("ytd_performance"), // Year-to-date % gain/loss
   
   // Price Alert Targets
   entryAlertPrice: real("entry_alert_price"), // Alert when price drops to this level (buying opportunity)
