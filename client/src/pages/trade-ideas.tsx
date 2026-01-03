@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { TradeIdea, IdeaSource, MarketData, Catalyst } from "@shared/schema";
 import { Calendar as CalendarIcon, Search, RefreshCw, ChevronDown, TrendingUp, X, Sparkles, TrendingUpIcon, UserPlus, BarChart3, LayoutGrid, List, Filter, SlidersHorizontal, CalendarClock, CheckCircle, XCircle, Clock, Info, Activity, Newspaper, Bot, Brain, Calculator, Rocket } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
 import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, subYears, isAfter, isBefore } from "date-fns";
 import { isWeekend, getNextTradingWeekStart, cn } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
@@ -28,6 +29,7 @@ export default function TradeIdeasPage() {
   const [activeAssetType, setActiveAssetType] = useState<"stock" | "penny_stock" | "option" | "crypto" | "all">("all");
   const [activeGrade, setActiveGrade] = useState<"all" | "A" | "B" | "C">("all");
   const [dateRange, setDateRange] = useState<string>('all');
+  const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
   const [expandedIdeaId, setExpandedIdeaId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [analyzeFormOpen, setAnalyzeFormOpen] = useState(false);
@@ -338,6 +340,10 @@ export default function TradeIdeasPage() {
     switch (dateRange) {
       case 'today':
         return startOfDay(now);
+      case 'yesterday':
+        return startOfDay(subDays(now, 1));
+      case '3d':
+        return subDays(now, 3);
       case '7d':
         return subDays(now, 7);
       case '30d':
@@ -346,11 +352,23 @@ export default function TradeIdeasPage() {
         return subMonths(now, 3);
       case '1y':
         return subYears(now, 1);
+      case 'custom':
+        return customDate ? startOfDay(customDate) : new Date(0);
       case 'all':
       default:
         return new Date(0);
     }
   })();
+  
+  // For custom date, also calculate range end (end of that day)
+  const rangeEnd = dateRange === 'custom' && customDate 
+    ? new Date(startOfDay(customDate).getTime() + 24 * 60 * 60 * 1000 - 1) 
+    : null;
+  
+  // For yesterday, also limit to that single day
+  const yesterdayEnd = dateRange === 'yesterday'
+    ? new Date(startOfDay(new Date()).getTime() - 1)
+    : null;
 
   // Filter ideas by search, direction, source, asset type, grade, and date range
   const filteredIdeas = tradeIdeas.filter(idea => {
@@ -372,7 +390,20 @@ export default function TradeIdeasPage() {
     
     // Date range filtering - filters by when trade was created/posted
     const ideaDate = parseISO(idea.timestamp);
-    const matchesDateRange = dateRange === 'all' || (!isBefore(ideaDate, rangeStart) || ideaDate.getTime() === rangeStart.getTime());
+    let matchesDateRange = dateRange === 'all';
+    
+    if (!matchesDateRange) {
+      const afterStart = !isBefore(ideaDate, rangeStart) || ideaDate.getTime() === rangeStart.getTime();
+      
+      // For specific date filters (yesterday, custom), also check end boundary
+      if (dateRange === 'yesterday' && yesterdayEnd) {
+        matchesDateRange = afterStart && ideaDate <= yesterdayEnd;
+      } else if (dateRange === 'custom' && rangeEnd) {
+        matchesDateRange = afterStart && ideaDate <= rangeEnd;
+      } else {
+        matchesDateRange = afterStart;
+      }
+    }
     
     return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange;
   });
@@ -462,7 +493,10 @@ export default function TradeIdeasPage() {
               )} />
             </div>
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Posted:</span>
-            <Select value={dateRange} onValueChange={setDateRange}>
+            <Select value={dateRange} onValueChange={(val) => {
+              setDateRange(val);
+              if (val !== 'custom') setCustomDate(undefined);
+            }}>
               <SelectTrigger className={cn(
                 "w-40 font-mono text-sm",
                 dateRange !== 'all' && "border-cyan-500/30"
@@ -470,14 +504,38 @@ export default function TradeIdeasPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="today">Today Only</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="yesterday">Yesterday</SelectItem>
+                <SelectItem value="3d">Last 3 Days</SelectItem>
                 <SelectItem value="7d">Last 7 Days</SelectItem>
                 <SelectItem value="30d">Last 30 Days</SelectItem>
                 <SelectItem value="3m">Last 3 Months</SelectItem>
                 <SelectItem value="1y">Last Year</SelectItem>
                 <SelectItem value="all">All Time</SelectItem>
+                <SelectItem value="custom">Pick Date...</SelectItem>
               </SelectContent>
             </Select>
+            
+            {/* Custom Date Picker */}
+            {dateRange === 'custom' && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2 font-mono" data-testid="button-custom-date-picker">
+                    <CalendarIcon className="h-4 w-4" />
+                    {customDate ? format(customDate, 'MMM d, yyyy') : 'Select date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customDate}
+                    onSelect={(date) => setCustomDate(date)}
+                    disabled={(date) => date > new Date()}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
 
           <div className="flex-1" />
@@ -504,10 +562,13 @@ export default function TradeIdeasPage() {
                 Showing research briefs posted 
                 <span className="font-semibold text-foreground mx-1">
                   {dateRange === 'today' && 'today'}
+                  {dateRange === 'yesterday' && 'yesterday'}
+                  {dateRange === '3d' && 'in the last 3 days'}
                   {dateRange === '7d' && 'in the last 7 days'}
                   {dateRange === '30d' && 'in the last 30 days'}
                   {dateRange === '3m' && 'in the last 3 months'}
                   {dateRange === '1y' && 'in the last year'}
+                  {dateRange === 'custom' && customDate && `on ${format(customDate, 'MMM d, yyyy')}`}
                 </span>
                 <span className="font-mono">({filteredIdeas.filter(i => i.outcomeStatus === 'open').length} active, {filteredIdeas.filter(i => i.outcomeStatus === 'hit_target').length} winners)</span>
               </span>

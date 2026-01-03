@@ -71,6 +71,7 @@ import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, 
 import { isWeekend, getNextTradingWeekStart, cn, getMarketStatus } from "@/lib/utils";
 import { RiskDisclosure } from "@/components/risk-disclosure";
 import { TimingDisplay } from "@/components/timing-display";
+import { Calendar } from "@/components/ui/calendar";
 import { WatchlistSpotlight } from "@/components/watchlist-spotlight";
 import { getSignalGrade, getResolutionReasonLabel } from "@/lib/signal-grade";
 import { AIResearchPanel } from "@/components/ai-research-panel";
@@ -108,6 +109,10 @@ export default function TradeDeskPage() {
   const [sortBy, setSortBy] = useState<string>('priority');
   const [symbolSearch, setSymbolSearch] = useState<string>('');
   
+  // Date filter state (Posted date)
+  const [dateFilter, setDateFilter] = useState<string>('all');
+  const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
+  
   // Pagination state
   const [visibleCount, setVisibleCount] = useState(50);
   
@@ -126,7 +131,7 @@ export default function TradeDeskPage() {
   // Reset pagination when filters change
   useEffect(() => {
     setVisibleCount(50);
-  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, sourceTab, statusView, activeTimeframe, tradeTypeFilter]);
+  }, [expiryFilter, assetTypeFilter, gradeFilter, statusFilter, sortBy, symbolSearch, dateRange, tradeIdeaSearch, activeDirection, activeSource, activeAssetType, sourceTab, statusView, activeTimeframe, tradeTypeFilter, dateFilter, customDate]);
   
   const { toast } = useToast();
 
@@ -497,6 +502,34 @@ export default function TradeDeskPage() {
     return (confidenceScore * 0.4) + (rrRatio * 15) + (hitProbability * 0.3);
   };
 
+  // Calculate date range bounds for Posted date filter
+  const getDateRangeBounds = () => {
+    const now = new Date();
+    switch (dateFilter) {
+      case 'today': 
+        return { start: startOfDay(now), end: null };
+      case 'yesterday': {
+        const yesterdayStart = startOfDay(subDays(now, 1));
+        const yesterdayEnd = new Date(startOfDay(now).getTime() - 1);
+        return { start: yesterdayStart, end: yesterdayEnd };
+      }
+      case '3d': 
+        return { start: subDays(now, 3), end: null };
+      case '7d': 
+        return { start: subDays(now, 7), end: null };
+      case '30d': 
+        return { start: subDays(now, 30), end: null };
+      case 'custom':
+        if (!customDate) return { start: new Date(0), end: null };
+        const dayStart = startOfDay(customDate);
+        const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+        return { start: dayStart, end: dayEnd };
+      case 'all':
+      default: 
+        return { start: new Date(0), end: null };
+    }
+  };
+
   const rangeStart = (() => {
     const now = new Date();
     switch (dateRange) {
@@ -534,6 +567,13 @@ export default function TradeDeskPage() {
     const ideaDate = parseISO(idea.timestamp);
     const matchesDateRange = dateRange === 'all' || (!isBefore(ideaDate, rangeStart) || ideaDate.getTime() === rangeStart.getTime());
     
+    // Posted date filter
+    const dateBounds = getDateRangeBounds();
+    const matchesDateFilter = dateFilter === 'all' || (
+      !isBefore(ideaDate, dateBounds.start) && 
+      (dateBounds.end === null || !isAfter(ideaDate, dateBounds.end))
+    );
+    
     // NEW: Filter by source tab
     const matchesSourceTab = sourceTab === "all" || idea.source === sourceTab;
     
@@ -554,7 +594,7 @@ export default function TradeDeskPage() {
       (statusFilter === 'won' && status === 'hit_target') ||
       (statusFilter === 'lost' && status === 'hit_stop');
     
-    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesSourceTab && matchesStatusView && matchesTradeType && matchesStatus;
+    return matchesSearch && matchesDirection && matchesSource && matchesAssetType && matchesGrade && matchesDateRange && matchesDateFilter && matchesSourceTab && matchesStatusView && matchesTradeType && matchesStatus;
   });
 
   const dayTrades = useMemo(() => filteredIdeas.filter(i => i.holdingPeriod === 'day'), [filteredIdeas]);
@@ -1160,6 +1200,46 @@ export default function TradeDeskPage() {
           ))}
         </div>
 
+        {/* Posted Date Filter */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Posted:</span>
+          <Select value={dateFilter} onValueChange={(val) => {
+            setDateFilter(val);
+            if (val !== 'custom') setCustomDate(undefined);
+          }}>
+            <SelectTrigger className="w-[110px] h-8 text-sm border-0 bg-transparent" data-testid="select-date-filter">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="yesterday">Yesterday</SelectItem>
+              <SelectItem value="3d">Last 3 Days</SelectItem>
+              <SelectItem value="7d">Last 7 Days</SelectItem>
+              <SelectItem value="30d">Last 30 Days</SelectItem>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="custom">Pick Date...</SelectItem>
+            </SelectContent>
+          </Select>
+          {dateFilter === 'custom' && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 font-mono h-8" data-testid="button-custom-date">
+                  <CalendarIcon className="h-3 w-3" />
+                  {customDate ? format(customDate, 'MMM d') : 'Select'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={customDate}
+                  onSelect={setCustomDate}
+                  disabled={(date) => date > new Date()}
+                />
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+
         {/* Status Filter */}
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">Status:</span>
@@ -1188,13 +1268,15 @@ export default function TradeDeskPage() {
               data-testid="filter-symbol-search"
             />
           </div>
-          {(symbolSearch || statusFilter !== 'all') && (
+          {(symbolSearch || statusFilter !== 'all' || dateFilter !== 'all') && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 setSymbolSearch('');
                 setStatusFilter('all');
+                setDateFilter('all');
+                setCustomDate(undefined);
               }}
               className="h-8 px-2 text-xs"
               data-testid="button-clear-filters"
