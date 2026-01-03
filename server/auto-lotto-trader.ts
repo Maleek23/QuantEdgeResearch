@@ -1474,6 +1474,7 @@ export async function runAutonomousBotScan(): Promise<void> {
           try {
             await sendBotTradeEntryToDiscord({
               symbol: opp.symbol,
+              assetType: 'option',
               optionType: opp.optionType,
               strikePrice: opp.strike,
               expiryDate: opp.expiration,
@@ -1545,6 +1546,7 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
       try {
         await sendBotTradeEntryToDiscord({
           symbol: idea.symbol,
+          assetType: idea.assetType || 'option',
           optionType: idea.optionType,
           strikePrice: idea.strikePrice,
           expiryDate: idea.expiryDate,
@@ -1644,6 +1646,7 @@ export async function monitorLottoPositions(): Promise<void> {
           // Send Discord notification
           await sendBotTradeExitToDiscord({
             symbol: pos.symbol,
+            assetType: pos.assetType || 'option',
             optionType: pos.optionType,
             strikePrice: pos.strikePrice,
             entryPrice: pos.entryPrice,
@@ -1674,6 +1677,7 @@ export async function monitorLottoPositions(): Promise<void> {
         try {
           await sendBotTradeExitToDiscord({
             symbol: pos.symbol,
+            assetType: pos.assetType || 'option',
             optionType: pos.optionType,
             strikePrice: pos.strikePrice,
             entryPrice: pos.entryPrice,
@@ -1902,7 +1906,22 @@ export async function runFuturesBotScan(): Promise<void> {
           logger.info(`🔮 [FUTURES-BOT] ✅ EXECUTED: ${bestFuturesOpp.direction.toUpperCase()} ${quantity}x ${bestFuturesOpp.contractCode} @ $${entryPrice.toFixed(2)}`);
           logger.info(`🔮 [FUTURES-BOT] 📊 Stop: $${stopLoss.toFixed(2)} | Target: $${targetPrice.toFixed(2)} | Margin: $${marginRequired.toFixed(2)}`);
           
-          logger.info(`🔮 [FUTURES-BOT] Trade logged to paper portfolio`)
+          // Send Discord notification only if enabled in preferences
+          if (prefs.enableDiscordAlerts) {
+            try {
+              await sendBotTradeEntryToDiscord({
+                symbol: bestFuturesOpp.symbol,
+                assetType: 'future',
+                entryPrice,
+                quantity,
+                targetPrice,
+                stopLoss,
+              });
+              logger.info(`🔮 [FUTURES-BOT] 📱 Discord entry notification sent`);
+            } catch (discordError) {
+              logger.warn(`🔮 [FUTURES-BOT] Discord notification failed:`, discordError);
+            }
+          }
         } else {
           logger.warn(`🔮 [FUTURES-BOT] Insufficient capital for trade: need $${marginRequired.toFixed(2)}, have $${portfolio.cashBalance.toFixed(2)}`);
         }
@@ -2329,6 +2348,23 @@ export async function monitorPropFirmPositions(): Promise<void> {
           logger.info(`🏆 [PROP-FIRM] ❌ STOP HIT: ${position.symbol} | P&L: $${unrealizedPnL.toFixed(0)}`);
           // closePaperPosition handles all portfolio updates (cash, P&L, win/loss count)
           await storage.closePaperPosition(position.id, currentPrice, 'hit_stop');
+          
+          // Send Discord notification
+          try {
+            await sendBotTradeExitToDiscord({
+              symbol: position.symbol,
+              assetType: 'future',
+              entryPrice,
+              exitPrice: currentPrice,
+              quantity,
+              realizedPnL: unrealizedPnL,
+              exitReason: 'hit_stop',
+            });
+            logger.info(`🔮 [FUTURES-MONITOR] 📱 Discord exit notification sent`);
+          } catch (discordError) {
+            logger.warn(`🔮 [FUTURES-MONITOR] Discord notification failed:`, discordError);
+          }
+          
           propFirmDailyPnL += unrealizedPnL;
           continue;
         }
@@ -2341,6 +2377,23 @@ export async function monitorPropFirmPositions(): Promise<void> {
           logger.info(`🏆 [PROP-FIRM] ✅ TARGET HIT: ${position.symbol} | P&L: +$${unrealizedPnL.toFixed(0)}`);
           // closePaperPosition handles all portfolio updates (cash, P&L, win/loss count)
           await storage.closePaperPosition(position.id, currentPrice, 'hit_target');
+          
+          // Send Discord notification
+          try {
+            await sendBotTradeExitToDiscord({
+              symbol: position.symbol,
+              assetType: 'future',
+              entryPrice,
+              exitPrice: currentPrice,
+              quantity,
+              realizedPnL: unrealizedPnL,
+              exitReason: 'hit_target',
+            });
+            logger.info(`🔮 [FUTURES-MONITOR] 📱 Discord exit notification sent`);
+          } catch (discordError) {
+            logger.warn(`🔮 [FUTURES-MONITOR] Discord notification failed:`, discordError);
+          }
+          
           propFirmDailyPnL += unrealizedPnL;
           continue;
         }
