@@ -6228,6 +6228,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CRYPTO BOT MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Get crypto bot status and portfolio
+  app.get("/api/crypto-bot/status", async (_req, res) => {
+    try {
+      const { getCryptoPortfolio, fetchCryptoPrices, CRYPTO_SCAN_COINS } = await import("./auto-lotto-trader");
+      const portfolio = await getCryptoPortfolio();
+      const prices = await fetchCryptoPrices();
+      
+      if (!portfolio) {
+        return res.json({ 
+          status: 'no_portfolio',
+          message: 'Crypto bot portfolio not initialized'
+        });
+      }
+      
+      const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+      const openPositions = positions.filter(p => p.status === 'open');
+      
+      res.json({
+        status: 'active',
+        portfolio: {
+          id: portfolio.id,
+          cashBalance: portfolio.cashBalance,
+          totalValue: portfolio.totalValue,
+          startingCapital: portfolio.startingCapital,
+        },
+        openPositions: openPositions.length,
+        maxPositions: 3,
+        coinsTracked: CRYPTO_SCAN_COINS.length,
+        pricesAvailable: prices.size,
+        canTrade: portfolio.cashBalance >= 10 && openPositions.length < 3 && prices.size > 0,
+      });
+    } catch (error) {
+      logger.error("Crypto bot status error:", error);
+      res.status(500).json({ error: "Failed to get crypto bot status" });
+    }
+  });
+  
+  // Manually trigger crypto bot scan
+  app.post("/api/crypto-bot/scan", requireAdmin, async (_req, res) => {
+    try {
+      const { runCryptoBotScan, monitorCryptoPositions } = await import("./auto-lotto-trader");
+      
+      logger.info("🪙 [CRYPTO BOT] Manual scan triggered via API");
+      
+      // Run both scan and monitor
+      await monitorCryptoPositions();
+      await runCryptoBotScan();
+      
+      // Get updated status
+      const { getCryptoPortfolio } = await import("./auto-lotto-trader");
+      const portfolio = await getCryptoPortfolio();
+      
+      res.json({
+        success: true,
+        message: "Crypto bot scan completed",
+        portfolioBalance: portfolio?.cashBalance || 0,
+      });
+    } catch (error) {
+      logger.error("Crypto bot scan error:", error);
+      res.status(500).json({ error: "Failed to run crypto bot scan" });
+    }
+  });
+
   // User Preferences Routes
   app.get("/api/preferences", async (_req, res) => {
     try {

@@ -33,7 +33,7 @@ let futuresPortfolio: PaperPortfolio | null = null;
 let cryptoPortfolio: PaperPortfolio | null = null;
 
 // Crypto trading configuration
-const CRYPTO_SCAN_COINS = [
+export const CRYPTO_SCAN_COINS = [
   { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
   { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' },
   { id: 'solana', symbol: 'SOL', name: 'Solana' },
@@ -235,21 +235,38 @@ export async function getCryptoPortfolio(): Promise<PaperPortfolio | null> {
   }
 }
 
+// Cache for crypto prices to handle rate limiting
+let cryptoPriceCache: Map<string, { price: number; change24h: number; volume: number; marketCap: number }> = new Map();
+let lastCryptoPriceFetch: number = 0;
+const CRYPTO_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
- * Fetch crypto prices from CoinGecko
+ * Fetch crypto prices from CoinGecko with caching
  */
-async function fetchCryptoPrices(): Promise<Map<string, { price: number; change24h: number; volume: number; marketCap: number }>> {
+export async function fetchCryptoPrices(): Promise<Map<string, { price: number; change24h: number; volume: number; marketCap: number }>> {
+  const now = Date.now();
+  
+  // Return cached if still valid
+  if (cryptoPriceCache.size > 0 && (now - lastCryptoPriceFetch) < CRYPTO_CACHE_TTL) {
+    logger.info(`🪙 [CRYPTO BOT] Using cached prices (${cryptoPriceCache.size} coins)`);
+    return cryptoPriceCache;
+  }
+  
   const priceMap = new Map();
   
   try {
     const ids = CRYPTO_SCAN_COINS.map(c => c.id).join(',');
     const response = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true`
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_market_cap=true`,
+      { 
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(10000)
+      }
     );
     
     if (!response.ok) {
-      logger.warn(`🪙 [CRYPTO BOT] CoinGecko API returned ${response.status}`);
-      return priceMap;
+      logger.warn(`🪙 [CRYPTO BOT] CoinGecko API returned ${response.status} - using cache if available`);
+      return cryptoPriceCache.size > 0 ? cryptoPriceCache : priceMap;
     }
     
     const data = await response.json();
@@ -266,9 +283,18 @@ async function fetchCryptoPrices(): Promise<Map<string, { price: number; change2
       }
     }
     
-    logger.info(`🪙 [CRYPTO BOT] Fetched prices for ${priceMap.size} coins`);
+    if (priceMap.size > 0) {
+      cryptoPriceCache = priceMap;
+      lastCryptoPriceFetch = now;
+      logger.info(`🪙 [CRYPTO BOT] Fetched and cached prices for ${priceMap.size} coins`);
+    }
   } catch (error) {
     logger.error("🪙 [CRYPTO BOT] Failed to fetch crypto prices:", error);
+    // Return cached prices if available
+    if (cryptoPriceCache.size > 0) {
+      logger.info(`🪙 [CRYPTO BOT] Returning stale cache (${cryptoPriceCache.size} coins)`);
+      return cryptoPriceCache;
+    }
   }
   
   return priceMap;
@@ -276,6 +302,7 @@ async function fetchCryptoPrices(): Promise<Map<string, { price: number; change2
 
 /**
  * Analyze crypto opportunity and generate signals
+ * RELAXED THRESHOLDS - Bot was too conservative and not trading
  */
 function analyzeCryptoOpportunity(
   coin: { id: string; symbol: string; name: string },
@@ -289,30 +316,48 @@ function analyzeCryptoOpportunity(
   // Skip if no price
   if (!price || price <= 0) return null;
   
-  // Momentum analysis
-  if (Math.abs(change24h) > 5) {
+  // Mild momentum (2-5%) - NEW: Lower threshold to catch more moves
+  if (Math.abs(change24h) > 2 && Math.abs(change24h) <= 5) {
     signals.push(`${change24h > 0 ? '📈' : '📉'} ${Math.abs(change24h).toFixed(1)}% 24h move`);
-    score += change24h > 0 ? 15 : -5;
+    score += change24h > 0 ? 8 : 3;
+  }
+  
+  // Moderate momentum (5-10%)
+  if (Math.abs(change24h) > 5 && Math.abs(change24h) <= 10) {
+    signals.push(`${change24h > 0 ? '📈' : '📉'} ${Math.abs(change24h).toFixed(1)}% 24h move`);
+    score += change24h > 0 ? 15 : 5;
   }
   
   // Strong momentum (>10%)
   if (Math.abs(change24h) > 10) {
-    signals.push(`🔥 Strong ${change24h > 0 ? 'uptrend' : 'downtrend'}`);
-    score += change24h > 0 ? 10 : -10;
+    signals.push(`🔥 Strong ${Math.abs(change24h).toFixed(1)}% ${change24h > 0 ? 'uptrend' : 'downtrend'}`);
+    score += change24h > 0 ? 20 : 10;
   }
   
-  // Volume analysis (relative to market cap)
+  // Volume analysis (relative to market cap) - RELAXED from 10% to 5%
   const volumeToMcap = marketCap > 0 ? (volume / marketCap) * 100 : 0;
-  if (volumeToMcap > 10) {
-    signals.push(`📊 High volume (${volumeToMcap.toFixed(1)}% of mcap)`);
-    score += 10;
+  if (volumeToMcap > 5) {
+    signals.push(`📊 ${volumeToMcap > 10 ? 'High' : 'Active'} volume (${volumeToMcap.toFixed(1)}% of mcap)`);
+    score += volumeToMcap > 10 ? 10 : 5;
+  }
+  
+  // Large cap stability bonus (BTC, ETH)
+  if (marketCap > 100_000_000_000) {
+    signals.push(`🏛️ Large cap stability`);
+    score += 5;
+  }
+  
+  // Mid cap momentum bonus
+  if (marketCap > 1_000_000_000 && marketCap < 50_000_000_000 && Math.abs(change24h) > 3) {
+    signals.push(`⚡ Mid-cap momentum`);
+    score += 5;
   }
   
   // Determine direction based on momentum
-  const direction: 'long' | 'short' = change24h > 2 ? 'long' : change24h < -2 ? 'short' : 'long';
+  const direction: 'long' | 'short' = change24h > 1 ? 'long' : change24h < -3 ? 'short' : 'long';
   
-  // Only proceed if we have meaningful signals
-  if (signals.length === 0 || score < 55) return null;
+  // RELAXED: Lower threshold from 55 to 52
+  if (signals.length === 0 || score < 52) return null;
   
   return {
     coinId: coin.id,
