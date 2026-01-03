@@ -112,9 +112,9 @@ app.use((req, res, next) => {
     pennyScanner.start();
     log('🚀 Penny Moonshot Scanner started - scanning at 4:00 AM, 9:30 AM, 8:00 PM CT weekdays');
     
-    // Initialize real-time price feeds (Coinbase for crypto, Databento for futures)
-    initializeRealtimePrices();
-    log('📡 Real-time price feeds initialized (Coinbase WebSocket + Databento)');
+    // Initialize real-time price feeds with WebSocket broadcast (Coinbase for crypto, Databento for futures)
+    initializeRealtimePrices(server);
+    log('📡 Real-time price feeds initialized with WebSocket broadcast on /ws/prices');
     
     // 🌙 EVENING STARTUP: One-time check to run Tomorrow's Playbook generation if in evening hours
     (async () => {

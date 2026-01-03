@@ -1,5 +1,6 @@
-import WebSocket from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 import { logger } from './logger';
+import type { Server } from 'http';
 
 interface PriceUpdate {
   symbol: string;
@@ -14,13 +15,43 @@ interface PriceCache {
   source: string;
 }
 
+interface BroadcastMessage {
+  type: 'price';
+  symbol: string;
+  price: number;
+  source: 'coinbase' | 'yahoo';
+  timestamp: string;
+}
+
 const cryptoPrices = new Map<string, PriceCache>();
 const futuresPrices = new Map<string, PriceCache>();
 
 let coinbaseWs: WebSocket | null = null;
 let coinbaseReconnectTimer: NodeJS.Timeout | null = null;
 
+let wss: WebSocketServer | null = null;
+
 const COINBASE_WS_URL = 'wss://ws-feed.exchange.coinbase.com';
+
+function broadcastPrice(symbol: string, price: number, source: 'coinbase' | 'yahoo'): void {
+  if (!wss) return;
+  
+  const message: BroadcastMessage = {
+    type: 'price',
+    symbol,
+    price,
+    source,
+    timestamp: new Date().toISOString()
+  };
+  
+  const payload = JSON.stringify(message);
+  
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(payload);
+    }
+  });
+}
 
 const COINBASE_SYMBOLS = [
   'BTC-USD', 'ETH-USD', 'SOL-USD', 'DOGE-USD', 'XRP-USD',
@@ -71,6 +102,7 @@ export function initializeCoinbaseWebSocket(): void {
             source: 'coinbase'
           });
           
+          broadcastPrice(symbol, price, 'coinbase');
           logger.debug(`[REALTIME] ${symbol}: $${price}`);
         }
       } catch (error) {
@@ -121,6 +153,7 @@ async function pollFuturesPrices(): Promise<void> {
             timestamp: new Date(),
             source: 'yahoo'
           });
+          broadcastPrice(rootSymbol, price, 'yahoo');
           logger.debug(`[FUTURES-RT] ${rootSymbol}: $${price}`);
         }
       }
@@ -212,8 +245,49 @@ export function getRealtimeStatus(): {
   };
 }
 
-export function initializeRealtimePrices(): void {
+export function initializeRealtimePrices(httpServer?: Server): void {
   logger.info('[REALTIME] Initializing real-time price feeds...');
+  
+  if (httpServer) {
+    wss = new WebSocketServer({ server: httpServer, path: '/ws/prices' });
+    
+    wss.on('connection', (ws) => {
+      logger.info(`[WS-BROADCAST] Client connected (total: ${wss?.clients.size})`);
+      
+      const snapshot: BroadcastMessage[] = [];
+      cryptoPrices.forEach((cache, symbol) => {
+        snapshot.push({
+          type: 'price',
+          symbol,
+          price: cache.price,
+          source: 'coinbase',
+          timestamp: cache.timestamp.toISOString()
+        });
+      });
+      futuresPrices.forEach((cache, symbol) => {
+        snapshot.push({
+          type: 'price',
+          symbol,
+          price: cache.price,
+          source: 'yahoo',
+          timestamp: cache.timestamp.toISOString()
+        });
+      });
+      
+      snapshot.forEach(msg => ws.send(JSON.stringify(msg)));
+      
+      ws.on('close', () => {
+        logger.info(`[WS-BROADCAST] Client disconnected (total: ${wss?.clients.size})`);
+      });
+      
+      ws.on('error', (error) => {
+        logger.error('[WS-BROADCAST] Client error:', error);
+      });
+    });
+    
+    logger.info('[REALTIME] WebSocket broadcast server started on /ws/prices');
+  }
+  
   initializeCoinbaseWebSocket();
   initializeDatabentoWebSocket();
 }
