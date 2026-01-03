@@ -48,6 +48,47 @@ interface PerformanceStats {
   openPositions: number;
 }
 
+interface Position {
+  id: number;
+  symbol: string;
+  status: 'open' | 'closed';
+  realizedPnL?: number;
+  unrealizedPnL?: number;
+  entryPrice: number;
+  quantity: number;
+  direction: 'long' | 'short';
+  createdAt: string;
+}
+
+interface Portfolio {
+  id: number;
+  name: string;
+  balance: number;
+}
+
+interface PortfolioData {
+  positions: Position[];
+  portfolios: Portfolio[];
+}
+
+interface TierLimits {
+  aiQueries: number;
+  paperPositions: number;
+  scannerSymbols: number;
+}
+
+interface TierUsage {
+  aiQueries: number;
+  paperPositions: number;
+  scannerSymbols: number;
+}
+
+interface TierData {
+  tier: 'free' | 'pro' | 'premium';
+  limits: TierLimits;
+  usage: TierUsage;
+}
+
 export default function MyAccountPage() {
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -59,11 +100,11 @@ export default function MyAccountPage() {
     queryKey: ['/api/preferences'],
   });
 
-  const { data: portfolioData } = useQuery<{ positions: any[]; portfolios: any[] }>({
+  const { data: portfolioData } = useQuery<PortfolioData>({
     queryKey: ['/api/bot/positions'],
   });
 
-  const { data: tierData } = useQuery<{ tier: string; limits: any; usage: any }>({
+  const { data: tierData } = useQuery<TierData>({
     queryKey: ['/api/user/tier'],
   });
 
@@ -114,12 +155,12 @@ export default function MyAccountPage() {
     : 'Recently';
 
   const positions = portfolioData?.positions || [];
-  const openPositions = positions.filter((p: any) => p.status === 'open');
-  const closedPositions = positions.filter((p: any) => p.status === 'closed');
-  const wins = closedPositions.filter((p: any) => (p.realizedPnL || 0) > 0).length;
-  const losses = closedPositions.filter((p: any) => (p.realizedPnL || 0) <= 0).length;
+  const openPositions = positions.filter((p) => p.status === 'open');
+  const closedPositions = positions.filter((p) => p.status === 'closed');
+  const wins = closedPositions.filter((p) => (p.realizedPnL || 0) > 0).length;
+  const losses = closedPositions.filter((p) => (p.realizedPnL || 0) <= 0).length;
   const winRate = closedPositions.length > 0 ? (wins / closedPositions.length) * 100 : 0;
-  const totalPnL = positions.reduce((sum: number, p: any) => sum + (p.realizedPnL || p.unrealizedPnL || 0), 0);
+  const totalPnL = positions.reduce((sum, p) => sum + (p.realizedPnL || p.unrealizedPnL || 0), 0);
 
   const getTierBadge = (tier: string) => {
     switch (tier?.toLowerCase()) {
@@ -177,7 +218,7 @@ export default function MyAccountPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Open Positions</p>
-                <p className="text-2xl font-semibold mt-1" data-testid="text-open-positions">{openPositions.length}</p>
+                <p className="text-2xl font-semibold font-mono tabular-nums mt-1" data-testid="text-open-positions">{openPositions.length}</p>
               </div>
               <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
                 <Activity className="h-5 w-5 text-cyan-400" />
@@ -191,7 +232,7 @@ export default function MyAccountPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Win Rate</p>
-                <p className="text-2xl font-semibold mt-1" data-testid="text-win-rate">
+                <p className="text-2xl font-semibold font-mono tabular-nums mt-1" data-testid="text-win-rate">
                   {closedPositions.length > 0 ? `${winRate.toFixed(1)}%` : 'N/A'}
                 </p>
               </div>
@@ -207,8 +248,8 @@ export default function MyAccountPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Total P&L</p>
-                <p className={`text-2xl font-semibold mt-1 ${totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-total-pnl">
-                  {totalPnL >= 0 ? '+' : ''}{totalPnL.toFixed(2)}
+                <p className={`text-2xl font-semibold font-mono tabular-nums mt-1 ${totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-total-pnl">
+                  {totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}
                 </p>
               </div>
               <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
@@ -223,7 +264,7 @@ export default function MyAccountPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider">Record</p>
-                <p className="text-2xl font-semibold mt-1" data-testid="text-record">
+                <p className="text-2xl font-semibold font-mono tabular-nums mt-1" data-testid="text-record">
                   {wins}W / {losses}L
                 </p>
               </div>
@@ -324,11 +365,11 @@ export default function MyAccountPage() {
               <CardContent className="space-y-3">
                 <div className="flex items-center justify-between p-2 rounded-lg bg-muted/10">
                   <span className="text-sm text-muted-foreground">Account Size</span>
-                  <span className="font-medium">${(preferences as any)?.accountSize?.toLocaleString() || '10,000'}</span>
+                  <span className="font-medium font-mono tabular-nums">${(preferences as any)?.accountSize?.toLocaleString() || '10,000'}</span>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded-lg bg-muted/10">
                   <span className="text-sm text-muted-foreground">Max Risk Per Trade</span>
-                  <span className="font-medium">{(preferences as any)?.maxRiskPerTrade || 1}%</span>
+                  <span className="font-medium font-mono tabular-nums">{(preferences as any)?.maxRiskPerTrade || 1}%</span>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded-lg bg-muted/10">
                   <span className="text-sm text-muted-foreground">Holding Horizon</span>
@@ -385,11 +426,11 @@ export default function MyAccountPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`font-medium ${(position.unrealizedPnL || position.realizedPnL || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        <p className={`font-medium font-mono tabular-nums ${(position.unrealizedPnL || position.realizedPnL || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                           {(position.unrealizedPnL || position.realizedPnL || 0) >= 0 ? '+' : ''}
                           ${(position.unrealizedPnL || position.realizedPnL || 0).toFixed(2)}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground font-mono tabular-nums">
                           {position.quantity}x @ ${Number(position.entryPrice).toFixed(2)}
                         </p>
                       </div>
@@ -415,14 +456,14 @@ export default function MyAccountPage() {
                     <Wallet className="h-4 w-4" />
                     Account Size
                   </div>
-                  <p className="text-xl font-semibold">${(preferences as any)?.accountSize?.toLocaleString() || '10,000'}</p>
+                  <p className="text-xl font-semibold font-mono tabular-nums">${(preferences as any)?.accountSize?.toLocaleString() || '10,000'}</p>
                 </div>
                 <div className="p-4 rounded-lg bg-muted/10 space-y-2">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Shield className="h-4 w-4" />
                     Risk Per Trade
                   </div>
-                  <p className="text-xl font-semibold">{(preferences as any)?.maxRiskPerTrade || 1}%</p>
+                  <p className="text-xl font-semibold font-mono tabular-nums">{(preferences as any)?.maxRiskPerTrade || 1}%</p>
                 </div>
               </div>
               <Separator />
@@ -461,7 +502,7 @@ export default function MyAccountPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Trade Ideas</span>
-                      <span>{tierData.usage?.tradeIdeas || 0} / {tierData.limits?.tradeIdeas === -1 ? '∞' : tierData.limits?.tradeIdeas}</span>
+                      <span className="font-mono tabular-nums">{tierData.usage?.tradeIdeas || 0} / {tierData.limits?.tradeIdeas === -1 ? '∞' : tierData.limits?.tradeIdeas}</span>
                     </div>
                     {tierData.limits?.tradeIdeas !== -1 && (
                       <Progress 
@@ -473,7 +514,7 @@ export default function MyAccountPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Chart Analysis</span>
-                      <span>{tierData.usage?.chartAnalysis || 0} / {tierData.limits?.chartAnalysis === -1 ? '∞' : tierData.limits?.chartAnalysis}</span>
+                      <span className="font-mono tabular-nums">{tierData.usage?.chartAnalysis || 0} / {tierData.limits?.chartAnalysis === -1 ? '∞' : tierData.limits?.chartAnalysis}</span>
                     </div>
                     {tierData.limits?.chartAnalysis !== -1 && (
                       <Progress 
