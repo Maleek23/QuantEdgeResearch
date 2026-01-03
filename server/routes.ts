@@ -6491,6 +6491,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Smart Watchlist - Curated 10-20 picks with trade idea analysis
+  app.get("/api/market-scanner/watchlist", async (req, res) => {
+    try {
+      const { generateSmartWatchlist } = await import('./market-scanner');
+      const timeframe = (req.query.timeframe as string) || 'day';
+      const limit = parseInt(req.query.limit as string) || 15;
+      
+      const validTimeframes = ['day', 'week', 'month', 'ytd', 'year'];
+      if (!validTimeframes.includes(timeframe)) {
+        return res.status(400).json({ error: `Invalid timeframe. Must be one of: ${validTimeframes.join(', ')}` });
+      }
+      
+      const watchlist = await generateSmartWatchlist(timeframe as any, Math.min(limit, 20));
+      
+      res.json({
+        timeframe,
+        count: watchlist.length,
+        generated: new Date().toISOString(),
+        picks: watchlist,
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/market-scanner/watchlist' });
+      res.status(500).json({ error: "Failed to generate smart watchlist" });
+    }
+  });
+
   // Options Data Routes
   app.get("/api/options/:symbol", async (req, res) => {
     try {

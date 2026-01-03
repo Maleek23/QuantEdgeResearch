@@ -366,5 +366,330 @@ export async function getSectorPerformance(): Promise<Record<string, { avg: numb
 
 export function clearScannerCache(): void {
   scannerCache.clear();
+  moversCache.clear();
   logger.info('[SCANNER] Cache cleared');
+}
+
+// Smart Watchlist Pick with trade idea analysis
+export interface SmartWatchlistPick {
+  symbol: string;
+  name: string;
+  currentPrice: number;
+  changePercent: number;
+  timeframe: 'day' | 'week' | 'month' | 'ytd' | 'year';
+  direction: 'long' | 'short';
+  volume: number;
+  avgVolume?: number;
+  volumeRatio: number;
+  marketCap?: number;
+  week52High?: number;
+  week52Low?: number;
+  distanceFrom52High?: number;
+  distanceFrom52Low?: number;
+  tradeIdea: {
+    thesis: string;
+    entryReason: string;
+    riskLevel: 'low' | 'medium' | 'high' | 'speculative';
+    suggestedAction: string;
+    technicalSignals: string[];
+  };
+  score: number;
+}
+
+const watchlistCache = new Map<string, { data: SmartWatchlistPick[]; timestamp: number }>();
+const WATCHLIST_CACHE_TTL = 10 * 60 * 1000; // 10 minutes for watchlists
+
+// Get the change percent for the specific timeframe
+function getTimeframeChange(stock: StockPerformance, timeframe: string): number {
+  switch (timeframe) {
+    case 'week': return stock.weekChangePercent ?? stock.dayChangePercent;
+    case 'month': return stock.monthChangePercent ?? stock.dayChangePercent;
+    case 'ytd': return stock.ytdChangePercent ?? stock.dayChangePercent;
+    case 'year': return stock.yearChangePercent ?? stock.dayChangePercent;
+    default: return stock.dayChangePercent;
+  }
+}
+
+// Generate trade idea analysis for a stock based on its performance data
+function generateTradeIdea(stock: StockPerformance, timeframe: string, isGainer: boolean): SmartWatchlistPick['tradeIdea'] {
+  const technicalSignals: string[] = [];
+  const volumeRatio = stock.avgVolume ? stock.volume / stock.avgVolume : 1;
+  const distanceFrom52High = stock.week52High && stock.currentPrice 
+    ? ((stock.week52High - stock.currentPrice) / stock.week52High) * 100 : undefined;
+  const distanceFrom52Low = stock.week52Low && stock.currentPrice 
+    ? ((stock.currentPrice - stock.week52Low) / stock.week52Low) * 100 : undefined;
+  
+  // Get the correct change for this timeframe
+  const timeframeChange = getTimeframeChange(stock, timeframe);
+  const changeAbs = Math.abs(timeframeChange);
+  
+  // Build technical signals based on the timeframe
+  if (volumeRatio > 2) technicalSignals.push('Unusual Volume (2x+ avg)');
+  else if (volumeRatio > 1.5) technicalSignals.push('Above Avg Volume');
+  
+  if (distanceFrom52High !== undefined && distanceFrom52High < 5) {
+    technicalSignals.push('Near 52-Week High');
+  } else if (distanceFrom52High !== undefined && distanceFrom52High < 15) {
+    technicalSignals.push('Within 15% of 52-Week High');
+  }
+  
+  if (distanceFrom52Low !== undefined && distanceFrom52Low < 20) {
+    technicalSignals.push('Potential Bounce Zone');
+  }
+  
+  // Add timeframe-appropriate momentum signals
+  if (timeframe === 'day') {
+    if (changeAbs > 10) technicalSignals.push('Strong Intraday Move');
+    else if (changeAbs > 5) technicalSignals.push('Notable Daily Move');
+  } else if (timeframe === 'week') {
+    if (changeAbs > 15) technicalSignals.push('Strong Weekly Momentum');
+    else if (changeAbs > 8) technicalSignals.push('Solid Weekly Gains');
+  } else if (timeframe === 'month') {
+    if (changeAbs > 25) technicalSignals.push('Exceptional Monthly Run');
+    else if (changeAbs > 15) technicalSignals.push('Strong Monthly Trend');
+  } else if (timeframe === 'ytd' || timeframe === 'year') {
+    if (changeAbs > 100) technicalSignals.push('Multi-Bagger');
+    else if (changeAbs > 50) technicalSignals.push('Strong Annual Performer');
+    else if (changeAbs > 25) technicalSignals.push('Outperforming Market');
+  }
+  
+  if (stock.peRatio && stock.peRatio < 15) technicalSignals.push('Value Play (Low P/E)');
+  if (stock.marketCap && stock.marketCap < 2e9) technicalSignals.push('Small Cap (Higher Vol)');
+  if (stock.marketCap && stock.marketCap >= 100e9) technicalSignals.push('Large Cap (Stable)');
+  
+  // Determine risk level based on timeframe-appropriate thresholds
+  let riskLevel: 'low' | 'medium' | 'high' | 'speculative' = 'medium';
+  if (stock.currentPrice < 5) riskLevel = 'speculative';
+  else if (stock.marketCap && stock.marketCap < 1e9) riskLevel = 'high';
+  else if (stock.marketCap && stock.marketCap >= 50e9) riskLevel = 'low';
+  else if (timeframe === 'day' && changeAbs > 15) riskLevel = 'high';
+  else if (timeframe === 'week' && changeAbs > 25) riskLevel = 'high';
+  else if ((timeframe === 'month' || timeframe === 'ytd' || timeframe === 'year') && changeAbs > 50) riskLevel = 'high';
+  
+  // Build thesis based on timeframe and direction
+  let thesis = '';
+  let entryReason = '';
+  let suggestedAction = '';
+  
+  if (isGainer) {
+    switch (timeframe) {
+      case 'day':
+        thesis = `${stock.symbol} showing strong intraday momentum with ${stock.dayChangePercent.toFixed(1)}% gain.`;
+        entryReason = volumeRatio > 1.5 
+          ? 'High volume confirms buyer interest - momentum likely to continue.' 
+          : 'Price action strong but watch for volume confirmation.';
+        suggestedAction = 'Consider day trade or swing entry on pullback to VWAP.';
+        break;
+      case 'week':
+        thesis = `${stock.symbol} outperforming over the week with ${(stock.weekChangePercent || 0).toFixed(1)}% gain.`;
+        entryReason = 'Weekly momentum suggests institutional accumulation phase.';
+        suggestedAction = 'Look for entry near weekly support or on consolidation break.';
+        break;
+      case 'month':
+        thesis = `${stock.symbol} showing monthly strength with ${(stock.monthChangePercent || 0).toFixed(1)}% gain.`;
+        entryReason = 'Sustained monthly gains indicate trend development.';
+        suggestedAction = 'Swing trade opportunity - consider position sizing for multi-week hold.';
+        break;
+      case 'ytd':
+        thesis = `${stock.symbol} is a YTD leader with ${(stock.ytdChangePercent || 0).toFixed(1)}% return.`;
+        entryReason = 'Strong YTD performance suggests leadership position in sector.';
+        suggestedAction = 'Position trade candidate - buy dips in established uptrend.';
+        break;
+      case 'year':
+        thesis = `${stock.symbol} up ${(stock.yearChangePercent || 0).toFixed(1)}% over 52 weeks - strong long-term trend.`;
+        entryReason = 'Year-long momentum indicates fundamental strength.';
+        suggestedAction = 'Long-term accumulation opportunity on significant pullbacks.';
+        break;
+    }
+  } else {
+    // For losers - potential bounce plays or shorts
+    switch (timeframe) {
+      case 'day':
+        thesis = `${stock.symbol} down ${Math.abs(stock.dayChangePercent).toFixed(1)}% - potential oversold bounce.`;
+        entryReason = volumeRatio > 2 
+          ? 'Heavy selling may indicate capitulation - watch for reversal.' 
+          : 'Selling pressure present but not extreme yet.';
+        suggestedAction = 'Wait for price to stabilize and show reversal candle before entry.';
+        break;
+      case 'week':
+        thesis = `${stock.symbol} weak weekly performance - down ${Math.abs(stock.weekChangePercent || 0).toFixed(1)}%.`;
+        entryReason = 'Weekly weakness may present mean reversion opportunity.';
+        suggestedAction = 'Watch for weekly support levels and RSI oversold conditions.';
+        break;
+      default:
+        thesis = `${stock.symbol} showing extended weakness - potential value opportunity.`;
+        entryReason = 'Extended selling may be creating entry point for contrarian trade.';
+        suggestedAction = 'Research fundamentals before catching falling knife.';
+    }
+  }
+  
+  return {
+    thesis,
+    entryReason,
+    riskLevel,
+    suggestedAction,
+    technicalSignals: technicalSignals.slice(0, 4),
+  };
+}
+
+// Score stocks for watchlist ranking (higher = better pick)
+function scoreStock(stock: StockPerformance, timeframe: string, isGainer: boolean): number {
+  let score = 50; // Base score
+  
+  const volumeRatio = stock.avgVolume ? stock.volume / stock.avgVolume : 1;
+  const changePercent = Math.abs(getTimeframeChange(stock, timeframe));
+  
+  // Volume boost (max +20)
+  if (volumeRatio > 3) score += 20;
+  else if (volumeRatio > 2) score += 15;
+  else if (volumeRatio > 1.5) score += 10;
+  else if (volumeRatio > 1) score += 5;
+  
+  // Change percent boost with timeframe-appropriate thresholds (max +20)
+  if (timeframe === 'day') {
+    if (changePercent > 15) score += 20;
+    else if (changePercent > 8) score += 15;
+    else if (changePercent > 4) score += 10;
+    else if (changePercent > 2) score += 5;
+  } else if (timeframe === 'week') {
+    if (changePercent > 20) score += 20;
+    else if (changePercent > 12) score += 15;
+    else if (changePercent > 6) score += 10;
+    else if (changePercent > 3) score += 5;
+  } else if (timeframe === 'month') {
+    if (changePercent > 35) score += 20;
+    else if (changePercent > 20) score += 15;
+    else if (changePercent > 10) score += 10;
+    else if (changePercent > 5) score += 5;
+  } else { // ytd, year
+    if (changePercent > 80) score += 20;
+    else if (changePercent > 50) score += 15;
+    else if (changePercent > 25) score += 10;
+    else if (changePercent > 10) score += 5;
+  }
+  
+  // Market cap stability (prefer tradeable, liquid stocks)
+  if (stock.marketCap) {
+    if (stock.marketCap >= 10e9) score += 10; // Large cap bonus
+    else if (stock.marketCap >= 1e9) score += 5; // Mid cap
+    else if (stock.marketCap < 500e6) score -= 5; // Micro cap penalty
+  }
+  
+  // Near 52-week high bonus for gainers
+  if (isGainer && stock.week52High && stock.currentPrice) {
+    const distanceFromHigh = ((stock.week52High - stock.currentPrice) / stock.week52High) * 100;
+    if (distanceFromHigh < 5) score += 15; // Breaking out
+    else if (distanceFromHigh < 10) score += 10;
+  }
+  
+  // Avoid penny stocks for main watchlist (unless specifically in penny category)
+  if (stock.currentPrice < 1) score -= 20;
+  else if (stock.currentPrice < 5) score -= 10;
+  
+  return Math.max(0, Math.min(100, score));
+}
+
+// Generate curated smart watchlist for a given timeframe
+export async function generateSmartWatchlist(
+  timeframe: 'day' | 'week' | 'month' | 'ytd' | 'year' = 'day',
+  limit: number = 15
+): Promise<SmartWatchlistPick[]> {
+  const cacheKey = `smart_${timeframe}_${limit}`;
+  
+  const cached = watchlistCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < WATCHLIST_CACHE_TTL) {
+    logger.debug(`[SCANNER] Using cached smart watchlist for ${timeframe}`);
+    return cached.data;
+  }
+  
+  logger.info(`[SCANNER] Generating smart watchlist for ${timeframe}...`);
+  
+  // Get top movers from all categories for broader coverage
+  const { gainers, losers } = await getTopMovers(timeframe, 'all', 50);
+  
+  // Combine and score all candidates
+  const candidates: SmartWatchlistPick[] = [];
+  
+  // Process gainers (long opportunities)
+  for (const stock of gainers) {
+    const score = scoreStock(stock, timeframe, true);
+    const volumeRatio = stock.avgVolume ? stock.volume / stock.avgVolume : 1;
+    const tradeIdea = generateTradeIdea(stock, timeframe, true);
+    
+    const changePercent = (() => {
+      switch (timeframe) {
+        case 'week': return stock.weekChangePercent || 0;
+        case 'month': return stock.monthChangePercent || 0;
+        case 'ytd': return stock.ytdChangePercent || 0;
+        case 'year': return stock.yearChangePercent || 0;
+        default: return stock.dayChangePercent;
+      }
+    })();
+    
+    candidates.push({
+      symbol: stock.symbol,
+      name: stock.name,
+      currentPrice: stock.currentPrice,
+      changePercent,
+      timeframe,
+      direction: 'long',
+      volume: stock.volume,
+      avgVolume: stock.avgVolume,
+      volumeRatio,
+      marketCap: stock.marketCap,
+      week52High: stock.week52High,
+      week52Low: stock.week52Low,
+      distanceFrom52High: stock.week52High ? ((stock.week52High - stock.currentPrice) / stock.week52High) * 100 : undefined,
+      distanceFrom52Low: stock.week52Low ? ((stock.currentPrice - stock.week52Low) / stock.week52Low) * 100 : undefined,
+      tradeIdea,
+      score,
+    });
+  }
+  
+  // Process top losers (potential bounce/short opportunities) - limit to top 5
+  for (const stock of losers.slice(0, 5)) {
+    const score = scoreStock(stock, timeframe, false);
+    const volumeRatio = stock.avgVolume ? stock.volume / stock.avgVolume : 1;
+    const tradeIdea = generateTradeIdea(stock, timeframe, false);
+    
+    const changePercent = (() => {
+      switch (timeframe) {
+        case 'week': return stock.weekChangePercent || 0;
+        case 'month': return stock.monthChangePercent || 0;
+        case 'ytd': return stock.ytdChangePercent || 0;
+        case 'year': return stock.yearChangePercent || 0;
+        default: return stock.dayChangePercent;
+      }
+    })();
+    
+    // Add bounce play candidates with lower scores
+    candidates.push({
+      symbol: stock.symbol,
+      name: stock.name,
+      currentPrice: stock.currentPrice,
+      changePercent,
+      timeframe,
+      direction: 'long', // Bounce play
+      volume: stock.volume,
+      avgVolume: stock.avgVolume,
+      volumeRatio,
+      marketCap: stock.marketCap,
+      week52High: stock.week52High,
+      week52Low: stock.week52Low,
+      distanceFrom52High: stock.week52High ? ((stock.week52High - stock.currentPrice) / stock.week52High) * 100 : undefined,
+      distanceFrom52Low: stock.week52Low ? ((stock.currentPrice - stock.week52Low) / stock.week52Low) * 100 : undefined,
+      tradeIdea,
+      score: score - 10, // Slightly lower score for contrarian plays
+    });
+  }
+  
+  // Sort by score and take top picks
+  const sortedPicks = candidates
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+  
+  watchlistCache.set(cacheKey, { data: sortedPicks, timestamp: Date.now() });
+  logger.info(`[SCANNER] Generated ${sortedPicks.length} smart watchlist picks for ${timeframe}`);
+  
+  return sortedPicks;
 }
