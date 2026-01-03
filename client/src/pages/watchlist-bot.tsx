@@ -317,6 +317,25 @@ export default function WatchlistBotPage() {
     },
   });
 
+  const sendBreakoutsToDiscordMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest('POST', '/api/annual-watchlist/send-discord');
+    },
+    onSuccess: (data: any) => {
+      toast({ 
+        title: "Breakouts Sent to Discord", 
+        description: data.message || `Sent ${data.count} breakout candidates`
+      });
+    },
+    onError: () => {
+      toast({ 
+        title: "Failed to send", 
+        description: "Could not send breakouts to Discord",
+        variant: "destructive"
+      });
+    },
+  });
+
   // Preferences query and state
   const { data: preferences, isLoading: preferencesLoading } = useQuery<AutoLottoPreferences>({
     queryKey: ['/api/auto-lotto-bot/preferences'],
@@ -2487,6 +2506,18 @@ export default function WatchlistBotPage() {
                         <Sparkles className="h-4 w-4 mr-2" />
                       )}
                       Load Breakout Candidates
+                    </Button>
+                  )}
+                  {annualBreakouts.length > 0 && (
+                    <Button 
+                      variant="outline"
+                      className="border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
+                      onClick={() => sendBreakoutsToDiscordMutation.mutate()}
+                      disabled={sendBreakoutsToDiscordMutation.isPending}
+                      data-testid="button-send-breakouts-discord"
+                    >
+                      <SiDiscord className="h-4 w-4 mr-2" />
+                      {sendBreakoutsToDiscordMutation.isPending ? "Sending..." : "Send to Discord"}
                     </Button>
                   )}
                   <Button variant="outline" onClick={() => refetchAnnual()} data-testid="button-refresh-annual">

@@ -1231,7 +1231,7 @@ export async function sendWatchlistToQuantBot(items: Array<{
     };
     
     const message: DiscordMessage = {
-      content: `🤖 **QUANTBOT WATCHLIST** → ${items.length} items on radar │ ${CHANNEL_HEADERS.LOTTO}`,
+      content: `🤖 **QUANTBOT WATCHLIST** → ${items.length} items on radar`,
       embeds: [embed]
     };
     
@@ -1250,6 +1250,108 @@ export async function sendWatchlistToQuantBot(items: Array<{
     }
   } catch (error) {
     logger.error('❌ Failed to send QuantBot watchlist:', error);
+    return { success: false, message: 'Failed to send to Discord' };
+  }
+}
+
+// Send annual breakout candidates to Discord (all 20 stocks)
+export async function sendAnnualBreakoutsToDiscord(items: Array<{
+  symbol: string;
+  sector?: string | null;
+  startOfYearPrice?: number | null;
+  yearlyTargetPrice?: number | null;
+  conviction?: string | null;
+  thesis?: string | null;
+}>): Promise<{ success: boolean; message: string }> {
+  if (DISCORD_DISABLED) return { success: false, message: 'Discord disabled' };
+  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_WEEKLYWATCHLISTS || process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
+  
+  if (!webhookUrl) {
+    logger.info('⚠️ Discord webhook not configured - skipping annual breakouts');
+    return { success: false, message: 'Discord webhook not configured' };
+  }
+  
+  if (items.length === 0) {
+    return { success: false, message: 'No breakout candidates to send' };
+  }
+  
+  try {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    
+    // Format all breakout candidates (up to 20)
+    const itemList = items.slice(0, 20).map((item, i) => {
+      const entry = item.startOfYearPrice ? `$${item.startOfYearPrice.toFixed(0)}` : '-';
+      const target = item.yearlyTargetPrice ? `$${item.yearlyTargetPrice.toFixed(0)}` : '-';
+      const upside = item.yearlyTargetPrice && item.startOfYearPrice 
+        ? `+${Math.round(((item.yearlyTargetPrice - item.startOfYearPrice) / item.startOfYearPrice) * 100)}%`
+        : '';
+      const conviction = item.conviction === 'high' ? '🔥' : item.conviction === 'speculative' ? '⚡' : '📊';
+      return `${i + 1}. ${conviction} **${item.symbol}** → ${entry} → ${target} ${upside}`;
+    }).join('\n');
+    
+    // Count by conviction
+    const highConviction = items.filter(i => i.conviction === 'high').length;
+    const speculative = items.filter(i => i.conviction === 'speculative').length;
+    const sectors = new Set(items.map(i => i.sector).filter(Boolean)).size;
+    const avgUpside = Math.round(items.reduce((sum, item) => {
+      if (!item.yearlyTargetPrice || !item.startOfYearPrice) return sum;
+      return sum + ((item.yearlyTargetPrice - item.startOfYearPrice) / item.startOfYearPrice) * 100;
+    }, 0) / items.length);
+    
+    const embed: DiscordEmbed = {
+      title: `🚀 2026 Breakout Candidates - ${dateStr}`,
+      description: `**${items.length} Stocks with $70+ Target Potential**\n\n${itemList}`,
+      color: 0x10b981, // Emerald
+      fields: [
+        {
+          name: '🔥 High Conviction',
+          value: `${highConviction}`,
+          inline: true
+        },
+        {
+          name: '⚡ Speculative',
+          value: `${speculative}`,
+          inline: true
+        },
+        {
+          name: '📈 Avg Upside',
+          value: `+${avgUpside}%`,
+          inline: true
+        },
+        {
+          name: '🏷️ Sectors',
+          value: `${sectors} sectors`,
+          inline: true
+        }
+      ],
+      footer: {
+        text: '⚠️ Research only - not financial advice | QuantEdge'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    const message: DiscordMessage = {
+      content: `🚀 **2026 BREAKOUT WATCHLIST** → ${items.length} curated candidates`,
+      embeds: [embed]
+    };
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    });
+    
+    if (response.ok) {
+      logger.info(`✅ Discord annual breakouts sent: ${items.length} candidates`);
+      return { success: true, message: `Sent ${items.length} breakout candidates to Discord` };
+    } else {
+      logger.warn(`⚠️ Discord annual breakouts webhook failed: ${response.status}`);
+      return { success: false, message: `Discord error: ${response.status}` };
+    }
+  } catch (error) {
+    logger.error('❌ Failed to send annual breakouts:', error);
     return { success: false, message: 'Failed to send to Discord' };
   }
 }

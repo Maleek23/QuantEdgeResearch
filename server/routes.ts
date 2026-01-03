@@ -6384,25 +6384,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No items in annual watchlist. Use /api/annual-watchlist/seed first." });
       }
       
-      const { sendWeeklyWatchlistToDiscord } = await import('./discord-service');
+      const { sendAnnualBreakoutsToDiscord } = await import('./discord-service');
       
-      // Transform items to match the expected format
+      // Transform items to match the expected format for breakouts
       const formattedItems = items.map(item => ({
         symbol: item.symbol,
-        assetType: item.assetType as 'stock' | 'option' | 'crypto',
-        entryAlertPrice: item.entryAlertPrice ?? undefined,
-        targetAlertPrice: item.yearlyTargetPrice ?? item.targetAlertPrice ?? undefined,
-        stopAlertPrice: item.stopAlertPrice ?? undefined,
+        sector: item.sector,
+        startOfYearPrice: item.startOfYearPrice,
+        yearlyTargetPrice: item.yearlyTargetPrice,
+        conviction: item.conviction,
+        thesis: item.thesis,
       }));
       
-      await sendWeeklyWatchlistToDiscord(formattedItems);
+      const result = await sendAnnualBreakoutsToDiscord(formattedItems);
       
-      console.log(`📨 Sent ${items.length} annual breakout candidates to Discord`);
-      res.json({ 
-        success: true, 
-        message: `Sent ${items.length} annual breakout candidates to Discord`, 
-        count: items.length 
-      });
+      if (result.success) {
+        console.log(`📨 Sent ${items.length} annual breakout candidates to Discord`);
+        res.json({ 
+          success: true, 
+          message: result.message, 
+          count: items.length 
+        });
+      } else {
+        res.status(500).json({ error: result.message });
+      }
     } catch (error) {
       logError(error as Error, { context: 'POST /api/annual-watchlist/send-discord' });
       res.status(500).json({ error: "Failed to send annual watchlist to Discord" });
