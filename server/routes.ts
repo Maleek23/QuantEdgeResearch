@@ -10073,7 +10073,7 @@ FORMATTING:
           futuresAllocation: 30,
           cryptoAllocation: 30,
           enableOptions: true,
-          enableFutures: true,
+          enableFutures: false, // Disabled - expensive for small accounts
           enableCrypto: true,
           enablePropFirm: false,
           optionsPreferredDte: 7,

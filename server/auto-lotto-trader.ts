@@ -51,7 +51,7 @@ const DEFAULT_PREFERENCES: BotPreferences = {
   maxConcurrentTrades: 5,
   dailyLossLimit: 200,
   enableOptions: true,
-  enableFutures: true,
+  enableFutures: false, // Disabled by default - NQ=$20/point is too expensive for small accounts
   enableCrypto: true,
   enablePropFirm: false,
   optionsAllocation: 40,
@@ -800,7 +800,7 @@ export async function runCryptoBotScan(): Promise<void> {
     // Save and execute
     const savedIdea = await storage.createTradeIdea(ideaData);
     
-    // Create paper position
+    // Create paper position with entry reasoning
     const position = await storage.createPaperPosition({
       portfolioId: portfolio.id,
       symbol: bestOpp.symbol,
@@ -814,6 +814,8 @@ export async function runCryptoBotScan(): Promise<void> {
       status: 'open',
       tradeIdeaId: savedIdea.id,
       entryTime: new Date().toISOString(),
+      entryReason: `🪙 CRYPTO: ${bestOpp.name} ${bestOpp.direction.toUpperCase()} - ${bestOpp.change24h > 0 ? '+' : ''}${bestOpp.change24h.toFixed(1)}% 24h momentum`,
+      entrySignals: JSON.stringify(bestOpp.signals),
     });
     
     // Update portfolio balance
@@ -1873,6 +1875,8 @@ export async function runFuturesBotScan(): Promise<void> {
             stopLoss: stopLoss,
             targetPrice: targetPrice,
             entryTime: new Date().toISOString(),
+            entryReason: `🔮 FUTURES: ${bestFuturesOpp.contractCode} ${bestFuturesOpp.direction.toUpperCase()} @ $${entryPrice.toFixed(2)} - ${bestFuturesOpp.signals.slice(0, 3).join(', ')}`,
+            entrySignals: JSON.stringify(bestFuturesOpp.signals),
           });
           
           // CREATE TRADE IDEA FOR TRADE DESK

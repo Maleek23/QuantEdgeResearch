@@ -677,6 +677,8 @@ export const paperPositions = pgTable("paper_positions", {
   entryPrice: real("entry_price").notNull(),
   quantity: doublePrecision("quantity").notNull(), // Decimal for crypto fractional units
   entryTime: text("entry_time").notNull(),
+  entryReason: text("entry_reason"), // Why the bot entered this trade
+  entrySignals: text("entry_signals"), // JSON array of signals that triggered entry
   
   // Targets
   targetPrice: real("target_price"),

@@ -89,6 +89,11 @@ export async function executeTradeIdea(
     }
 
     const now = new Date().toISOString();
+    
+    // Build entry reason from trade idea context
+    const entryReason = tradeIdea.catalyst || tradeIdea.analysis || `${tradeIdea.source || 'QUANT'} signal for ${tradeIdea.symbol}`;
+    const entrySignals = tradeIdea.qualitySignals ? JSON.stringify(tradeIdea.qualitySignals) : null;
+    
     const positionData: InsertPaperPosition = {
       portfolioId,
       tradeIdeaId: tradeIdea.id,
@@ -101,6 +106,8 @@ export async function executeTradeIdea(
       entryPrice: currentPrice,
       quantity,
       entryTime: now,
+      entryReason,
+      entrySignals,
       targetPrice: tradeIdea.targetPrice,
       stopLoss: tradeIdea.stopLoss,
       currentPrice,
