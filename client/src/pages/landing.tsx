@@ -160,7 +160,7 @@ export default function Landing() {
               </h1>
               
               <p className="text-lg text-muted-foreground max-w-xl mb-8" data-testid="text-hero-subheadline">
-                Three-engine research platform. AI, Quant, and Flow signals converge for higher-conviction setups.
+                Five-engine research platform. AI, Quant, Flow, Chart, and Futures signals converge for higher-conviction setups.
                 Every signal verified. Every outcome tracked.
               </p>
               
@@ -219,7 +219,7 @@ export default function Landing() {
             </div>
             <div className="stat-glass rounded-lg p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Engines</p>
-              <p className="text-2xl font-bold font-mono tabular-nums text-foreground">3</p>
+              <p className="text-2xl font-bold font-mono tabular-nums text-foreground">5</p>
             </div>
             <div className="stat-glass rounded-lg p-4">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Markets</p>
@@ -229,14 +229,14 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* Engine Matrix - Three Engines */}
+      {/* Engine Matrix - Core Signal Convergence */}
       <section className="py-10 lg:py-16" id="engine-matrix" data-testid="engine-matrix">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Signal Generation
+              Core Signal Convergence
             </p>
-            <h2 className="text-xl font-semibold">Three Engines, One Edge</h2>
+            <h2 className="text-xl font-semibold">When Engines Agree</h2>
           </div>
           
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
@@ -685,13 +685,14 @@ export default function Landing() {
                 </AccordionContent>
               </AccordionItem>
 
-              <AccordionItem value="three-engine" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-engine">
+              <AccordionItem value="five-engine" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-engine">
                 <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-engine">
-                  How does the three-engine system work?
+                  How does the five-engine system work?
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-engine">
                   AI Engine uses multi-provider LLMs for fundamental analysis. Quant Engine runs RSI, VWAP, and volume strategies. 
-                  Flow Scanner detects institutional activity. When engines agree, you get higher-conviction setups.
+                  Flow Scanner detects institutional activity. Chart Analysis provides technical pattern recognition. 
+                  Futures Engine specializes in NQ and GC contracts. When multiple engines agree, you get higher-conviction setups.
                 </AccordionContent>
               </AccordionItem>
 

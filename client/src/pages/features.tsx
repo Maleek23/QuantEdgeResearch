@@ -129,21 +129,21 @@ export default function Features() {
         </div>
       </section>
 
-      {/* Three Engines Section */}
+      {/* Five Engines Section */}
       <section className="py-12 lg:py-16" id="engines" data-testid="section-engines">
         <div className="container mx-auto px-6">
           <div className="text-center mb-10">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
               Core Research Engines
             </p>
-            <h2 className="text-xl font-semibold">Three Engines, One Edge</h2>
+            <h2 className="text-xl font-semibold">Five Engines, One Edge</h2>
             <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
               Each engine specializes in a different aspect of market analysis. 
               When signals align, conviction increases.
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-6 max-w-6xl mx-auto">
             {/* AI Engine */}
             <div className="glass-card rounded-lg p-6 border-l-2 border-purple-500/50 hover-elevate" data-testid="card-ai-engine">
               <div className="flex items-center gap-3 mb-4">
@@ -230,6 +230,66 @@ export default function Features() {
                 </li>
                 <li className="flex items-center gap-2">
                   <Check className="h-4 w-4 text-cyan-400" /> Smart money tracking
+                </li>
+              </ul>
+            </div>
+            
+            {/* Chart Analysis Engine */}
+            <div className="glass-card rounded-lg p-6 border-l-2 border-amber-500/50 hover-elevate" data-testid="card-chart-engine">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/10 flex items-center justify-center">
+                  <Target className="h-6 w-6 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Chart Engine</h3>
+                  <p className="text-xs text-muted-foreground">Pattern Recognition</p>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                AI-powered technical pattern recognition from chart screenshots.
+              </p>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Pattern detection
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Support/resistance
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Multi-timeframe
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Key level alerts
+                </li>
+              </ul>
+            </div>
+            
+            {/* Futures Engine */}
+            <div className="glass-card rounded-lg p-6 border-l-2 border-green-500/50 hover-elevate" data-testid="card-futures-engine">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-green-500/20 to-green-600/10 flex items-center justify-center">
+                  <CandlestickChart className="h-6 w-6 text-green-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Futures Engine</h3>
+                  <p className="text-xs text-muted-foreground">NQ & GC Specialist</p>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Specialized futures analysis with CME specifications and tick targets.
+              </p>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> NQ/GC analysis
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Tick-based targets
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> Session timing
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-cyan-400" /> CME specs
                 </li>
               </ul>
             </div>
