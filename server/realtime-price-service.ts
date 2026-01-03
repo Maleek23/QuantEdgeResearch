@@ -249,7 +249,20 @@ export function initializeRealtimePrices(httpServer?: Server): void {
   logger.info('[REALTIME] Initializing real-time price feeds...');
   
   if (httpServer) {
-    wss = new WebSocketServer({ server: httpServer, path: '/ws/prices' });
+    // Use noServer mode to avoid intercepting Vite's HMR WebSocket
+    wss = new WebSocketServer({ noServer: true });
+    
+    // Only handle upgrade for our specific path, let other paths (like Vite HMR) pass through
+    httpServer.on('upgrade', (request, socket, head) => {
+      const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname;
+      
+      if (pathname === '/ws/prices') {
+        wss!.handleUpgrade(request, socket, head, (ws) => {
+          wss!.emit('connection', ws, request);
+        });
+      }
+      // Don't destroy socket for other paths - let Vite handle them
+    });
     
     wss.on('connection', (ws) => {
       logger.info(`[WS-BROADCAST] Client connected (total: ${wss?.clients.size})`);
