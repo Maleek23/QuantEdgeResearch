@@ -6301,6 +6301,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Annual Breakout Watchlist Routes
+  app.get("/api/annual-watchlist", async (_req, res) => {
+    try {
+      const items = await storage.getWatchlistByCategory('annual_breakout');
+      res.json(items);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/annual-watchlist' });
+      res.status(500).json({ error: "Failed to fetch annual watchlist" });
+    }
+  });
+
+  // Seed Annual Breakout Watchlist with curated stocks
+  app.post("/api/annual-watchlist/seed", async (_req, res) => {
+    try {
+      const existing = await storage.getWatchlistByCategory('annual_breakout');
+      if (existing.length > 0) {
+        return res.json({ message: "Annual watchlist already has items", count: existing.length });
+      }
+
+      // Curated list of stocks with $70+ breakout potential for 2026
+      const breakoutCandidates = [
+        { symbol: 'IONQ', sector: 'Quantum Computing', currentPrice: 35, yearlyTargetPrice: 80, thesis: 'Leader in trapped-ion quantum computing. Revenue growth accelerating with enterprise deals. NASA, Goldman partnerships.', conviction: 'high' },
+        { symbol: 'RGTI', sector: 'Quantum Computing', currentPrice: 12, yearlyTargetPrice: 40, thesis: 'Superconducting quantum chips. Strong IP portfolio. Potential acquisition target.', conviction: 'speculative' },
+        { symbol: 'QBTS', sector: 'Quantum Computing', currentPrice: 8, yearlyTargetPrice: 25, thesis: 'D-Wave quantum annealing systems. Enterprise customers ramping. First to commercialize.', conviction: 'medium' },
+        { symbol: 'RKLB', sector: 'Space', currentPrice: 28, yearlyTargetPrice: 75, thesis: 'Rocket Lab - second most active orbital launch company. Electron + Neutron rockets. Space systems revenue growing.', conviction: 'high' },
+        { symbol: 'LUNR', sector: 'Space', currentPrice: 18, yearlyTargetPrice: 50, thesis: 'Intuitive Machines - NASA lunar lander contracts. First commercial lunar landing. Pipeline of missions.', conviction: 'medium' },
+        { symbol: 'NNE', sector: 'Nuclear/Clean Energy', currentPrice: 35, yearlyTargetPrice: 100, thesis: 'Nano Nuclear Energy - portable nuclear microreactors. Military/remote site applications. Early stage but massive TAM.', conviction: 'speculative' },
+        { symbol: 'SMR', sector: 'Nuclear/Clean Energy', currentPrice: 28, yearlyTargetPrice: 70, thesis: 'NuScale Power - small modular reactors. First SMR to get NRC approval. Utility contracts building.', conviction: 'high' },
+        { symbol: 'OKLO', sector: 'Nuclear/Clean Energy', currentPrice: 32, yearlyTargetPrice: 80, thesis: 'Advanced fission reactors. Sam Altman backed. Data center power demand tailwind.', conviction: 'high' },
+        { symbol: 'AI', sector: 'AI/ML', currentPrice: 35, yearlyTargetPrice: 85, thesis: 'C3.ai - Enterprise AI platform. Federal contracts strong. Turning profitable.', conviction: 'medium' },
+        { symbol: 'SOUN', sector: 'AI/ML', currentPrice: 18, yearlyTargetPrice: 50, thesis: 'SoundHound AI - voice AI platform. Restaurant/auto integration. Revenue accelerating.', conviction: 'medium' },
+        { symbol: 'BBAI', sector: 'AI/ML', currentPrice: 5, yearlyTargetPrice: 20, thesis: 'BigBear.ai - Defense/intel AI. Government contracts. Undervalued vs peers.', conviction: 'speculative' },
+        { symbol: 'ACHR', sector: 'eVTOL/Flying Cars', currentPrice: 8, yearlyTargetPrice: 35, thesis: 'Archer Aviation - Electric air taxi. United Airlines partnership. FAA certification path.', conviction: 'speculative' },
+        { symbol: 'JOBY', sector: 'eVTOL/Flying Cars', currentPrice: 7, yearlyTargetPrice: 30, thesis: 'Joby Aviation - Electric VTOL. Toyota backed. Military contracts. Commercial 2025.', conviction: 'speculative' },
+        { symbol: 'MARA', sector: 'Crypto/Mining', currentPrice: 22, yearlyTargetPrice: 70, thesis: 'Marathon Digital - Bitcoin miner. BTC halving cycle. Largest hash rate in US.', conviction: 'medium' },
+        { symbol: 'RIOT', sector: 'Crypto/Mining', currentPrice: 12, yearlyTargetPrice: 45, thesis: 'Riot Platforms - Bitcoin mining. Low cost producer. BTC accumulation strategy.', conviction: 'medium' },
+        { symbol: 'HIMS', sector: 'Healthcare/Telehealth', currentPrice: 28, yearlyTargetPrice: 70, thesis: 'Hims & Hers - Telehealth leader. GLP-1 weight loss opportunity. Profitable and growing 50%+.', conviction: 'high' },
+        { symbol: 'DNA', sector: 'Biotech/Synbio', currentPrice: 3, yearlyTargetPrice: 15, thesis: 'Ginkgo Bioworks - Synthetic biology platform. Cell programming. Long-term AI of biology play.', conviction: 'speculative' },
+        { symbol: 'PATH', sector: 'AI/Automation', currentPrice: 15, yearlyTargetPrice: 40, thesis: 'UiPath - RPA/automation leader. AI integration. Enterprise stickiness. Profitable.', conviction: 'medium' },
+        { symbol: 'APP', sector: 'AdTech/Gaming', currentPrice: 380, yearlyTargetPrice: 600, thesis: 'AppLovin - Mobile gaming ads. AI-powered ad engine. Massive margin expansion.', conviction: 'high' },
+        { symbol: 'AFRM', sector: 'Fintech', currentPrice: 65, yearlyTargetPrice: 120, thesis: 'Affirm - BNPL leader. Apple Pay integration. Path to profitability clear.', conviction: 'medium' },
+      ];
+
+      const now = new Date().toISOString();
+      const results = [];
+      
+      for (const candidate of breakoutCandidates) {
+        const item = await storage.addToWatchlist({
+          symbol: candidate.symbol,
+          assetType: 'stock',
+          addedAt: now,
+          category: 'annual_breakout',
+          thesis: candidate.thesis,
+          conviction: candidate.conviction as any,
+          sector: candidate.sector,
+          startOfYearPrice: candidate.currentPrice,
+          yearlyTargetPrice: candidate.yearlyTargetPrice,
+          currentPrice: candidate.currentPrice,
+          priceUpdatedAt: now,
+          notes: `2026 Breakout Candidate - ${candidate.sector}`,
+          alertsEnabled: true,
+          discordAlertsEnabled: true,
+        });
+        results.push(item);
+      }
+
+      console.log(`📈 Seeded ${results.length} annual breakout candidates`);
+      res.json({ message: "Annual watchlist seeded successfully", count: results.length, items: results });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/annual-watchlist/seed' });
+      res.status(500).json({ error: "Failed to seed annual watchlist" });
+    }
+  });
+
   // Watch Suggestions - Stocks to watch based on multiple catalyst reasons
   app.get("/api/watch-suggestions", async (_req, res) => {
     try {

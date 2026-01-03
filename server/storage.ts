@@ -2299,7 +2299,7 @@ export class DatabaseStorage implements IStorage {
 
   async getWatchlistByCategory(category: string): Promise<WatchlistItem[]> {
     return await db.select().from(watchlistTable)
-      .where(eq(watchlistTable.category, category))
+      .where(eq(watchlistTable.category, category as any))
       .orderBy(desc(watchlistTable.addedAt));
   }
 
