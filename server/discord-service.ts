@@ -109,118 +109,142 @@ function getLetterGrade(score: number): string {
   return 'D';
 }
 
-// Format trade idea as Discord rich embed
+// Helper to get grade emoji based on confidence
+function getGradeEmoji(score: number): string {
+  if (score >= 90) return '🔥';
+  if (score >= 80) return '⭐';
+  if (score >= 70) return '✨';
+  if (score >= 60) return '👍';
+  return '📊';
+}
+
+// Format trade idea as Discord rich embed - ENHANCED for options with full grading
 function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
   const isLong = idea.direction === 'long';
   const color = isLong ? COLORS.LONG : COLORS.SHORT;
   
-  // Source badge
-  const sourceBadge = idea.source === 'ai' ? '🧠 AI Signal' : 
-                     idea.source === 'quant' ? '✨ Quant Signal' :
-                     idea.source === 'hybrid' ? '🎯 Hybrid (AI+Quant)' :
-                     '📝 Manual';
+  // Source badge with emoji
+  const sourceEmoji = idea.source === 'ai' ? '🧠' : 
+                     idea.source === 'quant' ? '✨' : 
+                     idea.source === 'hybrid' ? '🎯' :
+                     idea.source === 'flow' ? '📊' : '📝';
+  const sourceLabel = idea.source === 'ai' ? 'AI Signal' : 
+                     idea.source === 'quant' ? 'Quant Signal' :
+                     idea.source === 'hybrid' ? 'Hybrid (AI+Quant)' :
+                     idea.source === 'flow' ? 'Flow Scanner' : 'Manual';
   
   // Direction indicator
   const directionEmoji = isLong ? '🟢' : '🔴';
   
-  // Calculate potential gain
-  const potentialGain = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(2);
+  // Calculate potential gain/loss with null safety
+  const potentialGain = idea.entryPrice > 0 ? ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(1) : '0';
+  const potentialLoss = idea.stopLoss && idea.entryPrice > 0 ? ((idea.entryPrice - idea.stopLoss) / idea.entryPrice * 100).toFixed(1) : 'N/A';
+  
+  // QuantEdge grading
+  const confidenceScore = idea.confidenceScore || 50;
+  const letterGrade = getLetterGrade(confidenceScore);
+  const gradeEmoji = getGradeEmoji(confidenceScore);
+  const signalCount = idea.qualitySignals?.length || 0;
+  const signalStars = '⭐'.repeat(Math.min(signalCount, 5)) + '☆'.repeat(Math.max(0, 5 - signalCount));
   
   // Asset type emoji for title
   const assetEmoji = idea.assetType === 'option' ? '🎯' : idea.assetType === 'crypto' ? '₿' : '📈';
   
-  // Build description - for options, put type/strike/expiry on STANDALONE LINE first
-  let description = sourceBadge;
+  // Build description with comprehensive grading for OPTIONS
+  let description = '';
   if (idea.assetType === 'option') {
-    // STANDALONE LINE: CALL $150 01/17
-    const optionLine = `${(idea.optionType || 'OPTION').toUpperCase()}${idea.strikePrice ? ` $${idea.strikePrice}` : ''}${idea.expiryDate ? ` ${idea.expiryDate}` : ''}`;
-    description = `**${optionLine}**\n\n${sourceBadge}`;
+    const optType = (idea.optionType || 'OPTION').toUpperCase();
+    const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
+    const expFormatted = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
+    
+    description = `**${optType} ${strike} exp ${expFormatted}**\n\n`;
+    description += `${sourceEmoji} **${sourceLabel}** | ${gradeEmoji} Grade: **${letterGrade}** (${confidenceScore}%)\n`;
+    description += `Signal Strength: ${signalStars} (${signalCount}/5)`;
   } else if (idea.assetType === 'crypto') {
-    description = `**Crypto**\n\n${sourceBadge}`;
+    description = `**Crypto Position**\n\n${sourceEmoji} **${sourceLabel}** | ${gradeEmoji} Grade: **${letterGrade}**`;
+  } else if (idea.assetType === 'penny_stock') {
+    description = `**Penny Moonshot**\n\n${sourceEmoji} **${sourceLabel}** | ${gradeEmoji} Grade: **${letterGrade}**`;
   } else {
-    description = `**Shares**\n\n${sourceBadge}`;
+    description = `**Shares**\n\n${sourceEmoji} **${sourceLabel}** | ${gradeEmoji} Grade: **${letterGrade}**`;
   }
   
   const embed: DiscordEmbed = {
-    title: `${directionEmoji} ${idea.symbol} - ${idea.direction.toUpperCase()} ${assetEmoji}`,
+    title: `${directionEmoji} ${idea.symbol} ${idea.direction.toUpperCase()} ${assetEmoji}`,
     description,
     color,
     fields: [
       {
-        name: '💰 Entry Price',
+        name: '💰 Entry',
         value: `$${idea.entryPrice.toFixed(2)}`,
         inline: true
       },
       {
-        name: '🎯 Target Price',
-        value: `$${idea.targetPrice.toFixed(2)}`,
+        name: '🎯 Target',
+        value: `$${idea.targetPrice.toFixed(2)} (+${potentialGain}%)`,
         inline: true
       },
       {
-        name: '🛡️ Stop Loss',
-        value: `$${idea.stopLoss.toFixed(2)}`,
+        name: '🛡️ Stop',
+        value: idea.stopLoss ? `$${idea.stopLoss.toFixed(2)} (-${potentialLoss}%)` : 'Not set',
         inline: true
       },
       {
         name: '📊 Risk/Reward',
-        value: `${idea.riskRewardRatio}:1`,
+        value: `**${idea.riskRewardRatio}:1**`,
         inline: true
       },
       {
-        name: '📈 Potential Gain',
-        value: `${potentialGain}%`,
+        name: '⭐ QuantEdge Grade',
+        value: `${gradeEmoji} **${letterGrade}** (${confidenceScore}%)`,
         inline: true
       },
       {
-        name: '⭐ Confidence',
-        value: idea.confidenceScore 
-          ? `${idea.confidenceScore}% (${getLetterGrade(idea.confidenceScore)})`
-          : getSignalLabel(idea.qualitySignals?.length || 0),
-        inline: true
-      },
-      {
-        name: '📶 Signals',
-        value: idea.qualitySignals?.length 
-          ? `${idea.qualitySignals.length}/5 (${idea.qualitySignals.slice(0, 2).join(', ')}${idea.qualitySignals.length > 2 ? '...' : ''})`
-          : '0 indicators',
-        inline: true
-      },
-      {
-        name: '⏱️ Trade Type',
+        name: '⏱️ Hold Period',
         value: idea.holdingPeriod === 'day' ? '🏃 Day Trade' : 
-               idea.holdingPeriod === 'swing' ? '📅 Swing Trade' : 
-               idea.holdingPeriod === 'position' ? '📊 Position Trade' : 'Day Trade',
+               idea.holdingPeriod === 'swing' ? '📅 Swing (2-5d)' : 
+               idea.holdingPeriod === 'position' ? '📊 Position (5d+)' : '🏃 Day Trade',
         inline: true
       }
     ],
     timestamp: new Date().toISOString()
   };
   
+  // Add signals breakdown if available
+  if (idea.qualitySignals && idea.qualitySignals.length > 0) {
+    const signalsDisplay = idea.qualitySignals.slice(0, 4).join(' • ');
+    embed.fields.push({
+      name: `📶 Technical Signals (${signalCount}/5)`,
+      value: signalsDisplay || 'Momentum detected',
+      inline: false
+    });
+  }
+  
   // Add catalyst if available
   if (idea.catalyst) {
     embed.fields.push({
       name: '💡 Catalyst',
-      value: idea.catalyst.substring(0, 200) + (idea.catalyst.length > 200 ? '...' : ''),
+      value: idea.catalyst.substring(0, 150) + (idea.catalyst.length > 150 ? '...' : ''),
       inline: false
     });
   }
   
-  // Add session context
-  if (idea.sessionContext) {
+  // Add brief analysis excerpt if available
+  if (idea.analysis && idea.analysis.length > 20) {
+    const analysisExcerpt = idea.analysis.substring(0, 200).replace(/\n/g, ' ');
     embed.fields.push({
-      name: '⏰ Timing',
-      value: idea.sessionContext,
+      name: '📝 Analysis',
+      value: `>>> ${analysisExcerpt}${idea.analysis.length > 200 ? '...' : ''}`,
       inline: false
     });
   }
   
-  // Add data quality indicator
-  if (idea.dataSourceUsed) {
-    const qualityEmoji = idea.dataSourceUsed !== 'estimated' ? '✅' : '⚠️';
-    embed.footer = {
-      text: `${qualityEmoji} ${idea.dataSourceUsed !== 'estimated' ? 'Real Market Data' : 'Simulated Data'} | QuantEdge Research`
-    };
-  }
+  // Enhanced footer with data quality and risk
+  const qualityEmoji = idea.dataSourceUsed && idea.dataSourceUsed !== 'estimated' ? '✅' : '⚠️';
+  const riskLevel = idea.riskProfile === 'speculative' ? 'HIGH RISK' : 
+                   idea.riskProfile === 'aggressive' ? 'AGGRESSIVE' : 'MODERATE';
+  embed.footer = {
+    text: `${qualityEmoji} ${idea.dataSourceUsed || 'Live Data'} | ${riskLevel} | QuantEdge Research`
+  };
   
   return embed;
 }
@@ -443,26 +467,30 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
     const longIdeas = ideas.filter(i => i.direction === 'long');
     const shortIdeas = ideas.filter(i => i.direction === 'short');
     
-    // Format actionably: emoji SYMBOL TYPE $entry→$target (signals)
+    // Format actionably with QuantEdge grading: emoji SYMBOL TYPE $entry→$target Grade
     const formatIdea = (idea: TradeIdea) => {
       const emoji = idea.direction === 'long' ? '🟢' : '🔴';
-      // Signal strength using canonical function for consistency with dashboard
       const signalCount = idea.qualitySignals?.length || 0;
-      const signalLabel = getSignalLabel(signalCount);
+      
+      // QuantEdge confidence grading
+      const confidence = idea.confidenceScore || (40 + signalCount * 10);
+      const grade = getLetterGrade(confidence);
+      const gradeEmoji = getGradeEmoji(confidence);
       
       // Calculate gain target
-      const gainPct = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(1);
+      const gainPct = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(0);
       
       if (idea.assetType === 'option') {
-        const optType = idea.optionType?.toUpperCase() || 'OPTION';
+        const optType = idea.optionType?.toUpperCase() || 'OPT';
         const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
-        // Format expiry as MM/DD (compact)
         const exp = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
-        return `${emoji} **${idea.symbol}** ${optType} ${strike} ${exp} | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${signalLabel}`;
+        return `${emoji} **${idea.symbol}** ${optType} ${strike} ${exp}\n   💰 $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${gradeEmoji} ${grade} | R:R ${idea.riskRewardRatio || 'N/A'}:1`;
       } else if (idea.assetType === 'crypto') {
-        return `${emoji} **${idea.symbol}** CRYPTO | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${signalLabel}`;
+        return `${emoji} **${idea.symbol}** CRYPTO | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${gradeEmoji} ${grade}`;
+      } else if (idea.assetType === 'penny_stock') {
+        return `${emoji} **${idea.symbol}** MOONSHOT | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${gradeEmoji} ${grade}`;
       }
-      return `${emoji} **${idea.symbol}** SHARES | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${signalLabel}`;
+      return `${emoji} **${idea.symbol}** SHARES | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${gradeEmoji} ${grade}`;
     };
     
     // Limit to top 8 ideas (sorted by signal count then R:R) to keep readable
@@ -477,9 +505,12 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
     const remainingCount = ideas.length - topIdeas.length;
     const moreText = remainingCount > 0 ? `\n_+${remainingCount} more in dashboard_` : '';
     
-    // Calculate average signal count
+    // Calculate stats with QuantEdge grading
     const avgSignals = Math.round(ideas.reduce((sum, i) => sum + (i.qualitySignals?.length || 0), 0) / ideas.length);
     const avgRR = (ideas.reduce((sum, i) => sum + (i.riskRewardRatio || 0), 0) / ideas.length).toFixed(1);
+    const avgConfidence = Math.round(ideas.reduce((sum, i) => sum + (i.confidenceScore || 50), 0) / ideas.length);
+    const avgGrade = getLetterGrade(avgConfidence);
+    const avgGradeEmoji = getGradeEmoji(avgConfidence);
     
     const embed: DiscordEmbed = {
       title: `${sourceLabel} - ${ideas.length} Trade Ideas`,
@@ -487,23 +518,23 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
       color,
       fields: [
         {
-          name: 'Direction',
+          name: '📊 Direction',
           value: `🟢 ${longIdeas.length} Long • 🔴 ${shortIdeas.length} Short`,
           inline: true
         },
         {
-          name: 'Avg Signals',
-          value: `${avgSignals}/5 indicators`,
+          name: `${avgGradeEmoji} Avg Grade`,
+          value: `**${avgGrade}** (${avgConfidence}%)`,
           inline: true
         },
         {
-          name: 'Avg R:R',
-          value: `${avgRR}:1`,
+          name: '📈 Avg R:R',
+          value: `**${avgRR}:1**`,
           inline: true
         }
       ],
       footer: {
-        text: 'QuantEdge • Dashboard for full details'
+        text: `⚠️ For educational research only | QuantEdge Research`
       },
       timestamp: new Date().toISOString()
     };

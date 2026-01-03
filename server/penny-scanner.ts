@@ -335,42 +335,101 @@ export async function sendPennyScanToDiscord(candidates: PennyMoonshotCandidate[
   
   try {
     const nowCT = formatInTimeZone(new Date(), 'America/Chicago', 'h:mm a');
+    const dateStr = formatInTimeZone(new Date(), 'America/Chicago', 'MMM d');
     
-    let message = '🚀 **PENNY MOONSHOT SCANNER**\n';
-    message += '━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+    // Filter to $1-$8 range (the moonshot sweet spot) and sort by potential
+    let moonshotCandidates = candidates
+      .filter(c => c.currentPrice >= 1 && c.currentPrice <= 8)
+      .sort((a, b) => {
+        const scoreA = (Math.abs(a.changePercent) * 2) + (a.volumeRatio * 10) + (a.moonshotPotential * 0.5);
+        const scoreB = (Math.abs(b.changePercent) * 2) + (b.volumeRatio * 10) + (b.moonshotPotential * 0.5);
+        return scoreB - scoreA;
+      })
+      .slice(0, 5);
     
-    for (const candidate of candidates.slice(0, 5)) {
+    // Fallback to top momentum plays if no $1-$8 candidates
+    if (moonshotCandidates.length === 0) {
+      logger.info('🚀 [PENNY-SCAN] No $1-$8 candidates, falling back to top momentum');
+      const fallbackCandidates = candidates
+        .sort((a, b) => (Math.abs(b.changePercent) + b.volumeRatio * 5) - (Math.abs(a.changePercent) + a.volumeRatio * 5))
+        .slice(0, 3);
+      
+      if (fallbackCandidates.length === 0) {
+        logger.info('🚀 [PENNY-SCAN] No candidates found at all');
+        return;
+      }
+      
+      // Use fallback candidates for the rest of the function
+      moonshotCandidates.push(...fallbackCandidates);
+    }
+    
+    // Calculate moonshot targets based on price range
+    const getTargets = (price: number, high52: number) => {
+      if (price < 2) return { t1: 4, t2: 8, t3: 15 };
+      if (price < 4) return { t1: 8, t2: 15, t3: 25 };
+      if (price < 6) return { t1: 12, t2: 20, t3: 35 };
+      return { t1: 15, t2: 25, t3: Math.min(45, high52 || 45) };
+    };
+    
+    // Build cohesive embed description
+    let description = '';
+    
+    for (const candidate of moonshotCandidates) {
+      const targets = getTargets(candidate.currentPrice, candidate.high52Week);
       const volumeDisplay = candidate.volume >= 1000000 
         ? `${(candidate.volume / 1000000).toFixed(1)}M` 
         : `${(candidate.volume / 1000).toFixed(0)}K`;
       
-      const changeEmoji = candidate.changePercent > 0 ? '🟢' : '🔴';
       const changeSign = candidate.changePercent > 0 ? '+' : '';
+      const changeEmoji = candidate.changePercent > 5 ? '🟢' : candidate.changePercent < -5 ? '🔴' : '⚪';
       
-      message += `**$${candidate.symbol}** - $${candidate.currentPrice.toFixed(2)} (${changeSign}${candidate.changePercent.toFixed(1)}%) ${changeEmoji}\n`;
-      message += `📊 Volume: ${volumeDisplay} (${candidate.volumeRatio.toFixed(1)}x avg)\n`;
-      message += `💡 Catalyst: ${candidate.catalyst}\n`;
-      message += `🎯 Potential: ${candidate.moonshotPotential.toFixed(0)}% based on momentum\n`;
-      if (candidate.signals.length > 0) {
-        message += `📡 Signals: ${candidate.signals.join(' | ')}\n`;
-      }
-      message += '\n';
+      // Confidence grade based on signals
+      const confidence = Math.min(95, 50 + (candidate.volumeRatio * 8) + (Math.abs(candidate.changePercent) * 1.5));
+      const grade = confidence >= 80 ? 'A' : confidence >= 70 ? 'B+' : confidence >= 60 ? 'B' : 'C+';
+      const gradeEmoji = confidence >= 80 ? '🔥' : confidence >= 70 ? '⭐' : confidence >= 60 ? '✨' : '📊';
+      
+      description += `${changeEmoji} **$${candidate.symbol}** @ $${candidate.currentPrice.toFixed(2)} (${changeSign}${candidate.changePercent.toFixed(1)}%)\n`;
+      description += `┌ 🎯 Targets: **$${targets.t1}** → **$${targets.t2}** → **$${targets.t3}**\n`;
+      description += `├ 🛡️ Stop: $${(candidate.currentPrice * 0.85).toFixed(2)} | ${gradeEmoji} Grade: **${grade}** (${confidence.toFixed(0)}%)\n`;
+      description += `├ 📊 Vol: ${volumeDisplay} (${candidate.volumeRatio.toFixed(1)}x avg)\n`;
+      description += `└ ⚡ ${candidate.catalyst}\n\n`;
     }
     
-    message += '⚠️ **High risk penny plays - trade small!**\n';
-    message += `_Scanned at ${nowCT} CT_`;
+    // Stats
+    const avgConf = Math.round(moonshotCandidates.reduce((s, c) => 
+      s + Math.min(95, 50 + (c.volumeRatio * 8) + (Math.abs(c.changePercent) * 1.5)), 0) / moonshotCandidates.length);
+    const avgVol = (moonshotCandidates.reduce((s, c) => s + c.volumeRatio, 0) / moonshotCandidates.length).toFixed(1);
+    const bullish = moonshotCandidates.filter(c => c.changePercent > 0).length;
+    
+    const embed = {
+      title: `🚀 PENNY MOONSHOT SCANNER - ${dateStr}`,
+      description: description.trim(),
+      color: 0x6BCB77,
+      fields: [
+        { name: '📊 Summary', value: `${moonshotCandidates.length} picks | ${bullish}/${moonshotCandidates.length} bullish`, inline: true },
+        { name: '⭐ Avg Grade', value: `${avgConf}% confidence`, inline: true },
+        { name: '📈 Avg Volume', value: `${avgVol}x normal`, inline: true }
+      ],
+      footer: { text: `⚠️ High risk $1-$8 moonshots - position size small | QuantEdge | ${nowCT} CT` },
+      timestamp: new Date().toISOString()
+    };
+    
+    const message = {
+      content: `🚀 **PENNY MOONSHOTS** → ${moonshotCandidates.length} stocks ($1-$8) with $15-$45+ potential`,
+      embeds: [embed]
+    };
     
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: message }),
+      body: JSON.stringify(message),
     });
     
     if (!response.ok) {
       throw new Error(`Discord webhook failed: ${response.status}`);
     }
     
-    logger.info(`🚀 [PENNY-SCAN] Discord alert sent for ${candidates.length} candidates`);
+    logger.info(`🚀 [PENNY-SCAN] Discord alert sent for ${moonshotCandidates.length} moonshot candidates`);
   } catch (error) {
     logger.error('🚀 [PENNY-SCAN] Failed to send Discord alert:', error);
   }
