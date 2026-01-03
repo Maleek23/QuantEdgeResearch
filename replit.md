@@ -24,11 +24,18 @@ Core features include public informational pages, user authentication, a main ap
 ## External Dependencies
 
 ### Market Data
-- **Yahoo Finance:** Real-time quotes, discovery, historical stock data.
-- **CoinGecko:** Real-time and historical cryptocurrency data.
-- **Tradier:** Options chains, delta targeting, and live options pricing.
-- **Alpha Vantage:** Financial news feeds and earnings calendar.
-- **Databento:** Real-time futures data (NQ, GC).
+- **Coinbase WebSocket:** Real-time crypto prices (~1s latency) for 20 major coins
+- **Yahoo Finance:** Real-time quotes, discovery, historical stock/futures data
+- **CoinGecko:** Cryptocurrency metadata, market cap, 24h stats (fallback: Yahoo Finance)
+- **Tradier:** Options chains, delta targeting, and live options pricing
+- **Alpha Vantage:** Financial news feeds and earnings calendar
+
+### Real-Time Price Service
+Located in `server/realtime-price-service.ts`:
+- **Crypto:** Coinbase WebSocket (`wss://ws-feed.exchange.coinbase.com`) - sub-second updates
+- **Futures:** Yahoo Finance polling every 10 seconds (NQ, ES, GC)
+- Status endpoint: `GET /api/realtime-status` - shows connection status and all live prices
+- Automatic reconnection on WebSocket disconnect
 
 ### AI Providers
 - **Anthropic (Claude Sonnet 4):** Primary AI engine and research assistant.

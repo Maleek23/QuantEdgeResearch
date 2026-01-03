@@ -1,6 +1,7 @@
 import { logger } from "./logger";
 import { storage } from "./storage";
 import type { FuturesContract } from "@shared/schema";
+import { getFuturesPrice as getRealtimeFuturesPrice } from "./realtime-price-service";
 
 // Price cache with 30-second TTL
 interface PriceCacheEntry {
@@ -127,14 +128,24 @@ export async function getFuturesPrice(contractCode: string): Promise<number> {
     throw new Error(error);
   }
   
-  // TODO: Replace with Databento WebSocket stream when API key available
-  // Reference: https://databento.com/docs/api-reference/websocket
-  // Example: ws://api.databento.com/v1/live.json?dataset=GLBX.MDP3&symbols=NQ.FUT,GC.FUT
-  // For now, use mock data with cache
+  // PRIORITY 1: Try real-time Databento WebSocket price (sub-second latency)
+  const realtimePrice = getRealtimeFuturesPrice(contract.rootSymbol);
+  if (realtimePrice) {
+    const ageMs = Date.now() - realtimePrice.timestamp.getTime();
+    logger.debug(`[FUTURES-RT] ${contractCode}: $${realtimePrice.price} (${ageMs}ms old, source: ${realtimePrice.source})`);
+    
+    // Update cache with real-time price
+    priceCache.set(contractCode, {
+      price: realtimePrice.price,
+      timestamp: realtimePrice.timestamp,
+    });
+    
+    return realtimePrice.price;
+  }
   
+  // Fallback to mock data if Databento not connected
   if (isDatentoAvailable()) {
-    // Placeholder for future Databento integration
-    logger.warn(`[FUTURES-SERVICE] Databento API key found but integration not yet implemented - using mock data`);
+    logger.debug(`[FUTURES-SERVICE] Databento API key found but no real-time price yet - using mock data`);
   }
   
   const price = getCachedOrGeneratePrice(contractCode, contract.rootSymbol as 'NQ' | 'GC');

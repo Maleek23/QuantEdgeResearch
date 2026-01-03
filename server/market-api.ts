@@ -2,6 +2,7 @@ import type { AssetType } from "@shared/schema";
 import { getTradierQuote, getTradierHistory } from './tradier-api';
 import { logger } from './logger';
 import { logAPIError, logAPISuccess } from './monitoring-service';
+import { getCryptoPrice as getRealtimeCryptoPrice, getFuturesPrice as getRealtimeFuturesPrice } from './realtime-price-service';
 
 export interface ExternalMarketData {
   symbol: string;
@@ -130,6 +131,26 @@ async function searchCryptoSymbol(symbol: string): Promise<string | null> {
 export async function fetchCryptoPrice(symbol: string): Promise<ExternalMarketData | null> {
   const startTime = Date.now();
   const upperSymbol = symbol.toUpperCase();
+  
+  // PRIORITY 1: Try real-time Coinbase WebSocket price (sub-second latency)
+  const realtimePrice = getRealtimeCryptoPrice(upperSymbol);
+  if (realtimePrice) {
+    const ageMs = Date.now() - realtimePrice.timestamp.getTime();
+    logger.debug(`[CRYPTO-RT] ${symbol}: $${realtimePrice.price} (${ageMs}ms old, source: ${realtimePrice.source})`);
+    
+    // Use real-time price with cached market data for other fields
+    const cached = cryptoPriceCache.get(upperSymbol);
+    return {
+      symbol: upperSymbol,
+      assetType: 'crypto',
+      currentPrice: realtimePrice.price,
+      changePercent: cached?.data.changePercent || 0,
+      volume: cached?.data.volume || 0,
+      marketCap: cached?.data.marketCap,
+      high24h: cached?.data.high24h,
+      low24h: cached?.data.low24h,
+    };
+  }
   
   // Check if rate limit window has expired - reset flag if so
   if (coinGeckoRateLimited && Date.now() >= rateLimitResetTime) {

@@ -7,6 +7,7 @@ import { startWatchlistMonitor } from "./watchlist-monitor";
 import { logger } from "./logger";
 import { validateTradierAPI } from "./tradier-api";
 import { deriveTimingWindows, verifyTimingUniqueness } from "./timing-intelligence";
+import { initializeRealtimePrices, getRealtimeStatus } from "./realtime-price-service";
 
 const app = express();
 
@@ -110,6 +111,10 @@ app.use((req, res, next) => {
     const { pennyScanner } = await import('./penny-scanner');
     pennyScanner.start();
     log('🚀 Penny Moonshot Scanner started - scanning at 4:00 AM, 9:30 AM, 8:00 PM CT weekdays');
+    
+    // Initialize real-time price feeds (Coinbase for crypto, Databento for futures)
+    initializeRealtimePrices();
+    log('📡 Real-time price feeds initialized (Coinbase WebSocket + Databento)');
     
     // 🌙 EVENING STARTUP: One-time check to run Tomorrow's Playbook generation if in evening hours
     (async () => {

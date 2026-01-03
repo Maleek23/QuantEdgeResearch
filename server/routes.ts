@@ -59,6 +59,7 @@ import {
   PRICING_PLANS,
 } from "./stripe-service";
 import { getRealtimeQuote, getRealtimeBatchQuotes, type RealtimeQuote, type AssetType as RTAssetType } from './realtime-pricing-service';
+import { getRealtimeStatus, getAllCryptoPrices, getAllFuturesPrices } from './realtime-price-service';
 import { 
   getCalibratedConfidence as getCalibrationScore, 
   generateAdaptiveExitStrategy, 
@@ -1685,6 +1686,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Error fetching batch quotes:", error);
       res.status(500).json({ error: "Failed to fetch batch quotes" });
+    }
+  });
+
+  // Real-time WebSocket status endpoint
+  app.get("/api/realtime-status", async (req, res) => {
+    try {
+      const status = getRealtimeStatus();
+      const cryptoPrices = getAllCryptoPrices();
+      const futuresPrices = getAllFuturesPrices();
+      
+      const cryptoData: Record<string, { price: number; ageSeconds: number }> = {};
+      cryptoPrices.forEach((cache, symbol) => {
+        cryptoData[symbol] = {
+          price: cache.price,
+          ageSeconds: Math.floor((Date.now() - cache.timestamp.getTime()) / 1000)
+        };
+      });
+      
+      const futuresData: Record<string, { price: number; ageSeconds: number }> = {};
+      futuresPrices.forEach((cache, symbol) => {
+        futuresData[symbol] = {
+          price: cache.price,
+          ageSeconds: Math.floor((Date.now() - cache.timestamp.getTime()) / 1000)
+        };
+      });
+      
+      res.json({
+        ...status,
+        prices: {
+          crypto: cryptoData,
+          futures: futuresData
+        }
+      });
+    } catch (error) {
+      logger.error("Error fetching realtime status:", error);
+      res.status(500).json({ error: "Failed to fetch realtime status" });
     }
   });
 
