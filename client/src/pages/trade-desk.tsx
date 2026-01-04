@@ -354,17 +354,81 @@ export default function TradeDeskPage() {
     }
   });
 
+  // Helper to get date range bounds for Posted date filter
+  const getDateRangeBoundsForCounts = (filter: string, customDateVal?: Date) => {
+    const now = new Date();
+    switch (filter) {
+      case 'today': 
+        return { start: startOfDay(now), end: null };
+      case 'yesterday': {
+        const yesterdayStart = startOfDay(subDays(now, 1));
+        const yesterdayEnd = new Date(startOfDay(now).getTime() - 1);
+        return { start: yesterdayStart, end: yesterdayEnd };
+      }
+      case '3d': 
+        return { start: subDays(now, 3), end: null };
+      case '7d': 
+        return { start: subDays(now, 7), end: null };
+      case '30d': 
+        return { start: subDays(now, 30), end: null };
+      case 'custom':
+        if (!customDateVal) return { start: new Date(0), end: null };
+        const dayStart = startOfDay(customDateVal);
+        const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
+        return { start: dayStart, end: dayEnd };
+      case 'all':
+      default: 
+        return { start: new Date(0), end: null };
+    }
+  };
+
   // Memoized count helpers for source tabs and status
+  // Counts should reflect ALL active filters except source filter itself
   const sourceCounts = useMemo(() => {
-    // First filter by statusView
-    const statusFiltered = tradeIdeas.filter(idea => {
+    const dateBounds = getDateRangeBoundsForCounts(dateFilter, customDate);
+    
+    // Apply all filters except source filter
+    const baseFiltered = tradeIdeas.filter(idea => {
+      // Status view filter
       const ideaStatus = idea.status || 'published';
-      if (statusView === 'all') return true;
-      return ideaStatus === statusView;
+      if (statusView !== 'all' && ideaStatus !== statusView) return false;
+      
+      // Posted date filter
+      const ideaDate = parseISO(idea.timestamp);
+      if (dateFilter !== 'all') {
+        if (isBefore(ideaDate, dateBounds.start)) return false;
+        if (dateBounds.end !== null && isAfter(ideaDate, dateBounds.end)) return false;
+      }
+      
+      // Trade type filter
+      if (tradeTypeFilter !== 'all') {
+        if (tradeTypeFilter === 'day' && idea.holdingPeriod !== 'day') return false;
+        if (tradeTypeFilter === 'swing' && !['swing', 'position', 'week-ending'].includes(idea.holdingPeriod)) return false;
+      }
+      
+      // Status filter (active/won/lost)
+      const status = (idea.outcomeStatus || '').trim().toLowerCase();
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'active' && status !== 'open' && status !== '') return false;
+        if (statusFilter === 'won' && status !== 'hit_target') return false;
+        if (statusFilter === 'lost' && status !== 'hit_stop') return false;
+      }
+      
+      // Timeframe filter
+      if (activeTimeframe !== 'all' && idea.expiryDate) {
+        const today = startOfDay(new Date());
+        const expiry = startOfDay(new Date(idea.expiryDate));
+        const daysToExp = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        if (activeTimeframe === 'today_tomorrow' && !(daysToExp >= 0 && daysToExp <= 1)) return false;
+        if (activeTimeframe === 'few_days' && !(daysToExp >= 2 && daysToExp <= 5)) return false;
+        if (activeTimeframe === 'next_week' && !(daysToExp >= 0 && daysToExp <= 7)) return false;
+      }
+      
+      return true;
     });
     
     const counts: Record<string, number> = {
-      all: statusFiltered.length,
+      all: baseFiltered.length,
       ai: 0,
       quant: 0,
       hybrid: 0,
@@ -374,7 +438,7 @@ export default function TradeDeskPage() {
       manual: 0,
     };
     
-    statusFiltered.forEach(idea => {
+    baseFiltered.forEach(idea => {
       const source = idea.source || 'quant';
       if (counts[source] !== undefined) {
         counts[source]++;
@@ -382,7 +446,7 @@ export default function TradeDeskPage() {
     });
     
     return counts;
-  }, [tradeIdeas, statusView]);
+  }, [tradeIdeas, statusView, dateFilter, customDate, tradeTypeFilter, statusFilter, activeTimeframe]);
 
   const statusCounts = useMemo(() => {
     const counts = {
@@ -1130,138 +1194,172 @@ export default function TradeDeskPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-8">
-      {/* Clean Minimal Header */}
-      <header className="space-y-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">Research</h1>
-            <p className="text-muted-foreground mt-1">
-              {activeIdeas.length} active briefs {newIdeasCount > 0 && <span className="text-cyan-500">· {newIdeasCount} new</span>}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <UsageBadge className="mr-1" data-testid="badge-usage-remaining" />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] })}
-              title="Refresh"
-              data-testid="button-refresh-ideas"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                className="bg-foreground text-background gap-2"
-                size="default"
-                disabled={!canGenerateTradeIdea()}
-                data-testid="button-generate-ideas"
+    <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      {/* Premium Research Hub Header */}
+      <header className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/40 dark:from-slate-900/80 dark:via-slate-800/60 dark:to-slate-900/40 border border-slate-700/30 p-6" data-testid="research-hub-header">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-500/5 via-transparent to-transparent pointer-events-none" />
+        <div className="relative">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            {/* Title & Stats */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                  <Brain className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                </div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight" data-testid="text-page-title">Research Hub</h1>
+                  <p className="text-sm text-muted-foreground">Institutional-grade trade analysis</p>
+                </div>
+              </div>
+              
+              {/* Quick Stats Row */}
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/50 border border-slate-700/30">
+                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-sm font-mono text-green-600 dark:text-green-400">{activeIdeas.length}</span>
+                  <span className="text-xs text-muted-foreground">Active</span>
+                </div>
+                {newIdeasCount > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                    <Zap className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
+                    <span className="text-sm font-mono text-cyan-600 dark:text-cyan-400">{newIdeasCount}</span>
+                    <span className="text-xs text-muted-foreground">New Today</span>
+                  </div>
+                )}
+                <UsageBadge className="hidden sm:flex" data-testid="badge-usage-remaining" />
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] })}
+                title="Refresh"
+                className="border-slate-700/50"
+                data-testid="button-refresh-ideas"
               >
-                <Sparkles className="h-4 w-4" />
-                Generate
+                <RefreshCw className="h-4 w-4" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem
-                onClick={() => generateHybridIdeas.mutate(activeTimeframe)}
-                disabled={generateHybridIdeas.isPending}
-                data-testid="menu-generate-hybrid"
-              >
-                <Sparkles className="h-4 w-4 mr-2" />
-                Smart Picks
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => generateQuantIdeas.mutate(activeTimeframe)}
-                disabled={generateQuantIdeas.isPending}
-                data-testid="menu-generate-quant"
-              >
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Quant Signals
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => generateAIIdeas.mutate(activeTimeframe)}
-                disabled={generateAIIdeas.isPending}
-                data-testid="menu-generate-ai"
-              >
-                <Bot className="h-4 w-4 mr-2" />
-                AI Analysis
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => generateFlowIdeas.mutate(activeTimeframe)}
-                disabled={generateFlowIdeas.isPending}
-                data-testid="menu-generate-flow"
-              >
-                <Activity className="h-4 w-4 mr-2" />
-                Options Flow
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    className="bg-cyan-600 hover:bg-cyan-500 dark:bg-cyan-500 dark:hover:bg-cyan-400 text-white gap-2"
+                    size="default"
+                    disabled={!canGenerateTradeIdea()}
+                    data-testid="button-generate-ideas"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Generate
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem
+                    onClick={() => generateHybridIdeas.mutate(activeTimeframe)}
+                    disabled={generateHybridIdeas.isPending}
+                    data-testid="menu-generate-hybrid"
+                  >
+                    <Sparkles className="h-4 w-4 mr-2 text-amber-400" />
+                    Smart Picks
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => generateQuantIdeas.mutate(activeTimeframe)}
+                    disabled={generateQuantIdeas.isPending}
+                    data-testid="menu-generate-quant"
+                  >
+                    <BarChart3 className="h-4 w-4 mr-2 text-blue-400" />
+                    Quant Signals
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => generateAIIdeas.mutate(activeTimeframe)}
+                    disabled={generateAIIdeas.isPending}
+                    data-testid="menu-generate-ai"
+                  >
+                    <Bot className="h-4 w-4 mr-2 text-purple-400" />
+                    AI Analysis
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => generateFlowIdeas.mutate(activeTimeframe)}
+                    disabled={generateFlowIdeas.isPending}
+                    data-testid="menu-generate-flow"
+                  >
+                    <Activity className="h-4 w-4 mr-2 text-cyan-400" />
+                    Options Flow
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Minimal Search Bar */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
-        <Input
-          ref={searchInputRef}
-          placeholder="Search or analyze any symbol..."
-          value={analyzeSymbol}
-          onChange={(e) => setAnalyzeSymbol(e.target.value.toUpperCase())}
-          onFocus={() => symbolSearchResults.length > 0 && setShowSearchResults(true)}
-          className="pl-12 pr-32 h-12 text-base bg-muted/30 border-0 focus-visible:ring-1"
-          data-testid="input-analyze-symbol"
-        />
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-          {isSearching && <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />}
-          <Button
-            onClick={() => analyzePlayMutation.mutate()}
-            disabled={analyzePlayMutation.isPending || !analyzeSymbol.trim()}
-            size="sm"
-            data-testid="button-submit-analyze"
-          >
-            {analyzePlayMutation.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Analyze"}
-          </Button>
-        </div>
-        {showSearchResults && symbolSearchResults.length > 0 && (
-          <div 
-            ref={searchResultsRef}
-            className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg max-h-64 overflow-y-auto"
-          >
-            {symbolSearchResults.map((result, idx) => (
-              <div
-                key={`${result.symbol}-${idx}`}
-                role="button"
-                tabIndex={0}
-                className="w-full px-4 py-3 text-left hover:bg-accent/50 flex items-center justify-between gap-2 cursor-pointer transition-colors"
-                onClick={() => handleSelectSymbol(result.symbol, result.type)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSelectSymbol(result.symbol, result.type)}
-                data-testid={`search-result-${result.symbol}`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="font-mono font-semibold">{result.symbol}</span>
-                  <span className="text-sm text-muted-foreground truncate">{result.description}</span>
-                </div>
-                <span className="text-xs text-muted-foreground shrink-0">
-                  {result.type === 'crypto' ? 'Crypto' : 'Stock'}
-                </span>
-              </div>
-            ))}
+      {/* Command Center: Search + Market Data */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Search Bar - Takes 2 columns */}
+        <div className="lg:col-span-2 relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+          <Input
+            ref={searchInputRef}
+            placeholder="Search or analyze any symbol..."
+            value={analyzeSymbol}
+            onChange={(e) => setAnalyzeSymbol(e.target.value.toUpperCase())}
+            onFocus={() => symbolSearchResults.length > 0 && setShowSearchResults(true)}
+            className="pl-12 pr-32 h-12 text-base bg-muted/30 border-slate-700/30 focus-visible:ring-1 focus-visible:ring-cyan-500/50"
+            data-testid="input-analyze-symbol"
+          />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            {isSearching && <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />}
+            <Button
+              onClick={() => analyzePlayMutation.mutate()}
+              disabled={analyzePlayMutation.isPending || !analyzeSymbol.trim()}
+              size="sm"
+              className="bg-cyan-600 hover:bg-cyan-500 dark:bg-cyan-500 dark:hover:bg-cyan-400"
+              data-testid="button-submit-analyze"
+            >
+              {analyzePlayMutation.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Analyze"}
+            </Button>
           </div>
-        )}
+          {showSearchResults && symbolSearchResults.length > 0 && (
+            <div 
+              ref={searchResultsRef}
+              className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg max-h-64 overflow-y-auto"
+            >
+              {symbolSearchResults.map((result, idx) => (
+                <div
+                  key={`${result.symbol}-${idx}`}
+                  role="button"
+                  tabIndex={0}
+                  className="w-full px-4 py-3 text-left hover:bg-accent/50 flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                  onClick={() => handleSelectSymbol(result.symbol, result.type)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSelectSymbol(result.symbol, result.type)}
+                  data-testid={`search-result-${result.symbol}`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="font-mono font-semibold">{result.symbol}</span>
+                    <span className="text-sm text-muted-foreground truncate">{result.description}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {result.type === 'crypto' ? 'Crypto' : 'Stock'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        {/* AI Assistant Toggle */}
+        <div className="lg:col-span-1">
+          <AIResearchPanel />
+        </div>
       </div>
 
-      {/* AI Research Assistant */}
-      <AIResearchPanel />
-
-      {/* Live Market Stats Ticker */}
+      {/* Live Market Data Strip */}
       <MarketStatsTicker />
 
-      {/* Source Filter Tabs with Icons */}
-      <div className="flex flex-wrap items-center gap-2 text-sm">
+      {/* Engine Filter Tabs - Premium Design */}
+      <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-slate-800/30 dark:bg-slate-800/30 border border-slate-700/30">
         {([
           { value: 'all', label: 'All', icon: Globe, color: 'text-foreground' },
           { value: 'ai', label: 'AI', icon: Bot, color: 'text-purple-400' },
