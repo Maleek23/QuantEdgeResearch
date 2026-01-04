@@ -81,6 +81,7 @@ export function AIChatbotPopup() {
       if (data.creditsRemaining !== undefined) {
         setCreditsRemaining(data.creditsRemaining);
       }
+      refetchCredits();
     },
     onError: async (error: Error) => {
       const errorMessage = error.message || 'Failed to get response. Please try again.';
