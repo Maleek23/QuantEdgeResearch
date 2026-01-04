@@ -136,6 +136,48 @@ All trade outcome displays use canonical helpers from `client/src/lib/signal-gra
 - **Critical**: Always use `getPnlColor()` instead of raw percentGain-based coloring to ensure expired trades show neutral amber styling
 - Files using these utilities: performance.tsx, trade-audit.tsx, data-audit-center.tsx, chart-database.tsx, trade-idea-block.tsx, trade-idea-detail-modal.tsx, closed-trades-table.tsx
 
+## Watchlist Grading System
+
+The platform includes a **Watchlist Grading System** that evaluates all watchlist assets (stocks, crypto, futures) using quantitative technical analysis:
+
+### Grading Methodology
+- **Data Source:** Yahoo Finance 3-month historical OHLCV data
+- **Indicators Calculated:** RSI(14), RSI(2), 5-day momentum, 20-day momentum, ADX, volume ratio, moving averages (5/20/50 SMA)
+- **Scoring System:** 0-100 weighted composite score based on:
+  - RSI(14) oversold/overbought conditions (±15 points)
+  - RSI(2) extreme readings for mean reversion (±10 points)
+  - Momentum trends (+10 points for positive 5D/20D)
+  - Volume spikes above average (+10 points)
+  - ADX trend strength (+10 points for ADX > 25)
+  - Moving average crossovers (+5 points each)
+
+### Tier Classification
+- **S Tier (85+):** Exceptional setup - multiple converging bullish signals
+- **A Tier (75-84):** Strong opportunity - several positive indicators
+- **B Tier (65-74):** Good potential - favorable conditions
+- **C Tier (55-64):** Neutral - mixed signals
+- **D Tier (45-54):** Weak - bearish bias
+- **F Tier (<45):** Poor setup - avoid
+
+### API Endpoints
+- `GET /api/watchlist/graded` - Get all watchlist items sorted by tier/score
+- `POST /api/watchlist/:id/grade` - Re-grade a specific watchlist item
+- `POST /api/watchlist/grade-all` - Re-grade all items (admin-only)
+
+### Symbol Mapping
+- **Stocks:** Direct ticker symbols (AAPL, MSFT, etc.)
+- **Crypto:** Converted to Yahoo format (BTC → BTC-USD, ETH → ETH-USD, SUI → SUI-USD)
+- **Futures:** Converted to Yahoo format (NQ → NQ=F, ES → ES=F, GC → GC=F)
+
+### Scheduled Updates
+- Cron job runs every 15 minutes during market hours (8 AM - 4 PM CT weekdays)
+- Manual re-grading available via UI buttons
+
+### Frontend Display
+- Grade badges with tier-colored styling (S=cyan, A=green, B=lime, etc.)
+- Tooltips show detailed grading inputs (RSI, momentum, volume ratio, signals)
+- Items sorted by tier (S→F) then by score within tier
+
 ## Render Deployment
 
 ### Required Environment Variables
