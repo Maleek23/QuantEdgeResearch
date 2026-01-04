@@ -78,6 +78,10 @@ import type {
   UserActivityType,
   BetaWaitlist,
   InsertBetaWaitlist,
+  BetaInvite,
+  InsertBetaInvite,
+  WaitlistStatus,
+  InviteStatus,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
@@ -119,6 +123,7 @@ import {
   userActivityEvents,
   userAnalyticsSummary,
   betaWaitlist,
+  betaInvites,
 } from "@shared/schema";
 
 // ========================================
@@ -484,6 +489,17 @@ export interface IStorage {
   markWaitlistDiscordNotified(id: string): Promise<void>;
   getWaitlistCount(): Promise<number>;
   getWaitlistPosition(id: string): Promise<number>;
+  getAllWaitlistEntries(): Promise<BetaWaitlist[]>;
+  updateWaitlistStatus(id: string, status: WaitlistStatus, inviteId?: string): Promise<void>;
+
+  // Beta Invites
+  createBetaInvite(invite: InsertBetaInvite): Promise<BetaInvite>;
+  getBetaInviteByToken(token: string): Promise<BetaInvite | null>;
+  getBetaInviteByEmail(email: string): Promise<BetaInvite | null>;
+  getAllBetaInvites(): Promise<BetaInvite[]>;
+  updateBetaInviteStatus(id: string, status: InviteStatus): Promise<void>;
+  markBetaInviteSent(id: string): Promise<void>;
+  redeemBetaInvite(token: string): Promise<BetaInvite | null>;
 }
 
 export class MemStorage implements IStorage {
@@ -3629,6 +3645,72 @@ export class DatabaseStorage implements IStorage {
       .from(betaWaitlist)
       .where(lte(betaWaitlist.createdAt, entry[0].createdAt!));
     return earlier[0]?.count || 0;
+  }
+
+  async getAllWaitlistEntries(): Promise<BetaWaitlist[]> {
+    return await db.select().from(betaWaitlist).orderBy(desc(betaWaitlist.createdAt));
+  }
+
+  async updateWaitlistStatus(id: string, status: WaitlistStatus, inviteId?: string): Promise<void> {
+    const updates: Partial<BetaWaitlist> = { status };
+    if (inviteId) updates.inviteId = inviteId;
+    if (status === 'invited') {
+      updates.inviteSent = true;
+      updates.lastContactedAt = new Date();
+    }
+    if (status === 'joined') {
+      updates.convertedToUser = true;
+    }
+    await db.update(betaWaitlist).set(updates).where(eq(betaWaitlist.id, id));
+  }
+
+  // ========== BETA INVITES ==========
+  async createBetaInvite(invite: InsertBetaInvite): Promise<BetaInvite> {
+    const [created] = await db.insert(betaInvites).values(invite).returning();
+    return created;
+  }
+
+  async getBetaInviteByToken(token: string): Promise<BetaInvite | null> {
+    const result = await db.select().from(betaInvites).where(eq(betaInvites.token, token));
+    return result[0] || null;
+  }
+
+  async getBetaInviteByEmail(email: string): Promise<BetaInvite | null> {
+    const result = await db.select().from(betaInvites)
+      .where(eq(betaInvites.email, email))
+      .orderBy(desc(betaInvites.createdAt));
+    return result[0] || null;
+  }
+
+  async getAllBetaInvites(): Promise<BetaInvite[]> {
+    return await db.select().from(betaInvites).orderBy(desc(betaInvites.createdAt));
+  }
+
+  async updateBetaInviteStatus(id: string, status: InviteStatus): Promise<void> {
+    await db.update(betaInvites).set({ status }).where(eq(betaInvites.id, id));
+  }
+
+  async markBetaInviteSent(id: string): Promise<void> {
+    await db.update(betaInvites).set({ 
+      status: 'sent' as InviteStatus, 
+      sentAt: new Date() 
+    }).where(eq(betaInvites.id, id));
+  }
+
+  async redeemBetaInvite(token: string): Promise<BetaInvite | null> {
+    const invite = await this.getBetaInviteByToken(token);
+    if (!invite) return null;
+    if (invite.status === 'redeemed') return null;
+    if (invite.status === 'revoked') return null;
+    if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) {
+      await this.updateBetaInviteStatus(invite.id, 'expired');
+      return null;
+    }
+    await db.update(betaInvites).set({ 
+      status: 'redeemed' as InviteStatus, 
+      redeemedAt: new Date() 
+    }).where(eq(betaInvites.id, invite.id));
+    return invite;
   }
 }
 
