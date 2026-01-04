@@ -1547,6 +1547,9 @@ export async function runAutonomousBotScan(): Promise<void> {
     const combinedTickers = [...new Set([...dynamicMovers, ...BOT_SCAN_TICKERS])];
     logger.info(`🤖 [BOT] Total scan universe: ${combinedTickers.length} tickers (${dynamicMovers.length} dynamic + static list)`);
     
+    // 📋 CATALYST SCORE CACHE - Avoid redundant DB calls during scan
+    const catalystScoreCache = new Map<string, { score: number; summary: string; catalystCount: number }>();
+    
     for (const ticker of combinedTickers) {
       if (openSymbols.has(ticker)) continue;
       
@@ -1555,6 +1558,18 @@ export async function runAutonomousBotScan(): Promise<void> {
       if (!symbolCheck.allowed) {
         logger.debug(`🤖 [BOT] ⛔ ${symbolCheck.reason}`);
         continue;
+      }
+      
+      // 📋 CATALYST INTELLIGENCE - Fetch once per ticker with cache
+      let catalystData = catalystScoreCache.get(ticker);
+      if (!catalystData) {
+        try {
+          const { calculateCatalystScore } = await import("./catalyst-intelligence-service");
+          catalystData = await calculateCatalystScore(ticker);
+          catalystScoreCache.set(ticker, catalystData);
+        } catch (err) {
+          catalystData = { score: 0, summary: 'Catalyst check unavailable', catalystCount: 0 };
+        }
       }
       
       const opportunities = await scanForOpportunities(ticker);
@@ -1576,6 +1591,38 @@ export async function runAutonomousBotScan(): Promise<void> {
           decision.confidence = Math.min(100, decision.confidence + 8);
           decision.signals.push('MARKET_SCANNER_MOVER');
           logger.debug(`🔍 [BOT] +8 boost for ${ticker} (dynamic mover from scanner)`);
+        }
+        
+        // 📋 CATALYST INTELLIGENCE BOOST: Adjust confidence based on SEC filings, gov contracts, etc.
+        if (catalystData && catalystData.catalystCount > 0) {
+          // Map catalyst score (-100 to +100) to bounded confidence boost (-12 to +12)
+          let catalystBoost = 0;
+          const catalystScore = catalystData.score;
+          
+          if (catalystScore >= 50) {
+            catalystBoost = 12; // Strong bullish catalyst
+            decision.signals.push('CATALYST_STRONG_BULLISH');
+          } else if (catalystScore >= 25) {
+            catalystBoost = 8; // Moderate bullish catalyst
+            decision.signals.push('CATALYST_BULLISH');
+          } else if (catalystScore >= 10) {
+            catalystBoost = 5; // Mild bullish catalyst
+            decision.signals.push('CATALYST_MILD_BULLISH');
+          } else if (catalystScore <= -50) {
+            catalystBoost = -12; // Strong bearish catalyst
+            decision.signals.push('CATALYST_STRONG_BEARISH');
+          } else if (catalystScore <= -25) {
+            catalystBoost = -8; // Moderate bearish catalyst
+            decision.signals.push('CATALYST_BEARISH');
+          } else if (catalystScore <= -10) {
+            catalystBoost = -5; // Mild bearish catalyst
+            decision.signals.push('CATALYST_MILD_BEARISH');
+          }
+          
+          if (catalystBoost !== 0) {
+            decision.confidence = Math.max(0, Math.min(100, decision.confidence + catalystBoost));
+            logger.debug(`📋 [BOT] ${catalystBoost > 0 ? '+' : ''}${catalystBoost} catalyst boost for ${ticker} (score: ${catalystScore}, ${catalystData.catalystCount} events)`);
+          }
         }
         
         // 📊 ENTRY TIMING CHECK - Should we enter now or wait?
