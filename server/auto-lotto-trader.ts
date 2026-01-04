@@ -841,6 +841,19 @@ export async function runCryptoBotScan(): Promise<void> {
     
     logger.info(`🪙 [CRYPTO BOT] Best opportunity: ${bestOpp.symbol} (${bestOpp.direction}) - Confidence: ${bestOpp.confidence}%`);
     
+    // Check for existing open trade ideas to prevent duplicates
+    const existingIdeas = await storage.getTradeIdeas();
+    const hasOpenIdea = existingIdeas.some(idea => 
+      idea.symbol === bestOpp.symbol && 
+      idea.outcomeStatus === 'open' &&
+      idea.assetType === 'crypto'
+    );
+    
+    if (hasOpenIdea) {
+      logger.info(`🪙 [CRYPTO BOT] Skipping ${bestOpp.symbol} - already has open trade idea`);
+      return;
+    }
+    
     // Apply minimum confidence score from preferences
     if (bestOpp.confidence < prefs.minConfidenceScore) {
       logger.info(`🪙 [CRYPTO BOT] Best opportunity confidence ${bestOpp.confidence}% < min ${prefs.minConfidenceScore}%`);
@@ -1993,6 +2006,19 @@ export async function runFuturesBotScan(): Promise<void> {
             : (bestFuturesOpp.direction === 'long' ? entryPrice * 1.04 : entryPrice * 0.96);
           
           logger.debug(`🔮 [FUTURES-BOT] Using prefs: stop=${prefs.futuresStopPoints}pts, target=${prefs.futuresTargetPoints}pts`);
+          
+          // Check for existing open trade ideas to prevent duplicates
+          const existingIdeas = await storage.getTradeIdeas();
+          const hasOpenIdea = existingIdeas.some(idea => 
+            (idea.symbol === bestFuturesOpp.contractCode || idea.symbol.startsWith(bestFuturesOpp.symbol)) && 
+            idea.outcomeStatus === 'open' &&
+            idea.assetType === 'future'
+          );
+          
+          if (hasOpenIdea) {
+            logger.info(`🔮 [FUTURES-BOT] Skipping ${bestFuturesOpp.contractCode} - already has open trade idea`);
+            return;
+          }
           
           const position = await storage.createPaperPosition({
             portfolioId: portfolio.id,
