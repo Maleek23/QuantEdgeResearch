@@ -1843,3 +1843,22 @@ export const AI_CREDIT_ALLOCATIONS: Record<SubscriptionTier, number> = {
   pro: 1500,      // ~50 chats/day
   admin: 999999,  // Unlimited for admins
 };
+
+// ============================================================================
+// BETA WAITLIST - Email collection for early access
+// ============================================================================
+
+export const betaWaitlist = pgTable("beta_waitlist", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").unique().notNull(),
+  source: varchar("source").default('landing'), // 'landing', 'discord', 'referral'
+  referralCode: varchar("referral_code"),
+  notifiedDiscord: boolean("notified_discord").default(false),
+  inviteSent: boolean("invite_sent").default(false),
+  convertedToUser: boolean("converted_to_user").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertBetaWaitlistSchema = createInsertSchema(betaWaitlist).omit({ id: true, createdAt: true, notifiedDiscord: true, inviteSent: true, convertedToUser: true });
+export type InsertBetaWaitlist = z.infer<typeof insertBetaWaitlistSchema>;
+export type BetaWaitlist = typeof betaWaitlist.$inferSelect;
