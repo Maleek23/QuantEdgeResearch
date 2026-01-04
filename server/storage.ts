@@ -213,6 +213,12 @@ export interface ChatMessage {
   timestamp: string;
 }
 
+export interface SegmentedWinRates {
+  equities: { winRate: number; wins: number; losses: number; decided: number };
+  options: { winRate: number; wins: number; losses: number; decided: number };
+  overall: { winRate: number; wins: number; losses: number; decided: number };
+}
+
 export interface PerformanceStats {
   overall: {
     totalIdeas: number;
@@ -239,6 +245,7 @@ export interface PerformanceStats {
     avgWinSize: number; // Average win size (%)
     avgLossSize: number; // Average loss size (%)
   };
+  segmentedWinRates: SegmentedWinRates;
   bySource: {
     source: string;
     totalIdeas: number;
@@ -1278,20 +1285,37 @@ export class MemStorage implements IStorage {
     const avgLoss = lostIdeas.length > 0 ? lostIdeas.reduce((s, i) => s + (i.percentGain || 0), 0) / lostIdeas.length : 0;
 
     return {
-      totalIdeas: allIdeas.length,
-      wonIdeas: wonIdeas.length,
-      lostIdeas: lostIdeas.length,
-      winRate,
-      avgPercentGain: closedIdeas.length > 0 ? closedIdeas.reduce((s, i) => s + (i.percentGain || 0), 0) / closedIdeas.length : 0,
-      avgHoldingTime: 0, 
+      overall: {
+        totalIdeas: allIdeas.length,
+        openIdeas: allIdeas.filter(i => i.outcomeStatus === 'open').length,
+        closedIdeas: closedIdeas.length,
+        wonIdeas: wonIdeas.length,
+        lostIdeas: lostIdeas.length,
+        expiredIdeas: closedIdeas.filter(i => i.outcomeStatus === 'expired').length,
+        winRate,
+        quantAccuracy: 0,
+        directionalAccuracy: 0,
+        avgPercentGain: closedIdeas.length > 0 ? closedIdeas.reduce((s, i) => s + (i.percentGain || 0), 0) / closedIdeas.length : 0,
+        avgHoldingTimeMinutes: 0, 
+        sharpeRatio: 0,
+        maxDrawdown: 0,
+        profitFactor: 0,
+        expectancy: 0,
+        evScore: avgLoss !== 0 ? Math.abs(avgWin / avgLoss) : 0,
+        adjustedWeightedAccuracy: 0,
+        oppositeDirectionRate: 0,
+        oppositeDirectionCount: 0,
+        avgWinSize: avgWin,
+        avgLossSize: Math.abs(avgLoss),
+      },
+      segmentedWinRates: {
+        equities: { winRate, wins: wonIdeas.length, losses: lostIdeas.length, decided: decidedIdeas },
+        options: { winRate: 0, wins: 0, losses: 0, decided: 0 },
+        overall: { winRate, wins: wonIdeas.length, losses: lostIdeas.length, decided: decidedIdeas },
+      },
       bySource,
       byAssetType,
       bySignalType,
-      quantAccuracy: 0,
-      directionalAccuracy: 0,
-      evScore: avgLoss !== 0 ? Math.abs(avgWin / avgLoss) : 0,
-      adjustedWeightedAccuracy: 0,
-      oppositeDirectionRate: 0
     };
   }
 
@@ -2203,6 +2227,58 @@ export class DatabaseStorage implements IStorage {
       ? (oppositeDirectionCount / allIdeas.length) * 100
       : 0;
 
+    // ========================================
+    // SEGMENTED WIN RATES - Platform-Wide Consistency
+    // ========================================
+    // Calculate win rates for: Equities, Options, and Overall (ALL trades)
+    // Uses ALL trades from database (before any filtering) for honest overall stats
+    
+    // Get all trades without options/flow filtering (but keep buggy/version filters)
+    const allTradesForSegmented = allIdeasRaw.filter(idea => {
+      // Still exclude buggy trades
+      if (idea.excludeFromTraining) return false;
+      // Still apply version filter if not admin mode
+      if (filters?.includeAllVersions !== true && !isCurrentGenEngine(idea)) return false;
+      return true;
+    });
+    
+    // Helper for segmented win rate calculation (reuses isRealLoss defined above)
+    const calcSegmentedWinRate = (ideas: TradeIdea[]) => {
+      const closedIdeas = ideas.filter(i => i.outcomeStatus !== 'open');
+      const wins = closedIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
+      const losses = closedIdeas.filter(i => isRealLoss(i)).length;
+      const decided = wins + losses;
+      return {
+        winRate: decided > 0 ? Math.round((wins / decided) * 1000) / 10 : 0,
+        wins,
+        losses,
+        decided
+      };
+    };
+    
+    // Equities: stock, crypto, futures (non-options)
+    const equityTrades = allTradesForSegmented.filter(i => 
+      i.assetType !== 'option' && i.source !== 'flow' && i.source !== 'lotto'
+    );
+    const equitiesStats = calcSegmentedWinRate(equityTrades);
+    
+    // Options: option asset type OR flow/lotto sources (which are mostly options)
+    const optionTrades = allTradesForSegmented.filter(i => 
+      i.assetType === 'option' || i.source === 'flow' || i.source === 'lotto'
+    );
+    const optionsStats = calcSegmentedWinRate(optionTrades);
+    
+    // Overall: ALL trades combined
+    const overallStats = calcSegmentedWinRate(allTradesForSegmented);
+    
+    const segmentedWinRates = {
+      equities: equitiesStats,
+      options: optionsStats,
+      overall: overallStats,
+    };
+    
+    console.log(`[PERF-STATS] Segmented Win Rates: Equities ${equitiesStats.winRate}% (${equitiesStats.wins}W/${equitiesStats.losses}L), Options ${optionsStats.winRate}% (${optionsStats.wins}W/${optionsStats.losses}L), Overall ${overallStats.winRate}% (${overallStats.wins}W/${overallStats.losses}L)`);
+
     return {
       overall: {
         totalIdeas: allIdeas.length,
@@ -2211,7 +2287,7 @@ export class DatabaseStorage implements IStorage {
         wonIdeas: wonIdeas.length,
         lostIdeas: lostIdeas.length,
         expiredIdeas: expiredIdeas.length,
-        winRate,
+        winRate: overallStats.winRate, // Use unified segmented methodology
         quantAccuracy,
         directionalAccuracy,
         avgPercentGain: calculateAvg(closedGains),
@@ -2229,6 +2305,7 @@ export class DatabaseStorage implements IStorage {
         avgWinSize: avgWin,
         avgLossSize: avgLoss,
       },
+      segmentedWinRates,
       bySource,
       byAssetType,
       bySignalType,

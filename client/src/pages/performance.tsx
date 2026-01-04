@@ -100,6 +100,13 @@ interface EngineConfidenceCorrelation {
   summary: { totalEngines: number; totalResolvedTrades: number; };
 }
 
+interface SegmentWinRate {
+  winRate: number;
+  wins: number;
+  losses: number;
+  decided: number;
+}
+
 interface PerformanceStats {
   overall: {
     totalIdeas: number; openIdeas: number; closedIdeas: number; wonIdeas: number; lostIdeas: number;
@@ -107,6 +114,11 @@ interface PerformanceStats {
     avgPercentGain: number; avgHoldingTimeMinutes: number; sharpeRatio: number; maxDrawdown: number;
     profitFactor: number; expectancy: number; evScore: number; adjustedWeightedAccuracy: number;
     oppositeDirectionRate: number; oppositeDirectionCount: number; avgWinSize: number; avgLossSize: number;
+  };
+  segmentedWinRates: {
+    equities: SegmentWinRate;
+    options: SegmentWinRate;
+    overall: SegmentWinRate;
   };
   bySource: Array<{ source: string; totalIdeas: number; wonIdeas: number; lostIdeas: number; winRate: number; avgPercentGain: number; }>;
   byAssetType: Array<{ assetType: string; totalIdeas: number; wonIdeas: number; lostIdeas: number; winRate: number; avgPercentGain: number; }>;
@@ -239,11 +251,57 @@ function KPIStrip({ stats, botData, engineHealthData }: {
           {stats.overall.totalIdeas}
         </p>
       </div>
-      <div className="stat-glass rounded-lg p-3 text-center min-w-[90px] flex-1">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground truncate">Win Rate</p>
-        <p className={cn("text-xl font-bold font-mono tabular-nums", getWinRateColor(stats.overall.winRate))} data-testid="kpi-win-rate">
-          {stats.overall.closedIdeas > 0 ? `${stats.overall.winRate.toFixed(1)}%` : 'N/A'}
-        </p>
+      <div className="stat-glass rounded-lg p-3 text-center min-w-[180px] flex-1">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground truncate">Win Rates</p>
+        <div className="flex items-center justify-center gap-2 text-sm font-mono tabular-nums" data-testid="kpi-win-rate-segmented">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <span className={cn("font-bold", getWinRateColor(stats.segmentedWinRates?.equities?.winRate ?? 0))}>
+                  {stats.segmentedWinRates?.equities?.decided > 0 
+                    ? `${stats.segmentedWinRates.equities.winRate.toFixed(0)}%` 
+                    : '—'}
+                </span>
+                <span className="text-[10px] text-muted-foreground ml-0.5">EQ</span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Equities: {stats.segmentedWinRates?.equities?.wins ?? 0}W / {stats.segmentedWinRates?.equities?.losses ?? 0}L</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <span className="text-muted-foreground">|</span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <span className={cn("font-bold", getWinRateColor(stats.segmentedWinRates?.options?.winRate ?? 0))}>
+                  {stats.segmentedWinRates?.options?.decided > 0 
+                    ? `${stats.segmentedWinRates.options.winRate.toFixed(0)}%` 
+                    : '—'}
+                </span>
+                <span className="text-[10px] text-muted-foreground ml-0.5">OPT</span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Options: {stats.segmentedWinRates?.options?.wins ?? 0}W / {stats.segmentedWinRates?.options?.losses ?? 0}L</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <span className="text-muted-foreground">|</span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <span className={cn("font-bold", getWinRateColor(stats.segmentedWinRates?.overall?.winRate ?? 0))}>
+                  {stats.segmentedWinRates?.overall?.decided > 0 
+                    ? `${stats.segmentedWinRates.overall.winRate.toFixed(0)}%` 
+                    : '—'}
+                </span>
+                <span className="text-[10px] text-muted-foreground ml-0.5">ALL</span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Overall: {stats.segmentedWinRates?.overall?.wins ?? 0}W / {stats.segmentedWinRates?.overall?.losses ?? 0}L</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
       <div className="stat-glass rounded-lg p-3 text-center min-w-[90px] flex-1">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground truncate">Bot P&L</p>

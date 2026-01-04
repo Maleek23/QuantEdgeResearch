@@ -70,3 +70,28 @@ The platform includes a **Catalyst Intelligence System** that tracks SEC filings
 
 ### Scheduled Polling
 - Catalyst data refreshes every 30 minutes for priority tickers (AAPL, MSFT, GOOGL, etc.)
+
+## Unified Win Rate System
+
+The platform uses a **unified win rate methodology** that provides consistent metrics across all endpoints:
+
+### Segmented Win Rates
+- **Equities Win Rate**: Stocks, crypto, futures (non-options, non-flow/lotto)
+- **Options Win Rate**: Options + flow scanner + lotto scanner trades
+- **Overall Win Rate**: All trades combined (used everywhere for consistency)
+
+### Win Rate Calculation
+- **Win**: Trade hit target price (`outcomeStatus = 'hit_target'`)
+- **Loss**: Trade hit stop loss AND loss > 3% threshold (`outcomeStatus = 'hit_stop' && percentGain <= -3%`)
+- **Excluded**: Breakeven trades (loss < 3%), expired trades, open trades
+
+### Data Source
+- Uses `allTradesForSegmented` which includes:
+  - All non-buggy trades (`excludeFromTraining = false`)
+  - Current-gen engine versions only (v3.0+)
+  - All asset types and sources (equities AND options)
+
+### Display
+- Performance Dashboard KPI strip shows: `EQ 71% | OPT 80% | ALL 77%`
+- Tooltips reveal W/L breakdown for each segment
+- All other components use `stats.overall.winRate` (unified methodology)
