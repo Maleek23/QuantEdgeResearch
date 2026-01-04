@@ -60,6 +60,7 @@ import {
 } from "./stripe-service";
 import { getRealtimeQuote, getRealtimeBatchQuotes, type RealtimeQuote, type AssetType as RTAssetType } from './realtime-pricing-service';
 import { getRealtimeStatus, getAllCryptoPrices, getAllFuturesPrices } from './realtime-price-service';
+import { creditService } from './creditService';
 import { 
   getCalibratedConfidence as getCalibrationScore, 
   generateAdaptiveExitStrategy, 
@@ -2245,6 +2246,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'generate platform report' });
       res.status(500).json({ error: "Failed to generate report" });
+    }
+  });
+
+  // ============================================================================
+  // AI CREDITS ADMIN ROUTES
+  // ============================================================================
+
+  // GET /api/admin/credits/stats - Get overall credit usage stats
+  app.get("/api/admin/credits/stats", requireAdminJWT, async (_req, res) => {
+    try {
+      const stats = await creditService.getTotalUsageStats();
+      const balances = await creditService.getAllBalances(100);
+      
+      const tierBreakdown = {
+        free: balances.filter(b => b.tierSnapshot === 'free').length,
+        advanced: balances.filter(b => b.tierSnapshot === 'advanced').length,
+        pro: balances.filter(b => b.tierSnapshot === 'pro').length,
+        admin: balances.filter(b => b.tierSnapshot === 'admin').length,
+      };
+      
+      const totalCreditsAllocated = balances.reduce((sum, b) => sum + b.creditsAllocated, 0);
+      const totalCreditsUsed = balances.reduce((sum, b) => sum + b.creditsUsed, 0);
+      const utilizationRate = totalCreditsAllocated > 0 ? (totalCreditsUsed / totalCreditsAllocated) * 100 : 0;
+      
+      res.json({
+        ...stats,
+        tierBreakdown,
+        activeBalances: balances.length,
+        totalCreditsAllocated,
+        totalCreditsUsed,
+        utilizationRate: Math.round(utilizationRate * 10) / 10,
+        estimatedMonthlyCost: (stats.totalCostCents / 100).toFixed(2),
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'get credit stats' });
+      res.status(500).json({ error: "Failed to fetch credit stats" });
+    }
+  });
+
+  // GET /api/admin/credits/balances - Get all user credit balances
+  app.get("/api/admin/credits/balances", requireAdminJWT, async (_req, res) => {
+    try {
+      const balances = await creditService.getAllBalances(200);
+      
+      // Enrich with user info
+      const enrichedBalances = await Promise.all(
+        balances.map(async (balance) => {
+          const user = await storage.getUserById(balance.userId);
+          return {
+            ...balance,
+            userEmail: user?.email || 'Unknown',
+            userName: user?.name || 'Unknown',
+          };
+        })
+      );
+      
+      res.json(enrichedBalances);
+    } catch (error) {
+      logError(error as Error, { context: 'get credit balances' });
+      res.status(500).json({ error: "Failed to fetch credit balances" });
+    }
+  });
+
+  // GET /api/admin/credits/usage - Get recent usage ledger
+  app.get("/api/admin/credits/usage", requireAdminJWT, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const { db } = await import('./db');
+      const { aiUsageLedger } = await import('@shared/schema');
+      const { desc } = await import('drizzle-orm');
+      
+      const usage = await db
+        .select()
+        .from(aiUsageLedger)
+        .orderBy(desc(aiUsageLedger.createdAt))
+        .limit(limit);
+      
+      // Enrich with user info
+      const enrichedUsage = await Promise.all(
+        usage.map(async (u) => {
+          const user = await storage.getUserById(u.userId);
+          return {
+            ...u,
+            userEmail: user?.email || 'Unknown',
+          };
+        })
+      );
+      
+      res.json(enrichedUsage);
+    } catch (error) {
+      logError(error as Error, { context: 'get credit usage' });
+      res.status(500).json({ error: "Failed to fetch credit usage" });
+    }
+  });
+
+  // POST /api/admin/credits/reset - Reset a user's credits
+  app.post("/api/admin/credits/reset/:userId", requireAdminJWT, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const user = await storage.getUserById(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const tier = (user.subscriptionTier as 'free' | 'advanced' | 'pro' | 'admin') || 'free';
+      const newBalance = await creditService.resetUserCredits(userId, tier);
+      
+      logger.info(`[ADMIN] Reset credits for user ${userId} (tier: ${tier})`);
+      res.json(newBalance);
+    } catch (error) {
+      logError(error as Error, { context: 'reset user credits' });
+      res.status(500).json({ error: "Failed to reset credits" });
+    }
+  });
+
+  // GET /api/ai/credits - Get current user's credit balance
+  app.get("/api/ai/credits", async (req, res) => {
+    try {
+      const userId = req.session?.userId || (req.user as any)?.claims?.sub;
+      
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const user = await storage.getUserById(userId);
+      const tier = (user?.subscriptionTier as 'free' | 'advanced' | 'pro' | 'admin') || 'free';
+      const balance = await creditService.getOrCreateBalance(userId, tier);
+      
+      res.json({
+        creditsRemaining: balance.creditsRemaining,
+        creditsUsed: balance.creditsUsed,
+        creditsAllocated: balance.creditsAllocated,
+        cycleEnd: balance.cycleEnd,
+        tier: balance.tier,
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'get user credits' });
+      res.status(500).json({ error: "Failed to fetch credits" });
+    }
+  });
+
+  // GET /api/ai/credits/history - Get current user's usage history
+  app.get("/api/ai/credits/history", async (req, res) => {
+    try {
+      const userId = req.session?.userId || (req.user as any)?.claims?.sub;
+      
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const history = await creditService.getUsageHistory(userId, 50);
+      res.json(history);
+    } catch (error) {
+      logError(error as Error, { context: 'get credit history' });
+      res.status(500).json({ error: "Failed to fetch credit history" });
     }
   });
 
@@ -9966,11 +10123,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { question, context } = schema.parse(req.body);
       
+      // Get user and check credits
+      const userId = req.session?.userId || (req.user as any)?.claims?.sub;
+      let userTier: 'free' | 'advanced' | 'pro' | 'admin' = 'free';
+      
+      if (userId) {
+        const user = await storage.getUserById(userId);
+        if (user) {
+          userTier = (user.subscriptionTier as 'free' | 'advanced' | 'pro' | 'admin') || 'free';
+        }
+        
+        // Check if user has credits
+        const creditBalance = await creditService.getOrCreateBalance(userId, userTier);
+        if (!creditBalance.hasCredits) {
+          return res.status(402).json({
+            error: 'No AI credits remaining',
+            creditsRemaining: 0,
+            cycleEnd: creditBalance.cycleEnd,
+            upgradeUrl: '/pricing',
+            message: `You've used all ${creditBalance.creditsAllocated} AI credits for this month. Credits reset on ${new Date(creditBalance.cycleEnd).toLocaleDateString()}. Upgrade your plan for more credits.`
+          });
+        }
+      }
+      
+      const startTime = Date.now();
+      
       // Log usage for telemetry
       logger.info(`[RESEARCH-ASSISTANT] Question received`, {
         questionLength: question.length,
         hasSymbolContext: !!context?.symbol,
         hasTradeIdeaContext: !!context?.tradeIdeaId,
+        userId,
+        tier: userTier,
       });
       
       // Build context string if provided
@@ -10096,17 +10280,41 @@ CONSTRAINTS:
         throw new Error('Unable to generate response from any AI provider');
       }
       
+      const responseTime = Date.now() - startTime;
+      
+      // Deduct credit after successful response
+      let creditsRemaining: number | undefined;
+      if (userId) {
+        const modelUsed = usedProvider === 'gemini' ? 'gemini-2.5-flash' : 
+                          usedProvider === 'anthropic' ? 'claude-sonnet-4' : 'gpt-4o';
+        
+        const deductResult = await creditService.deductCredit(
+          userId,
+          userTier,
+          usedProvider,
+          modelUsed,
+          undefined, // inputTokens - not tracked for simplicity
+          undefined, // outputTokens - not tracked for simplicity
+          question.slice(0, 100),
+          responseTime
+        );
+        creditsRemaining = deductResult.creditsRemaining;
+      }
+      
       const disclaimer = "⚠️ EDUCATIONAL DISCLAIMER: This information is for educational and research purposes only. It does not constitute financial advice, investment recommendations, or an offer to buy or sell any securities. Always conduct your own research and consult with a licensed financial advisor before making investment decisions. Past performance does not guarantee future results. Trading involves substantial risk of loss.";
       
       logger.info(`[RESEARCH-ASSISTANT] Response generated via ${usedProvider}`, {
         responseLength: responseText.length,
         provider: usedProvider,
+        responseTimeMs: responseTime,
+        creditsRemaining,
       });
       
       res.json({
         response: responseText,
         disclaimer,
         timestamp: new Date().toISOString(),
+        creditsRemaining,
       });
     } catch (error: any) {
       logger.error("[RESEARCH-ASSISTANT] Error:", error);
