@@ -562,6 +562,251 @@ function SignalMeter({ signals }: { signals: Array<{ signal: string; strength: n
   );
 }
 
+function TradeSetupCard({ patternData }: { patternData: PatternResponse }) {
+  const { indicators, currentPrice, signalScore } = patternData;
+  const sentiment = signalScore.direction;
+  
+  const generateTradeSetup = (type: "day" | "swing") => {
+    const rawVolatility = Math.abs(indicators.bollingerBands.upper - indicators.bollingerBands.lower) / (indicators.bollingerBands.middle || 1);
+    const volatility = Math.max(0.02, rawVolatility);
+    
+    let entry = currentPrice;
+    let target: number;
+    let stop: number;
+    let confidence: number;
+    let reasoning: string[] = [];
+    
+    const isBullish = sentiment === "bullish";
+    const isBearish = sentiment === "bearish";
+    
+    if (type === "day") {
+      const multiplier = 0.015;
+      if (isBullish) {
+        entry = currentPrice * 0.998;
+        target = currentPrice * (1 + multiplier * 1.5);
+        stop = currentPrice * (1 - multiplier);
+        
+        if (indicators.rsi.value < 40) reasoning.push("RSI oversold bounce");
+        if (indicators.rsi2.value < 20) reasoning.push("RSI(2) extreme oversold");
+        if (indicators.macd.histogram > 0) reasoning.push("MACD bullish momentum");
+        if (currentPrice < indicators.bollingerBands.middle) reasoning.push("Below BB mean - reversion play");
+        if (indicators.adx.value > 25) reasoning.push("Strong trend (ADX > 25)");
+      } else if (isBearish) {
+        entry = currentPrice * 1.002;
+        target = currentPrice * (1 - multiplier * 1.5);
+        stop = currentPrice * (1 + multiplier);
+        
+        if (indicators.rsi.value > 60) reasoning.push("RSI overbought fade");
+        if (indicators.rsi2.value > 80) reasoning.push("RSI(2) extreme overbought");
+        if (indicators.macd.histogram < 0) reasoning.push("MACD bearish momentum");
+        if (currentPrice > indicators.bollingerBands.middle) reasoning.push("Above BB mean - reversion play");
+      } else {
+        const range = volatility * currentPrice * 0.3;
+        target = currentPrice + range;
+        stop = currentPrice - range * 0.5;
+        reasoning.push("Neutral - range-bound scalp");
+      }
+      
+      confidence = Math.min(85, Math.max(40, 50 + signalScore.score * 0.3 + (indicators.adx.value > 25 ? 10 : 0)));
+    } else {
+      const multiplier = 0.05;
+      if (isBullish) {
+        entry = currentPrice * 0.99;
+        target = currentPrice * (1 + multiplier * 1.8);
+        stop = currentPrice * (1 - multiplier * 0.8);
+        
+        if (indicators.rsi.value < 50 && indicators.rsi.value > 30) reasoning.push("RSI mid-range with room to run");
+        if (indicators.macd.macd > indicators.macd.signal) reasoning.push("MACD above signal line");
+        if (indicators.adx.value > 20) reasoning.push("Trending regime confirmed");
+        if (currentPrice > indicators.bollingerBands.middle) reasoning.push("Above 20-day mean");
+      } else if (isBearish) {
+        entry = currentPrice * 1.01;
+        target = currentPrice * (1 - multiplier * 1.8);
+        stop = currentPrice * (1 + multiplier * 0.8);
+        
+        if (indicators.rsi.value > 50 && indicators.rsi.value < 70) reasoning.push("RSI mid-range - downside potential");
+        if (indicators.macd.macd < indicators.macd.signal) reasoning.push("MACD below signal line");
+        if (currentPrice < indicators.bollingerBands.middle) reasoning.push("Below 20-day mean");
+      } else {
+        const range = volatility * currentPrice * 0.5;
+        target = currentPrice + range;
+        stop = currentPrice - range * 0.4;
+        reasoning.push("Wait for clearer direction");
+      }
+      
+      confidence = Math.min(80, Math.max(35, 45 + signalScore.score * 0.25));
+    }
+    
+    const risk = Math.abs(entry - stop);
+    const reward = Math.abs(target - entry);
+    const rrRatio = reward / risk;
+    
+    return {
+      entry,
+      target,
+      stop,
+      rrRatio,
+      confidence: Math.round(confidence),
+      reasoning: reasoning.length > 0 ? reasoning : ["Consolidation - wait for breakout"],
+      direction: isBullish ? "Long" : isBearish ? "Short" : "Wait",
+    };
+  };
+  
+  const dayTrade = generateTradeSetup("day");
+  const swingTrade = generateTradeSetup("swing");
+  
+  const getDirectionBadge = (direction: string) => {
+    if (direction === "Long") {
+      return <Badge className="bg-green-500/10 text-green-400 border-green-500/30">{direction}</Badge>;
+    }
+    if (direction === "Short") {
+      return <Badge className="bg-red-500/10 text-red-400 border-red-500/30">{direction}</Badge>;
+    }
+    return <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/30">{direction}</Badge>;
+  };
+  
+  return (
+    <Card className="glass-card border-cyan-500/30">
+      <CardHeader>
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Zap className="h-5 w-5 text-cyan-400" />
+          Trade Setup Recommendations
+          <Badge variant="outline" className="ml-2 text-xs">Predictive</Badge>
+        </CardTitle>
+        <CardDescription>
+          Actionable entry, target, and stop-loss levels for day and swing trades
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Day Trade Setup */}
+          <div className="space-y-4 p-4 rounded-lg bg-muted/20 border border-border/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-purple-400" />
+                <h4 className="font-semibold">Day Trade</h4>
+              </div>
+              {getDirectionBadge(dayTrade.direction)}
+            </div>
+            
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="p-2 rounded bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Entry</p>
+                <p className="font-mono tabular-nums font-semibold text-cyan-400" data-testid="text-day-entry">
+                  ${dayTrade.entry.toFixed(2)}
+                </p>
+              </div>
+              <div className="p-2 rounded bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Target</p>
+                <p className="font-mono tabular-nums font-semibold text-green-400" data-testid="text-day-target">
+                  ${dayTrade.target.toFixed(2)}
+                </p>
+              </div>
+              <div className="p-2 rounded bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Stop</p>
+                <p className="font-mono tabular-nums font-semibold text-red-400" data-testid="text-day-stop">
+                  ${dayTrade.stop.toFixed(2)}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Risk/Reward</span>
+              <span className={cn(
+                "font-mono tabular-nums font-medium",
+                dayTrade.rrRatio >= 1.5 ? "text-green-400" : dayTrade.rrRatio >= 1 ? "text-amber-400" : "text-red-400"
+              )} data-testid="text-day-rr">
+                1:{dayTrade.rrRatio.toFixed(1)}
+              </span>
+            </div>
+            
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Confidence</span>
+              <span className="font-mono tabular-nums" data-testid="text-day-confidence">{dayTrade.confidence}%</span>
+            </div>
+            
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Reasoning:</p>
+              <div className="flex flex-wrap gap-1">
+                {dayTrade.reasoning.map((r, i) => (
+                  <Badge key={i} variant="outline" className="text-xs">
+                    {r}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          {/* Swing Trade Setup */}
+          <div className="space-y-4 p-4 rounded-lg bg-muted/20 border border-border/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-amber-400" />
+                <h4 className="font-semibold">Swing Trade</h4>
+              </div>
+              {getDirectionBadge(swingTrade.direction)}
+            </div>
+            
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="p-2 rounded bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Entry</p>
+                <p className="font-mono tabular-nums font-semibold text-cyan-400" data-testid="text-swing-entry">
+                  ${swingTrade.entry.toFixed(2)}
+                </p>
+              </div>
+              <div className="p-2 rounded bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Target</p>
+                <p className="font-mono tabular-nums font-semibold text-green-400" data-testid="text-swing-target">
+                  ${swingTrade.target.toFixed(2)}
+                </p>
+              </div>
+              <div className="p-2 rounded bg-muted/30">
+                <p className="text-xs text-muted-foreground mb-1">Stop</p>
+                <p className="font-mono tabular-nums font-semibold text-red-400" data-testid="text-swing-stop">
+                  ${swingTrade.stop.toFixed(2)}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Risk/Reward</span>
+              <span className={cn(
+                "font-mono tabular-nums font-medium",
+                swingTrade.rrRatio >= 2 ? "text-green-400" : swingTrade.rrRatio >= 1.5 ? "text-amber-400" : "text-red-400"
+              )} data-testid="text-swing-rr">
+                1:{swingTrade.rrRatio.toFixed(1)}
+              </span>
+            </div>
+            
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Confidence</span>
+              <span className="font-mono tabular-nums" data-testid="text-swing-confidence">{swingTrade.confidence}%</span>
+            </div>
+            
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Reasoning:</p>
+              <div className="flex flex-wrap gap-1">
+                {swingTrade.reasoning.map((r, i) => (
+                  <Badge key={i} variant="outline" className="text-xs">
+                    {r}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+          <p className="text-xs text-amber-200/80 flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+            Educational purposes only. These are algorithmic suggestions based on technical indicators, not financial advice. Always do your own research and manage risk appropriately.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 interface ChartAnalysisResult {
   patterns: string[];
   supportLevels: number[];
@@ -1042,6 +1287,9 @@ function PatternSearchTab() {
               </CardContent>
             </Card>
           </div>
+          
+          {/* Trade Setup Recommendations */}
+          <TradeSetupCard patternData={patternData} />
           
           <Card className="glass-card overflow-hidden">
             <CardHeader className="pb-2">
