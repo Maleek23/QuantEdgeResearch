@@ -102,6 +102,14 @@ The platform uses a **unified win rate methodology** that provides consistent me
 - Canonical helpers used: `applyCanonicalPerformanceFilters`, `getDecidedTrades`, `isRealLoss`
 - Returns: reconciliation checks (pass/fail), sample trades, methodology documentation
 
+### Outcome Display Styling
+All trade outcome displays use canonical helpers from `client/src/lib/signal-grade.ts`:
+- `getTradeOutcomeStyle(outcomeStatus)` - Returns color class based on outcome status
+- `getPnlColor(outcomeStatus, percentGain)` - Returns P&L color class respecting win rate methodology
+- **Color mapping**: WIN (green) for hit_target, LOSS (red) for hit_stop, EXPIRED (amber) for expired trades
+- **Critical**: Always use `getPnlColor()` instead of raw percentGain-based coloring to ensure expired trades show neutral amber styling
+- Files using these utilities: performance.tsx, trade-audit.tsx, data-audit-center.tsx, chart-database.tsx, trade-idea-block.tsx, trade-idea-detail-modal.tsx, closed-trades-table.tsx
+
 ## Render Deployment
 
 ### Required Environment Variables
