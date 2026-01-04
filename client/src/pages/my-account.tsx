@@ -22,9 +22,10 @@ import {
   Zap,
   Bot,
   BookOpen,
-  Eye
+  Eye,
+  MessageCircle
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 
 interface UserData {
   id: string;
@@ -54,6 +55,14 @@ interface TierData {
   usage: TierUsage;
 }
 
+interface CreditBalance {
+  creditsRemaining: number;
+  creditsUsed: number;
+  creditsAllocated: number;
+  cycleEnd: string;
+  tier: string;
+}
+
 export default function MyAccountPage() {
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -67,6 +76,11 @@ export default function MyAccountPage() {
 
   const { data: tierData } = useQuery<TierData>({
     queryKey: ['/api/user/tier'],
+  });
+
+  const { data: creditBalance } = useQuery<CreditBalance>({
+    queryKey: ['/api/ai/credits'],
+    enabled: !!user,
   });
 
   if (userLoading) {
@@ -300,6 +314,72 @@ export default function MyAccountPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* AI Credits Card */}
+          {creditBalance && (
+            <Card className="glass-card border-l-2 border-l-purple-500">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <MessageCircle className="h-5 w-5 text-purple-400" />
+                  AI Assistant Credits
+                </CardTitle>
+                <CardDescription>Your monthly AI chat allowance</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-3xl font-bold font-mono tabular-nums" data-testid="text-credits-remaining">
+                      {creditBalance.creditsRemaining}
+                      <span className="text-lg text-muted-foreground font-normal">
+                        {" "}/ {creditBalance.creditsAllocated}
+                      </span>
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Credits remaining this month
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <Badge 
+                      className={
+                        creditBalance.creditsRemaining <= 5 
+                          ? "bg-red-500/20 text-red-400 border-red-500/30" 
+                          : creditBalance.creditsRemaining <= 15 
+                          ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                          : "bg-green-500/20 text-green-400 border-green-500/30"
+                      }
+                    >
+                      {creditBalance.creditsRemaining <= 5 ? "Low" : creditBalance.creditsRemaining <= 15 ? "Moderate" : "Good"}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Resets {format(new Date(creditBalance.cycleEnd), 'MMM d')}
+                    </p>
+                  </div>
+                </div>
+                <Progress 
+                  value={(creditBalance.creditsUsed / creditBalance.creditsAllocated) * 100} 
+                  className="h-2"
+                />
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>{creditBalance.creditsUsed} used</span>
+                  <span>{creditBalance.creditsRemaining} left</span>
+                </div>
+                {creditBalance.creditsRemaining <= 10 && creditBalance.tier === 'free' && (
+                  <div className="p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+                    <p className="text-sm">
+                      <span className="font-medium">Need more AI chats?</span>{" "}
+                      <span className="text-muted-foreground">Upgrade to Advanced for 300 credits/month.</span>
+                    </p>
+                    <Link href="/pricing">
+                      <Button size="sm" variant="outline" className="mt-2 gap-1">
+                        <Zap className="h-3 w-3" />
+                        View Plans
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Preferences Tab */}
@@ -356,9 +436,36 @@ export default function MyAccountPage() {
                 {getTierBadge(tierData?.tier || user.subscriptionTier)}
               </div>
 
+              {/* AI Credits Usage */}
+              {creditBalance && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <MessageCircle className="h-4 w-4 text-purple-400" />
+                    AI Chat Credits
+                  </h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Credits Used</span>
+                      <span className="font-mono tabular-nums" data-testid="text-credits-usage">
+                        {creditBalance.creditsUsed} / {creditBalance.creditsAllocated}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={(creditBalance.creditsUsed / creditBalance.creditsAllocated) * 100} 
+                      className="h-2"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Resets on {format(new Date(creditBalance.cycleEnd), 'MMMM d, yyyy')}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <Separator />
+
               {tierData?.limits && (
                 <div className="space-y-3">
-                  <h4 className="text-sm font-medium">Usage This Month</h4>
+                  <h4 className="text-sm font-medium">Other Usage This Month</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Trade Ideas</span>
