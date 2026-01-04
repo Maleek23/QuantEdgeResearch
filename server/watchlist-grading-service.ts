@@ -462,6 +462,16 @@ export async function getGradedWatchlist(userId?: string): Promise<WatchlistItem
 export function startWatchlistGradingScheduler(): void {
   logger.info('[GRADE] Starting watchlist grading scheduler (every 15 minutes)');
   
+  // Run once immediately on startup to grade any ungraded items
+  setTimeout(async () => {
+    try {
+      logger.info('[GRADE] Running initial watchlist grading on startup...');
+      await gradeAllWatchlistItems();
+    } catch (error) {
+      logger.error('[GRADE] Initial grading failed:', error);
+    }
+  }, 5000); // 5 second delay to let other services initialize
+  
   setInterval(async () => {
     try {
       const now = new Date();

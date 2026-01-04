@@ -4,6 +4,7 @@ import compression from "compression";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startWatchlistMonitor } from "./watchlist-monitor";
+import { startWatchlistGradingScheduler } from "./watchlist-grading-service";
 import { logger } from "./logger";
 import { validateTradierAPI } from "./tradier-api";
 import { deriveTimingWindows, verifyTimingUniqueness } from "./timing-intelligence";
@@ -103,6 +104,10 @@ app.use((req, res, next) => {
     // Start watchlist price alert monitoring (checks every 5 minutes)
     startWatchlistMonitor(5);
     log('🔔 Watchlist Monitor started - checking every 5 minutes');
+    
+    // Start watchlist grading scheduler (every 15 minutes during market hours)
+    startWatchlistGradingScheduler();
+    log('📊 Watchlist Grading Scheduler started - grading every 15 minutes during market hours');
     
     // Start automated performance validation (checks every 5 minutes)
     const { performanceValidationService } = await import('./performance-validation-service');
