@@ -1442,3 +1442,198 @@ export const platformReports = pgTable("platform_reports", {
 export const insertPlatformReportSchema = createInsertSchema(platformReports).omit({ id: true, createdAt: true, generatedAt: true });
 export type InsertPlatformReport = z.infer<typeof insertPlatformReportSchema>;
 export type PlatformReport = typeof platformReports.$inferSelect;
+
+// ==========================================
+// SEC FILINGS & GOVERNMENT CONTRACTS
+// Catalyst Intelligence System
+// ==========================================
+
+// SEC Filing Types
+export type SECFilingType = '8-K' | '10-K' | '10-Q' | '13F' | 'Form4' | 'S-1' | 'DEF14A' | 'other';
+export type FilingSentiment = 'bullish' | 'bearish' | 'neutral' | 'mixed';
+export type CatalystEventType = 'sec_filing' | 'gov_contract' | 'earnings' | 'insider_trade' | 'acquisition' | 'product_launch';
+
+// SEC Filings - Track SEC EDGAR filings
+export const secFilings = pgTable("sec_filings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Filing Identification
+  accessionNumber: varchar("accession_number").unique().notNull(), // SEC unique ID
+  cik: varchar("cik").notNull(), // Company CIK number
+  ticker: varchar("ticker"), // Stock ticker if mapped
+  companyName: text("company_name").notNull(),
+  
+  // Filing Details
+  filingType: text("filing_type").$type<SECFilingType>().notNull(),
+  filingDate: text("filing_date").notNull(), // When filed with SEC
+  acceptanceDate: text("acceptance_date"), // When SEC accepted
+  
+  // Content
+  filingUrl: text("filing_url").notNull(), // Link to SEC EDGAR
+  documentCount: integer("document_count").default(1),
+  
+  // Parsed Analysis
+  extractedSummary: text("extracted_summary"), // AI-extracted key points
+  sentiment: text("sentiment").$type<FilingSentiment>().default('neutral'),
+  sentimentScore: real("sentiment_score").default(0), // -100 to +100
+  catalystTags: text("catalyst_tags").array(), // ['acquisition', 'revenue_growth', 'executive_change']
+  
+  // Key Data Points (extracted)
+  revenueChange: real("revenue_change"), // % change if financial filing
+  epsChange: real("eps_change"),
+  guidanceDirection: text("guidance_direction"), // 'raised', 'lowered', 'maintained', 'withdrawn'
+  insiderShares: integer("insider_shares"), // For Form 4
+  insiderValue: real("insider_value"), // Dollar value of insider transaction
+  insiderDirection: text("insider_direction"), // 'buy', 'sell', 'gift'
+  
+  // Processing Status
+  parsedAt: timestamp("parsed_at"),
+  isProcessed: boolean("is_processed").default(false),
+  processingError: text("processing_error"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSecFilingSchema = createInsertSchema(secFilings).omit({ id: true, createdAt: true });
+export type InsertSecFiling = z.infer<typeof insertSecFilingSchema>;
+export type SecFiling = typeof secFilings.$inferSelect;
+
+// SEC Filing Signals - Individual signals extracted from filings
+export const secFilingSignals = pgTable("sec_filing_signals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  filingId: varchar("filing_id").notNull(), // References secFilings.id
+  
+  signalType: text("signal_type").notNull(), // 'insider_buy_large', 'revenue_beat', 'acquisition_announced', etc.
+  polarity: text("polarity").notNull().$type<'bullish' | 'bearish' | 'neutral'>(),
+  confidence: real("confidence").notNull().default(0.5), // 0-1
+  weight: real("weight").notNull().default(1), // Scoring weight
+  
+  rawContext: text("raw_context"), // The text snippet that triggered this signal
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSecFilingSignalSchema = createInsertSchema(secFilingSignals).omit({ id: true, createdAt: true });
+export type InsertSecFilingSignal = z.infer<typeof insertSecFilingSignalSchema>;
+export type SecFilingSignal = typeof secFilingSignals.$inferSelect;
+
+// Government Contracts - Track USASpending.gov contract awards
+export const governmentContracts = pgTable("government_contracts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Contract Identification
+  awardId: varchar("award_id").unique().notNull(), // USASpending unique ID
+  piid: varchar("piid"), // Procurement Instrument ID
+  
+  // Recipient
+  recipientName: text("recipient_name").notNull(),
+  recipientTicker: varchar("recipient_ticker"), // Stock ticker if public company
+  recipientDuns: varchar("recipient_duns"), // DUNS number
+  
+  // Agency
+  awardingAgencyName: text("awarding_agency_name").notNull(),
+  awardingAgencyCode: varchar("awarding_agency_code"),
+  fundingAgencyName: text("funding_agency_name"),
+  
+  // Contract Details
+  description: text("description"),
+  contractType: text("contract_type"), // 'fixed_price', 'cost_plus', 'time_materials'
+  naicsCode: varchar("naics_code"), // Industry classification
+  naicsDescription: text("naics_description"),
+  
+  // Financial
+  obligationAmount: real("obligation_amount").notNull(), // Current obligation
+  totalOutlayAmount: real("total_outlay_amount"), // Total spent
+  baseAndExercisedOptionsValue: real("base_exercised_value"), // Potential value
+  
+  // Dates
+  awardDate: text("award_date").notNull(),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  
+  // Classification
+  isDefense: boolean("is_defense").default(false),
+  isHealthcare: boolean("is_healthcare").default(false),
+  isTechnology: boolean("is_technology").default(false),
+  
+  // Scoring
+  significanceScore: real("significance_score").default(0), // 0-100 based on size/company
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertGovernmentContractSchema = createInsertSchema(governmentContracts).omit({ id: true, createdAt: true });
+export type InsertGovernmentContract = z.infer<typeof insertGovernmentContractSchema>;
+export type GovernmentContract = typeof governmentContracts.$inferSelect;
+
+// Catalyst Events - Unified view of all catalysts for trading signals
+export const catalystEvents = pgTable("catalyst_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Symbol mapping
+  ticker: varchar("ticker").notNull(),
+  companyName: text("company_name"),
+  
+  // Event Type
+  eventType: text("event_type").$type<CatalystEventType>().notNull(),
+  sourceId: varchar("source_id"), // References secFilings.id or governmentContracts.id
+  sourceTable: text("source_table"), // 'sec_filings' | 'government_contracts'
+  
+  // Event Details
+  title: text("title").notNull(),
+  summary: text("summary"),
+  eventDate: text("event_date").notNull(),
+  
+  // Scoring for Multi-Factor Analysis
+  signalStrength: real("signal_strength").notNull().default(0), // 0-100
+  polarity: text("polarity").notNull().$type<'bullish' | 'bearish' | 'neutral'>(),
+  confidence: real("confidence").notNull().default(0.5), // 0-1
+  
+  // Relevance Decay
+  expiresAt: text("expires_at"), // When this catalyst becomes stale
+  isActive: boolean("is_active").default(true),
+  
+  // Trade Integration
+  wasUsedInTrade: boolean("was_used_in_trade").default(false),
+  tradeIdeaId: varchar("trade_idea_id"), // If this catalyst triggered a trade
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCatalystEventSchema = createInsertSchema(catalystEvents).omit({ id: true, createdAt: true });
+export type InsertCatalystEvent = z.infer<typeof insertCatalystEventSchema>;
+export type CatalystEvent = typeof catalystEvents.$inferSelect;
+
+// Symbol Catalyst Snapshots - Cached catalyst summary per symbol for fast lookups
+export const symbolCatalystSnapshots = pgTable("symbol_catalyst_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  ticker: varchar("ticker").unique().notNull(),
+  
+  // Aggregate Scores
+  bullishCatalystCount: integer("bullish_catalyst_count").default(0),
+  bearishCatalystCount: integer("bearish_catalyst_count").default(0),
+  neutralCatalystCount: integer("neutral_catalyst_count").default(0),
+  
+  aggregateCatalystScore: real("aggregate_catalyst_score").default(0), // Net score -100 to +100
+  
+  // Recent Events Summary
+  recentCatalysts: jsonb("recent_catalysts"), // Array of recent catalyst summaries
+  
+  // Last SEC Filing
+  lastSecFilingDate: text("last_sec_filing_date"),
+  lastSecFilingType: text("last_sec_filing_type"),
+  
+  // Last Government Contract
+  lastGovContractDate: text("last_gov_contract_date"),
+  lastGovContractValue: real("last_gov_contract_value"),
+  
+  // Cache Management
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSymbolCatalystSnapshotSchema = createInsertSchema(symbolCatalystSnapshots).omit({ id: true, createdAt: true, lastUpdated: true });
+export type InsertSymbolCatalystSnapshot = z.infer<typeof insertSymbolCatalystSnapshotSchema>;
+export type SymbolCatalystSnapshot = typeof symbolCatalystSnapshots.$inferSelect;

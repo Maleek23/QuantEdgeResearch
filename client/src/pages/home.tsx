@@ -205,7 +205,14 @@ export default function HomePage() {
         <LivePnLCard />
         <Card className="overflow-hidden bg-gradient-to-br from-slate-900/50 to-slate-800/50 border-slate-700/50">
           <div className="h-[200px] relative">
-            <WebGLErrorBoundary>
+            <WebGLErrorBoundary fallback={
+              <div className="h-full flex items-center justify-center text-muted-foreground">
+                <div className="text-center">
+                  <Activity className="h-8 w-8 mx-auto mb-2 text-slate-500" />
+                  <span className="text-sm">3D unavailable</span>
+                </div>
+              </div>
+            }>
               <Suspense fallback={
                 <div className="h-full flex items-center justify-center text-muted-foreground">
                   <div className="text-center">
