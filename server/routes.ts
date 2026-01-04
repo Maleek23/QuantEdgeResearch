@@ -10011,34 +10011,87 @@ FORMATTING:
 - Bold key terms when introducing new concepts
 - Keep responses focused and actionable from an educational standpoint`;
 
-      // Get Anthropic client and make the request
-      const Anthropic = (await import('@anthropic-ai/sdk')).default;
-      const anthropic = new Anthropic({
-        apiKey: process.env.ANTHROPIC_API_KEY,
-      });
+      // Multi-provider fallback: Anthropic → Gemini → OpenAI
+      let responseText = '';
+      let usedProvider = 'unknown';
       
-      const message = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: [
-          {
-            role: "user",
-            content: `${question}${contextString}`
+      // Try Anthropic first
+      try {
+        const Anthropic = (await import('@anthropic-ai/sdk')).default;
+        const anthropic = new Anthropic({
+          apiKey: process.env.ANTHROPIC_API_KEY,
+        });
+        
+        const message = await anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: [
+            {
+              role: "user",
+              content: `${question}${contextString}`
+            }
+          ],
+        });
+        
+        responseText = message.content[0].type === 'text' 
+          ? message.content[0].text 
+          : '';
+        usedProvider = 'anthropic';
+      } catch (anthropicError: any) {
+        logger.warn(`[RESEARCH-ASSISTANT] Anthropic failed, trying Gemini...`, { error: anthropicError?.message });
+        
+        // Try Gemini as fallback
+        try {
+          const { GoogleGenAI } = await import('@google/genai');
+          const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+          
+          const result = await gemini.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: `${systemPrompt}\n\nUser question: ${question}${contextString}`,
+          });
+          
+          responseText = result.text || '';
+          usedProvider = 'gemini';
+        } catch (geminiError: any) {
+          logger.warn(`[RESEARCH-ASSISTANT] Gemini failed, trying OpenAI...`, { error: geminiError?.message });
+          
+          // Try OpenAI as final fallback
+          try {
+            const OpenAI = (await import('openai')).default;
+            const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+            
+            const completion = await openai.chat.completions.create({
+              model: 'gpt-4o',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: `${question}${contextString}` }
+              ],
+              max_tokens: 1024,
+            });
+            
+            responseText = completion.choices[0]?.message?.content || '';
+            usedProvider = 'openai';
+          } catch (openaiError: any) {
+            logger.error(`[RESEARCH-ASSISTANT] All AI providers failed`, { 
+              anthropic: anthropicError?.message,
+              gemini: geminiError?.message,
+              openai: openaiError?.message
+            });
+            throw new Error('All AI providers unavailable. Please try again later.');
           }
-        ],
-      });
+        }
+      }
       
-      const responseText = message.content[0].type === 'text' 
-        ? message.content[0].text 
-        : 'Unable to generate response';
+      if (!responseText) {
+        throw new Error('Unable to generate response from any AI provider');
+      }
       
       const disclaimer = "⚠️ EDUCATIONAL DISCLAIMER: This information is for educational and research purposes only. It does not constitute financial advice, investment recommendations, or an offer to buy or sell any securities. Always conduct your own research and consult with a licensed financial advisor before making investment decisions. Past performance does not guarantee future results. Trading involves substantial risk of loss.";
       
-      logger.info(`[RESEARCH-ASSISTANT] Response generated`, {
+      logger.info(`[RESEARCH-ASSISTANT] Response generated via ${usedProvider}`, {
         responseLength: responseText.length,
-        inputTokens: message.usage?.input_tokens,
-        outputTokens: message.usage?.output_tokens,
+        provider: usedProvider,
       });
       
       res.json({
