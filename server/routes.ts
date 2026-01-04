@@ -4673,12 +4673,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Signal Strength Stats - Uses ACTUAL signal counts from qualitySignals array
   // HONEST DATA: No more fake probability percentages
+  // NOTE: Uses same filters as /api/performance/stats for consistency
   app.get("/api/performance/calibrated-stats", async (req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       
-      // Use shared canonical filters for consistency (include Flow)
-      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas, { includeFlowLotto: true });
+      // Use SAME filters as main performance stats to avoid data mismatch
+      // Default filters: excludes options/lotto for consistency with headline win rate
+      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas);
       
       // Get decided trades only (wins + real losses, excludes breakeven, expired, and legacy engines)
       const resolvedIdeas = getDecidedTrades(filteredIdeas, { includeAllVersions: false });
