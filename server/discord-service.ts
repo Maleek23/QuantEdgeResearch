@@ -1756,6 +1756,16 @@ export async function sendGainsToDiscord(trade: {
     return;
   }
   
+  // DEDUP: Create unique key for this gains notification
+  const optionKey = trade.assetType === 'option' ? `${trade.optionType}_${trade.strikePrice}_${trade.expiryDate}` : '';
+  const dedupKey = `${trade.symbol}_${trade.direction}_${optionKey}_${trade.entryPrice?.toFixed(2)}_${trade.exitPrice?.toFixed(2)}`;
+  const hash = generateMessageHash('gains', dedupKey);
+  
+  if (isDuplicateMessage(hash)) {
+    logger.info(`🚫 [GAINS-DEDUP] Skipping duplicate gains notification: ${trade.symbol}`);
+    return; // Skip duplicate
+  }
+  
   try {
     const gainEmoji = trade.percentGain >= 50 ? '🚀' : trade.percentGain >= 20 ? '🔥' : trade.percentGain >= 10 ? '💰' : '✅';
     const sourceIcon = trade.source === 'ai' ? '🧠 AI' : 
