@@ -62,6 +62,20 @@ function scoreToTier(score: number): WatchlistTier {
   return 'F';
 }
 
+// Yahoo Finance symbol mapping for crypto (verified symbols)
+const CRYPTO_YAHOO_SYMBOLS: Record<string, string> = {
+  'BTC': 'BTC-USD', 'ETH': 'ETH-USD', 'SOL': 'SOL-USD', 'XRP': 'XRP-USD',
+  'DOGE': 'DOGE-USD', 'ADA': 'ADA-USD', 'AVAX': 'AVAX-USD', 'DOT': 'DOT-USD',
+  'LINK': 'LINK-USD', 'LTC': 'LTC-USD', 'UNI': 'UNI-USD', 'SHIB': 'SHIB-USD',
+  'SUI': 'SUI-USD', 'NEAR': 'NEAR-USD', 'APT': 'APT-USD', 'ARB': 'ARB-USD',
+  'OP': 'OP-USD', 'PEPE': 'PEPE-USD', 'ATOM': 'ATOM-USD', 'MATIC': 'MATIC-USD',
+};
+
+// Yahoo Finance symbol mapping for futures
+const FUTURES_YAHOO_SYMBOLS: Record<string, string> = {
+  'NQ': 'NQ=F', 'ES': 'ES=F', 'GC': 'GC=F', 'SI': 'SI=F', 'CL': 'CL=F',
+};
+
 async function fetchHistoricalPrices(symbol: string, assetType: AssetType): Promise<{
   prices: number[];
   high: number[];
@@ -70,47 +84,30 @@ async function fetchHistoricalPrices(symbol: string, assetType: AssetType): Prom
   currentPrice: number;
 } | null> {
   try {
+    let yahooSymbol: string;
+    
     if (assetType === 'crypto') {
-      const cache = getCryptoPrice(symbol);
-      if (!cache || !cache.price) return null;
-      const currentPrice = cache.price;
-      const syntheticPrices = Array.from({ length: 30 }, (_, i) => 
-        currentPrice * (1 + (Math.random() - 0.5) * 0.02 * (30 - i) / 30)
-      );
-      syntheticPrices.push(currentPrice);
-      return {
-        prices: syntheticPrices,
-        high: syntheticPrices.map(p => p * 1.01),
-        low: syntheticPrices.map(p => p * 0.99),
-        volume: syntheticPrices.map(() => Math.random() * 1000000),
-        currentPrice,
-      };
+      // Use Yahoo Finance for crypto historical data
+      yahooSymbol = CRYPTO_YAHOO_SYMBOLS[symbol.toUpperCase()] || `${symbol.toUpperCase()}-USD`;
+    } else if (assetType === 'future') {
+      // Use Yahoo Finance for futures historical data
+      const rootSymbol = symbol.includes('NQ') ? 'NQ' : 
+                         symbol.includes('ES') ? 'ES' :
+                         symbol.includes('GC') ? 'GC' : 
+                         symbol.includes('SI') ? 'SI' :
+                         symbol.includes('CL') ? 'CL' : 'NQ';
+      yahooSymbol = FUTURES_YAHOO_SYMBOLS[rootSymbol] || `${rootSymbol}=F`;
+    } else {
+      // Stocks - use symbol directly
+      yahooSymbol = symbol.replace('.', '-');
     }
     
-    if (assetType === 'future') {
-      const rootSymbol = symbol.includes('NQ') ? 'NQ' : symbol.includes('GC') ? 'GC' : 'NQ';
-      const price = await getFuturesPrice(rootSymbol as 'NQ' | 'GC');
-      if (!price) return null;
-      const syntheticPrices = Array.from({ length: 30 }, (_, i) => 
-        price * (1 + (Math.random() - 0.5) * 0.015 * (30 - i) / 30)
-      );
-      syntheticPrices.push(price);
-      return {
-        prices: syntheticPrices,
-        high: syntheticPrices.map(p => p * 1.005),
-        low: syntheticPrices.map(p => p * 0.995),
-        volume: syntheticPrices.map(() => Math.random() * 50000),
-        currentPrice: price,
-      };
-    }
-    
-    const yahooSymbol = symbol.replace('.', '-');
     const response = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=1d&range=3mo`
     );
     
     if (!response.ok) {
-      logger.warn(`[GRADE] Failed to fetch Yahoo data for ${symbol}: ${response.status}`);
+      logger.warn(`[GRADE] Failed to fetch Yahoo data for ${symbol} (${yahooSymbol}): ${response.status}`);
       return null;
     }
     
@@ -118,7 +115,7 @@ async function fetchHistoricalPrices(symbol: string, assetType: AssetType): Prom
     const result = data.chart?.result?.[0];
     
     if (!result?.indicators?.quote?.[0]) {
-      logger.warn(`[GRADE] No price data for ${symbol}`);
+      logger.warn(`[GRADE] No price data for ${symbol} (${yahooSymbol})`);
       return null;
     }
     

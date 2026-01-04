@@ -8814,7 +8814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/watchlist/grade-all", isAdmin, async (_req, res) => {
+  app.post("/api/watchlist/grade-all", requireAdminJWT, async (_req, res) => {
     try {
       const { gradeAllWatchlistItems } = await import('./watchlist-grading-service');
       const result = await gradeAllWatchlistItems();
