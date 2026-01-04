@@ -101,3 +101,24 @@ The platform uses a **unified win rate methodology** that provides consistent me
 - Recomputes stats from raw data using canonical helpers and compares to performance stats
 - Canonical helpers used: `applyCanonicalPerformanceFilters`, `getDecidedTrades`, `isRealLoss`
 - Returns: reconciliation checks (pass/fail), sample trades, methodology documentation
+
+## Render Deployment
+
+### Required Environment Variables
+- `DATABASE_URL` - PostgreSQL connection string (Neon serverless)
+- `SESSION_SECRET` - Random 32+ character string for session encryption
+- `GOOGLE_CLIENT_ID` - Google OAuth client ID (for authentication)
+- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+
+### Optional Environment Variables
+- `STRIPE_SECRET_KEY` - For billing features (disabled if not set)
+- `ANTHROPIC_API_KEY` - For Claude AI analysis
+- `OPENAI_API_KEY` - For GPT-4 analysis
+- `TRADIER_API_KEY` - For options data
+- `ALPHA_VANTAGE_API_KEY` - For news feeds
+
+### Authentication Notes
+- **Replit Auth** is only available when running on Replit (requires `REPL_ID`)
+- On Render/external hosting, Replit Auth is automatically disabled
+- Use **Google OAuth** for authentication on Render deployments
+- Google OAuth requires callback URL: `https://your-domain.com/auth/google/callback`

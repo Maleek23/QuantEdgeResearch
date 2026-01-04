@@ -11,8 +11,16 @@ import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 import { logger, logError } from "./logger";
 
+// Check if Replit Auth is available (has required environment variables)
+export function isReplitAuthAvailable(): boolean {
+  return !!(process.env.REPL_ID && process.env.REPL_ID.trim());
+}
+
 const getOidcConfig = memoize(
   async () => {
+    if (!isReplitAuthAvailable()) {
+      throw new Error('Replit Auth not available - REPL_ID not configured');
+    }
     // Use default Replit OIDC URL if not specified
     const issuerUrl = process.env.ISSUER_URL || "https://replit.com/oidc";
     return await client.discovery(
@@ -78,6 +86,31 @@ export async function setupAuth(app: Express) {
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // Skip Replit Auth setup if REPL_ID is not configured (e.g., on Render)
+  if (!isReplitAuthAvailable()) {
+    logger.warn('Replit Auth not available - REPL_ID not configured. Skipping Replit OIDC setup.');
+    
+    // Register placeholder routes that inform users Replit Auth is not available
+    app.get("/api/login", (req, res) => {
+      res.status(503).json({ 
+        message: "Replit Auth not available in this environment",
+        suggestion: "Use Google OAuth or email authentication instead"
+      });
+    });
+    
+    app.get("/api/callback", (req, res) => {
+      res.redirect('/signup?error=replit_auth_unavailable');
+    });
+    
+    app.get("/api/logout", (req, res) => {
+      req.logout(() => {
+        res.redirect('/');
+      });
+    });
+    
+    return; // Skip the rest of Replit Auth setup
+  }
 
   const config = await getOidcConfig();
 
