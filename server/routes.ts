@@ -10011,50 +10011,50 @@ FORMATTING:
 - Bold key terms when introducing new concepts
 - Keep responses focused and actionable from an educational standpoint`;
 
-      // Multi-provider fallback: Anthropic → Gemini → OpenAI
+      // Multi-provider fallback: Gemini → Anthropic → OpenAI
       let responseText = '';
       let usedProvider = 'unknown';
       
-      // Try Anthropic first
+      // Try Gemini first (primary)
       try {
-        const Anthropic = (await import('@anthropic-ai/sdk')).default;
-        const anthropic = new Anthropic({
-          apiKey: process.env.ANTHROPIC_API_KEY,
+        const { GoogleGenAI } = await import('@google/genai');
+        const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+        
+        const result = await gemini.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: `${systemPrompt}\n\nUser question: ${question}${contextString}`,
         });
         
-        const message = await anthropic.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1024,
-          system: systemPrompt,
-          messages: [
-            {
-              role: "user",
-              content: `${question}${contextString}`
-            }
-          ],
-        });
+        responseText = result.text || '';
+        usedProvider = 'gemini';
+      } catch (geminiError: any) {
+        logger.warn(`[RESEARCH-ASSISTANT] Gemini failed, trying Anthropic...`, { error: geminiError?.message });
         
-        responseText = message.content[0].type === 'text' 
-          ? message.content[0].text 
-          : '';
-        usedProvider = 'anthropic';
-      } catch (anthropicError: any) {
-        logger.warn(`[RESEARCH-ASSISTANT] Anthropic failed, trying Gemini...`, { error: anthropicError?.message });
-        
-        // Try Gemini as fallback
+        // Try Anthropic as fallback
         try {
-          const { GoogleGenAI } = await import('@google/genai');
-          const gemini = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
-          
-          const result = await gemini.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: `${systemPrompt}\n\nUser question: ${question}${contextString}`,
+          const Anthropic = (await import('@anthropic-ai/sdk')).default;
+          const anthropic = new Anthropic({
+            apiKey: process.env.ANTHROPIC_API_KEY,
           });
           
-          responseText = result.text || '';
-          usedProvider = 'gemini';
-        } catch (geminiError: any) {
-          logger.warn(`[RESEARCH-ASSISTANT] Gemini failed, trying OpenAI...`, { error: geminiError?.message });
+          const message = await anthropic.messages.create({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 1024,
+            system: systemPrompt,
+            messages: [
+              {
+                role: "user",
+                content: `${question}${contextString}`
+              }
+            ],
+          });
+          
+          responseText = message.content[0].type === 'text' 
+            ? message.content[0].text 
+            : '';
+          usedProvider = 'anthropic';
+        } catch (anthropicError: any) {
+          logger.warn(`[RESEARCH-ASSISTANT] Anthropic failed, trying OpenAI...`, { error: anthropicError?.message });
           
           // Try OpenAI as final fallback
           try {
@@ -10074,8 +10074,8 @@ FORMATTING:
             usedProvider = 'openai';
           } catch (openaiError: any) {
             logger.error(`[RESEARCH-ASSISTANT] All AI providers failed`, { 
-              anthropic: anthropicError?.message,
               gemini: geminiError?.message,
+              anthropic: anthropicError?.message,
               openai: openaiError?.message
             });
             throw new Error('All AI providers unavailable. Please try again later.');

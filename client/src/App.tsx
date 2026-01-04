@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, User, Loader2 } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { ScrollParticles } from "@/components/scroll-particles";
+import { AIChatbotPopup } from "@/components/ai-chatbot-popup";
 import { cn } from "@/lib/utils";
 
 const Landing = lazy(() => import("@/pages/landing"));
@@ -265,6 +266,7 @@ function App() {
                 <MainContentWrapper />
               </div>
             </SidebarProvider>
+            <AIChatbotPopup />
             <Toaster />
           </RealtimePricesProvider>
         </TooltipProvider>
