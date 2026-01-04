@@ -33,7 +33,7 @@ function GradeBadge({ item }: { item: WatchlistItem }) {
   const style = TIER_STYLES[tier] || TIER_STYLES.C;
   const score = item.gradeScore ?? 50;
   const gradeLetter = item.gradeLetter || 'C';
-  const gradeInputs = item.gradeInputs as Record<string, number> | null;
+  const gradeInputs = item.gradeInputs as Record<string, number | string[]> | null;
 
   return (
     <Tooltip>
@@ -56,22 +56,22 @@ function GradeBadge({ item }: { item: WatchlistItem }) {
           <div className="text-muted-foreground">Tier {tier}: {style.label}</div>
           {gradeInputs && (
             <div className="pt-1 border-t border-border/50 space-y-0.5">
-              {gradeInputs.rsi14 !== undefined && gradeInputs.rsi14 !== null && (
+              {typeof gradeInputs.rsi14 === 'number' && (
                 <div>RSI(14): {gradeInputs.rsi14.toFixed(1)}</div>
               )}
-              {gradeInputs.rsi2 !== undefined && gradeInputs.rsi2 !== null && (
+              {typeof gradeInputs.rsi2 === 'number' && (
                 <div>RSI(2): {gradeInputs.rsi2.toFixed(1)}</div>
               )}
-              {gradeInputs.momentum5d !== undefined && gradeInputs.momentum5d !== null && (
+              {typeof gradeInputs.momentum5d === 'number' && (
                 <div>5D Momentum: {gradeInputs.momentum5d >= 0 ? '+' : ''}{gradeInputs.momentum5d.toFixed(2)}%</div>
               )}
-              {gradeInputs.adx !== undefined && gradeInputs.adx !== null && (
+              {typeof gradeInputs.adx === 'number' && (
                 <div>ADX: {gradeInputs.adx.toFixed(1)}</div>
               )}
-              {gradeInputs.volumeRatio !== undefined && gradeInputs.volumeRatio !== null && (
+              {typeof gradeInputs.volumeRatio === 'number' && (
                 <div>Vol Ratio: {gradeInputs.volumeRatio.toFixed(2)}x</div>
               )}
-              {gradeInputs.signals && gradeInputs.signals.length > 0 && (
+              {Array.isArray(gradeInputs.signals) && gradeInputs.signals.length > 0 && (
                 <div className="pt-1 text-[10px] text-muted-foreground">
                   {gradeInputs.signals.slice(0, 3).join(', ')}
                 </div>

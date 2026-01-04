@@ -56,6 +56,7 @@ const TechnicalGuide = lazy(() => import("@/pages/technical-guide"));
 const MarketScanner = lazy(() => import("@/pages/market-scanner"));
 const MyAccountPage = lazy(() => import("@/pages/my-account"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
+const WatchlistPage = lazy(() => import("@/pages/watchlist"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 function PageLoader() {
@@ -160,7 +161,7 @@ function Router() {
       <Route path="/signals">
         <Redirect to="/performance" />
       </Route>
-      <Route path="/watchlist" component={MarketPage} />
+      <Route path="/watchlist" component={WatchlistPage} />
       
       {/* Redirects - Removed Pages */}
       <Route path="/trading-guide">

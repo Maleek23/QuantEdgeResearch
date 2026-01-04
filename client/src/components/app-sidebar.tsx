@@ -35,7 +35,7 @@ const researchItems: NavItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
   { title: "Futures", url: "/futures", icon: LineChart },
-  { title: "My Watchlist", url: "/market", icon: Eye },
+  { title: "My Watchlist", url: "/watchlist", icon: Eye },
   { title: "Market Scanner", url: "/market-scanner", icon: BarChart2, badge: "500+" },
 ];
 
