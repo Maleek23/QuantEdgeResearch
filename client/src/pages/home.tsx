@@ -127,6 +127,7 @@ export default function HomePage() {
           </p>
           <h1 className="text-2xl font-semibold tracking-tight" data-testid="text-home-title">
             Dashboard
+            <span className="ml-2 px-1.5 py-0.5 text-[10px] font-bold bg-cyan-500/20 text-cyan-500 border border-cyan-500/30 rounded uppercase tracking-wider align-middle">Beta</span>
           </h1>
         </div>
         <div className="flex items-center gap-2">

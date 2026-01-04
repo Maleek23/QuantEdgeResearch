@@ -150,7 +150,7 @@ export default function Landing() {
             <div>
               <div className="inline-flex items-center gap-2 glass-subtle rounded-full px-4 py-2 mb-6">
                 <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
-                <span className="text-sm font-mono text-cyan-400">LIVE</span>
+                <span className="text-sm font-mono text-cyan-400">LIVE BETA</span>
               </div>
               
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4" data-testid="text-hero-headline">
@@ -166,15 +166,15 @@ export default function Landing() {
               
               <div className="flex flex-wrap gap-4">
                 <Button 
-                  className="bg-cyan-500 text-slate-950"
+                  className="bg-cyan-500 text-slate-950 hover:bg-cyan-400 h-12 px-8 text-base font-semibold shadow-lg shadow-cyan-500/20"
                   onClick={() => setLocation('/signup')}
-                  data-testid="button-start-research"
+                  data-testid="button-join-beta"
                 >
-                  Start Research <ArrowRight className="ml-2 h-4 w-4" />
+                  Join Beta <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="border-slate-700"
+                  className="border-slate-700 h-12 px-8 text-base font-semibold"
                   onClick={() => scrollToSection('engine-matrix')}
                   data-testid="button-view-engines"
                 >
