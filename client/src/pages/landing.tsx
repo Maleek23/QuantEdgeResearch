@@ -31,10 +31,13 @@ import {
   Sparkles
 } from "lucide-react";
 import { useState } from "react";
+import { SiDiscord } from "react-icons/si";
 import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { HeroProductPanel } from "@/components/hero-product-panel";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { WaitlistPopup } from "@/components/waitlist-popup";
+
+const DISCORD_INVITE_URL = "https://discord.gg/quantedgelabs";
 
 interface AssetTypeStats {
   assetType: string;
@@ -176,11 +179,12 @@ export default function Landing() {
                 </Button>
                 <Button 
                   variant="outline" 
-                  className="border-slate-700 h-12 px-8 text-base font-semibold"
-                  onClick={() => scrollToSection('features')}
-                  data-testid="button-view-engines"
+                  className="border-slate-700 h-12 px-8 text-base font-semibold gap-2"
+                  onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
+                  data-testid="button-join-discord"
                 >
-                  View Engines
+                  <SiDiscord className="h-5 w-5" />
+                  Join Discord
                 </Button>
               </div>
             </div>
@@ -744,6 +748,7 @@ export default function Landing() {
       <WaitlistPopup 
         open={waitlistOpen} 
         onOpenChange={setWaitlistOpen}
+        discordInviteUrl={DISCORD_INVITE_URL}
       />
     </div>
   );
