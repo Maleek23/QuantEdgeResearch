@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -28,7 +29,14 @@ import {
   Loader2,
   FileText,
   Zap,
-  LineChart
+  LineChart,
+  Bot,
+  Play,
+  Pause,
+  Wallet,
+  TrendingUp as TrendUp,
+  CheckCircle2,
+  XCircle
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { formatInTimeZone } from "date-fns-tz";
@@ -306,8 +314,109 @@ export default function FuturesPage() {
   const { toast } = useToast();
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [activeTab, setActiveTab] = useState<'research' | 'quotes' | 'ideas'>('ideas');
+  const [activeTab, setActiveTab] = useState<'research' | 'quotes' | 'ideas' | 'bot'>('ideas');
   const [generatingSymbol, setGeneratingSymbol] = useState<string | null>(null);
+
+  interface BotPortfolio {
+    id: string;
+    name: string;
+    cashBalance: number;
+    totalValue: number;
+    startingCapital: number;
+  }
+
+  interface BotPosition {
+    id: string;
+    symbol: string;
+    direction: string;
+    quantity: number;
+    entryPrice: number;
+    currentPrice: number;
+    targetPrice: number;
+    stopLoss: number;
+    unrealizedPnL: number;
+    unrealizedPnLPercent: number;
+    entryTime: string;
+    status: string;
+  }
+
+  interface BotStats {
+    totalTrades: number;
+    winRate: number;
+    totalPnL: number;
+    openPositions: number;
+  }
+
+  interface BotData {
+    portfolios: {
+      futures?: BotPortfolio;
+      propFirm?: BotPortfolio;
+    };
+    positions: {
+      futures: BotPosition[];
+      propFirm: BotPosition[];
+    };
+    stats: {
+      futures: BotStats;
+      propFirm: BotStats;
+    };
+  }
+
+  interface BotPreferences {
+    enableFutures: boolean;
+    futuresMaxContracts: number;
+    futuresStopPoints: number;
+    futuresTargetPoints: number;
+  }
+
+  const { data: botData, isLoading: botLoading, refetch: refetchBot } = useQuery<BotData>({
+    queryKey: ['/api/auto-lotto-bot'],
+    refetchInterval: 15000,
+  });
+
+  const { data: botPreferences, refetch: refetchPreferences } = useQuery<BotPreferences>({
+    queryKey: ['/api/auto-lotto-bot/preferences'],
+  });
+
+  const updatePreferencesMutation = useMutation({
+    mutationFn: async (prefs: Partial<BotPreferences>) => {
+      return await apiRequest('PUT', '/api/auto-lotto-bot/preferences', prefs);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/auto-lotto-bot/preferences'] });
+      toast({
+        title: "Preferences Updated",
+        description: "Your futures bot preferences have been saved.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error.message || "Failed to update preferences",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const triggerScanMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('POST', '/api/auto-lotto-bot/scan', { type: 'futures' });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/auto-lotto-bot'] });
+      toast({
+        title: "Scan Complete",
+        description: "Futures bot scan has been triggered successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Scan Failed",
+        description: error.message || "Failed to trigger scan",
+        variant: "destructive",
+      });
+    },
+  });
   
   const { data: quotes = [], isLoading: quotesLoading, refetch: refetchQuotes, isFetching: isFetchingQuotes } = useQuery<FuturesQuote[]>({
     queryKey: ['/api/futures'],
@@ -466,7 +575,7 @@ export default function FuturesPage() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'research' | 'quotes' | 'ideas')} className="w-full">
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'research' | 'quotes' | 'ideas' | 'bot')} className="w-full">
         <TabsList className="glass mb-4" data-testid="tabs-futures-main">
           <TabsTrigger value="ideas" className="gap-2" data-testid="tab-trade-ideas">
             <Target className="h-4 w-4" />
@@ -474,6 +583,15 @@ export default function FuturesPage() {
             {researchBriefs.filter(b => b.tradeDirection).length > 0 && (
               <Badge variant="secondary" className="ml-1 bg-green-500/20 text-green-400">
                 {researchBriefs.filter(b => b.tradeDirection).length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="bot" className="gap-2" data-testid="tab-auto-bot">
+            <Bot className="h-4 w-4" />
+            Auto Bot
+            {(botData?.positions?.futures?.filter(p => p.status === 'open').length || 0) > 0 && (
+              <Badge variant="secondary" className="ml-1 bg-cyan-500/20 text-cyan-400">
+                {botData?.positions?.futures?.filter(p => p.status === 'open').length || 0}
               </Badge>
             )}
           </TabsTrigger>
@@ -648,6 +766,227 @@ export default function FuturesPage() {
                       </Card>
                     );
                   })}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Autonomous Bot Tab */}
+        <TabsContent value="bot" className="space-y-6">
+          {botLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-[180px] rounded-xl" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Bot Control Panel */}
+              <Card className="glass-card border-cyan-500/20" data-testid="card-bot-control">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                        <Bot className="h-5 w-5 text-cyan-400" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Futures Auto Bot</CardTitle>
+                        <p className="text-sm text-muted-foreground">Autonomous NQ/GC paper trading</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Enabled</span>
+                        <Switch
+                          checked={botPreferences?.enableFutures ?? true}
+                          onCheckedChange={(checked) => 
+                            updatePreferencesMutation.mutate({ enableFutures: checked })
+                          }
+                          data-testid="switch-enable-futures-bot"
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => triggerScanMutation.mutate()}
+                        disabled={triggerScanMutation.isPending}
+                        className="gap-2"
+                        data-testid="button-trigger-scan"
+                      >
+                        {triggerScanMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                        Scan Now
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => refetchBot()}
+                        data-testid="button-refresh-bot"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="stat-glass rounded-lg p-3" data-testid="stat-bot-portfolio">
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Portfolio</div>
+                      <div className="text-xl font-bold font-mono text-cyan-400" data-testid="text-bot-portfolio-value">
+                        ${botData?.portfolios?.futures?.totalValue?.toFixed(0) || '300'}
+                      </div>
+                    </div>
+                    <div className="stat-glass rounded-lg p-3" data-testid="stat-bot-pnl">
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total P&L</div>
+                      <div className={`text-xl font-bold font-mono ${(botData?.stats?.futures?.totalPnL || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-bot-pnl-value">
+                        {(botData?.stats?.futures?.totalPnL || 0) >= 0 ? '+' : ''}${botData?.stats?.futures?.totalPnL?.toFixed(2) || '0.00'}
+                      </div>
+                    </div>
+                    <div className="stat-glass rounded-lg p-3" data-testid="stat-bot-winrate">
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Win Rate</div>
+                      <div className="text-xl font-bold font-mono text-green-400" data-testid="text-bot-winrate-value">
+                        {botData?.stats?.futures?.winRate?.toFixed(0) || 0}%
+                      </div>
+                    </div>
+                    <div className="stat-glass rounded-lg p-3" data-testid="stat-bot-trades">
+                      <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Trades</div>
+                      <div className="text-xl font-bold font-mono" data-testid="text-bot-trades-value">
+                        {botData?.stats?.futures?.totalTrades || 0}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Open Positions */}
+              <Card className="glass-card" data-testid="card-bot-positions">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-cyan-400" />
+                    Open Positions
+                    {(botData?.positions?.futures?.filter(p => p.status === 'open').length || 0) > 0 && (
+                      <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-400 ml-2">
+                        {botData?.positions?.futures?.filter(p => p.status === 'open').length}
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!botData?.positions?.futures?.filter(p => p.status === 'open').length ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Bot className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                      <p className="text-sm">No open futures positions</p>
+                      <p className="text-xs mt-1">Bot scans during CME RTH (9:30 AM - 4:00 PM ET)</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {botData?.positions?.futures?.filter(p => p.status === 'open').map((position) => {
+                        const isLong = position.direction === 'long';
+                        const pnlPositive = (position.unrealizedPnL || 0) >= 0;
+                        return (
+                          <div 
+                            key={position.id}
+                            className={`p-4 rounded-lg border ${isLong ? 'border-green-500/20 bg-green-500/5' : 'border-red-500/20 bg-red-500/5'}`}
+                            data-testid={`position-${position.id}`}
+                          >
+                            <div className="flex items-center justify-between gap-4 mb-3">
+                              <div className="flex items-center gap-3">
+                                <Badge variant={isLong ? 'default' : 'destructive'}>
+                                  {isLong ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
+                                  {position.direction.toUpperCase()}
+                                </Badge>
+                                <span className="font-bold font-mono">{position.symbol}</span>
+                                <span className="text-sm text-muted-foreground">x{position.quantity}</span>
+                              </div>
+                              <div className={`font-bold font-mono ${pnlPositive ? 'text-green-400' : 'text-red-400'}`} data-testid={`text-position-pnl-${position.id}`}>
+                                {pnlPositive ? '+' : ''}${position.unrealizedPnL?.toFixed(2) || '0.00'}
+                                <span className="text-xs ml-1">({position.unrealizedPnLPercent?.toFixed(2) || '0.00'}%)</span>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-4 gap-2 text-xs">
+                              <div className="stat-glass rounded p-2 text-center" data-testid={`stat-position-entry-${position.id}`}>
+                                <div className="text-muted-foreground uppercase">Entry</div>
+                                <div className="font-mono font-medium">${position.entryPrice?.toFixed(2)}</div>
+                              </div>
+                              <div className="stat-glass rounded p-2 text-center" data-testid={`stat-position-current-${position.id}`}>
+                                <div className="text-muted-foreground uppercase">Current</div>
+                                <div className="font-mono font-medium">${position.currentPrice?.toFixed(2)}</div>
+                              </div>
+                              <div className="stat-glass rounded p-2 text-center" data-testid={`stat-position-target-${position.id}`}>
+                                <div className="text-muted-foreground uppercase">Target</div>
+                                <div className="font-mono font-medium text-green-400">${position.targetPrice?.toFixed(2)}</div>
+                              </div>
+                              <div className="stat-glass rounded p-2 text-center" data-testid={`stat-position-stop-${position.id}`}>
+                                <div className="text-muted-foreground uppercase">Stop</div>
+                                <div className="font-mono font-medium text-red-400">${position.stopLoss?.toFixed(2)}</div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Recent Closed Trades */}
+              <Card className="glass-card" data-testid="card-bot-history">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-muted-foreground" />
+                    Recent Trades
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!botData?.positions?.futures?.filter(p => p.status !== 'open').length ? (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <p className="text-sm">No closed trades yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {botData?.positions?.futures?.filter(p => p.status !== 'open').slice(0, 5).map((trade) => {
+                        const isWin = (trade.unrealizedPnL || 0) > 0;
+                        return (
+                          <div 
+                            key={trade.id}
+                            className="flex items-center justify-between p-3 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors"
+                            data-testid={`row-closed-trade-${trade.id}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              {isWin ? (
+                                <CheckCircle2 className="h-4 w-4 text-green-400" />
+                              ) : (
+                                <XCircle className="h-4 w-4 text-red-400" />
+                              )}
+                              <span className="font-mono font-medium" data-testid={`text-trade-symbol-${trade.id}`}>{trade.symbol}</span>
+                              <Badge variant="outline" className="text-xs">
+                                {trade.direction}
+                              </Badge>
+                            </div>
+                            <div className={`font-mono font-bold ${isWin ? 'text-green-400' : 'text-red-400'}`} data-testid={`text-trade-pnl-${trade.id}`}>
+                              {isWin ? '+' : ''}${trade.unrealizedPnL?.toFixed(2) || '0.00'}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Bot Info */}
+              <div className="p-4 rounded-lg bg-muted/20 border border-border/30 text-sm text-muted-foreground">
+                <p className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-400" />
+                  <strong>Paper Trading Only</strong>
+                </p>
+                <p>
+                  The futures bot trades NQ (Nasdaq) and GC (Gold) futures contracts during CME Regular Trading Hours.
+                  All trades are simulated using a $300 paper portfolio. The bot uses RSI(2) mean reversion, 
+                  session momentum, and volatility filters to identify high-probability setups.
+                </p>
               </div>
             </div>
           )}
