@@ -37,7 +37,7 @@ import { requireAdminJWT, generateAdminToken, verifyAdminToken } from "./auth";
 import { getSession, setupAuth } from "./replitAuth";
 import { setupGoogleAuth } from "./googleAuth";
 import { createUser, authenticateUser, sanitizeUser } from "./userAuth";
-import { getTierLimits } from "./tierConfig";
+import { getTierLimits, canAccessFeature, TierLimits } from "./tierConfig";
 import { syncDocumentationToNotion } from "./notion-sync";
 import * as paperTradingService from "./paper-trading-service";
 import { telemetryService } from "./telemetry-service";
@@ -89,6 +89,77 @@ function isAuthenticated(req: any, res: any, next: any) {
     return res.status(401).json({ message: "Unauthorized" });
   }
   next();
+}
+
+// Tier-based feature access middleware factory
+function requireTier(feature: keyof TierLimits) {
+  return async (req: any, res: any, next: any) => {
+    const userId = req.session?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    try {
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      // Check if admin (always has access)
+      const isAdmin = (process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL) || 
+                      user.subscriptionTier === 'admin';
+      if (isAdmin) {
+        return next();
+      }
+      
+      const tier = (user.subscriptionTier as 'free' | 'advanced' | 'pro') || 'free';
+      const hasAccess = canAccessFeature(tier, feature);
+      
+      if (!hasAccess) {
+        const tierNames: Record<string, string> = {
+          free: 'Free',
+          advanced: 'Advanced',
+          pro: 'Pro'
+        };
+        return res.status(403).json({ 
+          message: `This feature requires ${getRequiredTierForFeature(feature)} tier or higher`,
+          currentTier: tierNames[tier] || 'Free',
+          requiredFeature: feature,
+          upgradeUrl: '/pricing'
+        });
+      }
+      
+      next();
+    } catch (error) {
+      logger.error('Tier check failed', { error, userId, feature });
+      return res.status(500).json({ message: "Failed to verify access" });
+    }
+  };
+}
+
+// Helper to determine minimum tier for a feature
+function getRequiredTierForFeature(feature: keyof TierLimits): string {
+  const advancedFeatures: (keyof TierLimits)[] = [
+    'canAccessHybridEngine', 'canAccessFlowScanner', 'canAccessLottoScanner', 
+    'canAccessPennyScanner', 'canAccessAutoLottoBot', 'canAccessCryptoBot',
+    'canTradeOptions', 'canAccessPerformance', 'canAccessAdvancedAnalytics',
+    'canAccessSymbolLeaderboard', 'canAccessTimeHeatmap', 'canAccessEngineTrends',
+    'canAccessSignalAnalysis', 'canAccessDrawdownAnalysis', 'canAccessLossAnalysis',
+    'canAccessSupportResistance', 'canAccessMultiFactorAnalysis',
+    'canAccessSECFilings', 'canAccessGovContracts', 'canAccessCatalystScoring',
+    'canAccessRealTimeData', 'canAccessRealTimeAlerts', 'canExportData', 'canExportPDF',
+    'canAccessDiscordAlerts', 'canAccessWeeklyPicks', 'canAccessDailyReports'
+  ];
+  
+  const proFeatures: (keyof TierLimits)[] = [
+    'canAccessFuturesBot', 'canAccessPropFirmBot', 'canTradeFutures',
+    'canAccessAPIAccess', 'canAccessWebhooks', 'canAccessBacktesting',
+    'priorityIdeaGeneration'
+  ];
+  
+  if (proFeatures.includes(feature)) return 'Pro';
+  if (advancedFeatures.includes(feature)) return 'Advanced';
+  return 'Free';
 }
 
 // Configure multer for file uploads (memory storage)
@@ -2475,10 +2546,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
-  // FUTURES TRADING ROUTES - 24-hour markets
+  // FUTURES TRADING ROUTES - 24-hour markets (Pro tier required)
   // ============================================
   
-  app.get("/api/futures", async (_req, res) => {
+  app.get("/api/futures", requireTier('canTradeFutures'), async (_req, res) => {
     try {
       const { fetchAllFuturesQuotes } = await import("./market-api");
       const quotes = await fetchAllFuturesQuotes();
@@ -2489,7 +2560,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/futures/symbols", async (_req, res) => {
+  app.get("/api/futures/symbols", requireTier('canTradeFutures'), async (_req, res) => {
     try {
       const { getAvailableFuturesSymbols } = await import("./market-api");
       const symbols = getAvailableFuturesSymbols();
@@ -2499,7 +2570,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/futures/:symbol", async (req, res) => {
+  app.get("/api/futures/:symbol", requireTier('canTradeFutures'), async (req, res) => {
     try {
       const { fetchFuturesQuote } = await import("./market-api");
       const quote = await fetchFuturesQuote(req.params.symbol);
@@ -2513,7 +2584,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.get("/api/futures/:symbol/history", async (req, res) => {
+  app.get("/api/futures/:symbol/history", requireTier('canTradeFutures'), async (req, res) => {
     try {
       const { fetchFuturesHistory } = await import("./market-api");
       const interval = (req.query.interval as '1m' | '5m' | '15m' | '1h' | '1d') || '15m';
@@ -2526,7 +2597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/futures/:symbol/research", async (req, res) => {
+  app.get("/api/futures/:symbol/research", requireTier('canTradeFutures'), async (req, res) => {
     try {
       const { generateFuturesResearch } = await import("./futures-research-service");
       const brief = await generateFuturesResearch(req.params.symbol);
@@ -4432,10 +4503,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Advanced Performance Analytics Endpoints
+  // Advanced Performance Analytics Endpoints (Advanced tier required)
 
   // 1. Symbol Leaderboard - Top/Bottom performing symbols
-  app.get("/api/performance/symbol-leaderboard", async (req, res) => {
+  app.get("/api/performance/symbol-leaderboard", requireTier('canAccessSymbolLeaderboard'), async (req, res) => {
     try {
       const engine = req.query.engine as string | undefined;
       
@@ -4539,7 +4610,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 2. Time of Day Heatmap - Win rate by hour (9 AM - 4 PM ET)
-  app.get("/api/performance/time-of-day-heatmap", async (req, res) => {
+  app.get("/api/performance/time-of-day-heatmap", requireTier('canAccessTimeHeatmap'), async (req, res) => {
     try {
       const engine = req.query.engine as string | undefined;
       
@@ -4661,7 +4732,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 3. Engine Trends - Weekly performance for each engine over last 8 weeks
-  app.get("/api/performance/engine-trends", async (req, res) => {
+  app.get("/api/performance/engine-trends", requireTier('canAccessEngineTrends'), async (req, res) => {
     try {
       // Get all trade ideas
       const allIdeas = await storage.getAllTradeIdeas();
@@ -5496,7 +5567,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 📉 DRAWDOWN ANALYSIS - Peak-to-trough metrics
-  app.get("/api/performance/drawdown-analysis", async (req, res) => {
+  app.get("/api/performance/drawdown-analysis", requireTier('canAccessDrawdownAnalysis'), async (req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       
@@ -5673,10 +5744,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 🔍 LOSS ANALYSIS ENDPOINTS - Post-Mortem for Failed Trades
+  // 🔍 LOSS ANALYSIS ENDPOINTS - Post-Mortem for Failed Trades (Advanced tier required)
   
   // Get loss summary with patterns and insights
-  app.get("/api/loss-analysis/summary", async (req, res) => {
+  app.get("/api/loss-analysis/summary", requireTier('canAccessLossAnalysis'), async (req, res) => {
     try {
       const summary = await getLossSummary();
       res.json(summary);
@@ -5687,7 +5758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all loss analyses
-  app.get("/api/loss-analysis", async (req, res) => {
+  app.get("/api/loss-analysis", requireTier('canAccessLossAnalysis'), async (req, res) => {
     try {
       const analyses = await storage.getAllLossAnalyses();
       res.json(analyses);
@@ -5698,7 +5769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get loss patterns grouped by reason
-  app.get("/api/loss-analysis/patterns", async (req, res) => {
+  app.get("/api/loss-analysis/patterns", requireTier('canAccessLossAnalysis'), async (req, res) => {
     try {
       const patterns = await storage.getLossPatterns();
       res.json(patterns);
@@ -5724,7 +5795,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get loss analysis for a specific trade
-  app.get("/api/loss-analysis/trade/:tradeId", async (req, res) => {
+  app.get("/api/loss-analysis/trade/:tradeId", requireTier('canAccessLossAnalysis'), async (req, res) => {
     try {
       const { tradeId } = req.params;
       const analysis = await storage.getLossAnalysisByTradeId(tradeId);
@@ -14691,12 +14762,12 @@ Use this checklist before entering any trade:
   });
 
   // ==========================================
-  // CATALYST INTELLIGENCE API
+  // CATALYST INTELLIGENCE API (Advanced tier required)
   // SEC Filings, Government Contracts, Catalyst Events
   // ==========================================
 
   // GET /api/catalysts/symbol/:ticker - Get all catalysts for a specific symbol
-  app.get("/api/catalysts/symbol/:ticker", isAuthenticated, async (req, res) => {
+  app.get("/api/catalysts/symbol/:ticker", requireTier('canAccessCatalystScoring'), async (req, res) => {
     try {
       const { getCatalystsForSymbol, calculateCatalystScore } = await import("./catalyst-intelligence-service");
       const { ticker } = req.params;
@@ -14719,7 +14790,7 @@ Use this checklist before entering any trade:
   });
 
   // GET /api/catalysts/upcoming - Get upcoming/active catalysts across all symbols
-  app.get("/api/catalysts/upcoming", isAuthenticated, async (req, res) => {
+  app.get("/api/catalysts/upcoming", requireTier('canAccessCatalystScoring'), async (req, res) => {
     try {
       const { getUpcomingCatalysts } = await import("./catalyst-intelligence-service");
       const limit = parseInt(req.query.limit as string) || 20;
@@ -14734,7 +14805,7 @@ Use this checklist before entering any trade:
   });
 
   // POST /api/catalysts/refresh - Refresh catalysts for specified tickers
-  app.post("/api/catalysts/refresh", isAuthenticated, async (req, res) => {
+  app.post("/api/catalysts/refresh", requireTier('canAccessCatalystScoring'), async (req, res) => {
     try {
       const { refreshCatalystsForWatchlist } = await import("./catalyst-intelligence-service");
       const { tickers } = req.body;
@@ -14758,7 +14829,7 @@ Use this checklist before entering any trade:
   });
 
   // GET /api/sec-filings/:ticker - Get SEC filings for a ticker
-  app.get("/api/sec-filings/:ticker", isAuthenticated, async (req, res) => {
+  app.get("/api/sec-filings/:ticker", requireTier('canAccessSECFilings'), async (req, res) => {
     try {
       const { fetchSECFilingsForTicker } = await import("./catalyst-intelligence-service");
       const { ticker } = req.params;
@@ -14773,7 +14844,7 @@ Use this checklist before entering any trade:
   });
 
   // GET /api/gov-contracts/:ticker - Get government contracts for a ticker
-  app.get("/api/gov-contracts/:ticker", isAuthenticated, async (req, res) => {
+  app.get("/api/gov-contracts/:ticker", requireTier('canAccessGovContracts'), async (req, res) => {
     try {
       const { fetchGovernmentContractsForTicker } = await import("./catalyst-intelligence-service");
       const { ticker } = req.params;
@@ -14788,7 +14859,7 @@ Use this checklist before entering any trade:
   });
 
   // POST /api/catalysts/score - Calculate catalyst score for a symbol
-  app.post("/api/catalysts/score", isAuthenticated, async (req, res) => {
+  app.post("/api/catalysts/score", requireTier('canAccessCatalystScoring'), async (req, res) => {
     try {
       const { calculateCatalystScore, updateSymbolCatalystSnapshot } = await import("./catalyst-intelligence-service");
       const { ticker } = req.body;
