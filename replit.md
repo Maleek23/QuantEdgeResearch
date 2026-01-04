@@ -35,5 +35,38 @@ Core features include public informational pages, user authentication, a main ap
 - **OpenAI (GPT-4):** Backup for fundamental analysis.
 - **Google (Gemini):** Alternative AI analysis.
 
+### Catalyst Intelligence
+- **SEC EDGAR:** SEC filing ingestion (10-K, 10-Q, 8-K, S-1, 4 insider trades)
+- **USASpending.gov:** Government contract tracking with award amounts
+
 ### Other Integrations
 - **Discord:** Webhook notifications.
+
+## Catalyst Intelligence System
+
+The platform includes a **Catalyst Intelligence System** that tracks SEC filings and government contracts to enhance trading decisions:
+
+### Components
+- **SEC EDGAR Integration:** Fetches company filings (10-K, 10-Q, 8-K, S-1, Form 4) with sentiment classification (bullish/bearish/neutral)
+- **USASpending.gov Integration:** Tracks government contract awards by company name
+- **Catalyst Scoring Engine:** Calculates -100 to +100 scores based on recent catalyst events
+- **Auto-Lotto Bot Integration:** Three-tier confidence boost system (±5, ±8, ±12) based on catalyst strength
+- **Frontend Panel:** CatalystIntelligencePanel component displays SEC filings, gov contracts, and aggregate scores
+
+### API Endpoints
+- `GET /api/catalysts/symbol/:ticker` - Get all catalysts and score for a symbol
+- `GET /api/catalysts/upcoming` - Get upcoming catalyst events
+- `POST /api/catalysts/refresh` - Refresh catalyst data for specified tickers
+- `GET /api/sec-filings/:ticker` - Get SEC filings for a ticker
+- `GET /api/gov-contracts/:ticker` - Get government contracts for a ticker
+- `POST /api/catalysts/score` - Calculate catalyst score for a symbol
+
+### Database Tables
+- `sec_filings` - SEC EDGAR filing records with sentiment analysis
+- `sec_filing_signals` - Extracted signals from filings (insider trades, etc.)
+- `government_contracts` - USASpending.gov contract records
+- `catalyst_events` - Unified catalyst event timeline
+- `symbol_catalyst_snapshots` - Aggregated catalyst scores per symbol
+
+### Scheduled Polling
+- Catalyst data refreshes every 30 minutes for priority tickers (AAPL, MSFT, GOOGL, etc.)

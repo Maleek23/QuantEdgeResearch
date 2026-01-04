@@ -130,15 +130,16 @@ export async function fetchSECFilingsForTicker(ticker: string, filingTypes: SECF
       
       if (!filingTypes.includes(formType)) continue;
       
-      const accessionNumber = accessionNumbers[i]?.replace(/-/g, '');
+      const rawAccessionNumber = accessionNumbers[i] || '';
+      const normalizedAccessionNumber = rawAccessionNumber.replace(/-/g, '');
       const filingDate = filingDates[i];
       const primaryDoc = primaryDocuments[i];
       const acceptanceDate = acceptanceDateTimes[i];
       
-      const filingUrl = `https://www.sec.gov/Archives/edgar/data/${cik.replace(/^0+/, '')}/${accessionNumber}/${primaryDoc}`;
+      const filingUrl = `https://www.sec.gov/Archives/edgar/data/${cik.replace(/^0+/, '')}/${normalizedAccessionNumber}/${primaryDoc}`;
       
       const existing = await db.select().from(secFilings)
-        .where(eq(secFilings.accessionNumber, accessionNumbers[i]))
+        .where(eq(secFilings.accessionNumber, normalizedAccessionNumber))
         .limit(1);
       
       if (existing.length > 0) {
@@ -149,7 +150,7 @@ export async function fetchSECFilingsForTicker(ticker: string, filingTypes: SECF
       const sentiment = await analyzeFiling(formType, ticker);
       
       const insertData: InsertSecFiling = {
-        accessionNumber: accessionNumbers[i],
+        accessionNumber: normalizedAccessionNumber,
         cik,
         ticker: ticker.toUpperCase(),
         companyName,
