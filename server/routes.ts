@@ -13310,6 +13310,129 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ==========================================
+  // CATALYST INTELLIGENCE API
+  // SEC Filings, Government Contracts, Catalyst Events
+  // ==========================================
+
+  // GET /api/catalysts/symbol/:ticker - Get all catalysts for a specific symbol
+  app.get("/api/catalysts/symbol/:ticker", isAuthenticated, async (req, res) => {
+    try {
+      const { getCatalystsForSymbol, calculateCatalystScore } = await import("./catalyst-intelligence-service");
+      const { ticker } = req.params;
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      const catalysts = await getCatalystsForSymbol(ticker, limit);
+      const score = await calculateCatalystScore(ticker);
+      
+      res.json({
+        ticker: ticker.toUpperCase(),
+        catalysts,
+        score: score.score,
+        catalystCount: score.catalystCount,
+        summary: score.summary,
+      });
+    } catch (error: any) {
+      logger.error("Error fetching symbol catalysts", { error, ticker: req.params.ticker });
+      res.status(500).json({ error: "Failed to fetch catalysts" });
+    }
+  });
+
+  // GET /api/catalysts/upcoming - Get upcoming/active catalysts across all symbols
+  app.get("/api/catalysts/upcoming", isAuthenticated, async (req, res) => {
+    try {
+      const { getUpcomingCatalysts } = await import("./catalyst-intelligence-service");
+      const limit = parseInt(req.query.limit as string) || 20;
+      
+      const catalysts = await getUpcomingCatalysts(limit);
+      
+      res.json({ catalysts });
+    } catch (error: any) {
+      logger.error("Error fetching upcoming catalysts", { error });
+      res.status(500).json({ error: "Failed to fetch upcoming catalysts" });
+    }
+  });
+
+  // POST /api/catalysts/refresh - Refresh catalysts for specified tickers
+  app.post("/api/catalysts/refresh", isAuthenticated, async (req, res) => {
+    try {
+      const { refreshCatalystsForWatchlist } = await import("./catalyst-intelligence-service");
+      const { tickers } = req.body;
+      
+      if (!tickers || !Array.isArray(tickers)) {
+        return res.status(400).json({ error: "Tickers array required" });
+      }
+      
+      const result = await refreshCatalystsForWatchlist(tickers);
+      
+      res.json({
+        success: true,
+        secFilingsAdded: result.secFilingsAdded,
+        contractsAdded: result.contractsAdded,
+        errors: result.errors,
+      });
+    } catch (error: any) {
+      logger.error("Error refreshing catalysts", { error });
+      res.status(500).json({ error: "Failed to refresh catalysts" });
+    }
+  });
+
+  // GET /api/sec-filings/:ticker - Get SEC filings for a ticker
+  app.get("/api/sec-filings/:ticker", isAuthenticated, async (req, res) => {
+    try {
+      const { fetchSECFilingsForTicker } = await import("./catalyst-intelligence-service");
+      const { ticker } = req.params;
+      
+      const filings = await fetchSECFilingsForTicker(ticker);
+      
+      res.json({ ticker: ticker.toUpperCase(), filings });
+    } catch (error: any) {
+      logger.error("Error fetching SEC filings", { error, ticker: req.params.ticker });
+      res.status(500).json({ error: "Failed to fetch SEC filings" });
+    }
+  });
+
+  // GET /api/gov-contracts/:ticker - Get government contracts for a ticker
+  app.get("/api/gov-contracts/:ticker", isAuthenticated, async (req, res) => {
+    try {
+      const { fetchGovernmentContractsForTicker } = await import("./catalyst-intelligence-service");
+      const { ticker } = req.params;
+      
+      const contracts = await fetchGovernmentContractsForTicker(ticker);
+      
+      res.json({ ticker: ticker.toUpperCase(), contracts });
+    } catch (error: any) {
+      logger.error("Error fetching government contracts", { error, ticker: req.params.ticker });
+      res.status(500).json({ error: "Failed to fetch government contracts" });
+    }
+  });
+
+  // POST /api/catalysts/score - Calculate catalyst score for a symbol
+  app.post("/api/catalysts/score", isAuthenticated, async (req, res) => {
+    try {
+      const { calculateCatalystScore, updateSymbolCatalystSnapshot } = await import("./catalyst-intelligence-service");
+      const { ticker } = req.body;
+      
+      if (!ticker) {
+        return res.status(400).json({ error: "Ticker required" });
+      }
+      
+      await updateSymbolCatalystSnapshot(ticker);
+      const score = await calculateCatalystScore(ticker);
+      
+      res.json({
+        ticker: ticker.toUpperCase(),
+        score: score.score,
+        catalystCount: score.catalystCount,
+        recentCatalysts: score.recentCatalysts,
+        summary: score.summary,
+      });
+    } catch (error: any) {
+      logger.error("Error calculating catalyst score", { error });
+      res.status(500).json({ error: "Failed to calculate catalyst score" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
