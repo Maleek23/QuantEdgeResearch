@@ -349,13 +349,9 @@ function calculateAIConfidence(
 // 
 // NEW CALIBRATION: Bands now reflect EXPECTED actual win rate, not raw confidence
 // Grade assignment based on expected outcome probability
-function getProbabilityBand(confidenceScore: number): string {
-  // Flow engine trades get bonus (81.9% historical win rate)
-  // This is handled at scoring time, so high scores from Flow are trustworthy
-  
-  // For non-Flow sources, historical data shows inverted pattern
-  // We now use conservative band assignment that reflects actual outcomes
-  
+
+// Returns DETAILED band (A+, A, B+, B, C+, C, D, F) for internal precision
+function getDetailedProbabilityBand(confidenceScore: number): string {
   // A+ tier: Only for Flow engine with exceptional setup (score 95+)
   if (confidenceScore >= 95) return 'A+';
   // A tier: Very high confidence - Flow with strong setup
@@ -372,6 +368,29 @@ function getProbabilityBand(confidenceScore: number): string {
   if (confidenceScore >= 55) return 'D';
   // F tier: Very low confidence
   return 'F';
+}
+
+// Returns COARSE band (A, B, C, D) for external display
+// Maps detailed bands to simplified categories
+function getCoarseBand(detailedBand: string): string {
+  if (detailedBand === 'A+' || detailedBand === 'A') return 'A';
+  if (detailedBand === 'B+' || detailedBand === 'B') return 'B';
+  if (detailedBand === 'C+' || detailedBand === 'C') return 'C';
+  if (detailedBand === 'D' || detailedBand === 'F') return 'D';
+  return 'D';
+}
+
+// Main function: Returns coarse band for external use
+function getProbabilityBand(confidenceScore: number): string {
+  const detailed = getDetailedProbabilityBand(confidenceScore);
+  return getCoarseBand(detailed);
+}
+
+// Export helper for getting both bands
+export function getBandInfo(confidenceScore: number): { band: string; detailedBand: string } {
+  const detailedBand = getDetailedProbabilityBand(confidenceScore);
+  const band = getCoarseBand(detailedBand);
+  return { band, detailedBand };
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -4687,15 +4706,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      // Calculate win rates for each band
-      const confidenceBreakdown = bands.map(band => ({
-        level: band.name,
+      // Calculate win rates for each band - CONSOLIDATED to A, B, C, D for external display
+      // Internally we keep A/B+/B/C+/C/D, but externally we show only A/B/C/D
+      const coarseBands = [
+        { letter: 'A', wins: 0, losses: 0, detailedBands: ['A (5+ signals)'] },
+        { letter: 'B', wins: 0, losses: 0, detailedBands: [] as string[] },
+        { letter: 'C', wins: 0, losses: 0, detailedBands: [] as string[] },
+        { letter: 'D', wins: 0, losses: 0, detailedBands: ['D (0 signals)'] },
+      ];
+      
+      // Map detailed bands to coarse bands
+      for (const band of bands) {
+        if (band.key === 'A') {
+          coarseBands[0].wins += band.wins;
+          coarseBands[0].losses += band.losses;
+        } else if (band.key === 'B+' || band.key === 'B') {
+          coarseBands[1].wins += band.wins;
+          coarseBands[1].losses += band.losses;
+          if (!coarseBands[1].detailedBands.includes(band.name)) {
+            coarseBands[1].detailedBands.push(band.name);
+          }
+        } else if (band.key === 'C+' || band.key === 'C') {
+          coarseBands[2].wins += band.wins;
+          coarseBands[2].losses += band.losses;
+          if (!coarseBands[2].detailedBands.includes(band.name)) {
+            coarseBands[2].detailedBands.push(band.name);
+          }
+        } else if (band.key === 'D') {
+          coarseBands[3].wins += band.wins;
+          coarseBands[3].losses += band.losses;
+        }
+      }
+      
+      // Return consolidated breakdown with coarse bands (A, B, C, D only)
+      const confidenceBreakdown = coarseBands.map(band => ({
+        level: band.letter,
         trades: band.wins + band.losses,
         wins: band.wins,
         losses: band.losses,
         winRate: band.wins + band.losses > 0 
           ? Math.round((band.wins / (band.wins + band.losses)) * 1000) / 10 
           : 0,
+        detailedBands: band.detailedBands, // Internal detail available if needed
       }));
       
       // Calculate OVERALL win rate (all bands)

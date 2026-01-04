@@ -312,3 +312,63 @@ export async function getSignalPerformanceFromCache(): Promise<SignalStats[]> {
     sampleSizeGrade: row.sampleSizeGrade as 'A' | 'B' | 'C' | 'D' | 'F' || 'F',
   }));
 }
+
+// Helper to convert detailed band to coarse band for external display
+function getCoarseBandFromDetailed(detailedBand: string): string {
+  if (detailedBand === 'A+' || detailedBand === 'A') return 'A';
+  if (detailedBand === 'B+' || detailedBand === 'B') return 'B';
+  if (detailedBand === 'C+' || detailedBand === 'C') return 'C';
+  if (detailedBand === 'D' || detailedBand === 'F') return 'D';
+  return 'D';
+}
+
+// Consolidates detailed band stats into coarse bands (A, B, C, D)
+export interface ConsolidatedBandStats {
+  band: string;
+  totalTrades: number;
+  winCount: number;
+  lossCount: number;
+  winRate: number;
+  detailedBands: string[]; // Shows which detailed bands are included
+}
+
+export function consolidateBandStats(signals: SignalStats[]): ConsolidatedBandStats[] {
+  const bandMap = new Map<string, { trades: number; wins: number; losses: number; detailed: Set<string> }>();
+  
+  for (const signal of signals) {
+    // Check if signal name looks like a band (A+, A, B+, B, C+, C, D, F)
+    const bandPattern = /^(A\+|A|B\+|B|C\+|C|D|F)$/;
+    if (!bandPattern.test(signal.signalName)) continue;
+    
+    const coarseBand = getCoarseBandFromDetailed(signal.signalName);
+    
+    if (!bandMap.has(coarseBand)) {
+      bandMap.set(coarseBand, { trades: 0, wins: 0, losses: 0, detailed: new Set() });
+    }
+    
+    const data = bandMap.get(coarseBand)!;
+    data.trades += signal.totalTrades;
+    data.wins += signal.winCount;
+    data.losses += signal.lossCount;
+    data.detailed.add(signal.signalName);
+  }
+  
+  const result: ConsolidatedBandStats[] = [];
+  const bandOrder = ['A', 'B', 'C', 'D'];
+  
+  for (const band of bandOrder) {
+    const data = bandMap.get(band);
+    if (data && data.trades > 0) {
+      result.push({
+        band,
+        totalTrades: data.trades,
+        winCount: data.wins,
+        lossCount: data.losses,
+        winRate: Math.round((data.wins / data.trades) * 1000) / 10,
+        detailedBands: Array.from(data.detailed).sort(),
+      });
+    }
+  }
+  
+  return result;
+}
