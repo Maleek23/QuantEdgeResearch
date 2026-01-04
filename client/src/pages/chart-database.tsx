@@ -9,6 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { TradeIdea } from "@shared/schema";
 import { Database, Search, Filter, TrendingUp, TrendingDown, BarChart3, Target, Calendar } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { cn } from "@/lib/utils";
+import { getPnlColor } from "@/lib/signal-grade";
 
 export default function ChartDatabase() {
   const [symbolSearch, setSymbolSearch] = useState("");
@@ -236,7 +238,7 @@ export default function ChartDatabase() {
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">P&L</p>
                       {trade.outcomeStatus && trade.outcomeStatus !== 'open' ? (
-                        <p className={`text-sm font-bold font-mono tabular-nums ${(trade.percentGain || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        <p className={cn("text-sm font-bold font-mono tabular-nums", getPnlColor(trade.outcomeStatus, trade.percentGain))}>
                           {(trade.percentGain || 0) >= 0 ? '+' : ''}{(trade.percentGain || 0).toFixed(1)}%
                         </p>
                       ) : (

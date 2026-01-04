@@ -11,6 +11,7 @@ import { useState, useMemo, lazy, Suspense } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
+import { getPnlColor } from "@/lib/signal-grade";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ValidationResultsDialog } from "@/components/validation-results-dialog";
@@ -357,7 +358,7 @@ function DataIntegrityPanel({ stats }: { stats: PerformanceStats }) {
                         </Badge>
                       </td>
                       <td className={cn("py-1.5 px-2 text-right font-mono",
-                        (trade.percentGain ?? 0) >= 0 ? "text-green-400" : "text-red-400"
+                        getPnlColor(trade.outcomeStatus, trade.percentGain)
                       )}>
                         {trade.percentGain !== null ? `${trade.percentGain.toFixed(1)}%` : '—'}
                       </td>

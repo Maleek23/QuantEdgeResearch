@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatPercent, cn } from "@/lib/utils";
+import { getPnlColor } from "@/lib/signal-grade";
 import { ArrowUpRight, ArrowDownRight, Clock, TrendingUp, Lightbulb, Star } from "lucide-react";
 import { ExplainabilityPanel } from "@/components/explainability-panel";
 import type { TradeIdea } from "@shared/schema";
@@ -415,7 +416,7 @@ export function TradeIdeaDetailModal({
                         <span className="text-xs text-muted-foreground">Realized P/L</span>
                         <span className={cn(
                           "text-sm font-bold",
-                          idea.percentGain >= 0 ? "text-green-500" : "text-red-500"
+                          getPnlColor(idea.outcomeStatus, idea.percentGain)
                         )}>
                           {idea.percentGain >= 0 ? '+' : ''}{formatPercent(idea.percentGain)}
                         </span>

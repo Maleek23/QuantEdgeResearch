@@ -8,7 +8,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, ExternalLink
 import { format, parseISO } from "date-fns";
 import type { TradeIdea } from "@shared/schema";
 import { cn } from "@/lib/utils";
-import { getSignalGrade } from "@/lib/signal-grade";
+import { getSignalGrade, getPnlColor } from "@/lib/signal-grade";
 
 type SortColumn = 'symbol' | 'assetType' | 'direction' | 'entry' | 'exit' | 'pnl' | 'status' | 'exitDate';
 type SortDirection = 'asc' | 'desc';
@@ -208,7 +208,7 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                           <p className="text-muted-foreground text-xs">P&L %</p>
                           <p className={cn(
                             "font-mono font-bold text-lg",
-                            selectedTrade.percentGain > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                            getPnlColor(selectedTrade.outcomeStatus, selectedTrade.percentGain)
                           )}>
                             {selectedTrade.percentGain > 0 ? '+' : ''}{selectedTrade.percentGain.toFixed(2)}%
                           </p>
@@ -218,7 +218,7 @@ export function ClosedTradesTable({ rows, className }: ClosedTradesTableProps) {
                             <p className="text-muted-foreground text-xs">Realized P&L</p>
                             <p className={cn(
                               "font-mono font-bold text-lg",
-                              selectedTrade.realizedPnL > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                              getPnlColor(selectedTrade.outcomeStatus, selectedTrade.realizedPnL)
                             )}>
                               ${selectedTrade.realizedPnL.toFixed(2)}
                             </p>

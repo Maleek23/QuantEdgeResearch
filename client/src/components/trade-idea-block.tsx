@@ -28,7 +28,7 @@ import { EnhancedCountdown } from "@/components/enhanced-countdown";
 import { TimingDisplay } from "@/components/timing-display";
 import { HistoricalPerformanceBadge } from "@/components/historical-performance-badge";
 import { SignalStrengthBadge } from "@/components/signal-strength-badge";
-import { getResolutionReasonLabel } from "@/lib/signal-grade";
+import { getResolutionReasonLabel, getPnlColor, getTradeOutcomeStyle } from "@/lib/signal-grade";
 import type { TradeIdea, Catalyst } from "@shared/schema";
 
 interface TradeIdeaBlockProps {
@@ -561,7 +561,7 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                         {idea.percentGain !== null && idea.percentGain !== undefined && (
                           <span>P/L: <span className={cn(
                             "font-mono",
-                            idea.percentGain > 0 ? 'text-green-400' : idea.percentGain < 0 ? 'text-red-400' : 'text-muted-foreground'
+                            getPnlColor(idea.outcomeStatus, idea.percentGain)
                           )}>{idea.percentGain > 0 ? '+' : ''}{idea.percentGain.toFixed(1)}%</span></span>
                         )}
                         {idea.actualHoldingTimeMinutes && (

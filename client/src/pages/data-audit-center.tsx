@@ -29,6 +29,7 @@ import {
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { cn } from "@/lib/utils";
+import { getPnlColor } from "@/lib/signal-grade";
 import type { TradeIdea } from "@shared/schema";
 
 const TIMEZONE = "America/Chicago";
@@ -764,7 +765,7 @@ export default function DataAuditCenterPage() {
                           <td className="py-2 px-2">{getOutcomeBadge(idea.outcomeStatus)}</td>
                           <td className={cn(
                             "py-2 px-2 text-right font-mono font-semibold",
-                            (idea.percentGain ?? 0) >= 0 ? "text-green-400" : "text-red-400"
+                            getPnlColor(idea.outcomeStatus, idea.percentGain)
                           )}>
                             {idea.percentGain !== null 
                               ? `${idea.percentGain >= 0 ? '+' : ''}${idea.percentGain.toFixed(1)}%`

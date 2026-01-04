@@ -30,6 +30,7 @@ import { SiDiscord } from "react-icons/si";
 import { format, formatDistanceToNow } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { cn } from "@/lib/utils";
+import { getPnlColor, getTradeOutcomeStyle } from "@/lib/signal-grade";
 import type { TradeIdea, TradePriceSnapshot } from "@shared/schema";
 
 interface AuditTrailData {
@@ -428,7 +429,7 @@ function OutcomeCard({ idea }: { idea: TradeIdea }) {
           {idea.percentGain !== null && (
             <span className={cn(
               "font-mono text-2xl font-bold tabular-nums",
-              Number(idea.percentGain) >= 0 ? "text-green-400" : "text-red-400"
+              getPnlColor(idea.outcomeStatus, Number(idea.percentGain))
             )}>
               {Number(idea.percentGain) >= 0 ? "+" : ""}{Number(idea.percentGain).toFixed(2)}%
             </span>
