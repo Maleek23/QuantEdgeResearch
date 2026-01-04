@@ -10,7 +10,7 @@ import { Tooltip as TooltipUI, TooltipContent, TooltipProvider, TooltipTrigger }
 interface EquityCurvePoint {
   tradeIndex: number;
   date: string;
-  cumulative: number;
+  equity: number;        // Multiplicative equity (starts at 1.0)
   peak: number;
   drawdown: number;
   drawdownPercent: number;
@@ -23,51 +23,62 @@ interface DrawdownPeriod {
   recoveryTrades: number;
 }
 
+type CalmarStatus = 'valid' | 'estimated' | 'insufficient-sample' | 'no-drawdown';
+
 interface DrawdownAnalysisData {
   equityCurve: EquityCurvePoint[];
   drawdownPeriods: DrawdownPeriod[];
   summary: {
     totalTrades: number;
-    totalReturn: number;
-    maxDrawdown: number;
+    totalReturnPercent: number;
     maxDrawdownPercent: number;
-    currentDrawdown: number;
     currentDrawdownPercent: number;
     isInDrawdown: boolean;
     totalDrawdownPeriods: number;
     avgRecoveryTrades: number;
-    calmarRatio: number;
+    calmar: {
+      value: number | null;
+      status: CalmarStatus;
+    };
+    annualizedReturnPercent: number;
+    observationYears: number;
+    finalEquity: number;
   };
 }
 
 function CustomTooltip({ active, payload }: any) {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
+    const equityReturn = ((data.equity - 1) * 100).toFixed(2);
     return (
       <div className="bg-card border border-border rounded-lg p-3 shadow-lg">
         <p className="font-semibold text-sm">Trade #{data.tradeIndex}</p>
         <p className="text-xs text-muted-foreground mb-2">{data.date}</p>
         <div className="space-y-1 text-xs">
           <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Cumulative P&L:</span>
+            <span className="text-muted-foreground">Equity:</span>
+            <span className="font-mono text-foreground">{data.equity.toFixed(4)}x</span>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Total Return:</span>
             <span className={cn(
               "font-mono font-semibold",
-              data.cumulative >= 0 ? "text-green-500" : "text-red-500"
+              parseFloat(equityReturn) >= 0 ? "text-green-500" : "text-red-500"
             )}>
-              {data.cumulative >= 0 ? '+' : ''}{data.cumulative}%
+              {parseFloat(equityReturn) >= 0 ? '+' : ''}{equityReturn}%
             </span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Peak:</span>
-            <span className="font-mono text-cyan-500">{data.peak}%</span>
+            <span className="font-mono text-cyan-500">{data.peak.toFixed(4)}x</span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Drawdown:</span>
             <span className={cn(
               "font-mono",
-              data.drawdown > 0 ? "text-red-500" : "text-green-500"
+              data.drawdownPercent > 0 ? "text-red-500" : "text-green-500"
             )}>
-              -{data.drawdown}%
+              {data.drawdownPercent > 0 ? `-${data.drawdownPercent}%` : 'None'}
             </span>
           </div>
         </div>
@@ -156,22 +167,23 @@ export default function DrawdownAnalysisChart() {
             <p className="text-xs text-muted-foreground">Total Return</p>
             <p className={cn(
               "font-semibold font-mono text-lg",
-              summary.totalReturn >= 0 ? "text-green-500" : "text-red-500"
+              summary.totalReturnPercent >= 0 ? "text-green-500" : "text-red-500"
             )}>
-              {summary.totalReturn >= 0 ? '+' : ''}{summary.totalReturn}%
+              {summary.totalReturnPercent >= 0 ? '+' : ''}{summary.totalReturnPercent.toFixed(1)}%
             </p>
+            <p className="text-[10px] text-muted-foreground">{summary.finalEquity.toFixed(4)}x</p>
           </div>
           <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
             <p className="text-xs text-muted-foreground">Max Drawdown</p>
-            <p className="font-semibold font-mono text-lg text-red-500">-{summary.maxDrawdown}%</p>
+            <p className="font-semibold font-mono text-lg text-red-500">-{summary.maxDrawdownPercent}%</p>
           </div>
           <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
             <p className="text-xs text-muted-foreground">Current DD</p>
             <p className={cn(
               "font-semibold font-mono text-lg",
-              summary.currentDrawdown > 0 ? "text-amber-500" : "text-green-500"
+              summary.currentDrawdownPercent > 0 ? "text-amber-500" : "text-green-500"
             )}>
-              {summary.currentDrawdown > 0 ? `-${summary.currentDrawdown}%` : 'None'}
+              {summary.currentDrawdownPercent > 0 ? `-${summary.currentDrawdownPercent}%` : 'None'}
             </p>
           </div>
           <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
@@ -181,15 +193,33 @@ export default function DrawdownAnalysisChart() {
                 <TooltipTrigger>
                   <p className={cn(
                     "font-semibold font-mono text-lg",
-                    summary.calmarRatio >= 1 ? "text-green-500" : 
-                    summary.calmarRatio >= 0.5 ? "text-cyan-500" : "text-amber-500"
+                    summary.calmar.status !== 'valid' && summary.calmar.status !== 'estimated' ? "text-muted-foreground" :
+                    summary.calmar.value !== null && summary.calmar.value >= 1 ? "text-green-500" : 
+                    summary.calmar.value !== null && summary.calmar.value >= 0.5 ? "text-cyan-500" : "text-amber-500"
                   )}>
-                    {summary.calmarRatio}
+                    {summary.calmar.status === 'insufficient-sample' ? 'N/A' :
+                     summary.calmar.status === 'no-drawdown' ? '∞' :
+                     summary.calmar.value}
+                    {summary.calmar.status === 'estimated' && <span className="text-xs">*</span>}
                   </p>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p className="text-xs">Return / Max Drawdown</p>
+                  <p className="text-xs">Annualized Return / Max Drawdown</p>
                   <p className="text-xs text-muted-foreground">&gt;1 = Good risk-adjusted returns</p>
+                  {summary.observationYears > 0 && summary.calmar.status === 'valid' && (
+                    <p className="text-xs text-muted-foreground">
+                      {summary.observationYears.toFixed(2)} years observed
+                    </p>
+                  )}
+                  {summary.calmar.status === 'insufficient-sample' && (
+                    <p className="text-xs text-amber-500">Insufficient sample (&lt;10 trades)</p>
+                  )}
+                  {summary.calmar.status === 'no-drawdown' && (
+                    <p className="text-xs text-green-500">No drawdown recorded (infinite)</p>
+                  )}
+                  {summary.calmar.status === 'estimated' && (
+                    <p className="text-xs text-amber-500">* Estimated (timestamps uncertain)</p>
+                  )}
                 </TooltipContent>
               </TooltipUI>
             </TooltipProvider>
@@ -224,13 +254,15 @@ export default function DrawdownAnalysisChart() {
                 tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
                 tickLine={false}
                 axisLine={{ stroke: 'hsl(var(--border))' }}
-                label={{ value: 'Cumulative %', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                domain={['auto', 'auto']}
+                tickFormatter={(val) => `${val.toFixed(2)}x`}
+                label={{ value: 'Equity (1.0 = start)', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
               />
-              <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+              <ReferenceLine y={1} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
               <Tooltip content={<CustomTooltip />} />
               <Area 
                 type="monotone" 
-                dataKey="cumulative" 
+                dataKey="equity" 
                 stroke="hsl(142, 76%, 45%)"
                 fill="url(#equityGradient)" 
                 strokeWidth={2}

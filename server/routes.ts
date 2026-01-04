@@ -4977,14 +4977,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return Math.sqrt(squaredDiffs.reduce((a, b) => a + b, 0) / (values.length - 1));
       };
       
+      // Wilson Score Interval - proper confidence interval for binomial proportions
+      // More accurate than normal approximation, especially for small samples
       const calculateConfidenceInterval = (winRate: number, n: number, confidence: number = 0.95): { lower: number; upper: number } => {
         if (n < 2) return { lower: 0, upper: 100 };
-        const z = confidence === 0.95 ? 1.96 : 2.576; // 95% or 99% CI
-        const p = winRate / 100;
-        const se = Math.sqrt((p * (1 - p)) / n);
+        const z = confidence === 0.95 ? 1.96 : 2.576;
+        const p = winRate / 100; // wins / n
+        
+        // Wilson score interval formula
+        const denominator = 1 + (z * z) / n;
+        const center = (p + (z * z) / (2 * n)) / denominator;
+        const halfWidth = (z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n))) / denominator;
+        
         return {
-          lower: Math.max(0, Math.round((p - z * se) * 1000) / 10),
-          upper: Math.min(100, Math.round((p + z * se) * 1000) / 10)
+          lower: Math.max(0, Math.round((center - halfWidth) * 1000) / 10),
+          upper: Math.min(100, Math.round((center + halfWidth) * 1000) / 10)
         };
       };
       
@@ -5071,10 +5078,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const avgGain = stats.totalTrades > 0 ? stats.totalGain / stats.totalTrades : 0;
         const avgWin = stats.winGains.length > 0 ? stats.winGains.reduce((a, b) => a + b, 0) / stats.winGains.length : 0;
         const avgLoss = stats.lossGains.length > 0 ? Math.abs(stats.lossGains.reduce((a, b) => a + b, 0) / stats.lossGains.length) : 0;
-        const stdDev = calculateStdDev(stats.gains);
+        
+        // Convert to log returns for proper Sharpe calculation
+        const logReturns = stats.gains.map(g => Math.log(1 + g / 100));
+        const meanLogReturn = logReturns.length > 0 ? logReturns.reduce((a, b) => a + b, 0) / logReturns.length : 0;
+        const logReturnStdDev = calculateStdDev(logReturns);
+        
+        // Binomial confidence interval for win rate (95% CI using Wilson score)
         const ci = calculateConfidenceInterval(winRate, stats.totalTrades);
         
-        // Profit Factor = (wins * avgWin) / (losses * avgLoss)
+        // Profit Factor = Gross Wins / Gross Losses (correct P&L ratio)
         const grossWins = stats.winGains.reduce((a, b) => a + b, 0);
         const grossLosses = Math.abs(stats.lossGains.reduce((a, b) => a + b, 0));
         const profitFactor = grossLosses > 0 ? Math.round((grossWins / grossLosses) * 100) / 100 : grossWins > 0 ? Infinity : 0;
@@ -5082,8 +5095,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Expectancy = (WinRate * AvgWin) - (LossRate * AvgLoss)
         const expectancy = Math.round(((winRate / 100) * avgWin - ((100 - winRate) / 100) * avgLoss) * 100) / 100;
         
-        // Sharpe Ratio (simplified) = avgGain / stdDev
-        const sharpeRatio = stdDev > 0 ? Math.round((avgGain / stdDev) * 100) / 100 : 0;
+        // Raw Sharpe Ratio (Information Ratio) using log returns
+        // Not annualized to avoid assumptions about trade frequency
+        // This measures risk-adjusted return per trade
+        // Minimum sample size: 30 trades for statistical significance
+        const MIN_SHARPE_SAMPLE = 30;
+        const EPSILON = 0.0001; // Guard against near-zero stdDev
+        const sharpeRatio = (stats.totalTrades >= MIN_SHARPE_SAMPLE && logReturnStdDev > EPSILON)
+          ? Math.round((meanLogReturn / logReturnStdDev) * 100) / 100 
+          : 0;
+        const sharpeReliable = stats.totalTrades >= MIN_SHARPE_SAMPLE && logReturnStdDev > EPSILON;
         
         return {
           engine: stats.engine,
@@ -5095,7 +5116,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           avgGain: Math.round(avgGain * 100) / 100,
           avgWin: Math.round(avgWin * 100) / 100,
           avgLoss: Math.round(avgLoss * 100) / 100,
-          stdDev: Math.round(stdDev * 100) / 100,
+          stdDev: Math.round(logReturnStdDev * 10000) / 100, // Express as percentage
           confidenceInterval: ci,
           sampleSizeGrade: getSampleSizeGrade(stats.totalTrades),
           profitFactor: profitFactor === Infinity ? '∞' : profitFactor,
@@ -5108,23 +5129,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Sort by win rate descending
       engines.sort((a, b) => b.winRate - a.winRate);
       
-      // Calculate overall portfolio metrics
-      const allGains = resolvedIdeas.map(i => Math.max(OUTLIER_MIN, Math.min(OUTLIER_MAX, i.percentGain || 0)));
-      const overallAvgGain = allGains.length > 0 ? allGains.reduce((a, b) => a + b, 0) / allGains.length : 0;
-      const overallStdDev = calculateStdDev(allGains);
-      const overallSharpe = overallStdDev > 0 ? Math.round((overallAvgGain / overallStdDev) * 100) / 100 : 0;
+      // Calculate overall portfolio metrics using log returns
+      const allLogReturns = resolvedIdeas.map(i => {
+        const clampedGain = Math.max(OUTLIER_MIN, Math.min(OUTLIER_MAX, i.percentGain || 0));
+        return Math.log(1 + clampedGain / 100);
+      });
+      const overallMeanLogReturn = allLogReturns.length > 0 ? allLogReturns.reduce((a, b) => a + b, 0) / allLogReturns.length : 0;
+      const overallLogStdDev = calculateStdDev(allLogReturns);
+      // Raw Sharpe Ratio (not annualized) - measures risk-adjusted return per trade
+      const overallSharpe = overallLogStdDev > 0 
+        ? Math.round((overallMeanLogReturn / overallLogStdDev) * 100) / 100 
+        : 0;
       
-      // Calculate drawdown
-      let peak = 0;
+      // Calculate drawdown using multiplicative equity curve: Π(1 + r_i)
+      let equity = 1.0; // Start with $1
+      let peakEquity = 1.0;
       let maxDrawdown = 0;
-      let cumulative = 0;
       resolvedIdeas
         .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
         .forEach(idea => {
           const gain = Math.max(OUTLIER_MIN, Math.min(OUTLIER_MAX, idea.percentGain || 0));
-          cumulative += gain;
-          if (cumulative > peak) peak = cumulative;
-          const drawdown = peak - cumulative;
+          equity *= (1 + gain / 100); // Multiplicative return
+          if (equity > peakEquity) peakEquity = equity;
+          const drawdown = (peakEquity - equity) / peakEquity; // Percentage drawdown from peak
           if (drawdown > maxDrawdown) maxDrawdown = drawdown;
         });
       
@@ -5137,7 +5164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           worstEngine: engines[engines.length - 1]?.displayName || 'N/A',
           worstWinRate: engines[engines.length - 1]?.winRate || 0,
           overallSharpeRatio: overallSharpe,
-          maxDrawdown: Math.round(maxDrawdown * 100) / 100,
+          maxDrawdown: Math.round(maxDrawdown * 10000) / 100, // Convert 0-1 to percentage
           lastUpdated: new Date().toISOString(),
         }
       });
@@ -5282,19 +5309,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const OUTLIER_MIN = -50;
       const OUTLIER_MAX = 50;
       
-      // Calculate equity curve and drawdowns
+      // Calculate MULTIPLICATIVE equity curve: Π(1 + r_i)
+      // This is the correct way to compound returns
       const equityCurve: { 
         tradeIndex: number;
         date: string;
-        cumulative: number;
+        equity: number;        // Multiplicative equity (starts at 1.0)
         peak: number;
-        drawdown: number;
-        drawdownPercent: number;
+        drawdown: number;      // Absolute drawdown from peak
+        drawdownPercent: number; // Percentage drawdown from peak
       }[] = [];
       
-      let peak = 0;
-      let cumulative = 0;
-      let maxDrawdown = 0;
+      let equity = 1.0; // Start with $1 normalized
+      let peakEquity = 1.0;
       let maxDrawdownPercent = 0;
       let maxDrawdownStart = 0;
       let maxDrawdownEnd = 0;
@@ -5311,32 +5338,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       resolvedIdeas.forEach((idea, i) => {
         const gain = Math.max(OUTLIER_MIN, Math.min(OUTLIER_MAX, idea.percentGain || 0));
-        cumulative += gain;
+        equity *= (1 + gain / 100); // Multiplicative return
         
-        if (cumulative > peak) {
+        if (equity > peakEquity) {
           // New peak - record recovery if we were in drawdown
           if (inDrawdown && currentDrawdownStart > 0) {
+            const troughEquity = Math.min(...equityCurve.slice(currentDrawdownStart, i + 1).map(e => e.equity));
             drawdownPeriods.push({
               start: currentDrawdownStart,
               end: i,
-              depth: peak - Math.min(...equityCurve.slice(currentDrawdownStart, i + 1).map(e => e.cumulative)),
+              depth: ((peakEquity - troughEquity) / peakEquity) * 100, // Percentage depth
               recoveryTrades: i - currentDrawdownStart
             });
           }
-          peak = cumulative;
+          peakEquity = equity;
           inDrawdown = false;
-        } else if (cumulative < peak) {
+        } else if (equity < peakEquity) {
           if (!inDrawdown) {
             currentDrawdownStart = i;
             inDrawdown = true;
           }
         }
         
-        const drawdown = peak - cumulative;
-        const drawdownPercent = peak > 0 ? (drawdown / peak) * 100 : 0;
+        const drawdownAbs = peakEquity - equity;
+        const drawdownPercent = (drawdownAbs / peakEquity) * 100;
         
-        if (drawdown > maxDrawdown) {
-          maxDrawdown = drawdown;
+        if (drawdownPercent > maxDrawdownPercent) {
           maxDrawdownPercent = drawdownPercent;
           maxDrawdownEnd = i;
         }
@@ -5344,40 +5371,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
         equityCurve.push({
           tradeIndex: i + 1,
           date: new Date(idea.timestamp).toISOString().split('T')[0],
-          cumulative: Math.round(cumulative * 100) / 100,
-          peak: Math.round(peak * 100) / 100,
-          drawdown: Math.round(drawdown * 100) / 100,
+          equity: Math.round(equity * 10000) / 10000, // 4 decimal places
+          peak: Math.round(peakEquity * 10000) / 10000,
+          drawdown: Math.round(drawdownAbs * 10000) / 10000,
           drawdownPercent: Math.round(drawdownPercent * 10) / 10,
         });
       });
       
-      // Current drawdown
-      const currentDrawdown = equityCurve.length > 0 ? equityCurve[equityCurve.length - 1].drawdown : 0;
-      const currentDrawdownPercent = equityCurve.length > 0 ? equityCurve[equityCurve.length - 1].drawdownPercent : 0;
+      // Current drawdown (from equity curve)
+      const currentDrawdownValue = equityCurve.length > 0 ? equityCurve[equityCurve.length - 1].drawdown : 0;
+      const currentDrawdownPercentValue = equityCurve.length > 0 ? equityCurve[equityCurve.length - 1].drawdownPercent : 0;
       
       // Average recovery time
       const avgRecoveryTrades = drawdownPeriods.length > 0 
         ? Math.round(drawdownPeriods.reduce((s, d) => s + d.recoveryTrades, 0) / drawdownPeriods.length)
         : 0;
       
-      // Calmar ratio (return / max drawdown)
-      const totalReturn = equityCurve.length > 0 ? equityCurve[equityCurve.length - 1].cumulative : 0;
-      const calmarRatio = maxDrawdown > 0 ? Math.round((totalReturn / maxDrawdown) * 100) / 100 : 0;
+      // Total return as percentage: (final equity - 1) * 100
+      const finalEquity = equityCurve.length > 0 ? equityCurve[equityCurve.length - 1].equity : 1;
+      const totalReturnPercent = (finalEquity - 1) * 100;
+      
+      // Calmar Ratio = Annualized Return / Max Drawdown (industry standard)
+      // Returns structured object with value and status for explicit handling
+      const TRADES_PER_YEAR_FALLBACK = 100;
+      const MIN_TRADES_FOR_CALMAR = 10;
+      
+      let annualizedReturnDecimal = 0;
+      let observationYears = 0;
+      let timestampsValid = false;
+      
+      if (resolvedIdeas.length >= 2) {
+        const sortedTrades = [...resolvedIdeas].sort((a, b) => 
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+        const firstTradeTime = new Date(sortedTrades[0].timestamp).getTime();
+        const lastTradeTime = new Date(sortedTrades[sortedTrades.length - 1].timestamp).getTime();
+        
+        if (!isNaN(firstTradeTime) && !isNaN(lastTradeTime) && lastTradeTime > firstTradeTime) {
+          const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
+          observationYears = (lastTradeTime - firstTradeTime) / msPerYear;
+          timestampsValid = true;
+        } else {
+          observationYears = resolvedIdeas.length / TRADES_PER_YEAR_FALLBACK;
+        }
+        
+        if (observationYears > 0) {
+          annualizedReturnDecimal = Math.pow(finalEquity, 1 / observationYears) - 1;
+        }
+      } else if (resolvedIdeas.length === 1) {
+        observationYears = 1 / TRADES_PER_YEAR_FALLBACK;
+        annualizedReturnDecimal = Math.pow(finalEquity, 1 / observationYears) - 1;
+      }
+      
+      const maxDrawdownDecimal = maxDrawdownPercent / 100;
+      
+      // Determine Calmar status with explicit states
+      type CalmarStatus = 'valid' | 'estimated' | 'insufficient-sample' | 'no-drawdown';
+      let calmarStatus: CalmarStatus;
+      let calmarValue: number | null = null;
+      
+      if (resolvedIdeas.length < MIN_TRADES_FOR_CALMAR) {
+        calmarStatus = 'insufficient-sample';
+      } else if (maxDrawdownDecimal <= 0) {
+        calmarStatus = 'no-drawdown';
+      } else if (!timestampsValid) {
+        calmarStatus = 'estimated';
+        calmarValue = Math.round((annualizedReturnDecimal / maxDrawdownDecimal) * 100) / 100;
+      } else {
+        calmarStatus = 'valid';
+        calmarValue = Math.round((annualizedReturnDecimal / maxDrawdownDecimal) * 100) / 100;
+      }
       
       res.json({
         equityCurve,
         drawdownPeriods: drawdownPeriods.slice(-10), // Last 10 drawdown periods
         summary: {
           totalTrades: resolvedIdeas.length,
-          totalReturn: Math.round(totalReturn * 100) / 100,
-          maxDrawdown: Math.round(maxDrawdown * 100) / 100,
+          totalReturnPercent: Math.round(totalReturnPercent * 100) / 100,
           maxDrawdownPercent: Math.round(maxDrawdownPercent * 10) / 10,
-          currentDrawdown: Math.round(currentDrawdown * 100) / 100,
-          currentDrawdownPercent: Math.round(currentDrawdownPercent * 10) / 10,
-          isInDrawdown: currentDrawdown > 0,
+          currentDrawdownPercent: Math.round(currentDrawdownPercentValue * 10) / 10,
+          isInDrawdown: currentDrawdownPercentValue > 0,
           totalDrawdownPeriods: drawdownPeriods.length,
           avgRecoveryTrades,
-          calmarRatio,
+          calmar: {
+            value: calmarValue,
+            status: calmarStatus,
+          },
+          annualizedReturnPercent: Math.round(annualizedReturnDecimal * 10000) / 100,
+          observationYears: Math.round(observationYears * 100) / 100,
+          finalEquity: Math.round(finalEquity * 10000) / 10000,
         }
       });
     } catch (error) {
