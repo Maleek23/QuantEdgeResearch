@@ -20,7 +20,7 @@ import {
   Star, RefreshCw, TrendingUp, TrendingDown, Activity, 
   BarChart3, Target, Shield, Clock, Bell, ChevronRight,
   Zap, AlertTriangle, CheckCircle, XCircle, Info,
-  ArrowUpRight, ArrowDownRight, Minus
+  ArrowUpRight, ArrowDownRight, Minus, Trash2, Plus, Search
 } from "lucide-react";
 
 // Enhanced tier configuration with psychology-driven colors and descriptions
@@ -496,6 +496,21 @@ function WatchlistItemCard({ item }: { item: WatchlistItem }) {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/watchlist/${item.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/watchlist'] });
+      toast({ title: "Removed", description: `${item.symbol} removed from watchlist` });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   return (
     <AccordionItem value={item.id} className="border rounded-lg mb-2 overflow-hidden">
       <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50 [&[data-state=open]]:bg-muted/30">
@@ -548,6 +563,17 @@ function WatchlistItemCard({ item }: { item: WatchlistItem }) {
             Re-grade
           </Button>
           <AlertDialog item={item} />
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => deleteMutation.mutate()}
+            disabled={deleteMutation.isPending}
+            className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+            data-testid={`button-delete-${item.symbol}`}
+          >
+            <Trash2 className={`h-3 w-3 mr-1 ${deleteMutation.isPending ? 'animate-spin' : ''}`} />
+            Remove
+          </Button>
           {item.targetPrice && (
             <div className="ml-auto text-sm">
               Target: <span className="font-mono font-semibold text-cyan-600 dark:text-cyan-400">{formatCurrency(item.targetPrice)}</span>
@@ -595,6 +621,108 @@ function TierGroup({
         ))}
       </Accordion>
     </div>
+  );
+}
+
+// Add Symbol Dialog
+function AddSymbolDialog() {
+  const [open, setOpen] = useState(false);
+  const [symbol, setSymbol] = useState('');
+  const [assetType, setAssetType] = useState<'stock' | 'crypto' | 'future'>('stock');
+  const [notes, setNotes] = useState('');
+  const { toast } = useToast();
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/watchlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol: symbol.toUpperCase(),
+          assetType,
+          notes: notes || `Added from symbol search`,
+        }),
+      });
+      if (!response.ok) throw new Error(await response.text());
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/watchlist'] });
+      toast({ title: "Added", description: `${symbol.toUpperCase()} added to watchlist` });
+      setSymbol('');
+      setNotes('');
+      setOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button data-testid="button-add-symbol">
+          <Plus className="h-4 w-4 mr-2" />
+          Add Symbol
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Symbol to Watchlist</DialogTitle>
+          <DialogDescription>Enter a stock ticker, crypto symbol, or futures contract</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Symbol</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="AAPL, BTC, NQ..." 
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                className="pl-9"
+                data-testid="input-symbol"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Asset Type</Label>
+            <div className="flex gap-2">
+              {(['stock', 'crypto', 'future'] as const).map((type) => (
+                <Button
+                  key={type}
+                  variant={assetType === type ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => setAssetType(type)}
+                  data-testid={`button-type-${type}`}
+                >
+                  {type.charAt(0).toUpperCase() + type.slice(1)}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Notes (optional)</Label>
+            <Input 
+              placeholder="Why are you tracking this?" 
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              data-testid="input-notes"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={() => addMutation.mutate()}
+              disabled={!symbol || addMutation.isPending}
+              data-testid="button-confirm-add"
+            >
+              {addMutation.isPending ? 'Adding...' : 'Add to Watchlist'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -673,14 +801,16 @@ export default function WatchlistPage() {
             {watchlistItems.length} symbols analyzed with quantitative grading
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'conviction' | 'all')}>
             <TabsList>
               <TabsTrigger value="conviction" data-testid="tab-conviction">By Conviction</TabsTrigger>
               <TabsTrigger value="all" data-testid="tab-all">All Symbols</TabsTrigger>
             </TabsList>
           </Tabs>
+          <AddSymbolDialog />
           <Button 
+            variant="outline"
             onClick={() => reGradeAllMutation.mutate()}
             disabled={reGradeAllMutation.isPending}
             data-testid="button-regrade-all"
