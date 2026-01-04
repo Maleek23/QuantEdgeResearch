@@ -1848,17 +1848,45 @@ export const AI_CREDIT_ALLOCATIONS: Record<SubscriptionTier, number> = {
 // BETA WAITLIST - Email collection for early access
 // ============================================================================
 
+export type WaitlistStatus = 'pending' | 'approved' | 'invited' | 'joined' | 'rejected';
+
 export const betaWaitlist = pgTable("beta_waitlist", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique().notNull(),
   source: varchar("source").default('landing'), // 'landing', 'discord', 'referral'
   referralCode: varchar("referral_code"),
+  status: varchar("status").$type<WaitlistStatus>().default('pending'),
   notifiedDiscord: boolean("notified_discord").default(false),
   inviteSent: boolean("invite_sent").default(false),
   convertedToUser: boolean("converted_to_user").default(false),
+  inviteId: varchar("invite_id"), // FK to betaInvites when invite is sent
+  lastContactedAt: timestamp("last_contacted_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const insertBetaWaitlistSchema = createInsertSchema(betaWaitlist).omit({ id: true, createdAt: true, notifiedDiscord: true, inviteSent: true, convertedToUser: true });
+export const insertBetaWaitlistSchema = createInsertSchema(betaWaitlist).omit({ id: true, createdAt: true, notifiedDiscord: true, inviteSent: true, convertedToUser: true, status: true, inviteId: true, lastContactedAt: true });
 export type InsertBetaWaitlist = z.infer<typeof insertBetaWaitlistSchema>;
 export type BetaWaitlist = typeof betaWaitlist.$inferSelect;
+
+// ============================================================================
+// BETA INVITES - Unique invite codes for beta access
+// ============================================================================
+
+export type InviteStatus = 'pending' | 'sent' | 'redeemed' | 'expired' | 'revoked';
+
+export const betaInvites = pgTable("beta_invites", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").notNull(),
+  token: varchar("token").unique().notNull(), // Unique invite token
+  status: varchar("status").$type<InviteStatus>().default('pending'),
+  tierOverride: varchar("tier_override").$type<SubscriptionTier>(), // Optional tier upgrade with invite
+  notes: text("notes"), // Admin notes
+  sentAt: timestamp("sent_at"),
+  redeemedAt: timestamp("redeemed_at"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertBetaInviteSchema = createInsertSchema(betaInvites).omit({ id: true, createdAt: true, sentAt: true, redeemedAt: true, status: true });
+export type InsertBetaInvite = z.infer<typeof insertBetaInviteSchema>;
+export type BetaInvite = typeof betaInvites.$inferSelect;
