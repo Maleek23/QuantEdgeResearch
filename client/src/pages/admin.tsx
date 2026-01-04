@@ -27,6 +27,9 @@ import {
   Lock,
   LockOpen,
   Sparkles,
+  Mail,
+  Send,
+  UserPlus,
   Cpu,
   Clock,
   BarChart3,
@@ -158,6 +161,36 @@ export default function AdminPanel() {
     queryFn: async () => {
       const res = await fetch('/api/admin/database-health', { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to fetch db health');
+      return res.json();
+    }
+  });
+
+  const { data: waitlistData, refetch: refetchWaitlist } = useQuery({
+    queryKey: ['/api/admin/waitlist'],
+    enabled: authStep === 'authenticated',
+    queryFn: async () => {
+      const res = await fetch('/api/admin/waitlist', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch waitlist');
+      return res.json();
+    }
+  });
+
+  const { data: invitesData, refetch: refetchInvites } = useQuery({
+    queryKey: ['/api/admin/invites'],
+    enabled: authStep === 'authenticated',
+    queryFn: async () => {
+      const res = await fetch('/api/admin/invites', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch invites');
+      return res.json();
+    }
+  });
+
+  const { data: emailStatus } = useQuery({
+    queryKey: ['/api/admin/email-status'],
+    enabled: authStep === 'authenticated',
+    queryFn: async () => {
+      const res = await fetch('/api/admin/email-status', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch email status');
       return res.json();
     }
   });
@@ -833,6 +866,10 @@ export default function AdminPanel() {
                 <TabsTrigger value="settings" data-testid="tab-settings">
                   <Settings className="h-4 w-4 mr-2" />
                   Settings
+                </TabsTrigger>
+                <TabsTrigger value="waitlist" data-testid="tab-waitlist">
+                  <Mail className="h-4 w-4 mr-2" />
+                  Waitlist
                 </TabsTrigger>
               </TabsList>
             </CardHeader>
@@ -1947,6 +1984,291 @@ export default function AdminPanel() {
                         </Button>
                       </div>
                     </div>
+                  </div>
+                </div>
+              </CardContent>
+            </TabsContent>
+
+            {/* Waitlist Management Tab */}
+            <TabsContent value="waitlist">
+              <CardContent className="space-y-6">
+                {/* Email Service Status */}
+                <div className="flex items-center justify-between p-4 rounded-lg border border-slate-700/50 bg-muted/20">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-600/20 to-blue-600/20 flex items-center justify-center border border-cyan-600/30">
+                      <Mail className="h-5 w-5 text-cyan-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Email Service (Resend)</p>
+                      <p className="text-xs text-muted-foreground">
+                        {emailStatus?.fromEmail || 'onboarding@quantedgelabs.com'}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant={emailStatus?.configured ? "default" : "destructive"} data-testid="badge-email-status">
+                    {emailStatus?.configured ? "Configured" : "Not Configured"}
+                  </Badge>
+                </div>
+
+                {/* Stats Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Waitlist</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums text-cyan-400" data-testid="text-waitlist-count">
+                      {waitlistData?.count || 0}
+                    </p>
+                  </div>
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Pending</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums text-amber-400">
+                      {(waitlistData?.entries as any[])?.filter((e: any) => e.status === 'pending').length || 0}
+                    </p>
+                  </div>
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Invited</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums text-green-400">
+                      {(waitlistData?.entries as any[])?.filter((e: any) => e.status === 'invited').length || 0}
+                    </p>
+                  </div>
+                  <div className="stat-glass rounded-lg p-4">
+                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Joined</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums text-purple-400">
+                      {(waitlistData?.entries as any[])?.filter((e: any) => e.status === 'joined').length || 0}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Waitlist Table */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <div className="h-6 w-6 rounded bg-gradient-to-br from-slate-600/20 to-slate-700/20 flex items-center justify-center border border-slate-600/30">
+                        <UserPlus className="h-3.5 w-3.5 text-slate-400" />
+                      </div>
+                      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Waitlist Entries</span>
+                      <Badge variant="secondary" className="font-mono text-xs">{waitlistData?.entries?.length || 0}</Badge>
+                    </h3>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        refetchWaitlist();
+                        refetchInvites();
+                      }}
+                      data-testid="button-refresh-waitlist"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Refresh
+                    </Button>
+                  </div>
+                  
+                  <div className="rounded-lg border border-slate-700/50 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-medium">Email</th>
+                          <th className="px-4 py-3 text-left font-medium">Name</th>
+                          <th className="px-4 py-3 text-left font-medium">Status</th>
+                          <th className="px-4 py-3 text-left font-medium">Joined</th>
+                          <th className="px-4 py-3 text-right font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-700/50">
+                        {(waitlistData?.entries as any[])?.map((entry: any) => (
+                          <tr key={entry.id} className="hover-elevate" data-testid={`row-waitlist-${entry.id}`}>
+                            <td className="px-4 py-3 font-mono text-xs">{entry.email}</td>
+                            <td className="px-4 py-3">{entry.name || '—'}</td>
+                            <td className="px-4 py-3">
+                              <Badge
+                                variant={
+                                  entry.status === 'joined' ? 'default' :
+                                  entry.status === 'invited' ? 'secondary' :
+                                  entry.status === 'approved' ? 'outline' :
+                                  entry.status === 'rejected' ? 'destructive' : 'secondary'
+                                }
+                              >
+                                {entry.status}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground">
+                              {entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {entry.status === 'pending' && (
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  onClick={async () => {
+                                    try {
+                                      const res = await fetch(`/api/admin/waitlist/${entry.id}/invite`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        credentials: 'include',
+                                        body: JSON.stringify({ tierOverride: 'free' })
+                                      });
+                                      if (res.ok) {
+                                        toast({ title: "Invite sent!", description: `Sent to ${entry.email}` });
+                                        refetchWaitlist();
+                                        refetchInvites();
+                                      } else {
+                                        const data = await res.json();
+                                        toast({ title: "Failed to send", description: data.error, variant: "destructive" });
+                                      }
+                                    } catch {
+                                      toast({ title: "Error", description: "Failed to send invite", variant: "destructive" });
+                                    }
+                                  }}
+                                  data-testid={`button-invite-${entry.id}`}
+                                >
+                                  <Send className="h-3 w-3 mr-1" />
+                                  Invite
+                                </Button>
+                              )}
+                              {entry.status === 'invited' && (
+                                <Badge variant="outline" className="text-xs">Invite Sent</Badge>
+                              )}
+                              {entry.status === 'joined' && (
+                                <Badge variant="default" className="text-xs bg-green-600">Signed Up</Badge>
+                              )}
+                            </td>
+                          </tr>
+                        )) || (
+                          <tr>
+                            <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                              <Mail className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p>No waitlist entries yet</p>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Invites Table */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <div className="h-6 w-6 rounded bg-gradient-to-br from-green-600/20 to-emerald-600/20 flex items-center justify-center border border-green-600/30">
+                      <Send className="h-3.5 w-3.5 text-green-400" />
+                    </div>
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Sent Invites</span>
+                    <Badge variant="secondary" className="font-mono text-xs">{invitesData?.invites?.length || 0}</Badge>
+                  </h3>
+                  
+                  <div className="rounded-lg border border-slate-700/50 overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-medium">Email</th>
+                          <th className="px-4 py-3 text-left font-medium">Token</th>
+                          <th className="px-4 py-3 text-left font-medium">Status</th>
+                          <th className="px-4 py-3 text-left font-medium">Tier</th>
+                          <th className="px-4 py-3 text-left font-medium">Expires</th>
+                          <th className="px-4 py-3 text-right font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-700/50">
+                        {(invitesData?.invites as any[])?.map((invite: any) => (
+                          <tr key={invite.id} className="hover-elevate" data-testid={`row-invite-${invite.id}`}>
+                            <td className="px-4 py-3 font-mono text-xs">{invite.email}</td>
+                            <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                              {invite.token.slice(0, 8)}...
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge
+                                variant={
+                                  invite.status === 'redeemed' ? 'default' :
+                                  invite.status === 'sent' ? 'secondary' :
+                                  invite.status === 'revoked' ? 'destructive' :
+                                  invite.status === 'expired' ? 'outline' : 'secondary'
+                                }
+                              >
+                                {invite.status}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3">
+                              {invite.tierOverride ? (
+                                <Badge variant="outline" className="text-xs capitalize">{invite.tierOverride}</Badge>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">free</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground">
+                              {invite.expiresAt ? new Date(invite.expiresAt).toLocaleDateString() : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                {invite.status === 'sent' && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={async () => {
+                                        try {
+                                          const res = await fetch(`/api/admin/invites/${invite.id}/resend`, {
+                                            method: 'POST',
+                                            credentials: 'include'
+                                          });
+                                          if (res.ok) {
+                                            toast({ title: "Invite resent!", description: `Sent to ${invite.email}` });
+                                            refetchInvites();
+                                          } else {
+                                            const data = await res.json();
+                                            toast({ title: "Failed", description: data.error, variant: "destructive" });
+                                          }
+                                        } catch {
+                                          toast({ title: "Error", description: "Failed to resend", variant: "destructive" });
+                                        }
+                                      }}
+                                      data-testid={`button-resend-${invite.id}`}
+                                    >
+                                      <RefreshCw className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={async () => {
+                                        try {
+                                          const res = await fetch(`/api/admin/invites/${invite.id}/revoke`, {
+                                            method: 'POST',
+                                            credentials: 'include'
+                                          });
+                                          if (res.ok) {
+                                            toast({ title: "Invite revoked", description: `Revoked for ${invite.email}` });
+                                            refetchInvites();
+                                          } else {
+                                            const data = await res.json();
+                                            toast({ title: "Failed", description: data.error, variant: "destructive" });
+                                          }
+                                        } catch {
+                                          toast({ title: "Error", description: "Failed to revoke", variant: "destructive" });
+                                        }
+                                      }}
+                                      data-testid={`button-revoke-${invite.id}`}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </>
+                                )}
+                                {invite.status === 'redeemed' && (
+                                  <Badge variant="default" className="text-xs bg-green-600">
+                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                    Redeemed
+                                  </Badge>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )) || (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                              <Send className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                              <p>No invites sent yet</p>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </CardContent>

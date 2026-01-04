@@ -37,7 +37,7 @@ export async function sendBetaInviteEmail(
     const { data, error } = await resend.emails.send({
       from: `${APP_NAME} <${FROM_EMAIL}>`,
       to: email,
-      subject: `🎉 You're Invited to ${APP_NAME} Beta!`,
+      subject: `You're Invited to ${APP_NAME} Beta!`,
       html: `
 <!DOCTYPE html>
 <html>
@@ -56,7 +56,7 @@ export async function sendBetaInviteEmail(
           <tr>
             <td style="padding: 40px 40px 20px; text-align: center;">
               <div style="font-size: 32px; font-weight: 700; background: linear-gradient(135deg, #06b6d4, #22d3ee); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-                ⚡ ${APP_NAME}
+                ${APP_NAME}
               </div>
               <p style="color: #94a3b8; font-size: 14px; margin: 8px 0 0;">Multiple Engines, One Edge</p>
             </td>
@@ -66,7 +66,7 @@ export async function sendBetaInviteEmail(
           <tr>
             <td style="padding: 20px 40px;">
               <h1 style="color: #f1f5f9; font-size: 28px; font-weight: 600; margin: 0 0 16px; text-align: center;">
-                You're Invited! 🚀
+                You're Invited!
               </h1>
               ${tierBadge ? `<div style="text-align: center; margin-bottom: 20px;">${tierBadge}</div>` : ''}
               <p style="color: #cbd5e1; font-size: 16px; line-height: 1.6; margin: 0 0 24px;">
@@ -192,7 +192,7 @@ export async function sendWelcomeEmail(
     const { data, error } = await resend.emails.send({
       from: `${APP_NAME} <${FROM_EMAIL}>`,
       to: email,
-      subject: `Welcome to ${APP_NAME}, ${name}! 🎉`,
+      subject: `Welcome to ${APP_NAME}, ${name}!`,
       html: `
 <!DOCTYPE html>
 <html>
@@ -209,7 +209,7 @@ export async function sendWelcomeEmail(
           <tr>
             <td style="padding: 40px; text-align: center;">
               <div style="font-size: 28px; font-weight: 700; color: #22d3ee; margin-bottom: 16px;">
-                Welcome to ${APP_NAME}! 🚀
+                Welcome to ${APP_NAME}!
               </div>
               <p style="color: #cbd5e1; font-size: 16px; line-height: 1.6; margin: 0 0 24px;">
                 Hey ${name}, you're officially part of the beta! We're excited to have you on board.
