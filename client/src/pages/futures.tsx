@@ -318,11 +318,17 @@ export default function FuturesPage() {
   const [generatingSymbol, setGeneratingSymbol] = useState<string | null>(null);
 
   interface BotPortfolio {
-    id: string;
+    id?: string;
     name: string;
     cashBalance: number;
-    totalValue: number;
+    totalValue?: number;
     startingCapital: number;
+    totalPnL?: number;
+    openPositions?: number;
+    closedPositions?: number;
+    wins?: number;
+    losses?: number;
+    winRate?: string;
   }
 
   interface BotPosition {
@@ -348,18 +354,11 @@ export default function FuturesPage() {
   }
 
   interface BotData {
-    portfolios: {
-      futures?: BotPortfolio;
-      propFirm?: BotPortfolio;
-    };
-    positions: {
-      futures: BotPosition[];
-      propFirm: BotPosition[];
-    };
-    stats: {
-      futures: BotStats;
-      propFirm: BotStats;
-    };
+    portfolio: BotPortfolio | null;
+    futuresPortfolio: BotPortfolio | null;
+    positions: BotPosition[];
+    futuresPositions: BotPosition[];
+    stats: BotStats | null;
   }
 
   interface BotPreferences {
@@ -589,9 +588,9 @@ export default function FuturesPage() {
           <TabsTrigger value="bot" className="gap-2" data-testid="tab-auto-bot">
             <Bot className="h-4 w-4" />
             Auto Bot
-            {(botData?.positions?.futures?.filter(p => p.status === 'open').length || 0) > 0 && (
+            {(botData?.futuresPositions?.filter(p => p.status === 'open').length || 0) > 0 && (
               <Badge variant="secondary" className="ml-1 bg-cyan-500/20 text-cyan-400">
-                {botData?.positions?.futures?.filter(p => p.status === 'open').length || 0}
+                {botData?.futuresPositions?.filter(p => p.status === 'open').length || 0}
               </Badge>
             )}
           </TabsTrigger>
@@ -835,25 +834,25 @@ export default function FuturesPage() {
                     <div className="stat-glass rounded-lg p-3" data-testid="stat-bot-portfolio">
                       <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Portfolio</div>
                       <div className="text-xl font-bold font-mono text-cyan-400" data-testid="text-bot-portfolio-value">
-                        ${botData?.portfolios?.futures?.totalValue?.toFixed(0) || '300'}
+                        ${((botData?.futuresPortfolio?.startingCapital || 300) + (botData?.futuresPortfolio?.totalPnL || 0)).toFixed(0)}
                       </div>
                     </div>
                     <div className="stat-glass rounded-lg p-3" data-testid="stat-bot-pnl">
                       <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total P&L</div>
-                      <div className={`text-xl font-bold font-mono ${(botData?.stats?.futures?.totalPnL || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-bot-pnl-value">
-                        {(botData?.stats?.futures?.totalPnL || 0) >= 0 ? '+' : ''}${botData?.stats?.futures?.totalPnL?.toFixed(2) || '0.00'}
+                      <div className={`text-xl font-bold font-mono ${(botData?.futuresPortfolio?.totalPnL || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`} data-testid="text-bot-pnl-value">
+                        {(botData?.futuresPortfolio?.totalPnL || 0) >= 0 ? '+' : ''}${(botData?.futuresPortfolio?.totalPnL || 0).toFixed(2)}
                       </div>
                     </div>
                     <div className="stat-glass rounded-lg p-3" data-testid="stat-bot-winrate">
                       <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Win Rate</div>
                       <div className="text-xl font-bold font-mono text-green-400" data-testid="text-bot-winrate-value">
-                        {botData?.stats?.futures?.winRate?.toFixed(0) || 0}%
+                        {botData?.futuresPortfolio?.winRate || 0}%
                       </div>
                     </div>
                     <div className="stat-glass rounded-lg p-3" data-testid="stat-bot-trades">
                       <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Trades</div>
                       <div className="text-xl font-bold font-mono" data-testid="text-bot-trades-value">
-                        {botData?.stats?.futures?.totalTrades || 0}
+                        {botData?.futuresPortfolio?.closedPositions || 0}
                       </div>
                     </div>
                   </div>
@@ -866,15 +865,15 @@ export default function FuturesPage() {
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Wallet className="h-5 w-5 text-cyan-400" />
                     Open Positions
-                    {(botData?.positions?.futures?.filter(p => p.status === 'open').length || 0) > 0 && (
+                    {(botData?.futuresPositions?.filter(p => p.status === 'open').length || 0) > 0 && (
                       <Badge variant="secondary" className="bg-cyan-500/20 text-cyan-400 ml-2">
-                        {botData?.positions?.futures?.filter(p => p.status === 'open').length}
+                        {botData?.futuresPositions?.filter(p => p.status === 'open').length}
                       </Badge>
                     )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {!botData?.positions?.futures?.filter(p => p.status === 'open').length ? (
+                  {!botData?.futuresPositions?.filter(p => p.status === 'open').length ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <Bot className="h-10 w-10 mx-auto mb-3 opacity-50" />
                       <p className="text-sm">No open futures positions</p>
@@ -882,7 +881,7 @@ export default function FuturesPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {botData?.positions?.futures?.filter(p => p.status === 'open').map((position) => {
+                      {botData?.futuresPositions?.filter(p => p.status === 'open').map((position) => {
                         const isLong = position.direction === 'long';
                         const pnlPositive = (position.unrealizedPnL || 0) >= 0;
                         return (
@@ -940,13 +939,13 @@ export default function FuturesPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {!botData?.positions?.futures?.filter(p => p.status !== 'open').length ? (
+                  {!botData?.futuresPositions?.filter(p => p.status !== 'open').length ? (
                     <div className="text-center py-6 text-muted-foreground">
                       <p className="text-sm">No closed trades yet</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {botData?.positions?.futures?.filter(p => p.status !== 'open').slice(0, 5).map((trade) => {
+                      {botData?.futuresPositions?.filter(p => p.status !== 'open').slice(0, 5).map((trade) => {
                         const isWin = (trade.unrealizedPnL || 0) > 0;
                         return (
                           <div 
