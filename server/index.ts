@@ -990,6 +990,30 @@ app.use((req, res, next) => {
     
     log('[POLYMARKET] Prediction Market Scanner started - scanning Polymarket every 30 minutes');
     
+    // Watchlist Grading - Re-grade all watchlist items every 15 minutes during market hours
+    cron.default.schedule('*/15 * * * *', async () => {
+      try {
+        const now = new Date();
+        const nowCT = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const hour = nowCT.getHours();
+        const dayOfWeek = nowCT.getDay();
+        
+        // Only grade during market hours (8 AM - 4 PM CT on weekdays)
+        if (dayOfWeek === 0 || dayOfWeek === 6 || hour < 8 || hour >= 16) {
+          return; // Silent skip outside market hours
+        }
+        
+        const { gradeAllWatchlistItems } = await import('./watchlist-grading-service');
+        logger.info('[GRADE] Starting scheduled watchlist grading...');
+        const result = await gradeAllWatchlistItems();
+        logger.info(`[GRADE] Graded ${result.graded}/${result.total} items`);
+      } catch (error: any) {
+        logger.error('[GRADE] Scheduled grading failed:', error);
+      }
+    });
+    
+    log('📊 Watchlist Grading started - re-grading every 15 minutes during market hours');
+    
     // Daily summary to Discord at 8:00 AM CT (before market open)
     let lastDailySummaryDate: string | null = null;
     

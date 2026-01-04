@@ -8786,6 +8786,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Watchlist Grading Routes
+  app.get("/api/watchlist/graded", async (req: any, res) => {
+    try {
+      const { getGradedWatchlist } = await import('./watchlist-grading-service');
+      const userId = req.user?.id;
+      const items = await getGradedWatchlist(userId);
+      res.json(items);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/watchlist/graded' });
+      res.status(500).json({ error: "Failed to fetch graded watchlist" });
+    }
+  });
+
+  app.post("/api/watchlist/:id/grade", async (req, res) => {
+    try {
+      const { gradeAndUpdateWatchlistItem } = await import('./watchlist-grading-service');
+      const success = await gradeAndUpdateWatchlistItem(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: "Failed to grade watchlist item" });
+      }
+      const item = await storage.getWatchlistItem(req.params.id);
+      res.json(item);
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/watchlist/:id/grade' });
+      res.status(500).json({ error: "Failed to grade watchlist item" });
+    }
+  });
+
+  app.post("/api/watchlist/grade-all", isAdmin, async (_req, res) => {
+    try {
+      const { gradeAllWatchlistItems } = await import('./watchlist-grading-service');
+      const result = await gradeAllWatchlistItems();
+      res.json({
+        message: `Graded ${result.graded}/${result.total} watchlist items`,
+        ...result
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/watchlist/grade-all' });
+      res.status(500).json({ error: "Failed to grade all watchlist items" });
+    }
+  });
+
   // Annual Breakout Watchlist Routes
   app.get("/api/annual-watchlist", async (_req, res) => {
     try {
