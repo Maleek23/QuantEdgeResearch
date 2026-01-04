@@ -20,9 +20,15 @@ import {
   Lightbulb,
   AlertTriangle,
   Zap,
-  Star
+  Star,
+  FileText,
+  Award,
+  Clock,
+  Activity,
+  ChevronRight
 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface SmartWatchlistPick {
   symbol: string;
@@ -86,6 +92,55 @@ interface MoversResponse {
 
 interface SectorData {
   [sector: string]: { avg: number; count: number };
+}
+
+interface CatalystData {
+  symbol: string;
+  secFilings: Array<{
+    accessionNumber: string;
+    filingType: string;
+    filingDate: string;
+    filingUrl: string;
+    sentiment?: string;
+    companyName?: string;
+  }>;
+  governmentContracts: Array<{
+    contractId: string;
+    awardDate: string;
+    awardAmount?: number;
+    contractDescription?: string;
+    awardingAgency?: string;
+  }>;
+  catalystEvents: Array<{
+    title: string;
+    eventType: string;
+    polarity: string;
+    eventDate: string;
+    isActive?: boolean;
+  }>;
+  hasCatalysts: boolean;
+}
+
+interface HistoricalData {
+  symbol: string;
+  totalTrades: number;
+  winRate: string | null;
+  wins: number;
+  losses: number;
+  avgGain: string;
+  avgLoss: string;
+  monthlyPerformance: Record<string, { wins: number; losses: number }>;
+  recentTrades: Array<{
+    date: string;
+    direction: string;
+    entry: number;
+    target: number;
+    stop: number;
+    outcome: string;
+    gain: number;
+    timeframe: string;
+  }>;
+  hasHistoricalData: boolean;
 }
 
 const formatPrice = (price: number) => {
@@ -203,6 +258,186 @@ function getRiskBadgeColor(risk: string) {
   }
 }
 
+function getPolarityColor(polarity: string) {
+  switch (polarity) {
+    case 'bullish': return 'text-green-400';
+    case 'bearish': return 'text-red-400';
+    default: return 'text-muted-foreground';
+  }
+}
+
+function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
+  const [showDetails, setShowDetails] = useState(false);
+
+  const catalystQuery = useQuery<CatalystData>({
+    queryKey: ['/api/market-scanner/catalyst', symbol],
+    queryFn: async () => {
+      const res = await fetch(`/api/market-scanner/catalyst/${symbol}`);
+      if (!res.ok) throw new Error("Failed to fetch catalyst data");
+      return res.json();
+    },
+    enabled: showDetails,
+    staleTime: 300000,
+  });
+
+  const historicalQuery = useQuery<HistoricalData>({
+    queryKey: ['/api/market-scanner/historical', symbol],
+    queryFn: async () => {
+      const res = await fetch(`/api/market-scanner/historical/${symbol}`);
+      if (!res.ok) throw new Error("Failed to fetch historical data");
+      return res.json();
+    },
+    enabled: showDetails,
+    staleTime: 300000,
+  });
+
+  if (!showDetails) {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setShowDetails(true)}
+        className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground"
+        data-testid={`btn-show-intelligence-${symbol}`}
+      >
+        <Activity className="w-4 h-4" />
+        <span>View Catalyst Intelligence & Historical Patterns</span>
+        <ChevronRight className="w-4 h-4 ml-auto" />
+      </Button>
+    );
+  }
+
+  const isLoading = catalystQuery.isLoading || historicalQuery.isLoading;
+  const catalyst = catalystQuery.data;
+  const historical = historicalQuery.data;
+
+  return (
+    <div className="space-y-4 pt-2 border-t border-border/50">
+      <div className="flex items-center gap-2">
+        <Activity className="w-4 h-4 text-purple-400" />
+        <span className="text-sm font-medium text-purple-400">Intelligence Data</span>
+        {isLoading && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Catalyst Events */}
+        <div className="bg-card/50 border border-border/50 rounded-lg p-3">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText className="w-4 h-4 text-cyan-400" />
+            <span className="text-sm font-medium">Catalyst Events</span>
+          </div>
+          
+          {catalyst?.hasCatalysts ? (
+            <div className="space-y-2">
+              {catalyst.secFilings.slice(0, 3).map((filing, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                      {filing.filingType}
+                    </Badge>
+                    <span className="text-muted-foreground truncate max-w-[120px]">
+                      {new Date(filing.filingDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {filing.sentiment && (
+                    <Badge 
+                      variant="secondary" 
+                      className={`text-[10px] ${filing.sentiment === 'bullish' ? 'bg-green-500/20 text-green-400' : filing.sentiment === 'bearish' ? 'bg-red-500/20 text-red-400' : ''}`}
+                    >
+                      {filing.sentiment}
+                    </Badge>
+                  )}
+                </div>
+              ))}
+              
+              {catalyst.governmentContracts.slice(0, 2).map((contract, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <Award className="w-3 h-3 text-amber-400" />
+                    <span className="text-muted-foreground truncate max-w-[150px]">
+                      Gov Contract
+                    </span>
+                  </div>
+                  {contract.awardAmount && (
+                    <span className="text-green-400 font-mono">
+                      ${(contract.awardAmount / 1e6).toFixed(1)}M
+                    </span>
+                  )}
+                </div>
+              ))}
+
+              {catalyst.catalystEvents.slice(0, 3).map((event, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <span className={`truncate max-w-[180px] ${getPolarityColor(event.polarity)}`}>
+                    {event.title}
+                  </span>
+                  {event.isActive && (
+                    <Badge variant="secondary" className="text-[10px] bg-cyan-500/20 text-cyan-400">
+                      Active
+                    </Badge>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">No recent catalysts found</p>
+          )}
+        </div>
+
+        {/* Historical Performance */}
+        <div className="bg-card/50 border border-border/50 rounded-lg p-3">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="w-4 h-4 text-green-400" />
+            <span className="text-sm font-medium">Historical Performance</span>
+          </div>
+          
+          {historical?.hasHistoricalData ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-lg font-mono font-bold text-green-400">{historical.winRate}%</p>
+                  <p className="text-[10px] text-muted-foreground">Win Rate</p>
+                </div>
+                <div>
+                  <p className="text-lg font-mono font-bold text-foreground">{historical.totalTrades}</p>
+                  <p className="text-[10px] text-muted-foreground">Trades</p>
+                </div>
+                <div>
+                  <p className="text-lg font-mono font-bold text-cyan-400">+{historical.avgGain}%</p>
+                  <p className="text-[10px] text-muted-foreground">Avg Gain</p>
+                </div>
+              </div>
+              
+              {historical.recentTrades.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Recent Trades:</p>
+                  {historical.recentTrades.slice(0, 3).map((trade, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">
+                        {new Date(trade.date).toLocaleDateString()}
+                      </span>
+                      <Badge 
+                        variant="secondary"
+                        className={`text-[10px] ${trade.outcome === 'hit_target' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}
+                      >
+                        {trade.outcome === 'hit_target' ? 'WIN' : 'LOSS'} {trade.gain > 0 ? '+' : ''}{trade.gain?.toFixed(1)}%
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {historical ? 'Less than 3 historical trades - insufficient data' : 'Loading...'}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: number }) {
   const isPositive = pick.changePercent >= 0;
   
@@ -307,6 +542,9 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
               </div>
             )}
           </div>
+          
+          {/* Catalyst Intelligence & Historical Patterns */}
+          <CatalystIntelligencePanel symbol={pick.symbol} />
         </div>
       </AccordionContent>
     </AccordionItem>

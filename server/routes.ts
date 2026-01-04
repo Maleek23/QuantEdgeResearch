@@ -1,6 +1,9 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage, isRealLoss, isRealLossByResolution, isCurrentGenEngine, getDecidedTrades, getDecidedTradesByResolution, applyCanonicalPerformanceFilters, CANONICAL_LOSS_THRESHOLD } from "./storage";
+import { db } from "./db";
+import { eq, desc, and, sql } from "drizzle-orm";
+import { tradeIdeas, secFilings, governmentContracts, catalystEvents } from "@shared/schema";
 import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { generateTradeIdeas, chatWithQuantAI, validateTradeRisk } from "./ai-service";
 import { generateQuantIdeas } from "./quant-ideas-generator";
@@ -9285,6 +9288,203 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'GET /api/market-scanner/watchlist' });
       res.status(500).json({ error: "Failed to generate smart watchlist" });
+    }
+  });
+
+  // Catalyst Intelligence for Scanner - Get SEC filings, gov contracts, and catalysts for a symbol
+  app.get("/api/market-scanner/catalyst/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const ticker = symbol.toUpperCase();
+      
+      // Fetch catalyst data from database
+      const [secFilingsResult, govContractsResult, catalystEventsResult] = await Promise.all([
+        db.select().from(secFilings).where(eq(secFilings.ticker, ticker)).limit(5),
+        db.select().from(governmentContracts).where(eq(governmentContracts.recipientTicker, ticker)).limit(5),
+        db.select().from(catalystEvents).where(eq(catalystEvents.ticker, ticker)).limit(10),
+      ]);
+
+      res.json({
+        symbol: ticker,
+        secFilings: secFilingsResult,
+        governmentContracts: govContractsResult,
+        catalystEvents: catalystEventsResult,
+        hasCatalysts: secFilingsResult.length > 0 || govContractsResult.length > 0 || catalystEventsResult.length > 0,
+      });
+    } catch (error) {
+      logError(error as Error, { context: `GET /api/market-scanner/catalyst/${req.params.symbol}` });
+      res.status(500).json({ error: "Failed to fetch catalyst data" });
+    }
+  });
+
+  // Historical Performance Patterns - Get how a stock performed in similar conditions
+  app.get("/api/market-scanner/historical/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const ticker = symbol.toUpperCase();
+      
+      // Fetch historical trade ideas for this symbol (with resolved outcomes)
+      const historicalTradesRaw = await db.select()
+        .from(tradeIdeas)
+        .where(eq(tradeIdeas.symbol, ticker))
+        .limit(100);
+      
+      // Helper function to safely get date timestamp
+      const getTimestamp = (date: Date | string | null | undefined): number => {
+        if (!date) return 0;
+        const d = typeof date === 'string' ? new Date(date) : date;
+        return d.getTime() || 0;
+      };
+      
+      // Sort by date in application code and limit
+      const historicalTrades = historicalTradesRaw
+        .filter(t => t.createdAt) // Filter out trades without dates
+        .sort((a, b) => getTimestamp(b.createdAt) - getTimestamp(a.createdAt))
+        .slice(0, 50);
+      
+      // Filter to only trades with outcomes
+      const tradesWithOutcome = historicalTrades.filter(t => t.outcomeStatus !== null && t.outcomeStatus !== 'open');
+      
+      // Calculate historical performance metrics
+      const decidedTrades = historicalTrades.filter(t => t.outcomeStatus === 'hit_target' || t.outcomeStatus === 'hit_stop');
+      const wins = decidedTrades.filter(t => t.outcomeStatus === 'hit_target');
+      const losses = decidedTrades.filter(t => t.outcomeStatus === 'hit_stop');
+      
+      // Group trades by timeframe context
+      const monthlyPerformance: Record<string, { wins: number; losses: number }> = {};
+      for (const trade of decidedTrades) {
+        if (!trade.createdAt) continue;
+        const createdDate = typeof trade.createdAt === 'string' ? new Date(trade.createdAt) : trade.createdAt;
+        const month = createdDate.toISOString().slice(0, 7); // YYYY-MM
+        if (!monthlyPerformance[month]) {
+          monthlyPerformance[month] = { wins: 0, losses: 0 };
+        }
+        if (trade.outcomeStatus === 'hit_target') {
+          monthlyPerformance[month].wins++;
+        } else {
+          monthlyPerformance[month].losses++;
+        }
+      }
+
+      // Calculate average gain and loss
+      const avgGain = wins.length > 0 
+        ? wins.reduce((sum, t) => sum + (t.percentGain || 0), 0) / wins.length 
+        : 0;
+      const avgLoss = losses.length > 0 
+        ? losses.reduce((sum, t) => sum + Math.abs(t.percentGain || 0), 0) / losses.length 
+        : 0;
+
+      res.json({
+        symbol: ticker,
+        totalTrades: decidedTrades.length,
+        winRate: decidedTrades.length > 0 ? (wins.length / decidedTrades.length * 100).toFixed(1) : null,
+        wins: wins.length,
+        losses: losses.length,
+        avgGain: avgGain.toFixed(2),
+        avgLoss: avgLoss.toFixed(2),
+        monthlyPerformance,
+        recentTrades: historicalTrades.slice(0, 5).map(t => ({
+          date: t.createdAt,
+          direction: t.signalType || 'long',
+          entry: t.entryPrice,
+          target: t.targetPrice,
+          stop: t.stopLoss,
+          outcome: t.outcomeStatus,
+          gain: t.percentGain,
+          timeframe: t.timeframe,
+        })),
+        hasHistoricalData: decidedTrades.length >= 3,
+      });
+    } catch (error) {
+      logError(error as Error, { context: `GET /api/market-scanner/historical/${req.params.symbol}` });
+      res.status(500).json({ error: "Failed to fetch historical data" });
+    }
+  });
+
+  // Multi-Year Outlook - Get yearly performance projections
+  app.get("/api/market-scanner/outlook/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const ticker = symbol.toUpperCase();
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      
+      // Get historical trades for this symbol
+      const allTradesRaw = await db.select()
+        .from(tradeIdeas)
+        .where(eq(tradeIdeas.symbol, ticker))
+        .limit(200);
+      
+      // Helper function to safely get date timestamp
+      const getTimestamp = (date: Date | string | null | undefined): number => {
+        if (!date) return 0;
+        const d = typeof date === 'string' ? new Date(date) : date;
+        return d.getTime() || 0;
+      };
+      
+      // Helper to safely get year from date
+      const getYear = (date: Date | string | null | undefined): number => {
+        if (!date) return 0;
+        const d = typeof date === 'string' ? new Date(date) : date;
+        return d.getFullYear() || 0;
+      };
+      
+      // Sort and filter to only trades up to the requested year
+      const yearlyTrades = allTradesRaw
+        .filter(t => t.createdAt) // Filter out trades without dates
+        .sort((a, b) => getTimestamp(b.createdAt) - getTimestamp(a.createdAt))
+        .filter(t => getYear(t.createdAt) <= year);
+      
+      // Group by year
+      const yearlyStats: Record<number, { 
+        trades: number; 
+        wins: number; 
+        avgGain: number;
+        bestTrade: number;
+        worstTrade: number;
+      }> = {};
+      
+      for (const trade of yearlyTrades) {
+        if (!trade.createdAt) continue;
+        const tradeYear = getYear(trade.createdAt);
+        if (!yearlyStats[tradeYear]) {
+          yearlyStats[tradeYear] = { trades: 0, wins: 0, avgGain: 0, bestTrade: 0, worstTrade: 0 };
+        }
+        yearlyStats[tradeYear].trades++;
+        if (trade.outcomeStatus === 'hit_target') {
+          yearlyStats[tradeYear].wins++;
+        }
+        if (trade.percentGain) {
+          yearlyStats[tradeYear].avgGain += trade.percentGain;
+          if (trade.percentGain > yearlyStats[tradeYear].bestTrade) {
+            yearlyStats[tradeYear].bestTrade = trade.percentGain;
+          }
+          if (trade.percentGain < yearlyStats[tradeYear].worstTrade) {
+            yearlyStats[tradeYear].worstTrade = trade.percentGain;
+          }
+        }
+      }
+      
+      // Calculate averages
+      for (const yr in yearlyStats) {
+        if (yearlyStats[yr].trades > 0) {
+          yearlyStats[yr].avgGain = yearlyStats[yr].avgGain / yearlyStats[yr].trades;
+        }
+      }
+
+      res.json({
+        symbol: ticker,
+        currentYear: year,
+        yearlyStats,
+        yearsOfData: Object.keys(yearlyStats).length,
+        projections: {
+          [year]: yearlyStats[year] || null,
+          [year + 1]: null, // Future year placeholders
+          [year + 2]: null,
+        },
+      });
+    } catch (error) {
+      logError(error as Error, { context: `GET /api/market-scanner/outlook/${req.params.symbol}` });
+      res.status(500).json({ error: "Failed to fetch outlook data" });
     }
   });
 
