@@ -1201,15 +1201,6 @@ export default function TradeDeskPage() {
           </DropdownMenu>
           </div>
         </div>
-        
-        {/* Market Status - Subtle inline indicator */}
-        {marketStatus.session !== 'open' && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground" data-testid="banner-market-status">
-            <div className="h-2 w-2 rounded-full bg-amber-500/60" />
-            <span>{marketStatus.label}</span>
-            {marketStatus.nextOpen && <span>· Opens {marketStatus.nextOpen}</span>}
-          </div>
-        )}
       </header>
 
       {/* Minimal Search Bar */}
