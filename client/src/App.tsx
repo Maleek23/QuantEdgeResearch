@@ -230,7 +230,7 @@ function App() {
   };
 
   // Show public landing pages without sidebar (admin page handles its own layout)
-  const publicPages = ['/', '/features', '/login', '/signup', '/admin', '/admin/reports', '/admin/security', '/privacy', '/terms'];
+  const publicPages = ['/', '/landing', '/features', '/login', '/signup', '/admin', '/admin/reports', '/admin/security', '/privacy', '/terms', '/about', '/academy', '/blog', '/pricing'];
   if (publicPages.includes(location)) {
     return (
       <QueryClientProvider client={queryClient}>
