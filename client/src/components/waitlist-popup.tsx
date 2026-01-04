@@ -20,7 +20,7 @@ interface WaitlistPopupProps {
   discordInviteUrl?: string;
 }
 
-export function WaitlistPopup({ open, onOpenChange, discordInviteUrl = "https://discord.gg/your-invite-code" }: WaitlistPopupProps) {
+export function WaitlistPopup({ open, onOpenChange, discordInviteUrl = "https://discord.gg/3QF8QEKkYq" }: WaitlistPopupProps) {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const { toast } = useToast();

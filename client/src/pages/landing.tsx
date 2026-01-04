@@ -37,7 +37,7 @@ import { HeroProductPanel } from "@/components/hero-product-panel";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { WaitlistPopup } from "@/components/waitlist-popup";
 
-const DISCORD_INVITE_URL = "https://discord.gg/quantedgelabs";
+const DISCORD_INVITE_URL = "https://discord.gg/3QF8QEKkYq";
 
 interface AssetTypeStats {
   assetType: string;
