@@ -57,7 +57,8 @@ const COINBASE_SYMBOLS = [
   'BTC-USD', 'ETH-USD', 'SOL-USD', 'DOGE-USD', 'XRP-USD',
   'ADA-USD', 'AVAX-USD', 'DOT-USD', 'LINK-USD', 'MATIC-USD',
   'ATOM-USD', 'LTC-USD', 'UNI-USD', 'NEAR-USD', 'APT-USD',
-  'SUI-USD', 'PEPE-USD', 'SHIB-USD', 'ARB-USD', 'OP-USD'
+  'SUI-USD', 'PEPE-USD', 'SHIB-USD', 'ARB-USD', 'OP-USD',
+  'RNDR-USD', 'POL-USD', 'BONK-USD'  // Additional coins for crypto bot
 ];
 
 export function initializeCoinbaseWebSocket(): void {

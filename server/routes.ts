@@ -9604,7 +9604,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get crypto bot status and portfolio
   app.get("/api/crypto-bot/status", async (_req, res) => {
     try {
-      const { getCryptoPortfolio, fetchCryptoPrices, CRYPTO_SCAN_COINS } = await import("./auto-lotto-trader");
+      const { getCryptoPortfolio, fetchCryptoPrices, CRYPTO_SCAN_COINS, getCoinbaseSymbol } = await import("./auto-lotto-trader");
+      const { getCryptoPrice: getRealtimeCryptoPrice } = await import("./realtime-price-service");
+      const { fetchCryptoPrice } = await import("./market-api");
+      
       const portfolio = await getCryptoPortfolio();
       const prices = await fetchCryptoPrices();
       
@@ -9618,12 +9621,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
       const openPositions = positions.filter(p => p.status === 'open');
       
+      // Calculate totalValue dynamically with live prices
+      let positionsValue = 0;
+      for (const pos of openPositions) {
+        const qty = typeof pos.quantity === 'string' ? parseFloat(pos.quantity) : pos.quantity;
+        const entryPrice = typeof pos.entryPrice === 'string' ? parseFloat(pos.entryPrice) : pos.entryPrice;
+        
+        // Try to get live price: first WebSocket (with alias), then fallback
+        const coinbaseSymbol = getCoinbaseSymbol(pos.symbol);
+        let currentPrice = entryPrice;
+        
+        const realtimeCache = getRealtimeCryptoPrice(coinbaseSymbol);
+        if (realtimeCache?.price) {
+          currentPrice = realtimeCache.price;
+        } else {
+          // Also check original symbol in case it's already correct
+          const originalCache = getRealtimeCryptoPrice(pos.symbol);
+          if (originalCache?.price) {
+            currentPrice = originalCache.price;
+          } else {
+            // Fallback to CoinGecko/Yahoo
+            try {
+              const cryptoData = await fetchCryptoPrice(pos.symbol);
+              if (cryptoData?.currentPrice) currentPrice = cryptoData.currentPrice;
+            } catch { /* use entry price */ }
+          }
+        }
+        
+        positionsValue += qty * currentPrice;
+      }
+      
+      const dynamicTotalValue = portfolio.cashBalance + positionsValue;
+      
       res.json({
         status: 'active',
         portfolio: {
           id: portfolio.id,
           cashBalance: portfolio.cashBalance,
-          totalValue: portfolio.totalValue,
+          totalValue: dynamicTotalValue,  // Use dynamically calculated value
           startingCapital: portfolio.startingCapital,
         },
         openPositions: openPositions.length,
@@ -13154,15 +13189,24 @@ CONSTRAINTS:
       
       // Get open crypto positions with real-time prices
       if (cryptoPortfolio) {
+        const { getCoinbaseSymbol } = await import("./auto-lotto-trader");
         const cryptoPositions = await storage.getPaperPositionsByPortfolio(cryptoPortfolio.id);
         for (const pos of cryptoPositions.filter(p => p.status === 'open')) {
           const entryPrice = typeof pos.entryPrice === 'string' ? parseFloat(pos.entryPrice) : pos.entryPrice;
           const quantity = parseFloat(pos.quantity?.toString() || '1');
           const symbol = pos.symbol.toUpperCase();
+          const coinbaseSymbol = getCoinbaseSymbol(symbol);
           
-          // Try real-time price first (Coinbase WebSocket), then fallback
+          // Try real-time price first (Coinbase WebSocket with alias), then fallback
           let currentPrice: number = typeof pos.currentPrice === 'number' ? pos.currentPrice : entryPrice;
-          const realtimeCache = getRealtimeCryptoPrice(symbol);
+          
+          // Check with aliased symbol first (e.g., RENDER -> RNDR)
+          let realtimeCache = getRealtimeCryptoPrice(coinbaseSymbol);
+          if (!realtimeCache?.price) {
+            // Fall back to original symbol
+            realtimeCache = getRealtimeCryptoPrice(symbol);
+          }
+          
           if (realtimeCache?.price) {
             currentPrice = realtimeCache.price;
           } else {

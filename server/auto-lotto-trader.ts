@@ -292,6 +292,26 @@ export const CRYPTO_SCAN_COINS = [
   { id: 'bonk', symbol: 'BONK', name: 'Bonk' },
 ];
 
+// Crypto symbol alias map: Maps stored symbols to Coinbase WebSocket symbols
+// Some tokens have different ticker symbols on Coinbase vs CoinGecko
+export const CRYPTO_SYMBOL_ALIASES: Record<string, string> = {
+  'RENDER': 'RNDR',   // Render Token is RNDR on Coinbase
+  'MATIC': 'POL',     // Polygon renamed to POL on some exchanges
+};
+
+// Convert stored symbol to Coinbase-compatible symbol for price lookups
+export function getCoinbaseSymbol(symbol: string): string {
+  return CRYPTO_SYMBOL_ALIASES[symbol.toUpperCase()] || symbol.toUpperCase();
+}
+
+// Convert Coinbase symbol back to stored symbol
+export function getStoredSymbol(coinbaseSymbol: string): string {
+  for (const [stored, coinbase] of Object.entries(CRYPTO_SYMBOL_ALIASES)) {
+    if (coinbase === coinbaseSymbol.toUpperCase()) return stored;
+  }
+  return coinbaseSymbol.toUpperCase();
+}
+
 interface CryptoOpportunity {
   coinId: string;
   symbol: string;
@@ -1057,9 +1077,30 @@ export async function monitorCryptoPositions(): Promise<void> {
       logger.debug(`🪙 [CRYPTO BOT] ${pos.symbol}: ${direction} @ $${entryPrice.toFixed(4)} → $${currentPrice.toFixed(4)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(2)}%)`);
     }
     
+    // Recalculate portfolio total value based on updated positions
+    const updatedPositions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+    const openPos = updatedPositions.filter(p => p.status === 'open');
+    let positionsValue = 0;
+    for (const pos of openPos) {
+      const qty = typeof pos.quantity === 'string' ? parseFloat(pos.quantity) : pos.quantity;
+      const price = pos.currentPrice || pos.entryPrice;
+      positionsValue += qty * price;
+    }
+    const newTotalValue = runningCashBalance + positionsValue;
+    
+    // Update portfolio with new total value
+    await storage.updatePaperPortfolio(portfolio.id, {
+      cashBalance: runningCashBalance,
+      totalValue: newTotalValue,
+      totalPnL: newTotalValue - portfolio.startingCapital,
+      totalPnLPercent: ((newTotalValue - portfolio.startingCapital) / portfolio.startingCapital) * 100,
+    });
+    
     // Refresh portfolio cache
     const updated = await storage.getPaperPortfolioById(portfolio.id);
     if (updated) cryptoPortfolio = updated;
+    
+    logger.debug(`🪙 [CRYPTO BOT] Portfolio updated: $${newTotalValue.toFixed(2)} (cash: $${runningCashBalance.toFixed(2)}, positions: $${positionsValue.toFixed(2)})`);
     
   } catch (error) {
     logger.error("🪙 [CRYPTO BOT] Monitor error:", error);
