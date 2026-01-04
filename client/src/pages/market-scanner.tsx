@@ -143,6 +143,20 @@ interface HistoricalData {
   hasHistoricalData: boolean;
 }
 
+interface OutlookData {
+  symbol: string;
+  currentYear: number;
+  yearlyStats: Record<number, {
+    trades: number;
+    wins: number;
+    avgGain: number;
+    bestTrade: number;
+    worstTrade: number;
+  }>;
+  yearsOfData: number;
+  projections: Record<number, { trades: number; wins: number; avgGain: number } | null>;
+}
+
 const formatPrice = (price: number) => {
   if (price >= 1) return `$${price.toFixed(2)}`;
   if (price >= 0.01) return `$${price.toFixed(4)}`;
@@ -268,6 +282,7 @@ function getPolarityColor(polarity: string) {
 
 function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
   const [showDetails, setShowDetails] = useState(false);
+  const [outlookYear, setOutlookYear] = useState(new Date().getFullYear());
 
   const catalystQuery = useQuery<CatalystData>({
     queryKey: ['/api/market-scanner/catalyst', symbol],
@@ -285,6 +300,17 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
     queryFn: async () => {
       const res = await fetch(`/api/market-scanner/historical/${symbol}`);
       if (!res.ok) throw new Error("Failed to fetch historical data");
+      return res.json();
+    },
+    enabled: showDetails,
+    staleTime: 300000,
+  });
+
+  const outlookQuery = useQuery<OutlookData>({
+    queryKey: ['/api/market-scanner/outlook', symbol],
+    queryFn: async () => {
+      const res = await fetch(`/api/market-scanner/outlook/${symbol}`);
+      if (!res.ok) throw new Error("Failed to fetch outlook data");
       return res.json();
     },
     enabled: showDetails,
@@ -433,6 +459,64 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
             </p>
           )}
         </div>
+      </div>
+
+      {/* Multi-Year Outlook */}
+      <div className="bg-card/50 border border-border/50 rounded-lg p-3">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-amber-400" />
+            <span className="text-sm font-medium">Multi-Year Outlook</span>
+          </div>
+          <div className="flex gap-1">
+            {[2025, 2026, 2027].map(year => (
+              <Button
+                key={year}
+                variant={outlookYear === year ? "secondary" : "ghost"}
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => setOutlookYear(year)}
+                data-testid={`btn-outlook-year-${year}-${symbol}`}
+              >
+                {year}
+              </Button>
+            ))}
+          </div>
+        </div>
+        
+        {outlookQuery.isLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+          </div>
+        ) : outlookQuery.data?.yearsOfData && outlookQuery.data.yearsOfData > 0 ? (
+          <div className="space-y-2">
+            {Object.entries(outlookQuery.data.yearlyStats)
+              .filter(([year]) => parseInt(year) <= outlookYear)
+              .slice(-3)
+              .map(([year, stats]) => (
+                <div key={year} className="flex items-center justify-between text-xs p-2 bg-muted/30 rounded">
+                  <span className="font-mono font-medium">{year}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-muted-foreground">{stats.trades} trades</span>
+                    <span className="text-green-400">{stats.trades > 0 ? ((stats.wins / stats.trades) * 100).toFixed(0) : 0}% win</span>
+                    <span className={`font-mono ${stats.avgGain >= 0 ? 'text-cyan-400' : 'text-red-400'}`}>
+                      {stats.avgGain >= 0 ? '+' : ''}{stats.avgGain.toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+              ))}
+            
+            {outlookQuery.data.projections[outlookYear + 1] === null && (
+              <div className="text-center text-xs text-muted-foreground mt-2 py-2 border-t border-border/30">
+                Future projections available after more historical data
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground text-center py-2">
+            No yearly data available for {symbol}
+          </p>
+        )}
       </div>
     </div>
   );
