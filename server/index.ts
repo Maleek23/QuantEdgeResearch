@@ -977,6 +977,19 @@ app.use((req, res, next) => {
     
     log('🏆 Prop Firm Bot started - conservative NQ trading every 10 minutes during CME hours');
     
+    // Prediction Market Scanner - Polymarket arbitrage opportunities every 30 minutes
+    cron.default.schedule('*/30 * * * *', async () => {
+      try {
+        const { runPredictionMarketScan } = await import('./polymarket-service');
+        logger.info('[POLYMARKET] Starting prediction market scan...');
+        await runPredictionMarketScan();
+      } catch (error: any) {
+        logger.error('[POLYMARKET] Scan failed:', error);
+      }
+    });
+    
+    log('[POLYMARKET] Prediction Market Scanner started - scanning Polymarket every 30 minutes');
+    
     // Daily summary to Discord at 8:00 AM CT (before market open)
     let lastDailySummaryDate: string | null = null;
     

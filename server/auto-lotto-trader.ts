@@ -92,11 +92,11 @@ async function getBotPreferences(): Promise<BotPreferences> {
     const userPrefs = await storage.getAutoLottoPreferences(SYSTEM_USER_ID);
     
     if (userPrefs) {
-      cachedPreferences = {
+      const prefs: BotPreferences = {
         riskTolerance: userPrefs.riskTolerance as 'conservative' | 'moderate' | 'aggressive',
         maxPositionSize: userPrefs.maxPositionSize,
         maxConcurrentTrades: userPrefs.maxConcurrentTrades,
-        dailyLossLimit: userPrefs.dailyLossLimit,
+        dailyLossLimit: userPrefs.dailyLossLimit ?? DEFAULT_PREFERENCES.dailyLossLimit,
         enableOptions: userPrefs.enableOptions,
         enableFutures: userPrefs.enableFutures,
         enableCrypto: userPrefs.enableCrypto,
@@ -116,9 +116,10 @@ async function getBotPreferences(): Promise<BotPreferences> {
         cryptoPreferredCoins: userPrefs.cryptoPreferredCoins || ['BTC', 'ETH', 'SOL'],
         cryptoEnableMemeCoins: userPrefs.cryptoEnableMemeCoins,
       };
+      cachedPreferences = prefs;
       preferencesLastFetched = now;
-      logger.debug(`[BOT-PREFS] Loaded user preferences: ${cachedPreferences.riskTolerance}, maxPos=$${cachedPreferences.maxPositionSize}`);
-      return cachedPreferences;
+      logger.debug(`[BOT-PREFS] Loaded user preferences: ${prefs.riskTolerance}, maxPos=$${prefs.maxPositionSize}`);
+      return prefs;
     }
   } catch (error) {
     logger.debug(`[BOT-PREFS] Using defaults (no user preferences found)`);
@@ -1544,7 +1545,7 @@ export async function runAutonomousBotScan(): Promise<void> {
     }
     
     // Combine dynamic movers (priority) with static list, deduplicated
-    const combinedTickers = [...new Set([...dynamicMovers, ...BOT_SCAN_TICKERS])];
+    const combinedTickers = Array.from(new Set([...dynamicMovers, ...BOT_SCAN_TICKERS]));
     logger.info(`🤖 [BOT] Total scan universe: ${combinedTickers.length} tickers (${dynamicMovers.length} dynamic + static list)`);
     
     // 📋 CATALYST SCORE CACHE - Avoid redundant DB calls during scan

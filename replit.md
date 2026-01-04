@@ -71,6 +71,32 @@ The platform includes a **Catalyst Intelligence System** that tracks SEC filings
 ### Scheduled Polling
 - Catalyst data refreshes every 30 minutes for priority tickers (AAPL, MSFT, GOOGL, etc.)
 
+## Polymarket Prediction Market Module
+
+The platform includes a **Polymarket Integration** for news-driven prediction market arbitrage detection:
+
+### Components
+- **Market Discovery:** Fetches trending prediction markets with volume and liquidity data
+- **News-Market Matching:** Keyword analysis matches breaking news to relevant prediction markets
+- **Arbitrage Detection:** Calculates edge based on sentiment vs. current prices
+- **Paper Trading:** Generates paper trade signals with risk/reward parameters
+
+### API Endpoints
+- `GET /api/polymarket/trending` - Get trending prediction markets (admin only)
+- `GET /api/polymarket/opportunities` - Scan for arbitrage opportunities using recent news
+- `POST /api/polymarket/scan` - Trigger manual scan for prediction market opportunities (admin only)
+
+### Configuration
+- Scans run every 30 minutes via cron job
+- Minimum 5% edge required for opportunity detection
+- Minimum 55% confidence required for paper trade generation
+- Uses `assetType: 'prediction'` and `source: 'prediction-market'` for analytics segregation
+
+### Technical Notes
+- Markets matched via keyword extraction and category detection
+- Categories: politics, crypto, tech, sports, entertainment, finance, legal, science
+- Sentiment analysis from Alpha Vantage news feeds drives edge calculations
+
 ## Unified Win Rate System
 
 The platform uses a **unified win rate methodology** that provides consistent metrics across all endpoints:

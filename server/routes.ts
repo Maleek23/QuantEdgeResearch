@@ -9480,6 +9480,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Polymarket Prediction Market Routes
+  app.get("/api/polymarket/trending", async (_req, res) => {
+    try {
+      const { fetchTrendingMarkets } = await import("./polymarket-service");
+      const markets = await fetchTrendingMarkets(20);
+      res.json({ markets, count: markets.length });
+    } catch (error) {
+      logger.error("Polymarket trending error:", error);
+      res.status(500).json({ error: "Failed to fetch trending markets" });
+    }
+  });
+  
+  app.get("/api/polymarket/opportunities", async (_req, res) => {
+    try {
+      const { scanForPredictionOpportunities, fetchTrendingMarkets } = await import("./polymarket-service");
+      const { fetchBreakingNews } = await import("./news-service");
+      
+      const breakingNews = await fetchBreakingNews(undefined, undefined, 20);
+      const opportunities = await scanForPredictionOpportunities(breakingNews);
+      
+      res.json({
+        opportunities,
+        count: opportunities.length,
+        newsAnalyzed: breakingNews.length,
+      });
+    } catch (error) {
+      logger.error("Polymarket opportunities error:", error);
+      res.status(500).json({ error: "Failed to scan for opportunities" });
+    }
+  });
+  
+  app.post("/api/polymarket/scan", requireAdminJWT, async (_req, res) => {
+    try {
+      const { runPredictionMarketScan } = await import("./polymarket-service");
+      
+      logger.info("[POLYMARKET] Manual scan triggered via API");
+      await runPredictionMarketScan();
+      
+      res.json({ success: true, message: "Prediction market scan completed" });
+    } catch (error) {
+      logger.error("Polymarket scan error:", error);
+      res.status(500).json({ error: "Failed to run prediction market scan" });
+    }
+  });
+
   // User Preferences Routes
   app.get("/api/preferences", async (_req, res) => {
     try {
