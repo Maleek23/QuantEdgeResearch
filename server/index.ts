@@ -122,6 +122,11 @@ app.use((req, res, next) => {
     initializeRealtimePrices(server);
     log('📡 Real-time price feeds initialized with WebSocket broadcast on /ws/prices');
     
+    // Start Catalyst Intelligence polling (SEC filings, government contracts)
+    const { startCatalystPolling } = await import('./catalyst-intelligence-service');
+    startCatalystPolling(30); // Refresh catalyst data every 30 minutes
+    log('📋 Catalyst Intelligence polling started - refreshing SEC filings and gov contracts every 30 minutes');
+    
     // 🌙 EVENING STARTUP: One-time check to run Tomorrow's Playbook generation if in evening hours
     (async () => {
       try {

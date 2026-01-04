@@ -547,4 +547,57 @@ export async function updateSymbolCatalystSnapshot(ticker: string): Promise<void
   }
 }
 
+const PRIORITY_TICKERS = [
+  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA',
+  'JPM', 'LMT', 'RTX', 'NOC', 'GD', 'BA', 'V', 'JNJ', 'UNH',
+];
+
+let catalystPollingInterval: NodeJS.Timeout | null = null;
+
+export async function runScheduledCatalystRefresh(): Promise<void> {
+  try {
+    log('[CATALYST] Running scheduled catalyst data refresh...', 'intel');
+    
+    const result = await refreshCatalystsForWatchlist(PRIORITY_TICKERS);
+    
+    log(`[CATALYST] Scheduled refresh complete: ${result.secFilingsAdded} filings, ${result.contractsAdded} contracts`, 'intel');
+    
+    for (const ticker of PRIORITY_TICKERS) {
+      try {
+        await updateSymbolCatalystSnapshot(ticker);
+      } catch (err) {
+        log(`[CATALYST] Failed to update snapshot for ${ticker}`, 'intel');
+      }
+    }
+    
+    log('[CATALYST] Catalyst snapshots updated', 'intel');
+  } catch (error) {
+    log(`[CATALYST] Scheduled refresh failed: ${error}`, 'intel');
+  }
+}
+
+export function startCatalystPolling(intervalMinutes: number = 30): void {
+  if (catalystPollingInterval) {
+    log('[CATALYST] Stopping existing polling interval', 'intel');
+    clearInterval(catalystPollingInterval);
+  }
+  
+  log(`[CATALYST] Starting catalyst polling every ${intervalMinutes} minutes`, 'intel');
+  
+  runScheduledCatalystRefresh();
+  
+  catalystPollingInterval = setInterval(
+    () => runScheduledCatalystRefresh(),
+    intervalMinutes * 60 * 1000
+  );
+}
+
+export function stopCatalystPolling(): void {
+  if (catalystPollingInterval) {
+    clearInterval(catalystPollingInterval);
+    catalystPollingInterval = null;
+    log('[CATALYST] Catalyst polling stopped', 'intel');
+  }
+}
+
 log('[CATALYST] Catalyst Intelligence Service initialized', 'intel');
