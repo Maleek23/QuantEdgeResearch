@@ -6,6 +6,7 @@ export interface TierLimits {
   aiChatMessagesPerDay: number;
   chartAnalysisPerDay: number;
   watchlistItems: number;
+  aiCreditsPerMonth: number; // Monthly AI chat credits
   
   // Core Engine Access
   canAccessAIEngine: boolean;
@@ -76,6 +77,7 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierLimits> = {
     aiChatMessagesPerDay: 3,
     chartAnalysisPerDay: 1,
     watchlistItems: 3,
+    aiCreditsPerMonth: 30, // ~1 chat/day
     
     // Core Engine Access
     canAccessAIEngine: true,
@@ -145,6 +147,7 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierLimits> = {
     aiChatMessagesPerDay: Infinity,
     chartAnalysisPerDay: Infinity,
     watchlistItems: Infinity,
+    aiCreditsPerMonth: 300, // ~10 chats/day
     
     // Core Engine Access
     canAccessAIEngine: true,
@@ -214,6 +217,7 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierLimits> = {
     aiChatMessagesPerDay: Infinity,
     chartAnalysisPerDay: Infinity,
     watchlistItems: Infinity,
+    aiCreditsPerMonth: 1000, // ~33 chats/day
     
     // Core Engine Access
     canAccessAIEngine: true,
@@ -283,6 +287,7 @@ export const TIER_CONFIG: Record<SubscriptionTier, TierLimits> = {
     aiChatMessagesPerDay: Infinity,
     chartAnalysisPerDay: Infinity,
     watchlistItems: Infinity,
+    aiCreditsPerMonth: 999999, // Unlimited for admins
     
     // Core Engine Access
     canAccessAIEngine: true,
