@@ -173,9 +173,9 @@ export default function Landing() {
                 <Button 
                   className="bg-cyan-500 text-slate-950 hover:bg-cyan-400 h-12 px-8 text-base font-semibold shadow-lg shadow-cyan-500/20"
                   onClick={() => setWaitlistOpen(true)}
-                  data-testid="button-join-beta"
+                  data-testid="button-join-waitlist"
                 >
-                  Join Beta <ArrowRight className="ml-2 h-5 w-5" />
+                  Join Waitlist <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
                 <Button 
                   variant="outline" 
@@ -737,7 +737,7 @@ export default function Landing() {
                 data-testid="button-cta-signup"
                 className="font-medium"
               >
-                Join Beta <ArrowRight className="h-4 w-4 ml-2" />
+                Join Waitlist <ArrowRight className="h-4 w-4 ml-2" />
               </ShimmerButton>
               <Button 
                 variant="outline" 
@@ -805,7 +805,6 @@ export default function Landing() {
       <WaitlistPopup 
         open={waitlistOpen} 
         onOpenChange={setWaitlistOpen}
-        discordInviteUrl={DISCORD_INVITE_URL}
       />
     </div>
   );

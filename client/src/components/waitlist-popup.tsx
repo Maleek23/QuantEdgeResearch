@@ -11,16 +11,14 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Loader2, X } from "lucide-react";
-import { SiDiscord } from "react-icons/si";
+import { Check, Loader2 } from "lucide-react";
 
 interface WaitlistPopupProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  discordInviteUrl?: string;
 }
 
-export function WaitlistPopup({ open, onOpenChange, discordInviteUrl = "https://discord.gg/3QF8QEKkYq" }: WaitlistPopupProps) {
+export function WaitlistPopup({ open, onOpenChange }: WaitlistPopupProps) {
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const { toast } = useToast();
@@ -51,10 +49,6 @@ export function WaitlistPopup({ open, onOpenChange, discordInviteUrl = "https://
     if (email.trim()) {
       joinWaitlist.mutate(email.trim());
     }
-  };
-
-  const handleDiscordClick = () => {
-    window.open(discordInviteUrl, "_blank");
   };
 
   useEffect(() => {
@@ -123,24 +117,6 @@ export function WaitlistPopup({ open, onOpenChange, discordInviteUrl = "https://
             </form>
           )}
 
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">or</span>
-            </div>
-          </div>
-
-          <Button 
-            variant="outline"
-            onClick={handleDiscordClick}
-            className="w-full gap-2"
-            data-testid="button-discord-popup"
-          >
-            <SiDiscord className="h-5 w-5" />
-            Join our Discord Community
-          </Button>
         </div>
       </DialogContent>
     </Dialog>
