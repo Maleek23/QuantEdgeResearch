@@ -230,6 +230,55 @@ function GradeExplanation({ item }: { item: WatchlistItem }) {
     s.toLowerCase().includes('weak')
   );
 
+  // Calculate confluence metrics
+  const confluenceFactors = [];
+  if (gradeInputs) {
+    // RSI conditions
+    if (typeof gradeInputs.rsi14 === 'number') {
+      if (gradeInputs.rsi14 < 35) confluenceFactors.push({ name: 'RSI Oversold', type: 'bullish' });
+      else if (gradeInputs.rsi14 > 65) confluenceFactors.push({ name: 'RSI Overbought', type: 'bearish' });
+    }
+    if (typeof gradeInputs.rsi2 === 'number') {
+      if (gradeInputs.rsi2 < 15) confluenceFactors.push({ name: 'RSI(2) Extreme Oversold', type: 'bullish' });
+      else if (gradeInputs.rsi2 > 85) confluenceFactors.push({ name: 'RSI(2) Extreme Overbought', type: 'bearish' });
+    }
+    // Momentum
+    if (typeof gradeInputs.momentum5d === 'number') {
+      if (gradeInputs.momentum5d > 3) confluenceFactors.push({ name: 'Positive Momentum', type: 'bullish' });
+      else if (gradeInputs.momentum5d < -3) confluenceFactors.push({ name: 'Negative Momentum', type: 'bearish' });
+    }
+    // Trend strength
+    if (typeof gradeInputs.adx === 'number' && gradeInputs.adx > 25) {
+      confluenceFactors.push({ name: 'Strong Trend', type: 'neutral' });
+    }
+    // Volume
+    if (typeof gradeInputs.volumeRatio === 'number') {
+      if (gradeInputs.volumeRatio > 1.5) confluenceFactors.push({ name: 'Volume Surge', type: 'bullish' });
+      else if (gradeInputs.volumeRatio < 0.5) confluenceFactors.push({ name: 'Low Volume', type: 'bearish' });
+    }
+  }
+  
+  const bullishConfluence = confluenceFactors.filter(f => f.type === 'bullish').length;
+  const bearishConfluence = confluenceFactors.filter(f => f.type === 'bearish').length;
+  const totalConfluence = confluenceFactors.length;
+  const confluenceScore = totalConfluence > 0 
+    ? Math.round(((bullishConfluence - bearishConfluence) / totalConfluence + 1) * 50)
+    : 50;
+
+  // Determine market regime based on technical factors
+  const getMarketRegime = () => {
+    if (!gradeInputs) return { regime: 'Unknown', color: 'text-muted-foreground', description: 'Insufficient data' };
+    const adx = typeof gradeInputs.adx === 'number' ? gradeInputs.adx : 20;
+    const momentum = typeof gradeInputs.momentum5d === 'number' ? gradeInputs.momentum5d : 0;
+    
+    if (adx > 30 && momentum > 5) return { regime: 'Strong Uptrend', color: 'text-emerald-500', description: 'Trend-following strategies favored' };
+    if (adx > 30 && momentum < -5) return { regime: 'Strong Downtrend', color: 'text-red-500', description: 'Bearish pressure, wait for reversal signals' };
+    if (adx < 20) return { regime: 'Ranging/Consolidation', color: 'text-amber-500', description: 'Mean reversion strategies may work' };
+    return { regime: 'Transitioning', color: 'text-cyan-500', description: 'Watch for breakout confirmation' };
+  };
+  
+  const marketRegime = getMarketRegime();
+
   return (
     <div className="space-y-4">
       {/* Grade Hero */}
@@ -249,6 +298,36 @@ function GradeExplanation({ item }: { item: WatchlistItem }) {
             <Icon className={`h-3 w-3 ${config.text}`} />
             <span className={config.text}>{config.action}</span>
           </div>
+        </div>
+      </div>
+
+      {/* Confluence Analysis - NEW */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="p-3 rounded-lg bg-muted/30 border">
+          <div className="flex items-center gap-2 mb-2">
+            <Target className="h-4 w-4 text-cyan-500" />
+            <span className="text-xs font-semibold uppercase tracking-wider">Confluence Score</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={`text-2xl font-bold font-mono ${confluenceScore >= 60 ? 'text-emerald-500' : confluenceScore <= 40 ? 'text-red-500' : 'text-amber-500'}`}>
+              {confluenceScore}%
+            </span>
+            <div className="flex-1">
+              <Progress value={confluenceScore} className="h-2" />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {bullishConfluence} bullish / {bearishConfluence} bearish factors
+          </p>
+        </div>
+        
+        <div className="p-3 rounded-lg bg-muted/30 border">
+          <div className="flex items-center gap-2 mb-2">
+            <Activity className="h-4 w-4 text-purple-500" />
+            <span className="text-xs font-semibold uppercase tracking-wider">Market Regime</span>
+          </div>
+          <span className={`text-sm font-semibold ${marketRegime.color}`}>{marketRegime.regime}</span>
+          <p className="text-xs text-muted-foreground mt-1">{marketRegime.description}</p>
         </div>
       </div>
 
@@ -304,6 +383,35 @@ function GradeExplanation({ item }: { item: WatchlistItem }) {
         </div>
       )}
 
+      {/* Confluence Breakdown - NEW */}
+      {confluenceFactors.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-sm font-semibold flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            Active Confluence Factors
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {confluenceFactors.map((factor, i) => (
+              <Badge 
+                key={i} 
+                className={
+                  factor.type === 'bullish' 
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                    : factor.type === 'bearish'
+                    ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/30'
+                    : 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30'
+                }
+              >
+                {factor.type === 'bullish' && <ArrowUpRight className="h-3 w-3 mr-1" />}
+                {factor.type === 'bearish' && <ArrowDownRight className="h-3 w-3 mr-1" />}
+                {factor.type === 'neutral' && <Activity className="h-3 w-3 mr-1" />}
+                {factor.name}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Signal Summary */}
       {signals.length > 0 && (
         <div className="space-y-2">
@@ -332,6 +440,27 @@ function GradeExplanation({ item }: { item: WatchlistItem }) {
           </div>
         </div>
       )}
+
+      {/* Conviction Summary - NEW */}
+      <div className="p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-cyan-500/10 border border-purple-500/20">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-purple-400 mb-2 flex items-center gap-2">
+          <CheckCircle className="h-3 w-3" />
+          Conviction Analysis
+        </h4>
+        <div className="space-y-1">
+          <p className="text-sm">
+            {tier === 'S' && "Maximum conviction - multiple timeframe alignment with strong momentum. High-probability setup."}
+            {tier === 'A' && "Strong conviction - key technicals are aligned. Wait for optimal entry within your risk parameters."}
+            {tier === 'B' && "Moderate conviction - fundamentals look promising but technicals need confirmation. Building position on dips may be appropriate."}
+            {tier === 'C' && "Low conviction - mixed signals require patience. Wait for clearer direction before committing capital."}
+            {tier === 'D' && "Very low conviction - bearish factors outweigh bullish. Only consider if thesis is strong and you're comfortable being early."}
+            {tier === 'F' && "No conviction - technical structure is poor. Protect capital and wait for conditions to improve significantly."}
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Based on {totalConfluence} confluence factor{totalConfluence !== 1 ? 's' : ''} and {signals.length} signal{signals.length !== 1 ? 's' : ''} detected
+          </p>
+        </div>
+      </div>
 
       {/* Psychology Panel */}
       <div className="p-3 rounded-lg bg-muted/50 border">
