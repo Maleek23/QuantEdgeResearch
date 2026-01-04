@@ -55,7 +55,12 @@ import {
   UserPlus,
   Eye,
   ArrowUpDown,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Flame,
+  Bitcoin,
+  DollarSign,
+  LineChart,
+  Globe
 } from "lucide-react";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 
@@ -65,6 +70,131 @@ function ExpiryBadge({ minutes }: { minutes: number }) {
   if (minutes < 60) return <Badge variant="outline" className="text-amber-400 border-amber-400/30">{minutes}m left</Badge>;
   const hours = Math.floor(minutes / 60);
   return <Badge variant="outline" className="text-cyan-400 border-cyan-400/30">{hours}h left</Badge>;
+}
+
+// Mini sparkline component for visual flair
+function MiniSparkline({ trend }: { trend: 'up' | 'down' | 'flat' }) {
+  const points = trend === 'up' 
+    ? "0,12 4,10 8,8 12,6 16,8 20,4 24,2" 
+    : trend === 'down'
+    ? "0,2 4,4 8,6 12,8 16,6 20,10 24,12"
+    : "0,7 4,6 8,8 12,7 16,7 20,6 24,7";
+  
+  return (
+    <svg width="28" height="14" viewBox="0 0 28 14" className="opacity-60">
+      <polyline
+        fill="none"
+        stroke={trend === 'up' ? '#4ade80' : trend === 'down' ? '#f87171' : '#94a3b8'}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        points={points}
+      />
+    </svg>
+  );
+}
+
+// Market stats ticker with live data - uses dedicated /api/realtime-status query
+function MarketStatsTicker() {
+  // Use a unique query key with explicit fetch to avoid cache collisions
+  const { data: realtimeData, isLoading } = useQuery({
+    queryKey: ['/api/realtime-status', 'market-ticker'],
+    queryFn: async () => {
+      const res = await fetch('/api/realtime-status');
+      if (!res.ok) throw new Error('Failed to fetch realtime status');
+      return res.json() as Promise<{ 
+        prices: {
+          futures: Record<string, { price: number; ageSeconds: number }>,
+          crypto: Record<string, { price: number; ageSeconds: number }>
+        }
+      }>;
+    },
+    refetchInterval: 15000,
+    staleTime: 10000,
+  });
+
+  // Build stats from realtime-status prices
+  const stats = [
+    { 
+      label: 'NQ', 
+      value: realtimeData?.prices?.futures?.NQ?.price,
+      icon: TrendingUp,
+      color: 'text-cyan-400'
+    },
+    { 
+      label: 'ES', 
+      value: realtimeData?.prices?.futures?.ES?.price,
+      icon: BarChart3,
+      color: 'text-blue-400'
+    },
+    { 
+      label: 'Gold', 
+      value: realtimeData?.prices?.futures?.GC?.price,
+      icon: DollarSign,
+      color: 'text-amber-400'
+    },
+    { 
+      label: 'BTC', 
+      value: realtimeData?.prices?.crypto?.BTC?.price,
+      icon: Bitcoin,
+      color: 'text-orange-400'
+    },
+    { 
+      label: 'ETH', 
+      value: realtimeData?.prices?.crypto?.ETH?.price,
+      icon: Globe,
+      color: 'text-purple-400'
+    },
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-6 py-3 px-4 rounded-xl bg-gradient-to-r from-muted/40 via-muted/20 to-transparent border border-border/30">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <Skeleton className="h-8 w-8 rounded-lg" />
+            <div className="flex flex-col gap-1">
+              <Skeleton className="h-3 w-12" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-4 py-3 px-4 rounded-xl bg-gradient-to-r from-muted/40 via-muted/20 to-transparent border border-border/30 overflow-x-auto" data-testid="market-stats-ticker">
+      <div className="flex items-center gap-2 pr-4 border-r border-border/30">
+        <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+        <span className="text-xs text-muted-foreground font-medium">LIVE</span>
+      </div>
+      {stats.map((stat, i) => {
+        const Icon = stat.icon;
+        const hasValue = stat.value !== undefined && stat.value !== null;
+        
+        return (
+          <div key={stat.label} className="flex items-center gap-3 shrink-0">
+            <div className="p-1.5 rounded-lg bg-muted/50">
+              <Icon className={cn("h-4 w-4", stat.color)} />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs text-muted-foreground">{stat.label}</span>
+              <span className="font-mono font-semibold text-sm">
+                {hasValue ? (
+                  stat.label === 'BTC' || stat.label === 'ETH' || stat.label === 'Gold' 
+                    ? `$${stat.value?.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                    : stat.value?.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                ) : '--'}
+              </span>
+            </div>
+            {i < stats.length - 1 && <Separator orientation="vertical" className="h-6 ml-2" />}
+          </div>
+        );
+      })}
+      <MiniSparkline trend="up" />
+    </div>
+  );
 }
 
 import { format, startOfDay, isSameDay, parseISO, subHours, subDays, subMonths, subYears, isAfter, isBefore } from "date-fns";
@@ -1137,29 +1267,38 @@ export default function TradeDeskPage() {
       {/* AI Research Assistant */}
       <AIResearchPanel />
 
-      {/* Simple Filter Bar - Source tabs only */}
-      <div className="flex flex-wrap items-center gap-3 text-sm">
+      {/* Live Market Stats Ticker */}
+      <MarketStatsTicker />
+
+      {/* Source Filter Tabs with Icons */}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
         {([
-          { value: 'all', label: 'All' },
-          { value: 'ai', label: 'AI' },
-          { value: 'quant', label: 'Quant' },
-          { value: 'flow', label: 'Flow' },
-          { value: 'hybrid', label: 'Smart' },
-        ] as const).map(({ value, label }) => (
+          { value: 'all', label: 'All', icon: Globe, color: 'text-foreground' },
+          { value: 'ai', label: 'AI', icon: Bot, color: 'text-purple-400' },
+          { value: 'quant', label: 'Quant', icon: BarChart3, color: 'text-blue-400' },
+          { value: 'flow', label: 'Flow', icon: Activity, color: 'text-cyan-400' },
+          { value: 'hybrid', label: 'Smart', icon: Sparkles, color: 'text-amber-400' },
+        ] as const).map(({ value, label, icon: Icon, color }) => (
           <button
             key={value}
             onClick={() => setSourceTab(value as IdeaSource | "all")}
             className={cn(
-              "px-3 py-1.5 rounded-md text-sm transition-colors",
+              "px-3 py-2 rounded-lg text-sm transition-all flex items-center gap-2",
               sourceTab === value 
-                ? "bg-foreground text-background"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-foreground text-background shadow-lg"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
             )}
             data-testid={`tab-source-${value}`}
           >
+            <Icon className={cn("h-4 w-4", sourceTab === value ? "text-background" : color)} />
             {label}
             {sourceCounts[value] > 0 && (
-              <span className="ml-1.5 text-xs opacity-70">{sourceCounts[value]}</span>
+              <Badge variant="secondary" className={cn(
+                "ml-1 px-1.5 py-0 text-xs font-mono",
+                sourceTab === value ? "bg-background/20 text-background" : ""
+              )}>
+                {sourceCounts[value]}
+              </Badge>
             )}
           </button>
         ))}
@@ -1309,12 +1448,25 @@ export default function TradeDeskPage() {
         </div>
       )}
 
-      {/* Market Status */}
+      {/* Market Status - Enhanced Visual */}
       {isWeekend() && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 text-sm" data-testid="weekend-preview-section">
-          <Clock className="h-4 w-4 text-amber-500" />
-          <span className="text-muted-foreground">Markets closed.</span>
-          <span className="text-foreground">Opens {format(getNextTradingWeekStart(), 'EEEE, MMM d')} at 9:30 AM CT</span>
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border border-amber-500/20 p-4" data-testid="weekend-preview-section">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-amber-500/5 via-transparent to-transparent" />
+          <div className="relative flex items-center gap-4">
+            <div className="p-2.5 rounded-lg bg-amber-500/20">
+              <Clock className="h-5 w-5 text-amber-500" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">Markets Closed - Weekend</span>
+              <span className="text-xs text-muted-foreground">
+                Trading resumes {format(getNextTradingWeekStart(), 'EEEE, MMM d')} at 9:30 AM CT
+              </span>
+            </div>
+            <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              Futures trading open Sunday 6PM ET
+            </div>
+          </div>
         </div>
       )}
 
@@ -1353,7 +1505,15 @@ export default function TradeDeskPage() {
             {/* Active Research Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Active Research</h2>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-500/10">
+                    <Flame className="h-5 w-5 text-cyan-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold">Active Research</h2>
+                    <p className="text-xs text-muted-foreground">{activeIdeas.length} live signals across {Object.keys(groupedIdeas).length} asset classes</p>
+                  </div>
+                </div>
                 <div className="flex items-center gap-3">
                   <Select value={sortBy} onValueChange={setSortBy}>
                     <SelectTrigger className="w-[120px] h-8 text-sm border-0 bg-transparent" data-testid="select-sort-by">
