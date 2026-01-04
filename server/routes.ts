@@ -8614,8 +8614,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         validated.userId = userId;
       }
       
-      console.log("POST /api/watchlist - Validated:", JSON.stringify(validated));
-      const item = await storage.addToWatchlist(validated);
+      // Add timestamp
+      const itemWithTimestamp = {
+        ...validated,
+        addedAt: new Date().toISOString(),
+      };
+      
+      console.log("POST /api/watchlist - Validated:", JSON.stringify(itemWithTimestamp));
+      const item = await storage.addToWatchlist(itemWithTimestamp as any);
       res.status(201).json(item);
     } catch (error: any) {
       console.error("POST /api/watchlist - Validation error:", error);

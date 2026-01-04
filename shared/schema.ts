@@ -436,7 +436,7 @@ export const watchlist = pgTable("watchlist", {
   alertCount: integer("alert_count").default(0), // Track how many alerts sent
 });
 
-export const insertWatchlistSchema = createInsertSchema(watchlist).omit({ id: true });
+export const insertWatchlistSchema = createInsertSchema(watchlist).omit({ id: true, addedAt: true });
 export type InsertWatchlist = z.infer<typeof insertWatchlistSchema>;
 export type WatchlistItem = typeof watchlist.$inferSelect;
 

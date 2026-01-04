@@ -406,12 +406,7 @@ function AlertDialog({ item }: { item: WatchlistItem }) {
 
   const updateAlertsMutation = useMutation({
     mutationFn: async (data: Partial<WatchlistItem>) => {
-      const response = await fetch(`/api/watchlist/${item.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error(await response.text());
+      const response = await apiRequest('PATCH', `/api/watchlist/${item.id}`, data);
       return response.json();
     },
     onSuccess: () => {
@@ -483,8 +478,7 @@ function WatchlistItemCard({ item }: { item: WatchlistItem }) {
 
   const reGradeMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/watchlist/${item.id}/grade`, { method: 'POST' });
-      if (!response.ok) throw new Error(await response.text());
+      const response = await apiRequest('POST', `/api/watchlist/${item.id}/grade`);
       return response.json();
     },
     onSuccess: () => {
@@ -498,8 +492,7 @@ function WatchlistItemCard({ item }: { item: WatchlistItem }) {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/watchlist/${item.id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error(await response.text());
+      const response = await apiRequest('DELETE', `/api/watchlist/${item.id}`);
       return response.json();
     },
     onSuccess: () => {
@@ -634,16 +627,11 @@ function AddSymbolDialog() {
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/watchlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symbol: symbol.toUpperCase(),
-          assetType,
-          notes: notes || `Added from symbol search`,
-        }),
+      const response = await apiRequest('POST', '/api/watchlist', {
+        symbol: symbol.toUpperCase(),
+        assetType,
+        notes: notes || `Added from symbol search`,
       });
-      if (!response.ok) throw new Error(await response.text());
       return response.json();
     },
     onSuccess: () => {
@@ -737,8 +725,7 @@ export default function WatchlistPage() {
 
   const reGradeAllMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/watchlist/grade-all', { method: 'POST' });
-      if (!response.ok) throw new Error(await response.text());
+      const response = await apiRequest('POST', '/api/watchlist/grade-all');
       return response.json();
     },
     onSuccess: (data) => {
