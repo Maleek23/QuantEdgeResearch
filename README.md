@@ -1,1 +1,1 @@
-# QuantEdge
+# Quant Edge Labs

@@ -645,7 +645,7 @@ export const paperPortfolios = pgTable("paper_portfolios", {
   lossCount: integer("loss_count").notNull().default(0),
   
   // Settings
-  autoExecute: boolean("auto_execute").default(false), // Auto-execute QuantEdge signals
+  autoExecute: boolean("auto_execute").default(false), // Auto-execute Quant Edge Labs signals
   maxPositionSize: real("max_position_size").default(5000), // Max per position
   riskPerTrade: real("risk_per_trade").default(0.02), // 2% default risk
   

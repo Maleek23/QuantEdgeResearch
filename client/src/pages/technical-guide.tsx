@@ -59,7 +59,7 @@ export default function TechnicalGuide() {
         y += 3;
       };
 
-      addText("QUANTEDGE RESEARCH", 20, true);
+      addText("QUANT EDGE LABS", 20, true);
       addText("Technical Analysis Foundations", 16, true);
       y += 5;
       addText("Educational Guide - Not Financial Advice", 10);
@@ -68,7 +68,7 @@ export default function TechnicalGuide() {
       addSection("1. TECHNICAL INDICATORS");
       
       addText("RSI (Relative Strength Index)", 12, true);
-      addText("Measures momentum on 0-100 scale. RSI > 70 = overbought (sell signal), RSI < 30 = oversold (buy signal). QuantEdge uses RSI(2) for short-term mean reversion and RSI(14) for trend confirmation.");
+      addText("Measures momentum on 0-100 scale. RSI > 70 = overbought (sell signal), RSI < 30 = oversold (buy signal). Quant Edge Labs uses RSI(2) for short-term mean reversion and RSI(14) for trend confirmation.");
       y += 5;
 
       addText("RSI(2) Mean Reversion Strategy", 12, true);
@@ -93,7 +93,7 @@ export default function TechnicalGuide() {
       addPage();
       addSection("2. SIGNAL GRADING SYSTEM");
       
-      addText("QuantEdge uses academic-style grading (A+ to F) based on confidence scores:", 12);
+      addText("Quant Edge Labs uses academic-style grading (A+ to F) based on confidence scores:", 12);
       y += 3;
       addText("A+ (95%+) - Exceptional: Multiple strong signals aligned, high probability");
       addText("A (93-94%) - Excellent: Strong technical setup with volume confirmation");
@@ -112,7 +112,7 @@ export default function TechnicalGuide() {
       addText("Example: Entry $100, Target $115, Stop $95");
       addText("Reward = $15, Risk = $5, R:R = 3:1");
       y += 5;
-      addText("QuantEdge Minimums:", 12, true);
+      addText("Quant Edge Labs Minimums:", 12, true);
       addText("Day trades: 2:1 minimum R:R");
       addText("Swing trades: 2.5:1 minimum R:R");
       addText("Lotto plays: 5:1+ minimum R:R (high risk)");
@@ -181,11 +181,11 @@ export default function TechnicalGuide() {
       
       addText("EDUCATIONAL PURPOSES ONLY", 14, true);
       y += 5;
-      addText("QuantEdge Research provides educational analysis and research tools. This is NOT financial advice. All trading involves substantial risk of loss. Past performance does not guarantee future results. Always do your own research and consult a licensed financial advisor before making investment decisions.");
+      addText("Quant Edge Labs provides educational analysis and research tools. This is NOT financial advice. All trading involves substantial risk of loss. Past performance does not guarantee future results. Always do your own research and consult a licensed financial advisor before making investment decisions.");
       y += 10;
       addText("Document generated: " + new Date().toLocaleDateString());
       
-      doc.save("QuantEdge-Technical-Analysis-Guide.pdf");
+      doc.save("QuantEdgeLabs-Technical-Analysis-Guide.pdf");
     } catch (error) {
       console.error("PDF generation failed:", error);
     } finally {
@@ -202,7 +202,7 @@ export default function TechnicalGuide() {
             Technical Analysis Foundations
           </h1>
           <p className="text-muted-foreground mt-1">
-            Understanding QuantEdge's quantitative methodology
+            Understanding Quant Edge Labs' quantitative methodology
           </p>
         </div>
         <Button 
@@ -346,7 +346,7 @@ export default function TechnicalGuide() {
             <AccordionContent>
               <div className="pt-2 space-y-3">
                 <p className="text-sm text-muted-foreground mb-4">
-                  QuantEdge uses academic-style grading based on confidence scores (0-100):
+                  Quant Edge Labs uses academic-style grading based on confidence scores (0-100):
                 </p>
                 <div className="grid gap-2">
                   {[
@@ -402,7 +402,7 @@ export default function TechnicalGuide() {
 
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base">QuantEdge Minimums</CardTitle>
+                    <CardTitle className="text-base">Quant Edge Labs Minimums</CardTitle>
                   </CardHeader>
                   <CardContent className="text-sm">
                     <div className="grid gap-2">

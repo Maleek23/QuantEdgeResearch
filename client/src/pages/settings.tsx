@@ -79,7 +79,7 @@ export default function SettingsPage() {
       <PageHeader 
         label="Configuration"
         title="Settings"
-        description="Customize your QuantEdge experience"
+        description="Customize your Quant Edge Labs experience"
         icon={Settings}
       />
 
@@ -434,7 +434,7 @@ export default function SettingsPage() {
                 </p>
                 <h3 className="text-lg font-semibold text-amber-400">Disclaimer</h3>
                 <p className="text-sm text-muted-foreground mt-2">
-                  QuantEdge Research is for <strong className="text-foreground">educational and research purposes only</strong>. 
+                  Quant Edge Labs is for <strong className="text-foreground">educational and research purposes only</strong>. 
                   This platform provides quantitative analysis and AI-generated research briefs, but does NOT constitute 
                   financial advice. All trading involves risk. Past performance does not guarantee future results.
                 </p>

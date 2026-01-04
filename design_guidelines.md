@@ -1,4 +1,4 @@
-# QuantEdge Research Design Guidelines
+# Quant Edge Labs Design Guidelines
 
 ## Brand Identity
 **Tagline**: "Multiple Engines, One Edge"

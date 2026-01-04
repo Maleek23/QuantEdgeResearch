@@ -78,7 +78,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             Settings
           </DialogTitle>
           <DialogDescription>
-            Customize your QuantEdge Research experience
+            Customize your Quant Edge Labs experience
           </DialogDescription>
         </DialogHeader>
 
@@ -298,7 +298,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                 Educational Use Only
               </Badge>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                QuantEdge Research provides educational content for research purposes only. 
+                Quant Edge Labs provides educational content for research purposes only. 
                 This platform does not provide personalized financial advice. All trading involves 
                 substantial risk of loss. Always conduct your own research and consider consulting 
                 a qualified financial advisor.

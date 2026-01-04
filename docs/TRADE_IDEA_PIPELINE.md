@@ -2,7 +2,7 @@
 
 ## Overview
 
-QuantEdge uses a multi-engine approach to generate trade ideas. Each engine has different data sources, logic, and confidence calculations.
+Quant Edge Labs uses a multi-engine approach to generate trade ideas. Each engine has different data sources, logic, and confidence calculations.
 
 ## Engine Types
 

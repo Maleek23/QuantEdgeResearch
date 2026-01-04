@@ -255,7 +255,7 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
         inline: true
       },
       {
-        name: '⭐ QuantEdge Grade',
+        name: '⭐ Quant Edge Labs Grade',
         value: `${gradeEmoji} **${letterGrade}** (${confidenceScore}%)`,
         inline: true
       },
@@ -304,7 +304,7 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
   const riskLevel = idea.riskProfile === 'speculative' ? 'HIGH RISK' : 
                    idea.riskProfile === 'aggressive' ? 'AGGRESSIVE' : 'MODERATE';
   embed.footer = {
-    text: `${qualityEmoji} ${idea.dataSourceUsed || 'Live Data'} | ${riskLevel} | QuantEdge Research`
+    text: `${qualityEmoji} ${idea.dataSourceUsed || 'Live Data'} | ${riskLevel} | Quant Edge Labs`
   };
   
   return embed;
@@ -449,7 +449,7 @@ export async function sendDiscordAlert(alert: {
       ],
       timestamp: new Date().toISOString(),
       footer: {
-        text: `QuantEdge Watchlist • ${alert.assetType === 'crypto' ? '24/7' : 'Market Hours'}`
+        text: `Quant Edge Labs Watchlist • ${alert.assetType === 'crypto' ? '24/7' : 'Market Hours'}`
       }
     };
     
@@ -635,7 +635,7 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
         }
       ],
       footer: {
-        text: `⚠️ For educational research only | QuantEdge Research`
+        text: `⚠️ For educational research only | Quant Edge Labs`
       },
       timestamp: new Date().toISOString()
     };
@@ -719,7 +719,7 @@ export async function sendFuturesTradesToDiscord(ideas: TradeIdea[]): Promise<vo
         }
       ],
       footer: {
-        text: 'QuantEdge Futures • Educational Research Only'
+        text: 'Quant Edge Labs Futures • Educational Research Only'
       },
       timestamp: new Date().toISOString()
     };
@@ -823,7 +823,7 @@ export async function sendChartAnalysisToDiscord(analysis: {
         }
       ],
       footer: {
-        text: 'QuantEdge Chart Analysis • Not financial advice'
+        text: 'Quant Edge Labs Chart Analysis • Not financial advice'
       },
       timestamp: new Date().toISOString()
     };
@@ -931,7 +931,7 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
         }
       ],
       footer: {
-        text: '⚠️ HIGH RISK - Small position size only | QuantEdge Research'
+        text: '⚠️ HIGH RISK - Small position size only | Quant Edge Labs'
       },
       timestamp: new Date().toISOString()
     };
@@ -1241,7 +1241,7 @@ export async function sendWatchlistToQuantBot(items: Array<{
         }
       ],
       footer: {
-        text: '⚠️ Research only - not financial advice | QuantEdge QuantBot'
+        text: '⚠️ Research only - not financial advice | Quant Edge Labs QuantBot'
       },
       timestamp: new Date().toISOString()
     };
@@ -1343,7 +1343,7 @@ export async function sendAnnualBreakoutsToDiscord(items: Array<{
         }
       ],
       footer: {
-        text: '⚠️ Research only - not financial advice | QuantEdge'
+        text: '⚠️ Research only - not financial advice | Quant Edge Labs'
       },
       timestamp: new Date().toISOString()
     };
@@ -1432,7 +1432,7 @@ export async function sendWeeklyWatchlistToDiscord(items: Array<{
         }
       ],
       footer: {
-        text: '⚠️ Educational research only - not financial advice | QuantEdge'
+        text: '⚠️ Educational research only - not financial advice | Quant Edge Labs'
       },
       timestamp: new Date().toISOString()
     };
@@ -1567,7 +1567,7 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
         }
       ],
       footer: {
-        text: '⚠️ Educational research only - not financial advice | QuantEdge Auto-Lotto Bot Style'
+        text: '⚠️ Educational research only - not financial advice | Quant Edge Labs Auto-Lotto Bot Style'
       },
       timestamp: new Date().toISOString()
     };
@@ -1829,7 +1829,7 @@ export async function sendGainsToDiscord(trade: {
         }
       ],
       footer: {
-        text: 'QuantEdge Research • Paper Trading Results'
+        text: 'Quant Edge Labs • Paper Trading Results'
       },
       timestamp: new Date().toISOString()
     };
@@ -1941,7 +1941,7 @@ export async function sendReportNotificationToDiscord(report: {
         }
       ],
       footer: {
-        text: 'QuantEdge Research • Automated Report'
+        text: 'Quant Edge Labs • Automated Report'
       },
       timestamp: new Date().toISOString()
     };

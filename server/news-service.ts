@@ -118,7 +118,7 @@ export async function fetchAlphaVantageNews(
     
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'QuantEdge/1.0'
+        'User-Agent': 'QuantEdgeLabs/1.0'
       }
     });
 

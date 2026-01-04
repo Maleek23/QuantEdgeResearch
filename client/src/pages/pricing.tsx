@@ -168,7 +168,7 @@ export default function Pricing() {
                   Research Platform Disclaimer
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  QuantEdge provides educational trade research only—not financial advice. 
+                  Quant Edge Labs provides educational trade research only—not financial advice. 
                   Past performance does not guarantee future results. You could lose your entire investment. 
                   We recommend paper trading to validate strategies before risking real capital.
                 </p>
@@ -410,7 +410,7 @@ export default function Pricing() {
           </p>
           <p className="text-xs text-muted-foreground max-w-2xl mx-auto">
             <span className="text-red-400 font-medium">NOT FINANCIAL ADVICE</span> • 
-            QuantEdge is for educational research purposes only. Trading involves substantial risk of loss.
+            Quant Edge Labs is for educational research purposes only. Trading involves substantial risk of loss.
           </p>
         </div>
       </div>

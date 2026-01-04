@@ -213,7 +213,7 @@ function AuthHeader() {
                   <span className="hidden sm:inline">Exit</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Sign out of QuantEdge</TooltipContent>
+              <TooltipContent>Sign out of Quant Edge Labs</TooltipContent>
             </Tooltip>
           </>
         )}

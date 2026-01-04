@@ -410,7 +410,7 @@ export async function sendPennyScanToDiscord(candidates: PennyMoonshotCandidate[
         { name: '⭐ Avg Grade', value: `${avgConf}% confidence`, inline: true },
         { name: '📈 Avg Volume', value: `${avgVol}x normal`, inline: true }
       ],
-      footer: { text: `⚠️ High risk $1-$8 moonshots - position size small | QuantEdge | ${nowCT} CT` },
+      footer: { text: `⚠️ High risk $1-$8 moonshots - position size small | Quant Edge Labs | ${nowCT} CT` },
       timestamp: new Date().toISOString()
     };
     

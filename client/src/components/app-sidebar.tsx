@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/components/theme-provider";
-import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
+import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 
 interface NavItem {
   title: string;
@@ -80,14 +80,14 @@ function SidebarHeaderContent() {
         className="flex items-center gap-3 cursor-pointer w-full"
       >
         <img 
-          src={quantEdgeLogoUrl} 
-          alt="QuantEdge" 
+          src={quantEdgeLabsLogoUrl} 
+          alt="Quant Edge Labs" 
           className="h-8 w-8 object-contain flex-shrink-0" 
         />
         {!isCollapsed && (
           <div className="flex flex-col">
-            <span className="text-sm font-semibold text-foreground tracking-tight">QuantEdge</span>
-            <span className="text-[10px] text-muted-foreground">Research Platform</span>
+            <span className="text-sm font-semibold text-foreground tracking-tight">Quant Edge</span>
+            <span className="text-[10px] text-muted-foreground">Labs</span>
           </div>
         )}
       </button>

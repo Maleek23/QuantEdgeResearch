@@ -102,7 +102,7 @@ export async function fetchSECFilingsForTicker(ticker: string, filingTypes: SECF
     
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'QuantEdge Research Platform support@quantedge.com',
+        'User-Agent': 'Quant Edge Labs Platform support@quantedgelabs.com',
         'Accept-Encoding': 'gzip, deflate',
       },
     });

@@ -22,7 +22,7 @@ export default function About() {
               <SidebarTrigger data-testid="button-sidebar-toggle" />
               <div className="flex items-center gap-2">
                 <Activity className="h-5 w-5 text-primary" />
-                <h1 className="text-lg font-bold" data-testid="text-app-title">QuantEdge Research</h1>
+                <h1 className="text-lg font-bold" data-testid="text-app-title">Quant Edge Labs</h1>
               </div>
             </div>
 
@@ -53,7 +53,7 @@ export default function About() {
             About the Creator
           </h1>
           <p className="text-muted-foreground">
-            Learn more about the developer behind QuantEdge Research
+            Learn more about the developer behind Quant Edge Labs
           </p>
         </div>
 
@@ -149,7 +149,7 @@ export default function About() {
 
         <div className="glass-card rounded-lg p-6 border-l-2 border-cyan-500/50">
           <p className="text-sm text-muted-foreground leading-relaxed">
-            <strong className="text-foreground">Platform Note:</strong> QuantEdge Research is a personal project 
+            <strong className="text-foreground">Platform Note:</strong> Quant Edge Labs is a personal project 
             showcasing quantitative analysis and AI-powered trading research tools. This platform demonstrates 
             advanced technical analysis, multi-timeframe indicators, and intelligent research brief generation for 
             educational purposes.

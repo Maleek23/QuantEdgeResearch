@@ -1,7 +1,7 @@
 /**
  * Platform Report Generator Service
  * 
- * Generates comprehensive daily, weekly, and monthly reports for the QuantEdge trading platform.
+ * Generates comprehensive daily, weekly, and monthly reports for the Quant Edge Labs trading platform.
  * Reports are stored in the platformReports table for historical tracking and admin review.
  */
 

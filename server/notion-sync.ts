@@ -124,9 +124,9 @@ export async function syncDocumentationToNotion(): Promise<{ success: boolean; p
       title: "Platform Overview",
       category: "Overview",
       lastUpdated: currentDate,
-      content: `## QuantEdge Research Platform
+      content: `## Quant Edge Labs Platform
 
-QuantEdge Research is a professional quantitative trading research platform designed for day-trading opportunities in US equities, options, and crypto markets.
+Quant Edge Labs is a professional quantitative trading research platform designed for day-trading opportunities in US equities, options, and crypto markets.
 
 ### Core Purpose
 - Deliver educational, research-grade trade ideas

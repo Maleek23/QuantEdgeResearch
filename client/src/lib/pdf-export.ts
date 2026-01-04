@@ -23,7 +23,7 @@ export async function generateDailyTradeAnalysisPDF(ideas: any[]) {
   
   doc.setTextColor(34, 211, 238); // cyan-400
   doc.setFontSize(24);
-  doc.text('QuantEdge Research', 14, 20);
+  doc.text('Quant Edge Labs', 14, 20);
   
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(12);
@@ -99,7 +99,7 @@ export async function generateDailyTradeAnalysisPDF(ideas: any[]) {
     doc.text('Confidential - For Educational & Research Purposes Only. Not Financial Advice.', 105, 290, { align: 'center' });
   }
 
-  doc.save(`QuantEdge_Analysis_${new Date().toISOString().split('T')[0]}.pdf`);
+  doc.save(`QuantEdgeLabs_Analysis_${new Date().toISOString().split('T')[0]}.pdf`);
 }
 
 // Engine labels for display
@@ -169,7 +169,7 @@ export function generatePlatformReportPDF(report: PlatformReportData) {
   doc.setTextColor(34, 211, 238); // cyan-400
   doc.setFontSize(26);
   doc.setFont('helvetica', 'bold');
-  doc.text('QuantEdge Research', 14, 22);
+  doc.text('Quant Edge Labs', 14, 22);
   
   // Subtitle
   doc.setTextColor(255, 255, 255);
@@ -386,5 +386,5 @@ export function generatePlatformReportPDF(report: PlatformReportData) {
   
   // Generate filename
   const dateStr = report.startDate.replace(/-/g, '');
-  doc.save(`quantedge-report-${report.period}-${dateStr}.pdf`);
+  doc.save(`quantedgelabs-report-${report.period}-${dateStr}.pdf`);
 }

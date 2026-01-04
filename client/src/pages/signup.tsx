@@ -55,7 +55,7 @@ export default function Signup() {
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
         title: "Account created!",
-        description: "Welcome to QuantEdge. Your account has been created successfully.",
+        description: "Welcome to Quant Edge Labs. Your account has been created successfully.",
       });
       setLocation("/trade-desk");
     },
@@ -98,7 +98,7 @@ export default function Signup() {
             </p>
             <h2 className="text-2xl font-bold text-center">Create an account</h2>
             <p className="text-center text-muted-foreground text-sm">
-              Enter your details to get started with QuantEdge
+              Enter your details to get started with Quant Edge Labs
             </p>
           </div>
           

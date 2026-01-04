@@ -31,7 +31,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { useState } from "react";
-import quantEdgeLogoUrl from "@assets/image (1)_1761160822785.png";
+import quantEdgeLabsLogoUrl from "@assets/q_1767502987714.png";
 import { HeroProductPanel } from "@/components/hero-product-panel";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
 
@@ -76,7 +76,7 @@ export default function Landing() {
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16 gap-4">
             <Link href="/" className="flex-shrink-0" data-testid="link-logo">
-              <img src={quantEdgeLogoUrl} alt="QuantEdge" className="h-10 w-10 object-contain" />
+              <img src={quantEdgeLabsLogoUrl} alt="Quant Edge Labs" className="h-10 w-10 object-contain" />
             </Link>
 
             <nav className="hidden md:flex items-center gap-6">
@@ -678,7 +678,7 @@ export default function Landing() {
 
               <AccordionItem value="markets" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-markets">
                 <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-markets">
-                  What markets does QuantEdge cover?
+                  What markets does Quant Edge Labs cover?
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-markets">
                   US equities, options, cryptocurrencies, and futures contracts. Data sourced from Yahoo Finance, Alpha Vantage, Tradier, and CoinGecko.
@@ -721,7 +721,7 @@ export default function Landing() {
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-paper">
                   Paper trading is simulated trading with fake money. It lets you test strategies without real capital. 
-                  QuantEdge includes a built-in paper trading journal to track your hypothetical trades.
+                  Quant Edge Labs includes a built-in paper trading journal to track your hypothetical trades.
                 </AccordionContent>
               </AccordionItem>
 
@@ -737,10 +737,10 @@ export default function Landing() {
 
               <AccordionItem value="advice" className="border border-slate-800 rounded-lg px-4" data-testid="accordion-faq-advice">
                 <AccordionTrigger className="text-left font-medium hover:no-underline py-3 text-sm" data-testid="trigger-faq-advice">
-                  Is QuantEdge financial advice?
+                  Is Quant Edge Labs financial advice?
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground pb-3 text-sm" data-testid="content-faq-advice">
-                  No. QuantEdge is an educational research platform. We provide analysis tools and pattern recognition—not recommendations. 
+                  No. Quant Edge Labs is an educational research platform. We provide analysis tools and pattern recognition—not recommendations. 
                   You make all trading decisions yourself. Trading involves substantial risk of loss.
                 </AccordionContent>
               </AccordionItem>
@@ -789,8 +789,8 @@ export default function Landing() {
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4">
             <div className="flex items-center gap-3">
-              <img src={quantEdgeLogoUrl} alt="QuantEdge" className="h-6 w-6 object-contain" />
-              <span className="font-semibold text-sm">QuantEdge</span>
+              <img src={quantEdgeLabsLogoUrl} alt="Quant Edge Labs" className="h-6 w-6 object-contain" />
+              <span className="font-semibold text-sm">Quant Edge Labs</span>
               <span className="text-xs text-muted-foreground hidden sm:inline">Research tools for self-directed traders</span>
             </div>
             <div className="flex flex-wrap items-center gap-4 text-xs">
@@ -809,7 +809,7 @@ export default function Landing() {
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-muted-foreground">
-            <p>© {new Date().getFullYear()} QuantEdge Research</p>
+            <p>© {new Date().getFullYear()} Quant Edge Labs</p>
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" className="h-6 w-6" data-testid="link-social-twitter">
                 <Twitter className="h-3 w-3" />

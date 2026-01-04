@@ -36,7 +36,7 @@ export default function TermsOfService() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <p className="font-semibold text-foreground">
-            QuantEdge Research is an EDUCATIONAL and RESEARCH platform. It is NOT financial advice.
+            Quant Edge Labs is an EDUCATIONAL and RESEARCH platform. It is NOT financial advice.
           </p>
           <ul className="list-disc list-inside space-y-2 text-muted-foreground">
             <li>All research briefs are for educational purposes and research demonstration only</li>
@@ -59,7 +59,7 @@ export default function TermsOfService() {
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-muted-foreground">
           <p>
-            By accessing or using QuantEdge Research, you agree to be bound by these Terms of Service 
+            By accessing or using Quant Edge Labs, you agree to be bound by these Terms of Service 
             and our Privacy Policy. If you do not agree to these terms, do not use this platform.
           </p>
           <p>
@@ -77,7 +77,7 @@ export default function TermsOfService() {
           <CardTitle>Platform Services</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-muted-foreground">
-          <p>QuantEdge Research provides:</p>
+          <p>Quant Edge Labs provides:</p>
           <ul className="list-disc list-inside space-y-2">
             <li>Quantitative analysis and technical indicator signals</li>
             <li>AI-powered research brief generation (educational demonstration)</li>
@@ -164,8 +164,8 @@ export default function TermsOfService() {
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-muted-foreground">
           <p>
-            The QuantEdge platform UI, design, and educational content are the intellectual property 
-            of QuantEdge Research. Our quantitative algorithms and signal weights are proprietary.
+            The Quant Edge Labs platform UI, design, and educational content are the intellectual property 
+            of Quant Edge Labs. Our quantitative algorithms and signal weights are proprietary.
           </p>
           <p>
             You may not copy, reproduce, or redistribute our proprietary code or algorithms without 
@@ -206,7 +206,7 @@ export default function TermsOfService() {
             contact us through our Discord community or support channels.
           </p>
           <p className="text-xs text-muted-foreground mt-4">
-            By using QuantEdge Research, you acknowledge that you have read, understood, 
+            By using Quant Edge Labs, you acknowledge that you have read, understood, 
             and agree to be bound by these Terms of Service.
           </p>
         </CardContent>

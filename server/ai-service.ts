@@ -496,7 +496,7 @@ Focus on actionable, research-grade opportunities with sector diversification.`;
 
 // Chat with QuantAI Bot (using FREE Gemini tier with OpenAI fallback)
 export async function chatWithQuantAI(userMessage: string, conversationHistory: Array<{role: string, content: string}>): Promise<string> {
-  const systemPrompt = `You are QuantAI Bot, an expert quantitative trading assistant for QuantEdge Research platform.
+  const systemPrompt = `You are QuantAI Bot, an expert quantitative trading assistant for Quant Edge Labs platform.
 
 Your role:
 - Provide educational market analysis and trading insights

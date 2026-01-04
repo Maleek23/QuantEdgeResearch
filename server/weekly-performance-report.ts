@@ -303,7 +303,7 @@ async function sendToDiscord(report: WeeklyReport): Promise<boolean> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         content,
-        username: 'QuantEdge Performance Bot',
+        username: 'Quant Edge Labs Performance Bot',
       }),
     });
     

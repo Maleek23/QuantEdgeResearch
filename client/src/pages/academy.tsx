@@ -46,7 +46,7 @@ const articles: Article[] = [
     level: 'Beginner',
     readTime: '12 min',
     image: technicalAnalysisImg,
-    author: 'QuantEdge Research',
+    author: 'Quant Edge Labs',
     date: 'Jan 2, 2026',
     featured: true,
   },
@@ -58,7 +58,7 @@ const articles: Article[] = [
     level: 'Beginner',
     readTime: '18 min',
     image: chartPatternsImg,
-    author: 'QuantEdge Research',
+    author: 'Quant Edge Labs',
     date: 'Jan 1, 2026',
   },
   {
@@ -69,7 +69,7 @@ const articles: Article[] = [
     level: 'Beginner',
     readTime: '15 min',
     image: movingAveragesImg,
-    author: 'QuantEdge Research',
+    author: 'Quant Edge Labs',
     date: 'Dec 30, 2025',
   },
   {
@@ -80,7 +80,7 @@ const articles: Article[] = [
     level: 'Beginner',
     readTime: '20 min',
     image: positionSizingImg,
-    author: 'QuantEdge Research',
+    author: 'Quant Edge Labs',
     date: 'Dec 28, 2025',
   },
   {
@@ -91,7 +91,7 @@ const articles: Article[] = [
     level: 'Intermediate',
     readTime: '22 min',
     image: stopLossesImg,
-    author: 'QuantEdge Research',
+    author: 'Quant Edge Labs',
     date: 'Dec 26, 2025',
   },
   {
@@ -102,7 +102,7 @@ const articles: Article[] = [
     level: 'Beginner',
     readTime: '15 min',
     image: riskRewardImg,
-    author: 'QuantEdge Research',
+    author: 'Quant Edge Labs',
     date: 'Dec 24, 2025',
   },
   {
@@ -113,7 +113,7 @@ const articles: Article[] = [
     level: 'Beginner',
     readTime: '25 min',
     image: psychologyImg,
-    author: 'QuantEdge Research',
+    author: 'Quant Edge Labs',
     date: 'Dec 22, 2025',
   },
   {
@@ -124,7 +124,7 @@ const articles: Article[] = [
     level: 'Intermediate',
     readTime: '30 min',
     image: tradingPlanImg,
-    author: 'QuantEdge Research',
+    author: 'Quant Edge Labs',
     date: 'Dec 20, 2025',
   },
   {
@@ -135,7 +135,7 @@ const articles: Article[] = [
     level: 'Beginner',
     readTime: '20 min',
     image: optionsImg,
-    author: 'QuantEdge Research',
+    author: 'Quant Edge Labs',
     date: 'Dec 18, 2025',
   },
   {
@@ -146,7 +146,7 @@ const articles: Article[] = [
     level: 'Intermediate',
     readTime: '28 min',
     image: cryptoImg,
-    author: 'QuantEdge Research',
+    author: 'Quant Edge Labs',
     date: 'Dec 16, 2025',
   },
 ];

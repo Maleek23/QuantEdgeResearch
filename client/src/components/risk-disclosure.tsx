@@ -75,7 +75,7 @@ export function RiskDisclosure({ variant = 'compact', engineVersion, className =
             <div>
               <p className="font-semibold text-foreground">Educational Research Platform</p>
               <p className="text-muted-foreground">
-                QuantEdge is a market research and pattern analysis platform for educational purposes only.
+                Quant Edge Labs is a market research and pattern analysis platform for educational purposes only.
                 Research briefs highlight technical patterns and key levels—YOU interpret the data and make your own trading decisions.
               </p>
             </div>

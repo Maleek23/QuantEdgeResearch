@@ -38,8 +38,8 @@ export default function Features() {
     <div className="min-h-screen bg-background">
       <SEOHead 
         pageKey="features"
-        title="Platform Features | QuantEdge Research"
-        description="Explore all QuantEdge features: AI Engine, Quant Engine, Flow Scanner, Chart Analysis, Auto-Lotto Bot, Performance Analytics, and more."
+        title="Platform Features | Quant Edge Labs"
+        description="Explore all Quant Edge Labs features: AI Engine, Quant Engine, Flow Scanner, Chart Analysis, Auto-Lotto Bot, Performance Analytics, and more."
       />
       
       {/* Sticky Navbar */}
@@ -47,7 +47,7 @@ export default function Features() {
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between h-16 gap-4">
             <Link href="/" className="flex-shrink-0" data-testid="link-logo">
-              <img src={quantEdgeLogoUrl} alt="QuantEdge" className="h-10 w-10 object-contain" />
+              <img src={quantEdgeLogoUrl} alt="Quant Edge Labs" className="h-10 w-10 object-contain" />
             </Link>
 
             <nav className="hidden md:flex items-center gap-6">
@@ -119,7 +119,7 @@ export default function Features() {
               Complete Platform Overview
             </p>
             <h1 className="text-2xl sm:text-3xl font-semibold mb-4">
-              Everything You Get with QuantEdge
+              Everything You Get with Quant Edge Labs
             </h1>
             <p className="text-lg text-muted-foreground">
               A comprehensive research platform combining AI analysis, quantitative signals, 
@@ -595,7 +595,7 @@ export default function Features() {
             </p>
             <h2 className="text-xl font-semibold mb-4">Ready to Start Your Research?</h2>
             <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-              Join thousands of traders using QuantEdge for educational market research. 
+              Join thousands of traders using Quant Edge Labs for educational market research. 
               Free tier available.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
@@ -624,7 +624,7 @@ export default function Features() {
         <div className="container mx-auto px-6">
           <div className="text-center max-w-3xl mx-auto">
             <p className="text-xs text-muted-foreground/60 leading-relaxed">
-              <strong className="text-muted-foreground">Educational Research Only:</strong> QuantEdge is a research and educational platform. 
+              <strong className="text-muted-foreground">Educational Research Only:</strong> Quant Edge Labs is a research and educational platform. 
               Nothing on this platform constitutes financial advice or a recommendation to buy or sell any security. 
               All trading involves risk of loss. Past performance does not guarantee future results. 
               Always conduct your own research and consult a licensed financial advisor.
@@ -638,8 +638,8 @@ export default function Features() {
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <img src={quantEdgeLogoUrl} alt="QuantEdge" className="h-6 w-6" />
-              <span className="font-semibold">QuantEdge Research</span>
+              <img src={quantEdgeLogoUrl} alt="Quant Edge Labs" className="h-6 w-6" />
+              <span className="font-semibold">Quant Edge Labs</span>
             </div>
             <div className="flex items-center gap-6 text-sm text-muted-foreground">
               <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
