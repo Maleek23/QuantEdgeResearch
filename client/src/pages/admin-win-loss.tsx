@@ -28,6 +28,8 @@ import {
   CircleDot,
   CheckCircle,
   XCircle,
+  Clock,
+  ArrowRight,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -97,6 +99,74 @@ interface StopLossSimData {
   sampleReliability: 'high' | 'medium' | 'low';
 }
 
+interface ExpirationTrade {
+  id: string;
+  symbol: string;
+  assetType: string;
+  direction: string;
+  holdingPeriod: string;
+  source: string;
+  confidenceScore: number | null;
+  timestamp: string;
+  entryPrice: number;
+  targetPrice: number;
+  stopLoss: number;
+  targetDistancePercent: number;
+  stopDistancePercent: number;
+  riskRewardRatio: number | null;
+  highestReached: number;
+  lowestReached: number;
+  peakTowardsTargetPercent: number;
+  peakAwayFromTargetPercent: number;
+  progressToTargetPercent: number;
+  neededMorePercent: number;
+  almostHitTarget: boolean;
+  veryClose: boolean;
+  wouldHaveHitStop: boolean;
+  holdingTimeMinutes: number | null;
+  exitBy: string | null;
+  entryValidUntil: string | null;
+  priceAtExpiration: number | null;
+  priceAtPublish: number | null;
+}
+
+interface ExpirationAnalysisData {
+  summary: {
+    totalExpired: number;
+    almostHitTargetCount?: number;
+    almostHitTargetPercent?: number;
+    veryCloseCount?: number;
+    veryClosePercent?: number;
+    wouldHaveHitStopCount?: number;
+    wouldHaveHitStopPercent?: number;
+    avgProgressToTarget?: number;
+    avgNeededMorePercent?: number;
+    message?: string;
+  };
+  byHoldingPeriod: Array<{
+    period: string;
+    count: number;
+    almostHitTargetCount: number;
+    almostHitTargetPercent: number;
+    avgProgressToTarget: number;
+    avgNeededMorePercent: number;
+  }>;
+  byAssetType: Array<{
+    assetType: string;
+    count: number;
+    almostHitTargetPercent: number;
+    avgProgressToTarget: number;
+  }>;
+  trades: ExpirationTrade[];
+  recommendations: Array<{
+    type: string;
+    severity: 'info' | 'warning' | 'critical';
+    message: string;
+    data?: any;
+  }>;
+  reliability: 'high' | 'medium' | 'low';
+}
+
 export default function AdminWinLossAnalysis() {
   const [, setLocation] = useLocation();
   const [stopLossThreshold, setStopLossThreshold] = useState<number>(3);
@@ -133,6 +203,18 @@ export default function AdminWinLossAnalysis() {
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to fetch stop-loss simulation");
+      return res.json();
+    },
+  });
+
+  const { data: expirationData, isLoading: expirationLoading } = useQuery<ExpirationAnalysisData>({
+    queryKey: ["/api/admin/win-loss/expiration-analysis"],
+    enabled: !!authCheck,
+    queryFn: async () => {
+      const res = await fetch("/api/admin/win-loss/expiration-analysis", {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch expiration analysis");
       return res.json();
     },
   });
@@ -246,6 +328,10 @@ export default function AdminWinLossAnalysis() {
           <TabsList>
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
             <TabsTrigger value="stop-loss" data-testid="tab-stop-loss">Stop-Loss Simulator</TabsTrigger>
+            <TabsTrigger value="expiration" data-testid="tab-expiration">
+              <Clock className="h-4 w-4 mr-1" />
+              Expiration Analysis
+            </TabsTrigger>
             <TabsTrigger value="breakdown" data-testid="tab-breakdown">Breakdown</TabsTrigger>
             <TabsTrigger value="patterns" data-testid="tab-patterns">Loss Patterns</TabsTrigger>
           </TabsList>
@@ -627,6 +713,224 @@ export default function AdminWinLossAnalysis() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="expiration" className="space-y-4">
+            {expirationLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="h-8 w-8 animate-spin text-cyan-400" />
+              </div>
+            ) : expirationData?.summary?.totalExpired === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No expired trades found for analysis</p>
+                </CardContent>
+              </Card>
+            ) : expirationData ? (
+              <>
+                <Card className="border-amber-500/20 bg-amber-500/5">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-amber-400" />
+                      Expiration Forensics
+                    </CardTitle>
+                    <CardDescription>
+                      Analyzing {expirationData.summary.totalExpired} trades that expired before hitting target or stop
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                        <div className="text-xs text-muted-foreground mb-1">Total Expired</div>
+                        <div className="text-2xl font-bold text-cyan-400">{expirationData.summary.totalExpired}</div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <div className="text-xs text-muted-foreground mb-1">Almost Hit Target (75%+)</div>
+                        <div className="text-2xl font-bold text-amber-400">
+                          {expirationData.summary.almostHitTargetPercent ?? 0}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {expirationData.summary.almostHitTargetCount ?? 0} trades
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                        <div className="text-xs text-muted-foreground mb-1">Very Close (90%+)</div>
+                        <div className="text-2xl font-bold text-green-400">
+                          {expirationData.summary.veryClosePercent ?? 0}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {expirationData.summary.veryCloseCount ?? 0} trades
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                        <div className="text-xs text-muted-foreground mb-1">Avg Progress to Target</div>
+                        <div className="text-2xl font-bold text-purple-400">
+                          {expirationData.summary.avgProgressToTarget ?? 0}%
+                        </div>
+                      </div>
+                    </div>
+
+                    {expirationData.recommendations.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-semibold flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-400" />
+                          Recommendations
+                        </h4>
+                        {expirationData.recommendations.map((rec, i) => (
+                          <div 
+                            key={i} 
+                            className={cn(
+                              "p-3 rounded-lg border flex items-start gap-3",
+                              rec.severity === 'critical' && "bg-red-500/10 border-red-500/30",
+                              rec.severity === 'warning' && "bg-amber-500/10 border-amber-500/30",
+                              rec.severity === 'info' && "bg-blue-500/10 border-blue-500/30"
+                            )}
+                          >
+                            {rec.severity === 'critical' && <AlertTriangle className="h-5 w-5 text-red-400 shrink-0 mt-0.5" />}
+                            {rec.severity === 'warning' && <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />}
+                            {rec.severity === 'info' && <Info className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />}
+                            <p className="text-sm">{rec.message}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">By Holding Period</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {expirationData.byHoldingPeriod.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-4">No data by holding period</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {expirationData.byHoldingPeriod.map((period) => (
+                            <div key={period.period} className="p-3 rounded-lg bg-muted/30">
+                              <div className="flex items-center justify-between mb-2">
+                                <Badge variant="outline" className="capitalize">{period.period}</Badge>
+                                <span className="text-sm text-muted-foreground">{period.count} expired</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <span className="text-muted-foreground">Almost hit target:</span>
+                                  <span className={cn("ml-1 font-semibold", period.almostHitTargetPercent >= 40 ? "text-amber-400" : "text-muted-foreground")}>
+                                    {period.almostHitTargetPercent}%
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Avg progress:</span>
+                                  <span className="ml-1 font-semibold">{period.avgProgressToTarget}%</span>
+                                </div>
+                              </div>
+                              <div className="mt-2">
+                                <Progress value={period.avgProgressToTarget} className="h-2" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">By Asset Type</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {expirationData.byAssetType.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-4">No data by asset type</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {expirationData.byAssetType.map((asset) => (
+                            <div key={asset.assetType} className="p-3 rounded-lg bg-muted/30">
+                              <div className="flex items-center justify-between mb-2">
+                                <Badge variant="secondary" className="uppercase">{asset.assetType}</Badge>
+                                <span className="text-sm text-muted-foreground">{asset.count} expired</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                  <span className="text-muted-foreground">Almost hit target:</span>
+                                  <span className={cn("ml-1 font-semibold", asset.almostHitTargetPercent >= 40 ? "text-amber-400" : "text-muted-foreground")}>
+                                    {asset.almostHitTargetPercent}%
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Avg progress:</span>
+                                  <span className="ml-1 font-semibold">{asset.avgProgressToTarget}%</span>
+                                </div>
+                              </div>
+                              <div className="mt-2">
+                                <Progress value={asset.avgProgressToTarget} className="h-2" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Target className="h-4 w-4" />
+                      Expired Trade Details
+                    </CardTitle>
+                    <CardDescription>
+                      Recent expired trades with progress analysis (showing up to 100)
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                      {expirationData.trades.slice(0, 20).map((trade) => (
+                        <div 
+                          key={trade.id} 
+                          className={cn(
+                            "p-3 rounded-lg border flex items-center justify-between",
+                            trade.veryClose && "bg-green-500/5 border-green-500/20",
+                            trade.almostHitTarget && !trade.veryClose && "bg-amber-500/5 border-amber-500/20",
+                            !trade.almostHitTarget && "bg-muted/30"
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div>
+                              <div className="font-semibold flex items-center gap-2">
+                                {trade.symbol}
+                                <Badge variant="outline" className="text-xs capitalize">{trade.direction}</Badge>
+                                <Badge variant="secondary" className="text-xs">{trade.holdingPeriod}</Badge>
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                Entry: ${trade.entryPrice} | Target: ${trade.targetPrice} ({trade.targetDistancePercent}%)
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Progress:</span>
+                              <span className={cn(
+                                "font-mono font-semibold",
+                                trade.progressToTargetPercent >= 90 && "text-green-400",
+                                trade.progressToTargetPercent >= 75 && trade.progressToTargetPercent < 90 && "text-amber-400",
+                                trade.progressToTargetPercent < 75 && "text-muted-foreground"
+                              )}>
+                                {trade.progressToTargetPercent}%
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Needed +{trade.neededMorePercent}% more
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            ) : null}
           </TabsContent>
 
           <TabsContent value="patterns" className="space-y-4">

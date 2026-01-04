@@ -5854,6 +5854,257 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Expiration Analysis - Analyze trades that expired before price moved enough
+  app.get("/api/admin/win-loss/expiration-analysis", requireAdminJWT, async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Get all expired trades
+      const expiredTrades = allIdeas.filter(t => 
+        t.outcomeStatus === 'expired' &&
+        t.entryPrice && t.targetPrice && t.stopLoss
+      );
+
+      if (expiredTrades.length === 0) {
+        return res.json({
+          summary: {
+            totalExpired: 0,
+            message: "No expired trades found for analysis"
+          },
+          trades: [],
+          recommendations: []
+        });
+      }
+
+      // For each expired trade, analyze post-expiration price movement
+      // Using available data: highestPriceReached, lowestPriceReached, and price snapshots
+      const tradeAnalyses = await Promise.all(expiredTrades.map(async (trade) => {
+        // Get price snapshots for this trade
+        const snapshots = await storage.getTradePriceSnapshots(trade.id);
+        
+        // Find expiration snapshot
+        const expirationSnapshot = snapshots?.find(s => s.eventType === 'expired');
+        const publishSnapshot = snapshots?.find(s => s.eventType === 'idea_published');
+        
+        // Calculate key metrics
+        const entryPrice = trade.entryPrice!;
+        const targetPrice = trade.targetPrice!;
+        const stopLoss = trade.stopLoss!;
+        const direction = trade.direction || 'long';
+        
+        // Distance calculations
+        const targetDistance = direction === 'long' 
+          ? ((targetPrice - entryPrice) / entryPrice) * 100
+          : ((entryPrice - targetPrice) / entryPrice) * 100;
+        
+        const stopDistance = direction === 'long'
+          ? ((entryPrice - stopLoss) / entryPrice) * 100
+          : ((stopLoss - entryPrice) / entryPrice) * 100;
+
+        // Peak/trough analysis - how close did it get?
+        const highestReached = trade.highestPriceReached ?? entryPrice;
+        const lowestReached = trade.lowestPriceReached ?? entryPrice;
+        
+        // How far towards target did price move?
+        let peakTowardsTarget: number;
+        let peakAwayFromTarget: number;
+        
+        if (direction === 'long') {
+          peakTowardsTarget = ((highestReached - entryPrice) / entryPrice) * 100;
+          peakAwayFromTarget = ((entryPrice - lowestReached) / entryPrice) * 100;
+        } else {
+          peakTowardsTarget = ((entryPrice - lowestReached) / entryPrice) * 100;
+          peakAwayFromTarget = ((highestReached - entryPrice) / entryPrice) * 100;
+        }
+
+        // Calculate how much more time/movement was needed
+        const progressToTarget = (peakTowardsTarget / targetDistance) * 100;
+        const neededMorePercent = targetDistance - peakTowardsTarget;
+        
+        // Would have hit target with more time?
+        const almostHitTarget = progressToTarget >= 75; // Got 75%+ of the way there
+        const veryClose = progressToTarget >= 90; // Got 90%+ of the way there
+        
+        // Would have hit stop with more time?
+        const wouldHaveHitStop = peakAwayFromTarget >= stopDistance;
+
+        // Time analysis
+        const entryTime = trade.timestamp ? new Date(trade.timestamp) : null;
+        const exitByTime = trade.exitBy ? new Date(trade.exitBy) : null;
+        const holdingTimeMinutes = trade.actualHoldingTimeMinutes ?? null;
+        
+        // Determine holding period type
+        const holdingPeriod = trade.holdingPeriod || 'day';
+
+        return {
+          id: trade.id,
+          symbol: trade.symbol,
+          assetType: trade.assetType || 'stock',
+          direction,
+          holdingPeriod,
+          source: trade.source || 'unknown',
+          confidenceScore: trade.confidenceScore ?? null,
+          timestamp: trade.timestamp,
+          
+          // Price levels
+          entryPrice: Math.round(entryPrice * 100) / 100,
+          targetPrice: Math.round(targetPrice * 100) / 100,
+          stopLoss: Math.round(stopLoss * 100) / 100,
+          
+          // Target/Stop distances
+          targetDistancePercent: Math.round(targetDistance * 100) / 100,
+          stopDistancePercent: Math.round(stopDistance * 100) / 100,
+          riskRewardRatio: trade.riskRewardRatio ?? null,
+          
+          // Peak movement analysis
+          highestReached: Math.round(highestReached * 100) / 100,
+          lowestReached: Math.round(lowestReached * 100) / 100,
+          peakTowardsTargetPercent: Math.round(peakTowardsTarget * 100) / 100,
+          peakAwayFromTargetPercent: Math.round(peakAwayFromTarget * 100) / 100,
+          progressToTargetPercent: Math.round(progressToTarget * 100) / 100,
+          neededMorePercent: Math.round(neededMorePercent * 100) / 100,
+          
+          // Classifications
+          almostHitTarget,
+          veryClose,
+          wouldHaveHitStop,
+          
+          // Time analysis
+          holdingTimeMinutes,
+          exitBy: trade.exitBy,
+          entryValidUntil: trade.entryValidUntil,
+          
+          // Price at expiration
+          priceAtExpiration: expirationSnapshot?.currentPrice ?? null,
+          priceAtPublish: publishSnapshot?.currentPrice ?? null,
+        };
+      }));
+
+      // Calculate summary statistics
+      const totalExpired = tradeAnalyses.length;
+      const almostHitTargetCount = tradeAnalyses.filter(t => t.almostHitTarget).length;
+      const veryCloseCount = tradeAnalyses.filter(t => t.veryClose).length;
+      const wouldHaveHitStopCount = tradeAnalyses.filter(t => t.wouldHaveHitStop).length;
+      
+      // Calculate average progress towards target
+      const avgProgressToTarget = totalExpired > 0
+        ? Math.round(tradeAnalyses.reduce((sum, t) => sum + t.progressToTargetPercent, 0) / totalExpired)
+        : 0;
+
+      // Calculate by holding period type
+      const byHoldingPeriod = ['day', 'swing', 'position', 'week-ending'].map(period => {
+        const periodTrades = tradeAnalyses.filter(t => t.holdingPeriod === period);
+        const count = periodTrades.length;
+        if (count === 0) return null;
+        
+        const almostHit = periodTrades.filter(t => t.almostHitTarget).length;
+        const avgProgress = Math.round(
+          periodTrades.reduce((sum, t) => sum + t.progressToTargetPercent, 0) / count
+        );
+        const avgNeededMore = Math.round(
+          periodTrades.reduce((sum, t) => sum + t.neededMorePercent, 0) / count * 100
+        ) / 100;
+
+        return {
+          period,
+          count,
+          almostHitTargetCount: almostHit,
+          almostHitTargetPercent: Math.round((almostHit / count) * 100),
+          avgProgressToTarget: avgProgress,
+          avgNeededMorePercent: avgNeededMore,
+        };
+      }).filter(Boolean);
+
+      // Calculate by asset type
+      const assetTypes = [...new Set(tradeAnalyses.map(t => t.assetType))];
+      const byAssetType = assetTypes.map(assetType => {
+        const assetTrades = tradeAnalyses.filter(t => t.assetType === assetType);
+        const count = assetTrades.length;
+        if (count === 0) return null;
+        
+        const almostHit = assetTrades.filter(t => t.almostHitTarget).length;
+        const avgProgress = Math.round(
+          assetTrades.reduce((sum, t) => sum + t.progressToTargetPercent, 0) / count
+        );
+
+        return {
+          assetType,
+          count,
+          almostHitTargetPercent: Math.round((almostHit / count) * 100),
+          avgProgressToTarget: avgProgress,
+        };
+      }).filter(Boolean);
+
+      // Generate recommendations
+      const recommendations: Array<{type: string; severity: 'info' | 'warning' | 'critical'; message: string; data?: any}> = [];
+
+      // If many trades almost hit target, time windows may be too short
+      const almostHitRate = (almostHitTargetCount / totalExpired) * 100;
+      if (almostHitRate >= 40) {
+        recommendations.push({
+          type: 'time_window',
+          severity: 'critical',
+          message: `${Math.round(almostHitRate)}% of expired trades got 75%+ of the way to target. Consider extending time windows.`,
+          data: { almostHitRate: Math.round(almostHitRate) }
+        });
+      } else if (almostHitRate >= 25) {
+        recommendations.push({
+          type: 'time_window',
+          severity: 'warning',
+          message: `${Math.round(almostHitRate)}% of expired trades almost hit target. Time windows may be slightly too tight.`,
+          data: { almostHitRate: Math.round(almostHitRate) }
+        });
+      }
+
+      // Check if day trades have worse outcomes than swing trades
+      const dayTrades = byHoldingPeriod.find(p => p && p.period === 'day');
+      const swingTrades = byHoldingPeriod.find(p => p && p.period === 'swing');
+      if (dayTrades && swingTrades && dayTrades.count >= 10 && swingTrades.count >= 10) {
+        if (dayTrades.almostHitTargetPercent > swingTrades.almostHitTargetPercent + 15) {
+          recommendations.push({
+            type: 'holding_period',
+            severity: 'warning',
+            message: `Day trades expire close to target (${dayTrades.almostHitTargetPercent}%) more often than swing trades (${swingTrades.almostHitTargetPercent}%). Consider swing timeframes for day trade setups.`,
+          });
+        }
+      }
+
+      // Check average needed movement
+      const avgNeededMore = Math.round(
+        tradeAnalyses.reduce((sum, t) => sum + t.neededMorePercent, 0) / totalExpired * 100
+      ) / 100;
+      if (avgNeededMore <= 2) {
+        recommendations.push({
+          type: 'target_setting',
+          severity: 'info',
+          message: `Average remaining distance to target was only ${avgNeededMore}%. Targets are well-calibrated but time windows need extension.`,
+        });
+      }
+
+      res.json({
+        summary: {
+          totalExpired,
+          almostHitTargetCount,
+          almostHitTargetPercent: Math.round((almostHitTargetCount / totalExpired) * 100),
+          veryCloseCount,
+          veryClosePercent: Math.round((veryCloseCount / totalExpired) * 100),
+          wouldHaveHitStopCount,
+          wouldHaveHitStopPercent: Math.round((wouldHaveHitStopCount / totalExpired) * 100),
+          avgProgressToTarget,
+          avgNeededMorePercent: avgNeededMore,
+        },
+        byHoldingPeriod,
+        byAssetType,
+        trades: tradeAnalyses.slice(0, 100), // Limit to 100 most recent
+        recommendations,
+        reliability: totalExpired >= 30 ? 'high' : totalExpired >= 10 ? 'medium' : 'low',
+      });
+    } catch (error) {
+      logger.error("Expiration analysis error:", error);
+      res.status(500).json({ error: "Failed to analyze expired trades" });
+    }
+  });
+
   // ========================================
   // SIGNAL ATTRIBUTION ANALYTICS ENDPOINTS
   // ========================================
