@@ -29,6 +29,8 @@ const LossPatternsDashboard = lazy(() => import("@/components/loss-patterns-dash
 const SignalAttributionDashboard = lazy(() => import("@/components/signal-attribution-dashboard"));
 const SymbolLeaderboard = lazy(() => import("@/components/symbol-leaderboard"));
 const TimeOfDayHeatmap = lazy(() => import("@/components/time-of-day-heatmap"));
+const RollingWinRateChart = lazy(() => import("@/components/rolling-win-rate-chart"));
+const DrawdownAnalysisChart = lazy(() => import("@/components/drawdown-analysis-chart"));
 
 function ChartSkeleton() {
   return (
@@ -618,6 +620,22 @@ export default function PerformancePage() {
                 </AccordionTrigger>
                 <AccordionContent className="px-4 pb-4">
                   <Suspense fallback={<ChartSkeleton />}><EngineActualPerformance /></Suspense>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="rolling-winrate" className="border rounded-lg">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
+                  Rolling Win Rate Trends
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <Suspense fallback={<ChartSkeleton />}><RollingWinRateChart /></Suspense>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="drawdown" className="border rounded-lg">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline text-sm">
+                  Drawdown Analysis
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <Suspense fallback={<ChartSkeleton />}><DrawdownAnalysisChart /></Suspense>
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="streaks" className="border rounded-lg">

@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { Activity, TrendingUp, TrendingDown, Award, AlertTriangle, Zap, Brain, BarChart3, Target } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Activity, TrendingUp, TrendingDown, Award, AlertTriangle, Zap, Brain, BarChart3, Target, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface EngineStats {
@@ -14,6 +15,15 @@ interface EngineStats {
   losses: number;
   winRate: number;
   avgGain: number;
+  avgWin: number;
+  avgLoss: number;
+  stdDev: number;
+  confidenceInterval: { lower: number; upper: number };
+  sampleSizeGrade: 'A' | 'B' | 'C' | 'D' | 'F';
+  profitFactor: number | string;
+  expectancy: number;
+  sharpeRatio: number;
+  isStatisticallySignificant: boolean;
 }
 
 interface EngineActualStatsData {
@@ -24,6 +34,8 @@ interface EngineActualStatsData {
     bestWinRate: number;
     worstEngine: string;
     worstWinRate: number;
+    overallSharpeRatio: number;
+    maxDrawdown: number;
     lastUpdated: string;
   };
 }
@@ -48,6 +60,24 @@ const getWinRateBg = (winRate: number) => {
   if (winRate >= 70) return "bg-green-500";
   if (winRate >= 50) return "bg-amber-500";
   return "bg-red-500";
+};
+
+const getGradeColor = (grade: string) => {
+  switch (grade) {
+    case 'A': return 'bg-green-500/20 text-green-500 border-green-500/30';
+    case 'B': return 'bg-cyan-500/20 text-cyan-500 border-cyan-500/30';
+    case 'C': return 'bg-amber-500/20 text-amber-500 border-amber-500/30';
+    case 'D': return 'bg-orange-500/20 text-orange-500 border-orange-500/30';
+    case 'F': return 'bg-red-500/20 text-red-500 border-red-500/30';
+    default: return 'bg-muted text-muted-foreground';
+  }
+};
+
+const getSharpeColor = (sharpe: number) => {
+  if (sharpe >= 1) return "text-green-500";
+  if (sharpe >= 0.5) return "text-cyan-500";
+  if (sharpe >= 0) return "text-amber-500";
+  return "text-red-500";
 };
 
 export default function EngineActualPerformance() {
@@ -93,10 +123,10 @@ export default function EngineActualPerformance() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Award className="h-5 w-5 text-primary" />
-              Actual Engine Performance
+              Engine Performance Analytics
             </CardTitle>
             <CardDescription>
-              Verified from {summary.totalResolvedTrades} resolved trades
+              Statistical analysis from {summary.totalResolvedTrades} resolved trades
             </CardDescription>
           </div>
           <Badge variant="outline" className="font-mono text-xs">
@@ -105,13 +135,30 @@ export default function EngineActualPerformance() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-          <TrendingUp className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-          <div className="text-sm text-emerald-600 dark:text-emerald-400">
-            <p className="font-medium">Best Performer: {summary.bestEngine}</p>
-            <p className="text-xs mt-1 text-emerald-500/80">
-              Win rate: <span className="font-mono font-semibold">{summary.bestWinRate}%</span>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+            <p className="text-xs text-muted-foreground">Best Engine</p>
+            <p className="font-semibold text-emerald-400">{summary.bestEngine}</p>
+            <p className="text-xs font-mono text-emerald-500">{summary.bestWinRate}% win rate</p>
+          </div>
+          <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+            <p className="text-xs text-muted-foreground">Sharpe Ratio</p>
+            <p className={cn("font-semibold font-mono", getSharpeColor(summary.overallSharpeRatio))}>
+              {summary.overallSharpeRatio}
             </p>
+            <p className="text-xs text-muted-foreground">
+              {summary.overallSharpeRatio >= 1 ? 'Excellent' : summary.overallSharpeRatio >= 0.5 ? 'Good' : 'Fair'}
+            </p>
+          </div>
+          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+            <p className="text-xs text-muted-foreground">Max Drawdown</p>
+            <p className="font-semibold font-mono text-red-400">-{summary.maxDrawdown}%</p>
+            <p className="text-xs text-muted-foreground">Largest peak-to-trough</p>
+          </div>
+          <div className="p-3 rounded-lg bg-muted/30 border">
+            <p className="text-xs text-muted-foreground">Total Trades</p>
+            <p className="font-semibold font-mono">{summary.totalResolvedTrades}</p>
+            <p className="text-xs text-muted-foreground">Resolved positions</p>
           </div>
         </div>
 
@@ -125,50 +172,128 @@ export default function EngineActualPerformance() {
               )}
               data-testid={`engine-stats-${engine.engine}`}
             >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
                   <div className={cn(
-                    "p-1.5 rounded-md",
+                    "p-2 rounded-md",
                     index === 0 ? "bg-green-500/20 text-green-500" : "bg-muted text-muted-foreground"
                   )}>
                     {getEngineIcon(engine.engine)}
                   </div>
                   <div>
-                    <p className="font-semibold">{engine.displayName}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold">{engine.displayName}</p>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Badge variant="outline" className={cn("text-[10px]", getGradeColor(engine.sampleSizeGrade))}>
+                              {engine.sampleSizeGrade}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs font-medium">Sample Size Grade: {engine.sampleSizeGrade}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {engine.totalTrades >= 100 ? 'Highly reliable (100+ trades)' :
+                               engine.totalTrades >= 50 ? 'Reliable (50+ trades)' :
+                               engine.totalTrades >= 30 ? 'Statistically significant (30+ trades)' :
+                               'Low sample size - interpret with caution'}
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      {!engine.isStatisticallySignificant && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <AlertTriangle className="h-3 w-3 text-amber-500" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p className="text-xs">Low sample size (n&lt;30)</p>
+                              <p className="text-xs text-muted-foreground">Results may not be statistically reliable</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {engine.totalTrades} trades ({engine.wins}W / {engine.losses}L)
                     </p>
                   </div>
                 </div>
+                
                 <div className="text-right">
-                  <p className={cn("text-2xl font-bold font-mono", getWinRateColor(engine.winRate))}>
-                    {engine.winRate}%
-                  </p>
-                  <p className={cn(
-                    "text-xs font-mono",
-                    engine.avgGain >= 0 ? "text-green-500" : "text-red-500"
-                  )}>
-                    Avg: {engine.avgGain >= 0 ? '+' : ''}{engine.avgGain}%
+                  <div className="flex items-baseline gap-1 justify-end">
+                    <p className={cn("text-2xl font-bold font-mono", getWinRateColor(engine.winRate))}>
+                      {engine.winRate}%
+                    </p>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-3 w-3 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs font-medium">95% Confidence Interval</p>
+                          <p className="text-xs font-mono">{engine.confidenceInterval.lower}% - {engine.confidenceInterval.upper}%</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-mono">
+                    CI: [{engine.confidenceInterval.lower}%, {engine.confidenceInterval.upper}%]
                   </p>
                 </div>
               </div>
-              <div className="mt-2">
+              
+              <div className="mt-3 grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+                <div className="p-2 rounded bg-muted/50">
+                  <p className="text-muted-foreground">Avg Win</p>
+                  <p className="font-mono text-green-500">+{engine.avgWin}%</p>
+                </div>
+                <div className="p-2 rounded bg-muted/50">
+                  <p className="text-muted-foreground">Avg Loss</p>
+                  <p className="font-mono text-red-500">-{engine.avgLoss}%</p>
+                </div>
+                <div className="p-2 rounded bg-muted/50">
+                  <p className="text-muted-foreground">Profit Factor</p>
+                  <p className={cn("font-mono", 
+                    typeof engine.profitFactor === 'number' && engine.profitFactor >= 1.5 ? "text-green-500" :
+                    typeof engine.profitFactor === 'number' && engine.profitFactor >= 1 ? "text-amber-500" : "text-red-500"
+                  )}>
+                    {engine.profitFactor}
+                  </p>
+                </div>
+                <div className="p-2 rounded bg-muted/50">
+                  <p className="text-muted-foreground">Expectancy</p>
+                  <p className={cn("font-mono", engine.expectancy >= 0 ? "text-green-500" : "text-red-500")}>
+                    {engine.expectancy >= 0 ? '+' : ''}{engine.expectancy}%
+                  </p>
+                </div>
+                <div className="p-2 rounded bg-muted/50">
+                  <p className="text-muted-foreground">Sharpe</p>
+                  <p className={cn("font-mono", getSharpeColor(engine.sharpeRatio))}>
+                    {engine.sharpeRatio}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="mt-3">
                 <Progress 
                   value={engine.winRate} 
-                  className={cn("h-2", getWinRateBg(engine.winRate))}
+                  className={cn("h-1.5", getWinRateBg(engine.winRate))}
                 />
               </div>
             </div>
           ))}
         </div>
 
-        {engines.some(e => e.winRate < 40) && (
+        {engines.some(e => !e.isStatisticallySignificant) && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
             <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
             <div className="text-sm text-amber-600 dark:text-amber-400">
-              <p className="font-medium">Low Performers Identified</p>
+              <p className="font-medium">Statistical Significance Warning</p>
               <p className="text-xs mt-1 text-amber-500/80">
-                Engines with &lt;40% win rate have been adjusted with confidence penalties.
+                Some engines have fewer than 30 trades. Results marked with grade D/F may not be statistically reliable.
+                A minimum of 30 samples is required for 95% confidence intervals to be meaningful.
               </p>
             </div>
           </div>
@@ -176,8 +301,9 @@ export default function EngineActualPerformance() {
 
         <div className="pt-2 border-t">
           <p className="text-xs text-muted-foreground">
-            Data source: All resolved trades with hit_target or hit_stop outcomes. 
-            Confidence scores are now adjusted based on these actual performance metrics.
+            <span className="font-medium">Methodology:</span> Win Rate uses hit_target/hit_stop outcomes. 
+            Sharpe Ratio = Avg Return / Std Dev. Profit Factor = Gross Wins / Gross Losses.
+            Expectancy = (Win% x Avg Win) - (Loss% x Avg Loss). 95% CI uses normal approximation.
           </p>
         </div>
       </CardContent>

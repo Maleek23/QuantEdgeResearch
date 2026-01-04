@@ -28,6 +28,9 @@ interface CalibrationCurveData {
     totalBuckets: number;
     calibrationQuality: string;
     status: 'WELL_CALIBRATED' | 'NEEDS_ADJUSTMENT' | 'POORLY_CALIBRATED';
+    brierScore?: number;
+    brierSkillScore?: number;
+    brierInterpretation?: string;
   };
 }
 
@@ -166,26 +169,48 @@ export default function CalibrationCurve() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="p-3 rounded-lg bg-muted/30 border">
-            <p className="text-xs text-muted-foreground">Calibrated Buckets</p>
-            <p className="text-xl font-bold font-mono">
+            <p className="text-xs text-muted-foreground">Calibrated</p>
+            <p className="text-lg font-bold font-mono">
               {summary.calibratedBuckets}/{summary.totalBuckets}
             </p>
           </div>
           <div className="p-3 rounded-lg bg-muted/30 border">
             <p className="text-xs text-muted-foreground">Avg Error</p>
             <p className={cn(
-              "text-xl font-bold font-mono",
+              "text-lg font-bold font-mono",
               summary.avgCalibrationError <= 15 ? "text-green-500" :
               summary.avgCalibrationError <= 25 ? "text-amber-500" : "text-red-500"
             )}>
               {summary.avgCalibrationError}%
             </p>
           </div>
+          <div className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+            <p className="text-xs text-muted-foreground">Brier Score</p>
+            <p className={cn(
+              "text-lg font-bold font-mono",
+              (summary.brierScore || 0) <= 0.15 ? "text-green-500" :
+              (summary.brierScore || 0) <= 0.20 ? "text-cyan-500" :
+              (summary.brierScore || 0) <= 0.25 ? "text-amber-500" : "text-red-500"
+            )}>
+              {summary.brierScore?.toFixed(3) || 'N/A'}
+            </p>
+            <p className="text-[10px] text-muted-foreground">{summary.brierInterpretation || ''}</p>
+          </div>
+          <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+            <p className="text-xs text-muted-foreground">Skill Score</p>
+            <p className={cn(
+              "text-lg font-bold font-mono",
+              (summary.brierSkillScore || 0) > 0 ? "text-green-500" : "text-red-500"
+            )}>
+              {summary.brierSkillScore !== undefined ? (summary.brierSkillScore > 0 ? '+' : '') + summary.brierSkillScore.toFixed(3) : 'N/A'}
+            </p>
+            <p className="text-[10px] text-muted-foreground">vs baseline</p>
+          </div>
           <div className="p-3 rounded-lg bg-muted/30 border">
-            <p className="text-xs text-muted-foreground">Total Trades</p>
-            <p className="text-xl font-bold font-mono">{summary.totalTrades}</p>
+            <p className="text-xs text-muted-foreground">Trades</p>
+            <p className="text-lg font-bold font-mono">{summary.totalTrades}</p>
           </div>
         </div>
 

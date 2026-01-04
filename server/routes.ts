@@ -4916,6 +4916,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? Math.round((calibratedBuckets / calibrationCurve.length) * 100) 
         : 0;
       
+      // Calculate Brier Score: Mean squared error between predicted probability and actual outcome
+      // Lower is better: 0 = perfect, 0.25 = random guessing, 0.5 = inverse predictions
+      let brierSum = 0;
+      let brierCount = 0;
+      resolvedIdeas.forEach(idea => {
+        const predictedProb = (idea.confidenceScore || 50) / 100; // Convert to 0-1
+        const actualOutcome = idea.outcomeStatus === 'hit_target' ? 1 : 0;
+        brierSum += Math.pow(predictedProb - actualOutcome, 2);
+        brierCount++;
+      });
+      const brierScore = brierCount > 0 ? Math.round((brierSum / brierCount) * 1000) / 1000 : 0;
+      
+      // Calculate Brier skill score (relative to baseline of just using overall win rate)
+      const baselineWinRate = resolvedIdeas.filter(i => i.outcomeStatus === 'hit_target').length / resolvedIdeas.length;
+      let baselineBrierSum = 0;
+      resolvedIdeas.forEach(idea => {
+        const actualOutcome = idea.outcomeStatus === 'hit_target' ? 1 : 0;
+        baselineBrierSum += Math.pow(baselineWinRate - actualOutcome, 2);
+      });
+      const baselineBrier = brierCount > 0 ? baselineBrierSum / brierCount : 0;
+      const brierSkillScore = baselineBrier > 0 ? Math.round((1 - brierScore / baselineBrier) * 1000) / 1000 : 0;
+      
       res.json({
         calibrationCurve,
         summary: {
@@ -4924,7 +4946,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           calibratedBuckets,
           totalBuckets: calibrationCurve.length,
           calibrationQuality: `${calibrationQuality}%`,
-          status: avgError <= 15 ? 'WELL_CALIBRATED' : avgError <= 25 ? 'NEEDS_ADJUSTMENT' : 'POORLY_CALIBRATED'
+          status: avgError <= 15 ? 'WELL_CALIBRATED' : avgError <= 25 ? 'NEEDS_ADJUSTMENT' : 'POORLY_CALIBRATED',
+          brierScore,
+          brierSkillScore,
+          brierInterpretation: brierScore <= 0.15 ? 'Excellent' : brierScore <= 0.20 ? 'Good' : brierScore <= 0.25 ? 'Fair' : 'Poor'
         }
       });
     } catch (error) {
@@ -4933,8 +4958,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 🎯 ACTUAL ENGINE PERFORMANCE - Verified from database
-  // This endpoint provides PROOF of engine win rates for display on performance page
+  // 🎯 ACTUAL ENGINE PERFORMANCE - Verified from database with statistical rigor
+  // Provides PROOF of engine win rates with confidence intervals, Sharpe ratios, and sample size grading
   app.get("/api/performance/engine-actual-stats", async (req, res) => {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
@@ -4944,7 +4969,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop'
       );
       
-      // Group by engine (source)
+      // Statistical helper functions
+      const calculateStdDev = (values: number[]): number => {
+        if (values.length < 2) return 0;
+        const mean = values.reduce((a, b) => a + b, 0) / values.length;
+        const squaredDiffs = values.map(v => Math.pow(v - mean, 2));
+        return Math.sqrt(squaredDiffs.reduce((a, b) => a + b, 0) / (values.length - 1));
+      };
+      
+      const calculateConfidenceInterval = (winRate: number, n: number, confidence: number = 0.95): { lower: number; upper: number } => {
+        if (n < 2) return { lower: 0, upper: 100 };
+        const z = confidence === 0.95 ? 1.96 : 2.576; // 95% or 99% CI
+        const p = winRate / 100;
+        const se = Math.sqrt((p * (1 - p)) / n);
+        return {
+          lower: Math.max(0, Math.round((p - z * se) * 1000) / 10),
+          upper: Math.min(100, Math.round((p + z * se) * 1000) / 10)
+        };
+      };
+      
+      const getSampleSizeGrade = (n: number): 'A' | 'B' | 'C' | 'D' | 'F' => {
+        if (n >= 100) return 'A';
+        if (n >= 50) return 'B';
+        if (n >= 30) return 'C';
+        if (n >= 10) return 'D';
+        return 'F';
+      };
+      
+      // Group by engine (source) with extended stats
       const engineStats = new Map<string, {
         engine: string;
         displayName: string;
@@ -4954,6 +5006,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         winRate: number;
         avgGain: number;
         totalGain: number;
+        gains: number[];
+        avgWin: number;
+        avgLoss: number;
+        winGains: number[];
+        lossGains: number[];
       }>();
       
       const engineDisplayNames: Record<string, string> = {
@@ -4967,7 +5024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'manual': 'Manual',
       };
       
-      // Outlier protection: clamp percent gains to ±50% to prevent data corruption from skewing averages
+      // Outlier protection: clamp percent gains to ±50%
       const OUTLIER_MIN = -50;
       const OUTLIER_MAX = 50;
       
@@ -4985,27 +5042,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
             winRate: 0,
             avgGain: 0,
             totalGain: 0,
+            gains: [],
+            avgWin: 0,
+            avgLoss: 0,
+            winGains: [],
+            lossGains: [],
           });
         }
         
         const stats = engineStats.get(normalizedEngine)!;
         stats.totalTrades++;
-        if (idea.outcomeStatus === 'hit_target') stats.wins++;
-        else stats.losses++;
-        // Clamp outliers to prevent corrupted data from skewing averages
         const clampedGain = Math.max(OUTLIER_MIN, Math.min(OUTLIER_MAX, idea.percentGain || 0));
+        stats.gains.push(clampedGain);
         stats.totalGain += clampedGain;
+        
+        if (idea.outcomeStatus === 'hit_target') {
+          stats.wins++;
+          stats.winGains.push(clampedGain);
+        } else {
+          stats.losses++;
+          stats.lossGains.push(clampedGain);
+        }
       });
       
-      // Calculate final stats
-      const engines = Array.from(engineStats.values()).map(stats => ({
-        ...stats,
-        winRate: stats.totalTrades > 0 ? Math.round((stats.wins / stats.totalTrades) * 1000) / 10 : 0,
-        avgGain: stats.totalTrades > 0 ? Math.round((stats.totalGain / stats.totalTrades) * 100) / 100 : 0,
-      }));
+      // Calculate final stats with statistical metrics
+      const engines = Array.from(engineStats.values()).map(stats => {
+        const winRate = stats.totalTrades > 0 ? (stats.wins / stats.totalTrades) * 100 : 0;
+        const avgGain = stats.totalTrades > 0 ? stats.totalGain / stats.totalTrades : 0;
+        const avgWin = stats.winGains.length > 0 ? stats.winGains.reduce((a, b) => a + b, 0) / stats.winGains.length : 0;
+        const avgLoss = stats.lossGains.length > 0 ? Math.abs(stats.lossGains.reduce((a, b) => a + b, 0) / stats.lossGains.length) : 0;
+        const stdDev = calculateStdDev(stats.gains);
+        const ci = calculateConfidenceInterval(winRate, stats.totalTrades);
+        
+        // Profit Factor = (wins * avgWin) / (losses * avgLoss)
+        const grossWins = stats.winGains.reduce((a, b) => a + b, 0);
+        const grossLosses = Math.abs(stats.lossGains.reduce((a, b) => a + b, 0));
+        const profitFactor = grossLosses > 0 ? Math.round((grossWins / grossLosses) * 100) / 100 : grossWins > 0 ? Infinity : 0;
+        
+        // Expectancy = (WinRate * AvgWin) - (LossRate * AvgLoss)
+        const expectancy = Math.round(((winRate / 100) * avgWin - ((100 - winRate) / 100) * avgLoss) * 100) / 100;
+        
+        // Sharpe Ratio (simplified) = avgGain / stdDev
+        const sharpeRatio = stdDev > 0 ? Math.round((avgGain / stdDev) * 100) / 100 : 0;
+        
+        return {
+          engine: stats.engine,
+          displayName: stats.displayName,
+          totalTrades: stats.totalTrades,
+          wins: stats.wins,
+          losses: stats.losses,
+          winRate: Math.round(winRate * 10) / 10,
+          avgGain: Math.round(avgGain * 100) / 100,
+          avgWin: Math.round(avgWin * 100) / 100,
+          avgLoss: Math.round(avgLoss * 100) / 100,
+          stdDev: Math.round(stdDev * 100) / 100,
+          confidenceInterval: ci,
+          sampleSizeGrade: getSampleSizeGrade(stats.totalTrades),
+          profitFactor: profitFactor === Infinity ? '∞' : profitFactor,
+          expectancy,
+          sharpeRatio,
+          isStatisticallySignificant: stats.totalTrades >= 30,
+        };
+      });
       
       // Sort by win rate descending
       engines.sort((a, b) => b.winRate - a.winRate);
+      
+      // Calculate overall portfolio metrics
+      const allGains = resolvedIdeas.map(i => Math.max(OUTLIER_MIN, Math.min(OUTLIER_MAX, i.percentGain || 0)));
+      const overallAvgGain = allGains.length > 0 ? allGains.reduce((a, b) => a + b, 0) / allGains.length : 0;
+      const overallStdDev = calculateStdDev(allGains);
+      const overallSharpe = overallStdDev > 0 ? Math.round((overallAvgGain / overallStdDev) * 100) / 100 : 0;
+      
+      // Calculate drawdown
+      let peak = 0;
+      let maxDrawdown = 0;
+      let cumulative = 0;
+      resolvedIdeas
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+        .forEach(idea => {
+          const gain = Math.max(OUTLIER_MIN, Math.min(OUTLIER_MAX, idea.percentGain || 0));
+          cumulative += gain;
+          if (cumulative > peak) peak = cumulative;
+          const drawdown = peak - cumulative;
+          if (drawdown > maxDrawdown) maxDrawdown = drawdown;
+        });
       
       res.json({
         engines,
@@ -5015,12 +5136,253 @@ export async function registerRoutes(app: Express): Promise<Server> {
           bestWinRate: engines[0]?.winRate || 0,
           worstEngine: engines[engines.length - 1]?.displayName || 'N/A',
           worstWinRate: engines[engines.length - 1]?.winRate || 0,
+          overallSharpeRatio: overallSharpe,
+          maxDrawdown: Math.round(maxDrawdown * 100) / 100,
           lastUpdated: new Date().toISOString(),
         }
       });
     } catch (error) {
       logger.error("Engine actual stats error:", error);
       res.status(500).json({ error: "Failed to fetch engine stats" });
+    }
+  });
+
+  // 📈 ROLLING WIN RATE - Performance trends over time
+  app.get("/api/performance/rolling-win-rate", async (req, res) => {
+    try {
+      const windowSize = parseInt(req.query.window as string) || 20;
+      const engine = req.query.engine as string | undefined;
+      
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Filter resolved trades
+      let resolvedIdeas = allIdeas.filter(idea => 
+        idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop'
+      );
+      
+      // Optional engine filter
+      if (engine) {
+        resolvedIdeas = resolvedIdeas.filter(idea => 
+          (idea.source || '').toLowerCase() === engine.toLowerCase()
+        );
+      }
+      
+      // Sort by timestamp ascending
+      resolvedIdeas.sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      
+      if (resolvedIdeas.length < windowSize) {
+        return res.json({
+          rollingData: [],
+          summary: {
+            totalTrades: resolvedIdeas.length,
+            windowSize,
+            insufficientData: true,
+            message: `Need at least ${windowSize} trades for rolling analysis`
+          }
+        });
+      }
+      
+      // Calculate rolling win rates
+      const rollingData: { 
+        tradeIndex: number; 
+        date: string;
+        winRate: number; 
+        cumulativeWinRate: number;
+        avgPnL: number;
+        wins: number;
+        losses: number;
+      }[] = [];
+      
+      let cumulativeWins = 0;
+      let cumulativeLosses = 0;
+      
+      for (let i = 0; i < resolvedIdeas.length; i++) {
+        const isWin = resolvedIdeas[i].outcomeStatus === 'hit_target';
+        if (isWin) cumulativeWins++;
+        else cumulativeLosses++;
+        
+        if (i >= windowSize - 1) {
+          // Calculate window stats
+          const windowStart = i - windowSize + 1;
+          const windowTrades = resolvedIdeas.slice(windowStart, i + 1);
+          const windowWins = windowTrades.filter(t => t.outcomeStatus === 'hit_target').length;
+          const windowLosses = windowSize - windowWins;
+          const windowWinRate = Math.round((windowWins / windowSize) * 1000) / 10;
+          const cumulativeWinRate = Math.round((cumulativeWins / (i + 1)) * 1000) / 10;
+          
+          // Calculate average P&L for window
+          const windowPnL = windowTrades.reduce((sum, t) => 
+            sum + Math.max(-50, Math.min(50, t.percentGain || 0)), 0
+          );
+          const avgPnL = Math.round((windowPnL / windowSize) * 100) / 100;
+          
+          rollingData.push({
+            tradeIndex: i + 1,
+            date: new Date(resolvedIdeas[i].timestamp).toISOString().split('T')[0],
+            winRate: windowWinRate,
+            cumulativeWinRate,
+            avgPnL,
+            wins: windowWins,
+            losses: windowLosses,
+          });
+        }
+      }
+      
+      // Calculate trend (last 20 vs first 20 datapoints)
+      let trend = 'stable';
+      if (rollingData.length >= 40) {
+        const firstAvg = rollingData.slice(0, 20).reduce((s, d) => s + d.winRate, 0) / 20;
+        const lastAvg = rollingData.slice(-20).reduce((s, d) => s + d.winRate, 0) / 20;
+        if (lastAvg - firstAvg > 5) trend = 'improving';
+        else if (firstAvg - lastAvg > 5) trend = 'declining';
+      }
+      
+      // Find peaks and troughs
+      const winRates = rollingData.map(d => d.winRate);
+      const maxWinRate = Math.max(...winRates);
+      const minWinRate = Math.min(...winRates);
+      const currentWinRate = winRates[winRates.length - 1] || 0;
+      
+      res.json({
+        rollingData,
+        summary: {
+          totalTrades: resolvedIdeas.length,
+          windowSize,
+          trend,
+          currentWinRate,
+          maxWinRate,
+          minWinRate,
+          volatility: Math.round((maxWinRate - minWinRate) * 10) / 10,
+        }
+      });
+    } catch (error) {
+      logger.error("Rolling win rate error:", error);
+      res.status(500).json({ error: "Failed to calculate rolling win rate" });
+    }
+  });
+
+  // 📉 DRAWDOWN ANALYSIS - Peak-to-trough metrics
+  app.get("/api/performance/drawdown-analysis", async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Filter resolved trades
+      const resolvedIdeas = allIdeas.filter(idea => 
+        idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop'
+      );
+      
+      // Sort by timestamp ascending
+      resolvedIdeas.sort((a, b) => 
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      
+      // Outlier protection
+      const OUTLIER_MIN = -50;
+      const OUTLIER_MAX = 50;
+      
+      // Calculate equity curve and drawdowns
+      const equityCurve: { 
+        tradeIndex: number;
+        date: string;
+        cumulative: number;
+        peak: number;
+        drawdown: number;
+        drawdownPercent: number;
+      }[] = [];
+      
+      let peak = 0;
+      let cumulative = 0;
+      let maxDrawdown = 0;
+      let maxDrawdownPercent = 0;
+      let maxDrawdownStart = 0;
+      let maxDrawdownEnd = 0;
+      let currentDrawdownStart = 0;
+      let inDrawdown = false;
+      
+      // Track all drawdown periods
+      const drawdownPeriods: {
+        start: number;
+        end: number;
+        depth: number;
+        recoveryTrades: number;
+      }[] = [];
+      
+      resolvedIdeas.forEach((idea, i) => {
+        const gain = Math.max(OUTLIER_MIN, Math.min(OUTLIER_MAX, idea.percentGain || 0));
+        cumulative += gain;
+        
+        if (cumulative > peak) {
+          // New peak - record recovery if we were in drawdown
+          if (inDrawdown && currentDrawdownStart > 0) {
+            drawdownPeriods.push({
+              start: currentDrawdownStart,
+              end: i,
+              depth: peak - Math.min(...equityCurve.slice(currentDrawdownStart, i + 1).map(e => e.cumulative)),
+              recoveryTrades: i - currentDrawdownStart
+            });
+          }
+          peak = cumulative;
+          inDrawdown = false;
+        } else if (cumulative < peak) {
+          if (!inDrawdown) {
+            currentDrawdownStart = i;
+            inDrawdown = true;
+          }
+        }
+        
+        const drawdown = peak - cumulative;
+        const drawdownPercent = peak > 0 ? (drawdown / peak) * 100 : 0;
+        
+        if (drawdown > maxDrawdown) {
+          maxDrawdown = drawdown;
+          maxDrawdownPercent = drawdownPercent;
+          maxDrawdownEnd = i;
+        }
+        
+        equityCurve.push({
+          tradeIndex: i + 1,
+          date: new Date(idea.timestamp).toISOString().split('T')[0],
+          cumulative: Math.round(cumulative * 100) / 100,
+          peak: Math.round(peak * 100) / 100,
+          drawdown: Math.round(drawdown * 100) / 100,
+          drawdownPercent: Math.round(drawdownPercent * 10) / 10,
+        });
+      });
+      
+      // Current drawdown
+      const currentDrawdown = equityCurve.length > 0 ? equityCurve[equityCurve.length - 1].drawdown : 0;
+      const currentDrawdownPercent = equityCurve.length > 0 ? equityCurve[equityCurve.length - 1].drawdownPercent : 0;
+      
+      // Average recovery time
+      const avgRecoveryTrades = drawdownPeriods.length > 0 
+        ? Math.round(drawdownPeriods.reduce((s, d) => s + d.recoveryTrades, 0) / drawdownPeriods.length)
+        : 0;
+      
+      // Calmar ratio (return / max drawdown)
+      const totalReturn = equityCurve.length > 0 ? equityCurve[equityCurve.length - 1].cumulative : 0;
+      const calmarRatio = maxDrawdown > 0 ? Math.round((totalReturn / maxDrawdown) * 100) / 100 : 0;
+      
+      res.json({
+        equityCurve,
+        drawdownPeriods: drawdownPeriods.slice(-10), // Last 10 drawdown periods
+        summary: {
+          totalTrades: resolvedIdeas.length,
+          totalReturn: Math.round(totalReturn * 100) / 100,
+          maxDrawdown: Math.round(maxDrawdown * 100) / 100,
+          maxDrawdownPercent: Math.round(maxDrawdownPercent * 10) / 10,
+          currentDrawdown: Math.round(currentDrawdown * 100) / 100,
+          currentDrawdownPercent: Math.round(currentDrawdownPercent * 10) / 10,
+          isInDrawdown: currentDrawdown > 0,
+          totalDrawdownPeriods: drawdownPeriods.length,
+          avgRecoveryTrades,
+          calmarRatio,
+        }
+      });
+    } catch (error) {
+      logger.error("Drawdown analysis error:", error);
+      res.status(500).json({ error: "Failed to calculate drawdown analysis" });
     }
   });
 
