@@ -61,6 +61,7 @@ import {
 import { getRealtimeQuote, getRealtimeBatchQuotes, type RealtimeQuote, type AssetType as RTAssetType } from './realtime-pricing-service';
 import { getRealtimeStatus, getAllCryptoPrices, getAllFuturesPrices } from './realtime-price-service';
 import { creditService } from './creditService';
+import { generateInviteToken, sendBetaInviteEmail, sendWelcomeEmail, isEmailServiceConfigured } from './emailService';
 import { 
   getCalibratedConfidence as getCalibrationScore, 
   generateAdaptiveExitStrategy, 
@@ -500,10 +501,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Validate invite code for invite-only beta
-      const validInviteCode = process.env.ADMIN_ACCESS_CODE || "0065";
-      if (!inviteCode || inviteCode !== validInviteCode) {
-        return res.status(403).json({ error: "Invalid invite code. This is an invite-only beta." });
+      // First try unique invite token from database
+      let validatedInvite = null;
+      if (inviteCode) {
+        validatedInvite = await storage.redeemBetaInvite(inviteCode);
+        
+        // Fallback to admin access code for direct admin access
+        if (!validatedInvite) {
+          const adminCode = process.env.ADMIN_ACCESS_CODE || "0065";
+          if (inviteCode !== adminCode) {
+            return res.status(403).json({ error: "Invalid or expired invite code. Please check your invite email." });
+          }
+        }
+      } else {
+        return res.status(403).json({ error: "Invite code is required. This is an invite-only beta." });
       }
+      
+      // Determine subscription tier (use invite's tier override if available)
+      const tierOverride = validatedInvite?.tierOverride || 'free';
       
       const user = await createUser(email, password, firstName, lastName);
       
@@ -511,10 +526,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ error: "An account with this email already exists" });
       }
       
+      // Update user tier if invite had a tier override
+      if (validatedInvite?.tierOverride) {
+        await storage.updateUser(user.id, { subscriptionTier: validatedInvite.tierOverride });
+      }
+      
+      // Update waitlist entry status if exists
+      const waitlistEntry = await storage.getWaitlistEntry(email.toLowerCase());
+      if (waitlistEntry) {
+        await storage.updateWaitlistStatus(waitlistEntry.id, 'joined');
+      }
+      
       // Store userId in session
       (req.session as any).userId = user.id;
       
-      logger.info('User signed up', { userId: user.id, email });
+      logger.info('User signed up via invite', { 
+        userId: user.id, 
+        email,
+        inviteToken: validatedInvite ? 'token' : 'admin_code',
+        tierOverride 
+      });
       res.json({ user });
     } catch (error) {
       logError(error as Error, { context: 'auth/signup' });
@@ -1528,6 +1559,259 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Database health check failed",
         message: error instanceof Error ? error.message : String(error)
       });
+    }
+  });
+
+  // ========== BETA WAITLIST & INVITE MANAGEMENT ==========
+
+  // Get all waitlist entries
+  app.get("/api/admin/waitlist", requireAdminJWT, async (_req, res) => {
+    try {
+      const entries = await storage.getAllWaitlistEntries();
+      const count = await storage.getWaitlistCount();
+      res.json({ entries, count });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch waitlist" });
+    }
+  });
+
+  // Get all beta invites
+  app.get("/api/admin/invites", requireAdminJWT, async (_req, res) => {
+    try {
+      const invites = await storage.getAllBetaInvites();
+      res.json({ invites });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch invites" });
+    }
+  });
+
+  // Check email service status
+  app.get("/api/admin/email-status", requireAdminJWT, (_req, res) => {
+    res.json({
+      configured: isEmailServiceConfigured(),
+      provider: 'resend',
+      fromEmail: process.env.FROM_EMAIL || 'onboarding@quantedgelabs.com',
+    });
+  });
+
+  // Create and send invite to waitlist entry
+  app.post("/api/admin/waitlist/:id/invite", requireAdminJWT, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { tierOverride, personalMessage } = req.body;
+
+      // Get waitlist entry
+      const entries = await storage.getAllWaitlistEntries();
+      const entry = entries.find(e => e.id === id);
+      if (!entry) {
+        return res.status(404).json({ error: "Waitlist entry not found" });
+      }
+
+      // Check if already invited
+      const existingInvite = await storage.getBetaInviteByEmail(entry.email);
+      if (existingInvite && existingInvite.status !== 'expired' && existingInvite.status !== 'revoked') {
+        return res.status(400).json({ error: "Invite already sent to this email" });
+      }
+
+      // Generate unique invite token
+      const token = generateInviteToken();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7); // 7 day expiry
+
+      // Create invite record
+      const invite = await storage.createBetaInvite({
+        email: entry.email,
+        token,
+        tierOverride: tierOverride || undefined,
+        notes: personalMessage || undefined,
+        expiresAt,
+      });
+
+      // Send email
+      const emailResult = await sendBetaInviteEmail(entry.email, token, {
+        tierOverride,
+        personalMessage,
+      });
+
+      if (emailResult.success) {
+        await storage.markBetaInviteSent(invite.id);
+        await storage.updateWaitlistStatus(id, 'invited', invite.id);
+        logger.info('Beta invite sent', { email: entry.email, inviteId: invite.id });
+        res.json({ success: true, invite });
+      } else {
+        res.status(500).json({ error: emailResult.error || "Failed to send invite email" });
+      }
+    } catch (error) {
+      logError(error as Error, { context: 'admin/send-invite' });
+      res.status(500).json({ error: "Failed to send invite" });
+    }
+  });
+
+  // Create invite for any email (not just waitlist)
+  app.post("/api/admin/invites", requireAdminJWT, async (req, res) => {
+    try {
+      const { email, tierOverride, personalMessage, sendEmail } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      // Check if already has active invite
+      const existingInvite = await storage.getBetaInviteByEmail(email);
+      if (existingInvite && existingInvite.status !== 'expired' && existingInvite.status !== 'revoked') {
+        return res.status(400).json({ error: "Active invite already exists for this email" });
+      }
+
+      // Generate unique invite token
+      const token = generateInviteToken();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      // Create invite record
+      const invite = await storage.createBetaInvite({
+        email,
+        token,
+        tierOverride: tierOverride || undefined,
+        notes: personalMessage || undefined,
+        expiresAt,
+      });
+
+      // Optionally send email
+      if (sendEmail !== false) {
+        const emailResult = await sendBetaInviteEmail(email, token, {
+          tierOverride,
+          personalMessage,
+        });
+
+        if (emailResult.success) {
+          await storage.markBetaInviteSent(invite.id);
+          logger.info('Beta invite created and sent', { email, inviteId: invite.id });
+        } else {
+          logger.warn('Invite created but email failed', { email, error: emailResult.error });
+        }
+      }
+
+      // Update waitlist if entry exists
+      const waitlistEntry = await storage.getWaitlistEntry(email);
+      if (waitlistEntry) {
+        await storage.updateWaitlistStatus(waitlistEntry.id, 'invited', invite.id);
+      }
+
+      res.json({ success: true, invite, token });
+    } catch (error) {
+      logError(error as Error, { context: 'admin/create-invite' });
+      res.status(500).json({ error: "Failed to create invite" });
+    }
+  });
+
+  // Revoke an invite
+  app.post("/api/admin/invites/:id/revoke", requireAdminJWT, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.updateBetaInviteStatus(id, 'revoked');
+      logger.info('Beta invite revoked', { inviteId: id });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to revoke invite" });
+    }
+  });
+
+  // Resend invite email
+  app.post("/api/admin/invites/:id/resend", requireAdminJWT, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const invites = await storage.getAllBetaInvites();
+      const invite = invites.find(i => i.id === id);
+
+      if (!invite) {
+        return res.status(404).json({ error: "Invite not found" });
+      }
+
+      if (invite.status === 'redeemed') {
+        return res.status(400).json({ error: "Invite already redeemed" });
+      }
+
+      if (invite.status === 'revoked') {
+        return res.status(400).json({ error: "Invite was revoked" });
+      }
+
+      const emailResult = await sendBetaInviteEmail(invite.email, invite.token, {
+        tierOverride: invite.tierOverride || undefined,
+      });
+
+      if (emailResult.success) {
+        await storage.markBetaInviteSent(invite.id);
+        logger.info('Beta invite resent', { email: invite.email, inviteId: invite.id });
+        res.json({ success: true });
+      } else {
+        res.status(500).json({ error: emailResult.error || "Failed to resend email" });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to resend invite" });
+    }
+  });
+
+  // Bulk approve and invite waitlist entries
+  app.post("/api/admin/waitlist/bulk-invite", requireAdminJWT, async (req, res) => {
+    try {
+      const { ids, tierOverride } = req.body;
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "IDs array is required" });
+      }
+
+      const results = { sent: 0, failed: 0, errors: [] as string[] };
+      const entries = await storage.getAllWaitlistEntries();
+
+      for (const id of ids) {
+        const entry = entries.find(e => e.id === id);
+        if (!entry) continue;
+
+        const token = generateInviteToken();
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+
+        const invite = await storage.createBetaInvite({
+          email: entry.email,
+          token,
+          tierOverride: tierOverride || undefined,
+          expiresAt,
+        });
+
+        const emailResult = await sendBetaInviteEmail(entry.email, token, { tierOverride });
+
+        if (emailResult.success) {
+          await storage.markBetaInviteSent(invite.id);
+          await storage.updateWaitlistStatus(id, 'invited', invite.id);
+          results.sent++;
+        } else {
+          results.failed++;
+          results.errors.push(`${entry.email}: ${emailResult.error}`);
+        }
+      }
+
+      logger.info('Bulk invites processed', results);
+      res.json(results);
+    } catch (error) {
+      logError(error as Error, { context: 'admin/bulk-invite' });
+      res.status(500).json({ error: "Failed to process bulk invites" });
+    }
+  });
+
+  // Update waitlist status manually
+  app.patch("/api/admin/waitlist/:id", requireAdminJWT, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      if (!['pending', 'approved', 'invited', 'joined', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+
+      await storage.updateWaitlistStatus(id, status);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update waitlist status" });
     }
   });
 
