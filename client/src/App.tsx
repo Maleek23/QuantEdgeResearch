@@ -28,6 +28,7 @@ const SettingsPage = lazy(() => import("@/pages/settings"));
 const AdminPanel = lazy(() => import("@/pages/admin"));
 const AdminReports = lazy(() => import("@/pages/admin-reports"));
 const AdminSecurity = lazy(() => import("@/pages/admin-security"));
+const AdminWinLoss = lazy(() => import("@/pages/admin-win-loss"));
 const About = lazy(() => import("@/pages/about"));
 const PrivacyPolicy = lazy(() => import("@/pages/privacy-policy"));
 const TermsOfService = lazy(() => import("@/pages/terms-of-service"));
@@ -132,6 +133,7 @@ function Router() {
       <Route path="/admin" component={AdminPanel} />
       <Route path="/admin/reports" component={AdminReports} />
       <Route path="/admin/security" component={AdminSecurity} />
+      <Route path="/admin/win-loss" component={AdminWinLoss} />
       <Route path="/about" component={About} />
       
       {/* Legal Pages */}

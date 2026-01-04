@@ -5534,6 +5534,327 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================
+  // WIN/LOSS ANALYSIS - INSTITUTIONAL GRADE
+  // Stop-Loss Threshold Simulator & Model Training
+  // ========================================
+
+  // Helper: Wilson Score CI for win rates
+  function wilsonScoreCI(wins: number, total: number, z: number = 1.96) {
+    if (total === 0) return { center: 0, lower: 0, upper: 0 };
+    const p = wins / total;
+    const denominator = 1 + (z * z) / total;
+    const center = (p + (z * z) / (2 * total)) / denominator;
+    const margin = (z * Math.sqrt((p * (1 - p)) / total + (z * z) / (4 * total * total))) / denominator;
+    return {
+      center: Math.round(center * 1000) / 10,
+      lower: Math.round(Math.max(0, center - margin) * 1000) / 10,
+      upper: Math.round(Math.min(1, center + margin) * 1000) / 10,
+    };
+  }
+
+  // Get comprehensive Win/Loss analysis summary
+  app.get("/api/admin/win-loss/summary", requireAdminJWT, async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const resolvedTrades = allIdeas.filter(t => 
+        t.outcomeStatus && ['hit_target', 'hit_stop', 'expired', 'manual_exit'].includes(t.outcomeStatus) &&
+        t.percentGain !== null && t.percentGain !== undefined
+      );
+
+      if (resolvedTrades.length === 0) {
+        return res.json({
+          totalTrades: 0,
+          wins: 0,
+          losses: 0,
+          breakeven: 0,
+          message: "No resolved trades available for analysis"
+        });
+      }
+
+      // Categorize trades - using 3% threshold for real losses (matches unified methodology)
+      const LOSS_THRESHOLD = -3;
+      const wins = resolvedTrades.filter(t => t.outcomeStatus === 'hit_target');
+      const realLosses = resolvedTrades.filter(t => 
+        t.outcomeStatus === 'hit_stop' && (t.percentGain ?? 0) <= LOSS_THRESHOLD
+      );
+      const breakeven = resolvedTrades.filter(t => 
+        t.outcomeStatus === 'hit_stop' && (t.percentGain ?? 0) > LOSS_THRESHOLD
+      );
+      const expired = resolvedTrades.filter(t => t.outcomeStatus === 'expired');
+
+      // Calculate statistics
+      const winGains = wins.map(t => t.percentGain ?? 0);
+      const lossGains = realLosses.map(t => t.percentGain ?? 0);
+      
+      const avgWin = winGains.length > 0 ? winGains.reduce((a, b) => a + b, 0) / winGains.length : 0;
+      const avgLoss = lossGains.length > 0 ? lossGains.reduce((a, b) => a + b, 0) / lossGains.length : 0;
+      const maxWin = winGains.length > 0 ? Math.max(...winGains) : 0;
+      const maxLoss = lossGains.length > 0 ? Math.min(...lossGains) : 0;
+
+      // Profit factor = gross profits / gross losses
+      const grossProfit = winGains.reduce((a, b) => a + b, 0);
+      const grossLoss = Math.abs(lossGains.reduce((a, b) => a + b, 0));
+      const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+
+      // Expectancy = (Win% * AvgWin) + (Loss% * AvgLoss)
+      const decidedTrades = wins.length + realLosses.length;
+      const winRate = decidedTrades > 0 ? (wins.length / decidedTrades) * 100 : 0;
+      const lossRate = decidedTrades > 0 ? (realLosses.length / decidedTrades) * 100 : 0;
+      const expectancy = (winRate / 100 * avgWin) + (lossRate / 100 * avgLoss);
+
+      // Wilson Score CI for win rate
+      const wilsonCI = wilsonScoreCI(wins.length, decidedTrades);
+
+      // Distribution of gains/losses (histogram buckets)
+      const gainBuckets = [-20, -15, -10, -5, -3, 0, 3, 5, 10, 15, 20, 30, 50];
+      const distribution = gainBuckets.map((bucket, i) => {
+        const nextBucket = gainBuckets[i + 1] ?? Infinity;
+        const tradesInBucket = resolvedTrades.filter(t => {
+          const gain = t.percentGain ?? 0;
+          return gain >= bucket && gain < nextBucket;
+        });
+        return {
+          range: nextBucket === Infinity ? `${bucket}%+` : `${bucket}% to ${nextBucket}%`,
+          count: tradesInBucket.length,
+          wins: tradesInBucket.filter(t => t.outcomeStatus === 'hit_target').length,
+          losses: tradesInBucket.filter(t => t.outcomeStatus === 'hit_stop').length,
+        };
+      });
+
+      // Loss patterns from existing loss analysis
+      const lossPatterns = await storage.getLossPatterns();
+
+      // By asset type breakdown
+      const byAssetType = ['stock', 'option', 'crypto', 'futures'].map(assetType => {
+        const trades = resolvedTrades.filter(t => (t.assetType || 'stock') === assetType);
+        const assetWins = trades.filter(t => t.outcomeStatus === 'hit_target');
+        const assetLosses = trades.filter(t => 
+          t.outcomeStatus === 'hit_stop' && (t.percentGain ?? 0) <= LOSS_THRESHOLD
+        );
+        const assetDecided = assetWins.length + assetLosses.length;
+        return {
+          assetType,
+          totalTrades: trades.length,
+          wins: assetWins.length,
+          losses: assetLosses.length,
+          winRate: assetDecided > 0 ? Math.round((assetWins.length / assetDecided) * 1000) / 10 : 0,
+          avgGain: trades.length > 0 
+            ? Math.round((trades.reduce((a, t) => a + (t.percentGain ?? 0), 0) / trades.length) * 100) / 100 
+            : 0,
+        };
+      }).filter(a => a.totalTrades > 0);
+
+      // By source/engine breakdown
+      const sources = [...new Set(resolvedTrades.map(t => t.source || 'unknown'))];
+      const bySource = sources.map(source => {
+        const trades = resolvedTrades.filter(t => (t.source || 'unknown') === source);
+        const srcWins = trades.filter(t => t.outcomeStatus === 'hit_target');
+        const srcLosses = trades.filter(t => 
+          t.outcomeStatus === 'hit_stop' && (t.percentGain ?? 0) <= LOSS_THRESHOLD
+        );
+        const srcDecided = srcWins.length + srcLosses.length;
+        return {
+          source,
+          totalTrades: trades.length,
+          wins: srcWins.length,
+          losses: srcLosses.length,
+          winRate: srcDecided > 0 ? Math.round((srcWins.length / srcDecided) * 1000) / 10 : 0,
+          avgGain: trades.length > 0 
+            ? Math.round((trades.reduce((a, t) => a + (t.percentGain ?? 0), 0) / trades.length) * 100) / 100 
+            : 0,
+        };
+      }).filter(s => s.totalTrades > 0);
+
+      res.json({
+        totalTrades: resolvedTrades.length,
+        decidedTrades,
+        wins: wins.length,
+        losses: realLosses.length,
+        breakeven: breakeven.length,
+        expired: expired.length,
+        winRate: Math.round(winRate * 10) / 10,
+        winRateCI: wilsonCI,
+        avgWinPercent: Math.round(avgWin * 100) / 100,
+        avgLossPercent: Math.round(avgLoss * 100) / 100,
+        maxWinPercent: Math.round(maxWin * 100) / 100,
+        maxLossPercent: Math.round(maxLoss * 100) / 100,
+        profitFactor: profitFactor === Infinity ? 'Infinite' : Math.round(profitFactor * 100) / 100,
+        expectancy: Math.round(expectancy * 100) / 100,
+        payoffRatio: avgLoss !== 0 ? Math.round((avgWin / Math.abs(avgLoss)) * 100) / 100 : 0,
+        distribution,
+        lossPatterns: lossPatterns.slice(0, 10),
+        byAssetType,
+        bySource,
+        sampleReliability: decidedTrades >= 100 ? 'high' : decidedTrades >= 30 ? 'medium' : 'low',
+      });
+    } catch (error) {
+      logger.error("Win/Loss summary error:", error);
+      res.status(500).json({ error: "Failed to calculate win/loss summary" });
+    }
+  });
+
+  // Stop-loss threshold simulation - shows win rate at different stop levels
+  app.get("/api/admin/win-loss/stop-loss-sim", requireAdminJWT, async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const resolvedTrades = allIdeas.filter(t => 
+        t.outcomeStatus && ['hit_target', 'hit_stop'].includes(t.outcomeStatus) &&
+        t.percentGain !== null && t.percentGain !== undefined
+      );
+
+      if (resolvedTrades.length < 10) {
+        return res.json({
+          simulations: [],
+          optimalThreshold: null,
+          message: "Insufficient trades for simulation (minimum 10 required)"
+        });
+      }
+
+      // Simulate different stop-loss thresholds from 0% to 20%
+      const thresholds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20];
+      const simulations = thresholds.map(threshold => {
+        // At this threshold, trades with loss <= -threshold are counted as losses
+        const wins = resolvedTrades.filter(t => t.outcomeStatus === 'hit_target');
+        const tradeLosses = resolvedTrades.filter(t => 
+          t.outcomeStatus === 'hit_stop' && (t.percentGain ?? 0) <= -threshold
+        );
+        const breakeven = resolvedTrades.filter(t => 
+          t.outcomeStatus === 'hit_stop' && (t.percentGain ?? 0) > -threshold
+        );
+
+        const decidedTrades = wins.length + tradeLosses.length;
+        const winRate = decidedTrades > 0 ? (wins.length / decidedTrades) * 100 : 0;
+
+        // Calculate expectancy at this threshold
+        const avgWin = wins.length > 0 
+          ? wins.reduce((a, t) => a + (t.percentGain ?? 0), 0) / wins.length 
+          : 0;
+        const avgLoss = tradeLosses.length > 0 
+          ? tradeLosses.reduce((a, t) => a + (t.percentGain ?? 0), 0) / tradeLosses.length 
+          : 0;
+        const expectancy = (winRate / 100 * avgWin) + ((100 - winRate) / 100 * avgLoss);
+
+        // Wilson CI
+        const wilsonCI = wilsonScoreCI(wins.length, decidedTrades);
+
+        return {
+          thresholdPercent: threshold,
+          wins: wins.length,
+          losses: tradeLosses.length,
+          breakeven: breakeven.length,
+          decidedTrades,
+          winRate: Math.round(winRate * 10) / 10,
+          winRateLower: wilsonCI.lower,
+          winRateUpper: wilsonCI.upper,
+          avgWin: Math.round(avgWin * 100) / 100,
+          avgLoss: Math.round(avgLoss * 100) / 100,
+          expectancy: Math.round(expectancy * 100) / 100,
+          profitFactor: avgLoss !== 0 
+            ? Math.round((avgWin / Math.abs(avgLoss)) * 100) / 100 
+            : avgWin > 0 ? Infinity : 0,
+        };
+      });
+
+      // Find optimal threshold (max expectancy with sufficient sample)
+      const validSims = simulations.filter(s => s.decidedTrades >= 30);
+      const optimalSim = validSims.length > 0 
+        ? validSims.reduce((best, s) => s.expectancy > best.expectancy ? s : best, validSims[0])
+        : null;
+
+      res.json({
+        simulations,
+        optimalThreshold: optimalSim ? {
+          thresholdPercent: optimalSim.thresholdPercent,
+          expectedWinRate: optimalSim.winRate,
+          expectancy: optimalSim.expectancy,
+          profitFactor: optimalSim.profitFactor,
+          rationale: `At ${optimalSim.thresholdPercent}% stop-loss threshold, expected win rate is ${optimalSim.winRate}% with ${optimalSim.expectancy}% expectancy per trade.`,
+        } : null,
+        totalTrades: resolvedTrades.length,
+        sampleReliability: resolvedTrades.length >= 100 ? 'high' : resolvedTrades.length >= 30 ? 'medium' : 'low',
+      });
+    } catch (error) {
+      logger.error("Stop-loss simulation error:", error);
+      res.status(500).json({ error: "Failed to run stop-loss simulation" });
+    }
+  });
+
+  // Export ML training data for model improvement
+  app.get("/api/admin/win-loss/export", requireAdminJWT, async (req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const resolvedTrades = allIdeas.filter(t => 
+        t.outcomeStatus && ['hit_target', 'hit_stop'].includes(t.outcomeStatus) &&
+        t.percentGain !== null && t.percentGain !== undefined
+      );
+
+      // Extract features for ML training
+      const trainingData = resolvedTrades.map(trade => ({
+        // Target variable
+        outcome: trade.outcomeStatus === 'hit_target' ? 1 : 0,
+        percentGain: trade.percentGain,
+        
+        // Trade setup features
+        symbol: trade.symbol,
+        assetType: trade.assetType || 'stock',
+        source: trade.source || 'unknown',
+        direction: trade.direction || 'long',
+        confidenceScore: trade.confidenceScore ?? 0,
+        
+        // Technical indicators (if available)
+        rsiValue: trade.rsiValue ?? null,
+        macdHistogram: trade.macdHistogram ?? null,
+        volumeRatio: trade.volumeRatio ?? null,
+        priceVs52WeekHigh: trade.priceVs52WeekHigh ?? null,
+        priceVs52WeekLow: trade.priceVs52WeekLow ?? null,
+        
+        // Risk parameters
+        stopLossPercent: trade.entryPrice && trade.stopLoss 
+          ? Math.round(((trade.stopLoss - trade.entryPrice) / trade.entryPrice) * 10000) / 100 
+          : null,
+        targetPercent: trade.entryPrice && trade.targetPrice 
+          ? Math.round(((trade.targetPrice - trade.entryPrice) / trade.entryPrice) * 10000) / 100 
+          : null,
+        riskRewardRatio: trade.riskRewardRatio ?? null,
+        
+        // Timing features
+        holdingTimeMinutes: trade.actualHoldingTimeMinutes ?? null,
+        timestamp: trade.timestamp,
+        dayOfWeek: trade.timestamp ? new Date(trade.timestamp).getDay() : null,
+        hourOfDay: trade.timestamp ? new Date(trade.timestamp).getHours() : null,
+        
+        // Catalyst/context
+        hasCatalyst: !!trade.catalyst,
+        hasLiquidityWarning: !!trade.liquidityWarning,
+        
+        // Labels for different stop-loss thresholds (for model training)
+        wouldLoseAt3Pct: trade.outcomeStatus === 'hit_stop' && (trade.percentGain ?? 0) <= -3,
+        wouldLoseAt5Pct: trade.outcomeStatus === 'hit_stop' && (trade.percentGain ?? 0) <= -5,
+        wouldLoseAt10Pct: trade.outcomeStatus === 'hit_stop' && (trade.percentGain ?? 0) <= -10,
+      }));
+
+      res.json({
+        data: trainingData,
+        metadata: {
+          totalRecords: trainingData.length,
+          wins: trainingData.filter(t => t.outcome === 1).length,
+          losses: trainingData.filter(t => t.outcome === 0).length,
+          features: [
+            'confidenceScore', 'rsiValue', 'macdHistogram', 'volumeRatio',
+            'stopLossPercent', 'targetPercent', 'riskRewardRatio',
+            'holdingTimeMinutes', 'dayOfWeek', 'hourOfDay'
+          ],
+          targetVariable: 'outcome',
+          exportedAt: new Date().toISOString(),
+        }
+      });
+    } catch (error) {
+      logger.error("ML export error:", error);
+      res.status(500).json({ error: "Failed to export training data" });
+    }
+  });
+
+  // ========================================
   // SIGNAL ATTRIBUTION ANALYTICS ENDPOINTS
   // ========================================
 
