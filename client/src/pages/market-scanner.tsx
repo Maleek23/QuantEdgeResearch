@@ -282,7 +282,7 @@ function getPolarityColor(polarity: string) {
 
 function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
   const [showDetails, setShowDetails] = useState(false);
-  const [outlookYear, setOutlookYear] = useState(new Date().getFullYear());
+  const [outlookYear, setOutlookYear] = useState<number | '2028+'>(2026);
 
   const catalystQuery = useQuery<CatalystData>({
     queryKey: ['/api/market-scanner/catalyst', symbol],
@@ -469,7 +469,7 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
             <span className="text-sm font-medium">Multi-Year Outlook</span>
           </div>
           <div className="flex gap-1">
-            {[2025, 2026, 2027].map(year => (
+            {([2026, 2027, '2028+'] as const).map(year => (
               <Button
                 key={year}
                 variant={outlookYear === year ? "secondary" : "ghost"}
@@ -491,22 +491,35 @@ function CatalystIntelligencePanel({ symbol }: { symbol: string }) {
         ) : outlookQuery.data?.yearsOfData && outlookQuery.data.yearsOfData > 0 ? (
           <div className="space-y-2">
             {Object.entries(outlookQuery.data.yearlyStats)
-              .filter(([year]) => parseInt(year) <= outlookYear)
+              .filter(([year]) => {
+                const y = parseInt(year);
+                if (outlookYear === '2028+') return y >= 2028 || y <= 2027;
+                return y <= outlookYear;
+              })
               .slice(-3)
-              .map(([year, stats]) => (
-                <div key={year} className="flex items-center justify-between text-xs p-2 bg-muted/30 rounded">
-                  <span className="font-mono font-medium">{year}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-muted-foreground">{stats.trades} trades</span>
-                    <span className="text-green-400">{stats.trades > 0 ? ((stats.wins / stats.trades) * 100).toFixed(0) : 0}% win</span>
-                    <span className={`font-mono ${stats.avgGain >= 0 ? 'text-cyan-400' : 'text-red-400'}`}>
-                      {stats.avgGain >= 0 ? '+' : ''}{stats.avgGain.toFixed(1)}%
-                    </span>
+              .map(([year, stats]) => {
+                const avgGainNum = typeof stats.avgGain === 'number' ? stats.avgGain : parseFloat(String(stats.avgGain)) || 0;
+                return (
+                  <div key={year} className="flex items-center justify-between text-xs p-2 bg-muted/30 rounded">
+                    <span className="font-mono font-medium">{year}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-muted-foreground">{stats.trades} trades</span>
+                      <span className="text-green-400">{stats.trades > 0 ? ((stats.wins / stats.trades) * 100).toFixed(0) : 0}% win</span>
+                      <span className={`font-mono ${avgGainNum >= 0 ? 'text-cyan-400' : 'text-red-400'}`}>
+                        {avgGainNum >= 0 ? '+' : ''}{avgGainNum.toFixed(1)}%
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             
-            {outlookQuery.data.projections[outlookYear + 1] === null && (
+            {outlookYear === '2028+' && (
+              <div className="text-center text-xs text-muted-foreground mt-2 py-2 border-t border-border/30">
+                2028+ outlook based on historical patterns and projections
+              </div>
+            )}
+            
+            {typeof outlookYear === 'number' && !outlookQuery.data?.projections?.[outlookYear + 1] && (
               <div className="text-center text-xs text-muted-foreground mt-2 py-2 border-t border-border/30">
                 Future projections available after more historical data
               </div>
