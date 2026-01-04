@@ -375,6 +375,11 @@ function getProbabilityBand(confidenceScore: number): string {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint for Render/uptime monitors (no auth required)
+  app.get('/api/health', (_req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
   // Apply general rate limiting to all API routes
   app.use('/api/', generalApiLimiter);
   
