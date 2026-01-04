@@ -10,6 +10,7 @@ import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sid
 import { AppSidebar } from "@/components/app-sidebar";
 import { RealtimePricesProvider } from "@/context/realtime-prices-context";
 import { useAuth } from "@/hooks/useAuth";
+import { usePageTracking } from "@/hooks/use-analytics";
 import { Button } from "@/components/ui/button";
 import { LogOut, User, Loader2 } from "lucide-react";
 import { Footer } from "@/components/footer";
@@ -79,6 +80,8 @@ function SmartLanding() {
 }
 
 function Router() {
+  usePageTracking();
+  
   return (
     <Suspense fallback={<PageLoader />}>
       <Switch>

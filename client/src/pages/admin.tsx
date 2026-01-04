@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 
 const LossPatternsDashboard = lazy(() => import("@/components/loss-patterns-dashboard").then(m => ({ default: m.LossPatternsDashboard })));
+const AdminAnalyticsPanel = lazy(() => import("@/components/admin-analytics-panel").then(m => ({ default: m.AdminAnalyticsPanel })));
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -782,18 +783,22 @@ export default function AdminPanel() {
           <Tabs defaultValue="users" className="w-full">
             <CardHeader>
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Admin Tools</p>
-              <TabsList className="grid w-full grid-cols-8">
+              <TabsList className="grid w-full grid-cols-9">
                 <TabsTrigger value="users" data-testid="tab-users">
                   <Users className="h-4 w-4 mr-2" />
                   Users
                 </TabsTrigger>
+                <TabsTrigger value="analytics" data-testid="tab-analytics">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Analytics
+                </TabsTrigger>
                 <TabsTrigger value="system" data-testid="tab-system-health">
                   <Activity className="h-4 w-4 mr-2" />
-                  System Health
+                  System
                 </TabsTrigger>
                 <TabsTrigger value="loss-analysis" data-testid="tab-loss-analysis">
                   <TrendingDown className="h-4 w-4 mr-2" />
-                  Loss Analysis
+                  Losses
                 </TabsTrigger>
                 <TabsTrigger value="alerts" data-testid="tab-alerts">
                   <AlertCircle className="h-4 w-4 mr-2" />
@@ -805,11 +810,11 @@ export default function AdminPanel() {
                 </TabsTrigger>
                 <TabsTrigger value="ai-test" data-testid="tab-ai-test">
                   <Sparkles className="h-4 w-4 mr-2" />
-                  AI Testing
+                  AI Test
                 </TabsTrigger>
                 <TabsTrigger value="activity" data-testid="tab-activity">
                   <Clock className="h-4 w-4 mr-2" />
-                  Activity Log
+                  Activity
                 </TabsTrigger>
                 <TabsTrigger value="settings" data-testid="tab-settings">
                   <Settings className="h-4 w-4 mr-2" />
@@ -976,6 +981,15 @@ export default function AdminPanel() {
                     </table>
                   </div>
                 </div>
+              </CardContent>
+            </TabsContent>
+
+            {/* User Analytics Tab */}
+            <TabsContent value="analytics">
+              <CardContent>
+                <Suspense fallback={<div className="flex items-center justify-center py-12"><Activity className="h-8 w-8 animate-spin text-muted-foreground" /></div>}>
+                  <AdminAnalyticsPanel />
+                </Suspense>
               </CardContent>
             </TabsContent>
 

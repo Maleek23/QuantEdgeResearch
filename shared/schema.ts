@@ -1637,3 +1637,137 @@ export const symbolCatalystSnapshots = pgTable("symbol_catalyst_snapshots", {
 export const insertSymbolCatalystSnapshotSchema = createInsertSchema(symbolCatalystSnapshots).omit({ id: true, createdAt: true, lastUpdated: true });
 export type InsertSymbolCatalystSnapshot = z.infer<typeof insertSymbolCatalystSnapshotSchema>;
 export type SymbolCatalystSnapshot = typeof symbolCatalystSnapshots.$inferSelect;
+
+// ============================================================================
+// USER ANALYTICS & TRACKING
+// ============================================================================
+
+// User Login History - Track login events
+export const userLoginHistory = pgTable("user_login_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  
+  // Login details
+  loginAt: timestamp("login_at").defaultNow(),
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
+  
+  // Parsed user agent info
+  browser: varchar("browser"),
+  os: varchar("os"),
+  device: varchar("device"), // 'desktop', 'mobile', 'tablet'
+  
+  // Session info
+  sessionId: varchar("session_id"),
+  logoutAt: timestamp("logout_at"),
+  
+  // Auth method
+  authMethod: varchar("auth_method"), // 'password', 'google', 'replit'
+  
+  // Location (if available from IP)
+  country: varchar("country"),
+  city: varchar("city"),
+});
+
+export const insertUserLoginHistorySchema = createInsertSchema(userLoginHistory).omit({ id: true, loginAt: true });
+export type InsertUserLoginHistory = z.infer<typeof insertUserLoginHistorySchema>;
+export type UserLoginHistory = typeof userLoginHistory.$inferSelect;
+
+// Page Views - Track page visits
+export const pageViews = pgTable("page_views", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // User info (nullable for anonymous)
+  userId: varchar("user_id"),
+  sessionId: varchar("session_id"),
+  
+  // Page info
+  path: varchar("path").notNull(),
+  referrer: text("referrer"),
+  
+  // Timing
+  viewedAt: timestamp("viewed_at").defaultNow(),
+  timeOnPage: integer("time_on_page"), // seconds spent on page
+  
+  // Device info
+  userAgent: text("user_agent"),
+  device: varchar("device"),
+  browser: varchar("browser"),
+  
+  // UTM tracking
+  utmSource: varchar("utm_source"),
+  utmMedium: varchar("utm_medium"),
+  utmCampaign: varchar("utm_campaign"),
+});
+
+export const insertPageViewSchema = createInsertSchema(pageViews).omit({ id: true, viewedAt: true });
+export type InsertPageView = z.infer<typeof insertPageViewSchema>;
+export type PageView = typeof pageViews.$inferSelect;
+
+// User Activity Events - Track feature usage
+export type UserActivityType = 
+  | 'view_trade_idea' 
+  | 'generate_idea' 
+  | 'view_chart' 
+  | 'export_pdf' 
+  | 'add_to_watchlist' 
+  | 'journal_entry' 
+  | 'run_scanner'
+  | 'view_performance'
+  | 'settings_change'
+  | 'subscription_action';
+
+export const userActivityEvents = pgTable("user_activity_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  userId: varchar("user_id").notNull(),
+  sessionId: varchar("session_id"),
+  
+  // Activity details
+  activityType: varchar("activity_type").notNull().$type<UserActivityType>(),
+  description: text("description"),
+  
+  // Context data (flexible JSON for different activity types)
+  metadata: jsonb("metadata"), // { symbol: 'AAPL', ideaId: '123', etc. }
+  
+  // Timing
+  occurredAt: timestamp("occurred_at").defaultNow(),
+  
+  // Device info
+  device: varchar("device"),
+});
+
+export const insertUserActivityEventSchema = createInsertSchema(userActivityEvents).omit({ id: true, occurredAt: true });
+export type InsertUserActivityEvent = z.infer<typeof insertUserActivityEventSchema>;
+export type UserActivityEvent = typeof userActivityEvents.$inferSelect;
+
+// User Analytics Summary - Aggregated daily stats per user
+export const userAnalyticsSummary = pgTable("user_analytics_summary", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  userId: varchar("user_id").notNull(),
+  date: varchar("date").notNull(), // YYYY-MM-DD format
+  
+  // Session stats
+  totalSessions: integer("total_sessions").default(0),
+  totalTimeSeconds: integer("total_time_seconds").default(0),
+  
+  // Page stats
+  pageViews: integer("page_views").default(0),
+  uniquePages: integer("unique_pages").default(0),
+  
+  // Feature usage
+  ideasViewed: integer("ideas_viewed").default(0),
+  ideasGenerated: integer("ideas_generated").default(0),
+  chartsViewed: integer("charts_viewed").default(0),
+  pdfsExported: integer("pdfs_exported").default(0),
+  journalEntries: integer("journal_entries").default(0),
+  scannersRun: integer("scanners_run").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertUserAnalyticsSummarySchema = createInsertSchema(userAnalyticsSummary).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertUserAnalyticsSummary = z.infer<typeof insertUserAnalyticsSummarySchema>;
+export type UserAnalyticsSummary = typeof userAnalyticsSummary.$inferSelect;

@@ -462,6 +462,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Store userId in session
       (req.session as any).userId = user.id;
       
+      // Track login for analytics
+      const userAgent = req.headers['user-agent'] || '';
+      const isMobile = /mobile|android|iphone|ipad/i.test(userAgent);
+      const isTablet = /tablet|ipad/i.test(userAgent);
+      let browser = 'unknown';
+      if (/chrome/i.test(userAgent)) browser = 'Chrome';
+      else if (/firefox/i.test(userAgent)) browser = 'Firefox';
+      else if (/safari/i.test(userAgent)) browser = 'Safari';
+      else if (/edge/i.test(userAgent)) browser = 'Edge';
+      
+      await storage.createLoginRecord({
+        userId: user.id,
+        ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || req.ip || undefined,
+        userAgent,
+        browser,
+        device: isTablet ? 'tablet' : (isMobile ? 'mobile' : 'desktop'),
+        sessionId: req.sessionID,
+        authMethod: 'password',
+      });
+      
       logger.info('User logged in', { userId: user.id, email });
       res.json({ user });
     } catch (error) {
@@ -1419,6 +1439,191 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'admin user delete' });
       res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
+  // ==========================================
+  // USER ANALYTICS & TRACKING ENDPOINTS
+  // ==========================================
+
+  // Track page view (both authenticated and anonymous users)
+  app.post("/api/tracking/pageview", async (req, res) => {
+    try {
+      const { path, referrer, sessionId, utmSource, utmMedium, utmCampaign } = req.body;
+      const userId = (req as any).user?.id || null;
+      const userAgent = req.headers['user-agent'] || '';
+      
+      // Simple device detection
+      const isMobile = /mobile|android|iphone|ipad/i.test(userAgent);
+      const isTablet = /tablet|ipad/i.test(userAgent);
+      const device = isTablet ? 'tablet' : (isMobile ? 'mobile' : 'desktop');
+      
+      // Simple browser detection
+      let browser = 'unknown';
+      if (/chrome/i.test(userAgent)) browser = 'Chrome';
+      else if (/firefox/i.test(userAgent)) browser = 'Firefox';
+      else if (/safari/i.test(userAgent)) browser = 'Safari';
+      else if (/edge/i.test(userAgent)) browser = 'Edge';
+      
+      const pageView = await storage.createPageView({
+        userId,
+        sessionId,
+        path,
+        referrer,
+        userAgent,
+        device,
+        browser,
+        utmSource,
+        utmMedium,
+        utmCampaign,
+      });
+      
+      // Update daily summary if user is logged in
+      if (userId) {
+        const today = new Date().toISOString().split('T')[0];
+        await storage.incrementDailySummary(userId, today, 'pageViews', 1);
+      }
+      
+      res.json({ id: pageView.id });
+    } catch (error) {
+      logError(error as Error, { context: 'tracking pageview' });
+      res.status(500).json({ error: "Failed to track page view" });
+    }
+  });
+
+  // Update page view duration
+  app.patch("/api/tracking/pageview/:id", async (req, res) => {
+    try {
+      const { timeOnPage } = req.body;
+      await storage.updatePageViewDuration(req.params.id, timeOnPage);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update page view" });
+    }
+  });
+
+  // Track activity event (authenticated users only)
+  app.post("/api/tracking/activity", async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const { activityType, description, metadata, sessionId } = req.body;
+      const userAgent = req.headers['user-agent'] || '';
+      const isMobile = /mobile|android|iphone|ipad/i.test(userAgent);
+      const device = isMobile ? 'mobile' : 'desktop';
+      
+      await storage.createActivityEvent({
+        userId,
+        sessionId,
+        activityType,
+        description,
+        metadata,
+        device,
+      });
+      
+      // Update daily summary based on activity type
+      const today = new Date().toISOString().split('T')[0];
+      const fieldMapping: Record<string, string> = {
+        'view_trade_idea': 'ideasViewed',
+        'generate_idea': 'ideasGenerated',
+        'view_chart': 'chartsViewed',
+        'export_pdf': 'pdfsExported',
+        'journal_entry': 'journalEntries',
+        'run_scanner': 'scannersRun',
+      };
+      
+      const field = fieldMapping[activityType];
+      if (field) {
+        await storage.incrementDailySummary(userId, today, field as any, 1);
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      logError(error as Error, { context: 'tracking activity' });
+      res.status(500).json({ error: "Failed to track activity" });
+    }
+  });
+
+  // Admin: Get analytics dashboard
+  app.get("/api/admin/analytics", requireAdminJWT, async (_req, res) => {
+    try {
+      const dashboard = await storage.getAnalyticsDashboard();
+      res.json(dashboard);
+    } catch (error) {
+      logError(error as Error, { context: 'admin analytics dashboard' });
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  // Admin: Get login history
+  app.get("/api/admin/analytics/logins", requireAdminJWT, async (req, res) => {
+    try {
+      const userId = req.query.userId as string | undefined;
+      const limit = parseInt(req.query.limit as string) || 100;
+      const logins = await storage.getLoginHistory(userId, limit);
+      res.json(logins);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch login history" });
+    }
+  });
+
+  // Admin: Get page view stats
+  app.get("/api/admin/analytics/pageviews", requireAdminJWT, async (req, res) => {
+    try {
+      const hours = parseInt(req.query.hours as string) || 24;
+      const stats = await storage.getPageViewStats(hours);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch page view stats" });
+    }
+  });
+
+  // Admin: Get activity stats
+  app.get("/api/admin/analytics/activities", requireAdminJWT, async (req, res) => {
+    try {
+      const hours = parseInt(req.query.hours as string) || 24;
+      const stats = await storage.getActivityStats(hours);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch activity stats" });
+    }
+  });
+
+  // Admin: Get user-specific analytics
+  app.get("/api/admin/analytics/user/:userId", requireAdminJWT, async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const days = parseInt(req.query.days as string) || 30;
+      
+      const [summaries, logins, activities, pageViews] = await Promise.all([
+        storage.getUserAnalyticsSummaries(userId, days),
+        storage.getLoginHistory(userId, 20),
+        storage.getActivityEvents(userId, 50),
+        storage.getPageViews(userId, 50),
+      ]);
+      
+      res.json({
+        summaries,
+        logins,
+        activities,
+        pageViews,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user analytics" });
+    }
+  });
+
+  // Admin: Get top users by activity
+  app.get("/api/admin/analytics/top-users", requireAdminJWT, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+      const topUsers = await storage.getTopUsersByActivity(limit);
+      res.json(topUsers);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch top users" });
     }
   });
 

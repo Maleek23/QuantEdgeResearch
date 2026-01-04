@@ -67,6 +67,15 @@ import type {
   PlatformReport,
   InsertPlatformReport,
   ReportPeriod,
+  UserLoginHistory,
+  InsertUserLoginHistory,
+  PageView,
+  InsertPageView,
+  UserActivityEvent,
+  InsertUserActivityEvent,
+  UserAnalyticsSummary,
+  InsertUserAnalyticsSummary,
+  UserActivityType,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
@@ -103,6 +112,10 @@ import {
   futuresResearchBriefs,
   autoLottoPreferences,
   platformReports,
+  userLoginHistory,
+  pageViews,
+  userActivityEvents,
+  userAnalyticsSummary,
 } from "@shared/schema";
 
 // ========================================
@@ -3379,6 +3392,204 @@ export class DatabaseStorage implements IStorage {
   async deletePlatformReport(id: string): Promise<boolean> {
     await db.delete(platformReports).where(eq(platformReports.id, id));
     return true;
+  }
+
+  // ==========================================
+  // USER ANALYTICS & TRACKING
+  // ==========================================
+
+  // Login History
+  async createLoginRecord(record: InsertUserLoginHistory): Promise<UserLoginHistory> {
+    const [created] = await db.insert(userLoginHistory).values(record as any).returning();
+    return created;
+  }
+
+  async getLoginHistory(userId?: string, limit: number = 100): Promise<UserLoginHistory[]> {
+    if (userId) {
+      return await db.select().from(userLoginHistory)
+        .where(eq(userLoginHistory.userId, userId))
+        .orderBy(desc(userLoginHistory.loginAt))
+        .limit(limit);
+    }
+    return await db.select().from(userLoginHistory)
+      .orderBy(desc(userLoginHistory.loginAt))
+      .limit(limit);
+  }
+
+  async getRecentLogins(hours: number = 24): Promise<UserLoginHistory[]> {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+    return await db.select().from(userLoginHistory)
+      .where(gte(userLoginHistory.loginAt, since))
+      .orderBy(desc(userLoginHistory.loginAt));
+  }
+
+  async updateLogoutTime(sessionId: string): Promise<void> {
+    await db.update(userLoginHistory)
+      .set({ logoutAt: new Date() })
+      .where(eq(userLoginHistory.sessionId, sessionId));
+  }
+
+  // Page Views
+  async createPageView(pageView: InsertPageView): Promise<PageView> {
+    const [created] = await db.insert(pageViews).values(pageView as any).returning();
+    return created;
+  }
+
+  async updatePageViewDuration(id: string, timeOnPage: number): Promise<void> {
+    await db.update(pageViews)
+      .set({ timeOnPage })
+      .where(eq(pageViews.id, id));
+  }
+
+  async getPageViews(userId?: string, limit: number = 100): Promise<PageView[]> {
+    if (userId) {
+      return await db.select().from(pageViews)
+        .where(eq(pageViews.userId, userId))
+        .orderBy(desc(pageViews.viewedAt))
+        .limit(limit);
+    }
+    return await db.select().from(pageViews)
+      .orderBy(desc(pageViews.viewedAt))
+      .limit(limit);
+  }
+
+  async getPageViewStats(hours: number = 24): Promise<{ path: string; count: number }[]> {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const result = await db.select({
+      path: pageViews.path,
+      count: drizzleSql<number>`count(*)::int`,
+    })
+      .from(pageViews)
+      .where(gte(pageViews.viewedAt, since))
+      .groupBy(pageViews.path)
+      .orderBy(drizzleSql`count(*) DESC`)
+      .limit(20);
+    return result;
+  }
+
+  // Activity Events
+  async createActivityEvent(event: InsertUserActivityEvent): Promise<UserActivityEvent> {
+    const [created] = await db.insert(userActivityEvents).values(event as any).returning();
+    return created;
+  }
+
+  async getActivityEvents(userId?: string, limit: number = 100): Promise<UserActivityEvent[]> {
+    if (userId) {
+      return await db.select().from(userActivityEvents)
+        .where(eq(userActivityEvents.userId, userId))
+        .orderBy(desc(userActivityEvents.occurredAt))
+        .limit(limit);
+    }
+    return await db.select().from(userActivityEvents)
+      .orderBy(desc(userActivityEvents.occurredAt))
+      .limit(limit);
+  }
+
+  async getActivityEventsByType(activityType: UserActivityType, limit: number = 100): Promise<UserActivityEvent[]> {
+    return await db.select().from(userActivityEvents)
+      .where(eq(userActivityEvents.activityType, activityType))
+      .orderBy(desc(userActivityEvents.occurredAt))
+      .limit(limit);
+  }
+
+  async getActivityStats(hours: number = 24): Promise<{ activityType: string; count: number }[]> {
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
+    const result = await db.select({
+      activityType: userActivityEvents.activityType,
+      count: drizzleSql<number>`count(*)::int`,
+    })
+      .from(userActivityEvents)
+      .where(gte(userActivityEvents.occurredAt, since))
+      .groupBy(userActivityEvents.activityType)
+      .orderBy(drizzleSql`count(*) DESC`);
+    return result;
+  }
+
+  // Analytics Summary
+  async getOrCreateDailySummary(userId: string, date: string): Promise<UserAnalyticsSummary> {
+    const [existing] = await db.select().from(userAnalyticsSummary)
+      .where(and(
+        eq(userAnalyticsSummary.userId, userId),
+        eq(userAnalyticsSummary.date, date)
+      ));
+    
+    if (existing) return existing;
+    
+    const [created] = await db.insert(userAnalyticsSummary)
+      .values({ userId, date } as any)
+      .returning();
+    return created;
+  }
+
+  async updateDailySummary(id: string, updates: Partial<InsertUserAnalyticsSummary>): Promise<UserAnalyticsSummary | null> {
+    const [updated] = await db.update(userAnalyticsSummary)
+      .set({ ...updates, updatedAt: new Date() } as any)
+      .where(eq(userAnalyticsSummary.id, id))
+      .returning();
+    return updated || null;
+  }
+
+  async incrementDailySummary(userId: string, date: string, field: keyof InsertUserAnalyticsSummary, increment: number = 1): Promise<void> {
+    const summary = await this.getOrCreateDailySummary(userId, date);
+    const currentValue = (summary[field as keyof UserAnalyticsSummary] as number) || 0;
+    await db.update(userAnalyticsSummary)
+      .set({ [field]: currentValue + increment, updatedAt: new Date() } as any)
+      .where(eq(userAnalyticsSummary.id, summary.id));
+  }
+
+  async getUserAnalyticsSummaries(userId: string, days: number = 30): Promise<UserAnalyticsSummary[]> {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    const sinceDate = since.toISOString().split('T')[0];
+    
+    return await db.select().from(userAnalyticsSummary)
+      .where(and(
+        eq(userAnalyticsSummary.userId, userId),
+        gte(userAnalyticsSummary.date, sinceDate)
+      ))
+      .orderBy(desc(userAnalyticsSummary.date));
+  }
+
+  async getTopUsersByActivity(limit: number = 20): Promise<{ userId: string; totalPageViews: number; totalActivities: number }[]> {
+    const result = await db.select({
+      userId: userAnalyticsSummary.userId,
+      totalPageViews: drizzleSql<number>`sum(${userAnalyticsSummary.pageViews})::int`,
+      totalActivities: drizzleSql<number>`sum(${userAnalyticsSummary.ideasViewed} + ${userAnalyticsSummary.ideasGenerated} + ${userAnalyticsSummary.chartsViewed})::int`,
+    })
+      .from(userAnalyticsSummary)
+      .groupBy(userAnalyticsSummary.userId)
+      .orderBy(drizzleSql`sum(${userAnalyticsSummary.pageViews}) DESC`)
+      .limit(limit);
+    return result;
+  }
+
+  // Platform-wide analytics
+  async getAnalyticsDashboard(): Promise<{
+    totalUsers: number;
+    activeUsers24h: number;
+    totalPageViews24h: number;
+    topPages: { path: string; count: number }[];
+    topActivities: { activityType: string; count: number }[];
+    recentLogins: UserLoginHistory[];
+  }> {
+    const [allUsers, pageStats, activityStats, recentLogins] = await Promise.all([
+      this.getAllUsers(),
+      this.getPageViewStats(24),
+      this.getActivityStats(24),
+      this.getRecentLogins(24),
+    ]);
+
+    const uniqueUsers24h = new Set(recentLogins.map(l => l.userId)).size;
+    const totalPageViews24h = pageStats.reduce((sum, p) => sum + p.count, 0);
+
+    return {
+      totalUsers: allUsers.length,
+      activeUsers24h: uniqueUsers24h,
+      totalPageViews24h,
+      topPages: pageStats,
+      topActivities: activityStats,
+      recentLogins: recentLogins.slice(0, 10),
+    };
   }
 }
 
