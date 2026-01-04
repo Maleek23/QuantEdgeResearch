@@ -232,41 +232,41 @@ function KPIStrip({ stats, botData, engineHealthData }: {
   }, [engineHealthData]);
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3" data-testid="kpi-strip">
-      <div className="stat-glass rounded-lg p-3 text-center">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Ideas</p>
-        <p className="text-2xl font-bold font-mono tabular-nums text-cyan-400" data-testid="kpi-total-ideas">
+    <div className="flex flex-wrap gap-3" data-testid="kpi-strip">
+      <div className="stat-glass rounded-lg p-3 text-center min-w-[90px] flex-1">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground truncate">Ideas</p>
+        <p className="text-xl font-bold font-mono tabular-nums text-cyan-400" data-testid="kpi-total-ideas">
           {stats.overall.totalIdeas}
         </p>
       </div>
-      <div className="stat-glass rounded-lg p-3 text-center">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Win Rate</p>
-        <p className={cn("text-2xl font-bold font-mono tabular-nums", getWinRateColor(stats.overall.winRate))} data-testid="kpi-win-rate">
+      <div className="stat-glass rounded-lg p-3 text-center min-w-[90px] flex-1">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground truncate">Win Rate</p>
+        <p className={cn("text-xl font-bold font-mono tabular-nums", getWinRateColor(stats.overall.winRate))} data-testid="kpi-win-rate">
           {stats.overall.closedIdeas > 0 ? `${stats.overall.winRate.toFixed(1)}%` : 'N/A'}
         </p>
       </div>
-      <div className="stat-glass rounded-lg p-3 text-center">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Bot P&L</p>
-        <p className={cn("text-2xl font-bold font-mono tabular-nums", (botData?.overall.totalPnL ?? 0) >= 0 ? "text-green-400" : "text-red-400")} data-testid="kpi-total-pnl">
+      <div className="stat-glass rounded-lg p-3 text-center min-w-[90px] flex-1">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground truncate">Bot P&L</p>
+        <p className={cn("text-xl font-bold font-mono tabular-nums", (botData?.overall.totalPnL ?? 0) >= 0 ? "text-green-400" : "text-red-400")} data-testid="kpi-total-pnl">
           {botData ? `${botData.overall.totalPnL >= 0 ? '+' : ''}$${botData.overall.totalPnL.toFixed(0)}` : 'N/A'}
         </p>
       </div>
-      <div className="stat-glass rounded-lg p-3 text-center">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Open</p>
-        <p className="text-2xl font-bold font-mono tabular-nums text-blue-400" data-testid="kpi-open-positions">
+      <div className="stat-glass rounded-lg p-3 text-center min-w-[90px] flex-1">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground truncate">Open</p>
+        <p className="text-xl font-bold font-mono tabular-nums text-blue-400" data-testid="kpi-open-positions">
           {stats.overall.openIdeas + (botData?.overall.openPositions ?? 0)}
         </p>
       </div>
-      <div className="stat-glass rounded-lg p-3 text-center">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">W / L</p>
-        <p className="text-2xl font-bold font-mono tabular-nums" data-testid="kpi-wl">
+      <div className="stat-glass rounded-lg p-3 text-center min-w-[90px] flex-1">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground truncate">W / L</p>
+        <p className="text-xl font-bold font-mono tabular-nums" data-testid="kpi-wl">
           <span className="text-green-400">{stats.overall.wonIdeas}</span>
           <span className="text-muted-foreground">/</span>
           <span className="text-red-400">{stats.overall.lostIdeas}</span>
         </p>
       </div>
-      <div className="stat-glass rounded-lg p-3 text-center">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Best Engine</p>
+      <div className="stat-glass rounded-lg p-3 text-center min-w-[90px] flex-1">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground truncate">Best Engine</p>
         {bestEngine ? (
           <div className="flex items-center justify-center gap-1 mt-1">
             <Badge className={cn("text-xs", ENGINE_CONFIG[bestEngine.key as EngineKey]?.bgClass, ENGINE_CONFIG[bestEngine.key as EngineKey]?.textClass)}>
@@ -372,33 +372,33 @@ function AutoLottoBotSummary({ data, isLoading }: { data?: AutoLottoBotPerforman
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Trades</p>
+        <div className="flex flex-wrap gap-3">
+          <div className="text-center min-w-[70px] flex-1">
+            <p className="text-xs text-muted-foreground truncate">Trades</p>
             <p className="text-xl font-bold font-mono tabular-nums" data-testid="bot-trades">{data.overall.totalTrades}</p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Wins</p>
+          <div className="text-center min-w-[70px] flex-1">
+            <p className="text-xs text-muted-foreground truncate">Wins</p>
             <p className="text-xl font-bold font-mono tabular-nums text-green-400" data-testid="bot-wins">{data.overall.wins}</p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Losses</p>
+          <div className="text-center min-w-[70px] flex-1">
+            <p className="text-xs text-muted-foreground truncate">Losses</p>
             <p className="text-xl font-bold font-mono tabular-nums text-red-400" data-testid="bot-losses">{data.overall.losses}</p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Win Rate</p>
+          <div className="text-center min-w-[80px] flex-1">
+            <p className="text-xs text-muted-foreground truncate">Win Rate</p>
             <p className={cn("text-xl font-bold font-mono tabular-nums", getWinRateColor(data.overall.winRate))} data-testid="bot-winrate">
               {data.overall.winRate.toFixed(1)}%
             </p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Total P&L</p>
+          <div className="text-center min-w-[90px] flex-1">
+            <p className="text-xs text-muted-foreground truncate">Total P&L</p>
             <p className={cn("text-xl font-bold font-mono tabular-nums", data.overall.totalPnL >= 0 ? "text-green-400" : "text-red-400")} data-testid="bot-pnl">
               {data.overall.totalPnL >= 0 ? '+' : ''}${data.overall.totalPnL.toFixed(2)}
             </p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Open</p>
+          <div className="text-center min-w-[70px] flex-1">
+            <p className="text-xs text-muted-foreground truncate">Open</p>
             <p className="text-xl font-bold font-mono tabular-nums text-blue-400" data-testid="bot-open">{data.overall.openPositions}</p>
           </div>
         </div>

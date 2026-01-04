@@ -158,48 +158,46 @@ function PortfolioSummaryCard({
         </Button>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <div className="stat-glass rounded-lg p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Value</p>
-            <p className="text-2xl font-bold font-mono tabular-nums" data-testid="text-total-value">
+        <div className="flex flex-wrap gap-4">
+          <div className="stat-glass rounded-lg p-4 min-w-[140px] flex-1">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1 truncate">Total Value</p>
+            <p className="text-xl font-bold font-mono tabular-nums" data-testid="text-total-value">
               {formatCurrency(totalValue)}
             </p>
           </div>
-          <div className="stat-glass rounded-lg p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Cash / Positions</p>
+          <div className="stat-glass rounded-lg p-4 min-w-[150px] flex-1">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1 truncate">Cash / Positions</p>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-                <span className="font-mono" data-testid="text-cash-balance">{formatCurrency(portfolio.cashBalance)}</span>
+                <Wallet className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="font-mono text-sm" data-testid="text-cash-balance">{formatCurrency(portfolio.cashBalance)}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Activity className="h-4 w-4 text-muted-foreground" />
-                <span className="font-mono" data-testid="text-positions-value">{formatCurrency(positionsValue)}</span>
+                <Activity className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                <span className="font-mono text-sm" data-testid="text-positions-value">{formatCurrency(positionsValue)}</span>
               </div>
             </div>
           </div>
-          <div className="stat-glass rounded-lg p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total P&L</p>
-            <p className="text-xl font-bold" data-testid="text-total-pnl">
+          <div className="stat-glass rounded-lg p-4 min-w-[120px] flex-1">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1 truncate">Total P&L</p>
+            <p className="text-lg font-bold" data-testid="text-total-pnl">
               <PnLDisplay
                 value={portfolio.totalPnL + totalUnrealizedPnL}
                 percent={((portfolio.totalPnL + totalUnrealizedPnL) / portfolio.startingCapital) * 100}
               />
             </p>
           </div>
-          <div className="stat-glass rounded-lg p-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Win/Loss Record</p>
-            <div className="flex items-center gap-3">
+          <div className="stat-glass rounded-lg p-4 min-w-[140px] flex-1">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1 truncate">Win/Loss</p>
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1">
                 <Trophy className="h-4 w-4 text-green-400" />
                 <span className="font-bold font-mono text-green-400" data-testid="text-win-count">{portfolio.winCount}</span>
-                <span className="text-xs text-muted-foreground">Wins</span>
               </div>
               <span className="text-muted-foreground">/</span>
               <div className="flex items-center gap-1">
                 <XCircle className="h-4 w-4 text-red-400" />
                 <span className="font-bold font-mono text-red-400" data-testid="text-loss-count">{portfolio.lossCount}</span>
-                <span className="text-xs text-muted-foreground">Losses</span>
               </div>
             </div>
           </div>
