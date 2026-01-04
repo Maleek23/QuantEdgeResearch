@@ -6121,6 +6121,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 🔍 DATA INTEGRITY AUDIT - Independent reconciliation of win/loss calculations
+  // Recomputes stats from raw data using canonical helpers and compares to performance stats
+  app.get("/api/audit/data-integrity", async (req, res) => {
+    try {
+      // 1. Independent recalculation from raw data using canonical helpers
+      const allIdeas = await storage.getAllTradeIdeas();
+      
+      // Apply the SAME canonical filters as performance stats
+      // Must include BOTH options and flow/lotto to match performance stats
+      const filteredIdeas = applyCanonicalPerformanceFilters(allIdeas, { includeOptions: true, includeFlowLotto: true });
+      
+      // Use the SAME getDecidedTrades helper as performance stats
+      const decidedTrades = getDecidedTrades(filteredIdeas);
+      
+      // Independently count wins and losses using the same criteria
+      const independentWins = decidedTrades.filter(i => i.outcomeStatus === 'hit_target').length;
+      const independentLosses = decidedTrades.filter(i => isRealLoss(i)).length;
+      const independentDecided = independentWins + independentLosses;
+      const independentWinRate = independentDecided > 0 
+        ? Math.round((independentWins / independentDecided) * 1000) / 10 
+        : 0;
+      
+      // 2. Get reported values from performance stats
+      const stats = await storage.getPerformanceStats({});
+      const reportedWins = stats.segmentedWinRates?.overall?.wins ?? 0;
+      const reportedLosses = stats.segmentedWinRates?.overall?.losses ?? 0;
+      const reportedWinRate = stats.segmentedWinRates?.overall?.winRate ?? 0;
+      
+      // 3. Build integrity checks comparing independent vs reported
+      const checks = [
+        {
+          checkName: "Win Count Reconciliation",
+          status: independentWins === reportedWins ? 'pass' : 'fail',
+          independent: independentWins,
+          reported: reportedWins,
+        },
+        {
+          checkName: "Loss Count Reconciliation",
+          status: independentLosses === reportedLosses ? 'pass' : 'fail',
+          independent: independentLosses,
+          reported: reportedLosses,
+        },
+        {
+          checkName: "Win Rate Reconciliation",
+          status: Math.abs(independentWinRate - reportedWinRate) < 0.5 ? 'pass' : 'fail',
+          independent: independentWinRate,
+          reported: reportedWinRate,
+        },
+        {
+          checkName: "Sample Size Adequacy",
+          status: independentDecided >= 100 ? 'pass' : 'warning',
+          threshold: 100,
+          actual: independentDecided,
+        },
+      ];
+      
+      // 4. Sample trades from the SAME decidedTrades set used in calculations
+      const shuffled = [...decidedTrades].sort(() => Math.random() - 0.5);
+      const sampleTrades = shuffled.slice(0, 10).map(trade => ({
+        id: trade.id,
+        symbol: trade.symbol,
+        direction: trade.direction,
+        outcomeStatus: trade.outcomeStatus,
+        percentGain: trade.percentGain,
+        source: trade.source || 'unknown',
+        countedAsWin: trade.outcomeStatus === 'hit_target',
+        countedAsLoss: isRealLoss(trade),
+      }));
+      
+      res.json({
+        checks,
+        sampleTrades,
+        summary: {
+          totalWins: independentWins,
+          totalLosses: independentLosses,
+          totalDecided: independentDecided,
+          winRate: independentWinRate,
+          equitiesWinRate: stats.segmentedWinRates?.equities?.winRate ?? 0,
+          optionsWinRate: stats.segmentedWinRates?.options?.winRate ?? 0,
+        },
+        methodology: {
+          winDefinition: "outcomeStatus = 'hit_target'",
+          lossDefinition: "outcomeStatus = 'hit_stop' AND percentGain <= -3%",
+          canonicalHelpers: ["applyCanonicalPerformanceFilters", "getDecidedTrades", "isRealLoss"],
+          exclusions: [
+            "Breakeven trades (loss < 3%)",
+            "Expired trades (outcomeStatus = 'expired')",
+            "Open trades (outcomeStatus = 'open')",
+            "Buggy data (excludeFromTraining = true)",
+            "Legacy engines (pre-v3.0)"
+          ],
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logger.error("Data integrity audit error:", error);
+      res.status(500).json({ error: "Failed to generate data integrity audit" });
+    }
+  });
+
   // =========== DATA INTELLIGENCE API ===========
   // Comprehensive endpoint that provides all historical performance data
   // for use across the platform (trade cards, dashboards, etc.)

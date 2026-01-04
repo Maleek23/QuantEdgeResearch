@@ -95,3 +95,9 @@ The platform uses a **unified win rate methodology** that provides consistent me
 - Performance Dashboard KPI strip shows: `EQ 71% | OPT 80% | ALL 77%`
 - Tooltips reveal W/L breakdown for each segment
 - All other components use `stats.overall.winRate` (unified methodology)
+
+### Data Integrity Audit
+- `GET /api/audit/data-integrity` - Independent reconciliation of win/loss calculations
+- Recomputes stats from raw data using canonical helpers and compares to performance stats
+- Canonical helpers used: `applyCanonicalPerformanceFilters`, `getDecidedTrades`, `isRealLoss`
+- Returns: reconciliation checks (pass/fail), sample trades, methodology documentation
