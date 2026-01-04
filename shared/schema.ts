@@ -1839,7 +1839,7 @@ export type AiUsageLedger = typeof aiUsageLedger.$inferSelect;
 // Credit tier allocations - for reference
 export const AI_CREDIT_ALLOCATIONS: Record<SubscriptionTier, number> = {
   free: 30,       // ~1 chat/day
-  advanced: 300,  // ~10 chats/day
-  pro: 1000,      // ~33 chats/day
+  advanced: 600,  // ~20 chats/day
+  pro: 1500,      // ~50 chats/day
   admin: 999999,  // Unlimited for admins
 };
