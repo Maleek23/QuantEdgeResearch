@@ -415,6 +415,13 @@ export const watchlist = pgTable("watchlist", {
   priceUpdatedAt: text("price_updated_at"), // When current_price was last updated
   ytdPerformance: real("ytd_performance"), // Year-to-date % gain/loss
   
+  // Platform Grading & Tiering
+  gradeScore: real("grade_score"), // 0-100 quantitative score
+  gradeLetter: text("grade_letter"), // A+, A, A-, B+, B, etc.
+  tier: text("tier").$type<'S' | 'A' | 'B' | 'C' | 'D' | 'F'>(), // Simplified tier (S=top tier)
+  lastEvaluatedAt: text("last_evaluated_at"), // When grading was last run
+  gradeInputs: text("grade_inputs"), // JSON: { rsi, momentum, volume, volatility, trend, etc. }
+  
   // Price Alert Targets
   entryAlertPrice: real("entry_alert_price"), // Alert when price drops to this level (buying opportunity)
   stopAlertPrice: real("stop_alert_price"), // Alert when price hits stop loss
