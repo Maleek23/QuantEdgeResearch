@@ -79,6 +79,8 @@ import { UsageBadge } from "@/components/tier-gate";
 import { useTier } from "@/hooks/useTier";
 import { type TimeframeBucket, TIMEFRAME_LABELS, filterByTimeframe, getTimeframeCounts } from "@/lib/timeframes";
 import { isRealLoss } from "@shared/constants";
+import { MultiFactorAnalysis } from "@/components/multi-factor-analysis";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 export default function TradeDeskPage() {
   const { canGenerateTradeIdea } = useTier();
@@ -112,6 +114,9 @@ export default function TradeDeskPage() {
   // Date filter state (Posted date)
   const [dateFilter, setDateFilter] = useState<string>('all');
   const [customDate, setCustomDate] = useState<Date | undefined>(undefined);
+  
+  // Multi-Factor Analysis panel state
+  const [analysisSymbol, setAnalysisSymbol] = useState<string | null>(null);
   
   // Pagination state
   const [visibleCount, setVisibleCount] = useState(50);
@@ -1415,6 +1420,7 @@ export default function TradeDeskPage() {
                                 catalysts={catalysts}
                                 isExpanded={expandedIdeaId === idea.id}
                                 onToggleExpand={() => handleToggleExpand(idea.id)}
+                                onAnalyze={(symbol) => setAnalysisSymbol(symbol)}
                                 data-testid={`idea-card-${idea.id}`}
                               />
                             ))}
@@ -1459,6 +1465,23 @@ export default function TradeDeskPage() {
           </>
         )}
       </div>
+      
+      {/* Multi-Factor Analysis Sheet */}
+      <Sheet open={!!analysisSymbol} onOpenChange={(open) => !open && setAnalysisSymbol(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-cyan-400" />
+              Deep Analysis: {analysisSymbol}
+            </SheetTitle>
+          </SheetHeader>
+          {analysisSymbol && (
+            <div className="mt-4">
+              <MultiFactorAnalysis symbol={analysisSymbol} onClose={() => setAnalysisSymbol(null)} />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

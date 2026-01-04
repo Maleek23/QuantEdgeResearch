@@ -75,6 +75,12 @@ import {
   recordFailedLogin,
   recordSuccessfulLogin,
 } from './audit-logger';
+import { 
+  generateComprehensiveAnalysis, 
+  formatAnalysisForDisplay,
+  assessMarketRegime,
+  getCompanyContext,
+} from './multi-factor-analysis';
 
 // Session-based authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -7087,6 +7093,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'GET /api/watch-suggestions' });
       res.status(500).json({ error: "Failed to generate watch suggestions" });
+    }
+  });
+
+  // Multi-Factor Analysis - Comprehensive stock analysis with conviction scoring
+  app.get("/api/multi-factor-analysis/:symbol", marketDataLimiter, async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      if (!symbol || symbol.length < 1 || symbol.length > 10) {
+        return res.status(400).json({ error: "Invalid symbol" });
+      }
+      
+      const analysis = await generateComprehensiveAnalysis(symbol.toUpperCase());
+      
+      if (!analysis) {
+        return res.status(404).json({ error: `Unable to analyze ${symbol}. No data available.` });
+      }
+      
+      res.json(analysis);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/multi-factor-analysis/:symbol' });
+      res.status(500).json({ error: "Failed to generate comprehensive analysis" });
+    }
+  });
+  
+  // Multi-Factor Analysis - Get market regime context
+  app.get("/api/market-regime", async (_req, res) => {
+    try {
+      const regime = await assessMarketRegime();
+      res.json(regime);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/market-regime' });
+      res.status(500).json({ error: "Failed to assess market regime" });
+    }
+  });
+  
+  // Multi-Factor Analysis - Get company context
+  app.get("/api/company-context/:symbol", async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      if (!symbol) {
+        return res.status(400).json({ error: "Symbol is required" });
+      }
+      
+      const context = await getCompanyContext(symbol.toUpperCase());
+      res.json(context);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/company-context/:symbol' });
+      res.status(500).json({ error: "Failed to get company context" });
     }
   });
 

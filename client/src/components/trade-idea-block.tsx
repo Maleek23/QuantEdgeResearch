@@ -37,11 +37,12 @@ interface TradeIdeaBlockProps {
   catalysts?: Catalyst[];
   onAddToWatchlist?: (idea: TradeIdea) => void;
   onViewDetails?: (symbol: string) => void;
+  onAnalyze?: (symbol: string) => void;
   isExpanded?: boolean;
   onToggleExpand?: (ideaId: string) => void;
 }
 
-export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatchlist, onViewDetails, isExpanded, onToggleExpand }: TradeIdeaBlockProps) {
+export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatchlist, onViewDetails, onAnalyze, isExpanded, onToggleExpand }: TradeIdeaBlockProps) {
   const [localIsOpen, setLocalIsOpen] = useState(false);
   const isOpen = isExpanded !== undefined ? isExpanded : localIsOpen;
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -1008,6 +1009,22 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
               >
                 <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
                 Chart
+              </Button>
+            )}
+            
+            {onAnalyze && idea.assetType !== 'option' && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="hover-elevate text-cyan-400 hover:text-cyan-300"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAnalyze(idea.symbol);
+                }}
+                data-testid={`button-analyze-${idea.symbol}`}
+              >
+                <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
+                Deep
               </Button>
             )}
             

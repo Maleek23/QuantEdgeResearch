@@ -308,7 +308,6 @@ export async function generateUniversalTradeIdea(input: UniversalIdeaInput): Pro
       `${input.direction === 'bullish' ? 'Bullish' : 'Bearish'} setup with ${confidence}% confidence.`;
     
     const idea: InsertTradeIdea = {
-      id: uuidv4(),
       symbol: input.symbol.toUpperCase(),
       assetType: input.assetType,
       direction: input.direction === 'bullish' ? 'long' : 'short',
