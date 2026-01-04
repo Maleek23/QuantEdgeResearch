@@ -1771,3 +1771,75 @@ export const userAnalyticsSummary = pgTable("user_analytics_summary", {
 export const insertUserAnalyticsSummarySchema = createInsertSchema(userAnalyticsSummary).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertUserAnalyticsSummary = z.infer<typeof insertUserAnalyticsSummarySchema>;
 export type UserAnalyticsSummary = typeof userAnalyticsSummary.$inferSelect;
+
+// ============================================================================
+// AI CREDITS SYSTEM - Query-based credit tracking per tier
+// ============================================================================
+
+// AI Credit Balances - Monthly credit allocation per user
+export const aiCreditBalances = pgTable("ai_credit_balances", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  
+  // Tier snapshot at time of allocation
+  tierSnapshot: varchar("tier_snapshot").notNull().$type<SubscriptionTier>(),
+  
+  // Credit amounts
+  creditsAllocated: integer("credits_allocated").notNull().default(30), // Monthly allocation based on tier
+  creditsUsed: integer("credits_used").notNull().default(0),
+  creditsRemaining: integer("credits_remaining").notNull().default(30),
+  
+  // Billing cycle (resets with subscription or monthly for free)
+  cycleStart: timestamp("cycle_start").notNull().defaultNow(),
+  cycleEnd: timestamp("cycle_end").notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAiCreditBalanceSchema = createInsertSchema(aiCreditBalances).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertAiCreditBalance = z.infer<typeof insertAiCreditBalanceSchema>;
+export type AiCreditBalance = typeof aiCreditBalances.$inferSelect;
+
+// AI Usage Ledger - Individual usage records for audit and analytics
+export const aiUsageLedger = pgTable("ai_usage_ledger", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  
+  // Provider info
+  provider: varchar("provider").notNull(), // 'gemini', 'anthropic', 'openai'
+  model: varchar("model").notNull(), // 'gemini-2.5-flash', 'claude-sonnet-4', etc.
+  
+  // Token usage (for analytics, not billing)
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  
+  // Credit deduction (1 credit per query)
+  creditsDebited: integer("credits_debited").notNull().default(1),
+  
+  // Estimated cost in cents (for admin visibility)
+  estimatedCostCents: real("estimated_cost_cents"),
+  
+  // Request context
+  requestType: varchar("request_type").notNull().default('research_assistant'), // 'research_assistant', 'chart_analysis', etc.
+  questionPreview: text("question_preview"), // First 100 chars of question
+  
+  // Metadata
+  responseTimeMs: integer("response_time_ms"),
+  wasSuccessful: boolean("was_successful").notNull().default(true),
+  errorMessage: text("error_message"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertAiUsageLedgerSchema = createInsertSchema(aiUsageLedger).omit({ id: true, createdAt: true });
+export type InsertAiUsageLedger = z.infer<typeof insertAiUsageLedgerSchema>;
+export type AiUsageLedger = typeof aiUsageLedger.$inferSelect;
+
+// Credit tier allocations - for reference
+export const AI_CREDIT_ALLOCATIONS: Record<SubscriptionTier, number> = {
+  free: 30,       // ~1 chat/day
+  advanced: 300,  // ~10 chats/day
+  pro: 1000,      // ~33 chats/day
+  admin: 999999,  // Unlimited for admins
+};
