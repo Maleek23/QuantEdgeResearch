@@ -177,7 +177,7 @@ export default function Landing() {
                 <Button 
                   variant="outline" 
                   className="border-slate-700 h-12 px-8 text-base font-semibold"
-                  onClick={() => scrollToSection('engine-matrix')}
+                  onClick={() => scrollToSection('features')}
                   data-testid="button-view-engines"
                 >
                   View Engines
@@ -230,92 +230,6 @@ export default function Landing() {
           </div>
         </div>
       </div>
-
-      {/* Engine Matrix - Core Signal Convergence */}
-      <section className="py-10 lg:py-16" id="engine-matrix" data-testid="engine-matrix">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-12">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Core Signal Convergence
-            </p>
-            <h2 className="text-xl font-semibold">When Engines Agree</h2>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* AI Engine */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-purple-500/50">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                  <Brain className="h-5 w-5 text-purple-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">AI Engine</h3>
-                  <p className="text-xs text-muted-foreground">Fundamental Analysis</p>
-                </div>
-              </div>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Fundamental analysis
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> News catalysts
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Multi-LLM consensus
-                </li>
-              </ul>
-            </div>
-            
-            {/* Quant Engine */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-blue-500/50">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <Calculator className="h-5 w-5 text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Quant Engine</h3>
-                  <p className="text-xs text-muted-foreground">Technical Signals</p>
-                </div>
-              </div>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> RSI(2) mean reversion
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> VWAP flow analysis
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Volume spike detection
-                </li>
-              </ul>
-            </div>
-            
-            {/* Flow Scanner */}
-            <div className="glass-card rounded-lg p-6 border-l-2 border-cyan-500/50">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-                  <Activity className="h-5 w-5 text-cyan-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Flow Scanner</h3>
-                  <p className="text-xs text-muted-foreground">Institutional Activity</p>
-                </div>
-              </div>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Institutional flow
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Unusual activity
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="h-4 w-4 text-cyan-400" /> Real-time scanning
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Platform Capabilities - Visual Cards */}
       <section className="py-12 lg:py-20 bg-slate-900/30" id="features" data-testid="section-features">
