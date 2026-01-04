@@ -16,16 +16,20 @@ export function isReplitAuthAvailable(): boolean {
   return !!(process.env.REPL_ID && process.env.REPL_ID.trim());
 }
 
+// Lazy OIDC config - only called when Replit Auth is actually needed
 const getOidcConfig = memoize(
   async () => {
-    if (!isReplitAuthAvailable()) {
-      throw new Error('Replit Auth not available - REPL_ID not configured');
+    // Double-check availability before attempting discovery
+    const replId = process.env.REPL_ID;
+    if (!replId || !replId.trim()) {
+      throw new Error('Replit Auth not available - REPL_ID environment variable is missing or empty');
     }
     // Use default Replit OIDC URL if not specified
     const issuerUrl = process.env.ISSUER_URL || "https://replit.com/oidc";
+    logger.info('Initializing Replit OIDC with issuer:', issuerUrl);
     return await client.discovery(
       new URL(issuerUrl),
-      process.env.REPL_ID!
+      replId
     );
   },
   { maxAge: 3600 * 1000 }
@@ -87,8 +91,12 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Skip Replit Auth setup if REPL_ID is not configured (e.g., on Render)
-  if (!isReplitAuthAvailable()) {
+  // Check if Replit Auth is available FIRST before any OIDC operations
+  const replitAuthAvailable = isReplitAuthAvailable();
+  logger.info(`Replit Auth check: REPL_ID="${process.env.REPL_ID || '(not set)'}", available=${replitAuthAvailable}`);
+
+  // Skip Replit Auth setup if REPL_ID is not configured (e.g., on Render, Vercel, etc.)
+  if (!replitAuthAvailable) {
     logger.warn('Replit Auth not available - REPL_ID not configured. Skipping Replit OIDC setup.');
     
     // Register placeholder routes that inform users Replit Auth is not available
@@ -112,7 +120,26 @@ export async function setupAuth(app: Express) {
     return; // Skip the rest of Replit Auth setup
   }
 
-  const config = await getOidcConfig();
+  // Wrap OIDC setup in try-catch to prevent server crash on misconfigured environments
+  let config: Awaited<ReturnType<typeof getOidcConfig>>;
+  try {
+    config = await getOidcConfig();
+  } catch (error) {
+    logger.error('Failed to initialize Replit OIDC - server will continue without Replit Auth', { 
+      error: (error as Error).message 
+    });
+    
+    // Register fallback routes
+    app.get("/api/login", (req, res) => {
+      res.status(503).json({ 
+        message: "Replit Auth initialization failed",
+        suggestion: "Use Google OAuth or email authentication instead"
+      });
+    });
+    app.get("/api/callback", (req, res) => res.redirect('/signup?error=replit_auth_failed'));
+    app.get("/api/logout", (req, res) => req.logout(() => res.redirect('/')));
+    return;
+  }
 
   const verify: VerifyFunction = async (
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
