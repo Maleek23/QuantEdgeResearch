@@ -5798,9 +5798,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allIdeas = await storage.getAllTradeIdeas();
       
-      // Filter: only resolved trades (hit_target or hit_stop)
+      // Filter: only resolved trades (hit_target or hit_stop), excluding buggy data
       const resolvedIdeas = allIdeas.filter(idea => 
-        idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop'
+        (idea.outcomeStatus === 'hit_target' || idea.outcomeStatus === 'hit_stop') &&
+        !idea.excludeFromTraining
       );
       
       // Statistical helper functions
