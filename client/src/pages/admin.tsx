@@ -38,7 +38,9 @@ import {
   RefreshCw,
   Archive,
   Gauge,
-  TrendingDown
+  TrendingDown,
+  FileBarChart,
+  ExternalLink,
 } from "lucide-react";
 
 const LossPatternsDashboard = lazy(() => import("@/components/loss-patterns-dashboard").then(m => ({ default: m.LossPatternsDashboard })));
@@ -783,10 +785,22 @@ export default function AdminPanel() {
           <Tabs defaultValue="users" className="w-full">
             <CardHeader>
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Admin Tools</p>
-              <TabsList className="grid w-full grid-cols-9">
+              <TabsList className="grid w-full grid-cols-6 lg:grid-cols-12">
                 <TabsTrigger value="users" data-testid="tab-users">
                   <Users className="h-4 w-4 mr-2" />
                   Users
+                </TabsTrigger>
+                <TabsTrigger value="win-loss" data-testid="tab-win-loss">
+                  <Target className="h-4 w-4 mr-2" />
+                  Win/Loss
+                </TabsTrigger>
+                <TabsTrigger value="reports" data-testid="tab-reports">
+                  <FileBarChart className="h-4 w-4 mr-2" />
+                  Reports
+                </TabsTrigger>
+                <TabsTrigger value="security" data-testid="tab-security">
+                  <Lock className="h-4 w-4 mr-2" />
+                  Security
                 </TabsTrigger>
                 <TabsTrigger value="analytics" data-testid="tab-analytics">
                   <BarChart3 className="h-4 w-4 mr-2" />
@@ -980,6 +994,69 @@ export default function AdminPanel() {
                       </tbody>
                     </table>
                   </div>
+                </div>
+              </CardContent>
+            </TabsContent>
+
+            {/* Win/Loss Analysis Tab */}
+            <TabsContent value="win-loss">
+              <CardContent className="space-y-4">
+                <div className="text-center py-8">
+                  <Target className="h-12 w-12 mx-auto mb-4 text-cyan-400" />
+                  <h3 className="text-lg font-semibold mb-2">Win/Loss Analysis</h3>
+                  <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+                    Comprehensive win/loss statistics, distribution analysis, and stop-loss simulations.
+                  </p>
+                  <Button 
+                    onClick={() => setLocation('/admin/win-loss')}
+                    className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                    data-testid="button-open-win-loss"
+                  >
+                    Open Win/Loss Dashboard
+                    <ExternalLink className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </CardContent>
+            </TabsContent>
+
+            {/* Reports Tab */}
+            <TabsContent value="reports">
+              <CardContent className="space-y-4">
+                <div className="text-center py-8">
+                  <FileBarChart className="h-12 w-12 mx-auto mb-4 text-purple-400" />
+                  <h3 className="text-lg font-semibold mb-2">Platform Reports</h3>
+                  <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+                    Generate and view daily, weekly, and monthly platform performance reports.
+                  </p>
+                  <Button 
+                    onClick={() => setLocation('/admin/reports')}
+                    className="bg-purple-500 hover:bg-purple-400 text-white"
+                    data-testid="button-open-reports"
+                  >
+                    Open Reports Dashboard
+                    <ExternalLink className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </CardContent>
+            </TabsContent>
+
+            {/* Security Tab */}
+            <TabsContent value="security">
+              <CardContent className="space-y-4">
+                <div className="text-center py-8">
+                  <Shield className="h-12 w-12 mx-auto mb-4 text-amber-400" />
+                  <h3 className="text-lg font-semibold mb-2">Security Dashboard</h3>
+                  <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+                    Monitor security events, audit logs, failed login attempts, and IP blocking.
+                  </p>
+                  <Button 
+                    onClick={() => setLocation('/admin/security')}
+                    className="bg-amber-500 hover:bg-amber-400 text-slate-950"
+                    data-testid="button-open-security"
+                  >
+                    Open Security Dashboard
+                    <ExternalLink className="h-4 w-4 ml-2" />
+                  </Button>
                 </div>
               </CardContent>
             </TabsContent>

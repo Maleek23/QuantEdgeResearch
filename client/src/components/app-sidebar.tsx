@@ -62,9 +62,6 @@ const accountItems: NavItem[] = [
 
 const adminItems: NavItem[] = [
   { title: "Admin", url: "/admin", icon: Shield },
-  { title: "Win/Loss", url: "/admin/win-loss", icon: BarChart2, badge: "NEW" },
-  { title: "Reports", url: "/admin/reports", icon: FileBarChart },
-  { title: "Security", url: "/admin/security", icon: Lock },
 ];
 
 function SidebarHeaderContent() {
