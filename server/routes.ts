@@ -580,6 +580,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========== BETA WAITLIST ==========
+  // Join waitlist - Public endpoint, notifies Discord
+  app.post("/api/waitlist/join", async (req: Request, res: Response) => {
+    try {
+      const { email, source, referralCode } = req.body;
+      
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      
+      const emailLower = email.toLowerCase().trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailLower)) {
+        return res.status(400).json({ error: "Invalid email format" });
+      }
+      
+      // Check if already on waitlist
+      const existing = await storage.getWaitlistEntry(emailLower);
+      if (existing) {
+        return res.status(200).json({ 
+          success: true, 
+          message: "You're already on the waitlist!",
+          alreadyExists: true 
+        });
+      }
+      
+      // Add to waitlist
+      const entry = await storage.createWaitlistEntry({
+        email: emailLower,
+        source: source || 'landing',
+        referralCode: referralCode || null,
+      });
+      
+      // Send Discord notification
+      const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+      if (webhookUrl) {
+        try {
+          const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              embeds: [{
+                title: "New Beta Waitlist Signup",
+                color: 0x06B6D4,
+                fields: [
+                  { name: "Email", value: emailLower, inline: true },
+                  { name: "Source", value: source || 'landing', inline: true },
+                  { name: "Referral", value: referralCode || 'None', inline: true },
+                ],
+                timestamp: new Date().toISOString(),
+                footer: { text: "Quant Edge Labs Beta" }
+              }]
+            }),
+          });
+          
+          if (response.ok) {
+            await storage.markWaitlistDiscordNotified(entry.id);
+          }
+        } catch (discordError) {
+          logger.error('Failed to notify Discord', { error: discordError });
+        }
+      }
+      
+      logger.info('New beta waitlist signup', { email: emailLower, source });
+      res.json({ 
+        success: true, 
+        message: "Welcome to the Lab! We'll be in touch soon.",
+        position: await storage.getWaitlistPosition(entry.id)
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'waitlist/join' });
+      res.status(500).json({ error: "Failed to join waitlist" });
+    }
+  });
+
+  // Get waitlist count (public)
+  app.get("/api/waitlist/count", async (_req: Request, res: Response) => {
+    try {
+      const count = await storage.getWaitlistCount();
+      res.json({ count });
+    } catch (error) {
+      res.json({ count: 0 });
+    }
+  });
+
   // Quick dev login - creates test user if needed and logs in
   app.post("/api/auth/dev-login", async (req: Request, res: Response) => {
     try {

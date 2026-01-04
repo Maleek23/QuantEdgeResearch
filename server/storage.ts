@@ -76,6 +76,8 @@ import type {
   UserAnalyticsSummary,
   InsertUserAnalyticsSummary,
   UserActivityType,
+  BetaWaitlist,
+  InsertBetaWaitlist,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
@@ -116,6 +118,7 @@ import {
   pageViews,
   userActivityEvents,
   userAnalyticsSummary,
+  betaWaitlist,
 } from "@shared/schema";
 
 // ========================================
@@ -474,6 +477,13 @@ export interface IStorage {
   // Auto Lotto Preferences
   getAutoLottoPreferences(userId: string): Promise<AutoLottoPreferences | null>;
   upsertAutoLottoPreferences(prefs: InsertAutoLottoPreferences): Promise<AutoLottoPreferences>;
+
+  // Beta Waitlist
+  getWaitlistEntry(email: string): Promise<BetaWaitlist | null>;
+  createWaitlistEntry(entry: InsertBetaWaitlist): Promise<BetaWaitlist>;
+  markWaitlistDiscordNotified(id: string): Promise<void>;
+  getWaitlistCount(): Promise<number>;
+  getWaitlistPosition(id: string): Promise<number>;
 }
 
 export class MemStorage implements IStorage {
@@ -3590,6 +3600,35 @@ export class DatabaseStorage implements IStorage {
       topActivities: activityStats,
       recentLogins: recentLogins.slice(0, 10),
     };
+  }
+
+  // ========== BETA WAITLIST ==========
+  async getWaitlistEntry(email: string): Promise<BetaWaitlist | null> {
+    const result = await db.select().from(betaWaitlist).where(eq(betaWaitlist.email, email));
+    return result[0] || null;
+  }
+
+  async createWaitlistEntry(entry: InsertBetaWaitlist): Promise<BetaWaitlist> {
+    const [created] = await db.insert(betaWaitlist).values(entry).returning();
+    return created;
+  }
+
+  async markWaitlistDiscordNotified(id: string): Promise<void> {
+    await db.update(betaWaitlist).set({ notifiedDiscord: true }).where(eq(betaWaitlist.id, id));
+  }
+
+  async getWaitlistCount(): Promise<number> {
+    const result = await db.select({ count: drizzleSql<number>`count(*)::int` }).from(betaWaitlist);
+    return result[0]?.count || 0;
+  }
+
+  async getWaitlistPosition(id: string): Promise<number> {
+    const entry = await db.select().from(betaWaitlist).where(eq(betaWaitlist.id, id));
+    if (!entry[0]) return 0;
+    const earlier = await db.select({ count: drizzleSql<number>`count(*)::int` })
+      .from(betaWaitlist)
+      .where(lte(betaWaitlist.createdAt, entry[0].createdAt!));
+    return earlier[0]?.count || 0;
   }
 }
 
