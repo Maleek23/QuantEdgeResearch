@@ -200,6 +200,63 @@ export class CreditService {
     return stats;
   }
   
+  async getTierAnalytics(tier: SubscriptionTier, userId: string) {
+    const now = new Date();
+    const cycleStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const daysIntoMonth = Math.max(1, Math.floor((now.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24)));
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    
+    // Ensure user has a current-cycle balance (handles expired cycles)
+    const currentUserBalance = await this.getOrCreateBalance(userId, tier);
+    
+    // Get all active balances for this tier (current cycle only)
+    const tierBalances = await db
+      .select()
+      .from(aiCreditBalances)
+      .where(
+        and(
+          eq(aiCreditBalances.tierSnapshot, tier),
+          gte(aiCreditBalances.cycleEnd, now) // Only current cycle balances
+        )
+      );
+    
+    // Use the user's current balance from getOrCreateBalance
+    const userUsed = currentUserBalance.creditsUsed;
+    const userAllocated = currentUserBalance.creditsAllocated;
+    
+    // Calculate tier averages from current cycle only
+    const tierUsages = tierBalances.map(b => b.creditsUsed);
+    const avgUsage = tierUsages.length > 0 
+      ? Math.round(tierUsages.reduce((a, b) => a + b, 0) / tierUsages.length)
+      : 0;
+    
+    // Calculate user's rank (what percentile they're in)
+    const usersWithLessUsage = tierUsages.filter(u => u < userUsed).length;
+    const percentile = tierUsages.length > 0 
+      ? Math.round((usersWithLessUsage / tierUsages.length) * 100)
+      : 50;
+    
+    // Calculate daily average
+    const dailyAverage = daysIntoMonth > 0 ? Math.round((userUsed / daysIntoMonth) * 10) / 10 : 0;
+    const projectedMonthly = Math.round(dailyAverage * daysInMonth);
+    
+    // Clamp daysRemaining to >= 0
+    const daysRemaining = Math.max(0, daysInMonth - daysIntoMonth);
+    
+    return {
+      userUsed,
+      userAllocated,
+      usagePercentage: userAllocated > 0 ? Math.round((userUsed / userAllocated) * 100) : 0,
+      dailyAverage,
+      projectedMonthly,
+      tierAverageUsage: avgUsage,
+      tierUserCount: tierBalances.length,
+      userPercentile: percentile,
+      daysIntoMonth,
+      daysRemaining,
+    };
+  }
+  
   async resetUserCredits(userId: string, tier: SubscriptionTier) {
     const now = new Date();
     

@@ -2405,6 +2405,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/ai/credits/analytics - Get usage analytics for current user
+  app.get("/api/ai/credits/analytics", async (req, res) => {
+    try {
+      const userId = req.session?.userId || (req.user as any)?.claims?.sub;
+      
+      if (!userId) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      
+      const user = await storage.getUserById(userId);
+      const tier = (user?.subscriptionTier as 'free' | 'advanced' | 'pro' | 'admin') || 'free';
+      const analytics = await creditService.getTierAnalytics(tier, userId);
+      
+      res.json({
+        ...analytics,
+        tier,
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'get credit analytics' });
+      res.status(500).json({ error: "Failed to fetch credit analytics" });
+    }
+  });
+
   // Market Data Routes
   // Market data cache (2-minute TTL for fresher price updates)
   let marketDataCache: { data: any; timestamp: number } | null = null;

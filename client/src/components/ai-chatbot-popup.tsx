@@ -13,7 +13,8 @@ import {
   Sparkles,
   AlertTriangle,
   Minimize2,
-  Zap
+  Zap,
+  ArrowUpCircle
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
@@ -180,7 +181,7 @@ export function AIChatbotPopup() {
                   data-testid="badge-credits"
                 >
                   <Zap className="h-3 w-3" />
-                  {creditsRemaining}
+                  {String(creditsRemaining)}
                 </Badge>
               )}
             </div>
@@ -292,6 +293,25 @@ export function AIChatbotPopup() {
               </ScrollArea>
 
               <div className="p-3 border-t bg-muted/30">
+                {/* 70% Usage Upgrade Nudge */}
+                {creditBalance && creditBalance.tier !== 'pro' && creditBalance.tier !== 'admin' && 
+                  creditBalance.creditsUsed / creditBalance.creditsAllocated >= 0.7 && (
+                  <a 
+                    href="/pricing" 
+                    className="flex items-center gap-2 mb-2 p-2 rounded-lg bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 hover:border-cyan-500/40 transition-colors"
+                    data-testid="link-upgrade-nudge"
+                  >
+                    <ArrowUpCircle className="h-4 w-4 text-cyan-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-cyan-300">
+                        Running low on credits!
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        Upgrade for {creditBalance.tier === 'free' ? '20x' : '2.5x'} more AI queries
+                      </p>
+                    </div>
+                  </a>
+                )}
                 <div className="flex items-center gap-1 mb-2 text-xs text-amber-500/80">
                   <AlertTriangle className="h-3 w-3" />
                   <span>Educational only. Not financial advice.</span>

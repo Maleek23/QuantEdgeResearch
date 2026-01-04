@@ -63,6 +63,20 @@ interface CreditBalance {
   tier: string;
 }
 
+interface CreditAnalytics {
+  userUsed: number;
+  userAllocated: number;
+  usagePercentage: number;
+  dailyAverage: number;
+  projectedMonthly: number;
+  tierAverageUsage: number;
+  tierUserCount: number;
+  userPercentile: number;
+  daysIntoMonth: number;
+  daysRemaining: number;
+  tier: string;
+}
+
 export default function MyAccountPage() {
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -80,6 +94,11 @@ export default function MyAccountPage() {
 
   const { data: creditBalance } = useQuery<CreditBalance>({
     queryKey: ['/api/ai/credits'],
+    enabled: !!user,
+  });
+
+  const { data: creditAnalytics, isLoading: analyticsLoading, error: analyticsError } = useQuery<CreditAnalytics>({
+    queryKey: ['/api/ai/credits/analytics'],
     enabled: !!user,
   });
 
@@ -456,6 +475,55 @@ export default function MyAccountPage() {
                     />
                     <p className="text-xs text-muted-foreground">
                       Resets on {format(new Date(creditBalance.cycleEnd), 'MMMM d, yyyy')}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Credit Usage Analytics */}
+              {analyticsLoading && (
+                <div className="grid grid-cols-2 gap-3 p-4 rounded-lg bg-muted/30 border border-border/50">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="space-y-1">
+                      <div className="h-3 w-16 bg-muted/40 animate-pulse rounded" />
+                      <div className="h-6 w-20 bg-muted/40 animate-pulse rounded" />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {analyticsError && (
+                <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400">
+                  Unable to load usage analytics. Please try again later.
+                </div>
+              )}
+              {creditAnalytics && !analyticsLoading && !analyticsError && (
+                <div className="grid grid-cols-2 gap-3 p-4 rounded-lg bg-muted/30 border border-border/50">
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Daily Average</p>
+                    <p className="text-lg font-semibold font-mono tabular-nums" data-testid="text-daily-average">
+                      {creditAnalytics.dailyAverage}
+                      <span className="text-xs text-muted-foreground ml-1">credits/day</span>
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Projected This Month</p>
+                    <p className="text-lg font-semibold font-mono tabular-nums" data-testid="text-projected-usage">
+                      {creditAnalytics.projectedMonthly}
+                      <span className="text-xs text-muted-foreground ml-1">/ {creditAnalytics.userAllocated}</span>
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Your Tier Average</p>
+                    <p className="text-lg font-semibold font-mono tabular-nums" data-testid="text-tier-average">
+                      {creditAnalytics.tierAverageUsage}
+                      <span className="text-xs text-muted-foreground ml-1">credits/mo</span>
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Days Remaining</p>
+                    <p className="text-lg font-semibold font-mono tabular-nums" data-testid="text-days-remaining">
+                      {creditAnalytics.daysRemaining}
+                      <span className="text-xs text-muted-foreground ml-1">days</span>
                     </p>
                   </div>
                 </div>

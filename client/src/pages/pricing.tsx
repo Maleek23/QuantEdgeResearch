@@ -199,6 +199,34 @@ export default function Pricing() {
           </div>
         </div>
 
+        {/* Annual Discount Banner */}
+        {!isYearly && (
+          <button
+            onClick={() => setIsYearly(true)}
+            className="w-full max-w-2xl mx-auto mb-6 p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 hover:border-green-500/50 transition-colors cursor-pointer text-left"
+            data-testid="banner-annual-discount"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <Clock className="h-4 w-4 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-green-300">
+                    Save 2 months with annual billing
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Get 12 months for the price of 10. Click to switch to yearly.
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-medium text-green-400 whitespace-nowrap">
+                ~25% OFF
+              </span>
+            </div>
+          </button>
+        )}
+
         {/* Billing Toggle */}
         <div className="flex items-center justify-center gap-4 mb-10">
           <span 
