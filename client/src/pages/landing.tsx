@@ -669,6 +669,54 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Discord Community Section */}
+      <section className="py-12 lg:py-16" data-testid="section-discord">
+        <div className="container mx-auto px-6">
+          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-600/20 via-purple-600/10 to-indigo-600/20 border border-indigo-500/20 p-8 lg:p-12 max-w-4xl mx-auto">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl" />
+            
+            <div className="relative flex flex-col lg:flex-row items-center gap-8">
+              <div className="flex-shrink-0">
+                <div className="h-20 w-20 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                  <SiDiscord className="h-10 w-10 text-white" />
+                </div>
+              </div>
+              
+              <div className="flex-1 text-center lg:text-left">
+                <h2 className="text-2xl font-bold mb-2">Join the Lab Community</h2>
+                <p className="text-muted-foreground mb-4 max-w-lg">
+                  Connect with traders, get real-time signal alerts, ask questions, and learn together. 
+                  Our Discord is where the action happens.
+                </p>
+                <div className="flex flex-wrap gap-4 justify-center lg:justify-start text-sm text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-indigo-400" /> Live signal alerts
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-indigo-400" /> Trading discussions
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-indigo-400" /> Educational content
+                  </span>
+                </div>
+              </div>
+              
+              <div className="flex-shrink-0">
+                <Button 
+                  className="bg-indigo-600 hover:bg-indigo-500 h-12 px-8 text-base font-semibold gap-2"
+                  onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
+                  data-testid="button-discord-section"
+                >
+                  <SiDiscord className="h-5 w-5" />
+                  Join Discord
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-10 lg:py-12" data-testid="section-cta">
         <div className="container mx-auto px-6">
@@ -685,11 +733,11 @@ export default function Landing() {
                 shimmerSize="0.1em"
                 background="linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)"
                 borderRadius="8px"
-                onClick={() => setLocation('/signup')} 
+                onClick={() => setWaitlistOpen(true)} 
                 data-testid="button-cta-signup"
                 className="font-medium"
               >
-                Get Started Free <ArrowRight className="h-4 w-4 ml-2" />
+                Join Beta <ArrowRight className="h-4 w-4 ml-2" />
               </ShimmerButton>
               <Button 
                 variant="outline" 
@@ -731,6 +779,15 @@ export default function Landing() {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-muted-foreground">
             <p>© {new Date().getFullYear()} Quant Edge Labs</p>
             <div className="flex items-center gap-3">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6" 
+                onClick={() => window.open(DISCORD_INVITE_URL, '_blank')}
+                data-testid="link-social-discord"
+              >
+                <SiDiscord className="h-3 w-3" />
+              </Button>
               <Button variant="ghost" size="icon" className="h-6 w-6" data-testid="link-social-twitter">
                 <Twitter className="h-3 w-3" />
               </Button>
