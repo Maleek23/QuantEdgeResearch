@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Link } from "wouter";
 
 const signupSchema = z.object({
+  inviteCode: z.string().min(1, "Invite code is required for beta access"),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   email: z.string().email("Please enter a valid email address"),
@@ -36,6 +37,7 @@ export default function Signup() {
   const form = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
+      inviteCode: "",
       firstName: "",
       lastName: "",
       email: "",
@@ -126,6 +128,26 @@ export default function Signup() {
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="inviteCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Invite Code</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter your invite code"
+                          data-testid="input-invite-code"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <p className="text-xs text-muted-foreground">
+                        Don't have a code? <Link href="/" className="text-cyan-400 hover:underline">Join the waitlist</Link>
+                      </p>
+                    </FormItem>
+                  )}
+                />
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}

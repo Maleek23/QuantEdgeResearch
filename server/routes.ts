@@ -489,7 +489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Signup - Create new user account
   app.post("/api/auth/signup", async (req: Request, res: Response) => {
     try {
-      const { email, password, firstName, lastName } = req.body;
+      const { email, password, firstName, lastName, inviteCode } = req.body;
       
       if (!email || !password) {
         return res.status(400).json({ error: "Email and password are required" });
@@ -497,6 +497,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (password.length < 6) {
         return res.status(400).json({ error: "Password must be at least 6 characters" });
+      }
+      
+      // Validate invite code for invite-only beta
+      const validInviteCode = process.env.ADMIN_ACCESS_CODE || "0065";
+      if (!inviteCode || inviteCode !== validInviteCode) {
+        return res.status(403).json({ error: "Invalid invite code. This is an invite-only beta." });
       }
       
       const user = await createUser(email, password, firstName, lastName);
