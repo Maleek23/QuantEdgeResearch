@@ -202,7 +202,6 @@ import { isWeekend, getNextTradingWeekStart, cn, getMarketStatus } from "@/lib/u
 import { RiskDisclosure } from "@/components/risk-disclosure";
 import { TimingDisplay } from "@/components/timing-display";
 import { Calendar } from "@/components/ui/calendar";
-import { WatchlistSpotlight } from "@/components/watchlist-spotlight";
 import { getSignalGrade, getResolutionReasonLabel } from "@/lib/signal-grade";
 import { AIResearchPanel } from "@/components/ai-research-panel";
 import { UsageBadge } from "@/components/tier-gate";
@@ -1469,9 +1468,6 @@ export default function TradeDeskPage() {
           </div>
         </div>
       )}
-
-      {/* Watchlist Spotlight - "Watch Out For These" */}
-      <WatchlistSpotlight maxItems={5} />
 
       {/* All Research Briefs */}
       <div className="space-y-8">

@@ -22,6 +22,7 @@ import {
   Lightbulb, AlertTriangle, Zap, Loader2, Search, BarChart2 
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { WatchlistSpotlight } from "@/components/watchlist-spotlight";
 import { getMarketSession, formatCTTime, formatCurrency, formatPercent } from "@/lib/utils";
 
 interface SmartWatchlistPick {
@@ -489,6 +490,9 @@ export default function MarketPage() {
           )}
         </div>
       </div>
+
+      {/* Personal Watchlist Spotlight */}
+      <WatchlistSpotlight maxItems={8} />
 
       <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
