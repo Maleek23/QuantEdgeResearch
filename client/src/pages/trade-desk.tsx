@@ -118,6 +118,9 @@ export default function TradeDeskPage() {
   // Multi-Factor Analysis panel state
   const [analysisSymbol, setAnalysisSymbol] = useState<string | null>(null);
   
+  // Advanced filters collapsed by default for cleaner UI
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  
   // Pagination state
   const [visibleCount, setVisibleCount] = useState(50);
   
@@ -1134,15 +1137,14 @@ export default function TradeDeskPage() {
       {/* AI Research Assistant */}
       <AIResearchPanel />
 
-      {/* Compact Filters Bar */}
+      {/* Simple Filter Bar - Source tabs only */}
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <span className="text-muted-foreground">Filter by:</span>
         {([
           { value: 'all', label: 'All' },
           { value: 'ai', label: 'AI' },
           { value: 'quant', label: 'Quant' },
           { value: 'flow', label: 'Flow' },
-          { value: 'hybrid', label: 'Hybrid' },
+          { value: 'hybrid', label: 'Smart' },
         ] as const).map(({ value, label }) => (
           <button
             key={value}
@@ -1161,119 +1163,132 @@ export default function TradeDeskPage() {
             )}
           </button>
         ))}
+        
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className="text-xs gap-1.5"
+            data-testid="button-toggle-advanced-filters"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            {showAdvancedFilters ? 'Less' : 'More'}
+          </Button>
+        </div>
       </div>
 
-      {/* Compact Filter Row */}
-      <div className="flex flex-wrap items-center gap-6 py-3 border-y border-border/30">
-        {/* Trade Type */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">Type:</span>
-          {(['swing', 'day', 'all'] as const).map((value) => (
-            <button
-              key={value}
-              onClick={() => setTradeTypeFilter(value)}
-              className={cn(
-                "text-sm capitalize",
-                tradeTypeFilter === value 
-                  ? "text-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              data-testid={`tab-tradetype-${value}`}
-            >
-              {value}
-            </button>
-          ))}
-        </div>
-
-        {/* Timeframe */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">Horizon:</span>
-          {(['all', 'today_tomorrow', 'few_days', 'next_week'] as TimeframeBucket[]).map((timeframe) => (
-            <button
-              key={timeframe}
-              onClick={() => setActiveTimeframe(timeframe)}
-              className={cn(
-                "text-sm",
-                activeTimeframe === timeframe 
-                  ? "text-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              data-testid={`tab-timeframe-${timeframe}`}
-            >
-              {TIMEFRAME_LABELS[timeframe]}
-            </button>
-          ))}
-        </div>
-
-        {/* Posted Date Filter */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Posted:</span>
-          <Select value={dateFilter} onValueChange={(val) => {
-            setDateFilter(val);
-            if (val !== 'custom') setCustomDate(undefined);
-          }}>
-            <SelectTrigger className="w-[110px] h-8 text-sm border-0 bg-transparent" data-testid="select-date-filter">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="yesterday">Yesterday</SelectItem>
-              <SelectItem value="3d">Last 3 Days</SelectItem>
-              <SelectItem value="7d">Last 7 Days</SelectItem>
-              <SelectItem value="30d">Last 30 Days</SelectItem>
-              <SelectItem value="all">All Time</SelectItem>
-              <SelectItem value="custom">Pick Date...</SelectItem>
-            </SelectContent>
-          </Select>
-          {dateFilter === 'custom' && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2 font-mono h-8" data-testid="button-custom-date">
-                  <CalendarIcon className="h-3 w-3" />
-                  {customDate ? format(customDate, 'MMM d') : 'Select'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={customDate}
-                  onSelect={setCustomDate}
-                  disabled={(date) => date > new Date()}
-                />
-              </PopoverContent>
-            </Popover>
-          )}
-        </div>
-
-        {/* Status Filter */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">Status:</span>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[100px] h-8 text-sm border-0 bg-transparent" data-testid="filter-status">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="won">Winners</SelectItem>
-              <SelectItem value="lost">Losers</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Symbol Search - Inline */}
-        <div className="flex items-center gap-2 ml-auto">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-            <Input
-              placeholder="Symbol..."
-              value={symbolSearch}
-              onChange={(e) => setSymbolSearch(e.target.value.toUpperCase())}
-              className="pl-8 h-8 w-28 text-sm bg-transparent border-0 focus-visible:ring-1"
-              data-testid="filter-symbol-search"
-            />
+      {/* Advanced Filters - Collapsed by default */}
+      {showAdvancedFilters && (
+        <div className="flex flex-wrap items-center gap-6 py-3 px-4 rounded-lg bg-muted/20 border border-border/30">
+          {/* Trade Type */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Type:</span>
+            {(['all', 'swing', 'day'] as const).map((value) => (
+              <button
+                key={value}
+                onClick={() => setTradeTypeFilter(value)}
+                className={cn(
+                  "text-sm capitalize px-2 py-0.5 rounded",
+                  tradeTypeFilter === value 
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                data-testid={`tab-tradetype-${value}`}
+              >
+                {value}
+              </button>
+            ))}
           </div>
-          {(symbolSearch || statusFilter !== 'all' || dateFilter !== 'all') && (
+
+          {/* Timeframe */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Horizon:</span>
+            <Select value={activeTimeframe} onValueChange={(val) => setActiveTimeframe(val as TimeframeBucket)}>
+              <SelectTrigger className="w-[100px] h-7 text-xs border-0 bg-transparent" data-testid="select-timeframe">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="today_tomorrow">1-2 Days</SelectItem>
+                <SelectItem value="few_days">3-5 Days</SelectItem>
+                <SelectItem value="next_week">This Week</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Posted Date Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Posted:</span>
+            <Select value={dateFilter} onValueChange={(val) => {
+              setDateFilter(val);
+              if (val !== 'custom') setCustomDate(undefined);
+            }}>
+              <SelectTrigger className="w-[90px] h-7 text-xs border-0 bg-transparent" data-testid="select-date-filter">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="yesterday">Yesterday</SelectItem>
+                <SelectItem value="3d">3 Days</SelectItem>
+                <SelectItem value="7d">7 Days</SelectItem>
+                <SelectItem value="30d">30 Days</SelectItem>
+                <SelectItem value="custom">Pick Date</SelectItem>
+              </SelectContent>
+            </Select>
+            {dateFilter === 'custom' && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1.5 font-mono h-7 text-xs" data-testid="button-custom-date">
+                    <CalendarIcon className="h-3 w-3" />
+                    {customDate ? format(customDate, 'MMM d') : 'Select'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customDate}
+                    onSelect={setCustomDate}
+                    disabled={(date) => date > new Date()}
+                  />
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Status:</span>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[80px] h-7 text-xs border-0 bg-transparent" data-testid="filter-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="won">Won</SelectItem>
+                <SelectItem value="lost">Lost</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Symbol Search */}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Symbol"
+                value={symbolSearch}
+                onChange={(e) => setSymbolSearch(e.target.value.toUpperCase())}
+                className="pl-7 h-7 w-24 text-xs bg-transparent border-0 focus-visible:ring-1"
+                data-testid="filter-symbol-search"
+              />
+            </div>
+          </div>
+
+          {/* Clear All */}
+          {(symbolSearch || statusFilter !== 'all' || dateFilter !== 'all' || tradeTypeFilter !== 'all' || activeTimeframe !== 'all') && (
             <Button
               variant="ghost"
               size="sm"
@@ -1281,16 +1296,18 @@ export default function TradeDeskPage() {
                 setSymbolSearch('');
                 setStatusFilter('all');
                 setDateFilter('all');
+                setTradeTypeFilter('all');
+                setActiveTimeframe('all');
                 setCustomDate(undefined);
               }}
-              className="h-8 px-2 text-xs"
+              className="h-7 px-2 text-xs"
               data-testid="button-clear-filters"
             >
-              Clear
+              Reset
             </Button>
           )}
         </div>
-      </div>
+      )}
 
       {/* Market Status */}
       {isWeekend() && (
