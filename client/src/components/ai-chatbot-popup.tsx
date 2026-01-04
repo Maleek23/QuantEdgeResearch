@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { 
   Bot, 
   Send, 
@@ -11,16 +12,27 @@ import {
   MessageCircle,
   Sparkles,
   AlertTriangle,
-  Minimize2
+  Minimize2,
+  Zap
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ResearchResponse {
   response: string;
   disclaimer: string;
   timestamp: string;
+  creditsRemaining?: number;
+}
+
+interface CreditBalance {
+  creditsRemaining: number;
+  creditsUsed: number;
+  creditsAllocated: number;
+  cycleEnd: string;
+  tier: string;
 }
 
 interface ChatMessage {
@@ -35,8 +47,22 @@ export function AIChatbotPopup() {
   const [isMinimized, setIsMinimized] = useState(false);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+
+  const { data: creditBalance, refetch: refetchCredits } = useQuery<CreditBalance>({
+    queryKey: ['/api/ai/credits'],
+    enabled: isOpen && !!user,
+    staleTime: 30000,
+  });
+
+  useEffect(() => {
+    if (creditBalance) {
+      setCreditsRemaining(creditBalance.creditsRemaining);
+    }
+  }, [creditBalance]);
 
   const researchMutation = useMutation({
     mutationFn: async (questionText: string) => {
@@ -52,14 +78,26 @@ export function AIChatbotPopup() {
         content: data.response,
         timestamp: new Date(data.timestamp),
       }]);
+      if (data.creditsRemaining !== undefined) {
+        setCreditsRemaining(data.creditsRemaining);
+      }
     },
-    onError: (error: Error) => {
+    onError: async (error: Error) => {
+      const errorMessage = error.message || 'Failed to get response. Please try again.';
+      const isOutOfCredits = errorMessage.includes('No AI credits');
+      
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: `Error: ${error.message || 'Failed to get response. Please try again.'}`,
+        content: isOutOfCredits 
+          ? `You've used all your AI credits for this month. Visit the [Pricing page](/pricing) to upgrade your plan for more credits.`
+          : `Error: ${errorMessage}`,
         timestamp: new Date(),
       }]);
+      
+      if (isOutOfCredits) {
+        setCreditsRemaining(0);
+      }
     },
   });
 
@@ -129,7 +167,21 @@ export function AIChatbotPopup() {
                 <Sparkles className="absolute -top-1 -right-1 h-2.5 w-2.5 text-cyan-300" />
               </div>
               <span className="font-medium text-sm">Quant Edge AI</span>
-              <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">Gemini</span>
+              {user && creditsRemaining !== null && (
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    "text-xs gap-1",
+                    creditsRemaining <= 5 ? "border-red-500/50 text-red-400" :
+                    creditsRemaining <= 15 ? "border-amber-500/50 text-amber-400" :
+                    "border-cyan-500/50 text-cyan-400"
+                  )}
+                  data-testid="badge-credits"
+                >
+                  <Zap className="h-3 w-3" />
+                  {creditsRemaining}
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-1">
               <Button 
