@@ -1649,27 +1649,6 @@ export class MemStorage implements IStorage {
     throw new Error("Audit trail not supported in MemStorage");
   }
 
-  // Blog Posts CMS (stub)
-  async getBlogPosts(_status?: BlogPostStatus): Promise<BlogPost[]> {
-    throw new Error("Blog not supported in MemStorage");
-  }
-
-  async getBlogPostBySlug(_slug: string): Promise<BlogPost | null> {
-    throw new Error("Blog not supported in MemStorage");
-  }
-
-  async createBlogPost(_post: InsertBlogPost): Promise<BlogPost> {
-    throw new Error("Blog not supported in MemStorage");
-  }
-
-  async updateBlogPost(_id: string, _post: Partial<InsertBlogPost>): Promise<BlogPost | null> {
-    throw new Error("Blog not supported in MemStorage");
-  }
-
-  async deleteBlogPost(_id: string): Promise<boolean> {
-    throw new Error("Blog not supported in MemStorage");
-  }
-
   // Loss Analysis (stub)
   async createLossAnalysis(_analysis: InsertLossAnalysis): Promise<LossAnalysis> {
     throw new Error("Loss analysis not supported in MemStorage");

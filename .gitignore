@@ -19,6 +19,7 @@ training-data/
 
 # Signal intelligence (derived from proprietary data)
 server/signal-*.ts
+!server/signal-attribution.ts
 
 # ============ SENSITIVE DATA ============
 # Environment variables and secrets
