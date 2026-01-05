@@ -351,7 +351,155 @@ interface LottoOpportunity {
   delta: number;
   price: number;
   volume: number;
+  openInterest: number;
+  bidAskSpread: number;
   daysToExpiry: number;
+  strikeScore: number; // Intelligent strike scoring
+}
+
+/**
+ * INTELLIGENT STRIKE SELECTION ALGORITHM
+ * Scores each strike based on multiple factors to find optimal entry
+ * 
+ * Factors considered:
+ * 1. Delta sweet spot (0.15-0.25 optimal for lotto plays)
+ * 2. Bid-ask spread (tighter = better execution)
+ * 3. Volume & open interest (liquidity)
+ * 4. Premium efficiency (bang for buck)
+ * 5. Distance from current price (reasonable OTM)
+ */
+interface StrikeCandidate {
+  strike: number;
+  optionType: 'call' | 'put';
+  bid: number;
+  ask: number;
+  midPrice: number;
+  delta: number;
+  volume: number;
+  openInterest: number;
+  expiration: string;
+  daysToExpiry: number;
+  score: number;
+  scoreBreakdown: {
+    deltaScore: number;
+    liquidityScore: number;
+    spreadScore: number;
+    premiumScore: number;
+  };
+}
+
+function scoreStrikeCandidate(
+  opt: any, 
+  stockPrice: number, 
+  daysToExpiry: number
+): StrikeCandidate | null {
+  if (!opt.bid || !opt.ask || opt.bid <= 0) return null;
+  
+  const midPrice = (opt.bid + opt.ask) / 2;
+  const spread = opt.ask - opt.bid;
+  const spreadPercent = spread / midPrice;
+  const delta = opt.greeks?.delta || 0;
+  const absDelta = Math.abs(delta);
+  const volume = opt.volume || 0;
+  const openInterest = opt.open_interest || 0;
+  
+  // Calculate OTM percentage
+  const strikeOTMPercent = opt.option_type === 'call' 
+    ? ((opt.strike - stockPrice) / stockPrice) * 100
+    : ((stockPrice - opt.strike) / stockPrice) * 100;
+  
+  // HARD FILTERS - must pass all
+  if (midPrice < 0.10 || midPrice > 2.50) return null; // Price range for lottos
+  if (absDelta < 0.08 || absDelta > 0.35) return null; // Delta range
+  if (strikeOTMPercent > 12 || strikeOTMPercent < 0) return null; // Max 12% OTM
+  if (spreadPercent > 0.40) return null; // Max 40% spread (avoid illiquid)
+  
+  // SCORING (0-100 for each factor)
+  
+  // 1. DELTA SCORE (40 points max)
+  // Sweet spot: 0.15-0.25 delta (20-25% probability, good R/R)
+  let deltaScore = 0;
+  if (absDelta >= 0.15 && absDelta <= 0.25) {
+    deltaScore = 40; // Perfect range
+  } else if (absDelta >= 0.12 && absDelta < 0.15) {
+    deltaScore = 30; // Good - slightly aggressive
+  } else if (absDelta > 0.25 && absDelta <= 0.30) {
+    deltaScore = 25; // OK - more expensive premium
+  } else if (absDelta >= 0.08 && absDelta < 0.12) {
+    deltaScore = 15; // Risky - low probability
+  } else {
+    deltaScore = 10; // Too far OTM or ITM
+  }
+  
+  // 2. LIQUIDITY SCORE (25 points max)
+  // Volume + OI indicates market interest
+  let liquidityScore = 0;
+  const totalLiquidity = volume + (openInterest * 0.5);
+  if (totalLiquidity >= 1000) liquidityScore = 25;
+  else if (totalLiquidity >= 500) liquidityScore = 20;
+  else if (totalLiquidity >= 200) liquidityScore = 15;
+  else if (totalLiquidity >= 50) liquidityScore = 10;
+  else liquidityScore = 5;
+  
+  // 3. SPREAD SCORE (20 points max)
+  // Tighter spread = better fills
+  let spreadScore = 0;
+  if (spreadPercent <= 0.10) spreadScore = 20; // Excellent (<10%)
+  else if (spreadPercent <= 0.15) spreadScore = 15; // Good
+  else if (spreadPercent <= 0.25) spreadScore = 10; // OK
+  else spreadScore = 5; // Wide but acceptable
+  
+  // 4. PREMIUM EFFICIENCY SCORE (15 points max)
+  // Best bang for buck - lower premium with reasonable delta
+  let premiumScore = 0;
+  const efficiencyRatio = absDelta / midPrice; // Delta per dollar
+  if (efficiencyRatio >= 0.20) premiumScore = 15; // Great value
+  else if (efficiencyRatio >= 0.15) premiumScore = 12;
+  else if (efficiencyRatio >= 0.10) premiumScore = 8;
+  else premiumScore = 5;
+  
+  const totalScore = deltaScore + liquidityScore + spreadScore + premiumScore;
+  
+  return {
+    strike: opt.strike,
+    optionType: opt.option_type as 'call' | 'put',
+    bid: opt.bid,
+    ask: opt.ask,
+    midPrice,
+    delta,
+    volume,
+    openInterest,
+    expiration: opt.expiration_date,
+    daysToExpiry,
+    score: totalScore,
+    scoreBreakdown: {
+      deltaScore,
+      liquidityScore,
+      spreadScore,
+      premiumScore
+    }
+  };
+}
+
+/**
+ * Select the BEST strike for a given direction from all available options
+ * Returns the highest-scored strike candidate
+ */
+function selectBestStrike(
+  candidates: StrikeCandidate[],
+  optionType: 'call' | 'put'
+): StrikeCandidate | null {
+  const filtered = candidates.filter(c => c.optionType === optionType);
+  if (filtered.length === 0) return null;
+  
+  // Sort by score descending
+  filtered.sort((a, b) => b.score - a.score);
+  
+  // Return the best one
+  const best = filtered[0];
+  logger.debug(`🎯 [STRIKE-SELECT] Best ${optionType.toUpperCase()}: $${best.strike} (score=${best.score}) δ=${best.delta.toFixed(3)} @ $${best.midPrice.toFixed(2)}`);
+  
+  return best;
 }
 
 // Day trade tickers: High volatility, good for 0-7 DTE plays
@@ -1397,6 +1545,7 @@ function makeBotDecision(
 
 /**
  * Bot scans for opportunities and decides what to trade
+ * Uses INTELLIGENT STRIKE SELECTION to pick optimal strikes
  */
 async function scanForOpportunities(ticker: string): Promise<LottoOpportunity[]> {
   try {
@@ -1408,45 +1557,78 @@ async function scanForOpportunities(ticker: string): Promise<LottoOpportunity[]>
     const optionsData = await getTradierOptionsChainsByDTE(ticker);
     if (!optionsData || optionsData.length === 0) return [];
     
+    // Group options by expiration date
+    const optionsByExpiry = new Map<string, any[]>();
+    for (const opt of optionsData) {
+      const expiry = opt.expiration_date;
+      if (!optionsByExpiry.has(expiry)) {
+        optionsByExpiry.set(expiry, []);
+      }
+      optionsByExpiry.get(expiry)!.push(opt);
+    }
+    
     const opportunities: LottoOpportunity[] = [];
     
-    for (const opt of optionsData) {
-      if (!opt.bid || !opt.ask || opt.bid <= 0) continue;
-      
-      const midPrice = (opt.bid + opt.ask) / 2;
-      const delta = opt.greeks?.delta || 0;
-      const absDelta = Math.abs(delta);
-      
-      if (midPrice < thresholds.LOTTO_ENTRY_MIN || midPrice > thresholds.LOTTO_ENTRY_MAX) continue;
-      // HARD FILTER: Minimum delta 0.08 (realistic probability)
-      // Delta < 0.08 = lottery ticket with <8% chance - NOT a real trade
-      // This prevents entries like COIN $315 calls when stock is at $260
-      if (absDelta < 0.08 || absDelta > thresholds.LOTTO_DELTA_MAX) continue;
-      
-      // HARD FILTER: Strike can't be more than 12% OTM
-      // Prevents unrealistic far-OTM plays
-      const strikeOTMPercent = opt.option_type === 'call' 
-        ? ((opt.strike - quote.last) / quote.last) * 100
-        : ((quote.last - opt.strike) / quote.last) * 100;
-      if (strikeOTMPercent > 12) continue; // Max 12% OTM
-      
-      const expDate = new Date(opt.expiration_date);
+    // For each expiration, use intelligent strike selection to pick the BEST call and put
+    for (const [expiry, options] of Array.from(optionsByExpiry.entries())) {
+      const expDate = new Date(expiry);
       const now = new Date();
       const daysToExpiry = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       
       if (daysToExpiry < 0 || daysToExpiry > thresholds.LOTTO_MAX_DTE) continue;
       
-      opportunities.push({
-        symbol: ticker,
-        optionType: opt.option_type as 'call' | 'put',
-        strike: opt.strike,
-        expiration: opt.expiration_date,
-        delta: delta,
-        price: midPrice,
-        volume: opt.volume || 0,
-        daysToExpiry
-      });
+      // Score ALL strikes for this expiration
+      const candidates: StrikeCandidate[] = [];
+      for (const opt of options) {
+        const scored = scoreStrikeCandidate(opt, quote.last, daysToExpiry);
+        if (scored) candidates.push(scored);
+      }
+      
+      if (candidates.length === 0) continue;
+      
+      // Select the BEST call and BEST put for this expiration
+      const bestCall = selectBestStrike(candidates, 'call');
+      const bestPut = selectBestStrike(candidates, 'put');
+      
+      // Add best call if found
+      if (bestCall && bestCall.score >= 50) { // Minimum score threshold
+        opportunities.push({
+          symbol: ticker,
+          optionType: 'call',
+          strike: bestCall.strike,
+          expiration: bestCall.expiration,
+          delta: bestCall.delta,
+          price: bestCall.midPrice,
+          volume: bestCall.volume,
+          openInterest: bestCall.openInterest,
+          bidAskSpread: bestCall.ask - bestCall.bid,
+          daysToExpiry: bestCall.daysToExpiry,
+          strikeScore: bestCall.score
+        });
+      }
+      
+      // Add best put if found
+      if (bestPut && bestPut.score >= 50) { // Minimum score threshold
+        opportunities.push({
+          symbol: ticker,
+          optionType: 'put',
+          strike: bestPut.strike,
+          expiration: bestPut.expiration,
+          delta: bestPut.delta,
+          price: bestPut.midPrice,
+          volume: bestPut.volume,
+          openInterest: bestPut.openInterest,
+          bidAskSpread: bestPut.ask - bestPut.bid,
+          daysToExpiry: bestPut.daysToExpiry,
+          strikeScore: bestPut.score
+        });
+      }
     }
+    
+    // Sort by strike score (best opportunities first)
+    opportunities.sort((a, b) => b.strikeScore - a.strikeScore);
+    
+    logger.debug(`🎯 [STRIKE-SELECT] ${ticker}: Found ${opportunities.length} optimized opportunities`);
     
     return opportunities;
   } catch (error) {
@@ -1538,7 +1720,7 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
     riskProfile: 'speculative' as const,
     researchHorizon: (opportunity.daysToExpiry <= 2 ? 'intraday' : opportunity.daysToExpiry <= 7 ? 'short_swing' : 'multi_week') as 'intraday' | 'short_swing' | 'multi_week',
     liquidityWarning: true,
-    engineVersion: 'bot_autonomous_v1.1',
+    engineVersion: 'bot_autonomous_v1.2', // v1.2: Intelligent strike selection algorithm
   };
   
   logger.debug(`🤖 [BOT] Trade idea data: optionType=${ideaData.optionType}, catalyst contains=${ideaData.catalyst.includes('PUT') ? 'PUT' : 'CALL'}`);
