@@ -12,6 +12,10 @@ import { calculateATR } from './technical-indicators';
 import { isLottoCandidate, calculateLottoTargets } from './lotto-detector';
 import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennyStock } from './sector-detector';
 import { getLetterGrade } from './grading';
+import { sendFlowAlertToDiscord } from './discord-service';
+
+// Valid grades for Discord alerts (B- through A+)
+const DISCORD_ALERT_GRADES = ['A+', 'A', 'A-', 'B+', 'B', 'B-'];
 
 // Wrapper to maintain existing function signature
 function isMarketOpen(): { isOpen: boolean; reason: string; minutesUntilClose: number } {
@@ -966,6 +970,31 @@ export async function scanUnusualOptionsFlow(holdingPeriod?: string, forceGenera
       
       if (tradeIdea) {
         tradeIdeas.push(tradeIdea);
+        
+        // 📣 REAL-TIME DISCORD ALERT: Send B- to A+ grade options to Discord immediately
+        const grade = tradeIdea.probabilityBand || '';
+        if (DISCORD_ALERT_GRADES.includes(grade)) {
+          const targetPercent = tradeIdea.targetPrice && tradeIdea.entryPrice 
+            ? ((tradeIdea.targetPrice - tradeIdea.entryPrice) / tradeIdea.entryPrice * 100).toFixed(0)
+            : '?';
+          const rr = tradeIdea.riskRewardRatio?.toFixed(1) || '?';
+          
+          // Send real-time Discord notification
+          sendFlowAlertToDiscord({
+            symbol: tradeIdea.symbol,
+            optionType: tradeIdea.optionType || 'call',
+            strikePrice: tradeIdea.strikePrice || 0,
+            expiryDate: tradeIdea.expiryDate || '',
+            entryPrice: tradeIdea.entryPrice || 0,
+            targetPrice: tradeIdea.targetPrice || 0,
+            targetPercent,
+            grade,
+            riskReward: rr,
+            isLotto: tradeIdea.isLottoPlay || false
+          }).catch(err => logger.error(`📊 [FLOW] Discord alert failed for ${ticker}:`, err));
+          
+          logger.info(`📣 [FLOW-DISCORD] Sent ${grade} grade alert: ${ticker} ${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} (+${targetPercent}%)`);
+        }
       }
 
     } catch (error) {

@@ -529,6 +529,101 @@ export async function sendDiscordAlert(alert: {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// REAL-TIME FLOW SCANNER ALERT - Sends B- to A+ options as they're discovered
+// ═══════════════════════════════════════════════════════════════════════════
+export async function sendFlowAlertToDiscord(alert: {
+  symbol: string;
+  optionType: string;
+  strikePrice: number;
+  expiryDate: string;
+  entryPrice: number;
+  targetPrice: number;
+  targetPercent: string;
+  grade: string;
+  riskReward: string;
+  isLotto: boolean;
+}): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  
+  // Route to options channel or lotto channel based on type
+  const webhookUrl = alert.isLotto 
+    ? (process.env.DISCORD_WEBHOOK_LOTTO || process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL)
+    : (process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL);
+  
+  if (!webhookUrl) {
+    logger.warn('⚠️ No Discord webhook configured for flow alerts');
+    return;
+  }
+  
+  // Deduplication check
+  const hash = generateMessageHash('flow-alert', `${alert.symbol}-${alert.optionType}-${alert.strikePrice}-${alert.expiryDate}`);
+  if (isDuplicateMessage(hash)) {
+    return;
+  }
+  
+  try {
+    const isCall = alert.optionType.toLowerCase() === 'call';
+    const emoji = isCall ? '🟢' : '🔴';
+    const gradeEmoji = alert.grade.includes('A') ? '🔥' : '⭐';
+    const lottoTag = alert.isLotto ? '🎰 ' : '';
+    const color = isCall ? 0x22c55e : 0xef4444;
+    
+    // Format expiry date nicely (e.g., "01/16" or "04/17")
+    let expiryFormatted = alert.expiryDate;
+    try {
+      const expDate = new Date(alert.expiryDate);
+      expiryFormatted = `${(expDate.getMonth() + 1).toString().padStart(2, '0')}/${expDate.getDate().toString().padStart(2, '0')}`;
+    } catch {}
+    
+    const embed: DiscordEmbed = {
+      title: `${lottoTag}${emoji} ${alert.symbol} ${alert.optionType.toUpperCase()} $${alert.strikePrice} ${expiryFormatted}`,
+      description: `**${gradeEmoji} Grade ${alert.grade}** | R:R ${alert.riskReward}:1`,
+      color,
+      fields: [
+        {
+          name: '💰 Entry',
+          value: `$${alert.entryPrice.toFixed(2)}`,
+          inline: true
+        },
+        {
+          name: '🎯 Target',
+          value: `$${alert.targetPrice.toFixed(2)} (+${alert.targetPercent}%)`,
+          inline: true
+        },
+        {
+          name: '📊 Grade',
+          value: alert.grade,
+          inline: true
+        }
+      ],
+      footer: {
+        text: 'Flow Scanner • Real-time options alert • Not financial advice'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    const message: DiscordMessage = {
+      content: `📊 **FLOW ALERT** → ${alert.symbol} ${alert.optionType.toUpperCase()} $${alert.strikePrice} | ${gradeEmoji} ${alert.grade}`,
+      embeds: [embed]
+    };
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    });
+    
+    if (response.ok) {
+      logger.info(`✅ Discord flow alert sent: ${alert.symbol} ${alert.optionType.toUpperCase()} $${alert.strikePrice} (${alert.grade})`);
+    } else {
+      logger.error(`❌ Discord flow alert failed: ${response.status}`);
+    }
+  } catch (error) {
+    logger.error('❌ Failed to send Discord flow alert:', error);
+  }
+}
+
 // Send batch summary to Discord
 // OPTIONS → #options-trades (DISCORD_WEBHOOK_OPTIONSTRADES)
 // STOCKS/CRYPTO → #stock-shares (DISCORD_WEBHOOK_SHARES)  

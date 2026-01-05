@@ -1556,8 +1556,8 @@ function makeBotDecision(
     ? `${grade} grade (${score}+${analysisBoost}=${boostedScore}) ANALYSIS_BOOST: ${boostReasons.join(', ')}`
     : `${grade} grade (${boostedScore}) - ${signals.slice(0, 3).join(', ')}`;
     
-  // Accept A+, A, A-, B+, B, B-, C+, C grades - expanded for more aggressive entry
-  const validEntryGrades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C'];
+  // Accept only B- through A+ grades - quality trades only (no C grades)
+  const validEntryGrades = ['A+', 'A', 'A-', 'B+', 'B', 'B-'];
   if (boostedScore >= minScoreForEntry && validEntryGrades.includes(grade)) {
     return {
       action: 'enter',
