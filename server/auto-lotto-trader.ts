@@ -1878,19 +1878,19 @@ export async function runAutonomousBotScan(): Promise<void> {
     const minute = etTime.getMinutes();
     const timeInMinutes = hour * 60 + minute;
     
-    // Check trading hours based on preferences
-    const isPreMarket = timeInMinutes >= 240 && timeInMinutes < 570; // 4:00 AM - 9:30 AM
-    const isRegularHours = timeInMinutes >= 570 && timeInMinutes < 960; // 9:30 AM - 4:00 PM
-    const isAfterHours = timeInMinutes >= 960 && timeInMinutes < 1200; // 4:00 PM - 8:00 PM
+    // Check trading hours - OPTIONS ONLY TRADE DURING REGULAR HOURS (9:30 AM - 4:00 PM ET)
+    // Options markets are CLOSED after 4:00 PM ET - no after-hours trading for options!
+    const isRegularHours = timeInMinutes >= 570 && timeInMinutes < 960; // 9:30 AM - 4:00 PM ET
     
-    const canTrade = (day !== 0 && day !== 6) && (
-      (prefs.tradePreMarket && isPreMarket) ||
-      (prefs.tradeRegularHours && isRegularHours) ||
-      (prefs.tradeAfterHours && isAfterHours)
-    );
+    // Strict check: Options MUST be traded during regular market hours only
+    const canTradeOptions = (day !== 0 && day !== 6) && isRegularHours;
     
-    if (!canTrade) {
-      logger.info(`🤖 [BOT] Outside trading hours per preferences - skipping scan`);
+    if (!canTradeOptions) {
+      const reasonParts = [];
+      if (day === 0 || day === 6) reasonParts.push('weekend');
+      else if (timeInMinutes < 570) reasonParts.push('pre-market (options closed)');
+      else if (timeInMinutes >= 960) reasonParts.push('after-hours (options closed at 4:00 PM ET)');
+      logger.info(`🤖 [BOT] Options markets CLOSED: ${reasonParts.join(', ')} - skipping scan`);
       return;
     }
     
