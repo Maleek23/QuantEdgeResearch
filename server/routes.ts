@@ -9538,6 +9538,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============ Swing Trade Scanner Routes ============
+  // Get swing trade opportunities
+  app.get("/api/swing-scanner", async (req, res) => {
+    try {
+      const { getTopSwingOpportunities } = await import("./swing-trade-scanner");
+      const limit = parseInt(req.query.limit as string) || 10;
+      const opportunities = await getTopSwingOpportunities(limit);
+      
+      logger.info(`[SWING-API] Found ${opportunities.length} swing opportunities`);
+      res.json(opportunities);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/swing-scanner' });
+      res.status(500).json({ error: "Failed to fetch swing opportunities" });
+    }
+  });
+
+  // Send swing opportunity to Discord
+  app.post("/api/swing-scanner/send-discord", isAuthenticated, async (req: any, res) => {
+    try {
+      const { sendSwingToDiscord } = await import("./swing-trade-scanner");
+      const opportunity = req.body;
+      
+      if (!opportunity.symbol) {
+        return res.status(400).json({ error: "Missing opportunity data" });
+      }
+      
+      const success = await sendSwingToDiscord(opportunity);
+      
+      if (success) {
+        logger.info(`[SWING-API] Sent ${opportunity.symbol} to Discord`);
+        res.json({ success: true, message: `Sent ${opportunity.symbol} to Discord` });
+      } else {
+        res.status(500).json({ error: "Failed to send to Discord" });
+      }
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/swing-scanner/send-discord' });
+      res.status(500).json({ error: "Failed to send swing trade to Discord" });
+    }
+  });
+
   // Options Data Routes
   app.get("/api/options/:symbol", async (req, res) => {
     try {

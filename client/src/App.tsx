@@ -54,6 +54,7 @@ const Features = lazy(() => import("@/pages/features"));
 const BacktestPage = lazy(() => import("@/pages/backtest"));
 const TechnicalGuide = lazy(() => import("@/pages/technical-guide"));
 const MarketScanner = lazy(() => import("@/pages/market-scanner"));
+const SwingScanner = lazy(() => import("@/pages/swing-scanner"));
 const MyAccountPage = lazy(() => import("@/pages/my-account"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const WatchlistPage = lazy(() => import("@/pages/watchlist"));
@@ -113,6 +114,7 @@ function Router() {
       </Route>
       <Route path="/market" component={MarketPage} />
       <Route path="/market-scanner" component={MarketScanner} />
+      <Route path="/swing-scanner" component={SwingScanner} />
       <Route path="/futures" component={FuturesPage} />
       <Route path="/futures-research">
         <Redirect to="/futures" />

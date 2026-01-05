@@ -37,6 +37,7 @@ const researchItems: NavItem[] = [
   { title: "Futures", url: "/futures", icon: LineChart },
   { title: "My Watchlist", url: "/watchlist", icon: Eye },
   { title: "Market Scanner", url: "/market-scanner", icon: BarChart2, badge: "500+" },
+  { title: "Swing Scanner", url: "/swing-scanner", icon: TrendingUp, badge: "NEW" },
 ];
 
 // Automations - all automated trading tools
