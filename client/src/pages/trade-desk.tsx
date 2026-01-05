@@ -60,7 +60,8 @@ import {
   Bitcoin,
   DollarSign,
   LineChart,
-  Globe
+  Globe,
+  Send
 } from "lucide-react";
 import { formatCurrency, formatPercent } from "@/lib/utils";
 
@@ -687,6 +688,27 @@ export default function TradeDeskPage() {
     }
   });
 
+  // Send trade idea to Discord manually
+  const sendToDiscordMutation = useMutation({
+    mutationFn: async (ideaId: string) => {
+      const response = await apiRequest("POST", `/api/trade-ideas/${ideaId}/share-discord`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Sent to Discord",
+        description: data.message || "Trade idea shared to Discord channel",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Discord Send Failed",
+        description: error.message || "Could not send to Discord",
+        variant: "destructive"
+      });
+    }
+  });
+
   const handleToggleExpand = (ideaId: string) => {
     setExpandedIdeaId(expandedIdeaId === ideaId ? null : ideaId);
   };
@@ -898,6 +920,17 @@ export default function TradeDeskPage() {
                         <div className="flex items-center justify-end gap-1">
                           <Button size="sm" variant="ghost" onClick={() => handleToggleExpand(idea.id.toString())} className="h-8 px-2 text-xs">
                             Details
+                          </Button>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-8 w-8 text-muted-foreground hover:text-indigo-400"
+                            onClick={() => sendToDiscordMutation.mutate(idea.id.toString())}
+                            disabled={sendToDiscordMutation.isPending}
+                            title="Send to Discord"
+                            data-testid={`button-discord-${idea.id}`}
+                          >
+                            <Send className="h-3.5 w-3.5" />
                           </Button>
                           <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-yellow-400">
                             <Star className="h-3.5 w-3.5" />
@@ -1683,6 +1716,7 @@ export default function TradeDeskPage() {
                                 isExpanded={expandedIdeaId === idea.id}
                                 onToggleExpand={() => handleToggleExpand(idea.id)}
                                 onAnalyze={(symbol) => setAnalysisSymbol(symbol)}
+                                onSendToDiscord={(ideaId) => sendToDiscordMutation.mutate(ideaId)}
                                 data-testid={`idea-card-${idea.id}`}
                               />
                             ))}

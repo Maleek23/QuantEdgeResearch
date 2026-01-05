@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatPercent, formatCTTime } from "@/lib/utils";
 import { formatInUserTZ, formatTimeUntilExpiry, formatDateOnly } from "@/lib/timezone";
-import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles, Newspaper, HelpCircle, Info, Database, TrendingUpIcon, Zap, UserPlus, AlertTriangle, FileSearch, Hourglass, Minus, Octagon, Skull, Coins } from "lucide-react";
+import { ChevronDown, TrendingUp, TrendingDown, Star, Eye, Clock, ArrowUpRight, ArrowDownRight, Maximize2, ExternalLink, CalendarClock, CalendarDays, Calendar, Timer, Bot, BarChart3, Activity, Shield, Target as TargetIcon, Sparkles, Newspaper, HelpCircle, Info, Database, TrendingUpIcon, Zap, UserPlus, AlertTriangle, FileSearch, Hourglass, Minus, Octagon, Skull, Coins, Send } from "lucide-react";
 import { Link } from "wouter";
 import { formatInTimeZone } from "date-fns-tz";
 import { parseISO } from "date-fns";
@@ -38,11 +38,12 @@ interface TradeIdeaBlockProps {
   onAddToWatchlist?: (idea: TradeIdea) => void;
   onViewDetails?: (symbol: string) => void;
   onAnalyze?: (symbol: string) => void;
+  onSendToDiscord?: (ideaId: string) => void;
   isExpanded?: boolean;
   onToggleExpand?: (ideaId: string) => void;
 }
 
-export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatchlist, onViewDetails, onAnalyze, isExpanded, onToggleExpand }: TradeIdeaBlockProps) {
+export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatchlist, onViewDetails, onAnalyze, onSendToDiscord, isExpanded, onToggleExpand }: TradeIdeaBlockProps) {
   const [localIsOpen, setLocalIsOpen] = useState(false);
   const isOpen = isExpanded !== undefined ? isExpanded : localIsOpen;
   const [detailModalOpen, setDetailModalOpen] = useState(false);
@@ -1025,6 +1026,22 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
               >
                 <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
                 Deep
+              </Button>
+            )}
+            
+            {onSendToDiscord && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="hover-elevate text-indigo-400 hover:text-indigo-300"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSendToDiscord(idea.id.toString());
+                }}
+                data-testid={`button-discord-${idea.id}`}
+              >
+                <Send className="h-3.5 w-3.5 mr-1.5" />
+                Discord
               </Button>
             )}
             
