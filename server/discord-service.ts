@@ -1751,8 +1751,8 @@ export async function sendGainsToDiscord(trade: {
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
-  // Route bot gains to #quantbot, other gains to #gains
-  const isBot = trade.source === 'bot' || trade.source === 'lotto';
+  // Route bot gains to #quantbot, all other gains (including lotto) to #gains
+  const isBot = trade.source === 'bot';
   const webhookUrl = isBot 
     ? (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL)
     : process.env.DISCORD_WEBHOOK_GAINS;
