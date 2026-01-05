@@ -4016,6 +4016,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const idea = await storage.createTradeIdea(validated);
       logger.info(`✅ [TRADE-ENTRY] Manual trade created: ${validated.symbol} (${validated.assetType}) - all timestamps validated`);
+      
+      // 📨 AUTO-SEND TO DISCORD: Notify options/stocks/crypto trades
+      try {
+        const { sendTradeIdeaToDiscord } = await import("./discord-service");
+        await sendTradeIdeaToDiscord(idea);
+        logger.info(`📨 [DISCORD] Auto-sent ${idea.symbol} ${idea.assetType} trade to Discord`);
+      } catch (discordError) {
+        // Don't fail the request if Discord fails - just log it
+        logger.warn(`📨 [DISCORD] Failed to send ${idea.symbol} to Discord:`, discordError);
+      }
+      
       res.status(201).json(idea);
     } catch (error) {
       res.status(400).json({ error: "Invalid trade idea" });
