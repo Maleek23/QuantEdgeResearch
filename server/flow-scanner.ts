@@ -979,7 +979,11 @@ export async function scanUnusualOptionsFlow(holdingPeriod?: string, forceGenera
 }
 
 // Check if market hours (9:30 AM - 4:00 PM ET, Mon-Fri)
+// DEVELOPMENT OVERRIDE: Always return true for testing
 export function isMarketHoursForFlow(): boolean {
+  // FORCE OPEN FOR DEVELOPMENT - remove this line for production
+  return true;
+  
   const now = new Date();
   const etTime = formatInTimeZone(now, 'America/New_York', 'yyyy-MM-dd HH:mm:ss EEEE');
   const parts = etTime.split(' ');
