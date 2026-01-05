@@ -305,12 +305,14 @@ function OpenPositionsSection({
             <TableHeader>
               <TableRow>
                 <TableHead>Symbol</TableHead>
-                <TableHead>Direction</TableHead>
-                <TableHead className="text-right">Entry</TableHead>
-                <TableHead className="text-right">Current</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="text-right">Strike</TableHead>
+                <TableHead>Expiry</TableHead>
                 <TableHead className="text-right">Qty</TableHead>
+                <TableHead className="text-right">Entry $</TableHead>
+                <TableHead className="text-right">Current $</TableHead>
                 <TableHead className="text-right">P&L</TableHead>
-                <TableHead className="text-right">Target / Stop</TableHead>
+                <TableHead>Entered</TableHead>
                 <TableHead className="text-right">Action</TableHead>
               </TableRow>
             </TableHeader>
@@ -318,45 +320,46 @@ function OpenPositionsSection({
               {openPositions.map((position) => (
                 <TableRow key={position.id} data-testid={`row-position-${position.id}`}>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold font-mono">{position.symbol}</span>
-                      <AssetTypeBadge assetType={position.assetType} />
-                    </div>
-                    {position.optionType && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {position.strikePrice} {position.optionType?.toUpperCase()} {position.expiryDate}
-                      </div>
-                    )}
+                    <span className="font-bold font-mono">{position.symbol}</span>
                   </TableCell>
                   <TableCell>
-                    <DirectionBadge direction={position.direction} />
+                    {position.optionType ? (
+                      <Badge 
+                        variant="outline" 
+                        className={cn(
+                          "text-xs font-mono",
+                          position.optionType === "call" 
+                            ? "bg-green-500/10 text-green-400 border-green-500/30" 
+                            : "bg-red-500/10 text-red-400 border-red-500/30"
+                        )}
+                      >
+                        {position.optionType.toUpperCase()}
+                      </Badge>
+                    ) : (
+                      <AssetTypeBadge assetType={position.assetType} />
+                    )}
                   </TableCell>
+                  <TableCell className="text-right font-mono font-bold">
+                    {position.strikePrice ? `$${position.strikePrice}` : "-"}
+                  </TableCell>
+                  <TableCell className="font-mono text-sm">
+                    {position.expiryDate ? format(parseISO(position.expiryDate), "MM/dd") : "-"}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">{position.quantity}</TableCell>
                   <TableCell className="text-right font-mono">
                     {formatCurrency(position.entryPrice)}
                   </TableCell>
                   <TableCell className="text-right font-mono">
                     {position.currentPrice ? formatCurrency(position.currentPrice) : "-"}
                   </TableCell>
-                  <TableCell className="text-right font-mono">{position.quantity}</TableCell>
                   <TableCell className="text-right">
                     <PnLDisplay
                       value={position.unrealizedPnL || 0}
                       percent={position.unrealizedPnLPercent || 0}
                     />
                   </TableCell>
-                  <TableCell className="text-right text-sm">
-                    <div className="flex items-center justify-end gap-1">
-                      <Target className="h-3 w-3 text-green-500" />
-                      <span className="font-mono text-green-500">
-                        {position.targetPrice ? formatCurrency(position.targetPrice) : "-"}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-end gap-1">
-                      <XCircle className="h-3 w-3 text-red-500" />
-                      <span className="font-mono text-red-500">
-                        {position.stopLoss ? formatCurrency(position.stopLoss) : "-"}
-                      </span>
-                    </div>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {position.entryTime ? format(parseISO(position.entryTime), "MM/dd h:mma") : "-"}
                   </TableCell>
                   <TableCell className="text-right">
                     <Button
@@ -415,47 +418,70 @@ function ClosedPositionsSection({ positions }: { positions: PaperPosition[] }) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Symbol</TableHead>
-                    <TableHead>Direction</TableHead>
-                    <TableHead className="text-right">Entry</TableHead>
-                    <TableHead className="text-right">Exit</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Strike</TableHead>
+                    <TableHead>Expiry</TableHead>
                     <TableHead className="text-right">Qty</TableHead>
+                    <TableHead className="text-right">Entry $</TableHead>
+                    <TableHead className="text-right">Exit $</TableHead>
                     <TableHead className="text-right">P&L</TableHead>
+                    <TableHead>Entered</TableHead>
+                    <TableHead>Exited</TableHead>
                     <TableHead>Reason</TableHead>
-                    <TableHead>Exit Date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {closedPositions.map((position) => (
                     <TableRow key={position.id} data-testid={`row-closed-position-${position.id}`}>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold font-mono">{position.symbol}</span>
-                          <AssetTypeBadge assetType={position.assetType} />
-                        </div>
+                        <span className="font-bold font-mono">{position.symbol}</span>
                       </TableCell>
                       <TableCell>
-                        <DirectionBadge direction={position.direction} />
+                        {position.optionType ? (
+                          <Badge 
+                            variant="outline" 
+                            className={cn(
+                              "text-xs font-mono",
+                              position.optionType === "call" 
+                                ? "bg-green-500/10 text-green-400 border-green-500/30" 
+                                : "bg-red-500/10 text-red-400 border-red-500/30"
+                            )}
+                          >
+                            {position.optionType.toUpperCase()}
+                          </Badge>
+                        ) : (
+                          <AssetTypeBadge assetType={position.assetType} />
+                        )}
                       </TableCell>
+                      <TableCell className="text-right font-mono font-bold">
+                        {position.strikePrice ? `$${position.strikePrice}` : "-"}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {position.expiryDate ? format(parseISO(position.expiryDate), "MM/dd") : "-"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">{position.quantity}</TableCell>
                       <TableCell className="text-right font-mono">
                         {formatCurrency(position.entryPrice)}
                       </TableCell>
                       <TableCell className="text-right font-mono">
                         {position.exitPrice ? formatCurrency(position.exitPrice) : "-"}
                       </TableCell>
-                      <TableCell className="text-right font-mono">{position.quantity}</TableCell>
                       <TableCell className="text-right">
                         <PnLDisplay
                           value={position.realizedPnL || 0}
                           percent={position.realizedPnLPercent || 0}
                         />
                       </TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {position.entryTime ? format(parseISO(position.entryTime), "MM/dd h:mma") : "-"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                        {position.exitTime ? format(parseISO(position.exitTime), "MM/dd h:mma") : "-"}
+                      </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs capitalize">
                           {position.exitReason?.replace("_", " ") || "manual"}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {position.exitTime ? format(parseISO(position.exitTime), "MMM d, h:mm a") : "-"}
                       </TableCell>
                     </TableRow>
                   ))}
