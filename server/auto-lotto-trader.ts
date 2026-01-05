@@ -186,9 +186,21 @@ const PRIORITY_TICKERS = [
 ];
 
 // Rate limiting helper to avoid Tradier API quota violations
-const API_DELAY_MS = 200; // 200ms between Tradier calls (max 5/second)
+const API_DELAY_MS = 250; // 250ms between Tradier calls (max 4/second to be safe)
+const MAX_API_CALLS_PER_SCAN = 100; // Stop scanning after this many API calls to save quota
+let apiCallsThisScan = 0;
+
 async function rateLimitDelay(): Promise<void> {
+  apiCallsThisScan++;
   await new Promise(resolve => setTimeout(resolve, API_DELAY_MS));
+}
+
+function resetApiCallCounter(): void {
+  apiCallsThisScan = 0;
+}
+
+function isApiQuotaExhausted(): boolean {
+  return apiCallsThisScan >= MAX_API_CALLS_PER_SCAN;
 }
 
 let optionsPortfolio: PaperPortfolio | null = null;
@@ -1580,11 +1592,15 @@ function makeBotDecision(
  */
 async function scanForOpportunities(ticker: string): Promise<LottoOpportunity[]> {
   try {
+    // 🔄 Rate limit before first API call
+    await rateLimitDelay();
     const quote = await getTradierQuote(ticker);
     if (!quote || !quote.last) return [];
     
     const thresholds = getLottoThresholds();
     
+    // 🔄 Rate limit before second API call
+    await rateLimitDelay();
     const optionsData = await getTradierOptionsChainsByDTE(ticker);
     if (!optionsData || optionsData.length === 0) return [];
     
@@ -1868,9 +1884,18 @@ export async function runAutonomousBotScan(): Promise<void> {
     // 📋 CATALYST SCORE CACHE - Avoid redundant DB calls during scan
     const catalystScoreCache = new Map<string, { score: number; summary: string; catalystCount: number }>();
     
+    // 🔄 RESET API CALL COUNTER for this scan cycle
+    resetApiCallCounter();
+    
     let tickerIndex = 0;
     for (const ticker of combinedTickers) {
       tickerIndex++;
+      
+      // 🛑 CHECK API QUOTA - Stop if we've hit the limit (prioritizes earlier tickers in the list!)
+      if (isApiQuotaExhausted()) {
+        logger.warn(`🛑 [BOT] API quota limit reached (${apiCallsThisScan} calls) - stopping scan to preserve quota. Priority tickers were scanned first!`);
+        break;
+      }
       
       // 🎯 LOG PRIORITY TICKERS being scanned
       if (PRIORITY_TICKERS.includes(ticker)) {
@@ -1903,12 +1928,12 @@ export async function runAutonomousBotScan(): Promise<void> {
         }
       }
       
-      // 🔄 RATE LIMITING: Add delay between API calls to avoid Tradier quota violations
-      await rateLimitDelay();
-      
+      // Rate limiting is now handled INSIDE scanForOpportunities for each API call
       const opportunities = await scanForOpportunities(ticker);
       
       for (const opp of opportunities) {
+        // 🔄 Rate limit before each quote fetch
+        await rateLimitDelay();
         const quote = await getTradierQuote(ticker);
         if (!quote) continue;
         
