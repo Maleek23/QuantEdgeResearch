@@ -1142,14 +1142,33 @@ export default function WatchlistBotPage() {
                             <p className="text-lg text-muted-foreground">Hidden</p>
                           )}
                         </div>
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Positions</p>
-                          <p className="text-lg font-mono">
-                            <span className="text-green-400">{openPositions.filter(p => p.assetType === 'option').length}</span>
-                            <span className="text-muted-foreground"> open / </span>
-                            <span>{closedPositions.filter(p => p.assetType === 'option').length}</span>
-                            <span className="text-muted-foreground"> closed</span>
-                          </p>
+                        <div className="flex flex-col justify-between">
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Positions</p>
+                            <p className="text-lg font-mono">
+                              <span className="text-green-400">{openPositions.filter(p => p.assetType === 'option').length}</span>
+                              <span className="text-muted-foreground"> open / </span>
+                              <span>{closedPositions.filter(p => p.assetType === 'option').length}</span>
+                              <span className="text-muted-foreground"> closed</span>
+                            </p>
+                          </div>
+                          {botData.isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-xs text-pink-400/60 hover:text-pink-400 hover:bg-pink-500/10 mt-2 w-fit"
+                              onClick={async () => {
+                                if (!confirm('Reset OPTIONS portfolio to $300?')) return;
+                                try {
+                                  const res = await fetch('/api/auto-lotto-bot/reset?type=options', { method: 'POST' });
+                                  if (res.ok) { toast({ title: 'Options Reset', description: 'Reset to $300' }); refetchBot(); }
+                                } catch { toast({ title: 'Error', variant: 'destructive' }); }
+                              }}
+                              data-testid="button-reset-options"
+                            >
+                              <RotateCcw className="h-3 w-3 mr-1" /> Reset
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </TabsContent>
@@ -1181,14 +1200,33 @@ export default function WatchlistBotPage() {
                             <p className="text-lg text-muted-foreground">Hidden</p>
                           )}
                         </div>
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Positions</p>
-                          <p className="text-lg font-mono">
-                            <span className="text-green-400">{botData.futuresPortfolio?.openPositions || 0}</span>
-                            <span className="text-muted-foreground"> open / </span>
-                            <span>{botData.futuresPortfolio?.closedPositions || 0}</span>
-                            <span className="text-muted-foreground"> closed</span>
-                          </p>
+                        <div className="flex flex-col justify-between">
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Positions</p>
+                            <p className="text-lg font-mono">
+                              <span className="text-green-400">{botData.futuresPortfolio?.openPositions || 0}</span>
+                              <span className="text-muted-foreground"> open / </span>
+                              <span>{botData.futuresPortfolio?.closedPositions || 0}</span>
+                              <span className="text-muted-foreground"> closed</span>
+                            </p>
+                          </div>
+                          {botData.isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-xs text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/10 mt-2 w-fit"
+                              onClick={async () => {
+                                if (!confirm('Reset FUTURES portfolio to $300?')) return;
+                                try {
+                                  const res = await fetch('/api/auto-lotto-bot/reset?type=futures', { method: 'POST' });
+                                  if (res.ok) { toast({ title: 'Futures Reset', description: 'Reset to $300' }); refetchBot(); }
+                                } catch { toast({ title: 'Error', variant: 'destructive' }); }
+                              }}
+                              data-testid="button-reset-futures"
+                            >
+                              <RotateCcw className="h-3 w-3 mr-1" /> Reset
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </TabsContent>
@@ -1220,14 +1258,33 @@ export default function WatchlistBotPage() {
                             <p className="text-lg text-muted-foreground">--</p>
                           )}
                         </div>
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Positions</p>
-                          <p className="text-lg font-mono">
-                            <span className="text-green-400">{cryptoData?.openPositions || 0}</span>
-                            <span className="text-muted-foreground"> open / </span>
-                            <span>{cryptoData?.maxPositions || 3}</span>
-                            <span className="text-muted-foreground"> max</span>
-                          </p>
+                        <div className="flex flex-col justify-between">
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Positions</p>
+                            <p className="text-lg font-mono">
+                              <span className="text-green-400">{cryptoData?.openPositions || 0}</span>
+                              <span className="text-muted-foreground"> open / </span>
+                              <span>{cryptoData?.maxPositions || 3}</span>
+                              <span className="text-muted-foreground"> max</span>
+                            </p>
+                          </div>
+                          {botData.isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-xs text-amber-400/60 hover:text-amber-400 hover:bg-amber-500/10 mt-2 w-fit"
+                              onClick={async () => {
+                                if (!confirm('Reset CRYPTO portfolio to $300?')) return;
+                                try {
+                                  const res = await fetch('/api/auto-lotto-bot/reset?type=crypto', { method: 'POST' });
+                                  if (res.ok) { toast({ title: 'Crypto Reset', description: 'Reset to $300' }); refetchBot(); queryClient.invalidateQueries({ queryKey: ['/api/crypto-bot'] }); }
+                                } catch { toast({ title: 'Error', variant: 'destructive' }); }
+                              }}
+                              data-testid="button-reset-crypto"
+                            >
+                              <RotateCcw className="h-3 w-3 mr-1" /> Reset
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </TabsContent>

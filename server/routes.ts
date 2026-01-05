@@ -13643,6 +13643,7 @@ CONSTRAINTS:
   });
 
   // POST /api/auto-lotto-bot/reset - Reset bot portfolios to fresh $300 each (admin only)
+  // Supports ?type=all|options|futures|crypto query param
   app.post("/api/auto-lotto-bot/reset", isAuthenticated, async (req: any, res: Response) => {
     try {
       const userId = req.session?.userId;
@@ -13655,6 +13656,7 @@ CONSTRAINTS:
       
       const SYSTEM_USER_ID = "system-auto-trader";
       const STARTING_CAPITAL = 300;
+      const resetType = (req.query.type as string) || 'all';
       
       // Clear in-memory portfolio caches first
       const { clearPortfolioCaches } = await import("./auto-lotto-trader");
@@ -13663,65 +13665,48 @@ CONSTRAINTS:
       // Get existing portfolios
       const portfolios = await storage.getPaperPortfoliosByUser(SYSTEM_USER_ID);
       
-      // Delete old portfolios (positions will be orphaned but that's okay for reset)
-      for (const portfolio of portfolios) {
-        await storage.deletePaperPortfolio(portfolio.id);
+      const results: any = { success: true, reset: [] };
+      
+      // Helper to reset a specific portfolio type
+      const resetPortfolio = async (name: string, maxPos: number) => {
+        const existing = portfolios.find(p => p.name === name);
+        if (existing) {
+          await storage.deletePaperPortfolio(existing.id);
+        }
+        const newPortfolio = await storage.createPaperPortfolio({
+          userId: SYSTEM_USER_ID,
+          name,
+          startingCapital: STARTING_CAPITAL,
+          cashBalance: STARTING_CAPITAL,
+          totalValue: STARTING_CAPITAL,
+          maxPositionSize: maxPos,
+          riskPerTrade: 0.05,
+        });
+        return newPortfolio;
+      };
+      
+      if (resetType === 'all' || resetType === 'options') {
+        const p = await resetPortfolio("Auto-Lotto Options", 50);
+        results.optionsPortfolio = { id: p.id, name: p.name, startingCapital: p.startingCapital };
+        results.reset.push('options');
       }
       
-      // Create fresh Options portfolio
-      const optionsPortfolio = await storage.createPaperPortfolio({
-        userId: SYSTEM_USER_ID,
-        name: "Auto-Lotto Options",
-        startingCapital: STARTING_CAPITAL,
-        cashBalance: STARTING_CAPITAL,
-        totalValue: STARTING_CAPITAL,
-        maxPositionSize: 50,
-        riskPerTrade: 0.05,
-      });
+      if (resetType === 'all' || resetType === 'futures') {
+        const p = await resetPortfolio("Auto-Lotto Futures", 100);
+        results.futuresPortfolio = { id: p.id, name: p.name, startingCapital: p.startingCapital };
+        results.reset.push('futures');
+      }
       
-      // Create fresh Futures portfolio
-      const futuresPortfolio = await storage.createPaperPortfolio({
-        userId: SYSTEM_USER_ID,
-        name: "Auto-Lotto Futures",
-        startingCapital: STARTING_CAPITAL,
-        cashBalance: STARTING_CAPITAL,
-        totalValue: STARTING_CAPITAL,
-        maxPositionSize: 100,
-        riskPerTrade: 0.05,
-      });
+      if (resetType === 'all' || resetType === 'crypto') {
+        const p = await resetPortfolio("Auto-Lotto Crypto", 100);
+        results.cryptoPortfolio = { id: p.id, name: p.name, startingCapital: p.startingCapital };
+        results.reset.push('crypto');
+      }
       
-      // Create fresh Crypto portfolio
-      const cryptoPortfolio = await storage.createPaperPortfolio({
-        userId: SYSTEM_USER_ID,
-        name: "Auto-Lotto Crypto",
-        startingCapital: STARTING_CAPITAL,
-        cashBalance: STARTING_CAPITAL,
-        totalValue: STARTING_CAPITAL,
-        maxPositionSize: 100,
-        riskPerTrade: 0.05,
-      });
+      logger.info(`🤖 [BOT] Admin reset portfolios: ${results.reset.join(', ')} - $${STARTING_CAPITAL} each`);
+      results.message = `Reset ${results.reset.join(', ')} portfolio(s) to $${STARTING_CAPITAL}`;
       
-      logger.info(`🤖 [BOT] Admin reset ALL bot portfolios: Options #${optionsPortfolio.id}, Futures #${futuresPortfolio.id}, Crypto #${cryptoPortfolio.id} - $${STARTING_CAPITAL} each`);
-      
-      res.json({
-        success: true,
-        message: "All bot portfolios reset to $300 each",
-        optionsPortfolio: {
-          id: optionsPortfolio.id,
-          name: optionsPortfolio.name,
-          startingCapital: optionsPortfolio.startingCapital,
-        },
-        futuresPortfolio: {
-          id: futuresPortfolio.id,
-          name: futuresPortfolio.name,
-          startingCapital: futuresPortfolio.startingCapital,
-        },
-        cryptoPortfolio: {
-          id: cryptoPortfolio.id,
-          name: cryptoPortfolio.name,
-          startingCapital: cryptoPortfolio.startingCapital,
-        }
-      });
+      res.json(results);
     } catch (error: any) {
       logger.error("Error resetting auto-lotto bot portfolios", { error });
       res.status(500).json({ error: "Failed to reset bot portfolios" });
