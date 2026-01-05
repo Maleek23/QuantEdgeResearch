@@ -20,7 +20,7 @@ import {
   RefreshCw, Shield, Calendar, Bell, BellOff, LogIn, Radio, Atom, 
   Radiation, FlaskConical, Bitcoin, Search, BarChart3, Wallet, 
   PiggyBank, ArrowUpRight, ArrowDownRight, LineChart, Download, FileText,
-  Trophy, ShieldCheck, AlertCircle, Settings, Save, Sliders, Rocket, Sparkles
+  Trophy, ShieldCheck, AlertCircle, Settings, Save, Sliders, Rocket, Sparkles, RotateCcw
 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { NumberTicker } from "@/components/magicui/number-ticker";
@@ -898,6 +898,34 @@ export default function WatchlistBotPage() {
                     )}>
                       {botData.stats?.winRate}% Win
                     </Badge>
+                  )}
+                  {botData.isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs border-red-500/30 text-red-400 hover:bg-red-500/10"
+                      onClick={async () => {
+                        if (!confirm('Reset ALL bot portfolios to $300 each? This will clear all positions and history.')) return;
+                        try {
+                          const res = await fetch('/api/auto-lotto-bot/reset', { 
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                          });
+                          if (res.ok) {
+                            toast({ title: 'Portfolios Reset', description: 'All bots reset to $300 each' });
+                            refetchBot();
+                          } else {
+                            toast({ title: 'Error', description: 'Failed to reset portfolios', variant: 'destructive' });
+                          }
+                        } catch (err) {
+                          toast({ title: 'Error', description: 'Reset failed', variant: 'destructive' });
+                        }
+                      }}
+                      data-testid="button-reset-portfolios"
+                    >
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      Reset All
+                    </Button>
                   )}
                 </div>
               </div>

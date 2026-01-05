@@ -139,6 +139,17 @@ export function clearPreferencesCache(): void {
   preferencesLastFetched = 0;
 }
 
+/**
+ * Clear all portfolio caches (call after admin reset)
+ */
+export function clearPortfolioCaches(): void {
+  optionsPortfolio = null;
+  futuresPortfolio = null;
+  cryptoPortfolio = null;
+  propFirmPortfolio = null;
+  logger.info('[BOT] Portfolio caches cleared');
+}
+
 // Separate portfolios for Options, Futures, and Crypto
 const OPTIONS_PORTFOLIO_NAME = "Auto-Lotto Options";
 const FUTURES_PORTFOLIO_NAME = "Auto-Lotto Futures";
@@ -2224,13 +2235,15 @@ export async function monitorFuturesPositions(): Promise<void> {
         const direction = position.direction || 'long';
         const quantity = parseFloat(position.quantity?.toString() || '1');
         
-        // Get proper futures contract multiplier ($20/point for NQ, $100/point for GC)
+        // Get proper futures contract multiplier for MICRO contracts (paper trading with $300)
+        // MNQ (Micro NQ): $2/point, MGC (Micro Gold): $10/point
+        // For paper trading on small capital, we simulate MICRO contracts only
         const symbol = position.symbol.toUpperCase();
-        let multiplier = 20; // Default NQ
-        if (symbol.startsWith('GC')) {
-          multiplier = 100;
-        } else if (symbol.startsWith('NQ')) {
-          multiplier = 20;
+        let multiplier = 2; // Default MNQ (Micro NQ) - $2/point
+        if (symbol.startsWith('GC') || symbol.startsWith('MGC')) {
+          multiplier = 10; // Micro Gold - $10/point
+        } else if (symbol.startsWith('NQ') || symbol.startsWith('MNQ')) {
+          multiplier = 2; // Micro NQ - $2/point
         }
         
         // Calculate P&L using proper point value
@@ -2341,7 +2354,7 @@ async function flattenAllPropFirmPositions(reason: string): Promise<number> {
         const entryPrice = typeof position.entryPrice === 'string' ? parseFloat(position.entryPrice) : position.entryPrice;
         const direction = position.direction || 'long';
         const quantity = parseFloat(position.quantity?.toString() || '1');
-        const multiplier = 20; // NQ only
+        const multiplier = 2; // MNQ (Micro NQ) - $2/point for paper trading
         
         const pointDiff = direction === 'long' ? currentPrice - entryPrice : entryPrice - currentPrice;
         const unrealizedPnL = pointDiff * multiplier * quantity;
@@ -2578,7 +2591,7 @@ export async function monitorPropFirmPositions(): Promise<void> {
         const targetPrice = position.targetPrice ? (typeof position.targetPrice === 'string' ? parseFloat(position.targetPrice) : position.targetPrice) : null;
         const direction = position.direction || 'long';
         const quantity = parseFloat(position.quantity?.toString() || '1');
-        const multiplier = 20; // NQ only
+        const multiplier = 2; // MNQ (Micro NQ) - $2/point for paper trading
         
         const pointDiff = direction === 'long' ? currentPrice - entryPrice : entryPrice - currentPrice;
         const unrealizedPnL = pointDiff * multiplier * quantity;

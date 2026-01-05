@@ -13656,6 +13656,10 @@ CONSTRAINTS:
       const SYSTEM_USER_ID = "system-auto-trader";
       const STARTING_CAPITAL = 300;
       
+      // Clear in-memory portfolio caches first
+      const { clearPortfolioCaches } = await import("./auto-lotto-trader");
+      clearPortfolioCaches();
+      
       // Get existing portfolios
       const portfolios = await storage.getPaperPortfoliosByUser(SYSTEM_USER_ID);
       
@@ -13686,11 +13690,22 @@ CONSTRAINTS:
         riskPerTrade: 0.05,
       });
       
-      logger.info(`🤖 [BOT] Admin reset bot portfolios: Options #${optionsPortfolio.id}, Futures #${futuresPortfolio.id} - $${STARTING_CAPITAL} each`);
+      // Create fresh Crypto portfolio
+      const cryptoPortfolio = await storage.createPaperPortfolio({
+        userId: SYSTEM_USER_ID,
+        name: "Auto-Lotto Crypto",
+        startingCapital: STARTING_CAPITAL,
+        cashBalance: STARTING_CAPITAL,
+        totalValue: STARTING_CAPITAL,
+        maxPositionSize: 100,
+        riskPerTrade: 0.05,
+      });
+      
+      logger.info(`🤖 [BOT] Admin reset ALL bot portfolios: Options #${optionsPortfolio.id}, Futures #${futuresPortfolio.id}, Crypto #${cryptoPortfolio.id} - $${STARTING_CAPITAL} each`);
       
       res.json({
         success: true,
-        message: "Bot portfolios reset to $300 each",
+        message: "All bot portfolios reset to $300 each",
         optionsPortfolio: {
           id: optionsPortfolio.id,
           name: optionsPortfolio.name,
@@ -13700,6 +13715,11 @@ CONSTRAINTS:
           id: futuresPortfolio.id,
           name: futuresPortfolio.name,
           startingCapital: futuresPortfolio.startingCapital,
+        },
+        cryptoPortfolio: {
+          id: cryptoPortfolio.id,
+          name: cryptoPortfolio.name,
+          startingCapital: cryptoPortfolio.startingCapital,
         }
       });
     } catch (error: any) {
