@@ -246,6 +246,42 @@ export function checkDynamicExit(
   const pnlPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
   const fromHigh = highestPrice > 0 ? ((currentPrice - highestPrice) / highestPrice) * 100 : 0;
 
+  // 🛑 STOP LOSS: Cut losses at -40% (tighter than the 50% hard stop)
+  // This protects capital before total loss occurs
+  if (pnlPercent <= -40) {
+    return {
+      shouldExit: true,
+      exitType: 'trailing_stop',
+      reason: `⛔ STOP LOSS: Down ${Math.abs(pnlPercent).toFixed(0)}% - cutting loss to preserve capital`,
+      suggestedExitPrice: currentPrice,
+    };
+  }
+
+  // 🛑 TIME-BASED STOP: If losing AND expiring soon, exit to avoid total loss
+  if (pnlPercent <= -25 && daysToExpiry <= 2) {
+    return {
+      shouldExit: true,
+      exitType: 'time_decay',
+      reason: `⛔ TIME STOP: Down ${Math.abs(pnlPercent).toFixed(0)}% with only ${daysToExpiry} DTE - theta will accelerate losses`,
+      suggestedExitPrice: currentPrice,
+    };
+  }
+
+  // 🛑 REGIME STOP: If market turned against us AND we're losing, exit
+  const isCall = optionType === 'call';
+  const regimeBad = (isCall && marketContext.regime === 'trending_down') || 
+                    (!isCall && marketContext.regime === 'trending_up');
+  
+  if (regimeBad && pnlPercent <= -20) {
+    return {
+      shouldExit: true,
+      exitType: 'regime_shift',
+      reason: `⛔ REGIME STOP: Market now ${marketContext.regime} AND down ${Math.abs(pnlPercent).toFixed(0)}%`,
+      suggestedExitPrice: currentPrice,
+    };
+  }
+
+  // Trailing stop on profits
   if (pnlPercent > 30 && fromHigh < -20) {
     return {
       shouldExit: true,
@@ -273,10 +309,7 @@ export function checkDynamicExit(
     };
   }
 
-  const isCall = optionType === 'call';
-  const regimeBad = (isCall && marketContext.regime === 'trending_down') || 
-                    (!isCall && marketContext.regime === 'trending_up');
-  
+  // Regime-based profit taking (uses isCall and regimeBad defined above)
   if (regimeBad && pnlPercent > 10) {
     return {
       shouldExit: true,
