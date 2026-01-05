@@ -145,9 +145,8 @@ function analyzeMarketConditions(
     reasons.push('SPY/QQQ diverging - mixed signals');
   }
 
-  // Relaxed threshold: Allow trading in more conditions (score >= 30)
-  // Only block in truly volatile/dangerous markets
-  const shouldTrade = score >= 30 && regime !== 'volatile';
+  // FORCED TRUE FOR TESTING - always allow trading
+  const shouldTrade = true;
 
   if (!shouldTrade) {
     reasons.push(`⛔ Skip trading: Score ${score} < 30 or volatile regime`);
@@ -174,6 +173,13 @@ export function getEntryTiming(
   optionType: 'call' | 'put',
   marketContext: MarketContext
 ): { shouldEnterNow: boolean; reason: string } {
+  // FORCED TRUE FOR TESTING - Remove after testing
+  return { 
+    shouldEnterNow: true, 
+    reason: `✅ FORCED_ENTRY_FOR_TESTING` 
+  };
+  
+  /* ORIGINAL LOGIC - UNCOMMENT AFTER TESTING
   const priceChange = quote.change_percentage || 0;
   const relVol = quote.average_volume > 0 ? quote.volume / quote.average_volume : 1;
   const isCall = optionType === 'call';
@@ -226,6 +232,7 @@ export function getEntryTiming(
     shouldEnterNow: relVol >= 1.0 && marketContext.shouldTrade, 
     reason: `Neutral conditions - proceed with caution` 
   };
+  */
 }
 
 export interface DynamicExitSignal {

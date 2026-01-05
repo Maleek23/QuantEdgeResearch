@@ -373,7 +373,7 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
     webhookUrl = process.env.DISCORD_WEBHOOK_SHARES;
     channelHeader = CHANNEL_HEADERS.STOCK_SHARES;
     logger.info(`📨 [ROUTING] ${idea.symbol} → #stock-shares (${isPennyStock ? 'penny stock' : 'stock'})`);
-  } else if (idea.assetType === 'futures') {
+  } else if (idea.assetType === 'future') {
     // FUTURES go to futures channel
     webhookUrl = process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_URL;
     channelHeader = CHANNEL_HEADERS.FUTURES;
@@ -1034,6 +1034,7 @@ export async function sendBotTradeEntryToDiscord(position: {
   quantity: number;
   targetPrice?: number | null;
   stopLoss?: number | null;
+  direction?: 'long' | 'short' | null; // Added for futures support
 }): Promise<void> {
   logger.info(`📱 [DISCORD] sendBotTradeEntryToDiscord called for ${position.symbol}`);
   

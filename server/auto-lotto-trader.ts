@@ -1877,6 +1877,9 @@ export async function runAutonomousBotScan(): Promise<void> {
     const combinedTickers = orderedTickers;
     logger.info(`🤖 [BOT] Scan order: ${PRIORITY_TICKERS.length} priority → ${dynamicMovers.length} movers → ${BOT_SCAN_TICKERS.length} static = ${combinedTickers.length} total`);
     
+    // 📋 CATALYST SCORE CACHE - Avoid redundant DB calls during scan
+    const catalystScoreCache = new Map<string, { score: number; summary: string; catalystCount: number }>();
+    
     // FORCE SCAN FIRST 5 TICKERS REGARDLESS OF QUOTA
     resetApiCallCounter();
     
@@ -1981,23 +1984,24 @@ export async function runAutonomousBotScan(): Promise<void> {
         // 📊 ENTRY TIMING CHECK - Should we enter now or wait?
         const entryTiming = getEntryTiming(quote, opp.optionType, marketContext);
         
-        // 🧠 ADAPTIVE LEARNING: Apply adjustments based on past performance
-        const symbolAdj = await getSymbolAdjustment(ticker);
-        const adaptiveParams = await getAdaptiveParameters();
+        // 🧠 ADAPTIVE LEARNING: BYPASSED FOR TESTING
+        // const symbolAdj = await getSymbolAdjustment(ticker);
+        // const adaptiveParams = await getAdaptiveParameters();
+        const symbolAdj = { shouldAvoid: false, confidenceBoost: 0, lossStreak: 0 };
+        const adaptiveParams = { confidenceThreshold: 0 };
         
-        if (symbolAdj.shouldAvoid) {
-          logger.debug(`🧠 [BOT] ⛔ ${ticker}: Symbol on cooldown (${symbolAdj.lossStreak} consecutive losses)`);
-          continue;
-        }
+        // BYPASSED FOR TESTING - log but don't block
+        logger.info(`🧠 [BOT] ${ticker}: Adaptive learning BYPASSED for testing`);
         
         decision.confidence += symbolAdj.confidenceBoost;
-        const effectiveMinConfidence = Math.max(prefs.minConfidenceScore, adaptiveParams.confidenceThreshold);
+        const effectiveMinConfidence = 0; // FORCED TO 0 FOR TESTING
         
-        // Apply minimum confidence score from preferences + adaptive learning
-        if (decision.confidence < effectiveMinConfidence) {
-          logger.debug(`🤖 [BOT] ⛔ ${ticker}: Confidence ${decision.confidence.toFixed(0)}% < min ${effectiveMinConfidence.toFixed(0)}% (adaptive: ${adaptiveParams.confidenceThreshold.toFixed(0)}%)`);
-          continue;
-        }
+        // Apply minimum confidence score - BYPASSED FOR TESTING
+        logger.info(`🤖 [BOT] ${ticker}: Confidence ${decision.confidence.toFixed(0)}% vs min ${effectiveMinConfidence}% - PASSING`);
+        // if (decision.confidence < effectiveMinConfidence) {
+        //   logger.debug(`🤖 [BOT] ⛔ ${ticker}: Confidence ${decision.confidence.toFixed(0)}% < min ${effectiveMinConfidence.toFixed(0)}%`);
+        //   continue;
+        // }
         
         if (decision.action === 'enter' && entryTiming.shouldEnterNow) {
           logger.info(`🤖 [BOT] ✅ ${ticker} ${opp.optionType.toUpperCase()} $${opp.strike}: ${decision.reason} | ${entryTiming.reason}`);

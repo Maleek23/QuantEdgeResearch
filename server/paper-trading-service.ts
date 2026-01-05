@@ -56,9 +56,10 @@ export async function executeTradeIdea(
     let positionCost: number;
 
     if (tradeIdea.assetType === 'option') {
-      const maxContractCost = portfolio.maxPositionSize || 5000;
+      // Use MINIMUM of maxPositionSize and available cash to avoid over-allocation
+      const maxAllowedSpend = Math.min(portfolio.maxPositionSize || 5000, portfolio.cashBalance);
       const contractCost = currentPrice * 100;
-      quantity = Math.max(1, Math.floor(maxContractCost / contractCost));
+      quantity = Math.max(1, Math.floor(maxAllowedSpend / contractCost));
       positionCost = quantity * contractCost;
     } else {
       const riskPerTrade = portfolio.riskPerTrade || 0.02;

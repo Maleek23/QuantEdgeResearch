@@ -604,6 +604,16 @@ app.use((req, res, next) => {
           logger.error('🎯 [STARTUP] Weekly picks failed:', err);
         }
         
+        // STARTUP TRIGGER: Run autonomous bot scan immediately
+        try {
+          logger.info('🤖 [BOT-STARTUP] Running autonomous options scan on startup...');
+          const { runAutonomousBotScan } = await import('./auto-lotto-trader');
+          await runAutonomousBotScan();
+          logger.info('🤖 [BOT-STARTUP] Autonomous options scan complete');
+        } catch (err: any) {
+          logger.error('🤖 [BOT-STARTUP] Autonomous scan failed:', err);
+        }
+        
       } catch (error: any) {
         logger.error('🚀 [QUANT-STARTUP] Startup quant generation failed:', error);
       }
