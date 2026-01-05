@@ -4,6 +4,17 @@ import type { Express } from "express";
 import { storage } from "./storage";
 import { logger, logError } from "./logger";
 
+// Whitelist of approved admin/VIP emails that bypass invite requirement
+function getApprovedEmails(): string[] {
+  const envEmails = process.env.APPROVED_EMAILS || '';
+  return envEmails.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+}
+
+function isEmailApproved(email: string): boolean {
+  const approved = getApprovedEmails();
+  return approved.includes(email.toLowerCase());
+}
+
 export async function setupGoogleAuth(app: Express) {
   const clientID = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -37,6 +48,33 @@ export async function setupGoogleAuth(app: Express) {
             return done(new Error("Email is required from Google account"));
           }
 
+          // Check if user is whitelisted (admin/VIP)
+          const emailLower = email.toLowerCase();
+          const isWhitelisted = isEmailApproved(emailLower);
+          
+          // Check if user already exists (returning user)
+          const existingUser = await storage.getUserByEmail(emailLower);
+          
+          // Check if user has a valid beta invite
+          const invite = await storage.getBetaInviteByEmail(emailLower);
+          const hasValidInvite = invite && invite.status !== 'revoked' && invite.status !== 'expired';
+          
+          // Allow access if: whitelisted, existing user, or has valid invite
+          if (!isWhitelisted && !existingUser && !hasValidInvite) {
+            logger.warn("Google OAuth: user not authorized for beta", { 
+              email: emailLower,
+              hasInvite: !!invite,
+              inviteStatus: invite?.status 
+            });
+            return done(new Error("INVITE_REQUIRED"));
+          }
+
+          // If user has invite and it's pending, mark as redeemed
+          if (invite && invite.status === 'pending') {
+            await storage.redeemBetaInvite(invite.token);
+            logger.info("Beta invite redeemed via Google OAuth", { email: emailLower });
+          }
+
           const user = await storage.upsertUser({
             id: `google_${profile.id}`,
             email,
@@ -48,7 +86,8 @@ export async function setupGoogleAuth(app: Express) {
           logger.info("Google OAuth login successful", { 
             userId: user.id, 
             email: user.email,
-            googleId: profile.id 
+            googleId: profile.id,
+            accessType: isWhitelisted ? 'whitelist' : existingUser ? 'returning' : 'invite'
           });
 
           return done(null, {
@@ -83,6 +122,10 @@ export async function setupGoogleAuth(app: Express) {
     passport.authenticate("google", (err: any, user: any) => {
       if (err) {
         logger.error("Google OAuth callback error", { error: err.message });
+        // Handle invite required error specially
+        if (err.message === "INVITE_REQUIRED") {
+          return res.redirect("/login?error=invite_required");
+        }
         return res.redirect("/login?error=google_auth_failed");
       }
       if (!user) {
