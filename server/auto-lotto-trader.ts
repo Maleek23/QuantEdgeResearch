@@ -1930,9 +1930,13 @@ export async function runAutonomousBotScan(): Promise<void> {
     }
     
     if (bestOpportunity) {
-      const { opp, decision } = bestOpportunity;
+      const { opp, decision, entryTiming } = bestOpportunity;
       
-      logger.info(`🤖 [BOT] 🎯 EXECUTING BEST TRADE: ${opp.symbol} ${opp.optionType.toUpperCase()} $${opp.strike} @ $${opp.price.toFixed(2)}`);
+      // 📢 DETAILED BUY REASONING - Log why bot is entering this trade
+      logger.info(`🤖 [BOT] 🟢 BUYING ${opp.symbol} ${opp.optionType.toUpperCase()} $${opp.strike} @ $${opp.price.toFixed(2)}`);
+      logger.info(`🤖 [BOT] 📊 REASON: ${decision.reason}`);
+      logger.info(`🤖 [BOT] 📊 SIGNALS: ${decision.signals.slice(0, 4).join(' | ')}`);
+      logger.info(`🤖 [BOT] 📊 CONFIDENCE: ${decision.confidence.toFixed(0)}% | TIMING: ${entryTiming.reason}`);
       
       const ideaData = createTradeIdea(opp, decision);
       logger.info(`🤖 [BOT] 📝 Pre-save ideaData: optionType=${ideaData.optionType}, symbol=${ideaData.symbol}`);
@@ -2113,6 +2117,10 @@ export async function monitorLottoPositions(): Promise<void> {
         marketContext
       );
       
+      // Calculate P&L for logging
+      const currentPnL = ((pos.currentPrice - pos.entryPrice) / pos.entryPrice) * 100;
+      const pnlEmoji = currentPnL >= 0 ? '🟢' : '🔴';
+      
       if (exitSignal.shouldExit) {
         logger.info(`🤖 [BOT] 📊 DYNAMIC EXIT: ${pos.symbol} - ${exitSignal.exitType}: ${exitSignal.reason}`);
         
@@ -2147,6 +2155,9 @@ export async function monitorLottoPositions(): Promise<void> {
         } catch (exitError) {
           logger.error(`🤖 [BOT] Failed to execute dynamic exit for ${pos.symbol}:`, exitError);
         }
+      } else {
+        // Log HOLD decision with reason - so user knows why bot is keeping position
+        logger.info(`🤖 [BOT] ${pnlEmoji} HOLDING ${pos.symbol}: ${exitSignal.reason} | PnL: ${currentPnL >= 0 ? '+' : ''}${currentPnL.toFixed(1)}% | ${daysToExpiry} DTE`);
       }
     }
     
