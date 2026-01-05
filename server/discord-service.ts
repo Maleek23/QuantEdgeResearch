@@ -2,6 +2,7 @@
 import type { TradeIdea } from "@shared/schema";
 import { getSignalLabel } from "@shared/constants";
 import { logger } from './logger';
+import { isOptionsMarketOpen } from './paper-trading-service';
 
 // GLOBAL DISABLE FLAG - Set to true to stop all Discord notifications
 const DISCORD_DISABLED = false;
@@ -578,6 +579,13 @@ export async function sendFlowAlertToDiscord(alert: {
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
+  // 🚫 MARKET HOURS CHECK: Only send flow alerts during market hours (9:30 AM - 4:00 PM ET)
+  const marketStatus = isOptionsMarketOpen();
+  if (!marketStatus.isOpen) {
+    logger.info(`📊 Flow alert skipped - ${marketStatus.reason}. No stale alerts.`);
+    return;
+  }
+  
   // Route to options channel or lotto channel based on type
   const webhookUrl = alert.isLotto 
     ? (process.env.DISCORD_WEBHOOK_LOTTO || process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL)
@@ -671,6 +679,13 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
   
   if (DISCORD_DISABLED) {
     logger.warn('⚠️ Discord is DISABLED - skipping notification');
+    return;
+  }
+  
+  // 🚫 MARKET HOURS CHECK: Only send batch alerts during market hours (9:30 AM - 4:00 PM ET)
+  const marketStatus = isOptionsMarketOpen();
+  if (!marketStatus.isOpen) {
+    logger.info(`📨 Discord batch skipped - ${marketStatus.reason}. No stale alerts.`);
     return;
   }
   

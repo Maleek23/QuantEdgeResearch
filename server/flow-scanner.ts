@@ -972,8 +972,9 @@ export async function scanUnusualOptionsFlow(holdingPeriod?: string, forceGenera
         tradeIdeas.push(tradeIdea);
         
         // 📣 REAL-TIME DISCORD ALERT: Send B- to A+ grade options to Discord immediately
+        // Only send alerts during market hours to avoid stale data notifications
         const grade = tradeIdea.probabilityBand || '';
-        if (DISCORD_ALERT_GRADES.includes(grade)) {
+        if (DISCORD_ALERT_GRADES.includes(grade) && isMarketHoursForFlow()) {
           const targetPercent = tradeIdea.targetPrice && tradeIdea.entryPrice 
             ? ((tradeIdea.targetPrice - tradeIdea.entryPrice) / tradeIdea.entryPrice * 100).toFixed(0)
             : '?';
@@ -1008,8 +1009,22 @@ export async function scanUnusualOptionsFlow(holdingPeriod?: string, forceGenera
 }
 
 // Check if market hours (9:30 AM - 4:00 PM ET, Mon-Fri)
-// DEVELOPMENT OVERRIDE: Always return true for testing
 export function isMarketHoursForFlow(): boolean {
-  // FORCE OPEN FOR DEVELOPMENT - remove this line for production
-  return true;
+  const now = new Date();
+  const etOptions = { timeZone: 'America/New_York' };
+  const etTime = new Date(now.toLocaleString('en-US', etOptions));
+  
+  const day = etTime.getDay();
+  const hour = etTime.getHours();
+  const minute = etTime.getMinutes();
+  const timeInMinutes = hour * 60 + minute;
+  
+  // Market hours: 9:30 AM - 4:00 PM ET, Monday-Friday
+  const marketOpen = 9 * 60 + 30;  // 9:30 AM
+  const marketClose = 16 * 60;      // 4:00 PM
+  
+  const isWeekday = day >= 1 && day <= 5;
+  const isWithinHours = timeInMinutes >= marketOpen && timeInMinutes < marketClose;
+  
+  return isWeekday && isWithinHours;
 }
