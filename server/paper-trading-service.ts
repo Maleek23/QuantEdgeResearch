@@ -61,6 +61,23 @@ export async function executeTradeIdea(
       p.symbol === tradeIdea.symbol && p.status === 'open'
     );
     
+    // 🛑🛑 CRITICAL: CHECK FOR EXACT DUPLICATE POSITION (same option contract)
+    // This prevents race condition duplicates from parallel bot executions
+    if (tradeIdea.assetType === 'option' && tradeIdea.strikePrice && tradeIdea.optionType) {
+      const exactDuplicate = existingPositions.find(p => 
+        p.symbol === tradeIdea.symbol && 
+        p.status === 'open' &&
+        p.optionType === tradeIdea.optionType &&
+        p.strikePrice === tradeIdea.strikePrice &&
+        p.expiryDate === tradeIdea.expiryDate
+      );
+      
+      if (exactDuplicate) {
+        logger.warn(`🛑 [DUPLICATE-POSITION] Rejecting ${tradeIdea.symbol} ${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} - already have open position (ID: ${exactDuplicate.id})`);
+        return { success: false, error: `Duplicate position for ${tradeIdea.symbol} ${tradeIdea.optionType} $${tradeIdea.strikePrice}` };
+      }
+    }
+    
     if (symbolPositions.length > 0) {
       const totalSymbolExposure = symbolPositions.reduce((sum, p) => 
         sum + (p.quantity * (p.entryPrice || 0) * (p.optionType ? 100 : 1)), 0
