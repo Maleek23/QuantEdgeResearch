@@ -230,9 +230,76 @@ export function getEntryTiming(
 
 export interface DynamicExitSignal {
   shouldExit: boolean;
-  exitType: 'trailing_stop' | 'time_decay' | 'momentum_fade' | 'regime_shift' | 'none';
+  exitType: 'trailing_stop' | 'time_decay' | 'momentum_fade' | 'regime_shift' | 'partial_profit' | 'none';
   reason: string;
   suggestedExitPrice?: number;
+  partialExitPercent?: number; // For partial profit taking (e.g., 50% of position)
+}
+
+// Trade lifecycle phases for smarter exits
+type TradePhase = 'discovery' | 'expansion' | 'distribution' | 'decline';
+
+function getTradePhase(pnlPercent: number, fromHigh: number): TradePhase {
+  // Discovery: Just entered, small gains/losses
+  if (pnlPercent >= -10 && pnlPercent <= 20) return 'discovery';
+  // Expansion: Solid gains, still near highs
+  if (pnlPercent > 20 && fromHigh > -10) return 'expansion';
+  // Distribution: High gains but pulling back from peak
+  if (pnlPercent > 15 && fromHigh <= -10) return 'distribution';
+  // Decline: Losing or gave back most gains
+  return 'decline';
+}
+
+// Adaptive trailing stop based on profit level and volatility
+function getAdaptiveTrailingStop(pnlPercent: number, daysToExpiry: number, isVolatile: boolean): number {
+  // Base trailing stop percentage (how much pullback from high triggers exit)
+  let trailingStop: number;
+  
+  if (pnlPercent >= 100) {
+    // 100%+ gains: Very tight stop to lock in massive gains
+    trailingStop = isVolatile ? -15 : -12;
+  } else if (pnlPercent >= 75) {
+    // 75%+ gains: Tight stop
+    trailingStop = isVolatile ? -18 : -15;
+  } else if (pnlPercent >= 50) {
+    // 50%+ gains: Moderate stop
+    trailingStop = isVolatile ? -22 : -18;
+  } else if (pnlPercent >= 30) {
+    // 30%+ gains: Looser stop to let winners run
+    trailingStop = isVolatile ? -28 : -25;
+  } else {
+    // Under 30%: Wide stop, still in discovery phase
+    trailingStop = isVolatile ? -35 : -30;
+  }
+  
+  // Tighten stops as expiry approaches (theta risk)
+  if (daysToExpiry <= 1) {
+    trailingStop = trailingStop * 0.6; // 40% tighter
+  } else if (daysToExpiry <= 3) {
+    trailingStop = trailingStop * 0.8; // 20% tighter
+  }
+  
+  return trailingStop;
+}
+
+// Get profit milestone for partial exits
+function shouldTakePartialProfit(pnlPercent: number, fromHigh: number, daysToExpiry: number): { take: boolean; percent: number; reason: string } | null {
+  // Take 50% off at 100%+ gains if pulling back
+  if (pnlPercent >= 100 && fromHigh <= -8) {
+    return { take: true, percent: 50, reason: `💰 PARTIAL: +${pnlPercent.toFixed(0)}% gains, take 50% off to lock in profits` };
+  }
+  
+  // Take 30% off at 75%+ gains with 2 DTE or less
+  if (pnlPercent >= 75 && daysToExpiry <= 2) {
+    return { take: true, percent: 30, reason: `⏰ PARTIAL: +${pnlPercent.toFixed(0)}% with ${daysToExpiry} DTE, take 30% off` };
+  }
+  
+  // Take 25% off at 50%+ gains if momentum fading
+  if (pnlPercent >= 50 && fromHigh <= -12) {
+    return { take: true, percent: 25, reason: `📉 PARTIAL: Momentum fading from peak, take 25% off` };
+  }
+  
+  return null;
 }
 
 export function checkDynamicExit(
@@ -245,92 +312,137 @@ export function checkDynamicExit(
 ): DynamicExitSignal {
   const pnlPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
   const fromHigh = highestPrice > 0 ? ((currentPrice - highestPrice) / highestPrice) * 100 : 0;
+  const peakGain = highestPrice > 0 ? ((highestPrice - entryPrice) / entryPrice) * 100 : 0;
+  
+  const isCall = optionType === 'call';
+  const regimeBad = (isCall && marketContext.regime === 'trending_down') || 
+                    (!isCall && marketContext.regime === 'trending_up');
+  const isVolatile = marketContext.regime === 'volatile';
+  const phase = getTradePhase(pnlPercent, fromHigh);
 
-  // 🛑 STOP LOSS: Cut losses at -40% (tighter than the 50% hard stop)
-  // This protects capital before total loss occurs
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🛑 STOP LOSS RULES (protect capital)
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Hard stop: -40% (absolute floor)
   if (pnlPercent <= -40) {
     return {
       shouldExit: true,
       exitType: 'trailing_stop',
-      reason: `⛔ STOP LOSS: Down ${Math.abs(pnlPercent).toFixed(0)}% - cutting loss to preserve capital`,
+      reason: `⛔ HARD STOP: Down ${Math.abs(pnlPercent).toFixed(0)}% - cutting loss`,
       suggestedExitPrice: currentPrice,
     };
   }
 
-  // 🛑 TIME-BASED STOP: If losing AND expiring soon, exit to avoid total loss
-  if (pnlPercent <= -25 && daysToExpiry <= 2) {
+  // Time-based stop: Exit losers before expiry accelerates losses
+  if (pnlPercent <= -20 && daysToExpiry <= 2) {
     return {
       shouldExit: true,
       exitType: 'time_decay',
-      reason: `⛔ TIME STOP: Down ${Math.abs(pnlPercent).toFixed(0)}% with only ${daysToExpiry} DTE - theta will accelerate losses`,
+      reason: `⛔ TIME STOP: Down ${Math.abs(pnlPercent).toFixed(0)}% with ${daysToExpiry} DTE - theta risk`,
       suggestedExitPrice: currentPrice,
     };
   }
 
-  // 🛑 REGIME STOP: If market turned against us AND we're losing, exit
-  const isCall = optionType === 'call';
-  const regimeBad = (isCall && marketContext.regime === 'trending_down') || 
-                    (!isCall && marketContext.regime === 'trending_up');
-  
-  if (regimeBad && pnlPercent <= -20) {
+  // Regime stop: Market turned against us while losing
+  if (regimeBad && pnlPercent <= -15) {
     return {
       shouldExit: true,
       exitType: 'regime_shift',
-      reason: `⛔ REGIME STOP: Market now ${marketContext.regime} AND down ${Math.abs(pnlPercent).toFixed(0)}%`,
+      reason: `⛔ REGIME STOP: ${marketContext.regime} + down ${Math.abs(pnlPercent).toFixed(0)}%`,
       suggestedExitPrice: currentPrice,
     };
   }
 
-  // Trailing stop on profits
-  if (pnlPercent > 30 && fromHigh < -20) {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 💰 PROFIT PROTECTION RULES (maximize gains)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Check for partial profit opportunity - for now, treat as full exit recommendation
+  // Future: implement position scaling to only exit partialExitPercent of position
+  const partialProfit = shouldTakePartialProfit(pnlPercent, fromHigh, daysToExpiry);
+  if (partialProfit) {
+    return {
+      shouldExit: true,
+      exitType: 'trailing_stop', // Use existing exit type until execution layer supports partial
+      reason: `${partialProfit.reason} (recommend ${partialProfit.percent}% exit)`,
+      suggestedExitPrice: currentPrice,
+      partialExitPercent: partialProfit.percent, // Future: use for scaling
+    };
+  }
+
+  // ADAPTIVE TRAILING STOP: Tighter as gains increase, tighter near expiry
+  const trailingThreshold = getAdaptiveTrailingStop(pnlPercent, daysToExpiry, isVolatile);
+  
+  if (pnlPercent > 25 && fromHigh < trailingThreshold) {
     return {
       shouldExit: true,
       exitType: 'trailing_stop',
-      reason: `Trailing stop: Up ${pnlPercent.toFixed(0)}% but dropped ${Math.abs(fromHigh).toFixed(0)}% from high`,
+      reason: `🎯 TRAILING STOP: Was +${peakGain.toFixed(0)}%, now +${pnlPercent.toFixed(0)}% (${fromHigh.toFixed(0)}% pullback, threshold ${trailingThreshold.toFixed(0)}%)`,
       suggestedExitPrice: currentPrice,
     };
   }
 
-  if (daysToExpiry <= 1 && pnlPercent > 15) {
+  // 0DTE/1DTE: Take any meaningful profit to avoid overnight/expiry risk
+  if (daysToExpiry <= 1 && pnlPercent > 10) {
     return {
       shouldExit: true,
       exitType: 'time_decay',
-      reason: `Time exit: ${daysToExpiry} DTE with +${pnlPercent.toFixed(0)}% profit - lock it in`,
+      reason: `⏰ ${daysToExpiry}DTE EXIT: Lock in +${pnlPercent.toFixed(0)}% before theta decay`,
       suggestedExitPrice: currentPrice,
     };
   }
 
+  // Expiring today with any gains - exit immediately
   if (daysToExpiry <= 0 && pnlPercent > 0) {
     return {
       shouldExit: true,
       exitType: 'time_decay',
-      reason: `0DTE exit: Expiring today with +${pnlPercent.toFixed(0)}% profit`,
+      reason: `🚨 0DTE: Expiring today, taking +${pnlPercent.toFixed(0)}%`,
       suggestedExitPrice: currentPrice,
     };
   }
 
-  // Regime-based profit taking (uses isCall and regimeBad defined above)
-  if (regimeBad && pnlPercent > 10) {
-    return {
-      shouldExit: true,
-      exitType: 'regime_shift',
-      reason: `Regime shift: Market now ${marketContext.regime}, taking +${pnlPercent.toFixed(0)}% profit`,
-      suggestedExitPrice: currentPrice,
-    };
-  }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 📉 MOMENTUM FADE DETECTION
+  // ═══════════════════════════════════════════════════════════════════════════
 
-  if (pnlPercent > 50 && fromHigh < -10) {
+  // Distribution phase with regime shift - take profits
+  if (phase === 'distribution' && regimeBad && pnlPercent > 15) {
     return {
       shouldExit: true,
       exitType: 'momentum_fade',
-      reason: `Momentum fading: Was +${((highestPrice - entryPrice) / entryPrice * 100).toFixed(0)}%, now +${pnlPercent.toFixed(0)}%`,
+      reason: `📉 DISTRIBUTION + REGIME: Market turned ${marketContext.regime}, take +${pnlPercent.toFixed(0)}%`,
       suggestedExitPrice: currentPrice,
+    };
+  }
+
+  // Gave back 50%+ of peak gains - momentum clearly fading
+  if (peakGain >= 40 && pnlPercent < peakGain * 0.5 && pnlPercent > 15) {
+    return {
+      shouldExit: true,
+      exitType: 'momentum_fade',
+      reason: `📉 MOMENTUM FADE: Peaked at +${peakGain.toFixed(0)}%, now only +${pnlPercent.toFixed(0)}%`,
+      suggestedExitPrice: currentPrice,
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ✅ HOLD - LET WINNERS RUN
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Still in expansion phase with momentum - let it ride
+  if (phase === 'expansion' && !regimeBad) {
+    return {
+      shouldExit: false,
+      exitType: 'none',
+      reason: `🚀 EXPANSION: +${pnlPercent.toFixed(0)}%, ${Math.abs(fromHigh).toFixed(0)}% off high - let it run`,
     };
   }
 
   return {
     shouldExit: false,
     exitType: 'none',
-    reason: 'Hold position',
+    reason: `📊 HOLD: Phase=${phase}, PnL=+${pnlPercent.toFixed(0)}%, ${daysToExpiry} DTE`,
   };
 }
