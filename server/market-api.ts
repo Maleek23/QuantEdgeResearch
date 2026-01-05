@@ -1494,3 +1494,167 @@ export async function fetchFuturesHistory(
     return [];
   }
 }
+
+/**
+ * Company profile with business description, industry, and key stats
+ */
+export interface CompanyProfile {
+  symbol: string;
+  name: string;
+  description: string;
+  sector: string;
+  industry: string;
+  website: string;
+  marketCap: number;
+  employees: number;
+  headquarters: string;
+  keyDrivers: string[];
+  catalysts: string[];
+}
+
+/**
+ * Fetch company profile from Yahoo Finance quoteSummary API
+ * Returns business description, sector, industry, and key information
+ */
+export async function fetchCompanyProfile(symbol: string): Promise<CompanyProfile | null> {
+  const upperSymbol = symbol.toUpperCase();
+  
+  try {
+    // Yahoo Finance quoteSummary endpoint with assetProfile module
+    const response = await fetch(
+      `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${upperSymbol}?modules=assetProfile,summaryProfile,price,summaryDetail`,
+      {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      logger.warn(`Yahoo quoteSummary failed for ${symbol}: HTTP ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    const result = data?.quoteSummary?.result?.[0];
+    
+    if (!result) {
+      logger.warn(`No quoteSummary data for ${symbol}`);
+      return null;
+    }
+    
+    const assetProfile = result.assetProfile || {};
+    const price = result.price || {};
+    const summaryDetail = result.summaryDetail || {};
+    
+    // Extract key information
+    const description = assetProfile.longBusinessSummary || '';
+    const sector = assetProfile.sector || price.sector || 'Unknown';
+    const industry = assetProfile.industry || 'Unknown';
+    const website = assetProfile.website || '';
+    const marketCap = price.marketCap?.raw || summaryDetail.marketCap?.raw || 0;
+    const employees = assetProfile.fullTimeEmployees || 0;
+    
+    // Build headquarters location
+    const city = assetProfile.city || '';
+    const state = assetProfile.state || '';
+    const country = assetProfile.country || '';
+    const headquarters = [city, state, country].filter(Boolean).join(', ');
+    
+    // Extract key drivers from description (simple keyword extraction)
+    const keyDrivers = extractKeyDrivers(description, industry);
+    
+    // Generate potential catalysts based on sector/industry
+    const catalysts = generatePotentialCatalysts(sector, industry);
+    
+    logger.info(`[PROFILE] Fetched company profile for ${symbol}: ${sector} / ${industry}`);
+    
+    return {
+      symbol: upperSymbol,
+      name: price.shortName || price.longName || upperSymbol,
+      description: description.length > 500 ? description.substring(0, 500) + '...' : description,
+      sector,
+      industry,
+      website,
+      marketCap,
+      employees,
+      headquarters,
+      keyDrivers,
+      catalysts,
+    };
+  } catch (error) {
+    logger.error(`Error fetching company profile for ${symbol}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Extract key business drivers from company description
+ */
+function extractKeyDrivers(description: string, industry: string): string[] {
+  const drivers: string[] = [];
+  const lowerDesc = description.toLowerCase();
+  
+  // Revenue drivers by industry
+  const techKeywords = ['software', 'cloud', 'saas', 'subscription', 'ai', 'machine learning', 'data', 'platform'];
+  const financeKeywords = ['interest', 'loans', 'deposits', 'trading', 'fees', 'assets under management'];
+  const healthcareKeywords = ['drug', 'therapy', 'fda', 'clinical trials', 'pharmaceutical', 'medical devices'];
+  const retailKeywords = ['e-commerce', 'stores', 'sales', 'merchandise', 'consumer spending'];
+  const energyKeywords = ['oil', 'gas', 'production', 'drilling', 'renewable', 'power generation'];
+  
+  // Check for matches based on industry
+  const keywords = [
+    ...techKeywords,
+    ...financeKeywords,
+    ...healthcareKeywords,
+    ...retailKeywords,
+    ...energyKeywords,
+  ];
+  
+  for (const keyword of keywords) {
+    if (lowerDesc.includes(keyword) && drivers.length < 4) {
+      drivers.push(keyword.charAt(0).toUpperCase() + keyword.slice(1));
+    }
+  }
+  
+  // Add industry-specific driver if no keywords found
+  if (drivers.length === 0) {
+    drivers.push(industry);
+  }
+  
+  return drivers;
+}
+
+/**
+ * Generate potential catalysts based on sector/industry
+ */
+function generatePotentialCatalysts(sector: string, industry: string): string[] {
+  const catalysts: string[] = [];
+  
+  // Common catalysts by sector
+  const sectorCatalysts: Record<string, string[]> = {
+    'Technology': ['Product launches', 'Earnings beats', 'AI integration', 'M&A activity'],
+    'Healthcare': ['FDA approvals', 'Clinical trial results', 'Drug pipeline updates', 'Regulatory changes'],
+    'Financial Services': ['Interest rate changes', 'Loan growth', 'Credit quality', 'M&A deals'],
+    'Consumer Cyclical': ['Holiday sales', 'Store openings', 'E-commerce growth', 'Consumer sentiment'],
+    'Consumer Defensive': ['Pricing power', 'Market share gains', 'Dividend increases', 'Cost cutting'],
+    'Energy': ['Oil prices', 'Production growth', 'Reserve discoveries', 'Policy changes'],
+    'Industrials': ['Infrastructure spending', 'Defense contracts', 'Supply chain', 'Capex cycles'],
+    'Basic Materials': ['Commodity prices', 'Demand from China', 'New mines/facilities', 'ESG regulations'],
+    'Real Estate': ['Interest rates', 'Occupancy rates', 'Rent growth', 'Property acquisitions'],
+    'Utilities': ['Rate cases', 'Renewable investments', 'Weather patterns', 'Regulatory approvals'],
+    'Communication Services': ['Subscriber growth', 'Content deals', 'Ad revenue', 'Streaming competition'],
+  };
+  
+  const sectorKey = Object.keys(sectorCatalysts).find(key => 
+    sector.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(sector.toLowerCase())
+  );
+  
+  if (sectorKey) {
+    catalysts.push(...sectorCatalysts[sectorKey]);
+  } else {
+    catalysts.push('Earnings reports', 'Guidance updates', 'Industry trends', 'Macro factors');
+  }
+  
+  return catalysts.slice(0, 4);
+}

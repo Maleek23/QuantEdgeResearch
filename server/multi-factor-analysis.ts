@@ -1,6 +1,7 @@
 import { logger } from "./logger";
 import { fetchAlphaVantageNews, type NewsArticle } from "./news-service";
 import { getTradierQuote, getTradierHistoryOHLC, getTradierHistory } from "./tradier-api";
+import { fetchCompanyProfile } from "./market-api";
 import { RSI, SMA, EMA, MACD, BollingerBands, ADX } from "technicalindicators";
 
 export interface CompanyContext {
@@ -142,30 +143,52 @@ const COMPANY_INFO: Record<string, { name: string; sector: string; industry: str
 
 export async function getCompanyContext(symbol: string): Promise<CompanyContext> {
   const upperSymbol = symbol.toUpperCase();
-  const info = COMPANY_INFO[upperSymbol];
+  const cachedInfo = COMPANY_INFO[upperSymbol];
   
-  let news: NewsArticle[] = [];
-  try {
-    news = await fetchAlphaVantageNews(upperSymbol, undefined, undefined, 10);
-  } catch (error) {
-    logger.warn(`[MFA] Failed to fetch news for ${symbol}:`, error);
-  }
+  // Fetch news in parallel with company profile
+  const [news, dynamicProfile] = await Promise.all([
+    fetchAlphaVantageNews(upperSymbol, undefined, undefined, 10).catch((error) => {
+      logger.warn(`[MFA] Failed to fetch news for ${symbol}:`, error);
+      return [] as NewsArticle[];
+    }),
+    // Only fetch dynamic profile if not in hardcoded list or missing description
+    !cachedInfo ? fetchCompanyProfile(upperSymbol).catch((error) => {
+      logger.warn(`[MFA] Failed to fetch profile for ${symbol}:`, error);
+      return null;
+    }) : Promise.resolve(null),
+  ]);
   
-  const catalysts: string[] = [];
+  // Extract catalysts from news (high sentiment articles = potential movers)
+  const newsCatalysts: string[] = [];
   for (const article of news.slice(0, 5)) {
     if (article.overallSentimentScore > 0.2 || article.overallSentimentScore < -0.2) {
-      catalysts.push(article.title.substring(0, 100));
+      newsCatalysts.push(article.title.substring(0, 100));
     }
   }
   
+  // Merge hardcoded info with dynamic profile
+  const info = cachedInfo || {
+    name: dynamicProfile?.name || upperSymbol,
+    sector: dynamicProfile?.sector || 'Unknown',
+    industry: dynamicProfile?.industry || 'Unknown',
+    description: dynamicProfile?.description || `${upperSymbol} is a publicly traded company.`,
+  };
+  
+  // Combine news-derived catalysts with sector-based catalysts
+  const allCatalysts = [
+    ...newsCatalysts.slice(0, 2),
+    ...(dynamicProfile?.catalysts || []).slice(0, 2),
+  ].slice(0, 4);
+  
   return {
     symbol: upperSymbol,
-    name: info?.name || upperSymbol,
-    sector: info?.sector || 'Unknown',
-    industry: info?.industry || 'Unknown',
-    description: info?.description || `${upperSymbol} is a publicly traded company.`,
+    name: info.name,
+    sector: info.sector,
+    industry: info.industry,
+    description: info.description,
+    marketCap: dynamicProfile?.marketCap,
     recentNews: news.slice(0, 5),
-    catalysts: catalysts.slice(0, 3),
+    catalysts: allCatalysts.length > 0 ? allCatalysts : ['Earnings reports', 'Industry trends'],
   };
 }
 
