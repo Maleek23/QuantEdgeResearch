@@ -1482,21 +1482,21 @@ function makeBotDecision(
   const grade = getLetterGrade(boostedScore);
   const hasAnalysisBoost = analysisBoost > 0;
   
-  // DTE-aware entry criteria (lower thresholds for swings since they have more time)
-  // Day trades (0-2 DTE): 65 - need strong momentum
-  // Weekly trades (3-7 DTE): 60 - moderate conviction
-  // Swing trades (8-21 DTE): 50 - time is on our side
-  // Monthly swings (22-45 DTE): 45 - even more time to be right
+  // DTE-aware entry criteria (lowered for more aggressive entry while maintaining safety)
+  // Day trades (0-2 DTE): 55 - lowered from 65 for more entries
+  // Weekly trades (3-7 DTE): 50 - moderate conviction
+  // Swing trades (8-21 DTE): 45 - time is on our side
+  // Monthly swings (22-45 DTE): 40 - even more time to be right
   const isDayTrade = opportunity.daysToExpiry <= 2;
   const isWeekly = opportunity.daysToExpiry > 2 && opportunity.daysToExpiry <= 7;
   const isSwingTrade = opportunity.daysToExpiry >= 8 && opportunity.daysToExpiry <= 21;
   const isMonthlySwing = opportunity.daysToExpiry > 21;
   
-  let minScoreForEntry = 60; // default
-  if (isDayTrade) minScoreForEntry = 65;
-  else if (isWeekly) minScoreForEntry = 58;
-  else if (isSwingTrade) minScoreForEntry = 50;
-  else if (isMonthlySwing) minScoreForEntry = 45; // Monthly swings need lowest threshold
+  let minScoreForEntry = 50; // default - lowered from 60
+  if (isDayTrade) minScoreForEntry = 55; // Lowered from 65
+  else if (isWeekly) minScoreForEntry = 50; // Lowered from 58
+  else if (isSwingTrade) minScoreForEntry = 45; // Lowered from 50
+  else if (isMonthlySwing) minScoreForEntry = 40; // Lowered from 45 // Monthly swings need lowest threshold
   
   // Require at least 1 positive signal to enter (reduced from 2)
   const positiveSignals = signals.filter(s => 
@@ -1534,7 +1534,9 @@ function makeBotDecision(
     ? `${grade} grade (${score}+${analysisBoost}=${boostedScore}) ANALYSIS_BOOST: ${boostReasons.join(', ')}`
     : `${grade} grade (${boostedScore}) - ${signals.slice(0, 3).join(', ')}`;
     
-  if (boostedScore >= minScoreForEntry && (grade === 'A' || grade === 'B+' || grade === 'B' || grade === 'C+' || grade === 'C')) {
+  // Accept A+, A, A-, B+, B, B-, C+, C grades - expanded for more aggressive entry
+  const validEntryGrades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C'];
+  if (boostedScore >= minScoreForEntry && validEntryGrades.includes(grade)) {
     return {
       action: 'enter',
       reason: entryReason,

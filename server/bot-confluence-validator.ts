@@ -63,7 +63,7 @@ const CONFLUENCE_WEIGHTS = {
   regime: 10,
 };
 
-const MIN_CONFLUENCE_SCORE = 55; // Must score >55% to execute
+const MIN_CONFLUENCE_SCORE = 45; // Lowered from 55 to allow more trades through while maintaining multi-layer validation
 
 /**
  * LAYER 1: GREEKS ANALYSIS

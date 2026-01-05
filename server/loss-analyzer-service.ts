@@ -280,7 +280,7 @@ async function applyRemediationToLearningState(
     
     if (!learningState) {
       learningState = await storage.createBotLearningState({
-        confidenceThreshold: 65,
+        confidenceThreshold: 50, // Lowered from 65 to allow more trades
         stopLossMultiplier: 1.0,
         positionSizeMultiplier: 1.0,
         symbolAdjustments: {},
@@ -298,7 +298,7 @@ async function applyRemediationToLearningState(
     };
     
     if (analysis.remediationActions.adjustConfidenceThreshold) {
-      const currentThreshold = learningState.confidenceThreshold || 65;
+      const currentThreshold = learningState.confidenceThreshold || 50;
       updates.confidenceThreshold = Math.min(85, currentThreshold + 
         (analysis.remediationActions.adjustConfidenceThreshold * 0.3));
       updates.adaptationsApplied = (learningState.adaptationsApplied || 0) + 1;
@@ -426,13 +426,13 @@ export async function getAdaptiveParameters(): Promise<{
   try {
     const state = await storage.getBotLearningState(BOT_LEARNING_ID);
     return {
-      confidenceThreshold: state?.confidenceThreshold || 65,
+      confidenceThreshold: state?.confidenceThreshold || 50, // Lowered from 65
       stopLossMultiplier: state?.stopLossMultiplier || 1.0,
       positionSizeMultiplier: state?.positionSizeMultiplier || 1.0,
     };
   } catch (error) {
     return {
-      confidenceThreshold: 65,
+      confidenceThreshold: 50, // Lowered from 65
       stopLossMultiplier: 1.0,
       positionSizeMultiplier: 1.0,
     };
@@ -538,7 +538,7 @@ export async function getLossPatternSummary(): Promise<{
     const recentAdaptations: string[] = [];
     
     if (state) {
-      if (state.confidenceThreshold && state.confidenceThreshold !== 65) {
+      if (state.confidenceThreshold && state.confidenceThreshold !== 50) {
         recentAdaptations.push(`Confidence threshold adjusted to ${state.confidenceThreshold.toFixed(1)}%`);
       }
       if (state.stopLossMultiplier && state.stopLossMultiplier !== 1.0) {
