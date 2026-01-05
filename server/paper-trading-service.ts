@@ -39,6 +39,12 @@ export interface PortfolioValue {
   unrealizedPnLPercent: number;
 }
 
+// 🎯 SMART POSITION SIZING LIMITS
+const MAX_PERCENT_PER_TRADE = 0.05; // 5% of portfolio per trade
+const MAX_PERCENT_PER_SYMBOL = 0.10; // 10% max exposure per symbol
+const MAX_DOLLAR_PER_TRADE = 500; // Hard cap $500 per trade
+const MAX_CONTRACTS_PER_TRADE = 10; // Never buy more than 10 contracts at once
+
 export async function executeTradeIdea(
   portfolioId: string,
   tradeIdea: TradeIdea
@@ -49,6 +55,24 @@ export async function executeTradeIdea(
       return { success: false, error: "Portfolio not found" };
     }
 
+    // 🛑 CHECK EXISTING SYMBOL EXPOSURE - Prevent overconcentration
+    const existingPositions = await storage.getPaperPositionsByPortfolio(portfolioId);
+    const symbolPositions = existingPositions.filter(p => 
+      p.symbol === tradeIdea.symbol && p.status === 'open'
+    );
+    
+    if (symbolPositions.length > 0) {
+      const totalSymbolExposure = symbolPositions.reduce((sum, p) => 
+        sum + (p.quantity * (p.entryPrice || 0) * (p.optionType ? 100 : 1)), 0
+      );
+      const symbolExposurePercent = totalSymbolExposure / portfolio.startingCapital;
+      
+      if (symbolExposurePercent >= MAX_PERCENT_PER_SYMBOL) {
+        logger.warn(`🛑 [POSITION-LIMIT] Rejecting ${tradeIdea.symbol} - already at ${(symbolExposurePercent * 100).toFixed(1)}% exposure (max ${MAX_PERCENT_PER_SYMBOL * 100}%)`);
+        return { success: false, error: `Already at max exposure for ${tradeIdea.symbol}` };
+      }
+    }
+
     const currentPrice = tradeIdea.entryPrice;
     const multiplier = tradeIdea.assetType === 'option' ? 100 : 1;
     
@@ -56,11 +80,18 @@ export async function executeTradeIdea(
     let positionCost: number;
 
     if (tradeIdea.assetType === 'option') {
-      // Use MINIMUM of maxPositionSize and available cash to avoid over-allocation
-      const maxAllowedSpend = Math.min(portfolio.maxPositionSize || 5000, portfolio.cashBalance);
+      // 🎯 SMART POSITION SIZING: Use the MINIMUM of:
+      // 1. 5% of total portfolio value
+      // 2. Hard cap of $500 per trade
+      // 3. Available cash
+      const percentBasedMax = portfolio.startingCapital * MAX_PERCENT_PER_TRADE;
+      const maxAllowedSpend = Math.min(percentBasedMax, MAX_DOLLAR_PER_TRADE, portfolio.cashBalance);
+      
       const contractCost = currentPrice * 100;
-      quantity = Math.max(1, Math.floor(maxAllowedSpend / contractCost));
+      quantity = Math.max(1, Math.min(MAX_CONTRACTS_PER_TRADE, Math.floor(maxAllowedSpend / contractCost)));
       positionCost = quantity * contractCost;
+      
+      logger.info(`📊 [POSITION-SIZE] ${tradeIdea.symbol}: ${quantity} contracts @ $${currentPrice.toFixed(2)} = $${positionCost.toFixed(0)} (${(positionCost / portfolio.startingCapital * 100).toFixed(1)}% of portfolio)`);
     } else {
       const riskPerTrade = portfolio.riskPerTrade || 0.02;
       const riskAmount = portfolio.cashBalance * riskPerTrade;

@@ -52,12 +52,12 @@ interface BotPreferences {
   cryptoEnableMemeCoins: boolean;
 }
 
-// Default preferences (used when no user prefs are set) - UNLIMITED MODE
+// Default preferences - SMART RISK MANAGEMENT
   const DEFAULT_PREFERENCES: BotPreferences = {
-    riskTolerance: 'aggressive',
-    maxPositionSize: 100000, // Increased for testing
-    maxConcurrentTrades: 50,
-    dailyLossLimit: 100000,
+    riskTolerance: 'moderate',
+    maxPositionSize: 500, // $500 max per trade (5% of $10k portfolio)
+    maxConcurrentTrades: 20,
+    dailyLossLimit: 2000, // $2k daily loss limit
     enableOptions: true,
     enableFutures: false,
     enableCrypto: true,
@@ -65,8 +65,8 @@ interface BotPreferences {
     optionsAllocation: 40,
     futuresAllocation: 30,
     cryptoAllocation: 30,
-    minConfidenceScore: 20, // Lowered significantly for testing
-    minRiskRewardRatio: 0.1, // Lowered significantly for testing
+    minConfidenceScore: 60, // Reasonable threshold
+    minRiskRewardRatio: 1.0, // At least 1:1 R:R
     tradePreMarket: true,
     tradeRegularHours: true,
     tradeAfterHours: true,
@@ -101,9 +101,9 @@ async function getBotPreferences(): Promise<BotPreferences> {
     if (userPrefs) {
       const prefs: BotPreferences = {
         riskTolerance: userPrefs.riskTolerance as 'conservative' | 'moderate' | 'aggressive',
-        maxPositionSize: 100000, 
-        maxConcurrentTrades: 50,
-        dailyLossLimit: 100000,
+        maxPositionSize: 500, // $500 max per trade - smart sizing
+        maxConcurrentTrades: 20,
+        dailyLossLimit: 2000,
         enableOptions: true,
         enableFutures: true,
         enableCrypto: true,
@@ -111,8 +111,8 @@ async function getBotPreferences(): Promise<BotPreferences> {
         optionsAllocation: 40,
         futuresAllocation: 30,
         cryptoAllocation: 30,
-        minConfidenceScore: 10, 
-        minRiskRewardRatio: 0.1, 
+        minConfidenceScore: 60, // Reasonable threshold
+        minRiskRewardRatio: 1.0, // At least 1:1 R:R 
         tradePreMarket: true,
         tradeRegularHours: true,
         tradeAfterHours: true,
@@ -177,13 +177,30 @@ const PROP_FIRM_MAX_CONTRACTS = 2; // Max 2 contracts at a time
 const PROP_FIRM_STOP_POINTS_NQ = 15; // 15 point stop = $300 risk per contract
 const PROP_FIRM_TARGET_POINTS_NQ = 30; // 2:1 R:R minimum
 
-// 🎯 PRIORITY TICKERS - These get scanned FIRST before other tickers
-// User's favorite plays that should always be checked
-const PRIORITY_TICKERS = [
-  'NNE', 'BIDU', 'SOFI', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META', // User's explicit priority list (NNE first!)
+// 🎯 PRIORITY TICKERS - Shuffled each scan for diversification
+// Fisher-Yates shuffle algorithm for fair randomization
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+const BASE_PRIORITY_TICKERS = [
+  'NNE', 'BIDU', 'SOFI', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META', // User's explicit priority list
   'TSLA', 'NVDA', 'AMD', 'AAPL', 'GOOGL', 'MSFT', // High-liquidity favorites
   'SPY', 'IWM', 'DIA', 'COIN', 'MARA', 'RIOT', 'ARM', 'SNOW', // High-vol tickers
 ];
+
+// Get randomized ticker list each time (for diversification)
+function getPriorityTickers(): string[] {
+  return shuffleArray(BASE_PRIORITY_TICKERS);
+}
+
+// Legacy constant for backward compatibility
+const PRIORITY_TICKERS = BASE_PRIORITY_TICKERS;
 
 // Rate limiting helper to avoid Tradier API quota violations
 const API_DELAY_MS = 250; // 250ms between Tradier calls (max 4/second to be safe)
@@ -2088,6 +2105,22 @@ export async function runAutonomousBotScan(): Promise<void> {
       
       const ideaData = createTradeIdea(opp, decision);
       logger.info(`🤖 [BOT] 📝 Pre-save ideaData: optionType=${ideaData.optionType}, symbol=${ideaData.symbol}`);
+      
+      // 🛑 DEDUPLICATION CHECK - Prevent duplicate trade ideas for same option
+      const existingSimilar = await storage.findSimilarTradeIdea(
+        ideaData.symbol,
+        ideaData.direction,
+        ideaData.entryPrice,
+        6, // Look back 6 hours
+        'option', // assetType
+        ideaData.optionType || undefined,
+        ideaData.strikePrice || undefined
+      );
+      
+      if (existingSimilar) {
+        logger.warn(`🛑 [DEDUP] Skipping duplicate trade idea for ${opp.symbol} ${opp.optionType?.toUpperCase()} $${opp.strike} - similar idea exists (ID: ${existingSimilar.id})`);
+        return; // Skip this duplicate
+      }
       
       const savedIdea = await storage.createTradeIdea(ideaData);
       logger.info(`🤖 [BOT] 📝 Post-save savedIdea: optionType=${savedIdea.optionType}, id=${savedIdea.id}`);
