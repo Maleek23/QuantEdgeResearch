@@ -813,11 +813,25 @@ export default function WatchlistBotPage() {
             const startingCapital = botData.portfolio?.startingCapital || 300;
             const accountBalance = startingCapital + totalRealizedPnL;
             
-            const openPositionsValue = openPositions.reduce((sum, p) => {
-              const multiplier = p.assetType === 'option' ? 100 : (p.assetType === 'future' ? 1 : 1);
-              return sum + (p.currentPrice || p.entryPrice) * p.quantity * multiplier;
+            // Calculate cash tied up in open positions
+            // For options: use premium paid (entry price * quantity) - NOT contract value
+            // For futures: use margin requirement (roughly 5-10% of notional) - NOT full value
+            // For crypto: use actual position cost
+            const openPositionsCost = openPositions.reduce((sum, p) => {
+              if (p.assetType === 'option') {
+                // Options: premium per contract * number of contracts
+                return sum + (p.entryPrice * p.quantity * 100);
+              } else if (p.assetType === 'future') {
+                // Futures: use margin (~$500 per micro contract, ~$15k per full contract)
+                // Since this is paper trading, just show available cash
+                return sum; // Don't subtract - futures portfolio has separate cash tracking
+              } else {
+                // Crypto/stocks: actual position cost
+                return sum + (p.entryPrice * p.quantity);
+              }
             }, 0);
-            const buyingPower = accountBalance - openPositionsValue;
+            // Buying power = cash on hand (portfolio tracks this separately for accuracy)
+            const buyingPower = botData.portfolio?.cashBalance ?? (accountBalance - openPositionsCost);
             const totalEquity = accountBalance + totalUnrealizedPnL;
             
             const todayStart = new Date();
