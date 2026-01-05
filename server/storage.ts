@@ -1239,14 +1239,14 @@ export class MemStorage implements IStorage {
       const ideaTime = new Date(idea.timestamp);
       const priceDiff = Math.abs(idea.entryPrice - entryPrice) / entryPrice;
       
-      // Base conditions - check ALL open ideas regardless of source
-      // This prevents duplicate ideas like multiple DOGE trades from different generation runs
+      // Base conditions - check ALL ideas regardless of status
+      // This prevents duplicate ideas even if earlier ones were marked expired/closed
       let matches = (
         idea.symbol === symbol &&
         idea.direction === direction &&
         priceDiff <= priceThreshold &&
-        ideaTime >= cutoffTime &&
-        idea.outcomeStatus === 'open' // Only check open ideas
+        ideaTime >= cutoffTime
+        // REMOVED: outcomeStatus check - prevent ALL duplicates
       );
       
       // Add asset type check if provided
@@ -1882,13 +1882,13 @@ export class DatabaseStorage implements IStorage {
     const cutoffTime = new Date(Date.now() - hoursBack * 60 * 60 * 1000).toISOString();
     const tolerance = entryPrice * 0.02; // 2% price tolerance
 
-    // Build base query conditions - check ALL open ideas regardless of source
-    // This prevents duplicate ideas like multiple DOGE trades from different generation runs
+    // Build base query conditions - check ALL ideas regardless of status
+    // This prevents duplicate ideas even if earlier ones were marked expired/closed
     const conditions = [
       eq(tradeIdeas.symbol, symbol),
       eq(tradeIdeas.direction, direction),
-      gte(tradeIdeas.timestamp, cutoffTime),
-      eq(tradeIdeas.outcomeStatus, 'open') // Only check open ideas
+      gte(tradeIdeas.timestamp, cutoffTime)
+      // REMOVED: outcomeStatus check - prevent ALL duplicates not just open ones
     ];
 
     // Add asset type filter if provided
