@@ -1789,6 +1789,74 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
 }
 
 /**
+ * 🚀 IMMEDIATE TRADE EXECUTION - Execute a trade right away without waiting
+ * Used for high-confidence A+ opportunities to avoid 20-minute scan delays
+ */
+async function executeImmediateTrade(
+  opp: LottoOpportunity, 
+  decision: BotDecision, 
+  entryTiming: { shouldEnterNow: boolean; reason: string },
+  portfolio: PaperPortfolio
+): Promise<boolean> {
+  try {
+    logger.info(`🤖 [BOT] 🟢 IMMEDIATE BUYING ${opp.symbol} ${opp.optionType.toUpperCase()} $${opp.strike} @ $${opp.price.toFixed(2)}`);
+    logger.info(`🤖 [BOT] 📊 REASON: ${decision.reason}`);
+    logger.info(`🤖 [BOT] 📊 CONFIDENCE: ${decision.confidence.toFixed(0)}%`);
+    
+    const ideaData = createTradeIdea(opp, decision);
+    
+    // 🛑 DEDUPLICATION CHECK
+    const existingSimilar = await storage.findSimilarTradeIdea(
+      ideaData.symbol,
+      ideaData.direction,
+      ideaData.entryPrice,
+      6, // Look back 6 hours
+      'option',
+      ideaData.optionType || undefined,
+      ideaData.strikePrice || undefined
+    );
+    
+    if (existingSimilar) {
+      logger.warn(`🛑 [DEDUP] Skipping duplicate: ${opp.symbol} ${opp.optionType?.toUpperCase()} $${opp.strike}`);
+      return false;
+    }
+    
+    const savedIdea = await storage.createTradeIdea(ideaData);
+    const result = await executeTradeIdea(portfolio.id, savedIdea as TradeIdea);
+    
+    if (result.success && result.position) {
+      logger.info(`🤖 [BOT] ✅ IMMEDIATE TRADE EXECUTED: ${opp.symbol} x${result.position.quantity} @ $${opp.price.toFixed(2)}`);
+      
+      // Send Discord notification
+      try {
+        await sendBotTradeEntryToDiscord({
+          symbol: opp.symbol,
+          assetType: 'option',
+          optionType: opp.optionType,
+          strikePrice: opp.strike,
+          expiryDate: opp.expiration,
+          entryPrice: opp.price,
+          quantity: result.position.quantity,
+          targetPrice: ideaData.targetPrice,
+          stopLoss: ideaData.stopLoss,
+        });
+        logger.info(`🤖 [BOT] 📱✅ Discord notification SENT for ${opp.symbol}`);
+      } catch (discordError) {
+        logger.error(`🤖 [BOT] 📱❌ Discord notification FAILED:`, discordError);
+      }
+      
+      return true;
+    } else {
+      logger.warn(`🤖 [BOT] ❌ Immediate trade failed: ${result.error}`);
+      return false;
+    }
+  } catch (error) {
+    logger.error(`🤖 [BOT] ❌ Error in immediate trade execution:`, error);
+    return false;
+  }
+}
+
+/**
  * MAIN BOT FUNCTION: Scans market and makes autonomous trading decisions
  * Now uses user preferences for position limits, confidence thresholds, and trading hours
  */
@@ -1855,7 +1923,16 @@ export async function runAutonomousBotScan(): Promise<void> {
     
     const openSymbols = new Set(openPositions.map(p => p.symbol));
     // Collect ALL qualifying opportunities for diversification
-    const qualifyingOpportunities: { opp: LottoOpportunity; decision: BotDecision; entryTiming: { shouldEnterNow: boolean; reason: string } }[] = [];
+    const qualifyingOpportunities: { 
+      opp: LottoOpportunity; 
+      decision: BotDecision; 
+      entryTiming: { shouldEnterNow: boolean; reason: string };
+      immediateExecution?: boolean;
+      executed?: boolean;
+    }[] = [];
+    
+    // 🚀 IMMEDIATE TRADE COUNTER - Execute trades as we find them (don't wait for full 20-min scan!)
+    let tradesThisCycle = 0;
     
     // 🔍 DYNAMIC MOVERS: Get top movers from market scanner first (big price moves = opportunity)
     const dynamicMovers = await getDynamicMovers();
@@ -2024,21 +2101,47 @@ export async function runAutonomousBotScan(): Promise<void> {
         if (decision.action === 'enter' && entryTiming.shouldEnterNow) {
           logger.info(`🤖 [BOT] ✅ ${ticker} ${opp.optionType.toUpperCase()} $${opp.strike}: ${decision.reason} | ${entryTiming.reason}`);
           
-          // Collect ALL qualifying opportunities (not just best) for diversification
-          qualifyingOpportunities.push({ opp, decision, entryTiming });
+          // 🚀 IMMEDIATE EXECUTION: Trade A+ opportunities right away (don't wait for full scan!)
+          // Only wait if we've already traded 5 this cycle
+          if (tradesThisCycle < 5 && decision.confidence >= 85) {
+            logger.info(`🤖 [BOT] 🚀 IMMEDIATE ENTRY: ${ticker} (A+ grade, confidence ${decision.confidence.toFixed(0)}%)`);
+            qualifyingOpportunities.push({ opp, decision, entryTiming, immediateExecution: true });
+          } else if (tradesThisCycle >= 5) {
+            logger.info(`🤖 [BOT] ⏸️ Max trades reached (${tradesThisCycle}/5), skipping ${ticker}`);
+          } else {
+            // Lower confidence - collect for end-of-scan batch
+            qualifyingOpportunities.push({ opp, decision, entryTiming, immediateExecution: false });
+          }
         } else if (decision.action === 'wait') {
           logger.debug(`🤖 [BOT] ⏳ ${ticker}: ${decision.reason}`);
         }
       }
+      
+      // 🚀 PROCESS IMMEDIATE EXECUTIONS NOW (don't wait for full scan!)
+      const immediateOpps = qualifyingOpportunities.filter(o => o.immediateExecution && !o.executed);
+      for (const immOpp of immediateOpps) {
+        if (tradesThisCycle >= 5) break;
+        
+        // Mark as executed so we don't double-trade
+        immOpp.executed = true;
+        const { opp: immO, decision: immD, entryTiming: immT } = immOpp;
+        
+        // Execute trade immediately
+        await executeImmediateTrade(immO, immD, immT, portfolio);
+        tradesThisCycle++;
+      }
     }
     
-    // Sort by confidence (highest first) and take top 5 for diversification
-    qualifyingOpportunities.sort((a, b) => b.decision.confidence - a.decision.confidence);
-    const topOpportunities = qualifyingOpportunities.slice(0, 5);
-    logger.info(`🤖 [BOT] Found ${qualifyingOpportunities.length} qualifying opportunities, trading top ${topOpportunities.length}`);
+    logger.info(`🤖 [BOT] Scan complete: ${tradesThisCycle} trades executed, ${qualifyingOpportunities.length} total opportunities found`);
     
-    // Trade EACH of the top opportunities (diversification!)
-    for (const opportunity of topOpportunities) {
+    // END-OF-SCAN: Execute any remaining high-quality opportunities we collected
+    const remainingOpps = qualifyingOpportunities
+      .filter(o => !o.executed && o.decision.confidence >= 80)
+      .sort((a, b) => b.decision.confidence - a.decision.confidence);
+    
+    for (const opportunity of remainingOpps) {
+      if (tradesThisCycle >= 5) break;
+      
       const { opp, decision, entryTiming } = opportunity;
       
       // 🔍 MULTI-LAYER CONFLUENCE VALIDATION - Bot's independent judgment!
