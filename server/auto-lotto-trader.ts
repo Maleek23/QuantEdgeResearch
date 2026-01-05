@@ -65,7 +65,7 @@ const DEFAULT_PREFERENCES: BotPreferences = {
   optionsAllocation: 40,
   futuresAllocation: 30,
   cryptoAllocation: 30,
-  minConfidenceScore: 70,
+  minConfidenceScore: 55, // Lowered from 70 - confluence validator provides additional safety gate
   minRiskRewardRatio: 2.0,
   tradePreMarket: false,
   tradeRegularHours: true,
