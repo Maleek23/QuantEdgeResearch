@@ -9,13 +9,150 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useMutation } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatCTTime } from "@/lib/utils";
 import { CryptoQuantAnalysis } from "./crypto-quant-analysis";
 import type { WatchlistItem } from "@shared/schema";
-import { Star, Trash2, Eye, BarChart2, ChevronDown, Bell, RefreshCw, TrendingUp } from "lucide-react";
+import { Star, Trash2, Eye, BarChart2, ChevronDown, Bell, RefreshCw, TrendingUp, Info, Building2, Newspaper, Zap, ExternalLink } from "lucide-react";
+
+interface CompanyContext {
+  symbol: string;
+  name: string;
+  sector: string;
+  industry: string;
+  description: string;
+  marketCap?: number;
+  recentNews: Array<{
+    title: string;
+    url: string;
+    timePublished: string;
+    source: string;
+    overallSentimentScore: number;
+  }>;
+  catalysts: string[];
+}
+
+function CompanyContextPanel({ symbol, isOpen }: { symbol: string; isOpen: boolean }) {
+  const { data: context, isLoading, error } = useQuery<CompanyContext>({
+    queryKey: ['/api/company-context', symbol],
+    queryFn: async () => {
+      const response = await fetch(`/api/company-context/${symbol}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch company context');
+      }
+      return response.json();
+    },
+    enabled: isOpen,
+    staleTime: 1000 * 60 * 10,
+  });
+
+  if (!isOpen) return null;
+
+  if (isLoading) {
+    return (
+      <div className="p-4 space-y-3 bg-muted/30 rounded-lg mt-2">
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-2/3" />
+      </div>
+    );
+  }
+
+  if (error || !context) {
+    return (
+      <div className="p-4 text-sm text-muted-foreground bg-muted/30 rounded-lg mt-2">
+        Unable to load company information
+      </div>
+    );
+  }
+
+  const formatMarketCap = (value?: number) => {
+    if (!value) return 'N/A';
+    if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
+    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
+    return `$${value.toLocaleString()}`;
+  };
+
+  const getSentimentColor = (score: number) => {
+    if (score > 0.2) return 'text-green-500';
+    if (score < -0.2) return 'text-red-500';
+    return 'text-muted-foreground';
+  };
+
+  return (
+    <div className="p-4 space-y-4 bg-muted/20 rounded-lg mt-2 border border-border/50" data-testid={`panel-context-${symbol}`}>
+      <div className="flex items-start gap-3">
+        <Building2 className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+        <div className="space-y-2 flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">{context.name}</span>
+            <Badge variant="outline" className="text-xs">{context.sector}</Badge>
+            <Badge variant="secondary" className="text-xs">{context.industry}</Badge>
+            {context.marketCap && (
+              <Badge className="text-xs bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border-0">
+                {formatMarketCap(context.marketCap)}
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {context.description}
+          </p>
+        </div>
+      </div>
+
+      {context.catalysts.length > 0 && (
+        <div className="flex items-start gap-3">
+          <Zap className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+          <div className="space-y-1 flex-1">
+            <span className="text-sm font-medium">Potential Catalysts</span>
+            <div className="flex flex-wrap gap-1.5">
+              {context.catalysts.map((catalyst, idx) => (
+                <Badge 
+                  key={idx} 
+                  variant="outline" 
+                  className="text-xs bg-amber-500/10 border-amber-500/30"
+                >
+                  {catalyst}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {context.recentNews.length > 0 && (
+        <div className="flex items-start gap-3">
+          <Newspaper className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+          <div className="space-y-2 flex-1 min-w-0">
+            <span className="text-sm font-medium">Recent News</span>
+            <div className="space-y-1.5">
+              {context.recentNews.slice(0, 3).map((news, idx) => (
+                <a 
+                  key={idx}
+                  href={news.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-2 group"
+                  data-testid={`link-news-${symbol}-${idx}`}
+                >
+                  <span className={`text-xs leading-5 flex-1 group-hover:text-primary transition-colors ${getSentimentColor(news.overallSentimentScore)}`}>
+                    {news.title.length > 100 ? news.title.substring(0, 100) + '...' : news.title}
+                  </span>
+                  <ExternalLink className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Tier badge styling with institutional color scheme
 const TIER_STYLES: Record<string, { bg: string; text: string; label: string }> = {
@@ -321,10 +458,15 @@ function sortByGrade(items: WatchlistItem[]): WatchlistItem[] {
 
 export function WatchlistTable({ items, onRemove, onView, isRemoving }: WatchlistTableProps) {
   const [expandedAnalysis, setExpandedAnalysis] = useState<string | null>(null);
+  const [expandedContext, setExpandedContext] = useState<string | null>(null);
   const [sortByGrades, setSortByGrades] = useState(true);
 
   const toggleAnalysis = (itemId: string) => {
     setExpandedAnalysis(expandedAnalysis === itemId ? null : itemId);
+  };
+
+  const toggleContext = (symbol: string) => {
+    setExpandedContext(expandedContext === symbol ? null : symbol);
   };
 
   // Sort items by grade if enabled
@@ -434,6 +576,27 @@ export function WatchlistTable({ items, onRemove, onView, isRemoving }: Watchlis
                         {/* Edit Alerts Button - Always visible */}
                         <EditAlertsDialog item={item} />
                         
+                        {/* Company Context Button - for stocks */}
+                        {item.assetType === 'stock' && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant={expandedContext === item.symbol ? "default" : "outline"}
+                                size="sm"
+                                className="gap-1"
+                                onClick={() => toggleContext(item.symbol)}
+                                data-testid={`button-context-${item.symbol}`}
+                              >
+                                <Info className="h-3 w-3" />
+                                <span className="hidden sm:inline">Context</span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>View company info, catalysts & news</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        
                         {item.assetType === 'crypto' && (
                           <CollapsibleTrigger asChild>
                             <Button
@@ -473,6 +636,16 @@ export function WatchlistTable({ items, onRemove, onView, isRemoving }: Watchlis
                         </div>
                       </div>
                     </div>
+
+                    {/* Company Context Panel for stocks */}
+                    {item.assetType === 'stock' && expandedContext === item.symbol && (
+                      <div className="px-3 pb-3">
+                        <CompanyContextPanel 
+                          symbol={item.symbol} 
+                          isOpen={expandedContext === item.symbol} 
+                        />
+                      </div>
+                    )}
 
                     <CollapsibleContent>
                       <div className="px-3 pb-3 pt-1 border-t border-border/50">
