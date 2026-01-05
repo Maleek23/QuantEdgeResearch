@@ -327,6 +327,32 @@ async function scanForLottoPlays(ticker: string): Promise<LottoCandidate[]> {
         symbol: option.symbol
       });
 
+      // 🔒 OTM SANITY CHECK: Reject strikes more than 15% OTM
+      // This prevents unrealistic plays like TSLA $557 calls when stock is at $438
+      if (meetsLotto && option.underlying) {
+        const quote = await getTradierQuote(option.underlying);
+        if (quote && quote.last > 0) {
+          const underlyingPrice = quote.last;
+          const strike = option.strike;
+          let otmPercent = 0;
+          
+          if (option.option_type === 'call') {
+            // Call is OTM when strike > current price
+            otmPercent = ((strike - underlyingPrice) / underlyingPrice) * 100;
+          } else {
+            // Put is OTM when strike < current price
+            otmPercent = ((underlyingPrice - strike) / underlyingPrice) * 100;
+          }
+          
+          // Max 15% OTM for realistic lotto plays
+          const MAX_OTM_PERCENT = 15;
+          if (otmPercent > MAX_OTM_PERCENT) {
+            logger.info(`🎰 [LOTTO] ❌ REJECTED ${ticker} ${option.option_type.toUpperCase()} $${strike} - ${otmPercent.toFixed(1)}% OTM exceeds ${MAX_OTM_PERCENT}% max (price: $${underlyingPrice.toFixed(2)})`);
+            continue;
+          }
+        }
+      }
+
       if (meetsLotto) {
         const reasons: string[] = [];
         reasons.push(`$${midPrice.toFixed(2)} entry`);
