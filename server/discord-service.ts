@@ -104,8 +104,11 @@ export function isSymbolOnCooldown(symbol: string, source: string): boolean {
  * ═══════════════════════════════════════════════════════════════════════════
  * CHANNEL             │ WEBHOOK ENV VAR              │ PURPOSE
  * ═══════════════════════════════════════════════════════════════════════════
- * #trade-alerts       │ DISCORD_WEBHOOK_URL          │ AI/Hybrid/Flow trade ideas
- *                     │                              │ Daily summaries, batch alerts
+ * #options-trades     │ DISCORD_WEBHOOK_OPTIONSTRADES│ Options trade ideas ONLY
+ *                     │ (fallback: DISCORD_WEBHOOK_URL) │ Calls/puts with strike/exp
+ * ───────────────────────────────────────────────────────────────────────────
+ * #stock-shares       │ DISCORD_WEBHOOK_SHARES       │ Stock/penny stock trades
+ *                     │                              │ Non-options equity trades
  * ───────────────────────────────────────────────────────────────────────────
  * #quantbot           │ DISCORD_WEBHOOK_QUANTBOT     │ Bot entries, exits & bot gains
  *                     │                              │ Auto-Lotto Bot paper trading
@@ -126,6 +129,8 @@ export function isSymbolOnCooldown(symbol: string, source: string): boolean {
 
 // Channel header prefixes for easy identification in Discord
 const CHANNEL_HEADERS = {
+  OPTIONS_TRADES: '📈 #OPTIONS-TRADES',
+  STOCK_SHARES: '💵 #STOCK-SHARES',
   TRADE_ALERTS: '📊 #TRADE-ALERTS',
   QUANTBOT: '✨ #QUANTBOT',
   LOTTO: '🎰 #LOTTO',
@@ -134,6 +139,9 @@ const CHANNEL_HEADERS = {
   CHART_ANALYSIS: '📉 #CHART-ANALYSIS',
   WEEKLY_WATCHLIST: '📋 #WEEKLY-WATCHLIST',
 };
+
+// Penny stock threshold - stocks under this price route to shares channel
+const PENNY_STOCK_THRESHOLD = 5.00;
 
 interface DiscordEmbed {
   title: string;
@@ -314,20 +322,14 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
 // ALL research ideas (quant, AI, hybrid, flow) go to #trade-alerts
 // Bot entries (when bot actually trades) go to #quantbot via sendBotTradeEntryToDiscord
 export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
-  logger.info(`📨 Discord single trade called: ${idea.symbol} (${idea.source || 'unknown'})`);
+  logger.info(`📨 Discord single trade called: ${idea.symbol} (${idea.source || 'unknown'}) assetType=${idea.assetType}`);
   
   if (DISCORD_DISABLED) {
     logger.warn('⚠️ Discord is DISABLED - skipping notification');
     return;
   }
   
-  // QUALITY GATE: Only send OPTIONS with high/medium confidence
-  // EXCLUDE: penny stocks, moonshots, shares - only options go to Discord
-  if (idea.assetType !== 'option') {
-    logger.info(`📨 [QUALITY-GATE] Skipping ${idea.symbol} - non-option (${idea.assetType}) - only OPTIONS go to Discord`);
-    return;
-  }
-  
+  // QUALITY GATE: Only send trades with high/medium confidence
   if (!meetsQualityThreshold(idea)) {
     const signalCount = idea.qualitySignals?.length || 0;
     logger.info(`📨 [QUALITY-GATE] Skipping ${idea.symbol} - only ${signalCount}/5 signals (below B grade threshold)`);
@@ -348,22 +350,52 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
     return; // Skip duplicate
   }
   
-  // ALL research/trade ideas go to main #trade-alerts channel
-  // Bot entries go to QUANTBOT channel via separate sendBotTradeEntryToDiscord function
-  // USER REQUEST: Routing specifically to dedicated bot channel if available
-  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CHANNEL ROUTING BY ASSET TYPE
+  // ═══════════════════════════════════════════════════════════════════════════
+  // OPTIONS → #options-trades (DISCORD_WEBHOOK_OPTIONSTRADES)
+  // STOCKS/PENNY STOCKS → #stock-shares (DISCORD_WEBHOOK_SHARES)
+  // FUTURES → handled by separate function, but fallback here
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  let webhookUrl: string | undefined;
+  let channelHeader: string;
+  let isPennyStock = false;
+  
+  if (idea.assetType === 'option') {
+    // OPTIONS go to dedicated options channel (fallback to main URL)
+    webhookUrl = process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL;
+    channelHeader = CHANNEL_HEADERS.OPTIONS_TRADES;
+    logger.info(`📨 [ROUTING] ${idea.symbol} → #options-trades (option)`);
+  } else if (idea.assetType === 'stock' || idea.assetType === 'penny_stock') {
+    // STOCKS/PENNY STOCKS go to shares channel
+    isPennyStock = (idea.entryPrice || 0) < PENNY_STOCK_THRESHOLD;
+    webhookUrl = process.env.DISCORD_WEBHOOK_SHARES;
+    channelHeader = CHANNEL_HEADERS.STOCK_SHARES;
+    logger.info(`📨 [ROUTING] ${idea.symbol} → #stock-shares (${isPennyStock ? 'penny stock' : 'stock'})`);
+  } else if (idea.assetType === 'futures') {
+    // FUTURES go to futures channel
+    webhookUrl = process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_URL;
+    channelHeader = CHANNEL_HEADERS.FUTURES;
+    logger.info(`📨 [ROUTING] ${idea.symbol} → #futures`);
+  } else {
+    // Default fallback for crypto or unknown types
+    webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+    channelHeader = CHANNEL_HEADERS.TRADE_ALERTS;
+    logger.info(`📨 [ROUTING] ${idea.symbol} → #trade-alerts (default: ${idea.assetType})`);
+  }
   
   if (!webhookUrl) {
-    logger.warn('⚠️ Discord webhook URL not configured - skipping alert');
+    logger.warn(`⚠️ Discord webhook not configured for ${idea.assetType} trades - skipping alert`);
     return;
   }
   
   try {
     const embed = formatTradeIdeaEmbed(idea);
     const sourceLabel = idea.source === 'ai' ? 'AI' : idea.source === 'quant' ? 'QUANT' : idea.source === 'hybrid' ? 'HYBRID' : 'FLOW';
-    const channelHeader = CHANNEL_HEADERS.TRADE_ALERTS;
+    const pennyLabel = isPennyStock ? ' 🪙' : '';
     const message: DiscordMessage = {
-      content: `🎯 **${sourceLabel} TRADE** → ${idea.symbol} │ ${channelHeader}`,
+      content: `🎯 **${sourceLabel} TRADE** → ${idea.symbol}${pennyLabel} │ ${channelHeader}`,
       embeds: [embed]
     };
     
@@ -379,7 +411,7 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
       throw new Error(`Discord webhook failed: ${response.status} ${response.statusText}`);
     }
     
-    logger.info(`✅ Discord alert sent: ${idea.symbol} ${idea.direction.toUpperCase()}`);
+    logger.info(`✅ Discord alert sent: ${idea.symbol} ${idea.direction.toUpperCase()} → ${channelHeader}`);
   } catch (error) {
     logger.error('❌ Failed to send Discord alert:', error);
   }
