@@ -1,5 +1,4 @@
-import { format, isWithinInterval, set, getDay } from 'date-fns';
-import { toZonedTime } from 'date-fns-tz';
+import { format, set, getDay } from 'date-fns';
 
 const MARKET_TIMEZONE = 'America/New_York';
 
@@ -10,80 +9,91 @@ export interface MarketStatus {
   statusMessage: string;
 }
 
-export function getMarketStatus(): MarketStatus {
+// Get current time in Eastern Time using Intl API (reliable cross-browser)
+function getEasternTime(): { hour: number; minute: number; dayOfWeek: number; dateStr: string } {
   const now = new Date();
-  const nyTime = toZonedTime(now, MARKET_TIMEZONE);
-  const dayOfWeek = getDay(nyTime);
+  
+  // Use Intl.DateTimeFormat to get Eastern Time components reliably
+  const etFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour: 'numeric',
+    minute: 'numeric',
+    weekday: 'long',
+    hour12: false,
+  });
+  
+  const parts = etFormatter.formatToParts(now);
+  const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
+  const minute = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
+  const weekdayName = parts.find(p => p.type === 'weekday')?.value || '';
+  
+  // Convert weekday name to number (0 = Sunday, 6 = Saturday)
+  const weekdayMap: Record<string, number> = {
+    'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3,
+    'Thursday': 4, 'Friday': 5, 'Saturday': 6
+  };
+  const dayOfWeek = weekdayMap[weekdayName] ?? 1;
+  
+  // Get date string for display
+  const dateFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+  const dateStr = dateFormatter.format(now);
+  
+  return { hour, minute, dayOfWeek, dateStr };
+}
 
+export function getMarketStatus(): MarketStatus {
+  const et = getEasternTime();
+  const { hour, minute, dayOfWeek } = et;
+  
   // Weekend check (0 = Sunday, 6 = Saturday)
   if (dayOfWeek === 0 || dayOfWeek === 6) {
     return {
       isOpen: false,
-      nextOpen: getNextMarketOpen(nyTime),
+      nextOpen: null,
       nextClose: null,
       statusMessage: 'Market Closed (Weekend)'
     };
   }
-
-  // Market hours: 9:30 AM - 4:00 PM ET
-  const marketOpen = set(nyTime, { hours: 9, minutes: 30, seconds: 0, milliseconds: 0 });
-  const marketClose = set(nyTime, { hours: 16, minutes: 0, seconds: 0, milliseconds: 0 });
-
-  const isOpen = isWithinInterval(nyTime, {
-    start: marketOpen,
-    end: marketClose
-  });
-
+  
+  // Convert current time to minutes since midnight for comparison
+  const currentMinutes = hour * 60 + minute;
+  const marketOpenMinutes = 9 * 60 + 30; // 9:30 AM = 570 minutes
+  const marketCloseMinutes = 16 * 60;    // 4:00 PM = 960 minutes
+  
+  // Check if within market hours
+  const isOpen = currentMinutes >= marketOpenMinutes && currentMinutes < marketCloseMinutes;
+  
   if (isOpen) {
     return {
       isOpen: true,
       nextOpen: null,
-      nextClose: marketClose,
-      statusMessage: `Market Open (closes at ${format(marketClose, 'h:mm a')} ET)`
+      nextClose: null,
+      statusMessage: `Market Open (closes at 4:00 PM ET)`
     };
   }
-
+  
   // Before market open
-  if (nyTime < marketOpen) {
+  if (currentMinutes < marketOpenMinutes) {
     return {
       isOpen: false,
-      nextOpen: marketOpen,
+      nextOpen: null,
       nextClose: null,
-      statusMessage: `Pre-Market (opens at ${format(marketOpen, 'h:mm a')} ET)`
+      statusMessage: `Pre-Market (opens at 9:30 AM ET)`
     };
   }
-
+  
   // After market close
   return {
     isOpen: false,
-    nextOpen: getNextMarketOpen(nyTime),
+    nextOpen: null,
     nextClose: null,
     statusMessage: `After Hours (opens tomorrow at 9:30 AM ET)`
   };
-}
-
-function getNextMarketOpen(currentTime: Date): Date {
-  let nextOpen = set(currentTime, { hours: 9, minutes: 30, seconds: 0, milliseconds: 0 });
-  const currentDay = getDay(currentTime);
-
-  // If it's Friday after hours, next open is Monday
-  if (currentDay === 5 && currentTime.getHours() >= 16) {
-    nextOpen.setDate(nextOpen.getDate() + 3);
-  }
-  // If it's Saturday, next open is Monday
-  else if (currentDay === 6) {
-    nextOpen.setDate(nextOpen.getDate() + 2);
-  }
-  // If it's Sunday, next open is Monday
-  else if (currentDay === 0) {
-    nextOpen.setDate(nextOpen.getDate() + 1);
-  }
-  // Otherwise next open is tomorrow (or today if before 9:30 AM)
-  else if (currentTime.getHours() >= 16) {
-    nextOpen.setDate(nextOpen.getDate() + 1);
-  }
-
-  return nextOpen;
 }
 
 export function getMetricsUpdateMessage(): string {
@@ -94,4 +104,10 @@ export function getMetricsUpdateMessage(): string {
   }
   
   return `${status.statusMessage} - Metrics update when market reopens`;
+}
+
+// Debug function to check what the browser thinks the time is
+export function debugMarketTime(): string {
+  const et = getEasternTime();
+  return `ET: ${et.hour}:${et.minute.toString().padStart(2, '0')} (${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][et.dayOfWeek]})`;
 }
