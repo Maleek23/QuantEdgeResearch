@@ -2104,9 +2104,12 @@ export default function AdminPanel() {
                                   variant="default"
                                   onClick={async () => {
                                     try {
+                                      const csrfToken = getCSRFToken();
+                                      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                                      if (csrfToken) headers['x-csrf-token'] = csrfToken;
                                       const res = await fetch(`/api/admin/waitlist/${entry.id}/invite`, {
                                         method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
+                                        headers,
                                         credentials: 'include',
                                         body: JSON.stringify({ tierOverride: 'free' })
                                       });
