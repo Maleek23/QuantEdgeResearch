@@ -10,21 +10,28 @@ import { logger } from './logger';
 import { storage } from './storage';
 import type { InsertTradeIdea } from '@shared/schema';
 
-// Configuration based on performance analysis
-const LIQUID_TICKERS = ['META', 'GOOGL', 'NVDA', 'TSLA', 'NFLX', 'AAPL', 'MSFT', 'AMZN', 'SPY', 'QQQ'];
-const MAX_DTE = 1; // Only 0-1 DTE trades
-const MIN_OPTIONS_VOLUME = 10000;
-const RSI_OVERSOLD = 10; // RSI(2) < 10 = buy signal  
-const RSI_OVERBOUGHT = 90; // RSI(2) > 90 = sell signal
+// Configuration based on performance analysis - OPTIMIZED FOR VOLUME + WIN RATE
+const LIQUID_TICKERS = [
+  // Mega caps - highest liquidity
+  'META', 'GOOGL', 'NVDA', 'TSLA', 'NFLX', 'AAPL', 'MSFT', 'AMZN', 'SPY', 'QQQ',
+  // Large caps with good options volume
+  'AMD', 'INTC', 'CRM', 'ORCL', 'UBER', 'COIN', 'PLTR', 'SNOW', 'NET', 'SHOP',
+  // Popular momentum names
+  'SMCI', 'ARM', 'MSTR', 'MARA', 'RIOT', 'HOOD', 'SOFI', 'RKLB', 'IONQ', 'RGTI'
+];
+const MAX_DTE = 2; // 0-2 DTE trades (expanded from 0-1)
+const MIN_OPTIONS_VOLUME = 5000; // Lowered from 10000
+const RSI_OVERSOLD = 15; // RSI(2) < 15 = buy signal (was 10 - too strict)
+const RSI_OVERBOUGHT = 85; // RSI(2) > 85 = sell signal (was 90 - too strict)
 const MAX_POSITION_SIZE = 100; // Max $100 per trade
 const PROFIT_TARGET_PCT = 0.50; // 50% profit target
 const STOP_LOSS_PCT = 0.40; // 40% stop loss (tighter than lotto)
 
-// 🎯 ENHANCED CONFLUENCE FILTERS - Require multiple confirmations
-const MIN_RELATIVE_VOLUME = 1.5; // Volume must be 1.5x average
-const MIN_CONFLUENCE_SCORE = 70; // Require 70+ confluence for entry
-const BOLLINGER_DEVIATION = 2.0; // Price at 2σ extreme
-const MIN_ADX_TREND = 20; // ADX > 20 = trending market (mean reversion works better)
+// 🎯 RELAXED CONFLUENCE FILTERS - More trades, still quality controlled
+const MIN_RELATIVE_VOLUME = 1.2; // Volume must be 1.2x average (was 1.5x)
+const MIN_CONFLUENCE_SCORE = 60; // Require 60+ confluence for entry (was 70)
+const BOLLINGER_DEVIATION = 1.8; // Price at 1.8σ extreme (was 2.0σ)
+const MIN_ADX_TREND = 18; // ADX > 18 = trending market (was 20)
 
 interface RSI2Signal {
   symbol: string;

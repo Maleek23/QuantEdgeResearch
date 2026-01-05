@@ -164,11 +164,11 @@ function calculateLottoQuality(
   
   const grade = getLetterGrade(score);
   
-  // Minimum grade requirements:
-  // - Day trades (0-2 DTE): Require B grade (80+) - high risk needs strong conviction
-  // - Swing trades (3+ DTE): Require C grade (70+) - more time to work
-  const isValidForDayTrade = score >= 80; // B- or better
-  const isValidForSwingTrade = score >= 70; // C- or better
+  // Minimum grade requirements - RELAXED FOR MORE VOLUME:
+  // - Day trades (0-2 DTE): Require C+ grade (70+) - was 80, now more trades
+  // - Swing trades (3+ DTE): Require C- grade (60+) - was 70, now more trades
+  const isValidForDayTrade = score >= 70; // C+ or better (was B)
+  const isValidForSwingTrade = score >= 60; // C- or better (was 70)
   
   return {
     signals,
