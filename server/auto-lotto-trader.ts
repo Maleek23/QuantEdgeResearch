@@ -180,7 +180,7 @@ const PROP_FIRM_TARGET_POINTS_NQ = 30; // 2:1 R:R minimum
 // 🎯 PRIORITY TICKERS - These get scanned FIRST before other tickers
 // User's favorite plays that should always be checked
 const PRIORITY_TICKERS = [
-  'BIDU', 'SOFI', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META', // User's explicit priority list
+  'NNE', 'BIDU', 'SOFI', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META', // User's explicit priority list (NNE first!)
   'TSLA', 'NVDA', 'AMD', 'AAPL', 'GOOGL', 'MSFT', // High-liquidity favorites
   'SPY', 'IWM', 'DIA', 'COIN', 'MARA', 'RIOT', 'ARM', 'SNOW', // High-vol tickers
 ];

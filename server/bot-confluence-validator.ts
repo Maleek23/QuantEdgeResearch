@@ -66,7 +66,7 @@ const CONFLUENCE_WEIGHTS = {
 const MIN_CONFLUENCE_SCORE = 35; // Aggressive mode - lowered from 45 to find more opportunities
 
 // Priority tickers get +15 boost to confluence score (user's favorites)
-const PRIORITY_TICKERS = ['BIDU', 'SOFI', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META', 'TSLA', 'NVDA', 'AMD', 'AAPL', 'GOOGL', 'MSFT', 'SPY'];
+const PRIORITY_TICKERS = ['NNE', 'BIDU', 'SOFI', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META', 'TSLA', 'NVDA', 'AMD', 'AAPL', 'GOOGL', 'MSFT', 'SPY'];
 
 /**
  * LAYER 1: GREEKS ANALYSIS
