@@ -18,6 +18,13 @@ import {
   calculateADX,
   determineMarketRegime
 } from "./technical-indicators";
+import { 
+  analyzeTrade, 
+  recordWin, 
+  getSymbolAdjustment, 
+  getAdaptiveParameters,
+  getLearningState
+} from "./loss-analyzer-service";
 
 // User preferences interface with defaults
 interface BotPreferences {
@@ -1889,9 +1896,21 @@ export async function runAutonomousBotScan(): Promise<void> {
         // 📊 ENTRY TIMING CHECK - Should we enter now or wait?
         const entryTiming = getEntryTiming(quote, opp.optionType, marketContext);
         
-        // Apply minimum confidence score from preferences
-        if (decision.confidence < prefs.minConfidenceScore) {
-          logger.debug(`🤖 [BOT] ⛔ ${ticker}: Confidence ${decision.confidence}% < min ${prefs.minConfidenceScore}%`);
+        // 🧠 ADAPTIVE LEARNING: Apply adjustments based on past performance
+        const symbolAdj = await getSymbolAdjustment(ticker);
+        const adaptiveParams = await getAdaptiveParameters();
+        
+        if (symbolAdj.shouldAvoid) {
+          logger.debug(`🧠 [BOT] ⛔ ${ticker}: Symbol on cooldown (${symbolAdj.lossStreak} consecutive losses)`);
+          continue;
+        }
+        
+        decision.confidence += symbolAdj.confidenceBoost;
+        const effectiveMinConfidence = Math.max(prefs.minConfidenceScore, adaptiveParams.confidenceThreshold);
+        
+        // Apply minimum confidence score from preferences + adaptive learning
+        if (decision.confidence < effectiveMinConfidence) {
+          logger.debug(`🤖 [BOT] ⛔ ${ticker}: Confidence ${decision.confidence.toFixed(0)}% < min ${effectiveMinConfidence.toFixed(0)}% (adaptive: ${adaptiveParams.confidenceThreshold.toFixed(0)}%)`);
           continue;
         }
         
@@ -2146,6 +2165,21 @@ export async function monitorLottoPositions(): Promise<void> {
           logger.info(`🤖 [BOT] 📱✅ Discord EXIT notification SENT for ${pos.symbol}`);
         } catch (discordError) {
           logger.error(`🤖 [BOT] 📱❌ Discord EXIT notification FAILED for ${pos.symbol}:`, discordError);
+        }
+        
+        try {
+          const pnlPercent = pos.realizedPnLPercent || 0;
+          if (pnlPercent >= 3) {
+            await recordWin(pos);
+            logger.info(`🧠 [LOSS-ANALYZER] Recorded WIN for ${pos.symbol}`);
+          } else if (pnlPercent <= -3) {
+            const diagnostics = await analyzeTrade(pos);
+            if (diagnostics) {
+              logger.info(`🧠 [LOSS-ANALYZER] Analyzed LOSS for ${pos.symbol}: ${diagnostics.primaryCause}`);
+            }
+          }
+        } catch (analyzeError) {
+          logger.warn(`🧠 [LOSS-ANALYZER] Failed to analyze ${pos.symbol}:`, analyzeError);
         }
       }
       

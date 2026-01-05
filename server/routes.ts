@@ -15939,6 +15939,79 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ============================================
+  // LOSS INTELLIGENCE SYSTEM - Adaptive Trading Bot Learning
+  // ============================================
+
+  // GET /api/bot/learning-state - Get current bot learning state
+  app.get("/api/bot/learning-state", requireAdminJWT, async (_req, res) => {
+    try {
+      const { getLearningState, getAdaptiveParameters, getLossPatternSummary } = await import("./loss-analyzer-service");
+      
+      const [state, params, summary] = await Promise.all([
+        getLearningState(),
+        getAdaptiveParameters(),
+        getLossPatternSummary(),
+      ]);
+      
+      res.json({
+        learningState: state,
+        adaptiveParameters: params,
+        lossPatterns: summary,
+      });
+    } catch (error: any) {
+      logger.error("Error getting bot learning state", { error });
+      res.status(500).json({ error: "Failed to get bot learning state" });
+    }
+  });
+
+  // POST /api/bot/analyze-trades - Analyze recent closed trades for loss patterns
+  app.post("/api/bot/analyze-trades", requireAdminJWT, async (req, res) => {
+    try {
+      const { analyzeClosedTrades } = await import("./loss-analyzer-service");
+      const limit = parseInt(req.body.limit as string) || 50;
+      
+      const result = await analyzeClosedTrades(limit);
+      
+      res.json({
+        success: true,
+        ...result,
+      });
+    } catch (error: any) {
+      logger.error("Error analyzing trades", { error });
+      res.status(500).json({ error: "Failed to analyze trades" });
+    }
+  });
+
+  // GET /api/bot/diagnostics - Get all trade diagnostics
+  app.get("/api/bot/diagnostics", requireAdminJWT, async (_req, res) => {
+    try {
+      const diagnostics = await storage.getAllTradeDiagnostics();
+      res.json(diagnostics);
+    } catch (error: any) {
+      logger.error("Error getting trade diagnostics", { error });
+      res.status(500).json({ error: "Failed to get trade diagnostics" });
+    }
+  });
+
+  // GET /api/bot/symbol-adjustment/:symbol - Get learning adjustment for a symbol
+  app.get("/api/bot/symbol-adjustment/:symbol", requireAdminJWT, async (req, res) => {
+    try {
+      const { getSymbolAdjustment } = await import("./loss-analyzer-service");
+      const { symbol } = req.params;
+      
+      const adjustment = await getSymbolAdjustment(symbol.toUpperCase());
+      
+      res.json({
+        symbol: symbol.toUpperCase(),
+        ...adjustment,
+      });
+    } catch (error: any) {
+      logger.error("Error getting symbol adjustment", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Failed to get symbol adjustment" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

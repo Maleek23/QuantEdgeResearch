@@ -82,6 +82,10 @@ import type {
   InsertBetaInvite,
   WaitlistStatus,
   InviteStatus,
+  TradeDiagnostics,
+  InsertTradeDiagnostics,
+  BotLearningState,
+  InsertBotLearningState,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, gte, lte, desc, isNull, sql as drizzleSql } from "drizzle-orm";
@@ -124,6 +128,8 @@ import {
   userAnalyticsSummary,
   betaWaitlist,
   betaInvites,
+  tradeDiagnostics,
+  botLearningState,
 } from "@shared/schema";
 
 // ========================================
@@ -500,6 +506,18 @@ export interface IStorage {
   updateBetaInviteStatus(id: string, status: InviteStatus): Promise<void>;
   markBetaInviteSent(id: string): Promise<void>;
   redeemBetaInvite(token: string): Promise<BetaInvite | null>;
+
+  // Trade Diagnostics - Loss Analysis
+  createTradeDiagnostics(diagnostics: InsertTradeDiagnostics): Promise<TradeDiagnostics>;
+  getTradeDiagnosticsByTradeId(tradeId: string): Promise<TradeDiagnostics | null>;
+  getTradeDiagnosticsByPatternHash(patternHash: string): Promise<TradeDiagnostics[]>;
+  getAllTradeDiagnostics(): Promise<TradeDiagnostics[]>;
+  getRecentClosedPositions(limit: number): Promise<PaperPosition[]>;
+
+  // Bot Learning State
+  getBotLearningState(id: string): Promise<BotLearningState | null>;
+  createBotLearningState(state: InsertBotLearningState): Promise<BotLearningState>;
+  updateBotLearningState(id: string, updates: Partial<BotLearningState>): Promise<BotLearningState | null>;
 }
 
 export class MemStorage implements IStorage {
@@ -3711,6 +3729,57 @@ export class DatabaseStorage implements IStorage {
       redeemedAt: new Date() 
     }).where(eq(betaInvites.id, invite.id));
     return invite;
+  }
+
+  // ========== TRADE DIAGNOSTICS - Loss Analysis ==========
+  async createTradeDiagnostics(diagnostics: InsertTradeDiagnostics): Promise<TradeDiagnostics> {
+    const [created] = await db.insert(tradeDiagnostics).values(diagnostics).returning();
+    return created;
+  }
+
+  async getTradeDiagnosticsByTradeId(tradeId: string): Promise<TradeDiagnostics | null> {
+    const result = await db.select().from(tradeDiagnostics)
+      .where(eq(tradeDiagnostics.tradeId, tradeId));
+    return result[0] || null;
+  }
+
+  async getTradeDiagnosticsByPatternHash(patternHash: string): Promise<TradeDiagnostics[]> {
+    return await db.select().from(tradeDiagnostics)
+      .where(eq(tradeDiagnostics.patternHash, patternHash))
+      .orderBy(desc(tradeDiagnostics.createdAt));
+  }
+
+  async getAllTradeDiagnostics(): Promise<TradeDiagnostics[]> {
+    return await db.select().from(tradeDiagnostics)
+      .orderBy(desc(tradeDiagnostics.createdAt));
+  }
+
+  async getRecentClosedPositions(limit: number): Promise<PaperPosition[]> {
+    return await db.select().from(paperPositionsTable)
+      .where(eq(paperPositionsTable.status, 'closed'))
+      .orderBy(desc(paperPositionsTable.exitTime))
+      .limit(limit);
+  }
+
+  // ========== BOT LEARNING STATE ==========
+  async getBotLearningState(id: string): Promise<BotLearningState | null> {
+    const result = await db.select().from(botLearningState)
+      .where(eq(botLearningState.id, id));
+    return result[0] || null;
+  }
+
+  async createBotLearningState(state: InsertBotLearningState): Promise<BotLearningState> {
+    const [created] = await db.insert(botLearningState).values(state).returning();
+    return created;
+  }
+
+  async updateBotLearningState(id: string, updates: Partial<BotLearningState>): Promise<BotLearningState | null> {
+    const updateData = { ...updates, lastUpdated: new Date() };
+    const [updated] = await db.update(botLearningState)
+      .set(updateData)
+      .where(eq(botLearningState.id, id))
+      .returning();
+    return updated || null;
   }
 }
 
