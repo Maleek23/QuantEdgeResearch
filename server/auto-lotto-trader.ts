@@ -101,7 +101,7 @@ async function getBotPreferences(): Promise<BotPreferences> {
     if (userPrefs) {
       const prefs: BotPreferences = {
         riskTolerance: userPrefs.riskTolerance as 'conservative' | 'moderate' | 'aggressive',
-        maxPositionSize: 100000, // Unlimited for testing
+        maxPositionSize: 100000, 
         maxConcurrentTrades: 50,
         dailyLossLimit: 100000,
         enableOptions: true,
@@ -111,8 +111,8 @@ async function getBotPreferences(): Promise<BotPreferences> {
         optionsAllocation: 40,
         futuresAllocation: 30,
         cryptoAllocation: 30,
-        minConfidenceScore: 10, // Catch everything for testing
-        minRiskRewardRatio: 0.1, // Catch everything for testing
+        minConfidenceScore: 10, 
+        minRiskRewardRatio: 0.1, 
         tradePreMarket: true,
         tradeRegularHours: true,
         tradeAfterHours: true,

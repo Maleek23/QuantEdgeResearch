@@ -641,8 +641,8 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
   const dynamicTarget = await calculateDynamicTarget(ticker, currentPrice, direction, mostActiveOption);
   const targetMultiplier = dynamicTarget.targetMultiplier;
   
-  // Calculate stop loss (maintain 1.5:1 R:R minimum)
-  const stopMultiplier = targetMultiplier / 1.5; // Risk is 2/3 of reward
+  // Calculate stop loss (maintain 1.1:1 R:R minimum)
+  const stopMultiplier = targetMultiplier / 1.1; // Risk is 1/1.1 of reward
   
   // 🔧 OPTIONS PRICING FIX: Use OPTION PREMIUM, not stock price
   // The mostActiveOption already has the last traded premium price
@@ -676,8 +676,8 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
     effectiveTargetMultiplier = Math.max(targetMultiplier, 0.15);
   }
   
-  // Recalculate stop based on new target (maintain 1.5:1 R:R)
-  const effectiveStopMultiplier = effectiveTargetMultiplier / 1.5;
+  // Recalculate stop based on new target (maintain 1.1:1 R:R)
+  const effectiveStopMultiplier = effectiveTargetMultiplier / 1.1;
 
   // 🔧 FIX: OPTIONS PREMIUM TARGETS - You're always BUYING the option, never selling!
   // Whether CALL or PUT, the goal is to BUY at entry premium and SELL at higher target premium.
@@ -860,7 +860,7 @@ async function generateTradeFromFlow(signal: FlowSignal): Promise<InsertTradeIde
     researchHorizon,
     liquidityWarning: isPennyStock(ticker, currentPrice),
     // 🔓 Flow is considered a catalyst (unusual activity = market signal)
-    // This allows 1.5:1 R:R minimum instead of 2:1 in validateTradeRisk
+    // This allows 1.1:1 R:R minimum instead of 2:1 in validateTradeRisk
     isNewsCatalyst: true,
   };
 }
