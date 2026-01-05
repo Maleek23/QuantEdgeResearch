@@ -1010,8 +1010,8 @@ export async function runCryptoBotScan(): Promise<void> {
       const data = priceMap.get(coin.symbol);
       if (!data) continue;
       
-      // Skip if already have position in this coin
-      if (openPositions.some(p => p.symbol === coin.symbol)) continue;
+      // REMOVED: Now allows multiple positions in same coin (pyramiding)
+      // if (openPositions.some(p => p.symbol === coin.symbol)) continue;
       
       const opportunity = analyzeCryptoOpportunity(coin, data);
       if (opportunity) {
@@ -1038,9 +1038,10 @@ export async function runCryptoBotScan(): Promise<void> {
       idea.assetType === 'crypto'
     );
     
+    // REMOVED: Now allows multiple positions (pyramiding into winners)
     if (hasOpenIdea) {
-      logger.info(`🪙 [CRYPTO BOT] Skipping ${bestOpp.symbol} - already has open trade idea`);
-      return;
+      logger.info(`🪙 [CRYPTO BOT] ${bestOpp.symbol} has open position - adding to it (pyramid)`);
+      // Don't return - continue with entry
     }
     
     // Apply minimum confidence score from preferences
@@ -1819,9 +1820,11 @@ export async function runAutonomousBotScan(): Promise<void> {
     const catalystScoreCache = new Map<string, { score: number; summary: string; catalystCount: number }>();
     
     for (const ticker of combinedTickers) {
+      // REMOVED: No longer blocking symbols with open positions
+      // Bot can now PYRAMID into winning positions or add new setups on same symbol
       if (openSymbols.has(ticker)) {
-        logger.debug(`  ⏭️  ${ticker}: Skipped - already has open trade`);
-        continue;
+        logger.debug(`  📊 ${ticker}: Has open position - checking for additional entry opportunities`);
+        // Continue analyzing - don't skip!
       }
       
       // 📊 CHECK HISTORICAL PERFORMANCE - Skip blacklisted symbols
@@ -2413,9 +2416,10 @@ export async function runFuturesBotScan(): Promise<void> {
             idea.assetType === 'future'
           );
           
+          // REMOVED: Now allows multiple positions (pyramiding into winners)
           if (hasOpenIdea) {
-            logger.info(`🔮 [FUTURES-BOT] Skipping ${bestFuturesOpp.contractCode} - already has open trade idea`);
-            return;
+            logger.info(`🔮 [FUTURES-BOT] ${bestFuturesOpp.contractCode} has open position - adding to it (pyramid)`);
+            // Don't return - continue with entry
           }
           
           const position = await storage.createPaperPosition({
