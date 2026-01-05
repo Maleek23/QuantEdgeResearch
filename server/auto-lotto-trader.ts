@@ -1385,7 +1385,7 @@ function makeBotDecision(
       score -= 30; // Increased penalty - fighting trend is dangerous
     } else if (!isCall && positionInRange > 0.75) {
       signals.push('PUTS_AT_HIGHS_RISKY');
-      score -= 30; // Increased penalty - fighting trend is dangerous
+      score -= 10; // Reduced penalty - sometimes puts at highs work for mean reversion
     }
   }
   
@@ -1416,10 +1416,14 @@ function makeBotDecision(
     // Higher delta = more expensive premium, less upside multiplier
     signals.push(`HIGH_DELTA_${absDelta.toFixed(2)}`);
     score += 8;
-  } else if (absDelta > 0.30) {
+  } else if (absDelta > 0.30 && absDelta <= 0.45) {
+    // Higher delta - still tradeable, just less lotto-like
+    signals.push(`MODERATE_DELTA_${absDelta.toFixed(2)}`);
+    score += 5; // Slight bonus - higher probability of profit
+  } else if (absDelta > 0.45) {
     // Too close to ATM - not a lotto play
     signals.push('DELTA_TOO_HIGH');
-    score -= 15;
+    score -= 10;
   }
   
   if (opportunity.volume >= 500) {
@@ -1509,16 +1513,15 @@ function makeBotDecision(
     };
   }
   
-  // HARD REJECTION: Contrarian trades at extremes on short-dated options (< 14 DTE)
-  // Buying puts at 52-week highs or calls at 52-week lows is fighting the trend
-  // Only accept these if we have significant time (14+ DTE) for a reversal
+  // SOFT PENALTY for contrarian trades at extremes on short-dated options (< 7 DTE)
+  // Still allow them if score is high enough - mean reversion can work
   const hasRiskyContrarianSignal = signals.some(s => 
     s.includes('PUTS_AT_HIGHS_RISKY') || s.includes('CALLS_AT_LOWS_RISKY')
   );
-  if (hasRiskyContrarianSignal && opportunity.daysToExpiry < 14) {
+  if (hasRiskyContrarianSignal && opportunity.daysToExpiry < 7 && boostedScore < 70) {
     return {
       action: 'skip',
-      reason: `REJECTED: Contrarian trade (${signals.find(s => s.includes('RISKY'))}) with only ${opportunity.daysToExpiry} DTE - need 14+ DTE for reversals`,
+      reason: `Contrarian trade needs higher confidence (${boostedScore}/70) for ${opportunity.daysToExpiry} DTE`,
       confidence: boostedScore,
       signals
     };
