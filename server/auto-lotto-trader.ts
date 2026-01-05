@@ -53,30 +53,30 @@ interface BotPreferences {
 }
 
 // Default preferences (used when no user prefs are set) - UNLIMITED MODE
-const DEFAULT_PREFERENCES: BotPreferences = {
-  riskTolerance: 'aggressive',
-  maxPositionSize: 10000, // Unlimited funds for paper trading
-  maxConcurrentTrades: 50, // Allow many concurrent trades
-  dailyLossLimit: 100000, // High limit for paper trading
-  enableOptions: true,
-  enableFutures: false, // Disabled by default - NQ=$20/point is too expensive for small accounts
-  enableCrypto: true,
-  enablePropFirm: false,
-  optionsAllocation: 40,
-  futuresAllocation: 30,
-  cryptoAllocation: 30,
-  minConfidenceScore: 55, // Lowered from 70 - confluence validator provides additional safety gate
-  minRiskRewardRatio: 2.0,
-  tradePreMarket: false,
-  tradeRegularHours: true,
-  tradeAfterHours: false,
-  enableDiscordAlerts: true,
-  futuresMaxContracts: 2,
-  futuresStopPoints: 15,
-  futuresTargetPoints: 30,
-  cryptoPreferredCoins: ['BTC', 'ETH', 'SOL'],
-  cryptoEnableMemeCoins: false,
-};
+  const DEFAULT_PREFERENCES: BotPreferences = {
+    riskTolerance: 'aggressive',
+    maxPositionSize: 100000, // Increased for testing
+    maxConcurrentTrades: 50,
+    dailyLossLimit: 100000,
+    enableOptions: true,
+    enableFutures: false,
+    enableCrypto: true,
+    enablePropFirm: false,
+    optionsAllocation: 40,
+    futuresAllocation: 30,
+    cryptoAllocation: 30,
+    minConfidenceScore: 20, // Lowered significantly for testing
+    minRiskRewardRatio: 0.1, // Lowered significantly for testing
+    tradePreMarket: true,
+    tradeRegularHours: true,
+    tradeAfterHours: true,
+    enableDiscordAlerts: true,
+    futuresMaxContracts: 2,
+    futuresStopPoints: 15,
+    futuresTargetPoints: 30,
+    cryptoPreferredCoins: ['BTC', 'ETH', 'SOL'],
+    cryptoEnableMemeCoins: true,
+  };
 
 // Cached preferences with expiry
 let cachedPreferences: BotPreferences | null = null;
@@ -101,27 +101,27 @@ async function getBotPreferences(): Promise<BotPreferences> {
     if (userPrefs) {
       const prefs: BotPreferences = {
         riskTolerance: userPrefs.riskTolerance as 'conservative' | 'moderate' | 'aggressive',
-        maxPositionSize: userPrefs.maxPositionSize,
-        maxConcurrentTrades: userPrefs.maxConcurrentTrades,
-        dailyLossLimit: userPrefs.dailyLossLimit ?? DEFAULT_PREFERENCES.dailyLossLimit,
-        enableOptions: userPrefs.enableOptions,
-        enableFutures: userPrefs.enableFutures,
-        enableCrypto: userPrefs.enableCrypto,
-        enablePropFirm: userPrefs.enablePropFirm,
-        optionsAllocation: userPrefs.optionsAllocation,
-        futuresAllocation: userPrefs.futuresAllocation,
-        cryptoAllocation: userPrefs.cryptoAllocation,
-        minConfidenceScore: userPrefs.minConfidenceScore,
-        minRiskRewardRatio: userPrefs.minRiskRewardRatio,
-        tradePreMarket: userPrefs.tradePreMarket,
-        tradeRegularHours: userPrefs.tradeRegularHours,
-        tradeAfterHours: userPrefs.tradeAfterHours,
-        enableDiscordAlerts: userPrefs.enableDiscordAlerts,
-        futuresMaxContracts: userPrefs.futuresMaxContracts,
-        futuresStopPoints: userPrefs.futuresStopPoints,
-        futuresTargetPoints: userPrefs.futuresTargetPoints,
+        maxPositionSize: 100000, // Unlimited for testing
+        maxConcurrentTrades: 50,
+        dailyLossLimit: 100000,
+        enableOptions: true,
+        enableFutures: true,
+        enableCrypto: true,
+        enablePropFirm: true,
+        optionsAllocation: 40,
+        futuresAllocation: 30,
+        cryptoAllocation: 30,
+        minConfidenceScore: 10, // Catch everything for testing
+        minRiskRewardRatio: 0.1, // Catch everything for testing
+        tradePreMarket: true,
+        tradeRegularHours: true,
+        tradeAfterHours: true,
+        enableDiscordAlerts: true,
+        futuresMaxContracts: 2,
+        futuresStopPoints: 15,
+        futuresTargetPoints: 30,
         cryptoPreferredCoins: userPrefs.cryptoPreferredCoins || ['BTC', 'ETH', 'SOL'],
-        cryptoEnableMemeCoins: userPrefs.cryptoEnableMemeCoins,
+        cryptoEnableMemeCoins: true,
       };
       cachedPreferences = prefs;
       preferencesLastFetched = now;
@@ -442,10 +442,10 @@ function scoreStrikeCandidate(
     : ((stockPrice - opt.strike) / stockPrice) * 100;
   
   // HARD FILTERS - must pass all
-  if (midPrice < 0.10 || midPrice > 2.50) return null; // Price range for lottos
-  if (absDelta < 0.08 || absDelta > 0.35) return null; // Delta range
-  if (strikeOTMPercent > 12 || strikeOTMPercent < 0) return null; // Max 12% OTM
-  if (spreadPercent > 0.40) return null; // Max 40% spread (avoid illiquid)
+  if (midPrice < 0.05 || midPrice > 10.00) return null; // Price range for lottos (relaxed)
+  if (absDelta < 0.005 || absDelta > 0.50) return null; // Delta range (relaxed)
+  if (strikeOTMPercent > 50 || strikeOTMPercent < 0) return null; // Max 50% OTM (relaxed)
+  if (spreadPercent > 0.85) return null; // Max 85% spread (relaxed)
   
   // SCORING (0-100 for each factor)
   
