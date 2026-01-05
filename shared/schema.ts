@@ -600,6 +600,135 @@ export const insertActiveTradeSchema = createInsertSchema(activeTrades).omit({ i
 export type InsertActiveTrade = z.infer<typeof insertActiveTradeSchema>;
 export type ActiveTrade = typeof activeTrades.$inferSelect;
 
+// ==========================================
+// TRADE DIAGNOSTICS - Loss Analysis & Learning System
+// ==========================================
+
+// Loss classification categories
+export type LossCategory = 
+  | 'direction_wrong'      // Called bullish but went down (or vice versa)
+  | 'timing_late'          // Entered too late, missed the move
+  | 'timing_early'         // Entered too early, got stopped out before move
+  | 'theta_decay'          // Lost to time decay on options
+  | 'iv_crush'             // Implied volatility collapsed after entry
+  | 'regime_shift'         // Market regime changed against position
+  | 'stop_too_tight'       // Stop loss triggered too easily
+  | 'stop_too_loose'       // Let loss run too long
+  | 'liquidity_issue'      // Poor fills, wide spreads
+  | 'catalyst_failed'      // Expected catalyst didn't materialize
+  | 'oversized_position'   // Position too large for account
+  | 'chasing_entry'        // Entered after move already happened
+  | 'unknown';             // Couldn't determine cause
+
+// Trade diagnostics for learning from losses
+export const tradeDiagnostics = pgTable("trade_diagnostics", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Link to the trade
+  tradeId: varchar("trade_id").notNull(), // Links to trade_ideas.id or paper_positions.id
+  tradeSource: text("trade_source").notNull(), // 'bot' | 'manual' | 'quant' | 'ai'
+  symbol: text("symbol").notNull(),
+  
+  // Trade outcome
+  outcome: text("outcome").notNull(), // 'win' | 'loss' | 'breakeven'
+  pnlPercent: real("pnl_percent").notNull(),
+  pnlDollars: real("pnl_dollars"),
+  
+  // Entry snapshot (what conditions existed when we entered)
+  entrySnapshot: jsonb("entry_snapshot").$type<{
+    marketRegime: string;        // trending_up, trending_down, ranging, volatile
+    spyChange: number;           // SPY % change that day
+    volumeRatio: number;         // Volume vs average
+    ivRank?: number;             // IV rank for options
+    daysToExpiry?: number;       // DTE at entry for options
+    confidenceScore: number;     // Bot's confidence at entry
+    signalCount: number;         // Number of confirming signals
+    entryReason: string;         // Why bot entered
+  }>(),
+  
+  // Exit snapshot (what conditions existed when we exited)
+  exitSnapshot: jsonb("exit_snapshot").$type<{
+    marketRegime: string;
+    spyChange: number;
+    exitReason: string;          // Why bot exited
+    exitTrigger: string;         // stop_loss, target, trailing_stop, manual, expiry
+    daysHeld: number;
+    maxProfitReached: number;    // Highest profit % during trade
+    drawdownFromPeak: number;    // How much we gave back from peak
+  }>(),
+  
+  // Loss classification
+  lossCategories: text("loss_categories").array(), // Multiple categories possible
+  primaryCause: text("primary_cause").$type<LossCategory>(),
+  
+  // Analysis
+  analysisNotes: text("analysis_notes"), // AI/rule-based analysis of what went wrong
+  
+  // Remediation - what adjustments to make
+  remediationActions: jsonb("remediation_actions").$type<{
+    adjustStopMultiplier?: number;    // Tighten/loosen stops by this factor
+    adjustConfidenceThreshold?: number; // Require higher confidence next time
+    avoidSymbol?: boolean;            // Temporarily avoid this symbol
+    avoidPattern?: string;            // Pattern to avoid (e.g., "earnings_play")
+    reducePositionSize?: number;      // Reduce position size by this factor
+  }>(),
+  
+  // Learning metrics
+  patternHash: text("pattern_hash"), // Hash of conditions for pattern matching
+  similarLossCount: integer("similar_loss_count").default(0), // How many similar losses
+  
+  // Status
+  reviewStatus: text("review_status").default('pending'), // 'pending' | 'reviewed' | 'actioned'
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTradeDiagnosticsSchema = createInsertSchema(tradeDiagnostics).omit({ id: true, createdAt: true });
+export type InsertTradeDiagnostics = z.infer<typeof insertTradeDiagnosticsSchema>;
+export type TradeDiagnostics = typeof tradeDiagnostics.$inferSelect;
+
+// Bot learning state - stores adaptive parameters
+export const botLearningState = pgTable("bot_learning_state", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Current adaptive parameters
+  confidenceThreshold: real("confidence_threshold").default(65), // Min confidence to enter
+  stopLossMultiplier: real("stop_loss_multiplier").default(1.0), // Adjust default stops
+  positionSizeMultiplier: real("position_size_multiplier").default(1.0), // Adjust sizing
+  
+  // Symbol-specific adjustments
+  symbolAdjustments: jsonb("symbol_adjustments").$type<{
+    [symbol: string]: {
+      confidenceBoost: number;    // +/- adjustment to confidence
+      avoidUntil?: string;        // ISO date to avoid until
+      lossStreak: number;         // Consecutive losses on this symbol
+      winRate: number;            // Historical win rate on this symbol
+    };
+  }>().default({}),
+  
+  // Pattern-specific adjustments
+  patternAdjustments: jsonb("pattern_adjustments").$type<{
+    [pattern: string]: {
+      enabled: boolean;
+      successRate: number;
+      sampleSize: number;
+    };
+  }>().default({}),
+  
+  // Performance tracking
+  totalAnalyzed: integer("total_analyzed").default(0),
+  totalWins: integer("total_wins").default(0),
+  totalLosses: integer("total_losses").default(0),
+  adaptationsApplied: integer("adaptations_applied").default(0),
+  
+  // Last update
+  lastUpdated: timestamp("last_updated").defaultNow(),
+});
+
+export const insertBotLearningStateSchema = createInsertSchema(botLearningState).omit({ id: true, lastUpdated: true });
+export type InsertBotLearningState = z.infer<typeof insertBotLearningStateSchema>;
+export type BotLearningState = typeof botLearningState.$inferSelect;
+
 // Position Calculation Interface (not stored, just for calculations)
 export interface PositionCalculation {
   symbol: string;
