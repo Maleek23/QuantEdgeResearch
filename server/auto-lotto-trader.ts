@@ -2275,11 +2275,41 @@ export async function runFuturesBotScan(): Promise<void> {
           score += 10;
         }
         
+        // Get recent price history for trend analysis
+        const { getFuturesHistory } = await import('./futures-data-service');
+        let priceHistory: number[] = [];
+        try {
+          priceHistory = await getFuturesHistory(contract.contractCode);
+        } catch (e) {
+          // Continue without history
+        }
+        
+        // Calculate price trend (is price trending up or down?)
+        let trendDirection: 'long' | 'short' = 'long';
+        if (priceHistory.length >= 5) {
+          const recentPrices = priceHistory.slice(-10);
+          const avgRecent = recentPrices.reduce((a, b) => a + b, 0) / recentPrices.length;
+          const avgOlder = priceHistory.slice(-20, -10).reduce((a, b) => a + b, 0) / Math.max(1, priceHistory.slice(-20, -10).length);
+          
+          if (avgRecent > avgOlder * 1.001) {
+            trendDirection = 'long';
+            signals.push('UPTREND');
+            score += 15;
+          } else if (avgRecent < avgOlder * 0.999) {
+            trendDirection = 'short';
+            signals.push('DOWNTREND');
+            score += 15;
+          } else {
+            signals.push('SIDEWAYS');
+            score -= 10; // Penalty for choppy market
+          }
+        }
+        
         // Price level analysis for NQ (Nasdaq futures)
         if (isNQ) {
           if (price > 20000) {
             signals.push('NQ_STRONG');
-            score += 10;
+            score += 5;
           }
         }
         
@@ -2289,10 +2319,10 @@ export async function runFuturesBotScan(): Promise<void> {
           score += 5;
         }
         
-        // Require minimum score of 65 for futures (lowered for more activity)
-        if (score >= 65) {
-          // Determine direction based on session
-          const direction: 'long' | 'short' = isMorningSession ? 'long' : (Math.random() > 0.5 ? 'long' : 'short');
+        // Require minimum score of 70 for futures (need real trend confirmation)
+        if (score >= 70) {
+          // Use TREND-BASED direction, not random!
+          const direction: 'long' | 'short' = trendDirection;
           const opportunity: FuturesOpportunity = {
             symbol: rootSymbol,
             contractCode: contract.contractCode,
@@ -2416,12 +2446,13 @@ export async function runFuturesBotScan(): Promise<void> {
           if (prefs.enableDiscordAlerts) {
             try {
               await sendBotTradeEntryToDiscord({
-                symbol: bestFuturesOpp.symbol,
+                symbol: bestFuturesOpp.contractCode, // Use full contract code e.g. NQH25
                 assetType: 'future',
                 entryPrice,
                 quantity,
                 targetPrice,
                 stopLoss,
+                direction: bestFuturesOpp.direction, // Include direction
               });
               logger.info(`🔮 [FUTURES-BOT] 📱 Discord entry notification sent`);
             } catch (discordError) {

@@ -182,6 +182,64 @@ export async function getFuturesPrices(contractCodes: string[]): Promise<Map<str
   return priceMap;
 }
 
+// Price history cache for trend analysis
+const historyCache = new Map<string, { prices: number[]; timestamp: Date }>();
+const HISTORY_CACHE_TTL = 60 * 1000; // 1 minute
+
+/**
+ * Get recent price history for trend analysis
+ * Uses Yahoo Finance for historical data
+ * @param contractCode - e.g., 'NQH25', 'GCJ25'
+ * @returns Array of recent prices (last 20 data points)
+ */
+export async function getFuturesHistory(contractCode: string): Promise<number[]> {
+  // Check cache first
+  const cached = historyCache.get(contractCode);
+  if (cached && (Date.now() - cached.timestamp.getTime()) < HISTORY_CACHE_TTL) {
+    return cached.prices;
+  }
+  
+  // Map contract code to Yahoo Finance symbol
+  const rootSymbol = contractCode.substring(0, 2).toUpperCase();
+  let yahooSymbol = 'NQ=F'; // Default to NQ futures
+  
+  if (rootSymbol === 'NQ') {
+    yahooSymbol = 'NQ=F';
+  } else if (rootSymbol === 'GC') {
+    yahooSymbol = 'GC=F';
+  } else if (rootSymbol === 'ES') {
+    yahooSymbol = 'ES=F';
+  }
+  
+  try {
+    // Fetch from Yahoo Finance
+    const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?interval=5m&range=2d`);
+    if (!response.ok) {
+      logger.warn(`[FUTURES-HISTORY] Yahoo fetch failed for ${yahooSymbol}: ${response.status}`);
+      return [];
+    }
+    
+    const data = await response.json();
+    const quotes = data.chart?.result?.[0]?.indicators?.quote?.[0];
+    const closes = quotes?.close?.filter((p: any) => p !== null) || [];
+    
+    // Get last 20 prices for trend analysis
+    const recentPrices = closes.slice(-20) as number[];
+    
+    // Cache the result
+    historyCache.set(contractCode, {
+      prices: recentPrices,
+      timestamp: new Date()
+    });
+    
+    logger.info(`[FUTURES-HISTORY] Fetched ${recentPrices.length} prices for ${contractCode}`);
+    return recentPrices;
+  } catch (error) {
+    logger.warn(`[FUTURES-HISTORY] Error fetching history for ${contractCode}:`, error);
+    return [];
+  }
+}
+
 /**
  * Clear price cache (useful for testing or forcing refresh)
  */
