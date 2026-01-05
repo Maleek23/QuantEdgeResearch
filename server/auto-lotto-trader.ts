@@ -52,12 +52,12 @@ interface BotPreferences {
   cryptoEnableMemeCoins: boolean;
 }
 
-// Default preferences (used when no user prefs are set)
+// Default preferences (used when no user prefs are set) - UNLIMITED MODE
 const DEFAULT_PREFERENCES: BotPreferences = {
-  riskTolerance: 'moderate',
-  maxPositionSize: 100,
-  maxConcurrentTrades: 5,
-  dailyLossLimit: 200,
+  riskTolerance: 'aggressive',
+  maxPositionSize: 10000, // Unlimited funds for paper trading
+  maxConcurrentTrades: 50, // Allow many concurrent trades
+  dailyLossLimit: 100000, // High limit for paper trading
   enableOptions: true,
   enableFutures: false, // Disabled by default - NQ=$20/point is too expensive for small accounts
   enableCrypto: true,
@@ -604,9 +604,9 @@ const EXPANDED_SCAN_UNIVERSE = [
 // Combined for general scanning (deduplicated)
 const BOT_SCAN_TICKERS = Array.from(new Set([...DAY_TRADE_TICKERS, ...SWING_TRADE_TICKERS, ...EXPANDED_SCAN_UNIVERSE]));
 
-// Cache for market scanner movers
+// Cache for market scanner movers - ENHANCED for more opportunities
 let moversCache: { tickers: string[]; timestamp: number } | null = null;
-const MOVERS_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+const MOVERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes (faster refresh for more opportunities)
 
 /**
  * Get dynamic movers from market scanner across multiple timeframes
@@ -630,10 +630,10 @@ async function getDynamicMovers(): Promise<string[]> {
     
     for (const timeframe of timeframes) {
       try {
-        const movers = await getTopMovers(timeframe, 'all', 20);
+        const movers = await getTopMovers(timeframe, 'all', 50); // Increased from 20 to 50
         
         // Add top gainers (momentum plays - could continue up)
-        for (const stock of movers.gainers.slice(0, 10)) {
+        for (const stock of movers.gainers.slice(0, 25)) { // Increased from 10 to 25
           if (stock.symbol && stock.currentPrice > 1) { // Skip penny stocks under $1
             dynamicTickers.add(stock.symbol);
             logger.debug(`🔍 [SCANNER] +${timeframe.toUpperCase()} GAINER: ${stock.symbol} +${stock.dayChangePercent?.toFixed(1)}%`);
@@ -641,7 +641,7 @@ async function getDynamicMovers(): Promise<string[]> {
         }
         
         // Add top losers (reversal plays - could bounce)
-        for (const stock of movers.losers.slice(0, 10)) {
+        for (const stock of movers.losers.slice(0, 25)) { // Increased from 10 to 25
           if (stock.symbol && stock.currentPrice > 1) {
             dynamicTickers.add(stock.symbol);
             logger.debug(`🔍 [SCANNER] -${timeframe.toUpperCase()} LOSER: ${stock.symbol} ${stock.dayChangePercent?.toFixed(1)}%`);
@@ -1819,7 +1819,10 @@ export async function runAutonomousBotScan(): Promise<void> {
     const catalystScoreCache = new Map<string, { score: number; summary: string; catalystCount: number }>();
     
     for (const ticker of combinedTickers) {
-      if (openSymbols.has(ticker)) continue;
+      if (openSymbols.has(ticker)) {
+        logger.debug(`  ⏭️  ${ticker}: Skipped - already has open trade`);
+        continue;
+      }
       
       // 📊 CHECK HISTORICAL PERFORMANCE - Skip blacklisted symbols
       const symbolCheck = checkSymbolPerformance(ticker);
