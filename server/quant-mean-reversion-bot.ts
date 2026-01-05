@@ -12,12 +12,30 @@ import type { InsertTradeIdea } from '@shared/schema';
 
 // Configuration based on performance analysis - OPTIMIZED FOR VOLUME + WIN RATE
 const LIQUID_TICKERS = [
-  // Mega caps - highest liquidity
+  // Mega caps - highest liquidity (Tier 1)
   'META', 'GOOGL', 'NVDA', 'TSLA', 'NFLX', 'AAPL', 'MSFT', 'AMZN', 'SPY', 'QQQ',
-  // Large caps with good options volume
+  // Large caps with excellent options volume (Tier 2)
   'AMD', 'INTC', 'CRM', 'ORCL', 'UBER', 'COIN', 'PLTR', 'SNOW', 'NET', 'SHOP',
-  // Popular momentum names
-  'SMCI', 'ARM', 'MSTR', 'MARA', 'RIOT', 'HOOD', 'SOFI', 'RKLB', 'IONQ', 'RGTI'
+  'MU', 'AVGO', 'QCOM', 'TXN', 'AMAT', 'LRCX', 'KLAC', 'ASML', 'TSM', 'MRVL',
+  // Fintech & Payments
+  'SQ', 'PYPL', 'V', 'MA', 'AXP', 'GS', 'JPM', 'BAC', 'C', 'WFC',
+  // Growth & Momentum (Tier 3)
+  'SMCI', 'ARM', 'MSTR', 'MARA', 'RIOT', 'HOOD', 'SOFI', 'RKLB', 'IONQ', 'RGTI',
+  'CRWD', 'ZS', 'PANW', 'FTNT', 'DDOG', 'SNOW', 'MDB', 'ESTC', 'SPLK', 'OKTA',
+  // Consumer & Retail
+  'COST', 'WMT', 'TGT', 'HD', 'LOW', 'NKE', 'LULU', 'SBUX', 'MCD', 'CMG',
+  // EV & Energy
+  'RIVN', 'LCID', 'F', 'GM', 'PLUG', 'FCEL', 'ENPH', 'SEDG', 'RUN', 'SPWR',
+  // Biotech & Healthcare
+  'MRNA', 'BNTX', 'PFE', 'JNJ', 'ABBV', 'LLY', 'UNH', 'BMY', 'MRK', 'AMGN',
+  // Media & Entertainment
+  'DIS', 'PARA', 'WBD', 'NFLX', 'ROKU', 'SPOT', 'RBLX', 'TTWO', 'EA', 'ATVI',
+  // Travel & Leisure
+  'ABNB', 'BKNG', 'EXPE', 'DAL', 'UAL', 'LUV', 'AAL', 'CCL', 'RCL', 'NCLH',
+  // Real Estate & Industrials
+  'CAT', 'DE', 'BA', 'LMT', 'RTX', 'NOC', 'GD', 'GE', 'HON', 'MMM',
+  // Popular ETFs
+  'IWM', 'XLF', 'XLE', 'XLK', 'XLV', 'ARKK', 'SOXL', 'TQQQ', 'SQQQ', 'VXX'
 ];
 const MAX_DTE = 2; // 0-2 DTE trades (expanded from 0-1)
 const MIN_OPTIONS_VOLUME = 5000; // Lowered from 10000
