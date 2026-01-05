@@ -70,9 +70,13 @@ export async function setupGoogleAuth(app: Express) {
           }
 
           // If user has invite and it's pending, mark as redeemed
-          if (invite && invite.status === 'pending') {
-            await storage.redeemBetaInvite(invite.token);
-            logger.info("Beta invite redeemed via Google OAuth", { email: emailLower });
+          if (invite && invite.token && invite.status === 'pending') {
+            try {
+              await storage.redeemBetaInvite(invite.token);
+              logger.info("Beta invite redeemed via Google OAuth", { email: emailLower });
+            } catch (redeemError) {
+              logger.warn("Failed to redeem invite, continuing with login", { email: emailLower, error: redeemError });
+            }
           }
 
           const user = await storage.upsertUser({

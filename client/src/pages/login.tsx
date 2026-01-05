@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { LogIn, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { LogIn, ArrowLeft, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { Separator } from "@/components/ui/separator";
 import { Link } from "wouter";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -27,6 +28,27 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [accessCode, setAccessCode] = useState("");
   const [showDevLogin, setShowDevLogin] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Handle URL error parameters from OAuth callbacks
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get('error');
+    
+    if (error) {
+      const errorMessages: Record<string, string> = {
+        'invite_required': 'This is an invite-only beta. You need an invite to sign in with Google. Join our waitlist to request access!',
+        'google_auth_failed': 'Google sign-in failed. Please try again.',
+        'no_user': 'Could not retrieve your account. Please try again.',
+        'login_failed': 'Login failed. Please try again.',
+      };
+      
+      setAuthError(errorMessages[error] || 'An error occurred during sign-in.');
+      
+      // Clear the error from URL without page reload
+      window.history.replaceState({}, '', '/login');
+    }
+  }, []);
 
   // Dev login mutation
   const devLoginMutation = useMutation({
@@ -118,6 +140,23 @@ export default function Login() {
           </div>
           
           <div className="space-y-4">
+            {authError && (
+              <Alert variant="destructive" className="mb-4" data-testid="alert-auth-error">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Access Denied</AlertTitle>
+                <AlertDescription className="space-y-2">
+                  <p>{authError}</p>
+                  {authError.includes('invite') && (
+                    <Link href="/">
+                      <Button variant="outline" size="sm" className="mt-2" data-testid="button-join-waitlist">
+                        Join Waitlist
+                      </Button>
+                    </Link>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+
             <a href="/api/auth/google" className="w-full">
               <Button
                 type="button"
