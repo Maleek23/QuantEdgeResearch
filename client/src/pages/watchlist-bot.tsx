@@ -270,6 +270,22 @@ export default function WatchlistBotPage() {
     ).sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
   }, [tradeIdeas]);
 
+  // Compute open and closed positions from bot data - available to all tabs
+  const { openPositions, closedPositions } = useMemo(() => {
+    if (!botData) {
+      return { openPositions: [] as PaperPosition[], closedPositions: [] as PaperPosition[] };
+    }
+    const allPositions = [
+      ...botData.positions,
+      ...(botData.futuresPositions || []),
+      ...(botData.cryptoPositions || [])
+    ];
+    return {
+      openPositions: allPositions.filter(p => p.status === 'open'),
+      closedPositions: allPositions.filter(p => p.status === 'closed')
+    };
+  }, [botData]);
+
   const addWatchlistMutation = useMutation({
     mutationFn: async (data: { symbol: string; assetType: string }) => {
       return apiRequest('POST', '/api/watchlist', {
@@ -2454,11 +2470,6 @@ export default function WatchlistBotPage() {
                                   <span className="font-mono">${Number(pos.entryPrice).toFixed(2)}</span>
                                 </div>
                               </div>
-                              {pos.notes && (
-                                <p className="text-xs text-muted-foreground mt-2 italic">
-                                  {pos.notes}
-                                </p>
-                              )}
                             </div>
                           ))}
                           
@@ -2497,11 +2508,6 @@ export default function WatchlistBotPage() {
                                   </span>
                                 </div>
                               </div>
-                              {pos.notes && (
-                                <p className="text-xs text-muted-foreground mt-2 italic">
-                                  {pos.notes}
-                                </p>
-                              )}
                             </div>
                           ))}
                         </div>
