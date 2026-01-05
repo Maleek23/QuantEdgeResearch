@@ -1491,9 +1491,14 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
     dteCategory === 'swing' ? 'swing trade' : 
     dteCategory === 'monthly' ? 'monthly swing' : 'position';
   
-  return {
+  // Capture optionType explicitly to ensure correct type
+  const optionTypeValue: 'call' | 'put' = opportunity.optionType;
+  
+  logger.debug(`🤖 [BOT] Creating trade idea for ${opportunity.symbol}: optionType=${optionTypeValue}, strike=${opportunity.strike}`);
+  
+  const ideaData = {
     symbol: opportunity.symbol,
-    assetType: 'option',
+    assetType: 'option' as const,
     direction,
     entryPrice: opportunity.price,
     targetPrice,
@@ -1502,24 +1507,28 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
     confidenceScore: decision.confidence,
     qualitySignals: decision.signals,
     probabilityBand: getLetterGrade(decision.confidence),
-    catalyst: `🤖 BOT DECISION: ${opportunity.symbol} ${opportunity.optionType.toUpperCase()} $${opportunity.strike} | ${decision.signals.slice(0, 3).join(' | ')}`,
+    catalyst: `🤖 BOT DECISION: ${opportunity.symbol} ${optionTypeValue.toUpperCase()} $${opportunity.strike} | ${decision.signals.slice(0, 3).join(' | ')}`,
     analysis: `Auto-Lotto Bot autonomous trade (${dteCategory} ${targetLabel}): ${decision.reason}. Entry $${opportunity.price.toFixed(2)}, Target $${targetPrice.toFixed(2)} (${targetMultiplier}x), Stop $${stopLoss.toFixed(2)} (50%).`,
     sessionContext: 'Bot autonomous trading',
     holdingPeriod,
-    source: 'lotto',
+    source: 'lotto' as const,
     strikePrice: opportunity.strike,
-    optionType: opportunity.optionType,
+    optionType: optionTypeValue,
     expiryDate: opportunity.expiration,
     entryValidUntil: formatInTimeZone(entryValidUntil, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX"),
     exitBy: formatInTimeZone(exitDate, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX"),
     isLottoPlay: true,
     timestamp: formatInTimeZone(now, 'America/Chicago', "yyyy-MM-dd'T'HH:mm:ssXXX"),
-    sectorFocus: 'momentum',
-    riskProfile: 'speculative',
-    researchHorizon: opportunity.daysToExpiry <= 2 ? 'intraday' : opportunity.daysToExpiry <= 7 ? 'week' : 'month',
+    sectorFocus: 'momentum' as const,
+    riskProfile: 'speculative' as const,
+    researchHorizon: (opportunity.daysToExpiry <= 2 ? 'intraday' : opportunity.daysToExpiry <= 7 ? 'short_swing' : 'multi_week') as 'intraday' | 'short_swing' | 'multi_week',
     liquidityWarning: true,
-    engineVersion: 'bot_autonomous_v1.0',
+    engineVersion: 'bot_autonomous_v1.1',
   };
+  
+  logger.debug(`🤖 [BOT] Trade idea data: optionType=${ideaData.optionType}, catalyst contains=${ideaData.catalyst.includes('PUT') ? 'PUT' : 'CALL'}`);
+  
+  return ideaData;
 }
 
 /**
@@ -1705,7 +1714,10 @@ export async function runAutonomousBotScan(): Promise<void> {
       logger.info(`🤖 [BOT] 🎯 EXECUTING BEST TRADE: ${opp.symbol} ${opp.optionType.toUpperCase()} $${opp.strike} @ $${opp.price.toFixed(2)}`);
       
       const ideaData = createTradeIdea(opp, decision);
+      logger.info(`🤖 [BOT] 📝 Pre-save ideaData: optionType=${ideaData.optionType}, symbol=${ideaData.symbol}`);
+      
       const savedIdea = await storage.createTradeIdea(ideaData);
+      logger.info(`🤖 [BOT] 📝 Post-save savedIdea: optionType=${savedIdea.optionType}, id=${savedIdea.id}`);
       
       const result = await executeTradeIdea(portfolio.id, savedIdea as TradeIdea);
       
