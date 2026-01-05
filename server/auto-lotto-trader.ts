@@ -512,16 +512,18 @@ function selectBestStrike(
 // Day trade tickers: High volatility, good for 0-7 DTE plays
 // User's priority watchlist - ensures all favorite tickers are scanned first
 const DAY_TRADE_TICKERS = [
+  // 🎯 USER PRIORITY - Always scan first!
+  'BIDU', 'SOFI', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META',
   // Major indices & leveraged ETFs
-  'SPY', 'QQQ', 'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'ARKK', 'TQQQ', 'SOXL',
+  'SPY', 'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'ARKK', 'TQQQ', 'SOXL',
   // Mega-cap tech
-  'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NVDA', 'TSLA', 'AMD', 'AVGO', 'NFLX',
+  'AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TSLA', 'AMD', 'AVGO', 'NFLX',
   // Semiconductors
-  'ARM', 'SMCI', 'MRVL', 'QCOM', 'INTC', 'MU',
+  'ARM', 'SMCI', 'MRVL', 'QCOM', 'MU',
   // AI & Growth
   'PLTR', 'SNOW', 'CRWD', 'AI', 'IONQ', 'RGTI', 'QUBT', 'QBTS',
   // Nuclear & Energy - User priority
-  'OKLO', 'UUUU', 'SMR', 'CCJ', 'NNE', 'LEU',
+  'OKLO', 'SMR', 'CCJ', 'NNE', 'LEU',
   // Crypto-adjacent
   'MSTR', 'COIN', 'HOOD', 'MARA', 'RIOT',
   // Fintech
