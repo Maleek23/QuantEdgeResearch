@@ -366,6 +366,7 @@ export default function FuturesPage() {
     futuresMaxContracts: number;
     futuresStopPoints: number;
     futuresTargetPoints: number;
+    enablePropFirm?: boolean;
   }
 
   const { data: botData, isLoading: botLoading, refetch: refetchBot } = useQuery<BotData>({
@@ -793,7 +794,7 @@ export default function FuturesPage() {
                         <p className="text-sm text-muted-foreground">Autonomous NQ/GC paper trading</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">Enabled</span>
                         <Switch
@@ -802,6 +803,17 @@ export default function FuturesPage() {
                             updatePreferencesMutation.mutate({ enableFutures: checked })
                           }
                           data-testid="switch-enable-futures-bot"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 px-2 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10">
+                        <ShieldAlert className="h-4 w-4 text-amber-400" />
+                        <span className="text-sm text-amber-400 font-medium">Prop Firm</span>
+                        <Switch
+                          checked={botPreferences?.enablePropFirm ?? false}
+                          onCheckedChange={(checked) => 
+                            updatePreferencesMutation.mutate({ enablePropFirm: checked })
+                          }
+                          data-testid="switch-prop-firm-mode"
                         />
                       </div>
                       <Button
@@ -858,6 +870,52 @@ export default function FuturesPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Prop Firm Mode Info Panel */}
+              {botPreferences?.enablePropFirm && (
+                <Card className="glass-card border-amber-500/30" data-testid="card-prop-firm-info">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <ShieldAlert className="h-5 w-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg text-amber-400">Prop Firm Mode Active</CardTitle>
+                        <p className="text-sm text-muted-foreground">Conservative settings for funded account evaluations</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div className="stat-glass rounded-lg p-3 border border-amber-500/20">
+                        <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Account Size</div>
+                        <div className="text-lg font-bold font-mono text-amber-400">$50,000</div>
+                      </div>
+                      <div className="stat-glass rounded-lg p-3 border border-amber-500/20">
+                        <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Daily Loss Limit</div>
+                        <div className="text-lg font-bold font-mono text-red-400">$1,000</div>
+                      </div>
+                      <div className="stat-glass rounded-lg p-3 border border-amber-500/20">
+                        <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Max Drawdown</div>
+                        <div className="text-lg font-bold font-mono text-red-400">$2,500</div>
+                      </div>
+                      <div className="stat-glass rounded-lg p-3 border border-amber-500/20">
+                        <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Profit Target</div>
+                        <div className="text-lg font-bold font-mono text-green-400">$3,000</div>
+                      </div>
+                    </div>
+                    <div className="mt-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                      <div className="text-sm text-amber-400 font-medium mb-1">Risk Rules Applied:</div>
+                      <ul className="text-xs text-muted-foreground space-y-1">
+                        <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-green-400" /> Max 1 contract per trade (micro NQ/ES)</li>
+                        <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-green-400" /> Strict 10-point stop loss enforced</li>
+                        <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-green-400" /> 20-point profit targets for 2:1 R:R</li>
+                        <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-green-400" /> Only trades during RTH (9:30 AM - 4:00 PM ET)</li>
+                      </ul>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Open Positions */}
               <Card className="glass-card" data-testid="card-bot-positions">
