@@ -1938,6 +1938,65 @@ export async function runAutonomousBotScan(): Promise<void> {
     if (bestOpportunity) {
       const { opp, decision, entryTiming } = bestOpportunity;
       
+      // 🔍 MULTI-LAYER CONFLUENCE VALIDATION - Bot's independent judgment!
+      try {
+        const { validateConfluence, analyzeOptionsChainIndependently } = await import('./bot-confluence-validator');
+        
+        // Get stock price for independent analysis
+        const quote = await getTradierQuote(opp.symbol);
+        const stockPrice = quote?.last || opp.price * 5; // Rough estimate if no quote
+        
+        // LAYER 1: Validate the specific trade idea
+        const confluence = await validateConfluence({
+          symbol: opp.symbol,
+          direction: opp.optionType,
+          strike: opp.strike,
+          expiry: opp.expiration,
+          stockPrice,
+          premium: opp.price,
+          delta: opp.delta,
+        });
+        
+        // Log confluence results
+        logger.info(`🔍 [CONFLUENCE] ${opp.symbol}: Score=${confluence.score.toFixed(0)}% | ${confluence.recommendation}`);
+        for (const reason of confluence.reasons.slice(0, 5)) {
+          logger.debug(`🔍 [CONFLUENCE] ${reason}`);
+        }
+        
+        // GATE: Skip trade if confluence fails
+        if (!confluence.passed) {
+          logger.info(`🔍 [CONFLUENCE] ⛔ BLOCKED: ${opp.symbol} ${opp.optionType.toUpperCase()} - Score ${confluence.score.toFixed(0)}% < 55%`);
+          logger.info(`🔍 [CONFLUENCE] Top reasons: ${confluence.reasons.slice(0, 3).join(' | ')}`);
+          
+          // LAYER 2: Try independent analysis to find better setup
+          const independent = await analyzeOptionsChainIndependently(opp.symbol, stockPrice, opp.optionType);
+          if (independent && independent.recommendation !== 'skip') {
+            const bestOpt = independent.recommendation === 'call' ? independent.bestCall : independent.bestPut;
+            if (bestOpt && bestOpt.score > confluence.score + 10) {
+              logger.info(`🧠 [INDEPENDENT] Found better setup: ${independent.recommendation.toUpperCase()} $${bestOpt.strike} (score ${bestOpt.score})`);
+              // Could adjust opp here in future - for now just log
+            }
+          }
+          
+          // Skip this trade - confluence didn't pass
+          logger.info(`🤖 [BOT] ⏭️ Skipping ${opp.symbol} - confluence validation failed`);
+        } else {
+          // Confluence PASSED - add boost to confidence
+          const confluenceBoost = Math.floor((confluence.score - 55) / 5); // +1 per 5 points above threshold
+          decision.confidence = Math.min(100, decision.confidence + confluenceBoost);
+          decision.signals.push(`CONFLUENCE_${confluence.score.toFixed(0)}`);
+          logger.info(`🔍 [CONFLUENCE] ✅ PASSED: +${confluenceBoost} confidence boost`);
+        }
+        
+        // Only proceed if confluence passed
+        if (!confluence.passed) {
+          return; // Exit early
+        }
+      } catch (confluenceError) {
+        // Don't block trades if confluence check fails - just log
+        logger.warn(`🔍 [CONFLUENCE] Validation failed, proceeding anyway:`, confluenceError);
+      }
+      
       // 📢 DETAILED BUY REASONING - Log why bot is entering this trade
       logger.info(`🤖 [BOT] 🟢 BUYING ${opp.symbol} ${opp.optionType.toUpperCase()} $${opp.strike} @ $${opp.price.toFixed(2)}`);
       logger.info(`🤖 [BOT] 📊 REASON: ${decision.reason}`);
