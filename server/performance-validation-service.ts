@@ -53,6 +53,31 @@ class PerformanceValidationService {
   }
 
   /**
+   * Check if stock market is open (weekday during market hours CT)
+   * Returns false on weekends to prevent false validations with stale prices
+   */
+  private isMarketOpen(): boolean {
+    const now = new Date();
+    const ctTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+    const dayOfWeek = ctTime.getDay(); // 0 = Sunday, 6 = Saturday
+    const hour = ctTime.getHours();
+    const minute = ctTime.getMinutes();
+    
+    // Weekend check - markets closed
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      return false;
+    }
+    
+    // Market hours: 8:30 AM - 3:00 PM CT (regular session)
+    // Extended validation window: 7:00 AM - 4:00 PM CT (includes pre/post market)
+    const timeInMinutes = hour * 60 + minute;
+    const marketOpen = 7 * 60; // 7:00 AM CT
+    const marketClose = 16 * 60; // 4:00 PM CT
+    
+    return timeInMinutes >= marketOpen && timeInMinutes <= marketClose;
+  }
+
+  /**
    * Validate all open trade ideas
    * Fetches current prices and checks if any hit target/stop/expired
    */
@@ -65,6 +90,16 @@ class PerformanceValidationService {
     // Prevent concurrent validations
     if (this.isValidating) {
       console.log('⏭️  Skipping validation - already in progress');
+      return { validated: 0, winners: 0, losers: 0, expired: 0 };
+    }
+    
+    // Skip validation on weekends and outside market hours
+    // This prevents false wins/losses from stale weekend prices
+    if (!this.isMarketOpen()) {
+      const now = new Date();
+      const ctTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+      const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][ctTime.getDay()];
+      console.log(`📊 Skipping validation - market closed (${dayName} ${ctTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} CT)`);
       return { validated: 0, winners: 0, losers: 0, expired: 0 };
     }
 
