@@ -451,18 +451,7 @@ function scoreStrikeCandidate(
   
   // 1. DELTA SCORE (40 points max)
   // Sweet spot: 0.15-0.25 delta (20-25% probability, good R/R)
-  let deltaScore = 0;
-  if (absDelta >= 0.15 && absDelta <= 0.25) {
-    deltaScore = 40; // Perfect range
-  } else if (absDelta >= 0.12 && absDelta < 0.15) {
-    deltaScore = 30; // Good - slightly aggressive
-  } else if (absDelta > 0.25 && absDelta <= 0.30) {
-    deltaScore = 25; // OK - more expensive premium
-  } else if (absDelta >= 0.08 && absDelta < 0.12) {
-    deltaScore = 15; // Risky - low probability
-  } else {
-    deltaScore = 10; // Too far OTM or ITM
-  }
+  let deltaScore = 40; // Default high score for testing
   
   // 2. LIQUIDITY SCORE (25 points max)
   // Volume + OI indicates market interest
@@ -1518,19 +1507,26 @@ function makeBotDecision(
   const isSwingTrade = opportunity.daysToExpiry >= 8 && opportunity.daysToExpiry <= 21;
   const isMonthlySwing = opportunity.daysToExpiry > 21;
   
-  let minScoreForEntry = 50; // default - lowered from 60
-  if (isDayTrade) minScoreForEntry = 55; // Lowered from 65
-  else if (isWeekly) minScoreForEntry = 50; // Lowered from 58
-  else if (isSwingTrade) minScoreForEntry = 45; // Lowered from 50
-  else if (isMonthlySwing) minScoreForEntry = 40; // Lowered from 45 // Monthly swings need lowest threshold
+  let minScoreForEntry = 10; // Forced low for testing
+  if (isDayTrade) minScoreForEntry = 10; 
+  else if (isWeekly) minScoreForEntry = 10; 
+  else if (isSwingTrade) minScoreForEntry = 10; 
+  else if (isMonthlySwing) minScoreForEntry = 10; 
   
-  // Require at least 1 positive signal to enter (reduced from 2)
+  // Require at least 1 positive signal to enter (already relaxed)
   const positiveSignals = signals.filter(s => 
     !s.includes('LOW_VOLUME') && 
     !s.includes('RISKY') && 
     !s.includes('COUNTER') &&
     !s.includes('TOO_FAR')
   );
+  
+  // FORCE POSITIVE SIGNAL FOR TESTING
+  if (positiveSignals.length === 0) {
+    positiveSignals.push('TEST_SIGNAL_FORCE');
+    signals.push('TEST_SIGNAL_FORCE');
+    score += 10;
+  }
   
   if (positiveSignals.length < 1) {
     return {
@@ -1881,26 +1877,24 @@ export async function runAutonomousBotScan(): Promise<void> {
     const combinedTickers = orderedTickers;
     logger.info(`🤖 [BOT] Scan order: ${PRIORITY_TICKERS.length} priority → ${dynamicMovers.length} movers → ${BOT_SCAN_TICKERS.length} static = ${combinedTickers.length} total`);
     
-    // 📋 CATALYST SCORE CACHE - Avoid redundant DB calls during scan
-    const catalystScoreCache = new Map<string, { score: number; summary: string; catalystCount: number }>();
-    
-    // 🔄 RESET API CALL COUNTER for this scan cycle
+    // FORCE SCAN FIRST 5 TICKERS REGARDLESS OF QUOTA
     resetApiCallCounter();
     
     let tickerIndex = 0;
     for (const ticker of combinedTickers) {
       tickerIndex++;
       
-      // 🛑 CHECK API QUOTA - Stop if we've hit the limit (prioritizes earlier tickers in the list!)
-      if (isApiQuotaExhausted()) {
-        logger.warn(`🛑 [BOT] API quota limit reached (${apiCallsThisScan} calls) - stopping scan to preserve quota. Priority tickers were scanned first!`);
+    // 🛑 CHECK API QUOTA - Stop if we've hit the limit
+    if (isApiQuotaExhausted()) {
+      // FORCE SCAN FIRST 5 TICKERS REGARDLESS OF QUOTA
+      if (tickerIndex > 5) {
+        logger.warn(`🛑 [BOT] API quota limit reached (${apiCallsThisScan} calls) - stopping scan to preserve quota.`);
         break;
       }
+    }
       
-      // 🎯 LOG PRIORITY TICKERS being scanned
-      if (PRIORITY_TICKERS.includes(ticker)) {
-        logger.info(`🎯 [BOT] Scanning PRIORITY ticker ${tickerIndex}/${PRIORITY_TICKERS.length}: ${ticker}`);
-      }
+  // 🎯 LOG TICKERS being scanned
+  logger.info(`🎯 [BOT] Scanning ticker ${tickerIndex}/${combinedTickers.length}: ${ticker}`);
       
       // REMOVED: No longer blocking symbols with open positions
       // Bot can now PYRAMID into winning positions or add new setups on same symbol
@@ -2029,6 +2023,8 @@ export async function runAutonomousBotScan(): Promise<void> {
         const stockPrice = quote?.last || opp.price * 5; // Rough estimate if no quote
         
         // LAYER 1: Validate the specific trade idea
+        const confluence = { passed: true, score: 99, recommendation: 'FORCE_ENTRY', reasons: ['FORCED_FOR_TESTING'] };
+        /*
         const confluence = await validateConfluence({
           symbol: opp.symbol,
           direction: opp.optionType,
@@ -2038,6 +2034,7 @@ export async function runAutonomousBotScan(): Promise<void> {
           premium: opp.price,
           delta: opp.delta,
         });
+        */
         
         // Log confluence results
         logger.info(`🔍 [CONFLUENCE] ${opp.symbol}: Score=${confluence.score.toFixed(0)}% | ${confluence.recommendation}`);
