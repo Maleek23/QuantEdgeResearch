@@ -4279,6 +4279,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       logger.info(`✅ [USER-ANALYSIS] Created trade idea for ${upperSymbol}: entry=$${entryPrice}, target=$${targetPrice}, stop=$${stopLoss}`);
       
+      // Send Discord notification for individual trade idea
+      try {
+        const { sendTradeIdeaToDiscord } = await import("./discord-service");
+        sendTradeIdeaToDiscord(tradeIdea).catch(err => 
+          logger.error(`Discord notification failed for ${upperSymbol}:`, err)
+        );
+      } catch (discordError) {
+        logger.error('Discord import failed:', discordError);
+      }
+      
       res.status(201).json(tradeIdea);
     } catch (error: any) {
       logger.error('📊 [USER-ANALYSIS] Error analyzing play:', error);
@@ -15674,8 +15684,11 @@ Use this checklist before entering any trade:
       
       const idea = await generateIdeaFromScanner(symbol, changePercent, timeframe, additionalSignals);
       if (idea) {
-        await storage.createTradeIdea(idea);
-        res.json({ success: true, idea });
+        const saved = await storage.createTradeIdea(idea);
+        // Send Discord notification
+        const { sendTradeIdeaToDiscord } = await import("./discord-service");
+        sendTradeIdeaToDiscord(saved).catch(err => logger.error(`Discord failed for ${symbol}:`, err));
+        res.json({ success: true, idea: saved });
       } else {
         res.status(500).json({ error: `Failed to generate scanner idea for ${symbol}` });
       }
@@ -15706,8 +15719,11 @@ Use this checklist before entering any trade:
       );
       
       if (idea) {
-        await storage.createTradeIdea(idea);
-        res.json({ success: true, idea });
+        const saved = await storage.createTradeIdea(idea);
+        // Send Discord notification
+        const { sendTradeIdeaToDiscord } = await import("./discord-service");
+        sendTradeIdeaToDiscord(saved).catch(err => logger.error(`Discord failed for ${symbol}:`, err));
+        res.json({ success: true, idea: saved });
       } else {
         res.status(500).json({ error: `Failed to generate flow idea for ${symbol}` });
       }
@@ -15735,8 +15751,11 @@ Use this checklist before entering any trade:
       );
       
       if (idea) {
-        await storage.createTradeIdea(idea);
-        res.json({ success: true, idea });
+        const saved = await storage.createTradeIdea(idea);
+        // Send Discord notification
+        const { sendTradeIdeaToDiscord } = await import("./discord-service");
+        sendTradeIdeaToDiscord(saved).catch(err => logger.error(`Discord failed for ${symbol}:`, err));
+        res.json({ success: true, idea: saved });
       } else {
         res.status(500).json({ error: `Failed to generate social idea for ${symbol}` });
       }
@@ -15764,8 +15783,11 @@ Use this checklist before entering any trade:
       );
       
       if (idea) {
-        await storage.createTradeIdea(idea);
-        res.json({ success: true, idea });
+        const saved = await storage.createTradeIdea(idea);
+        // Send Discord notification
+        const { sendTradeIdeaToDiscord } = await import("./discord-service");
+        sendTradeIdeaToDiscord(saved).catch(err => logger.error(`Discord failed for ${symbol}:`, err));
+        res.json({ success: true, idea: saved });
       } else {
         res.status(500).json({ error: `Failed to generate chart idea for ${symbol}` });
       }

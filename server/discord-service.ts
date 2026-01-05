@@ -530,8 +530,9 @@ export async function sendDiscordAlert(alert: {
 }
 
 // Send batch summary to Discord
-// ALL research ideas (quant, AI, hybrid, flow, news) go to #trade-alerts
-// Bot entries (when bot actually trades) go to #quantbot via sendBotTradeEntryToDiscord
+// OPTIONS → #options-trades (DISCORD_WEBHOOK_OPTIONSTRADES)
+// STOCKS/CRYPTO → #stock-shares (DISCORD_WEBHOOK_SHARES)  
+// Bot entries go to #quantbot via sendBotTradeEntryToDiscord
 export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai' | 'quant' | 'hybrid' | 'flow' | 'news'): Promise<void> {
   logger.info(`📨 Discord batch summary called: ${ideas.length} ${source} ideas`);
   
@@ -540,10 +541,14 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
     return;
   }
   
-  // ALL research/trade ideas go to main #trade-alerts channel
-  // Bot entries go to QUANTBOT channel via separate sendBotTradeEntryToDiscord function
-  // USER REQUEST: Routing specifically to dedicated bot channel if available
-  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
+  // Route to appropriate channel based on predominant asset type
+  // OPTIONS go to dedicated options channel, everything else to shares/main
+  const optionCount = ideas.filter(i => i.assetType === 'option').length;
+  const isOptionsHeavy = optionCount > ideas.length / 2;
+  
+  const webhookUrl = isOptionsHeavy 
+    ? (process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL)
+    : (process.env.DISCORD_WEBHOOK_SHARES || process.env.DISCORD_WEBHOOK_URL);
   
   if (!webhookUrl) {
     logger.warn('⚠️ No Discord webhook configured - skipping notification');
