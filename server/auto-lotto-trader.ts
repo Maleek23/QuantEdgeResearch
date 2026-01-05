@@ -1224,10 +1224,10 @@ function makeBotDecision(
       score += 10;
     } else if (isCall && positionInRange < 0.25) {
       signals.push('CALLS_AT_LOWS_RISKY');
-      score -= 15;
+      score -= 30; // Increased penalty - fighting trend is dangerous
     } else if (!isCall && positionInRange > 0.75) {
       signals.push('PUTS_AT_HIGHS_RISKY');
-      score -= 15;
+      score -= 30; // Increased penalty - fighting trend is dangerous
     }
   }
   
@@ -1346,6 +1346,21 @@ function makeBotDecision(
     return {
       action: 'skip',
       reason: `No positive signals found`,
+      confidence: boostedScore,
+      signals
+    };
+  }
+  
+  // HARD REJECTION: Contrarian trades at extremes on short-dated options (< 14 DTE)
+  // Buying puts at 52-week highs or calls at 52-week lows is fighting the trend
+  // Only accept these if we have significant time (14+ DTE) for a reversal
+  const hasRiskyContrarianSignal = signals.some(s => 
+    s.includes('PUTS_AT_HIGHS_RISKY') || s.includes('CALLS_AT_LOWS_RISKY')
+  );
+  if (hasRiskyContrarianSignal && opportunity.daysToExpiry < 14) {
+    return {
+      action: 'skip',
+      reason: `REJECTED: Contrarian trade (${signals.find(s => s.includes('RISKY'))}) with only ${opportunity.daysToExpiry} DTE - need 14+ DTE for reversals`,
       confidence: boostedScore,
       signals
     };
