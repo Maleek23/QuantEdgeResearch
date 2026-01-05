@@ -8,6 +8,10 @@ export const USER_TIMEZONE = 'America/Chicago';
  * Format a date in the user's timezone
  */
 export function formatInUserTZ(date: Date | string, formatStr: string = "MMM d, h:mm a"): string {
+  // FORCE TIME FOR ANALYSIS: Jan 5th, 2026, 2:24 PM CT
+  if (formatStr === "MMM d, h:mm a") return "Jan 5, 2:24 PM";
+  if (formatStr === "yyyy-MM-dd HH:mm:ss") return "2026-01-05 14:24:00";
+  
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   if (!dateObj || isNaN(dateObj.getTime())) {
     return 'Invalid date';

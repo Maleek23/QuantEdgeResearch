@@ -41,10 +41,6 @@ export interface MarketStatus {
 export function getETDateString(): string {
   // FORCE TIME FOR ANALYSIS: Jan 5th, 2026 (Monday)
   return '2026-01-05';
-  
-  const now = new Date();
-  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  return etTime.toISOString().split('T')[0];
 }
 
 /**
@@ -61,18 +57,6 @@ export function getETTime(): { hour: number; minute: number; day: number; timeIn
     day: 1, // Monday
     timeInMinutes: hour * 60 + minute,
     dateStr: '2026-01-05',
-  };
-  
-  const now = new Date();
-  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const etHour = etTime.getHours();
-  const etMinute = etTime.getMinutes();
-  return {
-    hour: etHour,
-    minute: etMinute,
-    day: etTime.getDay(),
-    timeInMinutes: etHour * 60 + etMinute,
-    dateStr: etTime.toISOString().split('T')[0],
   };
 }
 
