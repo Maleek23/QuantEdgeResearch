@@ -532,6 +532,7 @@ export async function sendDiscordAlert(alert: {
 // ═══════════════════════════════════════════════════════════════════════════
 // REAL-TIME FLOW SCANNER ALERT - Sends B- to A+ options as they're discovered
 // ═══════════════════════════════════════════════════════════════════════════
+
 export async function sendFlowAlertToDiscord(alert: {
   symbol: string;
   optionType: string;
@@ -556,8 +557,14 @@ export async function sendFlowAlertToDiscord(alert: {
     return;
   }
   
-  // Deduplication check
-  const hash = generateMessageHash('flow-alert', `${alert.symbol}-${alert.optionType}-${alert.strikePrice}-${alert.expiryDate}`);
+  // 🛑 SYMBOL-LEVEL COOLDOWN: Prevent spam for same symbol (uses existing system)
+  if (isSymbolOnCooldown(alert.symbol, 'flow')) {
+    return;
+  }
+  
+  // Standard deduplication for exact option match
+  const flowKey = `${alert.symbol}-${alert.optionType}-${alert.strikePrice}-${alert.expiryDate}`;
+  const hash = generateMessageHash('flow-alert', flowKey);
   if (isDuplicateMessage(hash)) {
     return;
   }
