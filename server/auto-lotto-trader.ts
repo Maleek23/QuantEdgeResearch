@@ -513,6 +513,8 @@ const DAY_TRADE_TICKERS = [
   'ARM', 'SMCI', 'MRVL', 'QCOM', 'INTC', 'MU',
   // AI & Growth
   'PLTR', 'SNOW', 'CRWD', 'AI', 'IONQ', 'RGTI', 'QUBT', 'QBTS',
+  // Nuclear & Energy - User priority
+  'OKLO', 'UUUU', 'SMR', 'CCJ', 'NNE', 'LEU',
   // Crypto-adjacent
   'MSTR', 'COIN', 'HOOD', 'MARA', 'RIOT',
   // Fintech
