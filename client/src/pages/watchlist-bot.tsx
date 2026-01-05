@@ -265,9 +265,18 @@ export default function WatchlistBotPage() {
 
   const dailyIdeas = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
-    return tradeIdeas.filter(idea => 
+    const filtered = tradeIdeas.filter(idea => 
       idea.timestamp && idea.timestamp.startsWith(today)
     ).sort((a, b) => (b.confidenceScore || 0) - (a.confidenceScore || 0));
+    
+    // Deduplicate by unique contract (symbol + strike + expiry + optionType)
+    const seen = new Set<string>();
+    return filtered.filter(idea => {
+      const key = `${idea.symbol}-${idea.strikePrice}-${idea.expiryDate}-${idea.optionType}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }, [tradeIdeas]);
 
   // Compute open and closed positions from bot data - available to all tabs
