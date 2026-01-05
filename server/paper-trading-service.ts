@@ -3,6 +3,7 @@ import { searchSymbol, fetchCryptoPrice, fetchStockPrice } from "./market-api";
 import { getOptionQuote } from "./tradier-api";
 import { logger } from "./logger";
 import { isUSMarketOpen, normalizeDateString } from "@shared/market-calendar";
+import { analyzeTrade, recordWin } from "./loss-analyzer-service";
 import type {
   TradeIdea,
   PaperPortfolio,
@@ -152,6 +153,34 @@ export async function closePosition(
       exitReason,
       realizedPnL: position.realizedPnL,
     });
+
+    // === ADAPTIVE LOSS INTELLIGENCE ===
+    // Analyze ALL closed trades to learn from both wins and losses
+    const pnlPercent = position.realizedPnLPercent || 0;
+    const isLoss = pnlPercent < 0;
+    
+    try {
+      if (isLoss && Math.abs(pnlPercent) >= 5) {
+        // Significant loss (>5%) - analyze for patterns and apply remediations
+        const diagnosis = await analyzeTrade(position);
+        
+        if (diagnosis) {
+          logger.info(`🧠 [ADAPTIVE LEARNING] Applied remediation for ${position.symbol} loss: ${diagnosis.primaryCause}`, {
+            symbol: position.symbol,
+            pnlPercent,
+            cause: diagnosis.primaryCause,
+            categories: diagnosis.lossCategories,
+          });
+        }
+      } else if (pnlPercent >= 10) {
+        // Significant win (>10%) - record positive reinforcement
+        await recordWin(position);
+        logger.info(`🎯 [ADAPTIVE LEARNING] Recorded win for ${position.symbol}: +${pnlPercent.toFixed(1)}%`);
+      }
+    } catch (analysisError) {
+      // Don't fail the close operation if analysis fails
+      logger.warn(`[ADAPTIVE LEARNING] Analysis failed for ${position.symbol}`, { error: analysisError });
+    }
 
     return { success: true, position };
   } catch (error) {
