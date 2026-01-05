@@ -639,7 +639,11 @@ export default function AdminPanel() {
                 {(stats as any)?.winRate || 0}%
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                From {(stats as any)?.closedIdeas || 0} closed briefs
+                <span className="text-green-400">{(stats as any)?.wins || 0}W</span>
+                {' / '}
+                <span className="text-red-400">{(stats as any)?.losses || 0}L</span>
+                {' • '}
+                <span className="text-amber-400">{(stats as any)?.expiredIdeas || 0} expired</span>
               </p>
             </CardContent>
           </Card>

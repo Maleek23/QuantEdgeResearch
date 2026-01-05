@@ -1049,16 +1049,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allUsers = await storage.getAllUsers();
       const allIdeas = await storage.getAllTradeIdeas();
-      const closedIdeas = allIdeas.filter(i => i.outcomeStatus && i.outcomeStatus !== 'open');
-      const wonIdeas = closedIdeas.filter(i => i.outcomeStatus === 'hit_target');
+      
+      // Apply canonical filters: exclude corrupted trades, options, flow/lotto
+      const cleanIdeas = storage.applyCanonicalPerformanceFilters(allIdeas);
+      
+      // Get decided trades (wins + real losses) using canonical methodology
+      const decidedTrades = storage.getDecidedTrades(cleanIdeas, { includeAllVersions: true });
+      const wins = decidedTrades.filter((i: any) => i.outcomeStatus === 'hit_target');
+      const realLosses = decidedTrades.filter((i: any) => storage.isRealLoss(i));
+      
+      // Active = published AND outcome is open/pending
+      const activeIdeas = allIdeas.filter((i: any) => 
+        i.status === 'published' && (!i.outcomeStatus || i.outcomeStatus === 'open' || i.outcomeStatus === 'pending')
+      );
+      
+      // Expired trades (for transparency)
+      const expiredIdeas = cleanIdeas.filter((i: any) => i.outcomeStatus === 'expired');
+      
+      // Win rate = wins / (wins + real losses) - canonical methodology
+      const winRate = decidedTrades.length > 0 
+        ? Math.round((wins.length / decidedTrades.length) * 100) 
+        : 0;
       
       res.json({
         totalUsers: allUsers.length,
         premiumUsers: allUsers.filter(u => u.subscriptionTier === 'advanced' || u.subscriptionTier === 'pro' || u.subscriptionTier === 'admin').length,
         totalIdeas: allIdeas.length,
-        activeIdeas: allIdeas.filter(i => i.outcomeStatus === 'open').length,
-        closedIdeas: closedIdeas.length,
-        winRate: closedIdeas.length > 0 ? Math.round((wonIdeas.length / closedIdeas.length) * 100) : 0,
+        activeIdeas: activeIdeas.length,
+        closedIdeas: decidedTrades.length,
+        expiredIdeas: expiredIdeas.length,
+        wins: wins.length,
+        losses: realLosses.length,
+        winRate,
         dbSize: "N/A"
       });
     } catch (error) {
