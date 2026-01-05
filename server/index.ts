@@ -895,8 +895,8 @@ app.use((req, res, next) => {
       }
     });
     
-    // Autonomous OPTIONS bot scan every 15 minutes during US market hours
-    cron.default.schedule('*/15 * * * *', async () => {
+    // Autonomous OPTIONS bot scan every 5 minutes during US market hours
+    cron.default.schedule('*/5 * * * *', async () => {
       try {
         if (!isMarketHoursForFlow()) {
           return;
@@ -911,7 +911,7 @@ app.use((req, res, next) => {
       }
     });
     
-    log('🤖 Auto-Lotto Bot started - scanning options every 15 minutes (9:30 AM-4:00 PM ET)');
+    log('🤖 Auto-Lotto Bot started - scanning options every 5 minutes (9:30 AM-4:00 PM ET)');
     
     // Separate futures bot cron - runs INDEPENDENTLY during CME hours (nearly 24/7)
     cron.default.schedule('*/15 * * * *', async () => {
