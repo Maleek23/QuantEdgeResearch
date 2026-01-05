@@ -539,12 +539,6 @@ export async function validateConfluence(input: ConfluenceInput): Promise<Conflu
   
   let finalScore = totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
   
-  // 🎯 PRIORITY TICKER BOOST: User's favorite tickers get +15 to confluence score
-  if (PRIORITY_TICKERS.includes(input.symbol.toUpperCase())) {
-    finalScore = Math.min(100, finalScore + 15);
-    logger.info(`🎯 [CONFLUENCE] +15 priority boost for ${input.symbol} → ${finalScore.toFixed(1)}%`);
-  }
-  
   const passed = finalScore >= MIN_CONFLUENCE_SCORE;
   
   // Collect all reasons
