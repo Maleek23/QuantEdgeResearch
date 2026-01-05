@@ -1940,6 +1940,15 @@ export async function runAutonomousBotScan(): Promise<void> {
       const savedIdea = await storage.createTradeIdea(ideaData);
       logger.info(`🤖 [BOT] 📝 Post-save savedIdea: optionType=${savedIdea.optionType}, id=${savedIdea.id}`);
       
+      // 📱 SEND TRADE IDEA TO DISCORD (research alert) - separate from bot entry
+      try {
+        const { sendTradeIdeaToDiscord } = await import('./discord-service');
+        await sendTradeIdeaToDiscord(savedIdea as TradeIdea);
+        logger.info(`🤖 [BOT] 📨 Trade IDEA sent to Discord: ${savedIdea.symbol}`);
+      } catch (discordIdeaError) {
+        logger.warn(`🤖 [BOT] 📨 Trade IDEA Discord failed for ${savedIdea.symbol}:`, discordIdeaError);
+      }
+      
       const result = await executeTradeIdea(portfolio.id, savedIdea as TradeIdea);
       
       if (result.success && result.position) {

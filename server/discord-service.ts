@@ -7,10 +7,10 @@ import { logger } from './logger';
 const DISCORD_DISABLED = false;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// QUALITY GATE - Only MEDIUM/HIGH confidence, multi-validated alerts reach Discord
+// QUALITY GATE - Lowered for better coverage, more ideas to Discord
 // ═══════════════════════════════════════════════════════════════════════════
-const MIN_SIGNALS_REQUIRED = 4; // A grade minimum (4/5 signals = multi-engine validated)
-const MIN_CONFIDENCE_REQUIRED = 70; // Medium/High confidence only
+const MIN_SIGNALS_REQUIRED = 2; // B grade minimum (relaxed from 4)
+const MIN_CONFIDENCE_REQUIRED = 55; // Medium confidence (relaxed from 70)
 
 // Check if idea meets quality threshold to be sent to Discord
 // Requires BOTH high confidence AND multi-engine validation
