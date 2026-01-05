@@ -438,24 +438,14 @@ export default function WatchlistBotPage() {
             Trading Week: {weekRange}
           </p>
           <h1 className="text-2xl sm:text-3xl font-semibold flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-cyan-500/10 flex items-center justify-center">
-              <Calendar className="h-5 w-5 text-cyan-400" />
+            <div className="h-10 w-10 rounded-lg bg-pink-500/10 flex items-center justify-center">
+              <Bot className="h-5 w-5 text-pink-400" />
             </div>
-            Weekly Watchlist
+            Automations Hub
           </h1>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
-            onClick={() => sendToQuantBotMutation.mutate()}
-            disabled={sendToQuantBotMutation.isPending || watchlistItems.length === 0}
-            data-testid="button-send-discord"
-          >
-            <SiDiscord className="h-4 w-4 mr-2" />
-            {sendToQuantBotMutation.isPending ? "Sending..." : "Send to Discord"}
-          </Button>
-          <Button variant="outline" className="border-slate-700" onClick={() => refetchWatchlist()} data-testid="button-refresh-watchlist">
+          <Button variant="outline" className="border-slate-700" onClick={() => refetchBot()} data-testid="button-refresh-bot-main">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -463,18 +453,14 @@ export default function WatchlistBotPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full max-w-3xl grid-cols-5">
-          <TabsTrigger value="watchlist" className="gap-2" data-testid="tab-watchlist">
-            <Eye className="h-4 w-4" />
-            Watchlist
-          </TabsTrigger>
-          <TabsTrigger value="annual" className="gap-2" data-testid="tab-annual">
-            <Rocket className="h-4 w-4 text-emerald-400" />
-            Breakouts
-          </TabsTrigger>
+        <TabsList className="grid w-full max-w-3xl grid-cols-4">
           <TabsTrigger value="bot" className="gap-2" data-testid="tab-bot">
             <Bot className="h-4 w-4 text-pink-400" />
             Auto-Lotto
+          </TabsTrigger>
+          <TabsTrigger value="suggestions" className="gap-2" data-testid="tab-suggestions">
+            <Sparkles className="h-4 w-4 text-emerald-400" />
+            Bot Picks
           </TabsTrigger>
           <TabsTrigger value="prop-firm" className="gap-2" data-testid="tab-prop-firm">
             <Trophy className="h-4 w-4 text-amber-400" />
@@ -485,258 +471,6 @@ export default function WatchlistBotPage() {
             Strategy
           </TabsTrigger>
         </TabsList>
-
-        {/* Weekly Watchlist Tab */}
-        <TabsContent value="watchlist" className="space-y-6">
-          {/* Quick Add */}
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5 text-cyan-400" />
-                Add to Weekly Watchlist
-              </CardTitle>
-              <CardDescription>Track symbols you're watching this week for potential trades</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-3">
-                <Input
-                  placeholder="Symbol (e.g. AAPL, BTC, SPY)"
-                  value={newSymbol}
-                  onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddToWatchlist()}
-                  className="max-w-[200px]"
-                  data-testid="input-symbol"
-                />
-                <Select value={newAssetType} onValueChange={setNewAssetType}>
-                  <SelectTrigger className="w-[130px]" data-testid="select-asset-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="stock">Stock</SelectItem>
-                    <SelectItem value="crypto">Crypto</SelectItem>
-                    <SelectItem value="option">Option Play</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button 
-                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950"
-                  onClick={handleAddToWatchlist}
-                  disabled={!newSymbol.trim() || addWatchlistMutation.isPending}
-                  data-testid="button-add-watchlist"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Watchlist Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="stat-glass hover-elevate">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 rounded-lg bg-cyan-500/10">
-                  <TrendingUp className="h-6 w-6 text-cyan-400" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Stocks</p>
-                  <p className="text-2xl font-bold font-mono tabular-nums">{stockItems.length}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="stat-glass hover-elevate">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 rounded-lg bg-amber-500/10">
-                  <DollarSign className="h-6 w-6 text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Crypto</p>
-                  <p className="text-2xl font-bold font-mono tabular-nums">{cryptoItems.length}</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="stat-glass hover-elevate">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className="p-3 rounded-lg bg-purple-500/10">
-                  <Target className="h-6 w-6 text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Options</p>
-                  <p className="text-2xl font-bold font-mono tabular-nums">{optionItems.length}</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {watchlistLoading ? (
-            <Card className="glass-card">
-              <CardContent className="p-8 text-center">
-                <RefreshCw className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-                <p className="mt-2 text-muted-foreground">Loading watchlist...</p>
-              </CardContent>
-            </Card>
-          ) : watchlistItems.length === 0 ? (
-            <Card className="glass-card">
-              <CardContent className="p-8 text-center">
-                <Eye className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold">Start Your Weekly Watchlist</h3>
-                <p className="text-muted-foreground mt-2 max-w-md mx-auto">
-                  Add symbols you want to track this week. Monitor price levels, set alerts, and plan your trades.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {/* Stocks Section */}
-              {stockItems.length > 0 && (
-                <Card className="glass-card">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5 text-cyan-400" />
-                      Stocks ({stockItems.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {stockItems.map((item) => (
-                        <div 
-                          key={item.id} 
-                          className="flex items-center justify-between p-3 rounded-lg border bg-card hover-elevate"
-                          data-testid={`watchlist-item-${item.id}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 rounded bg-cyan-500/10">
-                              <TrendingUp className="h-4 w-4 text-cyan-500" />
-                            </div>
-                            <div>
-                              <span className="font-mono font-bold">{item.symbol}</span>
-                              {item.targetPrice && (
-                                <p className="text-xs text-muted-foreground">
-                                  Target: ${item.targetPrice}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {item.alertsEnabled ? (
-                              <Bell className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <BellOff className="h-4 w-4 text-muted-foreground" />
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeWatchlistMutation.mutate(item.id)}
-                              data-testid={`button-remove-${item.id}`}
-                            >
-                              <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Crypto Section */}
-              {cryptoItems.length > 0 && (
-                <Card className="glass-card">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <DollarSign className="h-5 w-5 text-amber-400" />
-                      Crypto ({cryptoItems.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {cryptoItems.map((item) => (
-                        <div 
-                          key={item.id} 
-                          className="flex items-center justify-between p-3 rounded-lg border bg-card hover-elevate"
-                          data-testid={`watchlist-item-${item.id}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 rounded bg-amber-500/10">
-                              <DollarSign className="h-4 w-4 text-amber-500" />
-                            </div>
-                            <div>
-                              <span className="font-mono font-bold">{item.symbol}</span>
-                              {item.targetPrice && (
-                                <p className="text-xs text-muted-foreground">
-                                  Target: ${item.targetPrice}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {item.alertsEnabled ? (
-                              <Bell className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <BellOff className="h-4 w-4 text-muted-foreground" />
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeWatchlistMutation.mutate(item.id)}
-                              data-testid={`button-remove-${item.id}`}
-                            >
-                              <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Options Section */}
-              {optionItems.length > 0 && (
-                <Card className="glass-card">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Target className="h-5 w-5 text-purple-400" />
-                      Option Plays ({optionItems.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {optionItems.map((item) => (
-                        <div 
-                          key={item.id} 
-                          className="flex items-center justify-between p-3 rounded-lg border bg-card hover-elevate"
-                          data-testid={`watchlist-item-${item.id}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 rounded bg-purple-500/10">
-                              <Target className="h-4 w-4 text-purple-500" />
-                            </div>
-                            <div>
-                              <span className="font-mono font-bold">{item.symbol}</span>
-                              {item.notes && (
-                                <p className="text-xs text-muted-foreground truncate max-w-[150px]">
-                                  {item.notes}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeWatchlistMutation.mutate(item.id)}
-                            data-testid={`button-remove-${item.id}`}
-                          >
-                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-        </TabsContent>
 
         {/* Auto-Lotto Bot Tab - Professional Broker Interface */}
         <TabsContent value="bot" className="space-y-6">
@@ -2615,259 +2349,193 @@ export default function WatchlistBotPage() {
           )}
         </TabsContent>
 
-        {/* Annual Breakout Watchlist Tab */}
-        <TabsContent value="annual" className="space-y-6">
+        {/* Bot Picks / Suggestions Tab */}
+        <TabsContent value="suggestions" className="space-y-6">
           <Card className="glass-card border-emerald-500/20">
             <CardHeader>
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <Rocket className="h-5 w-5 text-emerald-400" />
-                    2026 Breakout Candidates
+                    <Sparkles className="h-5 w-5 text-emerald-400" />
+                    Bot Suggestions & Market Analysis
                   </CardTitle>
                   <CardDescription>
-                    Curated stocks with $70+ price target potential. Track thesis and conviction over the year.
+                    Real-time trade ideas and market descriptions from the Auto-Lotto trading engine
                   </CardDescription>
                 </div>
-                <div className="flex gap-2">
-                  {annualBreakouts.length === 0 && (
-                    <Button 
-                      onClick={() => seedAnnualMutation.mutate()}
-                      disabled={seedAnnualMutation.isPending}
-                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950"
-                      data-testid="button-seed-annual"
-                    >
-                      {seedAnnualMutation.isPending ? (
-                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-4 w-4 mr-2" />
-                      )}
-                      Load Breakout Candidates
-                    </Button>
-                  )}
-                  {annualBreakouts.length > 0 && (
-                    <Button 
-                      variant="outline"
-                      className="border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
-                      onClick={() => sendBreakoutsToDiscordMutation.mutate()}
-                      disabled={sendBreakoutsToDiscordMutation.isPending}
-                      data-testid="button-send-breakouts-discord"
-                    >
-                      <SiDiscord className="h-4 w-4 mr-2" />
-                      {sendBreakoutsToDiscordMutation.isPending ? "Sending..." : "Send to Discord"}
-                    </Button>
-                  )}
-                  <Button variant="outline" onClick={() => refetchAnnual()} data-testid="button-refresh-annual">
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                </div>
+                <Button variant="outline" onClick={() => refetchBot()} data-testid="button-refresh-suggestions">
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
-              {annualLoading ? (
+              {botLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <RefreshCw className="h-8 w-8 animate-spin text-emerald-400" />
                 </div>
-              ) : annualBreakouts.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Rocket className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg font-medium mb-2">No breakout candidates loaded</p>
-                  <p className="text-sm">Click "Load Breakout Candidates" to seed the curated list of 20 high-potential stocks</p>
-                </div>
               ) : (
-                <div className="space-y-4">
-                  {/* Summary Stats */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <Card className="bg-slate-800/50 border-slate-700">
-                      <CardContent className="p-4">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Candidates</p>
-                        <p className="text-2xl font-bold text-emerald-400">{annualBreakouts.length}</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-slate-800/50 border-slate-700">
-                      <CardContent className="p-4">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider">High Conviction</p>
-                        <p className="text-2xl font-bold text-cyan-400">
-                          {annualBreakouts.filter(b => b.conviction === 'high').length}
-                        </p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-slate-800/50 border-slate-700">
-                      <CardContent className="p-4">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Sectors</p>
-                        <p className="text-2xl font-bold text-purple-400">
-                          {new Set(annualBreakouts.map(b => b.sector).filter(Boolean)).size}
-                        </p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-slate-800/50 border-slate-700">
-                      <CardContent className="p-4">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Avg Target</p>
-                        <p className="text-2xl font-bold text-amber-400">
-                          ${Math.round(annualBreakouts.reduce((sum, b) => sum + (b.yearlyTargetPrice || 0), 0) / annualBreakouts.length)}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Quick Add Form */}
-                  <Card className="bg-slate-800/30 border-slate-700/50 mb-4">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Plus className="h-4 w-4 text-emerald-400" />
-                        <span className="text-sm font-medium">Quick Add / Update</span>
+                <div className="space-y-6">
+                  {/* Current Market Regime */}
+                  <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-cyan-400" />
+                        Market Regime Analysis
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Options Strategy</p>
+                          <p className="text-sm font-medium text-pink-400">RSI(2) Mean Reversion + Volume Spike</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Targets oversold/overbought conditions with volume confirmation for high-probability setups
+                          </p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Futures Strategy</p>
+                          <p className="text-sm font-medium text-cyan-400">VWAP Institutional Flow + ADX Trend</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Micro NQ contracts with strict $2/point risk management during CME RTH sessions
+                          </p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700/50">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Crypto Strategy</p>
+                          <p className="text-sm font-medium text-amber-400">24/7 Momentum + Volatility Bands</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            BTC, ETH, SOL with dynamic position sizing based on volatility regime
+                          </p>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 md:grid-cols-7 gap-2">
-                        <Input
-                          placeholder="Symbol"
-                          value={newBreakout.symbol}
-                          onChange={(e) => setNewBreakout({ ...newBreakout, symbol: e.target.value.toUpperCase() })}
-                          className="h-8 text-sm bg-slate-900/50 border-slate-700"
-                          data-testid="input-breakout-symbol"
-                        />
-                        <Input
-                          placeholder="Sector"
-                          value={newBreakout.sector}
-                          onChange={(e) => setNewBreakout({ ...newBreakout, sector: e.target.value })}
-                          className="h-8 text-sm bg-slate-900/50 border-slate-700"
-                          data-testid="input-breakout-sector"
-                        />
-                        <Input
-                          placeholder="Entry $"
-                          value={newBreakout.entry}
-                          onChange={(e) => setNewBreakout({ ...newBreakout, entry: e.target.value })}
-                          className="h-8 text-sm bg-slate-900/50 border-slate-700"
-                          data-testid="input-breakout-entry"
-                        />
-                        <Input
-                          placeholder="Target $"
-                          value={newBreakout.target}
-                          onChange={(e) => setNewBreakout({ ...newBreakout, target: e.target.value })}
-                          className="h-8 text-sm bg-slate-900/50 border-slate-700"
-                          data-testid="input-breakout-target"
-                        />
-                        <Select value={newBreakout.conviction} onValueChange={(v) => setNewBreakout({ ...newBreakout, conviction: v })}>
-                          <SelectTrigger className="h-8 text-sm bg-slate-900/50 border-slate-700" data-testid="select-breakout-conviction">
-                            <SelectValue placeholder="Conviction" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="high">High</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="speculative">Speculative</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          placeholder="Thesis..."
-                          value={newBreakout.thesis}
-                          onChange={(e) => setNewBreakout({ ...newBreakout, thesis: e.target.value })}
-                          className="h-8 text-sm bg-slate-900/50 border-slate-700 md:col-span-1"
-                          data-testid="input-breakout-thesis"
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            const sym = newBreakout.symbol.trim().toUpperCase();
-                            if (!sym || sym.length < 1 || sym.length > 10) {
-                              toast({ title: "Invalid symbol", description: "Enter a valid stock ticker (1-10 chars)", variant: "destructive" });
-                              return;
-                            }
-                            addBreakoutMutation.mutate(newBreakout);
-                          }}
-                          disabled={!newBreakout.symbol.trim() || addBreakoutMutation.isPending}
-                          className="h-8 bg-emerald-500 hover:bg-emerald-400 text-slate-950"
-                          data-testid="button-add-breakout"
-                        >
-                          {addBreakoutMutation.isPending ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Add new stocks or update existing ones. Changes persist across sessions.
-                      </p>
                     </CardContent>
                   </Card>
 
-                  {/* Breakout Table - Compact to fit 15-20 items */}
-                  <Table className="text-sm">
-                    <TableHeader>
-                      <TableRow className="border-slate-700">
-                        <TableHead className="py-2 w-8"></TableHead>
-                        <TableHead className="py-2">Symbol</TableHead>
-                        <TableHead className="py-2">Sector</TableHead>
-                        <TableHead className="py-2 text-right">Entry</TableHead>
-                        <TableHead className="py-2 text-right">Target</TableHead>
-                        <TableHead className="py-2 text-right">Upside</TableHead>
-                        <TableHead className="py-2">Conviction</TableHead>
-                        <TableHead className="py-2 max-w-[250px]">Thesis</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {annualBreakouts.map((stock) => {
-                        const upside = stock.yearlyTargetPrice && stock.startOfYearPrice
-                          ? ((stock.yearlyTargetPrice - stock.startOfYearPrice) / stock.startOfYearPrice) * 100
-                          : 0;
-                        return (
-                          <TableRow key={stock.id} className="border-slate-700/50 hover:bg-slate-800/30" data-testid={`row-breakout-${stock.symbol}`}>
-                            <TableCell className="py-1.5 w-8">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-red-400/50 hover:text-red-400 hover:bg-red-500/10"
-                                onClick={() => removeBreakoutMutation.mutate(stock.symbol)}
-                                disabled={removeBreakoutMutation.isPending}
-                                data-testid={`button-remove-breakout-${stock.symbol}`}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </TableCell>
-                            <TableCell className="py-1.5 font-mono font-bold text-cyan-400" data-testid={`text-symbol-${stock.symbol}`}>
-                              {stock.symbol}
-                            </TableCell>
-                            <TableCell className="py-1.5">
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0" data-testid={`badge-sector-${stock.symbol}`}>
-                                {stock.sector || 'Unknown'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="py-1.5 text-right font-mono text-xs" data-testid={`text-entry-${stock.symbol}`}>
-                              ${stock.startOfYearPrice?.toFixed(2) || '-'}
-                            </TableCell>
-                            <TableCell className="py-1.5 text-right font-mono text-xs text-emerald-400" data-testid={`text-target-${stock.symbol}`}>
-                              ${stock.yearlyTargetPrice?.toFixed(0) || '-'}
-                            </TableCell>
-                            <TableCell className="py-1.5 text-right">
-                              <Badge 
-                                className={cn(
-                                  "font-mono text-[10px] px-1.5 py-0",
-                                  upside >= 100 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
-                                  upside >= 50 ? "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" :
-                                  "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                                )}
-                                data-testid={`badge-upside-${stock.symbol}`}
-                              >
-                                +{upside.toFixed(0)}%
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="py-1.5">
-                              <Badge 
-                                variant="outline"
-                                className={cn(
-                                  "text-[10px] px-1.5 py-0",
-                                  stock.conviction === 'high' ? "border-emerald-500 text-emerald-400" :
-                                  stock.conviction === 'medium' ? "border-cyan-500 text-cyan-400" :
-                                  "border-amber-500 text-amber-400"
-                                )}
-                                data-testid={`badge-conviction-${stock.symbol}`}
-                              >
-                                {stock.conviction || 'medium'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="py-1.5 max-w-[250px] text-xs text-muted-foreground truncate" data-testid={`text-thesis-${stock.symbol}`}>
-                              {stock.thesis || '-'}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                  {/* Recent Bot Trade Ideas */}
+                  <Card className="bg-slate-800/30 border-slate-700/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-amber-400" />
+                        Recent Bot Signals ({openPositions.length + closedPositions.length} total trades)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {openPositions.length === 0 && closedPositions.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Bot className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                          <p className="text-lg font-medium mb-2">No trades yet</p>
+                          <p className="text-sm">The bot will generate signals when market conditions are favorable</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {/* Show most recent 5 open positions */}
+                          {openPositions.slice(0, 5).map((pos) => (
+                            <div 
+                              key={pos.id} 
+                              className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5"
+                              data-testid={`suggestion-${pos.id}`}
+                            >
+                              <div className="flex items-center justify-between gap-4 flex-wrap">
+                                <div className="flex items-center gap-3">
+                                  <Badge className={cn(
+                                    "px-2 py-0.5 text-xs font-mono",
+                                    pos.assetType === 'option' ? "bg-pink-500/20 text-pink-400" :
+                                    pos.assetType === 'future' ? "bg-cyan-500/20 text-cyan-400" :
+                                    "bg-amber-500/20 text-amber-400"
+                                  )}>
+                                    {pos.assetType?.toUpperCase()}
+                                  </Badge>
+                                  <span className="font-mono font-bold">{pos.symbol}</span>
+                                  <Badge variant="outline" className="text-emerald-400 border-emerald-500/30">
+                                    OPEN
+                                  </Badge>
+                                </div>
+                                <div className="text-right text-sm">
+                                  <span className="text-muted-foreground">Entry: </span>
+                                  <span className="font-mono">${Number(pos.entryPrice).toFixed(2)}</span>
+                                </div>
+                              </div>
+                              {pos.notes && (
+                                <p className="text-xs text-muted-foreground mt-2 italic">
+                                  {pos.notes}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                          
+                          {/* Show most recent 5 closed positions */}
+                          {closedPositions.slice(0, 5).map((pos) => (
+                            <div 
+                              key={pos.id} 
+                              className={cn(
+                                "p-3 rounded-lg border",
+                                Number(pos.realizedPnL) >= 0 
+                                  ? "border-green-500/30 bg-green-500/5" 
+                                  : "border-red-500/30 bg-red-500/5"
+                              )}
+                              data-testid={`closed-suggestion-${pos.id}`}
+                            >
+                              <div className="flex items-center justify-between gap-4 flex-wrap">
+                                <div className="flex items-center gap-3">
+                                  <Badge className={cn(
+                                    "px-2 py-0.5 text-xs font-mono",
+                                    pos.assetType === 'option' ? "bg-pink-500/20 text-pink-400" :
+                                    pos.assetType === 'future' ? "bg-cyan-500/20 text-cyan-400" :
+                                    "bg-amber-500/20 text-amber-400"
+                                  )}>
+                                    {pos.assetType?.toUpperCase()}
+                                  </Badge>
+                                  <span className="font-mono font-bold">{pos.symbol}</span>
+                                  <Badge variant="outline" className={cn(
+                                    Number(pos.realizedPnL) >= 0 ? "text-green-400 border-green-500/30" : "text-red-400 border-red-500/30"
+                                  )}>
+                                    {Number(pos.realizedPnL) >= 0 ? 'WIN' : 'LOSS'}
+                                  </Badge>
+                                </div>
+                                <div className="text-right text-sm">
+                                  <span className={cn("font-mono font-bold", Number(pos.realizedPnL) >= 0 ? "text-green-400" : "text-red-400")}>
+                                    {Number(pos.realizedPnL) >= 0 ? '+' : ''}{formatCurrency(Number(pos.realizedPnL))}
+                                  </span>
+                                </div>
+                              </div>
+                              {pos.notes && (
+                                <p className="text-xs text-muted-foreground mt-2 italic">
+                                  {pos.notes}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Bot Logic Description */}
+                  <Card className="bg-slate-800/30 border-slate-700/50">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-purple-400" />
+                        How the Bot Generates Picks
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm text-muted-foreground">
+                      <div className="flex items-start gap-3">
+                        <Badge className="bg-pink-500/20 text-pink-400 px-2">1</Badge>
+                        <p><span className="text-foreground font-medium">Signal Detection:</span> Scans for RSI(2) extremes, volume spikes, and VWAP deviations across watchlist assets</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Badge className="bg-cyan-500/20 text-cyan-400 px-2">2</Badge>
+                        <p><span className="text-foreground font-medium">Regime Filter:</span> Confirms ADX trend strength and checks market session timing (options during RTH, crypto 24/7)</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Badge className="bg-amber-500/20 text-amber-400 px-2">3</Badge>
+                        <p><span className="text-foreground font-medium">Position Sizing:</span> Calculates optimal size based on account balance, max 5% risk per trade, respects position limits</p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Badge className="bg-emerald-500/20 text-emerald-400 px-2">4</Badge>
+                        <p><span className="text-foreground font-medium">Execution:</span> Opens paper trade with defined stop-loss and target, monitors until exit condition met</p>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
             </CardContent>
@@ -2879,11 +2547,11 @@ export default function WatchlistBotPage() {
               <div className="flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-muted-foreground">
-                  <p className="font-medium text-amber-400 mb-1">Research & Educational Purposes Only</p>
+                  <p className="font-medium text-amber-400 mb-1">Paper Trading & Educational Purposes Only</p>
                   <p>
-                    These breakout candidates are curated for research and educational tracking only. 
-                    Price targets are speculative and based on analyst estimates and technical analysis.
-                    This is NOT financial advice. Always do your own research before investing.
+                    All bot trades are simulated paper trades for research and learning. 
+                    Past performance does not guarantee future results.
+                    This is NOT financial advice. Always do your own research.
                   </p>
                 </div>
               </div>
