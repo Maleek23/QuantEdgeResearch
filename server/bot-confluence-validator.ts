@@ -63,7 +63,10 @@ const CONFLUENCE_WEIGHTS = {
   regime: 10,
 };
 
-const MIN_CONFLUENCE_SCORE = 45; // Lowered from 55 to allow more trades through while maintaining multi-layer validation
+const MIN_CONFLUENCE_SCORE = 35; // Aggressive mode - lowered from 45 to find more opportunities
+
+// Priority tickers get +15 boost to confluence score (user's favorites)
+const PRIORITY_TICKERS = ['BIDU', 'SOFI', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META', 'TSLA', 'NVDA', 'AMD', 'AAPL', 'GOOGL', 'MSFT', 'SPY'];
 
 /**
  * LAYER 1: GREEKS ANALYSIS
@@ -168,7 +171,7 @@ async function validateGreeks(input: ConfluenceInput): Promise<LayerResult> {
   }
   
   return {
-    passed: score >= 50,
+    passed: score >= 40, // Lowered from 50 for more aggressive entry
     score: Math.max(0, Math.min(100, score)),
     signals,
     weight: CONFLUENCE_WEIGHTS.greeks,
@@ -294,7 +297,7 @@ async function validateTechnical(input: ConfluenceInput): Promise<LayerResult> {
   }
   
   return {
-    passed: score >= 45,
+    passed: score >= 35, // Lowered from 45 for aggressive mode
     score: Math.max(0, Math.min(100, score)),
     signals,
     weight: CONFLUENCE_WEIGHTS.technical,
@@ -534,7 +537,14 @@ export async function validateConfluence(input: ConfluenceInput): Promise<Conflu
     totalWeight += result.weight;
   }
   
-  const finalScore = totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
+  let finalScore = totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
+  
+  // 🎯 PRIORITY TICKER BOOST: User's favorite tickers get +15 to confluence score
+  if (PRIORITY_TICKERS.includes(input.symbol.toUpperCase())) {
+    finalScore = Math.min(100, finalScore + 15);
+    logger.info(`🎯 [CONFLUENCE] +15 priority boost for ${input.symbol} → ${finalScore.toFixed(1)}%`);
+  }
+  
   const passed = finalScore >= MIN_CONFLUENCE_SCORE;
   
   // Collect all reasons
@@ -553,8 +563,8 @@ export async function validateConfluence(input: ConfluenceInput): Promise<Conflu
     recommendation = 'EXECUTE';
   } else if (passed) {
     recommendation = 'EXECUTE';
-  } else if (finalScore >= 45 && finalScore < MIN_CONFLUENCE_SCORE) {
-    // Borderline - might suggest adjustments
+  } else if (finalScore >= 25 && finalScore < MIN_CONFLUENCE_SCORE) {
+    // Borderline - might suggest adjustments (lowered from 45 to 25)
     recommendation = 'ADJUST_STRIKE';
     
     // If technical says direction is wrong, suggest flip
