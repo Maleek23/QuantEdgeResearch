@@ -1047,8 +1047,8 @@ app.use((req, res, next) => {
           return;
         }
         
-        // Check if it's 8:00 AM CT (hour = 8, minute = 0-4 to catch the window)
-        const isDailySummaryTime = hour === 8 && minute >= 0 && minute < 5;
+        // Check if it's 8:30 AM CT (hour = 8, minute = 30-34 to catch the window)
+        const isDailySummaryTime = hour === 8 && minute >= 30 && minute < 35;
         
         if (!isDailySummaryTime) {
           return;
@@ -1077,7 +1077,7 @@ app.use((req, res, next) => {
       }
     });
     
-    log('📨 Daily Summary started - sending top ideas to Discord at 8:00 AM CT weekdays');
+    log('📨 Daily Summary started - sending top ideas to Discord at 8:30 AM CT weekdays');
     
     // Next Week Premium Picks to Discord on Sunday at 5:00 PM CT (1 hour before regular watchlist)
     let lastNextWeekPicksDate = '';

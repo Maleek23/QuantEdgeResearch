@@ -1780,8 +1780,8 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
   }
 }
 
-// Send daily summary of top trade ideas (scheduled for 7:00 AM CT)
-// FORMAT: Ticker + C/P + Strike + Expiry, Entry/Stop/Target, Confidence, Analysis
+// Send daily summary of top trade ideas (scheduled for 8:30 AM CT)
+// FORMAT: Compact one-liner style for quick scanning
 export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<void> {
   if (DISCORD_DISABLED) return;
   
@@ -1797,108 +1797,94 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
     const nowCT = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
     const dateStr = nowCT.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     
-    // Filter to OPTIONS ONLY (calls/puts) with medium/high confidence (70%+) and multi-engine validation (4+ signals)
+    // Filter to open ideas with decent confidence (60%+)
     const topIdeas = ideas
       .filter(i => 
         i.outcomeStatus === 'open' && 
-        i.assetType === 'option' &&  // Only calls and puts - NO shares
-        (i.confidenceScore || 50) >= 70 && // Medium/High confidence only
-        (i.qualitySignals?.length || 0) >= 4 // Multi-engine validated
+        (i.confidenceScore || 50) >= 60
       )
       .sort((a, b) => {
-        // Sort by confidence then signal count
+        // Sort by confidence then R:R
         const aConf = a.confidenceScore || 50;
         const bConf = b.confidenceScore || 50;
         if (bConf !== aConf) return bConf - aConf;
-        return (b.qualitySignals?.length || 0) - (a.qualitySignals?.length || 0);
+        return (b.riskRewardRatio || 1) - (a.riskRewardRatio || 1);
       })
       .slice(0, 5);
     
     if (topIdeas.length === 0) {
-      logger.info('📭 No high-confidence options plays for daily preview (requires 70%+ conf, 4+ signals)');
+      logger.info('📭 No trade ideas for daily preview');
       return;
     }
     
-    // Send each play as a separate embed for cleaner formatting
-    const embeds: DiscordEmbed[] = [];
+    // Build compact one-liner format like user wants
+    const tradeLines: string[] = [];
+    let longCount = 0;
+    let shortCount = 0;
+    let totalSignals = 0;
+    let totalRR = 0;
     
     for (const idea of topIdeas) {
-      const isCall = idea.optionType === 'call';
-      const cpLabel = isCall ? 'C' : 'P';
-      const color = isCall ? 0x22c55e : 0xef4444; // Green for calls, red for puts
+      const isLong = idea.direction === 'long';
+      const arrow = isLong ? '🟢' : '🔴';
+      longCount += isLong ? 1 : 0;
+      shortCount += isLong ? 0 : 1;
       
-      // Clean option contract format: AAPL 200C 01/15
-      const strike = idea.strikePrice ? `${idea.strikePrice}` : '';
-      const exp = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
-      const contractLabel = `${idea.symbol} ${strike}${cpLabel} ${exp}`;
+      // Asset type label
+      let assetLabel = '';
+      if (idea.assetType === 'option') {
+        const cpLabel = idea.optionType === 'call' ? 'CALL' : 'PUT';
+        const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
+        const exp = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
+        assetLabel = `${cpLabel} ${strike} ${exp}`;
+      } else if (idea.assetType === 'crypto') {
+        assetLabel = 'CRYPTO';
+      } else {
+        assetLabel = 'SHARES';
+      }
       
       // Calculate gain %
-      const gainPct = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(0);
+      const gainPct = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(1);
       
       // Confidence grade
       const confidence = idea.confidenceScore || 50;
       const signalCount = idea.qualitySignals?.length || 0;
-      const grade = confidence >= 85 && signalCount >= 5 ? 'A+' : 
-                    confidence >= 80 && signalCount >= 4 ? 'A' : 
-                    confidence >= 70 && signalCount >= 4 ? 'B+' : 'B';
+      totalSignals += signalCount;
+      totalRR += idea.riskRewardRatio || 1;
       
-      // Extract analysis points for market structure
-      const analysisText = idea.analysis || '';
+      const grade = confidence >= 90 ? 'A+' : 
+                    confidence >= 80 ? 'A' : 
+                    confidence >= 70 ? 'B' : 'C';
       
-      // Parse key technical levels from analysis or generate from data
-      let structureAnalysis = '';
-      if (analysisText.length > 20) {
-        // Extract first 300 chars of analysis
-        structureAnalysis = analysisText.substring(0, 300).replace(/\n/g, ' ');
-        if (analysisText.length > 300) structureAnalysis += '...';
-      } else {
-        // Generate basic structure analysis
-        const direction = isCall ? 'Bullish' : 'Bearish';
-        const entryType = idea.source === 'flow' ? 'Unusual flow detected' : 
-                         idea.source === 'quant' ? 'RSI/Volume signals aligned' :
-                         idea.source === 'ai' ? 'AI pattern recognition' : 'Multi-engine confirmation';
-        structureAnalysis = `${direction} setup. ${entryType}. Entry near $${idea.entryPrice.toFixed(2)} support/resistance level.`;
-      }
+      // Source icon
+      const sourceIcon = idea.source === 'ai' ? '🧠' : 
+                        idea.source === 'flow' ? '📊' : 
+                        idea.source === 'quant' ? '📈' : '⚡';
       
-      const embed: DiscordEmbed = {
-        title: `${isCall ? '📈' : '📉'} ${contractLabel}`,
-        description: `${isCall ? 'CALL' : 'PUT'} Option`,
-        color,
-        fields: [
-          {
-            name: '💰 Entry',
-            value: `$${idea.entryPrice.toFixed(2)}`,
-            inline: true
-          },
-          {
-            name: '🛡️ Stop',
-            value: `$${idea.stopLoss.toFixed(2)}`,
-            inline: true
-          },
-          {
-            name: '🎯 Target',
-            value: `$${idea.targetPrice.toFixed(2)} (+${gainPct}%)`,
-            inline: true
-          },
-          {
-            name: `⭐ Confidence: ${grade} (${confidence}%)`,
-            value: `${signalCount}/5 signals confirmed`,
-            inline: false
-          },
-          {
-            name: '📊 Analysis',
-            value: structureAnalysis,
-            inline: false
-          }
-        ]
-      };
-      
-      embeds.push(embed);
+      // Compact one-liner: 🟢 AAPL CALL $280 01/16 | $1.19→$1.49 (+25.0%) | A (4/5) 🧠
+      const line = `${arrow} **${idea.symbol}** ${assetLabel} | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${grade} (${signalCount}/5) ${sourceIcon}`;
+      tradeLines.push(line);
     }
     
+    // Calculate averages
+    const avgSignals = (totalSignals / topIdeas.length).toFixed(0);
+    const avgRR = (totalRR / topIdeas.length).toFixed(1);
+    
+    // Build the full message with stats
+    const statsLine = `📊 **Total Open**: ${topIdeas.length} ideas | 📈 **Direction**: ${longCount} Long • ${shortCount} Short | ⭐ **Avg Signals**: ${avgSignals}/5 | R:R ${avgRR}:1`;
+    
+    const embed: DiscordEmbed = {
+      title: `📈 Daily Trading Preview - ${dateStr}`,
+      description: `**Top ${topIdeas.length} Trade Ideas Today**\n\n${tradeLines.join('\n')}\n\n${statsLine}`,
+      color: 0x22c55e,
+      footer: {
+        text: 'QuantEdge Research • View full details at Trade Desk'
+      }
+    };
+    
     const message: DiscordMessage = {
-      content: `☀️ **DAILY OPTIONS PREVIEW** │ ${dateStr}\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n*${topIdeas.length} high-confidence plays for today*`,
-      embeds: embeds
+      content: '',
+      embeds: [embed]
     };
     
     const response = await fetch(webhookUrl, {
