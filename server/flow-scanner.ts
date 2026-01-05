@@ -983,27 +983,4 @@ export async function scanUnusualOptionsFlow(holdingPeriod?: string, forceGenera
 export function isMarketHoursForFlow(): boolean {
   // FORCE OPEN FOR DEVELOPMENT - remove this line for production
   return true;
-  
-  const now = new Date();
-  const etTime = formatInTimeZone(now, 'America/New_York', 'yyyy-MM-dd HH:mm:ss EEEE');
-  const parts = etTime.split(' ');
-  const dayName = parts[2];
-  const timePart = parts[1];
-  const etHour = parseInt(timePart.split(':')[0]);
-  const etMinute = parseInt(timePart.split(':')[1]);
-
-  // Skip weekends
-  if (dayName === 'Saturday' || dayName === 'Sunday') {
-    return false;
-  }
-
-  // Market hours: 9:30 AM - 4:00 PM ET
-  if (etHour < 9 || (etHour === 9 && etMinute < 30)) {
-    return false; // Before market open
-  }
-  if (etHour >= 16) {
-    return false; // After market close
-  }
-
-  return true;
 }
