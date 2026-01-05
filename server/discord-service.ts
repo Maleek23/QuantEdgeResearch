@@ -321,7 +321,13 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
     return;
   }
   
-  // QUALITY GATE: Only send B grade or higher (3+ signals or 65%+ confidence)
+  // QUALITY GATE: Only send OPTIONS with high/medium confidence
+  // EXCLUDE: penny stocks, moonshots, shares - only options go to Discord
+  if (idea.assetType !== 'option') {
+    logger.info(`📨 [QUALITY-GATE] Skipping ${idea.symbol} - non-option (${idea.assetType}) - only OPTIONS go to Discord`);
+    return;
+  }
+  
   if (!meetsQualityThreshold(idea)) {
     const signalCount = idea.qualitySignals?.length || 0;
     logger.info(`📨 [QUALITY-GATE] Skipping ${idea.symbol} - only ${signalCount}/5 signals (below B grade threshold)`);
@@ -517,16 +523,26 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
     return;
   }
   
-  // QUALITY GATE: Only send B grade or higher (3+ signals or 65%+ confidence)
-  const qualityIdeas = ideas.filter(idea => meetsQualityThreshold(idea));
+  // QUALITY GATE: Only send OPTIONS with high/medium confidence (70%+, 4+ signals)
+  // EXCLUDE: penny stocks, moonshots, shares - only options go to Discord
+  const qualityIdeas = ideas.filter(idea => {
+    // Must be an OPTION (not shares, penny stocks, or crypto)
+    if (idea.assetType !== 'option') {
+      return false;
+    }
+    // Must meet quality threshold (70%+ confidence, 4+ signals)
+    return meetsQualityThreshold(idea);
+  });
   
   if (qualityIdeas.length === 0) {
-    logger.info(`📨 [QUALITY-GATE] No B+ grade ideas in batch of ${ideas.length} - skipping Discord`);
+    const nonOptions = ideas.filter(i => i.assetType !== 'option').length;
+    const lowQuality = ideas.filter(i => i.assetType === 'option' && !meetsQualityThreshold(i)).length;
+    logger.info(`📨 [QUALITY-GATE] No high-confidence OPTIONS in batch of ${ideas.length} (${nonOptions} non-options, ${lowQuality} low-grade options) - skipping Discord`);
     return;
   }
   
   if (qualityIdeas.length < ideas.length) {
-    logger.info(`📨 [QUALITY-GATE] Filtered ${ideas.length - qualityIdeas.length} low-signal ideas, sending ${qualityIdeas.length}`);
+    logger.info(`📨 [QUALITY-GATE] Filtered to ${qualityIdeas.length} high-confidence OPTIONS (excluded ${ideas.length - qualityIdeas.length} non-options/low-grade)`);
   }
   
   // Use filtered ideas from here
