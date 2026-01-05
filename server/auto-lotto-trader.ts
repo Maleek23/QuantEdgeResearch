@@ -177,6 +177,20 @@ const PROP_FIRM_MAX_CONTRACTS = 2; // Max 2 contracts at a time
 const PROP_FIRM_STOP_POINTS_NQ = 15; // 15 point stop = $300 risk per contract
 const PROP_FIRM_TARGET_POINTS_NQ = 30; // 2:1 R:R minimum
 
+// 🎯 PRIORITY TICKERS - These get scanned FIRST before other tickers
+// User's favorite plays that should always be checked
+const PRIORITY_TICKERS = [
+  'BIDU', 'SOFI', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META', // User's explicit priority list
+  'TSLA', 'NVDA', 'AMD', 'AAPL', 'GOOGL', 'MSFT', // High-liquidity favorites
+  'SPY', 'IWM', 'DIA', 'COIN', 'MARA', 'RIOT', 'ARM', 'SNOW', // High-vol tickers
+];
+
+// Rate limiting helper to avoid Tradier API quota violations
+const API_DELAY_MS = 200; // 200ms between Tradier calls (max 5/second)
+async function rateLimitDelay(): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, API_DELAY_MS));
+}
+
 let optionsPortfolio: PaperPortfolio | null = null;
 let futuresPortfolio: PaperPortfolio | null = null;
 let cryptoPortfolio: PaperPortfolio | null = null;
@@ -1816,17 +1830,53 @@ export async function runAutonomousBotScan(): Promise<void> {
     // 🔍 DYNAMIC MOVERS: Get top movers from market scanner first (big price moves = opportunity)
     const dynamicMovers = await getDynamicMovers();
     if (dynamicMovers.length > 0) {
-      logger.info(`🔍 [BOT] Scanning ${dynamicMovers.length} dynamic movers from market scanner FIRST (prioritized)`);
+      logger.info(`🔍 [BOT] Scanning ${dynamicMovers.length} dynamic movers from market scanner`);
     }
     
-    // Combine dynamic movers (priority) with static list, deduplicated
-    const combinedTickers = Array.from(new Set([...dynamicMovers, ...BOT_SCAN_TICKERS]));
-    logger.info(`🤖 [BOT] Total scan universe: ${combinedTickers.length} tickers (${dynamicMovers.length} dynamic + static list)`);
+    // 🎯 PRIORITY ORDER: User's priority tickers FIRST, then dynamic movers, then static list
+    // Deduplicate while preserving order (priority tickers stay at front)
+    const seenTickers = new Set<string>();
+    const orderedTickers: string[] = [];
+    
+    // 1. Add priority tickers first (user's favorites - BIDU, SOFI, UUUU, AMZN, QQQ, INTC, META, etc.)
+    for (const ticker of PRIORITY_TICKERS) {
+      if (!seenTickers.has(ticker)) {
+        seenTickers.add(ticker);
+        orderedTickers.push(ticker);
+      }
+    }
+    
+    // 2. Add dynamic movers (stocks showing momentum today)
+    for (const ticker of dynamicMovers) {
+      if (!seenTickers.has(ticker)) {
+        seenTickers.add(ticker);
+        orderedTickers.push(ticker);
+      }
+    }
+    
+    // 3. Add remaining static list (will be scanned if time/quota allows)
+    for (const ticker of BOT_SCAN_TICKERS) {
+      if (!seenTickers.has(ticker)) {
+        seenTickers.add(ticker);
+        orderedTickers.push(ticker);
+      }
+    }
+    
+    const combinedTickers = orderedTickers;
+    logger.info(`🤖 [BOT] Scan order: ${PRIORITY_TICKERS.length} priority → ${dynamicMovers.length} movers → ${BOT_SCAN_TICKERS.length} static = ${combinedTickers.length} total`);
     
     // 📋 CATALYST SCORE CACHE - Avoid redundant DB calls during scan
     const catalystScoreCache = new Map<string, { score: number; summary: string; catalystCount: number }>();
     
+    let tickerIndex = 0;
     for (const ticker of combinedTickers) {
+      tickerIndex++;
+      
+      // 🎯 LOG PRIORITY TICKERS being scanned
+      if (PRIORITY_TICKERS.includes(ticker)) {
+        logger.info(`🎯 [BOT] Scanning PRIORITY ticker ${tickerIndex}/${PRIORITY_TICKERS.length}: ${ticker}`);
+      }
+      
       // REMOVED: No longer blocking symbols with open positions
       // Bot can now PYRAMID into winning positions or add new setups on same symbol
       if (openSymbols.has(ticker)) {
@@ -1852,6 +1902,9 @@ export async function runAutonomousBotScan(): Promise<void> {
           catalystData = { score: 0, summary: 'Catalyst check unavailable', catalystCount: 0 };
         }
       }
+      
+      // 🔄 RATE LIMITING: Add delay between API calls to avoid Tradier quota violations
+      await rateLimitDelay();
       
       const opportunities = await scanForOpportunities(ticker);
       
