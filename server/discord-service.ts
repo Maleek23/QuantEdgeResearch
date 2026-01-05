@@ -107,13 +107,13 @@ export function isSymbolOnCooldown(symbol: string, source: string): boolean {
  * #trade-alerts       │ DISCORD_WEBHOOK_URL          │ AI/Hybrid/Flow trade ideas
  *                     │                              │ Daily summaries, batch alerts
  * ───────────────────────────────────────────────────────────────────────────
- * #quantbot           │ DISCORD_WEBHOOK_QUANTBOT     │ Quant engine trades only
- *                     │                              │ RSI2, VWAP, Volume signals
+ * #quantbot           │ DISCORD_WEBHOOK_QUANTBOT     │ Bot entries, exits & bot gains
+ *                     │                              │ Auto-Lotto Bot paper trading
  * ───────────────────────────────────────────────────────────────────────────
  * #lotto              │ DISCORD_WEBHOOK_LOTTO        │ Lotto detector alerts
  *                     │                              │ Bot entries & exits (paper trading)
  * ───────────────────────────────────────────────────────────────────────────
- * #gains              │ DISCORD_WEBHOOK_GAINS        │ Bot winning trades only
+ * #gains              │ DISCORD_WEBHOOK_GAINS        │ AI/Quant/Manual winning trades
  * ───────────────────────────────────────────────────────────────────────────
  * #futures            │ DISCORD_WEBHOOK_FUTURE_TRADES│ NQ/GC futures trades only
  * ───────────────────────────────────────────────────────────────────────────
@@ -1732,7 +1732,9 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
 
 /**
  * 💰 Send Gains Notification to Discord
- * Posts winning trades to the DISCORD_WEBHOOK_GAINS channel
+ * Routes to proper channel based on source:
+ * - Bot gains → DISCORD_WEBHOOK_QUANTBOT (#quantbot)
+ * - AI/Quant/Manual gains → DISCORD_WEBHOOK_GAINS (#gains)
  */
 export async function sendGainsToDiscord(trade: {
   symbol: string;
@@ -1749,7 +1751,11 @@ export async function sendGainsToDiscord(trade: {
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_GAINS;
+  // Route bot gains to #quantbot, other gains to #gains
+  const isBot = trade.source === 'bot' || trade.source === 'lotto';
+  const webhookUrl = isBot 
+    ? (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL)
+    : process.env.DISCORD_WEBHOOK_GAINS;
   
   if (!webhookUrl) {
     logger.info('⚠️ DISCORD_WEBHOOK_GAINS not configured - skipping gains alert');
@@ -1834,8 +1840,12 @@ export async function sendGainsToDiscord(trade: {
       timestamp: new Date().toISOString()
     };
     
+    // Use correct channel header based on routing
+    const channelHeader = isBot ? CHANNEL_HEADERS.QUANTBOT : CHANNEL_HEADERS.GAINS;
+    const botLabel = isBot ? '🤖 BOT WIN' : 'WINNER';
+    
     const message: DiscordMessage = {
-      content: `${gainEmoji} **WINNER** → ${trade.symbol} **+${trade.percentGain.toFixed(1)}%** │ ${CHANNEL_HEADERS.GAINS}`,
+      content: `${gainEmoji} **${botLabel}** → ${trade.symbol} **+${trade.percentGain.toFixed(1)}%** │ ${channelHeader}`,
       embeds: [embed]
     };
     
@@ -1848,7 +1858,8 @@ export async function sendGainsToDiscord(trade: {
     });
     
     if (response.ok) {
-      logger.info(`✅ Discord gains alert sent: ${trade.symbol} +${trade.percentGain.toFixed(1)}%`);
+      const channelName = isBot ? '#quantbot' : '#gains';
+      logger.info(`✅ Discord ${channelName} alert sent: ${trade.symbol} +${trade.percentGain.toFixed(1)}%`);
     } else {
       logger.error(`❌ Discord gains webhook failed: ${response.status}`);
     }
