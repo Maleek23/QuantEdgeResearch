@@ -1,4 +1,5 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
+import { getMarketStatus } from "@/lib/market-hours";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -186,6 +187,18 @@ function Router() {
 function AuthHeader() {
   const { user, logout, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
+  const [marketStatus, setMarketStatus] = useState({ isOpen: false, statusMessage: 'Checking...' });
+  
+  // Update market status every 30 seconds
+  useEffect(() => {
+    const updateStatus = () => {
+      const status = getMarketStatus();
+      setMarketStatus(status);
+    };
+    updateStatus();
+    const interval = setInterval(updateStatus, 30000);
+    return () => clearInterval(interval);
+  }, []);
   
   const handleLogout = () => {
     logout();
@@ -199,8 +212,8 @@ function AuthHeader() {
       <div className="flex items-center gap-3">
         <SidebarTrigger data-testid="button-mobile-menu" className="lg:hidden" />
         <span className="hidden lg:flex items-center gap-2 text-xs font-mono text-muted-foreground">
-          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-          MARKET CLOSED
+          <span className={`h-1.5 w-1.5 rounded-full ${marketStatus.isOpen ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+          {marketStatus.isOpen ? 'MARKET OPEN' : 'MARKET CLOSED'}
         </span>
       </div>
       <div className="flex items-center gap-2">
