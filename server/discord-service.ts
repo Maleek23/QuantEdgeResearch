@@ -44,12 +44,14 @@ export function isGemTrade(idea: {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// DEDUPLICATION & COOLDOWN SYSTEM - Prevents spam
+// STRICT DEDUPLICATION & COOLDOWN SYSTEM - Prevents ALL spam
 // ═══════════════════════════════════════════════════════════════════════════
 const recentMessages = new Map<string, number>(); // hash -> timestamp
 const symbolCooldowns = new Map<string, number>(); // symbol -> timestamp
-const DEDUP_WINDOW_MS = 30 * 60 * 1000; // 30 minutes for exact duplicates
-const SYMBOL_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes per symbol
+const optionCooldowns = new Map<string, number>(); // symbol+strike+expiry -> timestamp (strict option dedup)
+const DEDUP_WINDOW_MS = 4 * 60 * 60 * 1000; // 4 HOURS for exact duplicates (was 30 min)
+const SYMBOL_COOLDOWN_MS = 60 * 60 * 1000; // 1 HOUR per symbol (was 15 min)
+const OPTION_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 HOURS for same option (symbol+strike+expiry)
 
 function generateMessageHash(type: string, key: string): string {
   return `${type}:${key}`;
@@ -93,6 +95,30 @@ export function isSymbolOnCooldown(symbol: string, source: string): boolean {
   }
   
   symbolCooldowns.set(key, now);
+  return false;
+}
+
+// STRICT: Check option-specific cooldown (same symbol + strike + expiry)
+export function isOptionOnCooldown(symbol: string, strikePrice?: number | null, expiryDate?: string | null): boolean {
+  if (!strikePrice && !expiryDate) return false; // Not an option, skip this check
+  
+  const now = Date.now();
+  const key = `${symbol}:${strikePrice || 'na'}:${expiryDate || 'na'}`;
+  
+  // Clean old entries
+  for (const [k, timestamp] of Array.from(optionCooldowns.entries())) {
+    if (now - timestamp > OPTION_COOLDOWN_MS) {
+      optionCooldowns.delete(k);
+    }
+  }
+  
+  if (optionCooldowns.has(key)) {
+    const elapsed = Math.round((now - optionCooldowns.get(key)!) / 1000 / 60);
+    logger.info(`🚫 [DISCORD-OPTION-DEDUP] ${symbol} $${strikePrice} ${expiryDate} already sent (${elapsed}m ago) - BLOCKING`);
+    return true;
+  }
+  
+  optionCooldowns.set(key, now);
   return false;
 }
 
@@ -336,9 +362,14 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
     return;
   }
   
-  // SYMBOL COOLDOWN: Prevent spam (same symbol within 15 min)
+  // SYMBOL COOLDOWN: Prevent spam (same symbol within 1 hour)
   if (isSymbolOnCooldown(idea.symbol, idea.source || 'trade')) {
     return; // Already logged in isSymbolOnCooldown
+  }
+  
+  // OPTION-SPECIFIC DEDUP: Prevent same option (symbol+strike+expiry) for 6 hours
+  if (idea.assetType === 'option' && isOptionOnCooldown(idea.symbol, idea.strikePrice, idea.expiryDate)) {
+    return; // Already logged in isOptionOnCooldown
   }
   
   // DEDUP: Create unique key for this trade idea

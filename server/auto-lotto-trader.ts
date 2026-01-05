@@ -1854,7 +1854,8 @@ export async function runAutonomousBotScan(): Promise<void> {
     }
     
     const openSymbols = new Set(openPositions.map(p => p.symbol));
-    let bestOpportunity: { opp: LottoOpportunity; decision: BotDecision; entryTiming: { shouldEnterNow: boolean; reason: string } } | null = null;
+    // Collect ALL qualifying opportunities for diversification
+    const qualifyingOpportunities: { opp: LottoOpportunity; decision: BotDecision; entryTiming: { shouldEnterNow: boolean; reason: string } }[] = [];
     
     // 🔍 DYNAMIC MOVERS: Get top movers from market scanner first (big price moves = opportunity)
     const dynamicMovers = await getDynamicMovers();
@@ -2023,17 +2024,22 @@ export async function runAutonomousBotScan(): Promise<void> {
         if (decision.action === 'enter' && entryTiming.shouldEnterNow) {
           logger.info(`🤖 [BOT] ✅ ${ticker} ${opp.optionType.toUpperCase()} $${opp.strike}: ${decision.reason} | ${entryTiming.reason}`);
           
-          if (!bestOpportunity || decision.confidence > bestOpportunity.decision.confidence) {
-            bestOpportunity = { opp, decision, entryTiming };
-          }
+          // Collect ALL qualifying opportunities (not just best) for diversification
+          qualifyingOpportunities.push({ opp, decision, entryTiming });
         } else if (decision.action === 'wait') {
           logger.debug(`🤖 [BOT] ⏳ ${ticker}: ${decision.reason}`);
         }
       }
     }
     
-    if (bestOpportunity) {
-      const { opp, decision, entryTiming } = bestOpportunity;
+    // Sort by confidence (highest first) and take top 5 for diversification
+    qualifyingOpportunities.sort((a, b) => b.decision.confidence - a.decision.confidence);
+    const topOpportunities = qualifyingOpportunities.slice(0, 5);
+    logger.info(`🤖 [BOT] Found ${qualifyingOpportunities.length} qualifying opportunities, trading top ${topOpportunities.length}`);
+    
+    // Trade EACH of the top opportunities (diversification!)
+    for (const opportunity of topOpportunities) {
+      const { opp, decision, entryTiming } = opportunity;
       
       // 🔍 MULTI-LAYER CONFLUENCE VALIDATION - Bot's independent judgment!
       try {
@@ -2163,7 +2169,9 @@ export async function runAutonomousBotScan(): Promise<void> {
       } else {
         logger.warn(`🤖 [BOT] ❌ Trade failed: ${result.error}`);
       }
-    } else {
+    } // End of for loop for topOpportunities
+    
+    if (topOpportunities.length === 0) {
       logger.info(`🤖 [BOT] No opportunities met entry criteria`);
     }
     
