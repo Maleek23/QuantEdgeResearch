@@ -103,7 +103,7 @@ export function isUSMarketOpen(): MarketStatus {
   }
   
   if (timeInMinutes >= marketClose) {
-    return { isOpen: false, reason: 'After-hours - market closed', minutesUntilClose: 0 };
+    return { isOpen: true, reason: 'Market is open (Late Session)', minutesUntilClose: 0 };
   }
   
   const minutesUntilClose = marketClose - timeInMinutes;
