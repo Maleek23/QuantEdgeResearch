@@ -40,10 +40,11 @@ export interface PortfolioValue {
 }
 
 // 🎯 SMART POSITION SIZING LIMITS
-const MAX_PERCENT_PER_TRADE = 0.05; // 5% of portfolio per trade
+const MAX_PERCENT_PER_TRADE = 0.10; // 10% of portfolio per trade (bigger positions)
 const MAX_PERCENT_PER_SYMBOL = 0.10; // 10% max exposure per symbol
-const MAX_DOLLAR_PER_TRADE = 500; // Hard cap $500 per trade
-const MAX_CONTRACTS_PER_TRADE = 10; // Never buy more than 10 contracts at once
+const MAX_DOLLAR_PER_TRADE = 800; // Hard cap $800 per trade (allows 3-4 contracts)
+const MAX_CONTRACTS_PER_TRADE = 5; // Target 3-4 contracts, max 5
+const ONE_POSITION_PER_SYMBOL = true; // Only allow ONE open position per underlying symbol
 
 export async function executeTradeIdea(
   portfolioId: string,
@@ -79,6 +80,13 @@ export async function executeTradeIdea(
     }
     
     if (symbolPositions.length > 0) {
+      // 🛑 ONE POSITION PER SYMBOL - Block any new trades on same underlying
+      if (ONE_POSITION_PER_SYMBOL && tradeIdea.assetType === 'option') {
+        const existingSymbolPos = symbolPositions[0];
+        logger.warn(`🛑 [ONE-PER-SYMBOL] Rejecting ${tradeIdea.symbol} ${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} - already have ${existingSymbolPos.optionType?.toUpperCase()} $${existingSymbolPos.strikePrice} open`);
+        return { success: false, error: `Already have position on ${tradeIdea.symbol} - only 1 per symbol allowed` };
+      }
+      
       const totalSymbolExposure = symbolPositions.reduce((sum, p) => 
         sum + (p.quantity * (p.entryPrice || 0) * (p.optionType ? 100 : 1)), 0
       );
