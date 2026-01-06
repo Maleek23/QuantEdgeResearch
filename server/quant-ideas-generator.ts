@@ -412,8 +412,9 @@ function analyzeMarketData(data: MarketData, historicalPrices: number[]): QuantS
   // Research: 80%+ win rate, most widely used by professional traders
   // NOTE: Currently approximated with daily data - not true intraday VWAP
   const recentPrices = historicalPrices.slice(-20);
-  const recentVolumes = new Array(20).fill(avgVolume);
-  const vwap = calculateVWAP(recentPrices, recentVolumes);
+  const recentVolumes = new Array(recentPrices.length).fill(avgVolume);
+  // VWAP needs high, low, close, volume - approximate with price as proxy for all three
+  const vwap = calculateVWAP(recentPrices, recentPrices, recentPrices, recentVolumes);
   
   if (currentPrice > vwap && currentPrice < vwap * 1.02 && volumeRatio >= 1.5) {
     detectedSignals.push('VWAP_CROSS');

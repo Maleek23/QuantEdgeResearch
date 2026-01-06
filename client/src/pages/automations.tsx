@@ -36,18 +36,38 @@ import {
   Bitcoin,
   LineChart,
   Rocket,
-  ExternalLink
+  ExternalLink,
+  Save,
+  RotateCcw
 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
 
 interface CryptoBotData {
   status: 'active' | 'inactive';
+  isActive?: boolean;
   openPositions: number;
   maxPositions: number;
-  coinsTracked: number;
+  coinsTracked?: number;
+  tradesExecuted?: number;
+  winRate?: number;
+  todayTrades?: number;
+  lastScan?: string | null;
+  currentPositions?: Array<{
+    symbol: string;
+    entryPrice: number;
+    currentPrice: number;
+    quantity: number;
+    side: string;
+    pnl: number;
+    pnlPercent: number;
+  }>;
   portfolio: {
     totalValue: number;
+    cashBalance?: number;
     startingCapital: number;
+    dailyPnL?: number;
+    dailyPnLPercent?: number;
   };
 }
 
@@ -101,6 +121,30 @@ interface WeeklyReportSettings {
   sendOnDay: string;
   sendAtHour: number;
   includeRecommendations: boolean;
+}
+
+interface BotPreferences {
+  userId?: string;
+  riskTolerance: 'conservative' | 'moderate' | 'aggressive';
+  maxPositionSize: number;
+  maxConcurrentTrades: number;
+  dailyLossLimit: number;
+  optionsAllocation: number;
+  futuresAllocation: number;
+  cryptoAllocation: number;
+  enableOptions: boolean;
+  enableFutures: boolean;
+  enableCrypto: boolean;
+  enablePropFirm: boolean;
+  optionsPreferredDte?: number;
+  optionsMaxDte?: number;
+  optionsMinDelta?: number;
+  optionsMaxDelta?: number;
+  optionsPreferCalls?: boolean;
+  optionsPreferPuts?: boolean;
+  optionsPreferredSymbols?: string[];
+  futuresPreferredContracts?: string[];
+  cryptoPreferredCoins?: string[];
 }
 
 interface BotPosition {
@@ -206,6 +250,46 @@ export default function AutomationsPage() {
     queryKey: ["/api/automations/weekly-report/preview"],
   });
 
+  // Bot preferences for settings
+  const { data: botPreferences, isLoading: prefsLoading } = useQuery<BotPreferences>({
+    queryKey: ["/api/auto-lotto-bot/preferences"],
+  });
+
+  // Local state for editing allocations
+  const [optionsAlloc, setOptionsAlloc] = useState(40);
+  const [futuresAlloc, setFuturesAlloc] = useState(30);
+  const [cryptoAlloc, setCryptoAlloc] = useState(30);
+  const [maxPositionSize, setMaxPositionSize] = useState(100);
+
+  // Sync local state with fetched preferences
+  useEffect(() => {
+    if (botPreferences) {
+      setOptionsAlloc(botPreferences.optionsAllocation || 40);
+      setFuturesAlloc(botPreferences.futuresAllocation || 30);
+      setCryptoAlloc(botPreferences.cryptoAllocation || 30);
+      setMaxPositionSize(botPreferences.maxPositionSize || 100);
+    }
+  }, [botPreferences]);
+
+  const updatePreferences = useMutation({
+    mutationFn: async (updates: Partial<BotPreferences>) => {
+      // Merge with existing preferences to ensure all required fields are included
+      const merged = {
+        ...botPreferences,
+        ...updates,
+      };
+      const response = await apiRequest("PUT", "/api/auto-lotto-bot/preferences", merged);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auto-lotto-bot/preferences"] });
+      toast({ title: "Settings Saved", description: "Bot preferences updated successfully" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error?.message || "Failed to save settings", variant: "destructive" });
+    },
+  });
+
   const toggleQuantBot = useMutation({
     mutationFn: async (active: boolean) => {
       return apiRequest("POST", "/api/automations/quant-bot/toggle", { active });
@@ -286,139 +370,213 @@ export default function AutomationsPage() {
   const { quantBot, optionsFlow, socialSentiment, weeklyReport: reportSettings } = status || {};
 
   return (
-    <div className="container max-w-7xl mx-auto py-6 px-4 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground" data-testid="text-page-title">Automations Hub</h1>
-          <p className="text-muted-foreground mt-1">Manage trading bots, scanners, and automated reports</p>
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-slate-900/20">
+      <div className="container max-w-7xl mx-auto py-8 px-4 space-y-8">
+        {/* Refined Header - Cyan focused, minimal glass */}
+        <div className="rounded-xl bg-slate-900/60 backdrop-blur-md border border-slate-700/50 p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                  <Zap className="w-5 h-5 text-cyan-400" />
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-semibold text-foreground" data-testid="text-page-title">
+                  Automations Hub
+                </h1>
+              </div>
+              <p className="text-muted-foreground text-sm">
+                AI-powered trading bots, market scanners, and automated intelligence reports
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Active</span>
+                <div className="text-lg font-bold font-mono text-cyan-400">
+                  {[quantBot?.isActive, optionsFlow?.isActive, socialSentiment?.isActive, cryptoData?.status === 'active'].filter(Boolean).length} / 4
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-green-500/10 border border-green-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                <span className="text-xs font-semibold text-green-400 uppercase tracking-wider">LIVE</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <Badge variant="outline" className="text-cyan-400 border-cyan-400/30">
-          <Zap className="w-3 h-3 mr-1" />
-          4 Automations
-        </Badge>
-      </div>
 
-      <Tabs value={activeTab} onValueChange={(val) => {
-        if (val === "auto-lotto") {
-          setLocation("/watchlist-bot");
-        } else {
-          setActiveTab(val);
-        }
-      }} className="space-y-6">
-        <TabsList className="grid grid-cols-6 w-full max-w-4xl">
-          <TabsTrigger value="overview" data-testid="tab-overview">
-            <Activity className="w-4 h-4 mr-2" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="auto-lotto" data-testid="tab-auto-lotto" className="relative">
-            <Rocket className="w-4 h-4 mr-2" />
-            Auto-Lotto
-            <Badge variant="default" className="absolute -top-1 -right-1 h-4 px-1 text-[10px] bg-green-600">LIVE</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="quant-bot" data-testid="tab-quant-bot">
-            <Bot className="w-4 h-4 mr-2" />
-            Quant Bot
-          </TabsTrigger>
-          <TabsTrigger value="options-flow" data-testid="tab-options-flow">
-            <TrendingUp className="w-4 h-4 mr-2" />
-            Options Flow
-          </TabsTrigger>
-          <TabsTrigger value="social" data-testid="tab-social">
-            <MessageSquare className="w-4 h-4 mr-2" />
-            Social
-          </TabsTrigger>
-          <TabsTrigger value="reports" data-testid="tab-reports">
-            <FileText className="w-4 h-4 mr-2" />
-            Reports
-          </TabsTrigger>
-        </TabsList>
+        {/* Tabs Navigation - Cyan accent focused */}
+        <Tabs value={activeTab} onValueChange={(val) => {
+          if (val === "auto-lotto") {
+            setLocation("/watchlist-bot");
+          } else {
+            setActiveTab(val);
+          }
+        }} className="space-y-6">
+          <div className="overflow-x-auto">
+            <TabsList className="inline-flex h-11 bg-slate-800/40 border border-slate-700/50 rounded-lg p-1 gap-1">
+              <TabsTrigger 
+                value="overview" 
+                data-testid="tab-overview"
+                className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+              >
+                <Activity className="w-4 h-4 mr-2" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger 
+                value="auto-lotto" 
+                data-testid="tab-auto-lotto" 
+                className="relative rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+              >
+                <Rocket className="w-4 h-4 mr-2" />
+                Auto-Lotto
+                <Badge variant="default" className="ml-2 h-4 px-1 text-[9px] bg-green-600">LIVE</Badge>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="quant-bot" 
+                data-testid="tab-quant-bot"
+                className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+              >
+                <Bot className="w-4 h-4 mr-2" />
+                Quant Bot
+              </TabsTrigger>
+              <TabsTrigger 
+                value="options-flow" 
+                data-testid="tab-options-flow"
+                className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+              >
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Options Flow
+              </TabsTrigger>
+              <TabsTrigger 
+                value="social" 
+                data-testid="tab-social"
+                className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+              >
+                <MessageSquare className="w-4 h-4 mr-2" />
+                Social
+              </TabsTrigger>
+              <TabsTrigger 
+                value="reports" 
+                data-testid="tab-reports"
+                className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Reports
+              </TabsTrigger>
+              <TabsTrigger 
+                value="settings" 
+                data-testid="tab-settings"
+                className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-        <TabsContent value="overview" className="space-y-4">
+        <TabsContent value="overview" className="space-y-6">
+          {/* Automation Cards - Consistent cyan palette with subtle differentiation */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="hover-elevate">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">Quant Mean-Reversion</CardTitle>
-                  <StatusBadge active={quantBot?.isActive || false} />
+            {/* Quant Bot Card */}
+            <Card className="hover-elevate bg-slate-900/60 border-slate-700/50">
+              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-2">
+                <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                  <Bot className="w-4 h-4 text-cyan-400" />
                 </div>
+                <StatusBadge active={quantBot?.isActive || false} />
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2 text-2xl font-bold">
-                  <Bot className="w-5 h-5 text-cyan-400" />
-                  {quantBot?.tradesExecuted || 0} trades
+              <CardContent className="space-y-3">
+                <div>
+                  <h3 className="font-semibold text-sm">Quant Mean-Reversion</h3>
+                  <p className="text-xs text-muted-foreground">RSI(2) strategy</p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  RSI(2) strategy with +$4.12 expectancy
-                </p>
-                <div className="mt-3 flex items-center gap-2">
-                  <Clock className="w-3 h-3 text-muted-foreground" />
+                <div className="pt-2 border-t border-slate-700/50">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold font-mono text-foreground">{quantBot?.tradesExecuted || 0}</span>
+                    <span className="text-xs text-muted-foreground">trades</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="w-3 h-3" />
                   <LastScanTime timestamp={quantBot?.lastScan || null} />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="hover-elevate">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">Options Flow Scanner</CardTitle>
-                  <StatusBadge active={optionsFlow?.isActive || false} />
+            {/* Options Flow Card */}
+            <Card className="hover-elevate bg-slate-900/60 border-slate-700/50">
+              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-2">
+                <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                  <TrendingUp className="w-4 h-4 text-cyan-400" />
                 </div>
+                <StatusBadge active={optionsFlow?.isActive || false} />
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2 text-2xl font-bold">
-                  <TrendingUp className="w-5 h-5 text-purple-400" />
-                  {optionsFlow?.flowsDetected || 0} flows
+              <CardContent className="space-y-3">
+                <div>
+                  <h3 className="font-semibold text-sm">Options Flow Scanner</h3>
+                  <p className="text-xs text-muted-foreground">Institutional activity</p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Unusual institutional activity detector
-                </p>
-                <div className="mt-3 flex items-center gap-2">
-                  <Clock className="w-3 h-3 text-muted-foreground" />
+                <div className="pt-2 border-t border-slate-700/50">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold font-mono text-foreground">{optionsFlow?.flowsDetected || 0}</span>
+                    <span className="text-xs text-muted-foreground">flows</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="w-3 h-3" />
                   <LastScanTime timestamp={optionsFlow?.lastScan || null} />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="hover-elevate">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">Social Sentiment</CardTitle>
-                  <StatusBadge active={socialSentiment?.isActive || false} />
+            {/* Social Sentiment Card */}
+            <Card className="hover-elevate bg-slate-900/60 border-slate-700/50">
+              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-2">
+                <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                  <MessageSquare className="w-4 h-4 text-cyan-400" />
                 </div>
+                <StatusBadge active={socialSentiment?.isActive || false} />
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2 text-2xl font-bold">
-                  <MessageSquare className="w-5 h-5 text-blue-400" />
-                  {socialSentiment?.mentionsFound || 0} mentions
+              <CardContent className="space-y-3">
+                <div>
+                  <h3 className="font-semibold text-sm">Social Sentiment</h3>
+                  <p className="text-xs text-muted-foreground">Twitter/Reddit tracking</p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Twitter/Reddit sentiment tracking
-                </p>
-                <div className="mt-3 flex items-center gap-2">
-                  <Clock className="w-3 h-3 text-muted-foreground" />
+                <div className="pt-2 border-t border-slate-700/50">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold font-mono text-foreground">{socialSentiment?.mentionsFound || 0}</span>
+                    <span className="text-xs text-muted-foreground">mentions</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="w-3 h-3" />
                   <LastScanTime timestamp={socialSentiment?.lastScan || null} />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="hover-elevate">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">Crypto Bot</CardTitle>
-                  <StatusBadge active={cryptoData?.isActive || false} />
+            {/* Crypto Bot Card */}
+            <Card className="hover-elevate bg-slate-900/60 border-slate-700/50">
+              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-2">
+                <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
+                  <Bitcoin className="w-4 h-4 text-cyan-400" />
                 </div>
+                <StatusBadge active={cryptoData?.status === 'active'} />
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2 text-2xl font-bold">
-                  <Activity className="w-5 h-5 text-orange-400" />
-                  {cryptoData?.tradesExecuted || 0} trades
+              <CardContent className="space-y-3">
+                <div>
+                  <h3 className="font-semibold text-sm">Crypto Bot</h3>
+                  <p className="text-xs text-muted-foreground">13 coins (24/7)</p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Scanning 13 major coins (24/7)
-                </p>
-                <div className="mt-3 flex items-center gap-2">
-                  <Clock className="w-3 h-3 text-muted-foreground" />
-                  <LastScanTime timestamp={cryptoData?.lastScan || null} />
+                <div className="pt-2 border-t border-slate-700/50">
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold font-mono text-foreground">{cryptoData?.openPositions || 0}/{cryptoData?.maxPositions || 3}</span>
+                    <span className="text-xs text-muted-foreground">positions</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Activity className="w-3 h-3" />
+                  <span>Always running</span>
                 </div>
               </CardContent>
             </Card>
@@ -759,6 +917,164 @@ export default function AutomationsPage() {
                   )}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Settings Tab - Clean, Trade Desk inspired design */}
+        <TabsContent value="settings" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Settings className="w-5 h-5 text-cyan-400" />
+                    Bot Allocation Settings
+                  </CardTitle>
+                  <CardDescription>Configure how your capital is distributed across trading strategies</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setOptionsAlloc(40);
+                      setFuturesAlloc(30);
+                      setCryptoAlloc(30);
+                      setMaxPositionSize(100);
+                    }}
+                    data-testid="button-reset-defaults"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Reset
+                  </Button>
+                  <Button 
+                    onClick={() => updatePreferences.mutate({
+                      optionsAllocation: optionsAlloc,
+                      futuresAllocation: futuresAlloc,
+                      cryptoAllocation: cryptoAlloc,
+                      maxPositionSize: maxPositionSize,
+                    })}
+                    disabled={updatePreferences.isPending}
+                    data-testid="button-save-settings"
+                  >
+                    {updatePreferences.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                    Save Settings
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Allocation Sliders */}
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      <LineChart className="w-4 h-4 text-cyan-400" />
+                      Options Allocation
+                    </Label>
+                    <span className="font-mono text-cyan-400">{optionsAlloc}%</span>
+                  </div>
+                  <Slider
+                    value={[optionsAlloc]}
+                    onValueChange={([v]) => setOptionsAlloc(v)}
+                    max={100}
+                    step={5}
+                    className="w-full"
+                    data-testid="slider-options-allocation"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-blue-400" />
+                      Futures Allocation
+                    </Label>
+                    <span className="font-mono text-blue-400">{futuresAlloc}%</span>
+                  </div>
+                  <Slider
+                    value={[futuresAlloc]}
+                    onValueChange={([v]) => setFuturesAlloc(v)}
+                    max={100}
+                    step={5}
+                    className="w-full"
+                    data-testid="slider-futures-allocation"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="flex items-center gap-2">
+                      <Bitcoin className="w-4 h-4 text-orange-400" />
+                      Crypto Allocation
+                    </Label>
+                    <span className="font-mono text-orange-400">{cryptoAlloc}%</span>
+                  </div>
+                  <Slider
+                    value={[cryptoAlloc]}
+                    onValueChange={([v]) => setCryptoAlloc(v)}
+                    max={100}
+                    step={5}
+                    className="w-full"
+                    data-testid="slider-crypto-allocation"
+                  />
+                </div>
+              </div>
+
+              {/* Total indicator */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/30">
+                <span className="text-sm text-muted-foreground">Total Allocation</span>
+                <span className={`font-mono font-bold ${optionsAlloc + futuresAlloc + cryptoAlloc === 100 ? 'text-green-400' : 'text-amber-400'}`}>
+                  {optionsAlloc + futuresAlloc + cryptoAlloc}%
+                </span>
+              </div>
+
+              {/* Position Size */}
+              <div className="space-y-3 pt-4 border-t border-border/30">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-green-400" />
+                    Max Position Size
+                  </Label>
+                  <span className="font-mono text-green-400">${maxPositionSize}</span>
+                </div>
+                <Slider
+                  value={[maxPositionSize]}
+                  onValueChange={([v]) => setMaxPositionSize(v)}
+                  min={25}
+                  max={500}
+                  step={25}
+                  className="w-full"
+                  data-testid="slider-max-position"
+                />
+                <p className="text-xs text-muted-foreground">Maximum dollar amount per trade position</p>
+              </div>
+
+              {/* Bot Enable Toggles */}
+              <div className="space-y-3 pt-4 border-t border-border/30">
+                <Label className="text-sm">Active Strategies</Label>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
+                    <span className="text-sm">Options Bot</span>
+                    <Badge variant={botPreferences?.enableOptions ? "default" : "secondary"} className={botPreferences?.enableOptions ? "bg-cyan-600" : ""}>
+                      {botPreferences?.enableOptions ? "ON" : "OFF"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
+                    <span className="text-sm">Futures Bot</span>
+                    <Badge variant={botPreferences?.enableFutures ? "default" : "secondary"} className={botPreferences?.enableFutures ? "bg-blue-600" : ""}>
+                      {botPreferences?.enableFutures ? "ON" : "OFF"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
+                    <span className="text-sm">Crypto Bot</span>
+                    <Badge variant={botPreferences?.enableCrypto ? "default" : "secondary"} className={botPreferences?.enableCrypto ? "bg-orange-600" : ""}>
+                      {botPreferences?.enableCrypto ? "ON" : "OFF"}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

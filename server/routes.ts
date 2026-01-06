@@ -15822,44 +15822,73 @@ Use this checklist before entering any trade:
     }
   });
 
-  // Aggregated automations status endpoint
+  // Aggregated automations status endpoint - Now uses REAL data from paper trading system
   app.get("/api/bot/crypto", async (req, res) => {
-    const marketData = await storage.getAllMarketData();
-    const cryptoMarket = marketData.filter(d => d.assetType === 'crypto');
-    
-    res.json({
-      isActive: true,
-      lastScan: new Date().toISOString(),
-      tradesExecuted: 124,
-      winRate: 68.5,
-      todayTrades: 3,
-      currentPositions: [
-        {
-          symbol: "BTC",
-          entryPrice: 96500,
-          currentPrice: cryptoMarket.find(c => c.symbol === 'BTC')?.currentPrice || 98450.25,
-          quantity: 0.25,
-          side: "long",
-          pnl: 487.56,
-          pnlPercent: 2.02
-        },
-        {
-          symbol: "SOL",
-          entryPrice: 215.40,
-          currentPrice: cryptoMarket.find(c => c.symbol === 'SOL')?.currentPrice || 228.15,
-          quantity: 45,
-          side: "long",
-          pnl: 573.75,
-          pnlPercent: 5.92
-        }
-      ],
-      portfolio: {
-        totalValue: 42500.25,
-        dailyPnL: 1245.80,
-        dailyPnLPercent: 3.01,
-        maxDrawdown: 4.2
+    try {
+      const { getCryptoPortfolio, getBotPreferences } = await import("./auto-lotto-trader");
+      
+      const portfolio = await getCryptoPortfolio();
+      const prefs = await getBotPreferences();
+      
+      if (!portfolio) {
+        return res.json({
+          status: 'inactive',
+          openPositions: 0,
+          maxPositions: prefs.maxConcurrentTrades || 5,
+          currentPositions: [],
+          portfolio: { totalValue: 0, cashBalance: 0 }
+        });
       }
-    });
+      
+      // Get actual positions from the portfolio
+      const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+      const openPositions = positions.filter(p => p.status === 'open');
+      const closedPositions = positions.filter(p => p.status === 'closed');
+      
+      // Calculate real win rate from closed trades (guard against division by zero)
+      const wins = closedPositions.filter(p => (p.realizedPnL || 0) > 0).length;
+      const winRate = closedPositions.length > 0 ? Math.round((wins / closedPositions.length) * 100) : 0;
+      
+      // Calculate today's trades
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayTrades = closedPositions.filter(p => {
+        const exitTime = p.exitTime ? new Date(p.exitTime) : null;
+        return exitTime && exitTime >= today;
+      }).length;
+      
+      // Map open positions to display format
+      const currentPositions = openPositions.map(p => ({
+        symbol: p.symbol,
+        entryPrice: p.entryPrice,
+        currentPrice: p.currentPrice || p.entryPrice,
+        quantity: p.quantity,
+        side: p.direction,
+        pnl: p.unrealizedPnL || 0,
+        pnlPercent: p.unrealizedPnLPercent || 0,
+      }));
+      
+      res.json({
+        status: prefs.enableCrypto ? 'active' : 'inactive',
+        lastScan: new Date().toISOString(),
+        tradesExecuted: closedPositions.length,
+        winRate: winRate,
+        todayTrades: todayTrades,
+        openPositions: openPositions.length,
+        maxPositions: prefs.maxConcurrentTrades || 5,
+        currentPositions: currentPositions,
+        portfolio: {
+          totalValue: portfolio.totalValue || portfolio.cashBalance,
+          cashBalance: portfolio.cashBalance,
+          startingCapital: portfolio.startingCapital,
+          dailyPnL: 0,
+          dailyPnLPercent: 0,
+        }
+      });
+    } catch (error) {
+      logger.error("Error getting crypto bot status", { error });
+      res.status(500).json({ error: "Failed to get crypto bot status" });
+    }
   });
 
   app.get("/api/automations/status", async (_req, res) => {
