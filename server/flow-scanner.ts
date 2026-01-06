@@ -12,11 +12,41 @@ import { calculateATR } from './technical-indicators';
 import { isLottoCandidate, calculateLottoTargets } from './lotto-detector';
 import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennyStock } from './sector-detector';
 import { getLetterGrade } from './grading';
-import { sendFlowAlertToDiscord } from './discord-service';
+import { sendFlowAlertToDiscord, VALID_DISCORD_GRADES, isAffordablePremium } from './discord-service';
 
-// Valid grades for Discord alerts (C- through A+)
-// 🛡️ QUALITY GATE: Only send A-grade alerts to Discord (user requested, avoid noise/spam)
-const DISCORD_ALERT_GRADES = ['A+', 'A', 'A-'];
+// 🛡️ QUALITY GATE: Only send B-grade or better to Discord (user requested)
+// B = 65+, B+ = 70+, A = 75+, A+ = 85+
+const DISCORD_ALERT_GRADES = VALID_DISCORD_GRADES; // ['B', 'B+', 'A', 'A+']
+
+// Rate limiting for Discord alerts - prevent floods
+const alertQueue: { timestamp: number; symbol: string }[] = [];
+const MAX_ALERTS_PER_MINUTE = 3; // Max 3 alerts per minute
+const ALERT_SPACING_MS = 20000; // 20 seconds between alerts
+
+// Check if we can send an alert (rate limit check only, no push)
+function canSendAlert(symbol: string): boolean {
+  const now = Date.now();
+  // Clean old entries (older than 1 minute)
+  while (alertQueue.length > 0 && now - alertQueue[0].timestamp > 60000) {
+    alertQueue.shift();
+  }
+  // Check rate limit
+  if (alertQueue.length >= MAX_ALERTS_PER_MINUTE) {
+    logger.info(`🚫 [FLOW-RATE] Rate limit reached (${MAX_ALERTS_PER_MINUTE}/min), skipping ${symbol}`);
+    return false;
+  }
+  // Check spacing - don't send if last alert was too recent
+  if (alertQueue.length > 0 && now - alertQueue[alertQueue.length - 1].timestamp < ALERT_SPACING_MS) {
+    logger.info(`🚫 [FLOW-RATE] Too soon after last alert, skipping ${symbol}`);
+    return false;
+  }
+  return true;
+}
+
+// Record that an alert was sent (call AFTER successfully sending)
+function recordAlertSent(symbol: string): void {
+  alertQueue.push({ timestamp: Date.now(), symbol });
+}
 
 // Wrapper to maintain existing function signature
 function isMarketOpen(): { isOpen: boolean; reason: string; minutesUntilClose: number } {
@@ -973,30 +1003,51 @@ export async function scanUnusualOptionsFlow(holdingPeriod?: string, forceGenera
       if (tradeIdea) {
         tradeIdeas.push(tradeIdea);
         
-        // 📣 REAL-TIME DISCORD ALERT: Send B- to A+ grade options to Discord immediately
-        // Only send alerts during market hours to avoid stale data notifications
+        // 📣 REAL-TIME DISCORD ALERT: B-grade or better, affordable premium only
         const grade = tradeIdea.probabilityBand || '';
-        if (DISCORD_ALERT_GRADES.includes(grade) && isMarketHoursForFlow()) {
-          const targetPercent = tradeIdea.targetPrice && tradeIdea.entryPrice 
-            ? ((tradeIdea.targetPrice - tradeIdea.entryPrice) / tradeIdea.entryPrice * 100).toFixed(0)
+        const entryPrice = tradeIdea.entryPrice || 0;
+        
+        // Quality gates (check in order: grade first, then premium, then rate limit, then market hours)
+        const isValidGrade = DISCORD_ALERT_GRADES.includes(grade);
+        // Check premium affordability - typical sizing is 5 contracts
+        // $2.00 premium × 5 contracts × 100 shares = $1,000 max total cost
+        const maxPremiumFor5Contracts = 2.00; // $1000 budget / 5 contracts / 100 shares
+        const isAffordable = entryPrice <= maxPremiumFor5Contracts;
+        const isMarketOpen = isMarketHoursForFlow();
+        
+        // Only check rate limit if other gates pass (preserves rate limit quota)
+        if (!isValidGrade) {
+          logger.debug(`📊 [FLOW] Skipping ${ticker}: Grade ${grade} not in ${DISCORD_ALERT_GRADES.join(', ')}`);
+        } else if (!isAffordable) {
+          logger.info(`📊 [FLOW] Skipping ${ticker}: Premium $${(entryPrice * 5 * 100).toFixed(0)} exceeds $1000 cap`);
+        } else if (!isMarketOpen) {
+          logger.debug(`📊 [FLOW] Skipping ${ticker}: Outside market hours`);
+        } else if (!canSendAlert(ticker)) {
+          // Rate limit reached - logged in canSendAlert
+        } else {
+          // All gates passed - send alert!
+          const targetPercent = tradeIdea.targetPrice && entryPrice 
+            ? ((tradeIdea.targetPrice - entryPrice) / entryPrice * 100).toFixed(0)
             : '?';
           const rr = tradeIdea.riskRewardRatio?.toFixed(1) || '?';
+          const premiumCost = (entryPrice * 5 * 100).toFixed(0);
           
-          // Send real-time Discord notification
           sendFlowAlertToDiscord({
             symbol: tradeIdea.symbol,
             optionType: tradeIdea.optionType || 'call',
             strikePrice: tradeIdea.strikePrice || 0,
             expiryDate: tradeIdea.expiryDate || '',
-            entryPrice: tradeIdea.entryPrice || 0,
+            entryPrice: entryPrice,
             targetPrice: tradeIdea.targetPrice || 0,
             targetPercent,
             grade,
             riskReward: rr,
             isLotto: tradeIdea.isLottoPlay || false
+          }).then(() => {
+            recordAlertSent(ticker); // Only record after successful send
           }).catch(err => logger.error(`📊 [FLOW] Discord alert failed for ${ticker}:`, err));
           
-          logger.info(`📣 [FLOW-DISCORD] Sent ${grade} grade alert: ${ticker} ${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} (+${targetPercent}%)`);
+          logger.info(`📣 [FLOW-DISCORD] Sent ${grade} alert: ${ticker} ${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} @ $${entryPrice.toFixed(2)} ($${premiumCost} cost)`);
         }
       }
 

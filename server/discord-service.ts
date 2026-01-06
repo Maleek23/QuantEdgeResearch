@@ -8,29 +8,45 @@ import { isOptionsMarketOpen } from './paper-trading-service';
 const DISCORD_DISABLED = false;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// QUALITY GATE - Lowered for better coverage, more ideas to Discord
+// QUALITY GATE - B-GRADE MINIMUM (65+ confidence, 3+ signals)
+// User requested: ONLY B, B+, A, A+ grades - no spam/low quality
 // ═══════════════════════════════════════════════════════════════════════════
-const MIN_SIGNALS_REQUIRED = 2; // B grade minimum (relaxed from 4)
-const MIN_CONFIDENCE_REQUIRED = 55; // Medium confidence (relaxed from 70)
+const MIN_SIGNALS_REQUIRED = 3; // Need multi-engine validation
+const MIN_CONFIDENCE_REQUIRED = 65; // B-grade minimum (65% = B, 75% = A, 85% = A+)
+
+// Maximum option premium cost (qty * price * 100) - prevents unaffordable alerts
+const MAX_PREMIUM_COST = 1000; // $1000 max premium cost
+
+// Valid grades for Discord alerts - B and above ONLY
+export const VALID_DISCORD_GRADES = ['B', 'B+', 'A', 'A+'];
 
 // Check if idea meets quality threshold to be sent to Discord
-// Requires BOTH high confidence AND multi-engine validation
+// Requires B-grade or better (65%+ confidence AND 3+ signals)
 export function meetsQualityThreshold(idea: { 
   qualitySignals?: string[] | null; 
   confidenceScore?: number | null;
   assetType?: string;
   source?: string;
+  probabilityBand?: string | null;
 }): boolean {
   const signalCount = idea.qualitySignals?.length || 0;
   const confidence = idea.confidenceScore || 50;
+  const grade = idea.probabilityBand || '';
   
-  // STRICT: Must have 70%+ confidence AND 4+ signals (multi-engine validation)
-  // This ensures only trades verified by AI, quant, technical analysis make it through
+  // STRICT: B-grade minimum (65%+ confidence AND 3+ signals)
   const meetsConfidence = confidence >= MIN_CONFIDENCE_REQUIRED;
   const meetsSignals = signalCount >= MIN_SIGNALS_REQUIRED;
   
-  // Require BOTH for maximum quality
-  return meetsConfidence && meetsSignals;
+  // Also check grade if available - must be B or better
+  const hasValidGrade = !grade || VALID_DISCORD_GRADES.includes(grade);
+  
+  return meetsConfidence && meetsSignals && hasValidGrade;
+}
+
+// Check if option premium is affordable (under $1000 total cost)
+export function isAffordablePremium(entryPrice: number, quantity: number = 5): boolean {
+  const totalCost = entryPrice * quantity * 100; // Options are 100 shares each
+  return totalCost <= MAX_PREMIUM_COST;
 }
 
 // Check if this is a GEM (A+ grade) - gets special highlighting
