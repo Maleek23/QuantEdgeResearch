@@ -1,6 +1,6 @@
 import { 
   TrendingUp, BarChart2, Target, Settings, PanelLeftClose, PanelLeft, 
-  Sun, Moon, Home, BookOpen, Bot, Zap, Shield, ExternalLink,
+  Sun, Moon, Home, BookOpen, Zap, Shield, ExternalLink,
   Upload, Database, LineChart, User, FileBarChart, Lock, LayoutDashboard, Eye
 } from "lucide-react";
 import { useLocation } from "wouter";
@@ -40,10 +40,9 @@ const researchItems: NavItem[] = [
   { title: "Swing Scanner", url: "/swing-scanner", icon: TrendingUp, badge: "NEW" },
 ];
 
-// Automations - all automated trading tools
+// Automations - all automated trading tools (Auto-Lotto is inside Automations Hub)
 const automationItems: NavItem[] = [
-  { title: "Automations Hub", url: "/automations", icon: Zap, badge: "NEW" },
-  { title: "Auto-Lotto Bot", url: "/watchlist-bot", icon: Bot, badge: "LIVE" },
+  { title: "Automations Hub", url: "/automations", icon: Zap, badge: "LIVE" },
 ];
 
 // Analytics - performance and analysis tools (Data Audit is now part of Performance page)
