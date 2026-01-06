@@ -11671,7 +11671,11 @@ CONSTRAINTS:
             const quantSignals = calculateEnhancedSignalScore(prices, highs, lows, volumes);
             const currentPrice = prices[prices.length - 1];
             
-            const isBullish = quantSignals.direction === 'bullish';
+            // Determine direction - if neutral, default to bullish for conservative setup
+            // This ensures trade structure (target/stop) always matches the reported sentiment
+            const isBullish = quantSignals.direction !== 'bearish';
+            const effectiveSentiment = isBullish ? 'bullish' : 'bearish';
+            
             const entryPrice = currentPrice;
             // Use ATR for dynamic targets if available (1.5x ATR stop, 2x ATR target)
             const atrStop = quantSignals.atr ? quantSignals.atr * 1.5 : currentPrice * 0.03;
@@ -11688,10 +11692,10 @@ CONSTRAINTS:
               targetPrice: targetPrice,
               stopLoss: stopLoss,
               riskRewardRatio: Number(riskRewardRatio.toFixed(2)),
-              sentiment: quantSignals.direction,
+              sentiment: effectiveSentiment, // Use effective sentiment that matches trade structure
               analysis: `**QUANT ENGINE ANALYSIS** (AI unavailable)\n\n` +
                 `📊 **Signal Score:** ${quantSignals.score}/100\n` +
-                `📈 **Direction:** ${quantSignals.direction.toUpperCase()}\n` +
+                `📈 **Direction:** ${effectiveSentiment.toUpperCase()}${quantSignals.direction === 'neutral' ? ' (market is ranging)' : ''}\n` +
                 `🎯 **Confidence:** ${quantSignals.confidence}%\n` +
                 `📐 **R:R Ratio:** ${riskRewardRatio.toFixed(2)}:1\n\n` +
                 `**Technical Signals (${quantSignals.signals.length}):**\n${quantSignals.signals.map(s => `• ${s}`).join('\n')}\n\n` +
@@ -11709,7 +11713,7 @@ CONSTRAINTS:
               isQuantFallback: true
             };
             
-            logger.info(`✅ [QUANT-FALLBACK] Generated analysis for ${req.body.symbol}: ${quantSignals.direction}`);
+            logger.info(`✅ [QUANT-FALLBACK] Generated analysis for ${req.body.symbol}: ${effectiveSentiment} (raw: ${quantSignals.direction})`);
             return res.json({
               ...quantAnalysis,
               currentPrice,

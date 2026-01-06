@@ -2731,18 +2731,20 @@ export default function ChartAnalysis() {
                           ? aiSuggestion.optionType === 'call'
                             ? 'bg-green-500/10 border border-green-500/30'
                             : 'bg-red-500/10 border border-red-500/30'
-                          : 'bg-cyan-500/10 border border-cyan-500/30'
+                          : analysisResult?.sentiment === 'bearish' 
+                            ? 'bg-red-500/10 border border-red-500/30'
+                            : 'bg-cyan-500/10 border border-cyan-500/30'
                       }`}>
                         <div className="flex items-center gap-2">
                           <Sparkles className="h-5 w-5 text-cyan-500" />
                           <span className={`text-lg font-bold ${
                             aiSuggestion.assetType === 'option'
                               ? aiSuggestion.optionType === 'call' ? 'text-green-500' : 'text-red-500'
-                              : 'text-cyan-500'
+                              : analysisResult?.sentiment === 'bearish' ? 'text-red-500' : 'text-cyan-500'
                           }`}>
                             {aiSuggestion.assetType === 'option' 
                               ? `${aiSuggestion.optionType.toUpperCase()} Option` 
-                              : 'Buy Shares'}
+                              : analysisResult?.sentiment === 'bearish' ? 'Short/Sell Shares' : 'Buy Shares'}
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground">{aiSuggestion.rationale}</p>
