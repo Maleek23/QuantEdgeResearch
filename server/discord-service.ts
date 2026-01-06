@@ -205,6 +205,24 @@ function getLetterGrade(score: number): string {
   return 'D';
 }
 
+/**
+ * PREMIUM FILTER: Exclude ideas with "crazy premiums" (over $20/contract)
+ * Unless it's a high-confidence index play
+ */
+function isPremiumTooHigh(idea: TradeIdea): boolean {
+  const entry = idea.entryPrice || 0;
+  const confidence = idea.confidenceScore || 0;
+  
+  // Crazy premiums = > $20.00 ($2000/contract)
+  if (entry > 20.00) {
+    // Exception: extremely high confidence (A+) index plays (SPY/QQQ)
+    const isIndex = ['SPY', 'QQQ', 'DIA', 'IWM'].includes(idea.symbol.toUpperCase());
+    if (isIndex && confidence >= 95) return false;
+    return true;
+  }
+  return false;
+}
+
 // Helper to get grade emoji based on confidence
 function getGradeEmoji(score: number): string {
   if (score >= 90) return '🔥';
@@ -371,6 +389,12 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
   // OPTION-SPECIFIC DEDUP: Prevent same option (symbol+strike+expiry) for 6 hours
   if (idea.assetType === 'option' && isOptionOnCooldown(idea.symbol, idea.strikePrice, idea.expiryDate)) {
     return; // Already logged in isOptionOnCooldown
+  }
+
+  // PREMIUM FILTER
+  if (isPremiumTooHigh(idea)) {
+    logger.info(`🚫 [DISCORD-FILTER] Skipping ${idea.symbol} - premium too high ($${idea.entryPrice})`);
+    return;
   }
   
   // DEDUP: Create unique key for this trade idea
@@ -615,6 +639,12 @@ export async function sendFlowAlertToDiscord(alert: {
     const lottoTag = alert.isLotto ? '🎰 ' : '';
     const color = isCall ? 0x22c55e : 0xef4444;
     
+    // PREMIUM FILTER for Flow Alerts
+    if (alert.entryPrice > 20.00 && !alert.grade.includes('A+')) {
+      logger.info(`📊 [FLOW-PREMIUM-FILTER] Skipping expensive flow alert: ${alert.symbol} @ $${alert.entryPrice.toFixed(2)}`);
+      return;
+    }
+
     // Format expiry date nicely (e.g., "01/16" or "04/17")
     let expiryFormatted = alert.expiryDate;
     try {
@@ -624,28 +654,13 @@ export async function sendFlowAlertToDiscord(alert: {
     
     const embed: DiscordEmbed = {
       title: `${lottoTag}${emoji} ${alert.symbol} ${alert.optionType.toUpperCase()} $${alert.strikePrice} ${expiryFormatted}`,
-      description: `**${gradeEmoji} Grade ${alert.grade}** | R:R ${alert.riskReward}:1`,
+      description: `**${gradeEmoji} Grade ${alert.grade}** | Entry: **$${alert.entryPrice.toFixed(2)}**`,
       color,
       fields: [
-        {
-          name: '💰 Entry',
-          value: `$${alert.entryPrice.toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: '🎯 Target',
-          value: `$${alert.targetPrice.toFixed(2)} (+${alert.targetPercent}%)`,
-          inline: true
-        },
-        {
-          name: '📊 Grade',
-          value: alert.grade,
-          inline: true
-        }
+        { name: '🎯 Target', value: `$${alert.targetPrice.toFixed(2)} (+${alert.targetPercent}%)`, inline: true },
+        { name: '📊 R:R', value: `${alert.riskReward}:1`, inline: true }
       ],
-      footer: {
-        text: 'Flow Scanner • Real-time options alert • Not financial advice'
-      },
+      footer: { text: 'Flow Scanner • Quant Edge Labs' },
       timestamp: new Date().toISOString()
     };
     
@@ -710,11 +725,23 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
   
   // QUALITY GATE: Only send OPTIONS with high/medium confidence (70%+, 4+ signals)
   // EXCLUDE: penny stocks, moonshots, shares - only options go to Discord
+  // PREMIUM FILTER: Exclude "crazy premiums" (>$20/contract) unless high confidence (A+)
   const qualityIdeas = ideas.filter(idea => {
     // Must be an OPTION (not shares, penny stocks, or crypto)
     if (idea.assetType !== 'option') {
       return false;
     }
+
+    // PREMIUM FILTER: Exclude very expensive contracts (>$20.00)
+    // Most retail lotto/momentum players want cheap contracts
+    const isVeryExpensive = idea.entryPrice > 20.00;
+    const isTopTier = (idea.confidenceScore || 0) >= 90;
+    
+    if (isVeryExpensive && !isTopTier) {
+      logger.info(`📨 [PREMIUM-FILTER] Excluded expensive option: ${idea.symbol} @ $${idea.entryPrice.toFixed(2)}`);
+      return false;
+    }
+
     // Must meet quality threshold (70%+ confidence, 4+ signals)
     return meetsQualityThreshold(idea);
   });
@@ -799,45 +826,32 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
       if (bSignals !== aSignals) return bSignals - aSignals;
       return (b.riskRewardRatio || 0) - (a.riskRewardRatio || 0);
     });
-    const topIdeas = sortedIdeas.slice(0, 8);
-    const summary = topIdeas.map(formatIdea).join('\n');
-    const remainingCount = filteredIdeas.length - topIdeas.length;
-    const moreText = remainingCount > 0 ? `\n_+${remainingCount} more in dashboard_` : '';
-    
-    // Calculate stats with QuantEdge grading
-    const avgSignals = Math.round(filteredIdeas.reduce((sum, i) => sum + (i.qualitySignals?.length || 0), 0) / filteredIdeas.length);
-    const avgRR = (filteredIdeas.reduce((sum, i) => sum + (i.riskRewardRatio || 0), 0) / filteredIdeas.length).toFixed(1);
-    const avgConfidence = Math.round(filteredIdeas.reduce((sum, i) => sum + (i.confidenceScore || 50), 0) / filteredIdeas.length);
-    const avgGrade = getLetterGrade(avgConfidence);
-    const avgGradeEmoji = getGradeEmoji(avgConfidence);
-    
-    // Add GEM indicator to title if we have high-quality trades
-    const gemIndicator = hasGems ? ' 💎' : '';
+    const listLines = topIdeas.map(idea => {
+      const isLong = idea.direction === 'long';
+      const side = isLong ? '🟢' : '🔴';
+      const type = idea.optionType?.toUpperCase() || 'OPT';
+      const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
+      const exp = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
+      const grade = getLetterGrade(idea.confidenceScore || 50);
+      const entry = idea.entryPrice?.toFixed(2);
+      const target = idea.targetPrice?.toFixed(2);
+      const gain = idea.entryPrice ? ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(0) : '0';
+      
+      return `${side} **${idea.symbol}** ${type} ${strike} ${exp} • $${entry}→$${target} (+${gain}%) │ ${grade}`;
+    });
+
+    const description = listLines.join('\n') + (filteredIdeas.length > 15 ? `\n*+${filteredIdeas.length - 15} more in dashboard*` : '');
     
     const embed: DiscordEmbed = {
       title: `${sourceLabel} - ${filteredIdeas.length} Trade Ideas${gemIndicator}`,
-      description: summary + moreText,
+      description,
       color,
       fields: [
-        {
-          name: '📊 Direction',
-          value: `🟢 ${longIdeas.length} Long • 🔴 ${shortIdeas.length} Short`,
-          inline: true
-        },
-        {
-          name: `${avgGradeEmoji} Avg Grade`,
-          value: `**${avgGrade}** (${avgConfidence}%)`,
-          inline: true
-        },
-        {
-          name: '📈 Avg R:R',
-          value: `**${avgRR}:1**`,
-          inline: true
-        }
+        { name: '📊 Direction', value: `🟢 ${longIdeas.length} Long • 🔴 ${shortIdeas.length} Short`, inline: true },
+        { name: '✨ Avg Grade', value: `**${avgGrade}** (${avgConfidence}%)`, inline: true },
+        { name: '📈 Avg R:R', value: `**${avgRR}:1**`, inline: true }
       ],
-      footer: {
-        text: `⚠️ For educational research only | Quant Edge Labs`
-      },
+      footer: { text: '⚠️ For educational research only | Quant Edge Labs' },
       timestamp: new Date().toISOString()
     };
     
@@ -1097,43 +1111,14 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
     
     const embed: DiscordEmbed = {
       title: `🎰 LOTTO: ${idea.symbol} ${(idea.optionType || 'OPT').toUpperCase()} $${idea.strikePrice}`,
-      description: `**${expiryFormatted} Expiry** (${dteText} DTE)\n\n${sectorText ? `**${sectorText}** sector | ` : ''}${holdingLabel} - **${targetLabel}** targeting **${potentialReturn}%** return`,
+      description: `**${expiryFormatted} exp** (${dteText}) | ${holdingLabel} targeting **${potentialReturn}%**`,
       color,
       fields: [
-        {
-          name: '💰 Entry',
-          value: `$${idea.entryPrice.toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: `🎯 Target (${targetMultiplier}x)`,
-          value: `$${idea.targetPrice.toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: '🛡️ Stop (-50%)',
-          value: `$${idea.stopLoss.toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: '📅 DTE',
-          value: dteText,
-          inline: true
-        },
-        {
-          name: '⏱️ Hold',
-          value: holdingLabel,
-          inline: true
-        },
-        {
-          name: '🏷️ Sector',
-          value: sectorText || 'General',
-          inline: true
-        }
+        { name: '💰 Entry', value: `$${idea.entryPrice.toFixed(2)}`, inline: true },
+        { name: '🎯 Target', value: `$${idea.targetPrice.toFixed(2)}`, inline: true },
+        { name: '🛡️ Stop', value: `$${idea.stopLoss.toFixed(2)}`, inline: true }
       ],
-      footer: {
-        text: '⚠️ HIGH RISK - Small position size only | Quant Edge Labs'
-      },
+      footer: { text: '⚠️ HIGH RISK | Quant Edge Labs' },
       timestamp: new Date().toISOString()
     };
     
@@ -1210,43 +1195,14 @@ export async function sendBotTradeEntryToDiscord(position: {
     
     const embed: DiscordEmbed = {
       title: `🤖 BOT ENTRY: ${position.symbol} ${(position.optionType || 'OPT').toUpperCase()} $${position.strikePrice}`,
-      description: `Auto-Lotto Bot opened a new position`,
+      description: `Auto-Lotto Bot opened position`,
       color,
       fields: [
-        {
-          name: '💰 Entry Price',
-          value: `$${position.entryPrice.toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: '📦 Contracts',
-          value: `${position.quantity}`,
-          inline: true
-        },
-        {
-          name: '💵 Position Cost',
-          value: `$${contractCost.toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: '🎯 Target',
-          value: position.targetPrice ? `$${position.targetPrice.toFixed(2)}` : 'N/A',
-          inline: true
-        },
-        {
-          name: '🛡️ Stop',
-          value: position.stopLoss ? `$${position.stopLoss.toFixed(2)}` : 'N/A',
-          inline: true
-        },
-        {
-          name: '📅 Expiry',
-          value: position.expiryDate || 'N/A',
-          inline: true
-        }
+        { name: '💰 Entry', value: `$${position.entryPrice.toFixed(2)}`, inline: true },
+        { name: '📦 Qty', value: `${position.quantity}`, inline: true },
+        { name: '🎯 Target', value: position.targetPrice ? `$${position.targetPrice.toFixed(2)}` : 'N/A', inline: true }
       ],
-      footer: {
-        text: '🤖 Auto-Lotto Bot | Paper Trading'
-      },
+      footer: { text: '🤖 Auto-Lotto Bot' },
       timestamp: new Date().toISOString()
     };
     
@@ -1315,38 +1271,14 @@ export async function sendBotTradeExitToDiscord(position: {
     
     const embed: DiscordEmbed = {
       title: `${emoji} BOT EXIT: ${position.symbol} ${(position.optionType || 'OPT').toUpperCase()} $${position.strikePrice}`,
-      description: `Auto-Lotto Bot closed position - **${reasonText}**`,
+      description: `Closed - **${reasonText}**`,
       color,
       fields: [
-        {
-          name: '💰 Entry',
-          value: `$${position.entryPrice.toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: '🚪 Exit',
-          value: `$${(position.exitPrice || 0).toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: '📊 P&L',
-          value: `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(1)}%)`,
-          inline: true
-        },
-        {
-          name: '📦 Contracts',
-          value: `${position.quantity}`,
-          inline: true
-        },
-        {
-          name: '📋 Reason',
-          value: reasonText,
-          inline: true
-        }
+        { name: '🚪 Exit', value: `$${(position.exitPrice || 0).toFixed(2)}`, inline: true },
+        { name: '📊 P&L', value: `${pnl >= 0 ? '+' : ''}${pnlPercent.toFixed(1)}%`, inline: true },
+        { name: '📋 Reason', value: reasonText, inline: true }
       ],
-      footer: {
-        text: '🤖 Auto-Lotto Bot | Paper Trading'
-      },
+      footer: { text: '🤖 Auto-Lotto Bot' },
       timestamp: new Date().toISOString()
     };
     
@@ -1987,45 +1919,14 @@ export async function sendGainsToDiscord(trade: {
     
     const embed: DiscordEmbed = {
       title: `${gainEmoji} WINNER: ${trade.symbol} +${trade.percentGain.toFixed(1)}%`,
-      description: `**${assetLabel}**\n\n${sourceIcon} Signal Hit Target!`,
+      description: `**${assetLabel}** Signal Hit Target!`,
       color: 0x22c55e, // Green
       fields: [
-        {
-          name: '📥 Entry',
-          value: `$${trade.entryPrice.toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: '📤 Exit',
-          value: `$${trade.exitPrice.toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: '💵 Gain',
-          value: `+${trade.percentGain.toFixed(1)}%`,
-          inline: true
-        },
-        {
-          name: '💰 Per $100',
-          value: `+$${dollarGainPer100.toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: '📊 Engine',
-          value: sourceIcon,
-          inline: true
-        },
-        {
-          name: '⏱️ Type',
-          value: trade.holdingPeriod === 'day' ? 'Day Trade' : 
-                 trade.holdingPeriod === 'swing' ? 'Swing' : 
-                 trade.holdingPeriod === 'position' ? 'Position' : 'Day Trade',
-          inline: true
-        }
+        { name: '📥 Entry', value: `$${trade.entryPrice.toFixed(2)}`, inline: true },
+        { name: '📤 Exit', value: `$${trade.exitPrice.toFixed(2)}`, inline: true },
+        { name: '💵 Gain', value: `+${trade.percentGain.toFixed(1)}%`, inline: true }
       ],
-      footer: {
-        text: 'Quant Edge Labs • Paper Trading Results'
-      },
+      footer: { text: 'Quant Edge Labs Results' },
       timestamp: new Date().toISOString()
     };
     
