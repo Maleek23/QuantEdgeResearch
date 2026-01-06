@@ -8988,6 +8988,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate trade ideas from elite (S/A tier) watchlist setups
+  app.post("/api/watchlist/generate-elite-ideas", isAuthenticated, async (req: any, res) => {
+    try {
+      const { generateEliteTradeIdeas } = await import('./watchlist-grading-service');
+      const userId = req.user?.id;
+      const result = await generateEliteTradeIdeas(userId);
+      
+      logger.info(`[ELITE] Generated ${result.generated} trade ideas from elite setups`);
+      
+      res.json({
+        success: true,
+        message: `Generated ${result.generated} trade ideas from S/A tier setups`,
+        generated: result.generated,
+        ideas: result.ideas.map((i: any) => ({ 
+          symbol: i.symbol, 
+          direction: i.direction, 
+          tier: i.eliteTier,
+          score: i.gradeScore 
+        })),
+        skipped: result.skipped
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'POST /api/watchlist/generate-elite-ideas' });
+      res.status(500).json({ error: "Failed to generate elite trade ideas" });
+    }
+  });
+
   // Annual Breakout Watchlist Routes
   app.get("/api/annual-watchlist", async (_req, res) => {
     try {

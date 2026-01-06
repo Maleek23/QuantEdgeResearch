@@ -261,9 +261,10 @@ function GradeExplanation({ item }: { item: WatchlistItem }) {
   const bullishConfluence = confluenceFactors.filter(f => f.type === 'bullish').length;
   const bearishConfluence = confluenceFactors.filter(f => f.type === 'bearish').length;
   const totalConfluence = confluenceFactors.length;
+  // FIX: Show 0% when no factors instead of misleading 50%
   const confluenceScore = totalConfluence > 0 
     ? Math.round(((bullishConfluence - bearishConfluence) / totalConfluence + 1) * 50)
-    : 50;
+    : 0; // No factors = no confluence, not 50%
 
   // Determine market regime based on technical factors
   const getMarketRegime = () => {
@@ -317,7 +318,9 @@ function GradeExplanation({ item }: { item: WatchlistItem }) {
             </div>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            {bullishConfluence} bullish / {bearishConfluence} bearish factors
+            {totalConfluence > 0 
+              ? `${bullishConfluence} bullish / ${bearishConfluence} bearish factors`
+              : 'No factors detected - insufficient data'}
           </p>
         </div>
         
@@ -869,6 +872,26 @@ export default function WatchlistPage() {
     },
   });
 
+  // Generate trade ideas from elite setups
+  const generateEliteIdeasMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/watchlist/generate-elite-ideas');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/trade-ideas'] });
+      toast({ 
+        title: "Elite Ideas Generated", 
+        description: data.generated > 0 
+          ? `Created ${data.generated} trade ideas from S/A tier setups. Check Trade Desk!`
+          : "No new ideas generated (all elite setups already have active ideas)"
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   // Sort by tier then score
   const sortedItems = [...watchlistItems].sort((a, b) => {
     const tierOrder: Record<string, number> = { S: 0, A: 1, B: 2, C: 3, D: 4, F: 5 };
@@ -933,6 +956,15 @@ export default function WatchlistPage() {
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${reGradeAllMutation.isPending ? 'animate-spin' : ''}`} />
             Refresh All
+          </Button>
+          <Button 
+            onClick={() => generateEliteIdeasMutation.mutate()}
+            disabled={generateEliteIdeasMutation.isPending || eliteItems.length === 0}
+            className="bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700"
+            data-testid="button-generate-elite-ideas"
+          >
+            <Zap className={`h-4 w-4 mr-2 ${generateEliteIdeasMutation.isPending ? 'animate-pulse' : ''}`} />
+            {generateEliteIdeasMutation.isPending ? 'Generating...' : 'Trade Elite Setups'}
           </Button>
         </div>
       </div>

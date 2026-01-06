@@ -28,7 +28,7 @@ import {
 import { getCryptoPrice } from './realtime-price-service';
 import { getFuturesPrice } from './futures-data-service';
 import { getRealtimeQuote } from './realtime-pricing-service';
-import type { WatchlistItem, AssetType } from '@shared/schema';
+import type { WatchlistItem, AssetType, TradeIdea } from '@shared/schema';
 
 type WatchlistTier = 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
 
@@ -493,4 +493,121 @@ export function startWatchlistGradingScheduler(): void {
       logger.error('[GRADE] Scheduled grading failed:', error);
     }
   }, 15 * 60 * 1000);
+}
+
+/**
+ * Generate trade ideas from elite watchlist setups (S, A, A+ tiers)
+ * These are high-conviction setups tagged as 'elite' source
+ */
+export async function generateEliteTradeIdeas(userId?: string): Promise<{
+  generated: number;
+  ideas: Partial<TradeIdea>[];
+  skipped: string[];
+}> {
+  logger.info('[ELITE] Generating trade ideas from elite watchlist setups...');
+  
+  const items = await getGradedWatchlist(userId);
+  const eliteItems = items.filter((item: WatchlistItem) => 
+    item.tier === 'S' || item.tier === 'A'
+  );
+  
+  logger.info(`[ELITE] Found ${eliteItems.length} elite setups (S/A tier)`);
+  
+  const generatedIdeas: Partial<TradeIdea>[] = [];
+  const skippedSymbols: string[] = [];
+  
+  for (const item of eliteItems) {
+    try {
+      // Check if we already have an active idea for this symbol
+      const existingIdeas = await storage.getAllTradeIdeas();
+      const hasActiveIdea = existingIdeas.some((idea: TradeIdea) => 
+        idea.symbol === item.symbol && 
+        idea.status === 'published' &&
+        new Date(idea.timestamp || '').getTime() > Date.now() - 24 * 60 * 60 * 1000 // Within 24 hours
+      );
+      
+      if (hasActiveIdea) {
+        logger.debug(`[ELITE] Skipping ${item.symbol} - already has active idea`);
+        skippedSymbols.push(`${item.symbol} (active idea exists)`);
+        continue;
+      }
+      
+      // Fetch current price data
+      const priceData = await fetchHistoricalPrices(item.symbol, item.assetType as AssetType);
+      if (!priceData) {
+        skippedSymbols.push(`${item.symbol} (no price data)`);
+        continue;
+      }
+      
+      const currentPrice = priceData.currentPrice;
+      const gradeInputs = item.gradeInputs ? JSON.parse(item.gradeInputs as string) : null;
+      
+      // Determine direction based on signals
+      const isBullish = gradeInputs?.signals?.some((s: string) => 
+        s.toLowerCase().includes('oversold') || 
+        s.toLowerCase().includes('bullish') ||
+        s.toLowerCase().includes('positive')
+      ) ?? (gradeInputs?.rsi14 && gradeInputs.rsi14 < 40);
+      
+      const direction = isBullish ? 'long' : 'short';
+      
+      // Calculate targets based on ATR or percentage
+      const atr = gradeInputs?.atr || currentPrice * 0.02;
+      const targetMultiplier = item.tier === 'S' ? 3 : 2;
+      const stopMultiplier = 1;
+      
+      const targetPrice = direction === 'long' 
+        ? currentPrice + (atr * targetMultiplier)
+        : currentPrice - (atr * targetMultiplier);
+        
+      const stopLoss = direction === 'long'
+        ? currentPrice - (atr * stopMultiplier)
+        : currentPrice + (atr * stopMultiplier);
+        
+      const riskRewardRatio = Math.abs(targetPrice - currentPrice) / Math.abs(currentPrice - stopLoss);
+      
+      // Build analysis from grade inputs
+      const signals = gradeInputs?.signals || [];
+      const analysis = `Elite ${item.tier}-Tier Setup | Score: ${item.gradeScore}/100 | ${signals.slice(0, 3).join(' | ')}`;
+      
+      const newIdea = await storage.createTradeIdea({
+        userId: userId || null,
+        symbol: item.symbol,
+        assetType: item.assetType as 'stock' | 'option' | 'crypto',
+        direction: direction,
+        holdingPeriod: 'swing',
+        entryPrice: currentPrice,
+        targetPrice: Math.round(targetPrice * 100) / 100,
+        stopLoss: Math.round(stopLoss * 100) / 100,
+        riskRewardRatio: Math.round(riskRewardRatio * 100) / 100,
+        catalyst: `${item.tier}-Tier Elite Setup`,
+        analysis: analysis,
+        liquidityWarning: currentPrice < 5,
+        sessionContext: 'RTH',
+        timestamp: new Date().toISOString(),
+        source: 'quant', // Using quant since 'elite' isn't a defined source
+        status: 'published',
+        isElite: true, // Custom tag for elite setups
+        eliteTier: item.tier,
+        gradeScore: item.gradeScore,
+      } as any);
+      
+      generatedIdeas.push(newIdea);
+      logger.info(`[ELITE] Generated trade idea for ${item.symbol} (${item.tier}-tier, ${direction})`);
+      
+      // Rate limit
+      await new Promise(resolve => setTimeout(resolve, 200));
+    } catch (error) {
+      logger.error(`[ELITE] Failed to generate idea for ${item.symbol}:`, error);
+      skippedSymbols.push(`${item.symbol} (error)`);
+    }
+  }
+  
+  logger.info(`[ELITE] Generated ${generatedIdeas.length} elite trade ideas`);
+  
+  return {
+    generated: generatedIdeas.length,
+    ideas: generatedIdeas,
+    skipped: skippedSymbols,
+  };
 }
