@@ -154,6 +154,7 @@ export function clearPortfolioCaches(): void {
   futuresPortfolio = null;
   cryptoPortfolio = null;
   propFirmPortfolio = null;
+  smallAccountPortfolio = null;
   logger.info('[BOT] Portfolio caches cleared');
 }
 
@@ -162,6 +163,7 @@ const OPTIONS_PORTFOLIO_NAME = "Auto-Lotto Options";
 const FUTURES_PORTFOLIO_NAME = "Auto-Lotto Futures";
 const CRYPTO_PORTFOLIO_NAME = "Auto-Lotto Crypto";
 const PROP_FIRM_PORTFOLIO_NAME = "Prop Firm Mode"; // Conservative futures for funded evaluations
+const SMALL_ACCOUNT_PORTFOLIO_NAME = "Small Account Lotto"; // $150 account for cheap A+ plays
 const SYSTEM_USER_ID = "system-auto-trader";
 const STARTING_CAPITAL = 300; // $300 per portfolio
 // 🎯 POSITION SIZING - Allow quality plays, not just ultra-cheap lottos
@@ -169,6 +171,32 @@ const STARTING_CAPITAL = 300; // $300 per portfolio
 const MAX_POSITION_SIZE = 150; // $150 max per trade for quality plays
 const FUTURES_MAX_POSITION_SIZE_PER_TRADE = 100;
 const CRYPTO_MAX_POSITION_SIZE = 100;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 💰 SMALL ACCOUNT LOTTO - $150 account for ultra-cheap A+ plays only
+// Targets: TSLA, SPX (Fridays), BMNR, SMCI, SNDK (Thursdays), IWM
+// Entry: $20-100 per contract ($0.20-$1.00 premium)
+// Grade: A+ ONLY - highest conviction plays
+// ═══════════════════════════════════════════════════════════════════════════
+const SMALL_ACCOUNT_STARTING_CAPITAL = 150;
+const SMALL_ACCOUNT_MAX_POSITION = 30; // $30 max per trade (20% of $150)
+const SMALL_ACCOUNT_MIN_PREMIUM = 20; // $0.20 minimum (avoid penny options)
+const SMALL_ACCOUNT_MAX_PREMIUM = 100; // $1.00 max premium
+const SMALL_ACCOUNT_GRADE_THRESHOLD = 90; // A+ only (90%+ confidence)
+
+// Priority tickers for Small Account - cheap options, high potential
+const SMALL_ACCOUNT_TICKERS = [
+  'TSLA',  // Fridays especially
+  'SPY',   // SPX proxy - Friday 0DTE
+  'BMNR',  // Small cap mover
+  'SMCI',  // AI play
+  'SNDK',  // Thursdays
+  'IWM',   // Small caps index
+  'SOFI',  // Cheap options
+  'INTC',  // Cheap options
+  'NIO',   // EV play
+  'PLTR',  // AI/Tech
+];
 
 // Prop Firm Mode - Conservative settings for Topstep/funded evaluations
 const PROP_FIRM_STARTING_CAPITAL = 50000; // Simulates 50K combine account
@@ -293,6 +321,7 @@ let optionsPortfolio: PaperPortfolio | null = null;
 let futuresPortfolio: PaperPortfolio | null = null;
 let cryptoPortfolio: PaperPortfolio | null = null;
 let propFirmPortfolio: PaperPortfolio | null = null;
+let smallAccountPortfolio: PaperPortfolio | null = null;
 
 // Prop Firm Mode daily stats
 let propFirmDailyPnL = 0;
@@ -924,6 +953,102 @@ export async function getCryptoPortfolio(): Promise<PaperPortfolio | null> {
     logger.error("🪙 [CRYPTO BOT] Failed to get/create portfolio:", error);
     return null;
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 💰 SMALL ACCOUNT PORTFOLIO - $150 for cheap A+ plays
+// ═══════════════════════════════════════════════════════════════════════════
+export async function getSmallAccountPortfolio(): Promise<PaperPortfolio | null> {
+  try {
+    if (smallAccountPortfolio) {
+      return smallAccountPortfolio;
+    }
+
+    const portfolios = await storage.getPaperPortfoliosByUser(SYSTEM_USER_ID);
+    const existing = portfolios.find(p => p.name === SMALL_ACCOUNT_PORTFOLIO_NAME);
+    
+    if (existing) {
+      smallAccountPortfolio = existing;
+      logger.info(`💰 [SMALL ACCOUNT] Found portfolio: ${existing.id} (Balance: $${existing.cashBalance.toFixed(2)})`);
+      return existing;
+    }
+
+    // Create new small account portfolio
+    const newPortfolio = await storage.createPaperPortfolio({
+      userId: SYSTEM_USER_ID,
+      name: SMALL_ACCOUNT_PORTFOLIO_NAME,
+      startingCapital: SMALL_ACCOUNT_STARTING_CAPITAL,
+      cashBalance: SMALL_ACCOUNT_STARTING_CAPITAL,
+      totalValue: SMALL_ACCOUNT_STARTING_CAPITAL,
+      maxPositionSize: SMALL_ACCOUNT_MAX_POSITION,
+      riskPerTrade: 0.02, // 2% risk per trade
+    });
+
+    smallAccountPortfolio = newPortfolio;
+    logger.info(`💰 [SMALL ACCOUNT] Created new portfolio: ${newPortfolio.id} with $${SMALL_ACCOUNT_STARTING_CAPITAL}`);
+    return newPortfolio;
+  } catch (error) {
+    logger.error("💰 [SMALL ACCOUNT] Failed to get/create portfolio:", error);
+    return null;
+  }
+}
+
+/**
+ * Check if a trade qualifies for Small Account
+ * Requirements: A+ grade (90%+), $0.20-$1.00 premium, priority ticker
+ */
+export function isSmallAccountEligible(
+  ticker: string,
+  confidence: number,
+  premiumCents: number
+): { eligible: boolean; reason: string } {
+  // Must be A+ grade (90%+ confidence)
+  if (confidence < SMALL_ACCOUNT_GRADE_THRESHOLD) {
+    return { eligible: false, reason: `Grade ${confidence.toFixed(0)}% < ${SMALL_ACCOUNT_GRADE_THRESHOLD}% (A+ required)` };
+  }
+  
+  // Premium must be in range ($0.20 - $1.00)
+  if (premiumCents < SMALL_ACCOUNT_MIN_PREMIUM) {
+    return { eligible: false, reason: `Premium $${(premiumCents/100).toFixed(2)} < $0.20 minimum` };
+  }
+  if (premiumCents > SMALL_ACCOUNT_MAX_PREMIUM) {
+    return { eligible: false, reason: `Premium $${(premiumCents/100).toFixed(2)} > $1.00 maximum` };
+  }
+  
+  // Must be a priority ticker for small account
+  if (!SMALL_ACCOUNT_TICKERS.includes(ticker.toUpperCase())) {
+    return { eligible: false, reason: `${ticker} not in small account priority list` };
+  }
+  
+  return { eligible: true, reason: 'A+ setup on priority ticker with cheap premium' };
+}
+
+/**
+ * Check if a portfolioId belongs to the Small Account
+ * Uses cached value for sync checks - for guaranteed accuracy use async version
+ */
+export function isSmallAccountPortfolio(portfolioId: string): boolean {
+  // Check cached value first
+  if (smallAccountPortfolio) {
+    return smallAccountPortfolio.id === portfolioId;
+  }
+  
+  // No cache, check if portfolioId matches expected Small Account pattern
+  // This is a fallback for cold-start scenarios
+  // The actual portfolio lookup happens async elsewhere
+  return false;
+}
+
+/**
+ * Async check if a portfolioId belongs to the Small Account
+ * Lazy-loads the portfolio cache if needed
+ */
+export async function isSmallAccountPortfolioAsync(portfolioId: string): Promise<boolean> {
+  // Lazy load if not cached
+  if (!smallAccountPortfolio) {
+    await getSmallAccountPortfolio();
+  }
+  return smallAccountPortfolio?.id === portfolioId;
 }
 
 // Cache for crypto prices to handle rate limiting
@@ -2015,6 +2140,7 @@ async function executeImmediateTrade(
           signals: decision.signals,
           confidence: decision.confidence,
           riskRewardRatio: ideaData.riskRewardRatio,
+          isSmallAccount: isSmallAccountPortfolio(portfolio.id),
         });
         logger.info(`🤖 [BOT] 📱✅ Discord notification SENT for ${opp.symbol}`);
       } catch (discordError) {
@@ -2496,6 +2622,7 @@ export async function runAutonomousBotScan(): Promise<void> {
             signals: decision.signals,
             confidence: decision.confidence,
             riskRewardRatio: ideaData.riskRewardRatio,
+            isSmallAccount: isSmallAccountPortfolio(portfolio.id),
           });
           logger.info(`🤖 [BOT] 📱✅ Discord ENTRY notification SENT for ${opp.symbol}`);
         } catch (discordError) {
@@ -2584,6 +2711,7 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
           signals: idea.qualitySignals as string[] | null,
           confidence: idea.confidenceScore,
           riskRewardRatio: idea.riskRewardRatio,
+          isSmallAccount: isSmallAccountPortfolio(portfolio.id),
         });
         logger.info(`🎰 [LOTTO-EXEC] 📱 Discord notification sent`);
       } catch (discordError) {
@@ -2703,6 +2831,7 @@ export async function monitorLottoPositions(): Promise<void> {
           
           // Send Discord notification for exit
           logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
+          const isSmallAcct = await isSmallAccountPortfolioAsync(pos.portfolioId);
           await sendBotTradeExitToDiscord({
             symbol: pos.symbol,
             assetType: pos.assetType || 'option',
@@ -2713,6 +2842,7 @@ export async function monitorLottoPositions(): Promise<void> {
             quantity: pos.quantity,
             realizedPnL: pnl,
             exitReason: `${exitSignal.exitType}: ${exitSignal.reason}`,
+            isSmallAccount: isSmallAcct,
           });
           
           logger.info(`🤖 [BOT] 📱✅ Discord EXIT notification SENT for ${pos.symbol} | P&L: $${pnl.toFixed(2)}`);
@@ -2746,6 +2876,7 @@ export async function monitorLottoPositions(): Promise<void> {
         
         try {
           logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
+          const isSmallAcct = await isSmallAccountPortfolioAsync(pos.portfolioId);
           await sendBotTradeExitToDiscord({
             symbol: pos.symbol,
             assetType: pos.assetType || 'option',
@@ -2756,6 +2887,7 @@ export async function monitorLottoPositions(): Promise<void> {
             quantity: pos.quantity,
             realizedPnL: pos.realizedPnL,
             exitReason: pos.exitReason,
+            isSmallAccount: isSmallAcct,
           });
           logger.info(`🤖 [BOT] 📱✅ Discord EXIT notification SENT for ${pos.symbol}`);
         } catch (discordError) {

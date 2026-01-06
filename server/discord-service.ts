@@ -1201,6 +1201,7 @@ export async function sendBotTradeEntryToDiscord(position: {
   signals?: string[] | null;
   confidence?: number | null;
   riskRewardRatio?: number | null;
+  isSmallAccount?: boolean; // Flag for Small Account trades
 }): Promise<void> {
   logger.info(`📱 [DISCORD] sendBotTradeEntryToDiscord called for ${position.symbol}`);
   
@@ -1260,10 +1261,16 @@ export async function sendBotTradeEntryToDiscord(position: {
       ? (position.confidence >= 85 ? 'A+' : position.confidence >= 75 ? 'A' : position.confidence >= 65 ? 'B+' : 'B')
       : '';
     
+    // Small Account or standard bot label
+    const accountLabel = position.isSmallAccount ? '💰 SMALL ACCOUNT' : '🤖 BOT';
+    const footerText = position.isSmallAccount 
+      ? `💰 Small Account Lotto${grade ? ` | Grade: ${grade}` : ''} | A+ ONLY`
+      : `🤖 Auto-Lotto Bot${grade ? ` | Grade: ${grade}` : ''}`;
+    
     const embed: DiscordEmbed = {
-      title: `🤖 BOT ENTRY: ${position.symbol} ${(position.optionType || 'OPT').toUpperCase()} $${position.strikePrice}`,
+      title: `${accountLabel} ENTRY: ${position.symbol} ${(position.optionType || 'OPT').toUpperCase()} $${position.strikePrice}`,
       description: analysisText,
-      color,
+      color: position.isSmallAccount ? 0xfbbf24 : color, // Gold for small account
       fields: [
         { name: '💰 Entry', value: `$${position.entryPrice.toFixed(2)}`, inline: true },
         { name: '🎯 Target', value: `$${position.targetPrice?.toFixed(2) || 'N/A'} (+${targetPct}%)`, inline: true },
@@ -1272,12 +1279,12 @@ export async function sendBotTradeEntryToDiscord(position: {
         { name: '⚖️ R:R', value: rrDisplay, inline: true },
         { name: '📦 Qty', value: `${position.quantity}`, inline: true }
       ],
-      footer: { text: `🤖 Auto-Lotto Bot${grade ? ` | Grade: ${grade}` : ''}` },
+      footer: { text: footerText },
       timestamp: new Date().toISOString()
     };
     
     const message: DiscordMessage = {
-      content: `🤖 **BOT ENTRY** → ${position.symbol} ${(position.optionType || '').toUpperCase()} $${position.strikePrice} exp ${expiryFormatted} x${position.quantity} @ $${position.entryPrice.toFixed(2)} │ R:R ${rrDisplay} │ ${CHANNEL_HEADERS.LOTTO}`,
+      content: `${accountLabel} **ENTRY** → ${position.symbol} ${(position.optionType || '').toUpperCase()} $${position.strikePrice} exp ${expiryFormatted} x${position.quantity} @ $${position.entryPrice.toFixed(2)} │ R:R ${rrDisplay}${position.isSmallAccount ? ' │ $150 ACCOUNT' : ''}`,
       embeds: [embed]
     };
     
@@ -1306,6 +1313,7 @@ export async function sendBotTradeExitToDiscord(position: {
   quantity: number;
   realizedPnL?: number | null;
   exitReason?: string | null;
+  isSmallAccount?: boolean; // Flag for Small Account trades
 }): Promise<void> {
   logger.info(`📱 [DISCORD] sendBotTradeExitToDiscord called for ${position.symbol}`);
   
@@ -1339,21 +1347,27 @@ export async function sendBotTradeExitToDiscord(position: {
                        position.exitReason === 'stop_hit' ? 'Stop Hit' :
                        position.exitReason === 'expired' ? 'Expired' : 'Closed';
     
+    // Small Account or standard bot label
+    const accountLabel = position.isSmallAccount ? '💰 SMALL ACCOUNT' : '🤖 BOT';
+    const footerText = position.isSmallAccount 
+      ? '💰 Small Account Lotto | A+ ONLY'
+      : '🤖 Auto-Lotto Bot';
+    
     const embed: DiscordEmbed = {
-      title: `${emoji} BOT EXIT: ${position.symbol} ${(position.optionType || 'OPT').toUpperCase()} $${position.strikePrice}`,
+      title: `${emoji} ${accountLabel} EXIT: ${position.symbol} ${(position.optionType || 'OPT').toUpperCase()} $${position.strikePrice}`,
       description: `Closed - **${reasonText}**`,
-      color,
+      color: position.isSmallAccount ? 0xfbbf24 : color, // Gold for ALL small account trades (wins and losses)
       fields: [
         { name: '🚪 Exit', value: `$${(position.exitPrice || 0).toFixed(2)}`, inline: true },
         { name: '📊 P&L', value: `${pnl >= 0 ? '+' : ''}${pnlPercent.toFixed(1)}%`, inline: true },
         { name: '📋 Reason', value: reasonText, inline: true }
       ],
-      footer: { text: '🤖 Auto-Lotto Bot' },
+      footer: { text: footerText },
       timestamp: new Date().toISOString()
     };
     
     const message: DiscordMessage = {
-      content: `${emoji} **BOT EXIT** → ${position.symbol} | ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | ${reasonText} │ ${CHANNEL_HEADERS.LOTTO}`,
+      content: `${emoji} ${accountLabel} **EXIT** → ${position.symbol} | ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | ${reasonText}${position.isSmallAccount ? ' │ $150 ACCOUNT' : ''}`,
       embeds: [embed]
     };
     
