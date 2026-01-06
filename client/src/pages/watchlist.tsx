@@ -212,7 +212,19 @@ function GradeExplanation({ item }: { item: WatchlistItem }) {
   const tier = item.tier || 'C';
   const config = TIER_CONFIG[tier] || TIER_CONFIG.C;
   const score = item.gradeScore ?? 50;
-  const gradeInputs = item.gradeInputs as Record<string, number | string[]> | null;
+  
+  // Parse gradeInputs - it might come as a JSON string from the API
+  let gradeInputs: Record<string, number | string | string[]> | null = null;
+  try {
+    if (typeof item.gradeInputs === 'string') {
+      gradeInputs = JSON.parse(item.gradeInputs);
+    } else if (item.gradeInputs && typeof item.gradeInputs === 'object') {
+      gradeInputs = item.gradeInputs as Record<string, number | string | string[]>;
+    }
+  } catch {
+    console.error('Failed to parse gradeInputs:', item.gradeInputs);
+  }
+  
   const Icon = config.icon;
 
   // Parse signals
