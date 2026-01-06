@@ -1079,6 +1079,7 @@ export default function AutomationsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }
