@@ -859,10 +859,13 @@ Keep response concise (3-4 sentences total).`;
         
         // Combine quant data with AI intelligence
         // Preserve option fields and isLottoPlay from enriched quant ideas
+        // IMPORTANT: For OPTIONS, we always BUY (direction='long')
+        // The bullish/bearish sentiment is expressed via optionType (call=bullish, put=bearish)
+        const isOption = quantIdea.assetType === 'option';
         const enhancedIdea: any = {
           symbol: quantIdea.symbol,
           assetType: quantIdea.assetType as 'stock' | 'option' | 'crypto',
-          direction: quantIdea.direction as 'long' | 'short',
+          direction: isOption ? 'long' : (quantIdea.direction as 'long' | 'short'), // Options are ALWAYS long (we buy them)
           entryPrice: quantIdea.entryPrice,
           targetPrice: quantIdea.targetPrice,
           stopLoss: quantIdea.stopLoss,
@@ -873,7 +876,7 @@ Keep response concise (3-4 sentences total).`;
         };
         
         // Preserve option-specific fields from quant enrichment
-        if (quantIdea.assetType === 'option') {
+        if (isOption) {
           enhancedIdea.strikePrice = quantIdea.strikePrice;
           enhancedIdea.optionType = quantIdea.optionType;
           enhancedIdea.isLottoPlay = quantIdea.isLottoPlay || false;
@@ -884,10 +887,12 @@ Keep response concise (3-4 sentences total).`;
       } catch (aiError) {
         logger.warn(`AI enhancement failed for ${quantIdea.symbol}, using quant-only data`);
         // Fallback to quant-only idea
+        // IMPORTANT: For OPTIONS, we always BUY (direction='long')
+        const isOptionFallback = quantIdea.assetType === 'option';
         const fallbackIdea: any = {
           symbol: quantIdea.symbol,
           assetType: quantIdea.assetType as 'stock' | 'option' | 'crypto',
-          direction: quantIdea.direction as 'long' | 'short',
+          direction: isOptionFallback ? 'long' : (quantIdea.direction as 'long' | 'short'), // Options are ALWAYS long
           entryPrice: quantIdea.entryPrice,
           targetPrice: quantIdea.targetPrice,
           stopLoss: quantIdea.stopLoss,
@@ -898,7 +903,7 @@ Keep response concise (3-4 sentences total).`;
         };
         
         // Preserve option-specific fields from quant enrichment
-        if (quantIdea.assetType === 'option') {
+        if (isOptionFallback) {
           fallbackIdea.strikePrice = quantIdea.strikePrice;
           fallbackIdea.optionType = quantIdea.optionType;
           fallbackIdea.isLottoPlay = quantIdea.isLottoPlay || false;
