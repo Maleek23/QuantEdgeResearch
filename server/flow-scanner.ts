@@ -15,7 +15,8 @@ import { getLetterGrade } from './grading';
 import { sendFlowAlertToDiscord } from './discord-service';
 
 // Valid grades for Discord alerts (C- through A+)
-const DISCORD_ALERT_GRADES = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-'];
+// 🛡️ QUALITY GATE: Only send A-grade alerts to Discord (user requested, avoid noise/spam)
+const DISCORD_ALERT_GRADES = ['A+', 'A', 'A-'];
 
 // Wrapper to maintain existing function signature
 function isMarketOpen(): { isOpen: boolean; reason: string; minutesUntilClose: number } {

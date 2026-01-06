@@ -220,6 +220,68 @@ function isApiQuotaExhausted(): boolean {
   return apiCallsThisScan >= MAX_API_CALLS_PER_SCAN;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 🛡️ POST-LOSS COOLDOWN SYSTEM - Prevents re-entry on losing symbols
+// ═══════════════════════════════════════════════════════════════════════════
+const LOSS_COOLDOWN_MS = 30 * 60 * 1000; // 30 minute cooldown after a loss
+const MAX_ENTRY_PREMIUM = 50; // $50 max premium per contract to limit losses
+const CONSERVATIVE_ENTRY_PREMIUM = 30; // $30 max for non-A-grade entries
+
+interface SymbolCooldown {
+  lastLossTime: number;
+  lossCount: number;
+  totalLoss: number;
+}
+
+const symbolCooldowns = new Map<string, SymbolCooldown>();
+
+/**
+ * Record a loss on a symbol - triggers cooldown
+ */
+export function recordSymbolLoss(symbol: string, lossAmount: number): void {
+  const existing = symbolCooldowns.get(symbol) || { lastLossTime: 0, lossCount: 0, totalLoss: 0 };
+  existing.lastLossTime = Date.now();
+  existing.lossCount++;
+  existing.totalLoss += Math.abs(lossAmount);
+  symbolCooldowns.set(symbol, existing);
+  logger.warn(`🛑 [COOLDOWN] ${symbol} loss recorded: -$${Math.abs(lossAmount).toFixed(2)} (${existing.lossCount} losses, total -$${existing.totalLoss.toFixed(2)})`);
+}
+
+/**
+ * Check if a symbol is on cooldown after a loss
+ */
+function isSymbolOnLossCooldown(symbol: string): { onCooldown: boolean; reason: string } {
+  const cooldown = symbolCooldowns.get(symbol);
+  if (!cooldown) {
+    return { onCooldown: false, reason: '' };
+  }
+  
+  const timeSinceLoss = Date.now() - cooldown.lastLossTime;
+  if (timeSinceLoss < LOSS_COOLDOWN_MS) {
+    const minutesRemaining = Math.ceil((LOSS_COOLDOWN_MS - timeSinceLoss) / 60000);
+    return { 
+      onCooldown: true, 
+      reason: `${symbol} on ${minutesRemaining}min cooldown after ${cooldown.lossCount} losses (-$${cooldown.totalLoss.toFixed(2)})` 
+    };
+  }
+  
+  return { onCooldown: false, reason: '' };
+}
+
+/**
+ * Record a win - reduces cooldown severity
+ */
+export function recordSymbolWin(symbol: string): void {
+  const existing = symbolCooldowns.get(symbol);
+  if (existing) {
+    existing.lossCount = Math.max(0, existing.lossCount - 1);
+    if (existing.lossCount === 0) {
+      symbolCooldowns.delete(symbol);
+      logger.info(`✅ [COOLDOWN] ${symbol} cooldown cleared after win`);
+    }
+  }
+}
+
 let optionsPortfolio: PaperPortfolio | null = null;
 let futuresPortfolio: PaperPortfolio | null = null;
 let cryptoPortfolio: PaperPortfolio | null = null;
@@ -1341,6 +1403,11 @@ export async function monitorCryptoPositions(): Promise<void> {
         await storage.updatePaperPortfolio(portfolio.id, {
           cashBalance: runningCashBalance,
         });
+        
+        // 🛡️ Record loss for cooldown system
+        if (unrealizedPnL < 0) {
+          recordSymbolLoss(pos.symbol, Math.abs(unrealizedPnL));
+        }
         continue;
       }
       
@@ -1358,6 +1425,9 @@ export async function monitorCryptoPositions(): Promise<void> {
         await storage.updatePaperPortfolio(portfolio.id, {
           cashBalance: runningCashBalance,
         });
+        
+        // 🛡️ Record win to reduce cooldown
+        recordSymbolWin(pos.symbol);
         continue;
       }
       
@@ -1608,11 +1678,14 @@ function makeBotDecision(
   const isSwingTrade = opportunity.daysToExpiry >= 8 && opportunity.daysToExpiry <= 21;
   const isMonthlySwing = opportunity.daysToExpiry > 21;
   
-  let minScoreForEntry = 10; // Forced low for testing
-  if (isDayTrade) minScoreForEntry = 10; 
-  else if (isWeekly) minScoreForEntry = 10; 
-  else if (isSwingTrade) minScoreForEntry = 10; 
-  else if (isMonthlySwing) minScoreForEntry = 10; 
+  // 🛡️ PROPER ENTRY THRESHOLDS - Conservative to protect capital
+  // Day trades need stronger conviction (short time to be right)
+  // Swings can be more relaxed (time to recover)
+  let minScoreForEntry = 60; // Default - requires good conviction
+  if (isDayTrade) minScoreForEntry = 65; // Day trades need stronger signals
+  else if (isWeekly) minScoreForEntry = 55; // Weekly - moderate conviction
+  else if (isSwingTrade) minScoreForEntry = 50; // Swings have time buffer
+  else if (isMonthlySwing) minScoreForEntry = 45; // Monthly swings - most forgiving
   
   // Require at least 1 positive signal to enter (already relaxed)
   const positiveSignals = signals.filter(s => 
@@ -1622,11 +1695,19 @@ function makeBotDecision(
     !s.includes('TOO_FAR')
   );
   
-  // FORCE POSITIVE SIGNAL FOR TESTING
-  if (positiveSignals.length === 0) {
-    positiveSignals.push('TEST_SIGNAL_FORCE');
-    signals.push('TEST_SIGNAL_FORCE');
-    score += 10;
+  // 🛡️ MOMENTUM GATE: Require aligned momentum for entry
+  // No more forcing entries without real signals
+  const hasMomentumSignal = signals.some(s => 
+    s.includes('MOMENTUM') || s.includes('ALIGNED') || s.includes('INTRADAY_STRONG') || s.includes('INTRADAY_WEAK')
+  );
+  
+  if (!hasMomentumSignal && isDayTrade) {
+    return {
+      action: 'skip',
+      reason: `Day trade requires momentum alignment - none detected`,
+      confidence: boostedScore,
+      signals
+    };
   }
   
   if (positiveSignals.length < 1) {
@@ -2163,24 +2244,33 @@ export async function runAutonomousBotScan(): Promise<void> {
         // 📊 ENTRY TIMING CHECK - Should we enter now or wait?
         const entryTiming = getEntryTiming(quote, opp.optionType, marketContext);
         
-        // 🧠 ADAPTIVE LEARNING: BYPASSED FOR TESTING
-        // const symbolAdj = await getSymbolAdjustment(ticker);
-        // const adaptiveParams = await getAdaptiveParameters();
-        const symbolAdj = { shouldAvoid: false, confidenceBoost: 0, lossStreak: 0 };
-        const adaptiveParams = { confidenceThreshold: 0 };
+        // 🛡️ POST-LOSS COOLDOWN CHECK - Prevent re-entry on losing symbols
+        const cooldownStatus = isSymbolOnLossCooldown(ticker);
+        if (cooldownStatus.onCooldown) {
+          logger.info(`🛑 [BOT] ${ticker}: ${cooldownStatus.reason}`);
+          continue;
+        }
         
-        // BYPASSED FOR TESTING - log but don't block
-        logger.info(`🧠 [BOT] ${ticker}: Adaptive learning BYPASSED for testing`);
+        // 🛡️ PREMIUM CAP - Limit max entry premium to control losses
+        const isHighGrade = decision.confidence >= 85;
+        const maxPremium = isHighGrade ? MAX_ENTRY_PREMIUM : CONSERVATIVE_ENTRY_PREMIUM;
+        if (opp.price > maxPremium / 100) { // Convert to dollars per contract
+          logger.info(`🛡️ [BOT] ${ticker}: Premium $${(opp.price * 100).toFixed(0)} > max $${maxPremium} - SKIPPING`);
+          continue;
+        }
+        
+        // 🧠 ADAPTIVE LEARNING: Apply learning adjustments
+        const symbolAdj = await getSymbolAdjustment(ticker);
+        const adaptiveParams = await getAdaptiveParameters();
         
         decision.confidence += symbolAdj.confidenceBoost;
-        const effectiveMinConfidence = 0; // FORCED TO 0 FOR TESTING
+        const effectiveMinConfidence = Math.max(50, adaptiveParams.confidenceThreshold);
         
-        // Apply minimum confidence score - BYPASSED FOR TESTING
-        logger.info(`🤖 [BOT] ${ticker}: Confidence ${decision.confidence.toFixed(0)}% vs min ${effectiveMinConfidence}% - PASSING`);
-        // if (decision.confidence < effectiveMinConfidence) {
-        //   logger.debug(`🤖 [BOT] ⛔ ${ticker}: Confidence ${decision.confidence.toFixed(0)}% < min ${effectiveMinConfidence.toFixed(0)}%`);
-        //   continue;
-        // }
+        // Apply minimum confidence score
+        if (decision.confidence < effectiveMinConfidence) {
+          logger.debug(`🤖 [BOT] ⛔ ${ticker}: Confidence ${decision.confidence.toFixed(0)}% < min ${effectiveMinConfidence.toFixed(0)}%`);
+          continue;
+        }
         
         if (decision.action === 'enter' && entryTiming.shouldEnterNow) {
           logger.info(`🤖 [BOT] ✅ ${ticker} ${opp.optionType.toUpperCase()} $${opp.strike}: ${decision.reason} | ${entryTiming.reason}`);
@@ -2237,8 +2327,6 @@ export async function runAutonomousBotScan(): Promise<void> {
         const stockPrice = quote?.last || opp.price * 5; // Rough estimate if no quote
         
         // LAYER 1: Validate the specific trade idea
-        const confluence = { passed: true, score: 99, recommendation: 'FORCE_ENTRY', reasons: ['FORCED_FOR_TESTING'] };
-        /*
         const confluence = await validateConfluence({
           symbol: opp.symbol,
           direction: opp.optionType,
@@ -2248,7 +2336,6 @@ export async function runAutonomousBotScan(): Promise<void> {
           premium: opp.price,
           delta: opp.delta,
         });
-        */
         
         // Log confluence results
         logger.info(`🔍 [CONFLUENCE] ${opp.symbol}: Score=${confluence.score.toFixed(0)}% | ${confluence.recommendation}`);
@@ -2533,6 +2620,13 @@ export async function monitorLottoPositions(): Promise<void> {
             realizedPnL: pnl,
           });
           
+          // 🛡️ Record loss/win for cooldown system
+          if (pnl < 0) {
+            recordSymbolLoss(pos.symbol, Math.abs(pnl));
+          } else if (pnl > 0) {
+            recordSymbolWin(pos.symbol);
+          }
+          
           // Send Discord notification for exit
           logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
           await sendBotTradeExitToDiscord({
@@ -2568,6 +2662,13 @@ export async function monitorLottoPositions(): Promise<void> {
         const pnl = pos.realizedPnL || 0;
         const emoji = pnl >= 0 ? '🎉' : '💀';
         logger.info(`${emoji} [BOT] Closed ${pos.symbol}: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pos.exitReason})`);
+        
+        // 🛡️ Record loss/win for cooldown system
+        if (pnl < 0) {
+          recordSymbolLoss(pos.symbol, Math.abs(pnl));
+        } else if (pnl > 0) {
+          recordSymbolWin(pos.symbol);
+        }
         
         try {
           logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
@@ -2969,6 +3070,11 @@ export async function monitorFuturesPositions(): Promise<void> {
           logger.info(`🔮 [FUTURES-MONITOR] ❌ STOP HIT: ${position.symbol} @ $${currentPrice.toFixed(2)} | P&L: $${unrealizedPnL.toFixed(2)}`);
           // closePaperPosition handles all portfolio updates (cash, P&L, win/loss count)
           await storage.closePaperPosition(position.id, currentPrice, 'hit_stop');
+          
+          // 🛡️ Record loss for cooldown system
+          if (unrealizedPnL < 0) {
+            recordSymbolLoss(position.symbol, Math.abs(unrealizedPnL));
+          }
           continue;
         }
         
@@ -2980,6 +3086,9 @@ export async function monitorFuturesPositions(): Promise<void> {
           logger.info(`🔮 [FUTURES-MONITOR] ✅ TARGET HIT: ${position.symbol} @ $${currentPrice.toFixed(2)} | P&L: +$${unrealizedPnL.toFixed(2)}`);
           // closePaperPosition handles all portfolio updates (cash, P&L, win/loss count)
           await storage.closePaperPosition(position.id, currentPrice, 'hit_target');
+          
+          // 🛡️ Record win to reduce cooldown
+          recordSymbolWin(position.symbol);
           continue;
         }
         

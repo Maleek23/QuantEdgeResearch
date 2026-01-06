@@ -32,6 +32,7 @@ Key features include:
 -   **Unified Win Rate System**: Provides consistent win rate metrics (Equities, Options, Overall) across the platform, calculated based on defined trade outcomes.
 -   **Watchlist Grading System**: Evaluates watchlist assets using quantitative technical analysis (RSI, momentum, ADX, volume, moving averages) to assign a tier-based score (S-F).
 -   **Adaptive Loss Intelligence System**: Learns from trading mistakes by diagnosing loss categories and adaptively adjusting bot parameters (confidence, stop loss, position size) and implementing symbol cooldowns.
+-   **Auto-Lotto Bot Risk Controls (Jan 2026)**: Entry thresholds (65 day/55 weekly/50 swing/45 monthly), post-loss cooldowns (30 min after losses), premium caps ($50 A+, $30 others), mandatory confluence validation, and momentum gate for day trades.
 
 ## External Dependencies
 
@@ -52,4 +53,4 @@ Key features include:
 -   **USASpending.gov:** Government contract tracking.
 
 ### Other Integrations
--   **Discord:** Webhook notifications.
+-   **Discord:** Webhook notifications (A-grade only quality filtering for flow alerts).
