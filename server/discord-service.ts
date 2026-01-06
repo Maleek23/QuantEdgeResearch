@@ -1184,8 +1184,10 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
 }
 
 // Send bot trade entry notification to Discord
-// Bot entries (when bot ACTUALLY trades) go to #quantbot channel
-// This is separate from trade ideas (research signals) which go to #trade-alerts
+// Routes to appropriate channels based on source:
+// - 'quant': QUANTFLOOR (overview) + OPTIONSTRADES (trade log)
+// - 'lotto': LOTTO channel
+// - 'futures': FUTURE_TRADES channel
 export async function sendBotTradeEntryToDiscord(position: {
   symbol: string;
   assetType?: string | null;
@@ -1202,24 +1204,48 @@ export async function sendBotTradeEntryToDiscord(position: {
   confidence?: number | null;
   riskRewardRatio?: number | null;
   isSmallAccount?: boolean; // Flag for Small Account trades
+  source?: 'quant' | 'lotto' | 'futures'; // Routing source
 }): Promise<void> {
-  logger.info(`📱 [DISCORD] sendBotTradeEntryToDiscord called for ${position.symbol}`);
+  logger.info(`📱 [DISCORD] sendBotTradeEntryToDiscord called for ${position.symbol} (source: ${position.source || 'quant'})`);
   
   if (DISCORD_DISABLED) {
     logger.warn(`📱 [DISCORD] DISABLED - skipping entry notification for ${position.symbol}`);
     return;
   }
   
-  const webhookUrl = position.assetType === 'future' 
-    ? (process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL)
-    : (process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL);
+  // Determine webhook URLs based on source/asset type
+  const source = position.source || (position.assetType === 'future' ? 'futures' : 'quant');
   
-  if (!webhookUrl) {
+  let webhookUrls: string[] = [];
+  
+  if (source === 'futures' || position.assetType === 'future') {
+    // Futures go to FUTURE_TRADES
+    const futuresWebhook = process.env.DISCORD_WEBHOOK_FUTURE_TRADES;
+    if (futuresWebhook) webhookUrls.push(futuresWebhook);
+  } else if (source === 'lotto') {
+    // Lotto entries go to LOTTO channel
+    const lottoWebhook = process.env.DISCORD_WEBHOOK_LOTTO;
+    if (lottoWebhook) webhookUrls.push(lottoWebhook);
+  } else {
+    // Quant bot entries go to both QUANTFLOOR and OPTIONSTRADES
+    const quantFloorWebhook = process.env.DISCORD_WEBHOOK_QUANTFLOOR;
+    const optionsWebhook = process.env.DISCORD_WEBHOOK_OPTIONSTRADES;
+    if (quantFloorWebhook) webhookUrls.push(quantFloorWebhook);
+    if (optionsWebhook) webhookUrls.push(optionsWebhook);
+  }
+  
+  // Fallback to generic webhook if none configured
+  if (webhookUrls.length === 0) {
+    const fallback = process.env.DISCORD_WEBHOOK_URL;
+    if (fallback) webhookUrls.push(fallback);
+  }
+  
+  if (webhookUrls.length === 0) {
     logger.warn(`📱 [DISCORD] No webhook URL configured - skipping entry notification for ${position.symbol}`);
     return;
   }
   
-  logger.info(`📱 [DISCORD] Sending entry notification to webhook for ${position.symbol}...`);
+  logger.info(`📱 [DISCORD] Sending entry notification to ${webhookUrls.length} webhook(s) for ${position.symbol}...`);
   
   try {
     const isCall = position.optionType === 'call';
@@ -1288,20 +1314,26 @@ export async function sendBotTradeEntryToDiscord(position: {
       embeds: [embed]
     };
     
-    await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-    });
+    // Send to all configured webhooks
+    const results = await Promise.allSettled(
+      webhookUrls.map(url => 
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(message),
+        })
+      )
+    );
     
-    logger.info(`✅ Discord bot entry notification sent: ${position.symbol}`);
+    const successCount = results.filter(r => r.status === 'fulfilled').length;
+    logger.info(`✅ Discord bot entry notification sent to ${successCount}/${webhookUrls.length} channels: ${position.symbol}`);
   } catch (error) {
     logger.error('❌ Failed to send Discord bot entry notification:', error);
   }
 }
 
 // Send bot trade exit notification to Discord
-// Bot exits go to #quantbot channel (same as bot entries)
+// Routes to appropriate channels based on source (same as entry routing)
 // Winning trades ALSO go to #gains via sendGainsToDiscord
 export async function sendBotTradeExitToDiscord(position: {
   symbol: string;
@@ -1314,25 +1346,46 @@ export async function sendBotTradeExitToDiscord(position: {
   realizedPnL?: number | null;
   exitReason?: string | null;
   isSmallAccount?: boolean; // Flag for Small Account trades
+  source?: 'quant' | 'lotto' | 'futures'; // Routing source
 }): Promise<void> {
-  logger.info(`📱 [DISCORD] sendBotTradeExitToDiscord called for ${position.symbol}`);
+  logger.info(`📱 [DISCORD] sendBotTradeExitToDiscord called for ${position.symbol} (source: ${position.source || 'quant'})`);
   
   if (DISCORD_DISABLED) {
     logger.warn(`📱 [DISCORD] DISABLED - skipping exit notification for ${position.symbol}`);
     return;
   }
   
-  // Route to specific channel based on asset type
-  const webhookUrl = position.assetType === 'future'
-    ? (process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL)
-    : (process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL);
+  // Determine webhook URLs based on source/asset type (same logic as entry)
+  const source = position.source || (position.assetType === 'future' ? 'futures' : 'quant');
   
-  if (!webhookUrl) {
+  let webhookUrls: string[] = [];
+  
+  if (source === 'futures' || position.assetType === 'future') {
+    const futuresWebhook = process.env.DISCORD_WEBHOOK_FUTURE_TRADES;
+    if (futuresWebhook) webhookUrls.push(futuresWebhook);
+  } else if (source === 'lotto') {
+    const lottoWebhook = process.env.DISCORD_WEBHOOK_LOTTO;
+    if (lottoWebhook) webhookUrls.push(lottoWebhook);
+  } else {
+    // Quant bot exits go to both QUANTFLOOR and OPTIONSTRADES
+    const quantFloorWebhook = process.env.DISCORD_WEBHOOK_QUANTFLOOR;
+    const optionsWebhook = process.env.DISCORD_WEBHOOK_OPTIONSTRADES;
+    if (quantFloorWebhook) webhookUrls.push(quantFloorWebhook);
+    if (optionsWebhook) webhookUrls.push(optionsWebhook);
+  }
+  
+  // Fallback to generic webhook if none configured
+  if (webhookUrls.length === 0) {
+    const fallback = process.env.DISCORD_WEBHOOK_URL;
+    if (fallback) webhookUrls.push(fallback);
+  }
+  
+  if (webhookUrls.length === 0) {
     logger.warn(`📱 [DISCORD] No webhook URL configured - skipping exit notification for ${position.symbol}`);
     return;
   }
   
-  logger.info(`📱 [DISCORD] Sending exit notification to webhook for ${position.symbol}...`);
+  logger.info(`📱 [DISCORD] Sending exit notification to ${webhookUrls.length} webhook(s) for ${position.symbol}...`);
   
   try {
     const pnl = position.realizedPnL || 0;
@@ -1371,13 +1424,19 @@ export async function sendBotTradeExitToDiscord(position: {
       embeds: [embed]
     };
     
-    await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-    });
+    // Send to all configured webhooks
+    const results = await Promise.allSettled(
+      webhookUrls.map(url => 
+        fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(message),
+        })
+      )
+    );
     
-    logger.info(`✅ Discord bot exit notification sent: ${position.symbol} P&L: $${pnl.toFixed(2)}`);
+    const successCount = results.filter(r => r.status === 'fulfilled').length;
+    logger.info(`✅ Discord bot exit notification sent to ${successCount}/${webhookUrls.length} channels: ${position.symbol} P&L: $${pnl.toFixed(2)}`);
   } catch (error) {
     logger.error('❌ Failed to send Discord bot exit notification:', error);
   }

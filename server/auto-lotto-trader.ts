@@ -2124,7 +2124,7 @@ async function executeImmediateTrade(
     if (result.success && result.position) {
       logger.info(`🤖 [BOT] ✅ IMMEDIATE TRADE EXECUTED: ${opp.symbol} x${result.position.quantity} @ $${opp.price.toFixed(2)}`);
       
-      // Send Discord notification with full analysis
+      // Send Discord notification with full analysis - route to QUANTFLOOR + OPTIONSTRADES
       try {
         const isSmallAcct = await isSmallAccountPortfolioAsync(portfolio.id);
         await sendBotTradeEntryToDiscord({
@@ -2142,6 +2142,7 @@ async function executeImmediateTrade(
           confidence: decision.confidence,
           riskRewardRatio: ideaData.riskRewardRatio,
           isSmallAccount: isSmallAcct,
+          source: 'quant', // Route to #quant-ai and #ai-quant-options
         });
         logger.info(`🤖 [BOT] 📱✅ Discord notification SENT for ${opp.symbol}`);
       } catch (discordError) {
@@ -2606,7 +2607,7 @@ export async function runAutonomousBotScan(): Promise<void> {
       if (result.success && result.position) {
         logger.info(`🤖 [BOT] ✅ TRADE EXECUTED: ${opp.symbol} x${result.position.quantity} @ $${opp.price.toFixed(2)}`);
         
-        // Send Discord notification with full analysis
+        // Send Discord notification with full analysis - route to QUANTFLOOR + OPTIONSTRADES
         try {
           logger.info(`🤖 [BOT] 📱 Sending Discord ENTRY notification for ${opp.symbol}...`);
           const isSmallAcct = await isSmallAccountPortfolioAsync(portfolio.id);
@@ -2625,6 +2626,7 @@ export async function runAutonomousBotScan(): Promise<void> {
             confidence: decision.confidence,
             riskRewardRatio: ideaData.riskRewardRatio,
             isSmallAccount: isSmallAcct,
+            source: 'quant', // Route to #quant-ai and #ai-quant-options
           });
           logger.info(`🤖 [BOT] 📱✅ Discord ENTRY notification SENT for ${opp.symbol}`);
         } catch (discordError) {
@@ -2697,7 +2699,7 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
     if (result.success && result.position) {
       logger.info(`🎰 [LOTTO-EXEC] ✅ SUCCESS: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} x${result.position.quantity} @ $${idea.entryPrice.toFixed(2)}`);
       
-      // Send Discord notification with full analysis
+      // Send Discord notification with full analysis - route to LOTTO channel
       try {
         const isSmallAcct = await isSmallAccountPortfolioAsync(portfolio.id);
         await sendBotTradeEntryToDiscord({
@@ -2715,8 +2717,9 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
           confidence: idea.confidenceScore,
           riskRewardRatio: idea.riskRewardRatio,
           isSmallAccount: isSmallAcct,
+          source: 'lotto', // Route to #lottos channel
         });
-        logger.info(`🎰 [LOTTO-EXEC] 📱 Discord notification sent`);
+        logger.info(`🎰 [LOTTO-EXEC] 📱 Discord notification sent to #lottos`);
       } catch (discordError) {
         logger.error(`🎰 [LOTTO-EXEC] 📱❌ Discord failed:`, discordError);
       }
@@ -2832,7 +2835,7 @@ export async function monitorLottoPositions(): Promise<void> {
             recordSymbolWin(pos.symbol);
           }
           
-          // Send Discord notification for exit
+          // Send Discord notification for exit - route to QUANTFLOOR + OPTIONSTRADES
           logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
           const isSmallAcct = await isSmallAccountPortfolioAsync(pos.portfolioId);
           await sendBotTradeExitToDiscord({
@@ -2846,6 +2849,7 @@ export async function monitorLottoPositions(): Promise<void> {
             realizedPnL: pnl,
             exitReason: `${exitSignal.exitType}: ${exitSignal.reason}`,
             isSmallAccount: isSmallAcct,
+            source: 'quant', // Route to #quant-ai and #ai-quant-options
           });
           
           logger.info(`🤖 [BOT] 📱✅ Discord EXIT notification SENT for ${pos.symbol} | P&L: $${pnl.toFixed(2)}`);
@@ -2891,6 +2895,7 @@ export async function monitorLottoPositions(): Promise<void> {
             realizedPnL: pos.realizedPnL,
             exitReason: pos.exitReason,
             isSmallAccount: isSmallAcct,
+            source: 'quant', // Route to #quant-ai and #ai-quant-options
           });
           logger.info(`🤖 [BOT] 📱✅ Discord EXIT notification SENT for ${pos.symbol}`);
         } catch (discordError) {
@@ -3173,7 +3178,7 @@ export async function runFuturesBotScan(): Promise<void> {
           logger.info(`🔮 [FUTURES-BOT] ✅ EXECUTED: ${bestFuturesOpp.direction.toUpperCase()} ${quantity}x ${bestFuturesOpp.contractCode} @ $${entryPrice.toFixed(2)}`);
           logger.info(`🔮 [FUTURES-BOT] 📊 Stop: $${stopLoss.toFixed(2)} | Target: $${targetPrice.toFixed(2)} | Margin: $${marginRequired.toFixed(2)}`);
           
-          // Send Discord notification with full analysis
+          // Send Discord notification with full analysis - route to FUTURES channel
           if (prefs.enableDiscordAlerts) {
             try {
               await sendBotTradeEntryToDiscord({
@@ -3188,8 +3193,9 @@ export async function runFuturesBotScan(): Promise<void> {
                 signals: bestFuturesOpp.signals,
                 confidence: bestFuturesOpp.confidence,
                 riskRewardRatio: 2.0,
+                source: 'futures', // Route to #future-trade-id channel
               });
-              logger.info(`🔮 [FUTURES-BOT] 📱 Discord entry notification sent`);
+              logger.info(`🔮 [FUTURES-BOT] 📱 Discord entry notification sent to #future-trade-id`);
             } catch (discordError) {
               logger.warn(`🔮 [FUTURES-BOT] Discord notification failed:`, discordError);
             }
@@ -3633,7 +3639,7 @@ export async function monitorPropFirmPositions(): Promise<void> {
           // closePaperPosition handles all portfolio updates (cash, P&L, win/loss count)
           await storage.closePaperPosition(position.id, currentPrice, 'hit_stop');
           
-          // Send Discord notification
+          // Send Discord notification - route to FUTURES channel
           try {
             await sendBotTradeExitToDiscord({
               symbol: position.symbol,
@@ -3643,8 +3649,9 @@ export async function monitorPropFirmPositions(): Promise<void> {
               quantity,
               realizedPnL: unrealizedPnL,
               exitReason: 'hit_stop',
+              source: 'futures', // Route to #future-trade-id channel
             });
-            logger.info(`🔮 [FUTURES-MONITOR] 📱 Discord exit notification sent`);
+            logger.info(`🔮 [FUTURES-MONITOR] 📱 Discord exit notification sent to #future-trade-id`);
           } catch (discordError) {
             logger.warn(`🔮 [FUTURES-MONITOR] Discord notification failed:`, discordError);
           }
@@ -3662,7 +3669,7 @@ export async function monitorPropFirmPositions(): Promise<void> {
           // closePaperPosition handles all portfolio updates (cash, P&L, win/loss count)
           await storage.closePaperPosition(position.id, currentPrice, 'hit_target');
           
-          // Send Discord notification
+          // Send Discord notification - route to FUTURES channel
           try {
             await sendBotTradeExitToDiscord({
               symbol: position.symbol,
@@ -3672,8 +3679,9 @@ export async function monitorPropFirmPositions(): Promise<void> {
               quantity,
               realizedPnL: unrealizedPnL,
               exitReason: 'hit_target',
+              source: 'futures', // Route to #future-trade-id channel
             });
-            logger.info(`🔮 [FUTURES-MONITOR] 📱 Discord exit notification sent`);
+            logger.info(`🔮 [FUTURES-MONITOR] 📱 Discord exit notification sent to #future-trade-id`);
           } catch (discordError) {
             logger.warn(`🔮 [FUTURES-MONITOR] Discord notification failed:`, discordError);
           }
