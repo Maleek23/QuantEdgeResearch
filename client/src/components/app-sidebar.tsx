@@ -40,9 +40,9 @@ const researchItems: NavItem[] = [
   { title: "Swing Scanner", url: "/swing-scanner", icon: TrendingUp, badge: "NEW" },
 ];
 
-// Automations - all automated trading tools (Auto-Lotto is inside Automations Hub)
+// Automations - Auto-Lotto Bot is the main hub with other automations as tabs
 const automationItems: NavItem[] = [
-  { title: "Automations Hub", url: "/automations", icon: Zap, badge: "LIVE" },
+  { title: "Automations Hub", url: "/watchlist-bot", icon: Zap, badge: "LIVE" },
 ];
 
 // Analytics - performance and analysis tools (Data Audit is now part of Performance page)

@@ -105,7 +105,9 @@ function Router() {
       <Route path="/wallet-tracker" component={WalletTracker} />
       <Route path="/ct-tracker" component={CTTracker} />
       <Route path="/watchlist-bot" component={WatchlistBot} />
-      <Route path="/automations" component={AutomationsPage} />
+      <Route path="/automations">
+        <Redirect to="/watchlist-bot" />
+      </Route>
       <Route path="/chart-analysis" component={ChartAnalysis} />
       <Route path="/backtest" component={BacktestPage} />
       <Route path="/performance" component={PerformancePage} />

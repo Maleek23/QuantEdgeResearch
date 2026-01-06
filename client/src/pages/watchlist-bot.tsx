@@ -429,7 +429,7 @@ export default function WatchlistBotPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+        <TabsList className="grid w-full max-w-4xl grid-cols-6">
           <TabsTrigger value="bot" className="gap-2" data-testid="tab-bot">
             <Bot className="h-4 w-4 text-pink-400" />
             Auto-Lotto
@@ -441,6 +441,18 @@ export default function WatchlistBotPage() {
           <TabsTrigger value="preferences" className="gap-2" data-testid="tab-preferences">
             <Sliders className="h-4 w-4 text-cyan-400" />
             Strategy
+          </TabsTrigger>
+          <TabsTrigger value="quant-bot" className="gap-2" data-testid="tab-quant-bot">
+            <BarChart3 className="h-4 w-4 text-purple-400" />
+            Quant
+          </TabsTrigger>
+          <TabsTrigger value="flow" className="gap-2" data-testid="tab-flow">
+            <Activity className="h-4 w-4 text-orange-400" />
+            Flow
+          </TabsTrigger>
+          <TabsTrigger value="reports" className="gap-2" data-testid="tab-reports">
+            <FileText className="h-4 w-4 text-blue-400" />
+            Reports
           </TabsTrigger>
         </TabsList>
 
@@ -2125,6 +2137,117 @@ export default function WatchlistBotPage() {
                   </p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Quant Bot Tab */}
+        <TabsContent value="quant-bot" className="space-y-6">
+          <Card className="bg-slate-800/30 border-slate-700/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-purple-400" />
+                Quant Mean-Reversion Bot
+              </CardTitle>
+              <CardDescription>RSI(2) strategy with automatic entry/exit signals</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  <Badge variant="secondary" className="mt-1">Coming Soon</Badge>
+                </div>
+                <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                  <p className="text-xs text-muted-foreground">Strategy</p>
+                  <p className="font-mono text-sm mt-1">RSI(2) Reversal</p>
+                </div>
+                <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                  <p className="text-xs text-muted-foreground">Expectancy</p>
+                  <p className="text-emerald-400 font-mono text-sm mt-1">+$4.12/trade</p>
+                </div>
+                <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                  <p className="text-xs text-muted-foreground">Win Rate</p>
+                  <p className="font-mono text-sm mt-1">~65%</p>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                This strategy identifies extreme RSI(2) readings below 10 or above 90, then enters mean-reversion trades 
+                with defined profit targets and stop losses. Ideal for range-bound markets.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Flow Scanner Tab */}
+        <TabsContent value="flow" className="space-y-6">
+          <Card className="bg-slate-800/30 border-slate-700/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-orange-400" />
+                Options Flow Scanner
+              </CardTitle>
+              <CardDescription>Detect unusual institutional options activity</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  <Badge className="bg-green-600 mt-1">Active</Badge>
+                </div>
+                <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                  <p className="text-xs text-muted-foreground">Scan Interval</p>
+                  <p className="font-mono text-sm mt-1">15 minutes</p>
+                </div>
+                <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                  <p className="text-xs text-muted-foreground">Min Grade</p>
+                  <p className="font-mono text-sm mt-1">B- and above</p>
+                </div>
+                <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                  <p className="text-xs text-muted-foreground">Discord</p>
+                  <Badge variant="outline" className="mt-1 text-cyan-400 border-cyan-400/30">Connected</Badge>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                The Flow Scanner monitors your watchlist for unusual options activity - high volume/OI ratios, 
+                large premium sweeps, and institutional-level positioning. B- to A+ trades are sent to Discord in real-time.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Reports Tab */}
+        <TabsContent value="reports" className="space-y-6">
+          <Card className="bg-slate-800/30 border-slate-700/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-blue-400" />
+                Automated Reports
+              </CardTitle>
+              <CardDescription>Weekly performance summaries sent to Discord</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                  <p className="text-xs text-muted-foreground">Weekly Report</p>
+                  <Badge variant="secondary" className="mt-1">Sunday 6PM CT</Badge>
+                </div>
+                <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                  <p className="text-xs text-muted-foreground">Daily Preview</p>
+                  <Badge variant="secondary" className="mt-1">8:30 AM CT</Badge>
+                </div>
+                <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                  <p className="text-xs text-muted-foreground">Format</p>
+                  <p className="font-mono text-sm mt-1">Discord Embed</p>
+                </div>
+                <div className="p-4 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                  <p className="text-xs text-muted-foreground">Content</p>
+                  <p className="text-xs mt-1">Win rate, P&L, top trades</p>
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Automated reports summarize your trading week with key metrics: win rate, total P&L, 
+                best/worst trades, and upcoming catalysts. Daily previews highlight top 5 trade ideas for the session.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
