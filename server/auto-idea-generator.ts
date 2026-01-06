@@ -158,18 +158,21 @@ class AutoIdeaGenerator {
       );
 
       // Build market context - add penny stock emphasis for evening sessions
-      let marketContext = "Current market conditions with focus on stocks, options, and crypto";
+      const semiTickers = SEMI_STORAGE_TICKERS.join(', ');
+      let marketContext = `Current market conditions with focus on stocks, options, and crypto. 
+      Pay special attention to Semiconductors and Memory/Storage sectors (AI Infrastructure): ${semiTickers}.`;
+      
       if (isEveningSession) {
         const pennyTickers = PENNY_STOCK_TICKERS.join(', ');
         marketContext = `TOMORROW'S PLAYBOOK - Evening research session for next-day trading opportunities. 
-Focus heavily on penny stocks and lotto plays with high volatility potential. 
-Priority tickers to analyze: ${pennyTickers}.
+Focus heavily on AI infrastructure (Semiconductors & Storage: ${semiTickers}) and high-volatility penny stocks. 
+Priority tickers to analyze: ${semiTickers}, ${pennyTickers}.
 Look for: 
-1. Quantum computing plays (IONQ, RGTI, QUBT, QBTS) - next big tech wave
-2. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition momentum
-3. AI penny stocks (BBAI, SOUN) - AI bubble opportunities
-4. Crypto miners (MARA, RIOT, WULF, CLSK) - Bitcoin correlation plays
-5. Speculative biotech/EV (NVAX, NKLA, GOEV) - high risk/reward
+1. AI Infrastructure (NVDA, MU, WDC, LRCX) - exploding demand for compute and memory
+2. Quantum computing plays (IONQ, RGTI, QUBT, QBTS) - next big tech wave
+3. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition momentum
+4. AI penny stocks (BBAI, SOUN) - AI bubble opportunities
+5. Crypto miners (MARA, RIOT, WULF, CLSK) - Bitcoin correlation plays
 Generate swing trade and lotto option ideas with asymmetric risk/reward. Include OTM call options for potential 5-10x returns.`;
       }
       const aiIdeas = await generateTradeIdeas(marketContext);
@@ -499,17 +502,18 @@ Generate swing trade and lotto option ideas with asymmetric risk/reward. Include
       );
 
       // Build market context for tomorrow's watchlist
+      const semiTickers = SEMI_STORAGE_TICKERS.join(', ');
       const pennyTickers = PENNY_STOCK_TICKERS.join(', ');
       const marketContext = `🌙 TOMORROW'S WATCHLIST - Evening research session for next-day trading opportunities.
 This is a relaxed evening scan to identify interesting setups for tomorrow's trading day.
-Focus heavily on penny stocks and lotto plays with high volatility potential.
-Priority tickers to analyze: ${pennyTickers}.
+Focus heavily on AI infrastructure (Semiconductors & Storage: ${semiTickers}) and high-volatility penny stocks.
+Priority tickers to analyze: ${semiTickers}, ${pennyTickers}.
 Look for:
-1. Quantum computing plays (IONQ, RGTI, QUBT, QBTS) - next big tech wave
-2. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition momentum
-3. AI penny stocks (BBAI, SOUN) - AI bubble opportunities
-4. Crypto miners (MARA, RIOT, WULF, CLSK) - Bitcoin correlation plays
-5. Speculative biotech/EV (NVAX, NKLA, GOEV) - high risk/reward
+1. AI Infrastructure (NVDA, MU, WDC, LRCX) - exploding demand for compute and memory
+2. Quantum computing plays (IONQ, RGTI, QUBT, QBTS) - next big tech wave
+3. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition momentum
+4. AI penny stocks (BBAI, SOUN) - AI bubble opportunities
+5. Crypto miners (MARA, RIOT, WULF, CLSK) - Bitcoin correlation plays
 Generate swing trade and lotto option ideas with asymmetric risk/reward. Include OTM call options for potential 5-10x returns.
 This is a WATCHLIST scan - be more inclusive of speculative setups.`;
 
