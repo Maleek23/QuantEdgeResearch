@@ -1349,10 +1349,16 @@ export default function WatchlistBotPage() {
                           <TableRow className="border-slate-700">
                             <TableHead className="text-xs font-medium uppercase tracking-wider">Symbol</TableHead>
                             <TableHead className="text-xs font-medium uppercase tracking-wider">Type</TableHead>
+                            {portfolioTab === 'options' && (
+                              <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Strike</TableHead>
+                            )}
+                            {portfolioTab === 'options' && (
+                              <TableHead className="text-xs font-medium uppercase tracking-wider">Expiry</TableHead>
+                            )}
+                            <TableHead className="text-xs font-medium uppercase tracking-wider">Entered</TableHead>
                             <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Qty</TableHead>
                             <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Avg Cost</TableHead>
                             <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Current</TableHead>
-                            <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Market Value</TableHead>
                             <TableHead className="text-xs font-medium uppercase tracking-wider text-right">P&L</TableHead>
                             <TableHead className="text-xs font-medium uppercase tracking-wider text-right">Return %</TableHead>
                           </TableRow>
@@ -1402,6 +1408,26 @@ export default function WatchlistBotPage() {
                               ? formatCryptoPrice(livePrice)
                               : formatCurrency(livePrice);
                             
+                            // Format expiry date
+                            const formatExpiry = (dateStr: string | null | undefined) => {
+                              if (!dateStr) return '-';
+                              try {
+                                const d = new Date(dateStr);
+                                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                              } catch { return dateStr; }
+                            };
+                            
+                            // Format entry date/time
+                            const formatEntryTime = (dateStr: string | Date | null | undefined) => {
+                              if (!dateStr) return '-';
+                              try {
+                                const d = new Date(dateStr);
+                                const dateFormatted = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                const timeFormatted = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                return `${dateFormatted} ${timeFormatted}`;
+                              } catch { return '-'; }
+                            };
+                            
                             return (
                               <TableRow key={position.id} className="border-slate-700/50 hover-elevate" data-testid={`open-position-${position.id}`}>
                                 <TableCell>
@@ -1423,6 +1449,19 @@ export default function WatchlistBotPage() {
                                     {position.assetType === 'future' ? 'FUTURES' : position.assetType === 'crypto' ? 'SPOT' : position.optionType?.toUpperCase() || 'OPTION'}
                                   </Badge>
                                 </TableCell>
+                                {portfolioTab === 'options' && (
+                                  <TableCell className="text-right font-mono tabular-nums text-sm">
+                                    ${position.strikePrice?.toFixed(0) || '-'}
+                                  </TableCell>
+                                )}
+                                {portfolioTab === 'options' && (
+                                  <TableCell className="text-xs text-muted-foreground">
+                                    {formatExpiry(position.expiryDate)}
+                                  </TableCell>
+                                )}
+                                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {formatEntryTime(position.createdAt)}
+                                </TableCell>
                                 <TableCell className="text-right">
                                   <span className="font-mono tabular-nums text-sm">{displayQty}</span>
                                   {position.assetType === 'crypto' && (
@@ -1431,7 +1470,6 @@ export default function WatchlistBotPage() {
                                 </TableCell>
                                 <TableCell className="text-right font-mono tabular-nums text-sm">{displayEntryPrice}</TableCell>
                                 <TableCell className="text-right font-mono tabular-nums text-sm">{displayCurrentPrice}</TableCell>
-                                <TableCell className="text-right font-mono tabular-nums text-sm font-medium">{formatCurrency(marketValue)}</TableCell>
                                 <TableCell className={cn(
                                   "text-right font-mono tabular-nums text-sm font-semibold",
                                   pnl >= 0 ? "text-green-400" : "text-red-400"
