@@ -145,11 +145,12 @@ function analyzeMarketConditions(
     reasons.push('SPY/QQQ diverging - mixed signals');
   }
 
-  // FORCED TRUE FOR TESTING - always allow trading
-  const shouldTrade = true;
+  // 🛡️ PROPER TRADING GATE - Only trade in favorable conditions
+  // Require score >= 30 AND not extreme volatility
+  const shouldTrade = score >= 30 && regime !== 'volatile';
 
   if (!shouldTrade) {
-    reasons.push(`⛔ Skip trading: Score ${score} < 30 or volatile regime`);
+    reasons.push(`⛔ Skip trading: Score ${score} < 30 or volatile regime (${regime})`);
   }
 
   return {
@@ -173,19 +174,14 @@ export function getEntryTiming(
   optionType: 'call' | 'put',
   marketContext: MarketContext
 ): { shouldEnterNow: boolean; reason: string } {
-  // FORCED TRUE FOR TESTING - Remove after testing
-  return { 
-    shouldEnterNow: true, 
-    reason: `✅ FORCED_ENTRY_FOR_TESTING` 
-  };
-  
-  /* ORIGINAL LOGIC - UNCOMMENT AFTER TESTING
+  // 🛡️ PROPER ENTRY TIMING - Require momentum alignment and volume
   const priceChange = quote.change_percentage || 0;
   const relVol = quote.average_volume > 0 ? quote.volume / quote.average_volume : 1;
   const isCall = optionType === 'call';
   
   const momentumAligned = isCall ? priceChange > 0 : priceChange < 0;
   
+  // 🛑 GATE 1: Counter-momentum trades need strong conviction
   if (!momentumAligned && Math.abs(priceChange) > 1) {
     return { 
       shouldEnterNow: false, 
@@ -193,6 +189,7 @@ export function getEntryTiming(
     };
   }
 
+  // 🛑 GATE 2: Volume confirmation required
   if (relVol < 0.8) {
     return { 
       shouldEnterNow: false, 
@@ -200,6 +197,7 @@ export function getEntryTiming(
     };
   }
 
+  // 🛑 GATE 3: Avoid volatile regime with large moves
   if (marketContext.regime === 'volatile' && Math.abs(priceChange) > 3) {
     return { 
       shouldEnterNow: false, 
@@ -207,6 +205,7 @@ export function getEntryTiming(
     };
   }
 
+  // ✅ ENTRY 1: Strong momentum with volume confirmation
   if (momentumAligned && Math.abs(priceChange) >= 1 && relVol >= 1.2) {
     return { 
       shouldEnterNow: true, 
@@ -214,6 +213,7 @@ export function getEntryTiming(
     };
   }
 
+  // ✅ ENTRY 2: Uptrend regime favors calls
   if (marketContext.regime === 'trending_up' && isCall) {
     return { 
       shouldEnterNow: true, 
@@ -221,6 +221,7 @@ export function getEntryTiming(
     };
   }
   
+  // ✅ ENTRY 3: Downtrend regime favors puts
   if (marketContext.regime === 'trending_down' && !isCall) {
     return { 
       shouldEnterNow: true, 
@@ -228,11 +229,13 @@ export function getEntryTiming(
     };
   }
 
+  // Default: Allow entry only with decent volume and favorable market conditions
   return { 
     shouldEnterNow: relVol >= 1.0 && marketContext.shouldTrade, 
-    reason: `Neutral conditions - proceed with caution` 
+    reason: relVol >= 1.0 && marketContext.shouldTrade 
+      ? `✅ Entry: Neutral conditions with ${relVol.toFixed(1)}x volume` 
+      : `⏸️ Wait: Need higher volume or better market conditions` 
   };
-  */
 }
 
 export interface DynamicExitSignal {
