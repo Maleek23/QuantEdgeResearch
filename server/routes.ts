@@ -43,6 +43,7 @@ import { createUser, authenticateUser, sanitizeUser } from "./userAuth";
 import { getTierLimits, canAccessFeature, TierLimits } from "./tierConfig";
 import { syncDocumentationToNotion } from "./notion-sync";
 import * as paperTradingService from "./paper-trading-service";
+import { getAutoLottoExitIntelligence, getPortfolioExitIntelligence } from "./position-monitor-service";
 import { telemetryService } from "./telemetry-service";
 import { analyzeLoss, analyzeAllLosses, getLossSummary } from "./loss-analyzer";
 import { calculateSignalAttribution, getSignalPerformanceFromCache } from "./signal-attribution";
@@ -4718,6 +4719,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Failed to get auto-lotto stats:", error);
       res.status(500).json({ error: "Failed to fetch auto-lotto stats" });
+    }
+  });
+
+  // 🎯 Real-Time Exit Intelligence - Live position analysis with dynamic exit predictions
+  app.get("/api/auto-lotto/exit-intelligence", async (req: any, res) => {
+    try {
+      const exitIntelligence = await getAutoLottoExitIntelligence();
+      
+      if (!exitIntelligence) {
+        return res.json({
+          portfolioId: null,
+          positions: [],
+          lastRefresh: new Date().toISOString(),
+          marketStatus: 'closed',
+          message: 'Auto-Lotto Bot not initialized'
+        });
+      }
+      
+      logger.info(`[EXIT-INTEL] Returning ${exitIntelligence.positions.length} position advisories`);
+      res.json(exitIntelligence);
+    } catch (error) {
+      logger.error("Failed to get exit intelligence:", error);
+      res.status(500).json({ error: "Failed to fetch exit intelligence" });
     }
   });
 
