@@ -2342,43 +2342,52 @@ export async function runAutonomousBotScan(): Promise<void> {
  */
 export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
   try {
+    logger.info(`🎰 [LOTTO-EXEC] Attempting to execute: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} @ $${idea.entryPrice}`);
+    
     if (idea.assetType === 'option') {
       if (!idea.strikePrice || !idea.expiryDate || !idea.optionType) {
-        logger.error(`🤖 [BOT] ❌ Rejecting ${idea.symbol} - missing option metadata`);
+        logger.error(`🎰 [LOTTO-EXEC] ❌ Rejecting ${idea.symbol} - missing option metadata (strike=${idea.strikePrice}, expiry=${idea.expiryDate}, type=${idea.optionType})`);
         return false;
       }
       
       if (idea.entryPrice > 20) {
-        logger.warn(`🤖 [BOT] ⚠️ Rejecting ${idea.symbol} - entry price $${idea.entryPrice} too high for lotto`);
+        logger.warn(`🎰 [LOTTO-EXEC] ⚠️ Rejecting ${idea.symbol} - entry price $${idea.entryPrice} too high for lotto`);
         return false;
       }
     }
     
     const portfolio = await getLottoPortfolio();
     if (!portfolio) {
-      logger.error("🤖 [BOT] No portfolio available");
+      logger.error("🎰 [LOTTO-EXEC] ❌ No portfolio available");
       return false;
     }
+    
+    logger.info(`🎰 [LOTTO-EXEC] Portfolio: ${portfolio.name}, Cash: $${portfolio.cashBalance.toFixed(2)}`);
 
     const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
-    const existingPosition = positions.find(p => 
+    const openPositions = positions.filter(p => p.status === 'open');
+    
+    // Check for exact duplicate (same strike)
+    const exactDuplicate = openPositions.find(p => 
       p.tradeIdeaId === idea.id || 
-      (p.symbol === idea.symbol && p.status === 'open' && p.strikePrice === idea.strikePrice)
+      (p.symbol === idea.symbol && p.strikePrice === idea.strikePrice && p.optionType === idea.optionType)
     );
 
-    if (existingPosition) {
-      logger.info(`🤖 [BOT] Skipping ${idea.symbol} - already have position`);
+    if (exactDuplicate) {
+      logger.info(`🎰 [LOTTO-EXEC] Skipping ${idea.symbol} $${idea.strikePrice} - exact duplicate exists`);
       return false;
     }
+    
+    // Log current position count
+    logger.info(`🎰 [LOTTO-EXEC] Current open positions: ${openPositions.length}`);
 
     const result = await executeTradeIdea(portfolio.id, idea);
     
     if (result.success && result.position) {
-      logger.info(`🤖 [BOT] ✅ Executed: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} x${result.position.quantity} @ $${idea.entryPrice.toFixed(2)}`);
+      logger.info(`🎰 [LOTTO-EXEC] ✅ SUCCESS: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} x${result.position.quantity} @ $${idea.entryPrice.toFixed(2)}`);
       
       // Always send Discord notification for bot entries
       try {
-        logger.info(`🤖 [BOT] 📱 Sending Discord ENTRY notification for ${idea.symbol}...`);
         await sendBotTradeEntryToDiscord({
           symbol: idea.symbol,
           assetType: idea.assetType || 'option',
@@ -2390,9 +2399,9 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
           targetPrice: idea.targetPrice,
           stopLoss: idea.stopLoss,
         });
-        logger.info(`🤖 [BOT] 📱✅ Discord ENTRY notification SENT for ${idea.symbol}`);
+        logger.info(`🎰 [LOTTO-EXEC] 📱 Discord notification sent`);
       } catch (discordError) {
-        logger.error(`🤖 [BOT] 📱❌ Discord ENTRY notification FAILED for ${idea.symbol}:`, discordError);
+        logger.error(`🎰 [LOTTO-EXEC] 📱❌ Discord failed:`, discordError);
       }
       
       const updated = await storage.getPaperPortfolioById(portfolio.id);
@@ -2400,11 +2409,12 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
       
       return true;
     } else {
-      logger.warn(`🤖 [BOT] ❌ Failed to execute ${idea.symbol}: ${result.error}`);
+      // Log detailed failure reason
+      logger.error(`🎰 [LOTTO-EXEC] ❌ FAILED: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} - Reason: ${result.error}`);
       return false;
     }
   } catch (error) {
-    logger.error(`🤖 [BOT] Error executing trade:`, error);
+    logger.error(`🎰 [LOTTO-EXEC] ❌ EXCEPTION for ${idea.symbol}:`, error);
     return false;
   }
 }
