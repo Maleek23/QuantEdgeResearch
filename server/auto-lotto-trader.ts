@@ -341,16 +341,17 @@ export const CRYPTO_SCAN_COINS = [
   { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
   { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' },
   { id: 'solana', symbol: 'SOL', name: 'Solana' },
+  { id: 'ripple', symbol: 'XRP', name: 'XRP' },
   { id: 'render-token', symbol: 'RENDER', name: 'Render' },
   { id: 'dogecoin', symbol: 'DOGE', name: 'Dogecoin' },
+  { id: 'pepe', symbol: 'PEPE', name: 'Pepe' },
+  { id: 'bonk', symbol: 'BONK', name: 'Bonk' },
+  { id: 'shiba-inu', symbol: 'SHIB', name: 'Shiba Inu' },
   { id: 'cardano', symbol: 'ADA', name: 'Cardano' },
   { id: 'avalanche-2', symbol: 'AVAX', name: 'Avalanche' },
   { id: 'chainlink', symbol: 'LINK', name: 'Chainlink' },
   { id: 'polkadot', symbol: 'DOT', name: 'Polkadot' },
-  { id: 'polygon', symbol: 'MATIC', name: 'Polygon' },
   { id: 'sui', symbol: 'SUI', name: 'Sui' },
-  { id: 'pepe', symbol: 'PEPE', name: 'Pepe' },
-  { id: 'bonk', symbol: 'BONK', name: 'Bonk' },
 ];
 
 // Crypto symbol alias map: Maps stored symbols to Coinbase WebSocket symbols
@@ -1027,9 +1028,9 @@ export async function runCryptoBotScan(): Promise<void> {
     const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
     const openPositions = positions.filter(p => p.status === 'open' && p.assetType === 'crypto');
     
-    // CRYPTO-SPECIFIC LIMITS: Max 5 total crypto positions, max 2 per symbol
-    const MAX_CRYPTO_POSITIONS = 5;
-    const MAX_POSITIONS_PER_SYMBOL = 2;
+    // CRYPTO-SPECIFIC LIMITS: Max 3 total crypto positions, max 1 per symbol
+    const MAX_CRYPTO_POSITIONS = 3;
+    const MAX_POSITIONS_PER_SYMBOL = 1;
     
     if (openPositions.length >= MAX_CRYPTO_POSITIONS) {
       logger.info(`🪙 [CRYPTO BOT] Max crypto positions reached (${openPositions.length}/${MAX_CRYPTO_POSITIONS})`);
@@ -1174,9 +1175,9 @@ export async function runCryptoBotScan(): Promise<void> {
     const quantity = maxSize / bestOpp.price;
     logger.debug(`🪙 [CRYPTO BOT] Position size: $${maxSize.toFixed(2)} (${quantity.toFixed(6)} ${bestOpp.symbol})`)
     
-    // Set targets based on direction
-    const targetMultiplier = bestOpp.direction === 'long' ? 1.15 : 0.85;
-    const stopMultiplier = bestOpp.direction === 'long' ? 0.93 : 1.07;
+    // Set targets based on direction - Mean Reversion / Buy Low Sell High
+    const targetMultiplier = bestOpp.direction === 'long' ? 1.08 : 0.92; // 8% target for crypto
+    const stopMultiplier = bestOpp.direction === 'long' ? 0.95 : 1.05;   // 5% stop loss
     const targetPrice = bestOpp.price * targetMultiplier;
     const stopLoss = bestOpp.price * stopMultiplier;
     
