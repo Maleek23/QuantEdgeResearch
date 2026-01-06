@@ -24,6 +24,14 @@ const SEMI_STORAGE_TICKERS = [
   'NVDA', 'AMD', 'MU', 'WDC', 'LRCX', 'AMAT', 'ASML', 'TSM', 'AVGO', 'SMCI', 'ARM', 'STX'
 ];
 
+// Tech Correlation Matrix - Tracks stocks influenced by heavyweights
+const TECH_CORRELATION_MAP = {
+  'NVDA': ['AMD', 'SMCI', 'TSM', 'ASML', 'ARM', 'MU', 'AVGO'],
+  'AAPL': ['TSM', 'AVGO', 'SWKS', 'QRVO', 'CRUS'],
+  'MSFT': ['CRWD', 'SNOW', 'PLTR', 'ADBE'],
+  'TSLA': ['ALB', 'LTHM', 'ON', 'MCHP']
+};
+
 /**
  * Automated Daily Idea Generation Service
  * Generates fresh AI trade ideas every weekday at 9:30 AM CT (market open)
@@ -187,20 +195,29 @@ class AutoIdeaGenerator {
 
       // Build market context - add penny stock emphasis for evening sessions
       const semiTickers = SEMI_STORAGE_TICKERS.join(', ');
+      const correlationContext = Object.entries(TECH_CORRELATION_MAP)
+        .map(([leader, followers]) => `${leader} influences ${followers.join(', ')}`)
+        .join('; ');
+
       let marketContext = `Current market conditions with focus on stocks, options, and crypto. 
-      Pay special attention to Semiconductors and Memory/Storage sectors (AI Infrastructure): ${semiTickers}.`;
+      Pay special attention to Semiconductors and Memory/Storage sectors (AI Infrastructure): ${semiTickers}.
+      CORRELATION TRACKING: ${correlationContext}. 
+      When analyzing a heavyweight, look for spillover or divergence in its influence group.`;
       
       if (isEveningSession) {
         const pennyTickers = PENNY_STOCK_TICKERS.join(', ');
         marketContext = `TOMORROW'S PLAYBOOK - Evening research session for next-day trading opportunities. 
 Focus heavily on AI infrastructure (Semiconductors & Storage: ${semiTickers}) and high-volatility penny stocks. 
 Priority tickers to analyze: ${semiTickers}, ${pennyTickers}.
+CORRELATION TRACKING: ${correlationContext}. Analyze how NVDA price action is influencing the broader semi/AI sector today.
 Look for: 
 1. AI Infrastructure (NVDA, MU, WDC, LRCX) - exploding demand for compute and memory
-2. Quantum computing plays (IONQ, RGTI, QUBT, QBTS) - next big tech wave
-3. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition momentum
-4. AI penny stocks (BBAI, SOUN) - AI bubble opportunities
-5. Crypto miners (MARA, RIOT, WULF, CLSK) - Bitcoin correlation plays
+2. Tech Spillover: If NVDA is strong, look for laggard entries in ${TECH_CORRELATION_MAP['NVDA'].join(', ')}.
+3. Quantum computing plays (IONQ, RGTI, QUBT, QBTS) - next big tech wave
+4. Nuclear/clean energy (NNE, OKLO, SMR, DNN, UEC) - energy transition momentum
+5. AI penny stocks (BBAI, SOUN) - AI bubble opportunities
+6. Crypto miners (MARA, RIOT, WULF, CLSK) - Bitcoin correlation plays
+7. Speculative biotech/EV (NVAX, NKLA, GOEV) - high risk/reward
 Generate swing trade and lotto option ideas with asymmetric risk/reward. Include OTM call options for potential 5-10x returns.`;
       }
       const aiIdeas = await generateTradeIdeas(marketContext);
