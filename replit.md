@@ -70,6 +70,14 @@ Key features include:
       - If thesis invalid → exit immediately regardless of market
       - If market not down → exit on soft stop regardless of thesis
       - Hard stop forces exit unconditionally (no overrides)
+    - **Exit Intelligence Integration (Jan 2026)**:
+      - Bot now uses Exit Intelligence system for smart position management
+      - Calls `analyzePosition()` for each open position during monitoring
+      - **Auto-Exit Trigger**: `exitWindow === 'immediate'` AND `exitProbability >= 85%`
+      - Exit reasons include: TARGET HIT, STOP HIT, 0DTE urgency, doubled up profits
+      - Discord notifications include Exit Intelligence context (reason + confidence %)
+      - Logs urgency levels: 🚨 immediate, ⚠️ soon, 👀 watch, 📊 hold
+      - Falls back to existing dynamic exit logic for lower-confidence scenarios
 
 ## External Dependencies
 
