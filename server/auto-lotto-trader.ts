@@ -1992,7 +1992,7 @@ async function executeImmediateTrade(
     if (result.success && result.position) {
       logger.info(`🤖 [BOT] ✅ IMMEDIATE TRADE EXECUTED: ${opp.symbol} x${result.position.quantity} @ $${opp.price.toFixed(2)}`);
       
-      // Send Discord notification
+      // Send Discord notification with full analysis
       try {
         await sendBotTradeEntryToDiscord({
           symbol: opp.symbol,
@@ -2004,6 +2004,10 @@ async function executeImmediateTrade(
           quantity: result.position.quantity,
           targetPrice: ideaData.targetPrice,
           stopLoss: ideaData.stopLoss,
+          analysis: decision.reason,
+          signals: decision.signals,
+          confidence: decision.confidence,
+          riskRewardRatio: ideaData.riskRewardRatio,
         });
         logger.info(`🤖 [BOT] 📱✅ Discord notification SENT for ${opp.symbol}`);
       } catch (discordError) {
@@ -2413,7 +2417,7 @@ export async function runAutonomousBotScan(): Promise<void> {
       if (result.success && result.position) {
         logger.info(`🤖 [BOT] ✅ TRADE EXECUTED: ${opp.symbol} x${result.position.quantity} @ $${opp.price.toFixed(2)}`);
         
-        // Send Discord notification for all bot entries (always notify on trades)
+        // Send Discord notification with full analysis
         try {
           logger.info(`🤖 [BOT] 📱 Sending Discord ENTRY notification for ${opp.symbol}...`);
           await sendBotTradeEntryToDiscord({
@@ -2426,6 +2430,10 @@ export async function runAutonomousBotScan(): Promise<void> {
             quantity: result.position.quantity,
             targetPrice: ideaData.targetPrice,
             stopLoss: ideaData.stopLoss,
+            analysis: decision.reason,
+            signals: decision.signals,
+            confidence: decision.confidence,
+            riskRewardRatio: ideaData.riskRewardRatio,
           });
           logger.info(`🤖 [BOT] 📱✅ Discord ENTRY notification SENT for ${opp.symbol}`);
         } catch (discordError) {
@@ -2498,7 +2506,7 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
     if (result.success && result.position) {
       logger.info(`🎰 [LOTTO-EXEC] ✅ SUCCESS: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} x${result.position.quantity} @ $${idea.entryPrice.toFixed(2)}`);
       
-      // Always send Discord notification for bot entries
+      // Send Discord notification with full analysis
       try {
         await sendBotTradeEntryToDiscord({
           symbol: idea.symbol,
@@ -2510,6 +2518,10 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
           quantity: result.position.quantity,
           targetPrice: idea.targetPrice,
           stopLoss: idea.stopLoss,
+          analysis: idea.analysis,
+          signals: idea.qualitySignals as string[] | null,
+          confidence: idea.confidenceScore,
+          riskRewardRatio: idea.riskRewardRatio,
         });
         logger.info(`🎰 [LOTTO-EXEC] 📱 Discord notification sent`);
       } catch (discordError) {
@@ -2964,17 +2976,21 @@ export async function runFuturesBotScan(): Promise<void> {
           logger.info(`🔮 [FUTURES-BOT] ✅ EXECUTED: ${bestFuturesOpp.direction.toUpperCase()} ${quantity}x ${bestFuturesOpp.contractCode} @ $${entryPrice.toFixed(2)}`);
           logger.info(`🔮 [FUTURES-BOT] 📊 Stop: $${stopLoss.toFixed(2)} | Target: $${targetPrice.toFixed(2)} | Margin: $${marginRequired.toFixed(2)}`);
           
-          // Send Discord notification only if enabled in preferences
+          // Send Discord notification with full analysis
           if (prefs.enableDiscordAlerts) {
             try {
               await sendBotTradeEntryToDiscord({
-                symbol: bestFuturesOpp.contractCode, // Use full contract code e.g. NQH25
+                symbol: bestFuturesOpp.contractCode,
                 assetType: 'future',
                 entryPrice,
                 quantity,
                 targetPrice,
                 stopLoss,
-                direction: bestFuturesOpp.direction, // Include direction
+                direction: bestFuturesOpp.direction,
+                analysis: `Futures ${bestFuturesOpp.direction.toUpperCase()} setup`,
+                signals: bestFuturesOpp.signals,
+                confidence: bestFuturesOpp.confidence,
+                riskRewardRatio: 2.0,
               });
               logger.info(`🔮 [FUTURES-BOT] 📱 Discord entry notification sent`);
             } catch (discordError) {

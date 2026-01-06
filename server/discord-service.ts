@@ -1181,7 +1181,11 @@ export async function sendBotTradeEntryToDiscord(position: {
   quantity: number;
   targetPrice?: number | null;
   stopLoss?: number | null;
-  direction?: 'long' | 'short' | null; // Added for futures support
+  direction?: 'long' | 'short' | null;
+  analysis?: string | null;
+  signals?: string[] | null;
+  confidence?: number | null;
+  riskRewardRatio?: number | null;
 }): Promise<void> {
   logger.info(`📱 [DISCORD] sendBotTradeEntryToDiscord called for ${position.symbol}`);
   
@@ -1190,7 +1194,6 @@ export async function sendBotTradeEntryToDiscord(position: {
     return;
   }
   
-  // Route to specific channel based on asset type
   const webhookUrl = position.assetType === 'future' 
     ? (process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL)
     : (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL);
@@ -1205,23 +1208,61 @@ export async function sendBotTradeEntryToDiscord(position: {
   try {
     const isCall = position.optionType === 'call';
     const color = isCall ? 0x22c55e : 0xef4444;
-    const contractCost = position.entryPrice * position.quantity * 100;
+    
+    // Format expiry date
+    let expiryFormatted = 'N/A';
+    if (position.expiryDate) {
+      try {
+        const expDate = new Date(position.expiryDate);
+        expiryFormatted = expDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      } catch { expiryFormatted = position.expiryDate; }
+    }
+    
+    // Calculate R:R if not provided
+    let rrDisplay = 'N/A';
+    if (position.riskRewardRatio) {
+      rrDisplay = `${position.riskRewardRatio.toFixed(1)}:1`;
+    } else if (position.targetPrice && position.stopLoss && position.entryPrice) {
+      const reward = position.targetPrice - position.entryPrice;
+      const risk = position.entryPrice - position.stopLoss;
+      if (risk > 0) rrDisplay = `${(reward / risk).toFixed(1)}:1`;
+    }
+    
+    // Calculate target % gain
+    const targetPct = position.targetPrice && position.entryPrice 
+      ? ((position.targetPrice - position.entryPrice) / position.entryPrice * 100).toFixed(0)
+      : '?';
+    
+    // Build analysis summary
+    let analysisText = position.analysis || 'Auto-Lotto Bot trade';
+    if (position.signals && position.signals.length > 0) {
+      const topSignals = position.signals.slice(0, 3).join(' | ');
+      analysisText = `**Signals:** ${topSignals}`;
+    }
+    
+    // Confidence grade
+    const grade = position.confidence 
+      ? (position.confidence >= 85 ? 'A+' : position.confidence >= 75 ? 'A' : position.confidence >= 65 ? 'B+' : 'B')
+      : '';
     
     const embed: DiscordEmbed = {
       title: `🤖 BOT ENTRY: ${position.symbol} ${(position.optionType || 'OPT').toUpperCase()} $${position.strikePrice}`,
-      description: `Auto-Lotto Bot opened position`,
+      description: analysisText,
       color,
       fields: [
         { name: '💰 Entry', value: `$${position.entryPrice.toFixed(2)}`, inline: true },
-        { name: '📦 Qty', value: `${position.quantity}`, inline: true },
-        { name: '🎯 Target', value: position.targetPrice ? `$${position.targetPrice.toFixed(2)}` : 'N/A', inline: true }
+        { name: '🎯 Target', value: `$${position.targetPrice?.toFixed(2) || 'N/A'} (+${targetPct}%)`, inline: true },
+        { name: '🛑 Stop', value: `$${position.stopLoss?.toFixed(2) || 'N/A'}`, inline: true },
+        { name: '📅 Expiry', value: expiryFormatted, inline: true },
+        { name: '⚖️ R:R', value: rrDisplay, inline: true },
+        { name: '📦 Qty', value: `${position.quantity}`, inline: true }
       ],
-      footer: { text: '🤖 Auto-Lotto Bot' },
+      footer: { text: `🤖 Auto-Lotto Bot${grade ? ` | Grade: ${grade}` : ''}` },
       timestamp: new Date().toISOString()
     };
     
     const message: DiscordMessage = {
-      content: `🤖 **BOT ENTRY** → ${position.symbol} ${(position.optionType || '').toUpperCase()} $${position.strikePrice} x${position.quantity} @ $${position.entryPrice.toFixed(2)} │ ${CHANNEL_HEADERS.LOTTO}`,
+      content: `🤖 **BOT ENTRY** → ${position.symbol} ${(position.optionType || '').toUpperCase()} $${position.strikePrice} exp ${expiryFormatted} x${position.quantity} @ $${position.entryPrice.toFixed(2)} │ R:R ${rrDisplay} │ ${CHANNEL_HEADERS.LOTTO}`,
       embeds: [embed]
     };
     
