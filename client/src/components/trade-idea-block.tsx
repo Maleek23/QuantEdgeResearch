@@ -18,7 +18,6 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ExplainabilityPanel } from "@/components/explainability-panel";
-import { TradeIdeaDetailModal } from "@/components/trade-idea-detail-modal";
 import { TradingAdvice } from "@/components/trading-advice";
 import { ManualOutcomeRecorder } from "@/components/manual-outcome-recorder";
 import { SignalFiltersDisplay } from "@/components/signal-filters-display";
@@ -46,7 +45,6 @@ interface TradeIdeaBlockProps {
 export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatchlist, onViewDetails, onAnalyze, onSendToDiscord, isExpanded, onToggleExpand }: TradeIdeaBlockProps) {
   const [localIsOpen, setLocalIsOpen] = useState(false);
   const isOpen = isExpanded !== undefined ? isExpanded : localIsOpen;
-  const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [priceUpdated, setPriceUpdated] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
   const prevPriceRef = useRef<number | undefined>(currentPrice);
@@ -967,19 +965,19 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2 pt-2 border-t border-border/50">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="flex-1 hover-elevate"
-              onClick={(e) => {
-                e.stopPropagation();
-                setDetailModalOpen(true);
-              }}
-              data-testid={`button-details-${idea.symbol}`}
-            >
-              <Maximize2 className="h-3.5 w-3.5 mr-1.5" />
-              Full Analysis
-            </Button>
+            {/* Audit button first - contains full analysis, price history, and scoring breakdown */}
+            <Link href={`/trade-ideas/${idea.id}/audit`}>
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="hover-elevate"
+                onClick={(e) => e.stopPropagation()}
+                data-testid={`button-audit-${idea.id}`}
+              >
+                <FileSearch className="h-3.5 w-3.5 mr-1.5" />
+                Full Analysis
+              </Button>
+            </Link>
             
             {onAddToWatchlist && idea.outcomeStatus === 'open' && (
               <Button 
@@ -1044,30 +1042,9 @@ export function TradeIdeaBlock({ idea, currentPrice, catalysts = [], onAddToWatc
                 Discord
               </Button>
             )}
-            
-            <Link href={`/trade-ideas/${idea.id}/audit`}>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="hover-elevate"
-                onClick={(e) => e.stopPropagation()}
-                data-testid={`button-audit-${idea.id}`}
-              >
-                <FileSearch className="h-3.5 w-3.5 mr-1.5" />
-                Audit
-              </Button>
-            </Link>
           </div>
         </div>
       </CollapsibleContent>
-
-      {/* Detail Modal */}
-      <TradeIdeaDetailModal
-        idea={idea}
-        currentPrice={currentPrice}
-        open={detailModalOpen}
-        onOpenChange={setDetailModalOpen}
-      />
     </Collapsible>
   );
 }
