@@ -51,20 +51,29 @@ export function validateTrade(trade: TradeValidationInput): ValidationResult {
   }
 
   // 3. Validate price relationships based on direction
-  if (direction === 'long') {
-    // For LONG trades: target > entry > stop
+  // SPECIAL CASE: When BUYING options (both calls AND puts), we always want premium to go UP
+  // - LONG + CALL = buy call, stock goes UP, premium goes UP → target > entry > stop ✓
+  // - SHORT + PUT = buy put, stock goes DOWN, premium goes UP → target > entry > stop ✓
+  // The only "short" validation (stop > entry > target) applies to SHORTING stock/selling options
+  const isBuyingPutOption = assetType === 'option' && direction === 'short' && trade.optionType === 'put';
+  
+  // Use "long" price validation for buying puts (premium appreciates like a long position)
+  const useLongValidation = direction === 'long' || isBuyingPutOption;
+  
+  if (useLongValidation) {
+    // For LONG trades (or buying puts): target > entry > stop
     if (targetPrice <= entryPrice) {
       errors.push(
-        `LONG trade has target ($${targetPrice}) at or below entry ($${entryPrice}). ` +
-        `For LONG: target must be > entry. Current: target=${targetPrice}, entry=${entryPrice}`
+        `${isBuyingPutOption ? 'PUT OPTION' : 'LONG'} trade has target ($${targetPrice}) at or below entry ($${entryPrice}). ` +
+        `Target must be > entry (premium appreciates). Current: target=${targetPrice}, entry=${entryPrice}`
       );
       severity = 'critical';
     }
     
     if (stopLoss >= entryPrice) {
       errors.push(
-        `LONG trade has stop ($${stopLoss}) at or above entry ($${entryPrice}). ` +
-        `For LONG: stop must be < entry. Current: stop=${stopLoss}, entry=${entryPrice}`
+        `${isBuyingPutOption ? 'PUT OPTION' : 'LONG'} trade has stop ($${stopLoss}) at or above entry ($${entryPrice}). ` +
+        `Stop must be < entry. Current: stop=${stopLoss}, entry=${entryPrice}`
       );
       severity = 'critical';
     }
@@ -72,13 +81,13 @@ export function validateTrade(trade: TradeValidationInput): ValidationResult {
     // Sanity check: target should definitely be above stop
     if (targetPrice <= stopLoss) {
       errors.push(
-        `LONG trade has target ($${targetPrice}) at or below stop ($${stopLoss}). ` +
+        `${isBuyingPutOption ? 'PUT OPTION' : 'LONG'} trade has target ($${targetPrice}) at or below stop ($${stopLoss}). ` +
         `Logical order must be: target > entry > stop`
       );
       severity = 'critical';
     }
   } else if (direction === 'short') {
-    // For SHORT trades: stop > entry > target
+    // For SHORT stock/selling options: stop > entry > target
     if (targetPrice >= entryPrice) {
       errors.push(
         `SHORT trade has target ($${targetPrice}) at or above entry ($${entryPrice}). ` +
@@ -126,11 +135,14 @@ export function validateTrade(trade: TradeValidationInput): ValidationResult {
   }
 
   // 5. Calculate and validate R:R ratio
-  const maxLoss = direction === 'long' 
+  // For buying options (calls or puts), premium appreciation means target > entry > stop
+  const useLongRRCalc = direction === 'long' || isBuyingPutOption;
+  
+  const maxLoss = useLongRRCalc 
     ? (entryPrice - stopLoss) 
     : (stopLoss - entryPrice);
   
-  const potentialGain = direction === 'long'
+  const potentialGain = useLongRRCalc
     ? (targetPrice - entryPrice)
     : (entryPrice - targetPrice);
 
