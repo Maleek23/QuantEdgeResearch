@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage, isRealLoss, isRealLossByResolution, isCurrentGenEngine, getDecidedTrades, getDecidedTradesByResolution, applyCanonicalPerformanceFilters, CANONICAL_LOSS_THRESHOLD } from "./storage";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
-import { tradeIdeas, secFilings, governmentContracts, catalystEvents } from "@shared/schema";
+import { tradeIdeas, secFilings, governmentContracts, catalystEvents, paperPositions } from "@shared/schema";
 import { searchSymbol, fetchHistoricalPrices, fetchStockPrice, fetchCryptoPrice } from "./market-api";
 import { generateTradeIdeas, chatWithQuantAI, validateTradeRisk } from "./ai-service";
 import { generateQuantIdeas } from "./quant-ideas-generator";
@@ -3743,6 +3743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const uniqueSymbols = Array.from(new Set(openIdeas.map(i => i.symbol)));
       
       // VALIDATION: Auto-correct option types based on entry/target logic
+      // Also update linked paper positions to maintain data consistency
       for (const idea of openIdeas) {
         if (idea.assetType === 'option' && idea.optionType) {
           const isBullish = idea.targetPrice > idea.entryPrice;
@@ -3752,6 +3753,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
             logger.warn(`[OPTION-VALIDATION] ${idea.symbol}: Correcting optionType from '${idea.optionType}' to '${correctType}' (entry: $${idea.entryPrice}, target: $${idea.targetPrice})`);
             await storage.updateTradeIdea(idea.id, { optionType: correctType });
             idea.optionType = correctType; // Update in-memory for this response
+            
+            // Also update any linked paper positions to maintain consistency
+            try {
+              const result = await db.update(paperPositions)
+                .set({ optionType: correctType })
+                .where(eq(paperPositions.tradeIdeaId, idea.id));
+              logger.info(`[OPTION-VALIDATION] Also corrected paper positions for trade idea ${idea.id}`);
+            } catch (err) {
+              logger.warn(`[OPTION-VALIDATION] Failed to update paper positions for ${idea.id}`, err);
+            }
           }
         }
       }
@@ -4048,8 +4059,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Sort by conviction score descending
       scoredIdeas.sort((a, b) => b.convictionScore - a.convictionScore);
       
-      // Take top N
-      const topSetups = scoredIdeas.slice(0, limit);
+      // 🎯 CRITICAL: Deduplicate by symbol - only keep the BEST setup per symbol
+      // This prevents showing 5 copies of the same INTC trade
+      const symbolBestMap = new Map<string, typeof scoredIdeas[0]>();
+      for (const idea of scoredIdeas) {
+        const key = idea.symbol;
+        const existing = symbolBestMap.get(key);
+        // Keep the one with higher conviction (first one wins since already sorted)
+        if (!existing) {
+          symbolBestMap.set(key, idea);
+        }
+      }
+      
+      // Convert map back to array and re-sort (map doesn't preserve order)
+      const uniqueBySymbol = Array.from(symbolBestMap.values());
+      uniqueBySymbol.sort((a, b) => b.convictionScore - a.convictionScore);
+      
+      // Take top N unique symbols
+      const topSetups = uniqueBySymbol.slice(0, limit);
       
       logger.info(`[BEST-SETUPS] Returning ${topSetups.length} top setups for ${period} (from ${openIdeas.length} open ideas)`);
       
