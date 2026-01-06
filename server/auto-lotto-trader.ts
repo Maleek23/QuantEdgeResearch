@@ -25,6 +25,7 @@ import {
   getAdaptiveParameters,
   getLearningState
 } from "./loss-analyzer-service";
+import { analyzePosition, ExitAdvisory } from "./position-monitor-service";
 
 // User preferences interface with defaults
 interface BotPreferences {
@@ -2773,6 +2774,62 @@ export async function monitorLottoPositions(): Promise<void> {
         continue;
       }
       
+      // 🧠 EXIT INTELLIGENCE: Get smart exit analysis for this position
+      let exitIntelligence: ExitAdvisory | null = null;
+      try {
+        exitIntelligence = await analyzePosition(pos, portfolio.id, portfolio.name);
+        if (exitIntelligence) {
+          const urgencyEmoji = exitIntelligence.exitWindow === 'immediate' ? '🚨' : 
+                               exitIntelligence.exitWindow === 'soon' ? '⚠️' : 
+                               exitIntelligence.exitWindow === 'watch' ? '👀' : '📊';
+          logger.info(`🧠 [EXIT-INTEL] ${urgencyEmoji} ${pos.symbol}: ${exitIntelligence.exitWindow.toUpperCase()} (${exitIntelligence.exitProbability}%) - ${exitIntelligence.exitReason} | Signals: ${exitIntelligence.signals.join(', ')}`);
+          
+          // 🚨 IMMEDIATE EXIT: Exit Intelligence says EXIT NOW with high confidence
+          if (exitIntelligence.exitWindow === 'immediate' && exitIntelligence.exitProbability >= 85) {
+            logger.info(`🧠 [EXIT-INTEL] 🚨 AUTO-EXIT TRIGGERED: ${pos.symbol} - ${exitIntelligence.exitReason}`);
+            
+            const exitPrice = pos.currentPrice;
+            const pnl = (exitPrice - pos.entryPrice) * pos.quantity * 100;
+            
+            await storage.updatePaperPosition(pos.id, {
+              status: 'closed',
+              exitPrice,
+              exitTime: new Date().toISOString(),
+              exitReason: `EXIT-INTEL: ${exitIntelligence.exitReason}`,
+              realizedPnL: pnl,
+            });
+            
+            // 🛡️ Record loss/win for cooldown system
+            if (pnl < 0) {
+              recordSymbolLoss(pos.symbol, Math.abs(pnl));
+            } else if (pnl > 0) {
+              recordSymbolWin(pos.symbol);
+            }
+            
+            // Send Discord notification with Exit Intelligence context
+            const isSmallAcct = await isSmallAccountPortfolioAsync(pos.portfolioId);
+            await sendBotTradeExitToDiscord({
+              symbol: pos.symbol,
+              assetType: pos.assetType || 'option',
+              optionType: pos.optionType,
+              strikePrice: pos.strikePrice,
+              entryPrice: pos.entryPrice,
+              exitPrice,
+              quantity: pos.quantity,
+              realizedPnL: pnl,
+              exitReason: `🧠 EXIT INTEL: ${exitIntelligence.exitReason} (${exitIntelligence.exitProbability}% confidence)`,
+              isSmallAccount: isSmallAcct,
+              source: 'quant',
+            });
+            
+            logger.info(`🧠 [EXIT-INTEL] ✅ AUTO-EXITED ${pos.symbol} | P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
+            continue; // Skip regular exit logic, already closed
+          }
+        }
+      } catch (exitIntelError) {
+        logger.debug(`🧠 [EXIT-INTEL] Analysis failed for ${pos.symbol}:`, exitIntelError);
+      }
+      
       // Calculate days to expiry for options
       let daysToExpiry = 7; // Default for non-options
       if (pos.expiryDate) {
@@ -2781,12 +2838,10 @@ export async function monitorLottoPositions(): Promise<void> {
         daysToExpiry = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       }
       
-    // Compute highest price inline using max of current and entry
-    // Note: highestPriceReached is not yet in the DB schema for positions, 
-    // so we use current price for trailing stops in-memory for now
-    const highestPrice = Math.max(pos.currentPrice || pos.entryPrice, pos.entryPrice);
-    
-    // Build confluence data from available market info
+      // Compute highest price inline using max of current and entry
+      // Note: highestPriceReached is not yet in the DB schema for positions, 
+      // so we use current price for trailing stops in-memory for now
+      const highestPrice = Math.max(pos.currentPrice || pos.entryPrice, pos.entryPrice);
       
       // Build confluence data from available market info
       // Note: RSI/momentum data can be added when available from real-time feeds
@@ -2795,7 +2850,7 @@ export async function monitorLottoPositions(): Promise<void> {
         // priceChange5m and priceChange15m could be added from real-time data
       };
       
-      // Use enhanced exit with multi-confluence checks
+      // Use enhanced exit with multi-confluence checks (fallback if Exit Intel didn't trigger)
       const exitSignal = checkDynamicExitEnhanced(
         pos.currentPrice,
         pos.entryPrice,
