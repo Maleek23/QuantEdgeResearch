@@ -1031,6 +1031,28 @@ function validateChartAnalysisResult(parsed: ChartAnalysisResult): ChartAnalysis
     );
   }
   
+  // VALIDATION 6: Ensure sentiment matches trade structure (CRITICAL FIX)
+  // This prevents the inconsistency where target < entry but sentiment is neutral/bullish
+  // Use tight threshold (0.1%) to catch all meaningful price differences, including scalping setups
+  const targetDelta = (parsed.targetPrice - parsed.entryPoint) / parsed.entryPoint * 100;
+  const derivedSentiment: 'bullish' | 'bearish' | 'neutral' = 
+    targetDelta > 0.1 ? 'bullish' : 
+    targetDelta < -0.1 ? 'bearish' : 
+    'neutral';
+  
+  if (parsed.sentiment !== derivedSentiment) {
+    // Only override if there's a significant mismatch
+    if ((derivedSentiment === 'bullish' && parsed.sentiment === 'bearish') ||
+        (derivedSentiment === 'bearish' && parsed.sentiment === 'bullish') ||
+        (derivedSentiment !== 'neutral' && parsed.sentiment === 'neutral')) {
+      logger.info(`📊 [SENTIMENT-FIX] Correcting sentiment from "${parsed.sentiment}" to "${derivedSentiment}" based on trade structure (target ${targetDelta > 0 ? '>' : '<'} entry)`);
+      validationWarnings.push(
+        `📊 SENTIMENT CORRECTED: AI reported "${parsed.sentiment}" but trade structure shows ${derivedSentiment.toUpperCase()} setup (target ${targetDelta > 0 ? 'above' : 'below'} entry by ${Math.abs(targetDelta).toFixed(1)}%). Using ${derivedSentiment.toUpperCase()} for consistency.`
+      );
+      parsed.sentiment = derivedSentiment;
+    }
+  }
+  
   // Append all warnings to analysis
   if (validationWarnings.length > 0) {
     parsed.analysis += '\n\n---\n**VALIDATION ALERTS:**\n' + validationWarnings.join('\n\n');
