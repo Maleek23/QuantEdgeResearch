@@ -132,8 +132,9 @@ export function TradeIdeaCard({ idea, currentPrice, changePercent, onViewDetails
                 <Badge variant="secondary" className={cn(
                   "text-xs font-semibold gap-1",
                   idea.optionType === 'call' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'
-                )}>
+                )} data-testid={`badge-strike-${idea.symbol}`}>
                   ${idea.strikePrice} {idea.optionType.toUpperCase()}
+                  {idea.expiryDate && ` | ${formatDateOnly(idea.expiryDate)}`}
                 </Badge>
               )}
               {idea.assetType === 'future' && idea.futuresContractCode && (

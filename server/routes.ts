@@ -3898,7 +3898,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
       
-      res.json(ideasWithPrices);
+      // 🔒 DEDUPLICATION: Limit to max 3 active ideas per symbol to reduce clutter
+      // For options, dedupe by symbol+strike+expiry to show distinct setups
+      // Keep highest confidence ideas, most recent within same confidence tier
+      const MAX_IDEAS_PER_SYMBOL = 3;
+      
+      const deduplicatedIdeas = (() => {
+        // Separate open ideas (need dedup) from closed (no dedup needed)
+        const openIdeas = ideasWithPrices.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus);
+        const closedIdeas = ideasWithPrices.filter(i => i.outcomeStatus && i.outcomeStatus !== 'open');
+        
+        // Group open ideas by symbol
+        const bySymbol = new Map<string, typeof openIdeas>();
+        for (const idea of openIdeas) {
+          const key = idea.symbol.toUpperCase();
+          if (!bySymbol.has(key)) {
+            bySymbol.set(key, []);
+          }
+          bySymbol.get(key)!.push(idea);
+        }
+        
+        // For each symbol, dedupe by strike+expiry (for options) and limit to MAX_IDEAS_PER_SYMBOL
+        const dedupedOpen: typeof openIdeas = [];
+        for (const [symbol, ideas] of bySymbol) {
+          // Sort by confidence (highest first), then by timestamp (most recent first)
+          const sorted = ideas.sort((a, b) => {
+            const confDiff = (b.confidenceScore || 0) - (a.confidenceScore || 0);
+            if (confDiff !== 0) return confDiff;
+            return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+          });
+          
+          // Dedupe by comprehensive key: direction + asset-specific details
+          // Options: strike+expiry+optionType+direction
+          // Stocks: entry+target+stop+direction (all must match to be duplicate)
+          const seen = new Set<string>();
+          const unique: typeof ideas = [];
+          for (const idea of sorted) {
+            // Comprehensive deduplication key
+            const dedupeKey = idea.assetType === 'option' 
+              ? `${idea.direction}-${idea.optionType || ''}-${idea.strikePrice || ''}-${idea.expiryDate || ''}`
+              : `${idea.direction}-${idea.entryPrice.toFixed(2)}-${idea.targetPrice.toFixed(2)}-${idea.stopLoss.toFixed(2)}`;
+            
+            if (!seen.has(dedupeKey)) {
+              seen.add(dedupeKey);
+              unique.push(idea);
+            }
+          }
+          
+          // Take only top N per symbol
+          dedupedOpen.push(...unique.slice(0, MAX_IDEAS_PER_SYMBOL));
+          
+          if (ideas.length > MAX_IDEAS_PER_SYMBOL) {
+            logger.info(`[TRADE-IDEAS] ${symbol}: Deduplicated ${ideas.length} -> ${Math.min(unique.length, MAX_IDEAS_PER_SYMBOL)} ideas`);
+          }
+        }
+        
+        // Combine deduped open with all closed ideas
+        return [...dedupedOpen, ...closedIdeas];
+      })();
+      
+      logger.info(`[TRADE-IDEAS] Returning ${deduplicatedIdeas.length} ideas (after dedup from ${ideasWithPrices.length})`);
+      
+      res.json(deduplicatedIdeas);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch trade ideas" });
     }
