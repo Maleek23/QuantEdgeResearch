@@ -198,7 +198,6 @@ const SMALL_ACCOUNT_TICKERS = [
   'SMCI',  // AI play
   'SNDK',  // Thursdays
   'IWM',   // Small caps index
-  'SOFI',  // Cheap options
   'INTC',  // Cheap options
   'NIO',   // EV play
   'PLTR',  // AI/Tech
@@ -225,7 +224,7 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 const BASE_PRIORITY_TICKERS = [
-  'NNE', 'BIDU', 'SOFI', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META', // User's explicit priority list
+  'NNE', 'BIDU', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META', // User's explicit priority list (removed SOFI - fake trades issue)
   'TSLA', 'NVDA', 'AMD', 'AAPL', 'GOOGL', 'MSFT', // High-liquidity favorites
   'SPY', 'IWM', 'DIA', 'COIN', 'MARA', 'RIOT', 'ARM', 'SNOW', // High-vol tickers
 ];
@@ -652,11 +651,11 @@ function selectBestStrike(
 // User's priority watchlist - ensures all favorite tickers are scanned first
 const DAY_TRADE_TICKERS = [
   // 🎯 USER PRIORITY - Always scan first!
-  'BIDU', 'SOFI', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META',
+  'BIDU', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META',
   // Major indices & leveraged ETFs
   'SPY', 'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'ARKK', 'TQQQ', 'SOXL',
   // Mega-cap tech
-  'AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TSLA', 'AMD', 'AVGO', 'NFLX', 'HOOD', 'SOFI',
+  'AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TSLA', 'AMD', 'AVGO', 'NFLX', 'HOOD',
   // Semiconductors
   'ARM', 'SMCI', 'MRVL', 'QCOM', 'MU',
   // AI & Growth
@@ -666,7 +665,7 @@ const DAY_TRADE_TICKERS = [
   // Crypto-adjacent
   'MSTR', 'COIN', 'HOOD', 'MARA', 'RIOT',
   // Fintech
-  'SOFI', 'AFRM', 'SQ', 'PYPL', 'UPST',
+  'AFRM', 'SQ', 'PYPL', 'UPST',
   // SaaS & Cloud
   'CRM', 'SHOP', 'DDOG', 'NET', 'ZS', 'PANW', 'ADBE', 'NOW', 'WDAY',
   // EVs & Clean energy
@@ -690,7 +689,7 @@ const SWING_TRADE_TICKERS = [
   'ADI', 'NXPI', 'ON', 'MCHP', 'STML', 'GFS', 'INTC', 'TSM', 'AMD',
   // Financials
   'JPM', 'GS', 'MS', 'V', 'MA', 'AXP', 'BAC', 'WFC', 'C', 'BLK',
-  'PYPL', 'SQ', 'COIN', 'HOOD', 'SOFI', 'UPST', 'AFRM', 'LC', 'PINS', 'SNAP',
+  'PYPL', 'SQ', 'COIN', 'HOOD', 'UPST', 'AFRM', 'LC', 'PINS', 'SNAP',
   'SCHW', 'IBKR', 'TROW', 'MET', 'PRU', 'AIG', 'CB', 'PGR', 'TRV', 'ALL',
   // Healthcare & Biotech
   'LLY', 'UNH', 'JNJ', 'ABBV', 'MRK', 'PFE', 'TMO', 'ABT', 'DHR', 'ISRG',
@@ -1615,7 +1614,7 @@ const BLACKLISTED_SYMBOLS = new Set([
 
 // HIGH PERFORMANCE SYMBOLS - historically strong win rates (100% or 80%+)
 const PREFERRED_SYMBOLS = new Set([
-  'AAPL', 'AMD', 'SOFI', 'NFLX', 'QQQ', 'AMZN', 'GOOGL', 'ETH', 'HOOD', 'META'
+  'AAPL', 'AMD', 'NFLX', 'QQQ', 'AMZN', 'GOOGL', 'ETH', 'HOOD', 'META'
 ]);
 
 /**
