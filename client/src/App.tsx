@@ -118,9 +118,11 @@ function Router() {
       <Route path="/market" component={MarketPage} />
       <Route path="/market-scanner" component={MarketScanner} />
       <Route path="/swing-scanner" component={SwingScanner} />
-      <Route path="/futures" component={FuturesPage} />
+      <Route path="/futures">
+        <Redirect to="/trade-desk?tab=futures" />
+      </Route>
       <Route path="/futures-research">
-        <Redirect to="/futures" />
+        <Redirect to="/trade-desk?tab=futures" />
       </Route>
       <Route path="/crypto">
         {/* Crypto redirects to trade desk with crypto focus */}

@@ -30,11 +30,10 @@ interface NavItem {
   badge?: string;
 }
 
-// Research - unified trading research hub
+// Research - unified trading research hub (Futures is now a tab in Trade Desk)
 const researchItems: NavItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
-  { title: "Futures", url: "/futures", icon: LineChart },
   { title: "My Watchlist", url: "/watchlist", icon: Eye },
   { title: "Market Scanner", url: "/market-scanner", icon: BarChart2, badge: "500+" },
   { title: "Swing Scanner", url: "/swing-scanner", icon: TrendingUp, badge: "NEW" },

@@ -310,7 +310,8 @@ function ResearchBriefCard({
   );
 }
 
-export default function FuturesPage() {
+// Export content component for embedding in other pages (like Trade Desk)
+export function FuturesContent() {
   const { toast } = useToast();
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -1254,4 +1255,9 @@ export default function FuturesPage() {
       </Tabs>
     </div>
   );
+}
+
+// Default export for standalone page (redirects to Trade Desk)
+export default function FuturesPage() {
+  return <FuturesContent />;
 }

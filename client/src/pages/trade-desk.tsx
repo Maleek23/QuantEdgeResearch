@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation, useSearch } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FuturesContent } from "@/pages/futures";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TradeIdeaBlock } from "@/components/trade-idea-block";
@@ -214,6 +216,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 
 export default function TradeDeskPage() {
   const { canGenerateTradeIdea } = useTier();
+  const searchString = useSearch();
+  const urlParams = new URLSearchParams(searchString);
+  const initialTab = urlParams.get('tab') === 'futures' ? 'futures' : 'research';
+  const [mainTab, setMainTab] = useState<'research' | 'futures'>(initialTab);
+  
   const [tradeIdeaSearch, setTradeIdeaSearch] = useState("");
   const [activeDirection, setActiveDirection] = useState<"long" | "short" | "day_trade" | "all">("all");
   const [activeSource, setActiveSource] = useState<IdeaSource | "all">("all");
@@ -1228,6 +1235,21 @@ export default function TradeDeskPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      {/* Top-level Navigation Tabs - Research and Futures */}
+      <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as 'research' | 'futures')} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2 mb-6" data-testid="tabs-trade-desk-main">
+          <TabsTrigger value="research" className="gap-2" data-testid="tab-research">
+            <Brain className="h-4 w-4" />
+            Research Hub
+          </TabsTrigger>
+          <TabsTrigger value="futures" className="gap-2" data-testid="tab-futures">
+            <LineChart className="h-4 w-4" />
+            Futures
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Research Tab Content */}
+        <TabsContent value="research" className="space-y-6">
       {/* Premium Research Hub Header */}
       <header className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/40 dark:from-slate-900/80 dark:via-slate-800/60 dark:to-slate-900/40 border border-slate-700/30 p-6" data-testid="research-hub-header">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-500/5 via-transparent to-transparent pointer-events-none" />
@@ -1778,6 +1800,13 @@ export default function TradeDeskPage() {
           )}
         </SheetContent>
       </Sheet>
+      </TabsContent>
+
+      {/* Futures Tab Content */}
+      <TabsContent value="futures" className="space-y-6">
+        <FuturesContent />
+      </TabsContent>
+      </Tabs>
     </div>
   );
 }
