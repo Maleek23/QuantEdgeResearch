@@ -374,16 +374,18 @@ export function getStoredSymbol(coinbaseSymbol: string): string {
 }
 
 interface CryptoOpportunity {
-  coinId: string;
+  coinId?: string;
   symbol: string;
-  name: string;
+  name?: string;
   price: number;
-  change24h: number;
-  volume24h: number;
-  marketCap: number;
+  change24h?: number;
+  volume24h?: number;
+  marketCap?: number;
   direction: 'long' | 'short';
   signals: string[];
   confidence: number;
+  source?: 'watchlist' | 'trade_desk';
+  ideaId?: string;
 }
 
 interface BotDecision {
@@ -1037,15 +1039,13 @@ export async function runCryptoBotScan(): Promise<void> {
       return;
     }
     
-    // Find opportunities
+    // Find opportunities from BOTH: watchlist scan AND Trade Desk ideas
     const opportunities: CryptoOpportunity[] = [];
     
+    // 1. Scan watchlist for technical opportunities
     for (const coin of CRYPTO_SCAN_COINS) {
       const data = priceMap.get(coin.symbol);
       if (!data) continue;
-      
-      // REMOVED: Now allows multiple positions in same coin (pyramiding)
-      // if (openPositions.some(p => p.symbol === coin.symbol)) continue;
       
       const opportunity = analyzeCryptoOpportunity(coin, data);
       if (opportunity) {
@@ -1053,12 +1053,64 @@ export async function runCryptoBotScan(): Promise<void> {
       }
     }
     
+    // 2. CRITICAL: Also include open crypto ideas from Trade Desk (user-curated)
+    const allTradeIdeas = await storage.getAllTradeIdeas();
+    const openCryptoIdeas = allTradeIdeas.filter((idea: any) => 
+      idea.assetType === 'crypto' && 
+      idea.outcomeStatus === 'open' &&
+      !openPositions.some(p => p.tradeIdeaId === idea.id) // Not already traded
+    );
+    
+    for (const idea of openCryptoIdeas) {
+      // Get current price for this crypto
+      const currentPrice = priceMap.get(idea.symbol)?.price;
+      if (!currentPrice) continue;
+      
+      // Convert Trade Desk probabilityBand to confidence (Trade Desk ideas get a boost)
+      const gradeConfidence: Record<string, number> = {
+        'A+': 95, 'A': 90, 'A-': 85,
+        'B+': 80, 'B': 75, 'B-': 70,
+        'C+': 65, 'C': 60, 'C-': 55,
+        'D': 50, 'F': 40
+      };
+      
+      const grade = idea.probabilityBand || 'C';
+      const baseConfidence = gradeConfidence[grade] || 70;
+      // Trade Desk ideas get +10 boost since they're manually curated
+      const confidence = Math.min(100, baseConfidence + 10);
+      
+      // Skip if already in opportunities with higher confidence
+      const existingOpp = opportunities.find(o => o.symbol === idea.symbol);
+      if (existingOpp && existingOpp.confidence >= confidence) {
+        continue;
+      } else if (existingOpp) {
+        // Remove lower-confidence duplicate
+        const idx = opportunities.indexOf(existingOpp);
+        opportunities.splice(idx, 1);
+      }
+      
+      // Determine direction from idea (default to long for crypto)
+      const direction: 'long' | 'short' = (idea.direction || 'bullish').toLowerCase().includes('bear') || idea.direction === 'short' ? 'short' : 'long';
+      
+      opportunities.push({
+        symbol: idea.symbol,
+        price: currentPrice,
+        direction,
+        confidence,
+        signals: [`📋 Trade Desk idea (${grade})`, idea.catalyst?.substring(0, 50) || 'Curated opportunity'],
+        source: 'trade_desk',
+        ideaId: idea.id
+      });
+      
+      logger.info(`🪙 [CRYPTO BOT] Added Trade Desk idea: ${idea.symbol} (${grade}) -> ${confidence}% confidence`);
+    }
+    
     if (opportunities.length === 0) {
       logger.info(`🪙 [CRYPTO BOT] No crypto opportunities found`);
       return;
     }
     
-    // Sort by confidence and take best
+    // Sort by confidence and take best (Trade Desk ideas will rank higher due to boost)
     opportunities.sort((a, b) => b.confidence - a.confidence);
     const bestOpp = opportunities[0];
     
@@ -1117,13 +1169,16 @@ export async function runCryptoBotScan(): Promise<void> {
       qualitySignals: bestOpp.signals,
       probabilityBand: getLetterGrade(bestOpp.confidence),
       holdingPeriod: 'swing',
-      catalyst: `${bestOpp.name} momentum: ${bestOpp.change24h > 0 ? '+' : ''}${bestOpp.change24h.toFixed(1)}% 24h`,
+      catalyst: bestOpp.source === 'trade_desk' 
+        ? `Trade Desk opportunity: ${bestOpp.symbol}` 
+        : `${bestOpp.name || bestOpp.symbol} momentum: ${(bestOpp.change24h || 0) > 0 ? '+' : ''}${(bestOpp.change24h || 0).toFixed(1)}% 24h`,
       analysis: `🪙 CRYPTO BOT TRADE\n\n` +
-        `${bestOpp.name} (${bestOpp.symbol})\n` +
+        `${bestOpp.name || bestOpp.symbol} (${bestOpp.symbol})\n` +
         `Direction: ${bestOpp.direction.toUpperCase()}\n` +
         `Entry: $${bestOpp.price.toFixed(4)}\n` +
         `Target: $${targetPrice.toFixed(4)} (+15%)\n` +
         `Stop: $${stopLoss.toFixed(4)} (-7%)\n\n` +
+        `Source: ${bestOpp.source === 'trade_desk' ? '📋 Trade Desk Idea' : '🔍 Watchlist Scan'}\n` +
         `Signals: ${bestOpp.signals.join(', ')}\n\n` +
         `⚠️ Crypto is 24/7 - monitor positions regularly`,
       sessionContext: 'Crypto Bot',
@@ -1152,7 +1207,9 @@ export async function runCryptoBotScan(): Promise<void> {
       status: 'open',
       tradeIdeaId: savedIdea.id,
       entryTime: new Date().toISOString(),
-      entryReason: `🪙 CRYPTO: ${bestOpp.name} ${bestOpp.direction.toUpperCase()} - ${bestOpp.change24h > 0 ? '+' : ''}${bestOpp.change24h.toFixed(1)}% 24h momentum`,
+      entryReason: bestOpp.source === 'trade_desk'
+        ? `🪙 CRYPTO: ${bestOpp.symbol} ${bestOpp.direction.toUpperCase()} - Trade Desk Idea`
+        : `🪙 CRYPTO: ${bestOpp.name || bestOpp.symbol} ${bestOpp.direction.toUpperCase()} - ${(bestOpp.change24h || 0) > 0 ? '+' : ''}${(bestOpp.change24h || 0).toFixed(1)}% 24h momentum`,
       entrySignals: JSON.stringify(bestOpp.signals),
     });
     
@@ -1169,13 +1226,15 @@ export async function runCryptoBotScan(): Promise<void> {
       const { sendCryptoBotTradeToDiscord } = await import('./discord-service');
       await sendCryptoBotTradeToDiscord({
         symbol: bestOpp.symbol,
-        name: bestOpp.name,
+        name: bestOpp.name || bestOpp.symbol,
         direction: bestOpp.direction,
         entryPrice: bestOpp.price,
         quantity,
         targetPrice,
         stopLoss,
-        signals: bestOpp.signals,
+        signals: bestOpp.source === 'trade_desk' 
+          ? [`📋 Trade Desk Idea`, ...bestOpp.signals] 
+          : bestOpp.signals,
       });
     } catch (discordError) {
       logger.warn(`🪙 [CRYPTO BOT] Discord notification failed:`, discordError);
@@ -2266,9 +2325,9 @@ export async function runAutonomousBotScan(): Promise<void> {
       } else {
         logger.warn(`🤖 [BOT] ❌ Trade failed: ${result.error}`);
       }
-    } // End of for loop for topOpportunities
+    } // End of for loop for remaining opportunities
     
-    if (topOpportunities.length === 0) {
+    if (qualifyingOpportunities.length === 0) {
       logger.info(`🤖 [BOT] No opportunities met entry criteria`);
     }
     
