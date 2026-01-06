@@ -140,8 +140,6 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
   const immediateCount = positions.filter((p: ExitAdvisory) => p.exitWindow === 'immediate').length || 0;
   const totalPositions = positions.length || 0;
 
-  if (!isLoading && totalPositions === 0 && botOnly) return null;
-
   return (
     <Card className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent" data-testid="card-exit-intelligence">
       <CardHeader className="py-3 px-4 border-b border-cyan-500/20">
@@ -791,8 +789,6 @@ export default function AutomationsPage() {
               </CardContent>
             </Card>
 
-            <ExitIntelligenceCard botOnly />
-
             <Card className="bg-slate-900/60 border-slate-700/50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -826,6 +822,9 @@ export default function AutomationsPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Bot Exit Intelligence - Full width prominent section */}
+          <ExitIntelligenceCard botOnly />
 
           {/* Automation Cards - Consistent cyan palette with subtle differentiation */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
