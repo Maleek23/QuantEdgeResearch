@@ -39,6 +39,13 @@ Key features include:
     - **Stocks**: Position sized by ATR with $6 max risk
     - **"Trade Elite Setups" button** on Watchlist page triggers generation
     - **Duplicate prevention**: Skips symbols with existing active ideas (within 24h)
+-   **Best Setups System (Jan 2026)**: Enforces trading discipline with conviction-scored top plays:
+    - **Conviction Score Formula**: `Confidence + (Signals × 5) + (min(R:R, 3) × 10) + Grade Bonus`
+    - **Grade Bonuses**: A+/A = +10 points, A-/B+ = +5 points
+    - **Daily View**: Top 5 setups from last 24h or still-valid entries
+    - **Weekly View**: Top 5 setups from last 7 days
+    - **Philosophy**: "One highly convicted play every 3 days, stack contracts" > chasing 3-5 losers
+    - **API Endpoint**: GET `/api/trade-ideas/best-setups?period=daily|weekly&limit=5`
 -   **Adaptive Loss Intelligence System**: Learns from trading mistakes by diagnosing loss categories and adaptively adjusting bot parameters (confidence, stop loss, position size) and implementing symbol cooldowns.
 -   **Auto-Lotto Bot Risk Controls (Jan 2026)**: 
     - **Entry thresholds**: Min 65% confidence required (B-grade minimum), 70%+ for batch entries, 85%+ for immediate execution

@@ -3965,6 +3965,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // 🎯 BEST SETUPS - Top 5 conviction plays for daily/weekly view
+  // Forces discipline: wait for the perfect pitch instead of swinging at everything
+  app.get("/api/trade-ideas/best-setups", async (req: any, res) => {
+    try {
+      const period = req.query.period as string || 'daily'; // 'daily' or 'weekly'
+      const limit = Math.min(parseInt(req.query.limit as string) || 5, 10);
+      
+      // Get all active trade ideas
+      const allIdeas = await storage.getAllTradeIdeas();
+      const now = new Date();
+      
+      // Filter to open ideas only
+      let openIdeas = allIdeas.filter(i => 
+        (i.outcomeStatus === 'open' || !i.outcomeStatus) &&
+        i.entryPrice && i.targetPrice && i.stopLoss
+      );
+      
+      // Apply time filter based on period using multiple timestamp sources
+      // Priority: timestamp > entryValidUntil > exitBy (fallback to showing all open if no dates)
+      const getIdeaDate = (idea: any): Date | null => {
+        if (idea.timestamp) return new Date(idea.timestamp);
+        if (idea.createdAt) return new Date(idea.createdAt);
+        return null;
+      };
+      
+      if (period === 'daily') {
+        // Ideas from last 24 hours OR still valid today
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        openIdeas = openIdeas.filter(i => {
+          const ideaDate = getIdeaDate(i);
+          const entryValidUntil = i.entryValidUntil ? new Date(i.entryValidUntil) : null;
+          // Include if: recent creation/timestamp OR entry still valid OR no date info (show by default)
+          return (ideaDate && ideaDate >= oneDayAgo) || 
+                 (entryValidUntil && entryValidUntil >= now) ||
+                 (!ideaDate && !entryValidUntil);
+        });
+      } else if (period === 'weekly') {
+        // Ideas from last 7 days
+        const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        openIdeas = openIdeas.filter(i => {
+          const ideaDate = getIdeaDate(i);
+          const entryValidUntil = i.entryValidUntil ? new Date(i.entryValidUntil) : null;
+          // Include if: recent OR entry still valid OR no date info
+          return (ideaDate && ideaDate >= oneWeekAgo) || 
+                 (entryValidUntil && entryValidUntil >= now) ||
+                 (!ideaDate && !entryValidUntil);
+        });
+      }
+      
+      // Calculate conviction score for each idea
+      // Conviction = Confidence + (Signals * 5) + (R:R ratio * 10) + bonus factors
+      const scoredIdeas = openIdeas.map(idea => {
+        const confidence = idea.confidenceScore || 50;
+        const signalCount = idea.qualitySignals?.length || 0;
+        const riskReward = idea.targetPrice && idea.entryPrice && idea.stopLoss
+          ? (idea.targetPrice - idea.entryPrice) / Math.max(0.01, idea.entryPrice - idea.stopLoss)
+          : 1;
+        
+        // Base conviction score
+        let convictionScore = confidence;
+        
+        // Signal confluence bonus (more signals = higher conviction)
+        convictionScore += signalCount * 5;
+        
+        // Risk/Reward bonus (capped at 3:1 for max bonus)
+        convictionScore += Math.min(riskReward, 3) * 10;
+        
+        // Grade bonus
+        const grade = idea.probabilityBand || '';
+        if (grade === 'A+' || grade === 'A') convictionScore += 10;
+        else if (grade === 'A-' || grade === 'B+') convictionScore += 5;
+        
+        return {
+          ...idea,
+          convictionScore: Math.round(convictionScore),
+          signalCount,
+          riskReward: Math.round(riskReward * 100) / 100
+        };
+      });
+      
+      // Sort by conviction score descending
+      scoredIdeas.sort((a, b) => b.convictionScore - a.convictionScore);
+      
+      // Take top N
+      const topSetups = scoredIdeas.slice(0, limit);
+      
+      logger.info(`[BEST-SETUPS] Returning ${topSetups.length} top setups for ${period} (from ${openIdeas.length} open ideas)`);
+      
+      res.json({
+        period,
+        count: topSetups.length,
+        totalOpen: openIdeas.length,
+        setups: topSetups,
+        generatedAt: now.toISOString()
+      });
+    } catch (error) {
+      logger.error('[BEST-SETUPS] Error:', error);
+      res.status(500).json({ error: "Failed to fetch best setups" });
+    }
+  });
+
   app.get("/api/trade-ideas/:id", async (req, res) => {
     try {
       const idea = await storage.getTradeIdeaById(req.params.id);

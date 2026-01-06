@@ -214,6 +214,151 @@ import { isRealLoss } from "@shared/constants";
 import { MultiFactorAnalysis } from "@/components/multi-factor-analysis";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
+interface BestSetup extends TradeIdea {
+  convictionScore: number;
+  signalCount: number;
+  riskReward: number;
+}
+
+interface BestSetupsResponse {
+  period: string;
+  count: number;
+  totalOpen: number;
+  setups: BestSetup[];
+  generatedAt: string;
+}
+
+function BestSetupsCard() {
+  const [period, setPeriod] = useState<'daily' | 'weekly'>('daily');
+  
+  const { data: bestSetups, isLoading } = useQuery<BestSetupsResponse>({
+    queryKey: ['/api/trade-ideas/best-setups', period],
+    queryFn: async () => {
+      const res = await fetch(`/api/trade-ideas/best-setups?period=${period}&limit=5`);
+      if (!res.ok) throw new Error('Failed to fetch best setups');
+      return res.json();
+    },
+    refetchInterval: 60000,
+    staleTime: 30000,
+  });
+
+  const getGradeBadge = (grade: string | null | undefined) => {
+    if (!grade) return null;
+    const colors: Record<string, string> = {
+      'A+': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+      'A': 'bg-green-500/20 text-green-400 border-green-500/30',
+      'A-': 'bg-green-500/15 text-green-400/90 border-green-500/25',
+      'B+': 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+      'B': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    };
+    return (
+      <Badge variant="outline" className={cn("text-xs font-mono", colors[grade] || "")}>
+        {grade}
+      </Badge>
+    );
+  };
+
+  return (
+    <Card className="border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent" data-testid="card-best-setups">
+      <CardHeader className="py-3 px-4 border-b border-amber-500/20">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-sm font-bold flex items-center gap-2 text-amber-400">
+            <Star className="h-4 w-4 fill-amber-400" />
+            Best Setups
+          </CardTitle>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPeriod('daily')}
+              className={cn(
+                "h-7 px-2 text-xs",
+                period === 'daily' ? "bg-amber-500/20 text-amber-400" : "text-muted-foreground"
+              )}
+              data-testid="button-setups-daily"
+            >
+              Today
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPeriod('weekly')}
+              className={cn(
+                "h-7 px-2 text-xs",
+                period === 'weekly' ? "bg-amber-500/20 text-amber-400" : "text-muted-foreground"
+              )}
+              data-testid="button-setups-weekly"
+            >
+              Week
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Top conviction plays - wait for the perfect pitch
+        </p>
+      </CardHeader>
+      <CardContent className="p-3">
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          </div>
+        ) : bestSetups?.setups && bestSetups.setups.length > 0 ? (
+          <div className="space-y-2">
+            {bestSetups.setups.map((setup, idx) => (
+              <div 
+                key={setup.id}
+                className="flex items-center gap-3 p-2 rounded-lg bg-muted/30 hover-elevate cursor-pointer"
+                data-testid={`setup-row-${setup.symbol}`}
+              >
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold">
+                  {idx + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-semibold text-sm">{setup.symbol}</span>
+                    {getGradeBadge(setup.probabilityBand)}
+                    <Badge variant="outline" className={cn(
+                      "text-xs",
+                      setup.direction === 'long' ? "text-green-400 border-green-500/30" : "text-red-400 border-red-500/30"
+                    )}>
+                      {setup.direction === 'long' ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{setup.signalCount} signals</span>
+                    <span className="text-muted-foreground/50">|</span>
+                    <span>{setup.riskReward}:1 R:R</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center gap-1 text-amber-400">
+                    <Flame className="h-3.5 w-3.5" />
+                    <span className="font-mono font-bold text-sm">{setup.convictionScore}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">conviction</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-6 text-muted-foreground">
+            <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No high-conviction setups found</p>
+            <p className="text-xs mt-1">Generate ideas or wait for better opportunities</p>
+          </div>
+        )}
+        {bestSetups && bestSetups.totalOpen > 0 && (
+          <p className="text-xs text-muted-foreground text-center mt-3">
+            Showing top {bestSetups.count} of {bestSetups.totalOpen} active ideas
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function TradeDeskPage() {
   const { canGenerateTradeIdea } = useTier();
   const searchString = useSearch();
@@ -1420,6 +1565,9 @@ export default function TradeDeskPage() {
 
       {/* Live Market Data Strip */}
       <MarketStatsTicker />
+
+      {/* Best Setups - Top conviction plays for disciplined trading */}
+      <BestSetupsCard />
 
       {/* Engine Filter Tabs - Premium Design */}
       <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-slate-800/30 dark:bg-slate-800/30 border border-slate-700/30">
