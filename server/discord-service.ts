@@ -149,21 +149,18 @@ export function isOptionOnCooldown(symbol: string, strikePrice?: number | null, 
  * ═══════════════════════════════════════════════════════════════════════════
  * CHANNEL             │ WEBHOOK ENV VAR              │ PURPOSE
  * ═══════════════════════════════════════════════════════════════════════════
- * #options-trades     │ DISCORD_WEBHOOK_OPTIONSTRADES│ Options trade ideas ONLY
+ * #ai-quant-options   │ DISCORD_WEBHOOK_OPTIONSTRADES│ Options trade ideas ONLY
  *                     │ (fallback: DISCORD_WEBHOOK_URL) │ Calls/puts with strike/exp
  * ───────────────────────────────────────────────────────────────────────────
- * #stock-shares       │ DISCORD_WEBHOOK_SHARES       │ Stock/penny stock trades
- *                     │                              │ Non-options equity trades
- * ───────────────────────────────────────────────────────────────────────────
- * #quantbot           │ DISCORD_WEBHOOK_QUANTBOT     │ Bot entries, exits & bot gains
+ * #quant-ai           │ DISCORD_WEBHOOK_QUANTFLOOR   │ Bot entries, exits & bot gains
  *                     │                              │ Auto-Lotto Bot paper trading
  * ───────────────────────────────────────────────────────────────────────────
- * #lotto              │ DISCORD_WEBHOOK_LOTTO        │ Lotto detector alerts
- *                     │                              │ Bot entries & exits (paper trading)
+ * #lottos             │ DISCORD_WEBHOOK_LOTTO        │ Lotto detector alerts
+ *                     │                              │ High-conviction lotto plays
  * ───────────────────────────────────────────────────────────────────────────
- * #gains              │ DISCORD_WEBHOOK_GAINS        │ AI/Quant/Manual winning trades
+ * #quant-gains-los    │ DISCORD_WEBHOOK_GAINS        │ AI/Quant/Manual winning trades
  * ───────────────────────────────────────────────────────────────────────────
- * #futures            │ DISCORD_WEBHOOK_FUTURE_TRADES│ NQ/GC futures trades only
+ * #future-trade-id    │ DISCORD_WEBHOOK_FUTURE_TRADES│ NQ/GC futures trades only
  * ───────────────────────────────────────────────────────────────────────────
  * #chart-analysis     │ DISCORD_WEBHOOK_CHARTANALYSIS│ Technical chart breakdowns
  * ───────────────────────────────────────────────────────────────────────────
@@ -1213,8 +1210,8 @@ export async function sendBotTradeEntryToDiscord(position: {
   }
   
   const webhookUrl = position.assetType === 'future' 
-    ? (process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL)
-    : (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL);
+    ? (process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL)
+    : (process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL);
   
   if (!webhookUrl) {
     logger.warn(`📱 [DISCORD] No webhook URL configured - skipping entry notification for ${position.symbol}`);
@@ -1319,8 +1316,8 @@ export async function sendBotTradeExitToDiscord(position: {
   
   // Route to specific channel based on asset type
   const webhookUrl = position.assetType === 'future'
-    ? (process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL)
-    : (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL);
+    ? (process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL)
+    : (process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL);
   
   if (!webhookUrl) {
     logger.warn(`📱 [DISCORD] No webhook URL configured - skipping exit notification for ${position.symbol}`);
@@ -1399,10 +1396,10 @@ export async function sendWatchlistToQuantBot(items: Array<{
 }>): Promise<{ success: boolean; message: string }> {
   if (DISCORD_DISABLED) return { success: false, message: 'Discord disabled' };
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
-    logger.info('⚠️ DISCORD_WEBHOOK_QUANTBOT not configured - skipping watchlist to QuantBot');
+    logger.info('⚠️ DISCORD_WEBHOOK_QUANTFLOOR not configured - skipping watchlist to QuantBot');
     return { success: false, message: 'Discord webhook not configured' };
   }
   
@@ -1488,7 +1485,7 @@ export async function sendAnnualBreakoutsToDiscord(items: Array<{
 }>): Promise<{ success: boolean; message: string }> {
   if (DISCORD_DISABLED) return { success: false, message: 'Discord disabled' };
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_WEEKLYWATCHLISTS || process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_WEEKLYWATCHLISTS || process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
   
   if (!webhookUrl) {
     logger.info('⚠️ Discord webhook not configured - skipping annual breakouts');
@@ -1927,7 +1924,7 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
 /**
  * 💰 Send Gains Notification to Discord
  * Routes to proper channel based on source:
- * - Bot gains → DISCORD_WEBHOOK_QUANTBOT (#quantbot)
+ * - Bot gains → DISCORD_WEBHOOK_QUANTFLOOR (#quantbot)
  * - AI/Quant/Manual gains → DISCORD_WEBHOOK_GAINS (#gains)
  */
 export async function sendGainsToDiscord(trade: {
@@ -1960,7 +1957,7 @@ export async function sendGainsToDiscord(trade: {
   // Route bot gains to #quantbot, all other gains (including lotto) to #gains
   const isBot = trade.source === 'bot';
   const webhookUrl = isBot 
-    ? (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL)
+    ? (process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL)
     : process.env.DISCORD_WEBHOOK_GAINS;
   
   if (!webhookUrl) {
