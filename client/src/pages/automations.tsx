@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { 
   Bot, 
   TrendingUp, 
@@ -48,6 +50,45 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
 import { HeroProductPanel } from "@/components/hero-product-panel";
+
+interface ExitAdvisory {
+  positionId: string;
+  symbol: string;
+  optionType: string | null;
+  strikePrice: number | null;
+  expiryDate: string | null;
+  portfolioId: string;
+  portfolioName: string;
+  assetType: 'option' | 'crypto' | 'futures' | 'stock';
+  currentPrice: number;
+  entryPrice: number;
+  targetPrice: number;
+  stopLoss: number;
+  quantity: number;
+  unrealizedPnL: number;
+  unrealizedPnLPercent: number;
+  exitWindow: 'immediate' | 'soon' | 'hold' | 'watch';
+  exitProbability: number;
+  exitReason: string;
+  exitTimeEstimate: string;
+  momentum: string;
+  momentumScore: number;
+  dteRemaining: number | null;
+  thetaUrgency: 'critical' | 'high' | 'moderate' | 'low';
+  riskRewardCurrent: number;
+  distanceToTarget: number;
+  distanceToStop: number;
+  signals: string[];
+  lastUpdated: string;
+}
+
+interface ExitIntelligenceResponse {
+  portfolios: any[];
+  positions: ExitAdvisory[];
+  lastRefresh: string;
+  marketStatus: 'open' | 'closed' | 'pre_market' | 'after_hours';
+  message?: string;
+}
 
 function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
   const { data: exitIntel, isLoading, refetch } = useQuery<ExitIntelligenceResponse>({
@@ -92,14 +133,11 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
     return <Activity className="h-3 w-3 text-muted-foreground" />;
   };
 
-  // Filter positions if botOnly is true
-  // Note: For now, we'll assume all positions in this specific endpoint are bot-related
-  // or add a filter if the backend supports identifying source.
   const positions = botOnly 
-    ? (exitIntel?.positions || []).filter(p => p.portfolioName.toLowerCase().includes('bot') || p.portfolioName.toLowerCase().includes('lotto'))
+    ? (exitIntel?.positions || []).filter((p: ExitAdvisory) => p.portfolioName.toLowerCase().includes('bot') || p.portfolioName.toLowerCase().includes('lotto'))
     : (exitIntel?.positions || []);
 
-  const immediateCount = positions.filter(p => p.exitWindow === 'immediate').length || 0;
+  const immediateCount = positions.filter((p: ExitAdvisory) => p.exitWindow === 'immediate').length || 0;
   const totalPositions = positions.length || 0;
 
   if (!isLoading && totalPositions === 0 && botOnly) return null;
@@ -147,7 +185,7 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
           </div>
         ) : positions.length > 0 ? (
           <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-            {positions.map((pos) => (
+            {positions.map((pos: ExitAdvisory) => (
               <div 
                 key={pos.positionId}
                 className={cn(
