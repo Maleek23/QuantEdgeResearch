@@ -241,6 +241,421 @@ export interface DynamicExitSignal {
   reason: string;
   suggestedExitPrice?: number;
   partialExitPercent?: number; // For partial profit taking (e.g., 50% of position)
+  confluenceScore?: number; // Number of signals confirming exit (higher = more confident)
+  holdSignals?: string[]; // Reasons to HOLD instead of exit
+  exitSignals?: string[]; // Reasons to EXIT
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🧠 MULTI-CONFLUENCE EXIT INTELLIGENCE
+// Requires multiple confirmations before triggering exits to maximize gains
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface ExitConfluenceData {
+  rsi?: number;           // Current RSI value
+  volumeRatio?: number;   // Current volume vs average
+  priceChange5m?: number; // 5-minute price change %
+  priceChange15m?: number;// 15-minute price change %
+}
+
+// Time-of-day trading session awareness
+type TradingSession = 'pre_market' | 'opening_drive' | 'mid_morning' | 'lunch_lull' | 'afternoon' | 'power_hour' | 'after_hours';
+
+function getTradingSession(): TradingSession {
+  const now = new Date();
+  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const hour = etTime.getHours();
+  const minute = etTime.getMinutes();
+  const totalMinutes = hour * 60 + minute;
+  
+  if (totalMinutes < 9 * 60 + 30) return 'pre_market';
+  if (totalMinutes < 10 * 60) return 'opening_drive';      // 9:30-10:00 - volatile, momentum plays
+  if (totalMinutes < 11 * 60 + 30) return 'mid_morning';   // 10:00-11:30 - trend continuation
+  if (totalMinutes < 14 * 60) return 'lunch_lull';         // 11:30-2:00 - low volume, chop
+  if (totalMinutes < 15 * 60 + 30) return 'afternoon';     // 2:00-3:30 - resumption
+  if (totalMinutes < 16 * 60) return 'power_hour';         // 3:30-4:00 - high volume, big moves
+  return 'after_hours';
+}
+
+// Session-specific exit behavior (reduced weights to prevent single-factor dominance)
+function getSessionExitBias(session: TradingSession): { 
+  holdBias: number;  // Positive = bias towards holding, negative = bias towards exiting
+  description: string;
+} {
+  switch (session) {
+    case 'opening_drive':
+      return { holdBias: 5, description: '🚀 Opening drive - momentum tends to continue' };
+    case 'mid_morning':
+      return { holdBias: 3, description: '📈 Mid-morning trend continuation' };
+    case 'lunch_lull':
+      return { holdBias: -5, description: '😴 Lunch lull - lower volume, choppier' };
+    case 'afternoon':
+      return { holdBias: 0, description: '⏰ Afternoon - neutral session' };
+    case 'power_hour':
+      return { holdBias: 8, description: '⚡ Power hour - increased volume' };
+    case 'pre_market':
+    case 'after_hours':
+      return { holdBias: -8, description: '🌙 Extended hours - reduce risk' };
+    default:
+      return { holdBias: 0, description: 'Regular session' };
+  }
+}
+
+// RSI-based momentum check for exits
+function getRsiExitSignal(rsi: number | undefined, direction: 'long' | 'short', pnlPercent: number): {
+  signal: 'hold' | 'exit' | 'neutral';
+  reason: string;
+  weight: number;
+} {
+  if (rsi === undefined) {
+    return { signal: 'neutral', reason: 'RSI unavailable', weight: 0 };
+  }
+  
+  const isLong = direction === 'long';
+  
+  // For LONGS with profits
+  if (isLong && pnlPercent > 0) {
+    if (rsi >= 70) {
+      // Overbought but momentum still strong - be cautious but don't panic
+      return { signal: 'neutral', reason: `RSI ${rsi.toFixed(0)} overbought - momentum may continue`, weight: 0 };
+    }
+    if (rsi >= 55) {
+      // Strong momentum - HOLD
+      return { signal: 'hold', reason: `RSI ${rsi.toFixed(0)} shows strong momentum - HOLD`, weight: 15 };
+    }
+    if (rsi < 45) {
+      // Momentum fading - consider exit
+      return { signal: 'exit', reason: `RSI ${rsi.toFixed(0)} momentum fading`, weight: 10 };
+    }
+  }
+  
+  // For SHORTS with profits
+  if (!isLong && pnlPercent > 0) {
+    if (rsi <= 30) {
+      return { signal: 'neutral', reason: `RSI ${rsi.toFixed(0)} oversold - bounce may come`, weight: 0 };
+    }
+    if (rsi <= 45) {
+      return { signal: 'hold', reason: `RSI ${rsi.toFixed(0)} bearish momentum - HOLD`, weight: 15 };
+    }
+    if (rsi > 55) {
+      return { signal: 'exit', reason: `RSI ${rsi.toFixed(0)} turning bullish`, weight: 10 };
+    }
+  }
+  
+  return { signal: 'neutral', reason: `RSI ${rsi?.toFixed(0) || 'N/A'} neutral`, weight: 0 };
+}
+
+// Volume-based exit signal
+function getVolumeExitSignal(volumeRatio: number | undefined, pnlPercent: number): {
+  signal: 'hold' | 'exit' | 'neutral';
+  reason: string;
+  weight: number;
+} {
+  if (volumeRatio === undefined) {
+    return { signal: 'neutral', reason: 'Volume data unavailable', weight: 0 };
+  }
+  
+  // High volume = real move, more conviction to hold
+  if (volumeRatio >= 2.0 && pnlPercent > 0) {
+    return { signal: 'hold', reason: `📊 ${volumeRatio.toFixed(1)}x volume confirms move - HOLD`, weight: 20 };
+  }
+  
+  if (volumeRatio >= 1.5 && pnlPercent > 0) {
+    return { signal: 'hold', reason: `📊 ${volumeRatio.toFixed(1)}x volume supports trend`, weight: 10 };
+  }
+  
+  // Low volume pullback in profit = weak selling, hold
+  if (volumeRatio < 0.7 && pnlPercent > 10) {
+    return { signal: 'hold', reason: `📊 Low volume pullback (${volumeRatio.toFixed(1)}x) - weak sellers`, weight: 8 };
+  }
+  
+  // Low volume while losing = weak support, consider exit
+  if (volumeRatio < 0.8 && pnlPercent < -10) {
+    return { signal: 'exit', reason: `📊 Low volume decline - no buyers`, weight: 5 };
+  }
+  
+  return { signal: 'neutral', reason: `Volume ${volumeRatio?.toFixed(1) || 'N/A'}x`, weight: 0 };
+}
+
+// Short-term momentum check (5m/15m price changes)
+function getMomentumExitSignal(
+  priceChange5m: number | undefined,
+  priceChange15m: number | undefined,
+  direction: 'long' | 'short',
+  pnlPercent: number
+): { signal: 'hold' | 'exit' | 'neutral'; reason: string; weight: number } {
+  if (priceChange5m === undefined && priceChange15m === undefined) {
+    return { signal: 'neutral', reason: 'Momentum data unavailable', weight: 0 };
+  }
+  
+  const isLong = direction === 'long';
+  const change5m = priceChange5m || 0;
+  const change15m = priceChange15m || 0;
+  
+  // For profitable longs
+  if (isLong && pnlPercent > 0) {
+    // Still moving up strongly
+    if (change5m > 0.5 && change15m > 1.0) {
+      return { signal: 'hold', reason: `🔥 +${change5m.toFixed(1)}% 5m, +${change15m.toFixed(1)}% 15m - momentum hot`, weight: 20 };
+    }
+    if (change5m > 0.2) {
+      return { signal: 'hold', reason: `📈 +${change5m.toFixed(1)}% 5m - still moving`, weight: 10 };
+    }
+    // Momentum stalling
+    if (change5m < -0.3 && change15m < 0) {
+      return { signal: 'exit', reason: `📉 ${change5m.toFixed(1)}% 5m - momentum reversing`, weight: 12 };
+    }
+  }
+  
+  // For profitable shorts
+  if (!isLong && pnlPercent > 0) {
+    if (change5m < -0.5 && change15m < -1.0) {
+      return { signal: 'hold', reason: `🔥 ${change5m.toFixed(1)}% 5m - bearish momentum hot`, weight: 20 };
+    }
+    if (change5m < -0.2) {
+      return { signal: 'hold', reason: `📉 ${change5m.toFixed(1)}% 5m - still falling`, weight: 10 };
+    }
+    if (change5m > 0.3 && change15m > 0) {
+      return { signal: 'exit', reason: `📈 Bouncing +${change5m.toFixed(1)}% 5m`, weight: 12 };
+    }
+  }
+  
+  return { signal: 'neutral', reason: `5m: ${change5m.toFixed(1)}%, 15m: ${change15m.toFixed(1)}%`, weight: 0 };
+}
+
+// Calculate overall exit confluence score
+export function calculateExitConfluence(
+  pnlPercent: number,
+  fromHigh: number,
+  daysToExpiry: number,
+  direction: 'long' | 'short',
+  marketContext: MarketContext,
+  confluenceData?: ExitConfluenceData
+): {
+  shouldExit: boolean;
+  exitScore: number;     // Higher = more exit signals (0-100)
+  holdScore: number;     // Higher = more hold signals (0-100)
+  netScore: number;      // Positive = hold, Negative = exit
+  exitSignals: string[];
+  holdSignals: string[];
+  recommendation: string;
+  telemetrySignalCount: number; // Count of actual telemetry-based signals (RSI, volume, momentum)
+} {
+  const exitSignals: string[] = [];
+  const holdSignals: string[] = [];
+  let exitScore = 0;
+  let holdScore = 0;
+  let telemetryExitCount = 0; // Count telemetry-derived exit signals (not time/regime)
+  
+  const isCall = direction === 'long';
+  const regimeBad = (isCall && marketContext.regime === 'trending_down') || 
+                    (!isCall && marketContext.regime === 'trending_up');
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MANDATORY EXITS (bypass ALL scoring - these ALWAYS trigger)
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Hard stop at -40% (absolute floor)
+  if (pnlPercent <= -40) {
+    return {
+      shouldExit: true, exitScore: 100, holdScore: 0, netScore: -100,
+      exitSignals: ['⛔ HARD STOP: -40% capital protection'],
+      holdSignals: [],
+      recommendation: 'MANDATORY EXIT: Capital protection',
+      telemetrySignalCount: 0
+    };
+  }
+  
+  // Deep loser threshold: -25%
+  if (pnlPercent <= -25) {
+    return {
+      shouldExit: true, exitScore: 80, holdScore: 0, netScore: -80,
+      exitSignals: [`⛔ LOSS STOP: Down ${Math.abs(pnlPercent).toFixed(0)}%`],
+      holdSignals: [],
+      recommendation: 'MANDATORY EXIT: Significant loss',
+      telemetrySignalCount: 0
+    };
+  }
+  
+  // Expiring today - must exit
+  if (daysToExpiry <= 0) {
+    return {
+      shouldExit: true, exitScore: 100, holdScore: 0, netScore: -100,
+      exitSignals: ['🚨 EXPIRING TODAY'],
+      holdSignals: [],
+      recommendation: 'MANDATORY EXIT: Option expiring',
+      telemetrySignalCount: 0
+    };
+  }
+  
+  // Time decay risk: ≤1 DTE with any profit - exit to avoid overnight theta
+  if (daysToExpiry <= 1 && pnlPercent > 5) {
+    return {
+      shouldExit: true, exitScore: 90, holdScore: 0, netScore: -90,
+      exitSignals: [`⏰ ${daysToExpiry}DTE EXIT: Lock in +${pnlPercent.toFixed(0)}% before theta decay`],
+      holdSignals: [],
+      recommendation: 'MANDATORY EXIT: Theta decay risk',
+      telemetrySignalCount: 0
+    };
+  }
+  
+  // Regime against position while in profit - take profits
+  if (regimeBad && pnlPercent > 10) {
+    return {
+      shouldExit: true, exitScore: 80, holdScore: 0, netScore: -80,
+      exitSignals: [`⚠️ REGIME EXIT: Market ${marketContext.regime} against position, take +${pnlPercent.toFixed(0)}%`],
+      holdSignals: [],
+      recommendation: 'MANDATORY EXIT: Regime shift',
+      telemetrySignalCount: 0
+    };
+  }
+  
+  // Regime against position while losing - cut losses
+  if (regimeBad && pnlPercent <= -15) {
+    return {
+      shouldExit: true, exitScore: 75, holdScore: 0, netScore: -75,
+      exitSignals: [`⚠️ REGIME STOP: Market ${marketContext.regime} + down ${Math.abs(pnlPercent).toFixed(0)}%`],
+      holdSignals: [],
+      recommendation: 'MANDATORY EXIT: Regime against losing position',
+      telemetrySignalCount: 0
+    };
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONFLUENCE SIGNALS
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // 1. Time-of-day session bias (low weight, never dominates)
+  const session = getTradingSession();
+  const sessionBias = getSessionExitBias(session);
+  if (sessionBias.holdBias > 0) {
+    holdSignals.push(sessionBias.description);
+    holdScore += sessionBias.holdBias;
+  } else if (sessionBias.holdBias < 0) {
+    exitSignals.push(sessionBias.description);
+    exitScore += Math.abs(sessionBias.holdBias);
+  }
+  
+  // 2. RSI momentum (TELEMETRY SIGNAL)
+  if (confluenceData?.rsi !== undefined) {
+    const rsiSignal = getRsiExitSignal(confluenceData.rsi, direction, pnlPercent);
+    if (rsiSignal.signal === 'hold') {
+      holdSignals.push(rsiSignal.reason);
+      holdScore += rsiSignal.weight;
+    } else if (rsiSignal.signal === 'exit') {
+      exitSignals.push(rsiSignal.reason);
+      exitScore += rsiSignal.weight;
+      telemetryExitCount++; // Count as telemetry-based exit
+    }
+  }
+  
+  // 3. Volume confirmation (TELEMETRY SIGNAL)
+  if (confluenceData?.volumeRatio !== undefined) {
+    const volSignal = getVolumeExitSignal(confluenceData.volumeRatio, pnlPercent);
+    if (volSignal.signal === 'hold') {
+      holdSignals.push(volSignal.reason);
+      holdScore += volSignal.weight;
+    } else if (volSignal.signal === 'exit') {
+      exitSignals.push(volSignal.reason);
+      exitScore += volSignal.weight;
+      telemetryExitCount++; // Count as telemetry-based exit
+    }
+  }
+  
+  // 4. Short-term momentum (TELEMETRY SIGNAL)
+  const momSignal = getMomentumExitSignal(
+    confluenceData?.priceChange5m, 
+    confluenceData?.priceChange15m, 
+    direction, 
+    pnlPercent
+  );
+  if (momSignal.signal === 'hold') {
+    holdSignals.push(momSignal.reason);
+    holdScore += momSignal.weight;
+  } else if (momSignal.signal === 'exit') {
+    exitSignals.push(momSignal.reason);
+    exitScore += momSignal.weight;
+    telemetryExitCount++; // Count as telemetry-based exit
+  }
+  
+  // 5. Market regime (STRONG signal - can trigger exit alone if severe enough)
+  if (regimeBad) {
+    exitSignals.push(`⚠️ Market regime (${marketContext.regime}) against position`);
+    exitScore += 20; // Increased from 15 to enable regime-only exits
+  } else if (marketContext.regime === 'trending_up' && isCall) {
+    holdSignals.push(`✅ Market trending up - calls favored`);
+    holdScore += 10;
+  } else if (marketContext.regime === 'trending_down' && !isCall) {
+    holdSignals.push(`✅ Market trending down - puts favored`);
+    holdScore += 10;
+  }
+  
+  // 6. P&L momentum / price action (COUNTS AS CONFIRMATION for trailing stops)
+  if (pnlPercent > 30 && fromHigh > -5) {
+    holdSignals.push(`💪 Strong gains (+${pnlPercent.toFixed(0)}%) near highs`);
+    holdScore += 15;
+  } else if (pnlPercent > 20 && fromHigh < -15) {
+    exitSignals.push(`📉 Gave back gains: was higher, now +${pnlPercent.toFixed(0)}%`);
+    exitScore += 12;
+    telemetryExitCount++; // Price pullback counts as confirmation (it's real market data)
+  } else if (pnlPercent > 10 && fromHigh < -20) {
+    exitSignals.push(`📉 Significant pullback: ${fromHigh.toFixed(0)}% from peak`);
+    exitScore += 10;
+    telemetryExitCount++; // Large pullback is strong confirmation
+  }
+  
+  // 7. Theta decay pressure
+  if (daysToExpiry <= 1 && pnlPercent > 5) {
+    exitSignals.push(`⏰ ${daysToExpiry} DTE - theta risk with +${pnlPercent.toFixed(0)}%`);
+    exitScore += 20;
+  } else if (daysToExpiry <= 3 && pnlPercent > 15) {
+    exitSignals.push(`⏰ ${daysToExpiry} DTE approaching - consider locking gains`);
+    exitScore += 10;
+  }
+  
+  // Calculate net score
+  const netScore = holdScore - exitScore;
+  
+  // Decision thresholds:
+  // FINAL SIMPLIFIED LOGIC:
+  // - Session hold bias max is +8 (power hour)
+  // - Single strong exit signal (regime=20, time-decay=20) results in netScore = 8-20 = -12
+  // - Therefore winner threshold must be -12 to allow single-factor exits
+  // - Loser threshold is easier at -10 to protect capital quickly
+  
+  const isLoser = pnlPercent < 0;
+  
+  // Thresholds adjusted so single strong signals CAN trigger exits:
+  // - Regime shift (20 points) with power hour (8 hold) = -12 net → EXIT at -12
+  // - Time decay (20 points) = same math
+  // - Multiple smaller signals (pullback 12 + regime 20) = -32 + bias → EXIT
+  const shouldExit = isLoser 
+    ? (netScore <= -10)  // Losers: exit at -10 (faster capital protection)
+    : (netScore <= -12); // Winners: exit at -12 (single strong signal can trigger)
+  
+  let recommendation: string;
+  if (netScore > 25) {
+    recommendation = `🚀 STRONG HOLD: ${holdSignals.length} hold signals vs ${exitSignals.length} exit signals`;
+  } else if (netScore > 10) {
+    recommendation = `📊 HOLD: Confluence favors holding (+${netScore})`;
+  } else if (netScore < -25) {
+    recommendation = `⛔ EXIT: Strong exit confluence (${netScore})`;
+  } else if (netScore < -10) {
+    recommendation = `⚠️ CONSIDER EXIT: ${exitSignals.length} exit signals`;
+  } else {
+    recommendation = `🤔 NEUTRAL: Mixed signals, monitor closely`;
+  }
+  
+  return {
+    shouldExit,
+    exitScore: Math.min(100, exitScore),
+    holdScore: Math.min(100, holdScore),
+    netScore,
+    exitSignals,
+    holdSignals,
+    recommendation,
+    telemetrySignalCount: telemetryExitCount
+  };
 }
 
 // Trade lifecycle phases for smarter exits
@@ -451,5 +866,191 @@ export function checkDynamicExit(
     shouldExit: false,
     exitType: 'none',
     reason: `📊 HOLD: Phase=${phase}, PnL=+${pnlPercent.toFixed(0)}%, ${daysToExpiry} DTE`,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🧠 ENHANCED EXIT WITH MULTI-CONFLUENCE
+// Combines rule-based exits with confluence scoring for smarter decisions
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export function checkDynamicExitEnhanced(
+  currentPrice: number,
+  entryPrice: number,
+  highestPrice: number,
+  daysToExpiry: number,
+  optionType: 'call' | 'put',
+  marketContext: MarketContext,
+  confluenceData?: ExitConfluenceData
+): DynamicExitSignal {
+  const pnlPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
+  const fromHigh = highestPrice > 0 ? ((currentPrice - highestPrice) / highestPrice) * 100 : 0;
+  const direction = optionType === 'call' ? 'long' : 'short';
+  
+  // Pre-compute regime check for mandatory exits
+  const isCall = optionType === 'call';
+  const regimeBad = (isCall && marketContext.regime === 'trending_down') || 
+                    (!isCall && marketContext.regime === 'trending_up');
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 1: Check mandatory exit conditions (bypass confluence)
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Hard stop: -40% (no confluence needed - capital protection)
+  if (pnlPercent <= -40) {
+    return {
+      shouldExit: true,
+      exitType: 'trailing_stop',
+      reason: `⛔ HARD STOP: Down ${Math.abs(pnlPercent).toFixed(0)}% - protecting capital`,
+      suggestedExitPrice: currentPrice,
+      confluenceScore: 100,
+      exitSignals: ['Capital protection hard stop'],
+      holdSignals: [],
+    };
+  }
+  
+  // Time-based stop for losers: Exit before expiry accelerates losses
+  if (pnlPercent <= -20 && daysToExpiry <= 2) {
+    return {
+      shouldExit: true,
+      exitType: 'time_decay',
+      reason: `⛔ TIME STOP: Down ${Math.abs(pnlPercent).toFixed(0)}% with ${daysToExpiry} DTE - theta risk`,
+      suggestedExitPrice: currentPrice,
+      confluenceScore: 80,
+      exitSignals: ['Losing position with theta decay'],
+      holdSignals: [],
+    };
+  }
+  
+  // Expiring today - must exit
+  if (daysToExpiry <= 0) {
+    return {
+      shouldExit: true,
+      exitType: 'time_decay',
+      reason: `🚨 EXPIRING TODAY: Must exit, P&L: ${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(0)}%`,
+      suggestedExitPrice: currentPrice,
+      confluenceScore: 100,
+      exitSignals: ['Option expiring'],
+      holdSignals: [],
+    };
+  }
+  
+  // 1DTE with meaningful profit - take it before overnight theta
+  if (daysToExpiry === 1 && pnlPercent > 10) {
+    return {
+      shouldExit: true,
+      exitType: 'time_decay',
+      reason: `⏰ 1DTE EXIT: Lock in +${pnlPercent.toFixed(0)}% before theta decay`,
+      suggestedExitPrice: currentPrice,
+      confluenceScore: 85,
+      exitSignals: ['1 DTE with meaningful profit'],
+      holdSignals: [],
+    };
+  }
+  
+  // Regime against position while profitable - take profits
+  if (regimeBad && pnlPercent > 10) {
+    return {
+      shouldExit: true,
+      exitType: 'regime_shift',
+      reason: `⚠️ REGIME EXIT: Market ${marketContext.regime} against position, take +${pnlPercent.toFixed(0)}%`,
+      suggestedExitPrice: currentPrice,
+      confluenceScore: 80,
+      exitSignals: ['Regime shift with profit'],
+      holdSignals: [],
+    };
+  }
+  
+  // Regime against position while losing moderately - cut losses
+  if (regimeBad && pnlPercent <= -15) {
+    return {
+      shouldExit: true,
+      exitType: 'regime_shift',
+      reason: `⚠️ REGIME STOP: Market ${marketContext.regime} + down ${Math.abs(pnlPercent).toFixed(0)}%`,
+      suggestedExitPrice: currentPrice,
+      confluenceScore: 75,
+      exitSignals: ['Regime shift with loss'],
+      holdSignals: [],
+    };
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 2: Calculate confluence score (only if no mandatory exit triggered)
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  const confluence = calculateExitConfluence(
+    pnlPercent,
+    fromHigh,
+    daysToExpiry,
+    direction,
+    marketContext,
+    confluenceData
+  );
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 3: Apply confluence-based decision
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // Strong hold signals override weaker exit signals
+  if (confluence.netScore > 10 && pnlPercent > 0) {
+    return {
+      shouldExit: false,
+      exitType: 'none',
+      reason: `🚀 CONFLUENCE HOLD: ${confluence.recommendation} (net: +${confluence.netScore})`,
+      confluenceScore: confluence.holdScore,
+      holdSignals: confluence.holdSignals,
+      exitSignals: confluence.exitSignals,
+    };
+  }
+  
+  // Strong exit signals (requires multiple confirmations)
+  if (confluence.shouldExit || confluence.netScore <= -20) {
+    let exitType: DynamicExitSignal['exitType'] = 'momentum_fade';
+    
+    // Categorize exit type based on signals
+    if (confluence.exitSignals.some(s => s.includes('DTE') || s.includes('theta'))) {
+      exitType = 'time_decay';
+    } else if (confluence.exitSignals.some(s => s.includes('regime'))) {
+      exitType = 'regime_shift';
+    }
+    
+    return {
+      shouldExit: true,
+      exitType,
+      reason: `⛔ CONFLUENCE EXIT: ${confluence.recommendation} (net: ${confluence.netScore}, ${confluence.exitSignals.length} signals)`,
+      suggestedExitPrice: currentPrice,
+      confluenceScore: confluence.exitScore,
+      holdSignals: confluence.holdSignals,
+      exitSignals: confluence.exitSignals,
+    };
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 4: Additional rules (only for positions not caught by mandatory/confluence)
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  const peakGain = highestPrice > 0 ? ((highestPrice - entryPrice) / entryPrice) * 100 : 0;
+  
+  // Distribution phase: Take profits if gave back significant gains
+  if (peakGain >= 40 && pnlPercent < peakGain * 0.5 && pnlPercent > 15) {
+    return {
+      shouldExit: true,
+      exitType: 'momentum_fade',
+      reason: `📉 MOMENTUM FADE: Peaked at +${peakGain.toFixed(0)}%, now +${pnlPercent.toFixed(0)}%`,
+      suggestedExitPrice: currentPrice,
+      confluenceScore: confluence.exitScore,
+      holdSignals: confluence.holdSignals,
+      exitSignals: [...confluence.exitSignals, 'Gave back 50%+ of peak gains'],
+    };
+  }
+  
+  // Default: HOLD with confluence data
+  return {
+    shouldExit: false,
+    exitType: 'none',
+    reason: `📊 HOLD: Net score ${confluence.netScore >= 0 ? '+' : ''}${confluence.netScore}, ${confluence.holdSignals.length} hold / ${confluence.exitSignals.length} exit signals`,
+    confluenceScore: confluence.holdScore,
+    holdSignals: confluence.holdSignals,
+    exitSignals: confluence.exitSignals,
   };
 }

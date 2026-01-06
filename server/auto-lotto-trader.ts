@@ -8,7 +8,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { TradeIdea, PaperPortfolio, InsertTradeIdea, AutoLottoPreferences } from "@shared/schema";
 import { isUSMarketOpen, isCMEMarketOpen, normalizeDateString } from "@shared/market-calendar";
 import { logger } from "./logger";
-import { getMarketContext, getEntryTiming, checkDynamicExit, MarketContext } from "./market-context-service";
+import { getMarketContext, getEntryTiming, checkDynamicExit, checkDynamicExitEnhanced, MarketContext, ExitConfluenceData } from "./market-context-service";
 import { getActiveFuturesContract, getFuturesPrice } from "./futures-data-service";
 import { getTopMovers } from "./market-scanner";
 import { 
@@ -2485,15 +2485,33 @@ export async function monitorLottoPositions(): Promise<void> {
         daysToExpiry = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       }
       
-      const highestPrice = pos.currentPrice; // Track highest price based on current
+      // Compute highest price inline using max of current, tracked, and entry (for proper trailing stop)
+      const trackedHigh = pos.highestPriceReached || pos.entryPrice;
+      const highestPrice = Math.max(pos.currentPrice, trackedHigh);
       
-      const exitSignal = checkDynamicExit(
+      // Persist new high for future iterations
+      if (highestPrice > trackedHigh) {
+        await storage.updatePaperPosition(pos.id, {
+          highestPriceReached: highestPrice
+        });
+      }
+      
+      // Build confluence data from available market info
+      // Note: RSI/momentum data can be added when available from real-time feeds
+      const confluenceData: ExitConfluenceData = {
+        volumeRatio: marketContext.spyData?.relativeVolume || 1.0,
+        // priceChange5m and priceChange15m could be added from real-time data
+      };
+      
+      // Use enhanced exit with multi-confluence checks
+      const exitSignal = checkDynamicExitEnhanced(
         pos.currentPrice,
         pos.entryPrice,
         highestPrice,
         daysToExpiry,
         (pos.optionType as 'call' | 'put') || 'call',
-        marketContext
+        marketContext,
+        confluenceData
       );
       
       // Calculate P&L for logging
@@ -2501,7 +2519,9 @@ export async function monitorLottoPositions(): Promise<void> {
       const pnlEmoji = currentPnL >= 0 ? '🟢' : '🔴';
       
       if (exitSignal.shouldExit) {
-        logger.info(`🤖 [BOT] 📊 DYNAMIC EXIT: ${pos.symbol} - ${exitSignal.exitType}: ${exitSignal.reason}`);
+        // Log exit with confluence details
+        const exitDetails = exitSignal.exitSignals?.length ? ` | Exit signals: ${exitSignal.exitSignals.slice(0, 3).join(', ')}` : '';
+        logger.info(`🤖 [BOT] 📊 DYNAMIC EXIT: ${pos.symbol} - ${exitSignal.exitType}: ${exitSignal.reason}${exitDetails}`);
         
         // Close the position with dynamic exit reason
         try {
@@ -2535,8 +2555,9 @@ export async function monitorLottoPositions(): Promise<void> {
           logger.error(`🤖 [BOT] Failed to execute dynamic exit for ${pos.symbol}:`, exitError);
         }
       } else {
-        // Log HOLD decision with reason - so user knows why bot is keeping position
-        logger.info(`🤖 [BOT] ${pnlEmoji} HOLDING ${pos.symbol}: ${exitSignal.reason} | PnL: ${currentPnL >= 0 ? '+' : ''}${currentPnL.toFixed(1)}% | ${daysToExpiry} DTE`);
+        // Log HOLD decision with confluence details - so user knows why bot is keeping position
+        const holdDetails = exitSignal.holdSignals?.length ? ` | Hold signals: ${exitSignal.holdSignals.slice(0, 2).join(', ')}` : '';
+        logger.info(`🤖 [BOT] ${pnlEmoji} HOLDING ${pos.symbol}: ${exitSignal.reason} | PnL: ${currentPnL >= 0 ? '+' : ''}${currentPnL.toFixed(1)}% | ${daysToExpiry} DTE${holdDetails}`);
       }
     }
     
