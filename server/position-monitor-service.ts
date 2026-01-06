@@ -365,12 +365,53 @@ export async function getPortfolioExitIntelligence(portfolioId: string): Promise
 
 export async function getAutoLottoExitIntelligence(): Promise<PositionMonitorState | null> {
   const portfolios = await storage.getAllPaperPortfolios();
-  const autoLottoPortfolio = portfolios.find(p => p.name === 'Auto-Lotto Bot');
   
-  if (!autoLottoPortfolio) {
-    logger.warn('[POSITION-MONITOR] Auto-Lotto Bot portfolio not found');
+  // Find all Auto-Lotto portfolios (Options, Crypto, Futures, Bot)
+  const autoLottoPortfolios = portfolios.filter(p => 
+    p.name.toLowerCase().includes('auto-lotto') || 
+    p.name.toLowerCase().includes('autolotto')
+  );
+  
+  if (autoLottoPortfolios.length === 0) {
+    logger.warn('[POSITION-MONITOR] No Auto-Lotto portfolios found');
     return null;
   }
   
-  return getPortfolioExitIntelligence(autoLottoPortfolio.id);
+  // Aggregate positions from all Auto-Lotto portfolios
+  const allAdvisories: ExitAdvisory[] = [];
+  
+  for (const portfolio of autoLottoPortfolios) {
+    const intel = await getPortfolioExitIntelligence(portfolio.id);
+    if (intel && intel.positions.length > 0) {
+      allAdvisories.push(...intel.positions);
+    }
+  }
+  
+  // Sort by exit urgency
+  allAdvisories.sort((a, b) => {
+    const windowPriority = { immediate: 0, soon: 1, watch: 2, hold: 3 };
+    const priorityDiff = windowPriority[a.exitWindow] - windowPriority[b.exitWindow];
+    if (priorityDiff !== 0) return priorityDiff;
+    return b.exitProbability - a.exitProbability;
+  });
+  
+  const now = new Date();
+  const hour = now.getHours();
+  const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+  
+  let marketStatus: PositionMonitorState['marketStatus'] = 'closed';
+  if (!isWeekend) {
+    if (hour >= 9 && hour < 16) marketStatus = 'open';
+    else if (hour >= 4 && hour < 9) marketStatus = 'pre_market';
+    else if (hour >= 16 && hour < 20) marketStatus = 'after_hours';
+  }
+  
+  logger.info(`[POSITION-MONITOR] Aggregated ${allAdvisories.length} positions from ${autoLottoPortfolios.length} portfolios`);
+  
+  return {
+    portfolioId: autoLottoPortfolios[0]?.id || 'combined',
+    positions: allAdvisories,
+    lastRefresh: now.toISOString(),
+    marketStatus
+  };
 }
