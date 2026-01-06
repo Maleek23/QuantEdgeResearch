@@ -226,12 +226,13 @@ function isApiQuotaExhausted(): boolean {
 // 🛡️ POST-LOSS COOLDOWN SYSTEM - Prevents re-entry on losing symbols
 // ═══════════════════════════════════════════════════════════════════════════
 const LOSS_COOLDOWN_MS = 30 * 60 * 1000; // 30 minute cooldown after a loss
-// 🎯 PREMIUM TIERS FOR $300 ACCOUNT - Think quality, not just cheap lottos!
-// Quality plays: $0.50-$1.50 options can turn into $2-5+ with good setups
-const MAX_ENTRY_PREMIUM = 150; // $1.50 max premium = $150/contract (allows quality plays)
-const PRIORITY_TICKER_PREMIUM = 250; // $2.50 max for high-conviction priority tickers (AMZN, NVDA, etc.)
-const CONSERVATIVE_ENTRY_PREMIUM = 100; // $1.00 max for B-grade entries ($100/contract)
-const LOTTO_ENTRY_PREMIUM = 50; // $0.50 max for speculative lotto plays
+// 🎯 PREMIUM TIERS - User said $1000 max, not $1.50!
+// For $300 account: $10.00 option = 1 contract @ $1000 total
+// This allows quality names like AMZN, NVDA, GOOGL which often have higher premiums
+const MAX_ENTRY_PREMIUM = 1000; // $10.00 max premium = $1000/contract (A+ setups)
+const PRIORITY_TICKER_PREMIUM = 1000; // $10.00 max for priority tickers (AMZN, NVDA, etc.)
+const CONSERVATIVE_ENTRY_PREMIUM = 500; // $5.00 max for B-grade entries ($500/contract)
+const LOTTO_ENTRY_PREMIUM = 200; // $2.00 max for speculative lotto plays
 
 interface SymbolCooldown {
   lastLossTime: number;
