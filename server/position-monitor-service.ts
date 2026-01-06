@@ -11,10 +11,16 @@ export interface ExitAdvisory {
   strikePrice: number | null;
   expiryDate: string | null;
   
+  // Portfolio context
+  portfolioId: string;
+  portfolioName: string;
+  assetType: 'option' | 'crypto' | 'futures' | 'stock';
+  
   currentPrice: number;
   entryPrice: number;
   targetPrice: number;
   stopLoss: number;
+  quantity: number;
   
   unrealizedPnL: number;
   unrealizedPnLPercent: number;
@@ -38,8 +44,15 @@ export interface ExitAdvisory {
   lastUpdated: string;
 }
 
+export interface PortfolioSummary {
+  id: string;
+  name: string;
+  positionCount: number;
+  assetType: 'option' | 'crypto' | 'futures' | 'mixed';
+}
+
 export interface PositionMonitorState {
-  portfolioId: string;
+  portfolios: PortfolioSummary[];
   positions: ExitAdvisory[];
   lastRefresh: string;
   marketStatus: 'open' | 'closed' | 'pre_market' | 'after_hours';
@@ -258,7 +271,18 @@ function generateSignals(
   return signals;
 }
 
-export async function analyzePosition(position: PaperPosition): Promise<ExitAdvisory | null> {
+function determineAssetType(position: PaperPosition, portfolioName: string): ExitAdvisory['assetType'] {
+  if (position.optionType) return 'option';
+  if (portfolioName.toLowerCase().includes('crypto')) return 'crypto';
+  if (portfolioName.toLowerCase().includes('futures')) return 'futures';
+  return 'stock';
+}
+
+export async function analyzePosition(
+  position: PaperPosition,
+  portfolioId: string = '',
+  portfolioName: string = ''
+): Promise<ExitAdvisory | null> {
   try {
     const currentPrice = position.currentPrice || await getCachedPrice(position.symbol);
     if (!currentPrice) {
@@ -267,16 +291,21 @@ export async function analyzePosition(position: PaperPosition): Promise<ExitAdvi
     }
     
     const entryPrice = position.entryPrice || 0;
-    const targetPrice = position.targetPrice || entryPrice * 2;
-    const stopLoss = position.stopLoss || entryPrice * 0.5;
+    // Use actual position targets/stops if available, otherwise use sensible defaults
+    const targetPrice = position.targetPrice || entryPrice * 1.5; // 50% gain target default
+    const stopLoss = position.stopLoss || entryPrice * 0.7; // 30% loss stop default
+    const quantity = position.quantity || 1;
     
+    const assetType = determineAssetType(position, portfolioName);
     const dte = calculateDTE(position.expiryDate || null);
     const thetaUrgency = calculateThetaUrgency(dte);
     const { momentum, score: momentumScore } = calculateMomentum(currentPrice, entryPrice, targetPrice, stopLoss);
     const { window: exitWindow, probability: exitProbability, reason: exitReason, timeEstimate: exitTimeEstimate } = calculateExitWindow(position, currentPrice, dte, momentum);
     const signals = generateSignals(position, currentPrice, dte, momentum);
     
-    const unrealizedPnL = (currentPrice - entryPrice) * (position.quantity || 1) * (position.optionType ? 100 : 1);
+    // For options, apply contract multiplier (100 shares per contract)
+    const multiplier = assetType === 'option' ? 100 : 1;
+    const unrealizedPnL = (currentPrice - entryPrice) * quantity * multiplier;
     const unrealizedPnLPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
     
     const distanceToTarget = ((targetPrice - currentPrice) / currentPrice) * 100;
@@ -290,10 +319,15 @@ export async function analyzePosition(position: PaperPosition): Promise<ExitAdvi
       strikePrice: position.strikePrice || null,
       expiryDate: position.expiryDate || null,
       
+      portfolioId,
+      portfolioName,
+      assetType,
+      
       currentPrice,
       entryPrice,
       targetPrice,
       stopLoss,
+      quantity,
       
       unrealizedPnL,
       unrealizedPnLPercent,
@@ -322,52 +356,31 @@ export async function analyzePosition(position: PaperPosition): Promise<ExitAdvi
   }
 }
 
-export async function getPortfolioExitIntelligence(portfolioId: string): Promise<PositionMonitorState> {
-  const positions = await storage.getPaperPositionsByPortfolio(portfolioId);
-  const openPositions = positions.filter(p => p.status === 'open');
-  
-  const advisories: ExitAdvisory[] = [];
-  
-  for (const position of openPositions) {
-    const advisory = await analyzePosition(position);
-    if (advisory) {
-      advisories.push(advisory);
-    }
-  }
-  
-  advisories.sort((a, b) => {
-    const windowPriority = { immediate: 0, soon: 1, watch: 2, hold: 3 };
-    const priorityDiff = windowPriority[a.exitWindow] - windowPriority[b.exitWindow];
-    if (priorityDiff !== 0) return priorityDiff;
-    return b.exitProbability - a.exitProbability;
-  });
-  
+function getMarketStatus(): PositionMonitorState['marketStatus'] {
   const now = new Date();
   const hour = now.getHours();
   const isWeekend = now.getDay() === 0 || now.getDay() === 6;
   
-  let marketStatus: PositionMonitorState['marketStatus'] = 'closed';
-  if (!isWeekend) {
-    if (hour >= 9 && hour < 16) marketStatus = 'open';
-    else if (hour >= 4 && hour < 9) marketStatus = 'pre_market';
-    else if (hour >= 16 && hour < 20) marketStatus = 'after_hours';
-  }
-  
-  logger.info(`[POSITION-MONITOR] Analyzed ${advisories.length} positions for portfolio ${portfolioId}`);
-  
-  return {
-    portfolioId,
-    positions: advisories,
-    lastRefresh: now.toISOString(),
-    marketStatus
-  };
+  if (isWeekend) return 'closed';
+  if (hour >= 9 && hour < 16) return 'open';
+  if (hour >= 4 && hour < 9) return 'pre_market';
+  if (hour >= 16 && hour < 20) return 'after_hours';
+  return 'closed';
+}
+
+function determinePortfolioAssetType(name: string): PortfolioSummary['assetType'] {
+  const lower = name.toLowerCase();
+  if (lower.includes('option')) return 'option';
+  if (lower.includes('crypto')) return 'crypto';
+  if (lower.includes('futures')) return 'futures';
+  return 'mixed';
 }
 
 export async function getAutoLottoExitIntelligence(): Promise<PositionMonitorState | null> {
-  const portfolios = await storage.getAllPaperPortfolios();
+  const allPortfolios = await storage.getAllPaperPortfolios();
   
   // Find all Auto-Lotto portfolios (Options, Crypto, Futures, Bot)
-  const autoLottoPortfolios = portfolios.filter(p => 
+  const autoLottoPortfolios = allPortfolios.filter(p => 
     p.name.toLowerCase().includes('auto-lotto') || 
     p.name.toLowerCase().includes('autolotto')
   );
@@ -377,17 +390,32 @@ export async function getAutoLottoExitIntelligence(): Promise<PositionMonitorSta
     return null;
   }
   
-  // Aggregate positions from all Auto-Lotto portfolios
+  // Aggregate positions from all Auto-Lotto portfolios with context
   const allAdvisories: ExitAdvisory[] = [];
+  const portfolioSummaries: PortfolioSummary[] = [];
   
   for (const portfolio of autoLottoPortfolios) {
-    const intel = await getPortfolioExitIntelligence(portfolio.id);
-    if (intel && intel.positions.length > 0) {
-      allAdvisories.push(...intel.positions);
+    const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+    const openPositions = positions.filter(p => p.status === 'open');
+    
+    // Create portfolio summary
+    portfolioSummaries.push({
+      id: portfolio.id,
+      name: portfolio.name,
+      positionCount: openPositions.length,
+      assetType: determinePortfolioAssetType(portfolio.name)
+    });
+    
+    // Analyze each position with portfolio context
+    for (const position of openPositions) {
+      const advisory = await analyzePosition(position, portfolio.id, portfolio.name);
+      if (advisory) {
+        allAdvisories.push(advisory);
+      }
     }
   }
   
-  // Sort by exit urgency
+  // Sort by exit urgency, then by P&L%
   allAdvisories.sort((a, b) => {
     const windowPriority = { immediate: 0, soon: 1, watch: 2, hold: 3 };
     const priorityDiff = windowPriority[a.exitWindow] - windowPriority[b.exitWindow];
@@ -395,23 +423,12 @@ export async function getAutoLottoExitIntelligence(): Promise<PositionMonitorSta
     return b.exitProbability - a.exitProbability;
   });
   
-  const now = new Date();
-  const hour = now.getHours();
-  const isWeekend = now.getDay() === 0 || now.getDay() === 6;
-  
-  let marketStatus: PositionMonitorState['marketStatus'] = 'closed';
-  if (!isWeekend) {
-    if (hour >= 9 && hour < 16) marketStatus = 'open';
-    else if (hour >= 4 && hour < 9) marketStatus = 'pre_market';
-    else if (hour >= 16 && hour < 20) marketStatus = 'after_hours';
-  }
-  
   logger.info(`[POSITION-MONITOR] Aggregated ${allAdvisories.length} positions from ${autoLottoPortfolios.length} portfolios`);
   
   return {
-    portfolioId: autoLottoPortfolios[0]?.id || 'combined',
+    portfolios: portfolioSummaries,
     positions: allAdvisories,
-    lastRefresh: now.toISOString(),
-    marketStatus
+    lastRefresh: new Date().toISOString(),
+    marketStatus: getMarketStatus()
   };
 }

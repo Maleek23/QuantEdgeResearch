@@ -365,10 +365,14 @@ interface ExitAdvisory {
   optionType: string | null;
   strikePrice: number | null;
   expiryDate: string | null;
+  portfolioId: string;
+  portfolioName: string;
+  assetType: 'option' | 'crypto' | 'futures' | 'stock';
   currentPrice: number;
   entryPrice: number;
   targetPrice: number;
   stopLoss: number;
+  quantity: number;
   unrealizedPnL: number;
   unrealizedPnLPercent: number;
   exitWindow: 'immediate' | 'soon' | 'hold' | 'watch';
@@ -386,8 +390,15 @@ interface ExitAdvisory {
   lastUpdated: string;
 }
 
+interface PortfolioSummary {
+  id: string;
+  name: string;
+  positionCount: number;
+  assetType: 'option' | 'crypto' | 'futures' | 'mixed';
+}
+
 interface ExitIntelligenceResponse {
-  portfolioId: string | null;
+  portfolios: PortfolioSummary[];
   positions: ExitAdvisory[];
   lastRefresh: string;
   marketStatus: 'open' | 'closed' | 'pre_market' | 'after_hours';
@@ -439,6 +450,11 @@ function ExitIntelligenceCard() {
 
   const immediateCount = exitIntel?.positions.filter(p => p.exitWindow === 'immediate').length || 0;
   const soonCount = exitIntel?.positions.filter(p => p.exitWindow === 'soon').length || 0;
+  const totalPositions = exitIntel?.positions.length || 0;
+  
+  // Group by asset type
+  const optionCount = exitIntel?.positions.filter(p => p.assetType === 'option').length || 0;
+  const cryptoCount = exitIntel?.positions.filter(p => p.assetType === 'crypto').length || 0;
 
   return (
     <Card className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent" data-testid="card-exit-intelligence">
@@ -447,6 +463,11 @@ function ExitIntelligenceCard() {
           <CardTitle className="text-sm font-bold flex items-center gap-2 text-cyan-400">
             <Activity className="h-4 w-4" />
             Exit Intelligence
+            {totalPositions > 0 && (
+              <Badge variant="secondary" className="text-xs font-mono">
+                {totalPositions}
+              </Badge>
+            )}
             {immediateCount > 0 && (
               <Badge variant="destructive" className="text-xs animate-pulse">
                 {immediateCount} urgent
@@ -500,6 +521,15 @@ function ExitIntelligenceCard() {
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2">
                     <span className="font-mono font-semibold">{pos.symbol}</span>
+                    <Badge variant="outline" className={cn(
+                      "text-[10px] px-1.5",
+                      pos.assetType === 'option' ? "text-purple-400 border-purple-500/30" :
+                      pos.assetType === 'crypto' ? "text-amber-400 border-amber-500/30" :
+                      pos.assetType === 'futures' ? "text-blue-400 border-blue-500/30" :
+                      "text-muted-foreground"
+                    )}>
+                      {pos.assetType.toUpperCase()}
+                    </Badge>
                     {pos.optionType && (
                       <Badge variant="outline" className="text-xs">
                         {pos.optionType.toUpperCase()} ${pos.strikePrice}
