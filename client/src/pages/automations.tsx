@@ -49,6 +49,191 @@ import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
 import { HeroProductPanel } from "@/components/hero-product-panel";
 
+function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
+  const { data: exitIntel, isLoading, refetch } = useQuery<ExitIntelligenceResponse>({
+    queryKey: ['/api/auto-lotto/exit-intelligence'],
+    refetchInterval: 15000,
+    staleTime: 10000,
+  });
+
+  const getExitWindowBadge = (window: ExitAdvisory['exitWindow']) => {
+    const styles: Record<string, string> = {
+      immediate: 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse',
+      soon: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
+      watch: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40',
+      hold: 'bg-green-500/20 text-green-400 border-green-500/40',
+    };
+    const labels: Record<string, string> = {
+      immediate: 'EXIT NOW',
+      soon: 'EXIT SOON',
+      watch: 'WATCH',
+      hold: 'HOLD',
+    };
+    return (
+      <Badge variant="outline" className={cn("text-xs font-bold", styles[window])}>
+        {labels[window]}
+      </Badge>
+    );
+  };
+
+  const getThetaBadge = (urgency: ExitAdvisory['thetaUrgency']) => {
+    const styles: Record<string, string> = {
+      critical: 'text-red-400',
+      high: 'text-amber-400',
+      moderate: 'text-cyan-400',
+      low: 'text-green-400',
+    };
+    return <span className={cn("text-xs font-mono", styles[urgency])}>θ{urgency}</span>;
+  };
+
+  const getMomentumIcon = (momentum: string) => {
+    if (momentum.includes('bullish')) return <TrendingUp className="h-3 w-3 text-green-400" />;
+    if (momentum.includes('bearish')) return <TrendingUp className="h-3 w-3 text-red-400 rotate-180" />;
+    return <Activity className="h-3 w-3 text-muted-foreground" />;
+  };
+
+  // Filter positions if botOnly is true
+  // Note: For now, we'll assume all positions in this specific endpoint are bot-related
+  // or add a filter if the backend supports identifying source.
+  const positions = botOnly 
+    ? (exitIntel?.positions || []).filter(p => p.portfolioName.toLowerCase().includes('bot') || p.portfolioName.toLowerCase().includes('lotto'))
+    : (exitIntel?.positions || []);
+
+  const immediateCount = positions.filter(p => p.exitWindow === 'immediate').length || 0;
+  const totalPositions = positions.length || 0;
+
+  if (!isLoading && totalPositions === 0 && botOnly) return null;
+
+  return (
+    <Card className="border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent" data-testid="card-exit-intelligence">
+      <CardHeader className="py-3 px-4 border-b border-cyan-500/20">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-sm font-bold flex items-center gap-2 text-cyan-400">
+            <Activity className="h-4 w-4" />
+            Bot Exit Intelligence
+            {totalPositions > 0 && (
+              <Badge variant="secondary" className="text-xs font-mono">
+                {totalPositions}
+              </Badge>
+            )}
+            {immediateCount > 0 && (
+              <Badge variant="destructive" className="text-xs animate-pulse">
+                {immediateCount} urgent
+              </Badge>
+            )}
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => refetch()}
+              data-testid="button-refresh-exit-intel"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Smart exit monitoring for bot-entered positions only
+        </p>
+      </CardHeader>
+      <CardContent className="p-3">
+        {isLoading ? (
+          <div className="space-y-2">
+            {[1, 2].map((i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        ) : positions.length > 0 ? (
+          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+            {positions.map((pos) => (
+              <div 
+                key={pos.positionId}
+                className={cn(
+                  "p-3 rounded-lg border transition-all duration-200",
+                  pos.exitWindow === 'immediate' ? "bg-red-500/10 border-red-500/40 shadow-[0_0_10px_rgba(239,68,68,0.1)]" :
+                  pos.exitWindow === 'soon' ? "bg-amber-500/5 border-amber-500/30" :
+                  "bg-slate-800/40 border-slate-700/50"
+                )}
+                data-testid={`exit-intel-${pos.symbol}`}
+              >
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-foreground">{pos.symbol}</span>
+                    <Badge variant="outline" className="text-[10px] border-cyan-500/30 text-cyan-400 uppercase">
+                      {pos.optionType} ${pos.strikePrice}
+                    </Badge>
+                    {pos.dteRemaining !== null && (
+                      <span className={cn(
+                        "text-[10px] font-mono",
+                        pos.dteRemaining <= 2 ? "text-red-400 font-bold" : "text-muted-foreground"
+                      )}>
+                        {pos.dteRemaining}DTE
+                      </span>
+                    )}
+                  </div>
+                  {getExitWindowBadge(pos.exitWindow)}
+                </div>
+                
+                <div className="grid grid-cols-4 gap-2 text-[11px] mb-2">
+                  <div>
+                    <span className="text-muted-foreground block mb-0.5">Entry</span>
+                    <div className="font-mono text-foreground">${pos.entryPrice.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block mb-0.5">Price</span>
+                    <div className="font-mono text-foreground">${pos.currentPrice.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground block mb-0.5">Profit</span>
+                    <div className={cn(
+                      "font-mono font-bold",
+                      pos.unrealizedPnLPercent >= 0 ? "text-green-400" : "text-red-400"
+                    )}>
+                      {pos.unrealizedPnLPercent >= 0 ? '+' : ''}{pos.unrealizedPnLPercent.toFixed(1)}%
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-1.5">
+                    {getMomentumIcon(pos.momentum)}
+                    {pos.dteRemaining !== null && getThetaBadge(pos.thetaUrgency)}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 p-2 rounded bg-slate-900/40 border border-slate-700/30">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-muted-foreground">Exit Confidence</span>
+                    <span className="font-mono font-bold text-cyan-400">{pos.exitProbability}%</span>
+                  </div>
+                  <div className="h-1 w-full bg-slate-700 rounded-full overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full transition-all duration-500",
+                        pos.exitProbability > 80 ? "bg-red-500" : pos.exitProbability > 60 ? "bg-amber-500" : "bg-cyan-500"
+                      )} 
+                      style={{ width: `${pos.exitProbability}%` }} 
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground line-clamp-2 leading-tight">
+                    <span className="text-cyan-400 font-semibold mr-1">ANALYSIS:</span>
+                    {pos.exitReason}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground bg-slate-900/40 rounded-lg border border-dashed border-slate-700/50">
+            <Activity className="h-8 w-8 mx-auto mb-2 opacity-20" />
+            <p className="text-sm">No active bot positions monitored</p>
+            <p className="text-[11px] mt-1 opacity-60">Bot must enter a play for monitoring to begin</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 interface CryptoBotData {
   status: 'active' | 'inactive';
   isActive?: boolean;
@@ -567,6 +752,8 @@ export default function AutomationsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <ExitIntelligenceCard botOnly />
 
             <Card className="bg-slate-900/60 border-slate-700/50">
               <CardHeader className="pb-2">
