@@ -57,6 +57,20 @@ interface PatternResponse {
     confidence: number;
     signals: string[];
   };
+  // Multi-layer confluence analysis
+  multiLayerAnalysis?: {
+    confluenceScore: number;
+    direction: "bullish" | "bearish" | "neutral";
+    confidence: number;
+    signals: string[];
+    layers: {
+      momentum: { score: number; signals: string[] };
+      trend: { score: number; direction: string };
+      structure: { trend: string; strength: number; bos: boolean };
+      volume: { trend: string; relativeVolume: number; moneyFlow: number };
+      levels: { position: string; support: number; resistance: number };
+    };
+  };
   indicators: {
     rsi: { value: number; period: number };
     rsi2: { value: number; period: number };
@@ -65,6 +79,39 @@ interface PatternResponse {
     adx: { value: number; regime: string; suitableFor: string };
     stochRSI: { k: number; d: number } | null;
     ichimoku: { tenkan: number; kijun: number; senkouA: number; senkouB: number; chikou: number } | null;
+    // New enhanced indicators
+    williamsR?: { value: number; period: number; interpretation: string };
+    cci?: { value: number; period: number; interpretation: string };
+    vwap?: { value: number; priceVsVwap: string };
+    ema?: { ema9: number | null; ema21: number | null; ema50: number | null; ema200: number | null; trend: string; alignment: number; availableEMAs: number };
+  };
+  // Support/Resistance levels
+  levels?: {
+    support: number[];
+    resistance: number[];
+    nearestSupport: number;
+    nearestResistance: number;
+    pricePosition: string;
+  };
+  // Market Structure
+  marketStructure?: {
+    trend: string;
+    structure: string[];
+    higherHighs: number;
+    higherLows: number;
+    lowerHighs: number;
+    lowerLows: number;
+    trendStrength: number;
+    breakOfStructure: boolean;
+  };
+  // Volume Analysis
+  volumeAnalysis?: {
+    trend: string;
+    volumeProfile: string;
+    averageVolume: number;
+    relativeVolume: number;
+    moneyFlow: number;
+    signals: string[];
   };
   dataPoints: number;
   candles: CandleData[];
@@ -1448,10 +1495,454 @@ function PatternSearchTab() {
                       </TableCell>
                     </TableRow>
                   )}
+                  {patternData.indicators.williamsR && (
+                    <TableRow data-testid="row-pattern-williamsr">
+                      <TableCell className="font-medium">Williams %R (14)</TableCell>
+                      <TableCell className="font-mono tabular-nums">{patternData.indicators.williamsR.value.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Badge className={cn(
+                          patternData.indicators.williamsR.interpretation === 'oversold' 
+                            ? "bg-green-500/10 text-green-400 border-green-500/30"
+                            : patternData.indicators.williamsR.interpretation === 'overbought'
+                            ? "bg-red-500/10 text-red-400 border-red-500/30"
+                            : "bg-muted/50 text-muted-foreground"
+                        )}>{patternData.indicators.williamsR.interpretation}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {patternData.indicators.cci && (
+                    <TableRow data-testid="row-pattern-cci">
+                      <TableCell className="font-medium">CCI (20)</TableCell>
+                      <TableCell className="font-mono tabular-nums">{patternData.indicators.cci.value.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Badge className={cn(
+                          patternData.indicators.cci.interpretation === 'oversold' 
+                            ? "bg-green-500/10 text-green-400 border-green-500/30"
+                            : patternData.indicators.cci.interpretation === 'overbought'
+                            ? "bg-red-500/10 text-red-400 border-red-500/30"
+                            : "bg-muted/50 text-muted-foreground"
+                        )}>{patternData.indicators.cci.interpretation}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {patternData.indicators.vwap && (
+                    <TableRow data-testid="row-pattern-vwap">
+                      <TableCell className="font-medium">VWAP</TableCell>
+                      <TableCell className="font-mono tabular-nums">${patternData.indicators.vwap.value.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Badge className={cn(
+                          patternData.indicators.vwap.priceVsVwap === 'above' 
+                            ? "bg-green-500/10 text-green-400 border-green-500/30"
+                            : patternData.indicators.vwap.priceVsVwap === 'below'
+                            ? "bg-red-500/10 text-red-400 border-red-500/30"
+                            : "bg-muted/50 text-muted-foreground"
+                        )}>Price {patternData.indicators.vwap.priceVsVwap} VWAP</Badge>
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
+          
+          {/* Multi-Layer Confluence Analysis */}
+          {patternData.multiLayerAnalysis && (
+            <Card className="glass-card border-purple-500/30">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-purple-400" />
+                  Multi-Layer Confluence Analysis
+                  <Badge 
+                    className={cn(
+                      "ml-2",
+                      patternData.multiLayerAnalysis.direction === 'bullish' 
+                        ? "bg-green-500/10 text-green-400 border-green-500/30"
+                        : patternData.multiLayerAnalysis.direction === 'bearish'
+                        ? "bg-red-500/10 text-red-400 border-red-500/30"
+                        : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                    )}
+                    data-testid="badge-confluence-direction"
+                  >
+                    {patternData.multiLayerAnalysis.direction.toUpperCase()}
+                  </Badge>
+                </CardTitle>
+                <CardDescription>
+                  Aggregated signals from 6 analysis layers for enhanced prediction accuracy
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Confluence Score Bar */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Confluence Score</span>
+                    <span className="font-mono tabular-nums font-semibold" data-testid="text-confluence-score">
+                      {patternData.multiLayerAnalysis.confluenceScore.toFixed(0)}%
+                    </span>
+                  </div>
+                  <div className="h-3 bg-muted/30 rounded-full overflow-hidden">
+                    <div 
+                      className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        patternData.multiLayerAnalysis.direction === 'bullish' 
+                          ? "bg-gradient-to-r from-green-600 to-green-400"
+                          : patternData.multiLayerAnalysis.direction === 'bearish'
+                          ? "bg-gradient-to-r from-red-600 to-red-400"
+                          : "bg-gradient-to-r from-amber-600 to-amber-400"
+                      )}
+                      style={{ width: `${patternData.multiLayerAnalysis.confluenceScore}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Bearish</span>
+                    <span>Neutral</span>
+                    <span>Bullish</span>
+                  </div>
+                </div>
+                
+                {/* Layer Breakdown Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                  {/* Momentum Layer */}
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Gauge className="h-4 w-4 text-cyan-400" />
+                      <span className="text-sm font-medium">Momentum</span>
+                    </div>
+                    <div className="text-2xl font-bold font-mono tabular-nums" data-testid="text-layer-momentum">
+                      {patternData.multiLayerAnalysis.layers.momentum.score.toFixed(0)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{patternData.multiLayerAnalysis.layers.momentum.signals[0]}</p>
+                  </div>
+                  
+                  {/* Trend Layer */}
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="h-4 w-4 text-purple-400" />
+                      <span className="text-sm font-medium">Trend (EMA)</span>
+                    </div>
+                    <div className="text-2xl font-bold font-mono tabular-nums" data-testid="text-layer-trend">
+                      {patternData.multiLayerAnalysis.layers.trend.score}%
+                    </div>
+                    <p className="text-xs text-muted-foreground capitalize">{patternData.multiLayerAnalysis.layers.trend.direction}</p>
+                  </div>
+                  
+                  {/* Structure Layer */}
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Activity className="h-4 w-4 text-amber-400" />
+                      <span className="text-sm font-medium">Structure</span>
+                    </div>
+                    <div className="text-2xl font-bold font-mono tabular-nums capitalize" data-testid="text-layer-structure">
+                      {patternData.multiLayerAnalysis.layers.structure.trend}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Strength: {patternData.multiLayerAnalysis.layers.structure.strength}%
+                      {patternData.multiLayerAnalysis.layers.structure.bos && <span className="text-red-400 ml-1">BOS!</span>}
+                    </p>
+                  </div>
+                  
+                  {/* Volume Layer */}
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <BarChart3 className="h-4 w-4 text-blue-400" />
+                      <span className="text-sm font-medium">Volume Flow</span>
+                    </div>
+                    <div className="text-2xl font-bold font-mono tabular-nums capitalize" data-testid="text-layer-volume">
+                      {patternData.multiLayerAnalysis.layers.volume.trend}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {patternData.multiLayerAnalysis.layers.volume.relativeVolume.toFixed(1)}x avg | MF: {patternData.multiLayerAnalysis.layers.volume.moneyFlow.toFixed(0)}
+                    </p>
+                  </div>
+                  
+                  {/* Levels Layer */}
+                  <div className="p-3 rounded-lg bg-muted/20 border border-border/50 col-span-2 lg:col-span-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Target className="h-4 w-4 text-green-400" />
+                      <span className="text-sm font-medium">Key Levels</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className={cn(
+                        "text-xs",
+                        patternData.multiLayerAnalysis.layers.levels.position === 'near_support'
+                          ? "bg-green-500/10 text-green-400 border-green-500/30"
+                          : patternData.multiLayerAnalysis.layers.levels.position === 'near_resistance'
+                          ? "bg-red-500/10 text-red-400 border-red-500/30"
+                          : "bg-muted/50"
+                      )} data-testid="badge-layer-position">
+                        {patternData.multiLayerAnalysis.layers.levels.position.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      S: ${patternData.multiLayerAnalysis.layers.levels.support.toFixed(2)} | R: ${patternData.multiLayerAnalysis.layers.levels.resistance.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Signal List */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-muted-foreground">Active Signals</h4>
+                  <div className="flex flex-wrap gap-2" data-testid="list-confluence-signals">
+                    {patternData.multiLayerAnalysis.signals.map((signal, i) => (
+                      <Badge 
+                        key={i} 
+                        variant="outline" 
+                        className="text-xs"
+                        data-testid={`badge-signal-${i}`}
+                      >
+                        {signal}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* EMA Bundle Analysis */}
+          {patternData.indicators.ema && (
+            <Card className="glass-card border-cyan-500/30">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <LineChart className="h-5 w-5 text-cyan-400" />
+                  Moving Average Confluence
+                  <Badge 
+                    className={cn(
+                      "ml-2",
+                      patternData.indicators.ema.trend === 'bullish' 
+                        ? "bg-green-500/10 text-green-400 border-green-500/30"
+                        : patternData.indicators.ema.trend === 'bearish'
+                        ? "bg-red-500/10 text-red-400 border-red-500/30"
+                        : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                    )}
+                    data-testid="badge-ema-trend"
+                  >
+                    {patternData.indicators.ema.alignment}% Aligned
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-lg bg-muted/20 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">EMA 9</p>
+                    {patternData.indicators.ema.ema9 !== null ? (
+                      <p className={cn(
+                        "font-mono tabular-nums font-semibold",
+                        patternData.currentPrice > patternData.indicators.ema.ema9 ? "text-green-400" : "text-red-400"
+                      )} data-testid="text-ema9">${patternData.indicators.ema.ema9.toFixed(2)}</p>
+                    ) : (
+                      <p className="text-muted-foreground text-sm" data-testid="text-ema9">N/A</p>
+                    )}
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/20 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">EMA 21</p>
+                    {patternData.indicators.ema.ema21 !== null ? (
+                      <p className={cn(
+                        "font-mono tabular-nums font-semibold",
+                        patternData.currentPrice > patternData.indicators.ema.ema21 ? "text-green-400" : "text-red-400"
+                      )} data-testid="text-ema21">${patternData.indicators.ema.ema21.toFixed(2)}</p>
+                    ) : (
+                      <p className="text-muted-foreground text-sm" data-testid="text-ema21">N/A</p>
+                    )}
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/20 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">EMA 50</p>
+                    {patternData.indicators.ema.ema50 !== null ? (
+                      <p className={cn(
+                        "font-mono tabular-nums font-semibold",
+                        patternData.currentPrice > patternData.indicators.ema.ema50 ? "text-green-400" : "text-red-400"
+                      )} data-testid="text-ema50">${patternData.indicators.ema.ema50.toFixed(2)}</p>
+                    ) : (
+                      <p className="text-muted-foreground text-sm" data-testid="text-ema50">N/A</p>
+                    )}
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/20 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">EMA 200</p>
+                    {patternData.indicators.ema.ema200 !== null ? (
+                      <p className={cn(
+                        "font-mono tabular-nums font-semibold",
+                        patternData.currentPrice > patternData.indicators.ema.ema200 ? "text-green-400" : "text-red-400"
+                      )} data-testid="text-ema200">${patternData.indicators.ema.ema200.toFixed(2)}</p>
+                    ) : (
+                      <p className="text-muted-foreground text-sm" data-testid="text-ema200">N/A</p>
+                    )}
+                  </div>
+                </div>
+                {patternData.indicators.ema.availableEMAs < 4 && (
+                  <p className="text-xs text-amber-400 mt-2">
+                    Note: Only {patternData.indicators.ema.availableEMAs}/4 EMAs available due to limited historical data
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Market Structure Analysis */}
+          {patternData.marketStructure && (
+            <Card className="glass-card border-amber-500/30">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <TrendingUpDown className="h-5 w-5 text-amber-400" />
+                  Market Structure
+                  <Badge 
+                    className={cn(
+                      "ml-2",
+                      patternData.marketStructure.trend === 'uptrend' 
+                        ? "bg-green-500/10 text-green-400 border-green-500/30"
+                        : patternData.marketStructure.trend === 'downtrend'
+                        ? "bg-red-500/10 text-red-400 border-red-500/30"
+                        : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                    )}
+                    data-testid="badge-market-structure"
+                  >
+                    {patternData.marketStructure.trend.toUpperCase()}
+                  </Badge>
+                  {patternData.marketStructure.breakOfStructure && (
+                    <Badge className="bg-red-500/10 text-red-400 border-red-500/30 animate-pulse" data-testid="badge-bos">
+                      BOS Alert!
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                  <div className="p-3 rounded-lg bg-green-500/10 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Higher Highs</p>
+                    <p className="text-2xl font-bold text-green-400 font-mono tabular-nums" data-testid="text-hh">
+                      {patternData.marketStructure.higherHighs}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-green-500/10 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Higher Lows</p>
+                    <p className="text-2xl font-bold text-green-400 font-mono tabular-nums" data-testid="text-hl">
+                      {patternData.marketStructure.higherLows}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-red-500/10 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Lower Highs</p>
+                    <p className="text-2xl font-bold text-red-400 font-mono tabular-nums" data-testid="text-lh">
+                      {patternData.marketStructure.lowerHighs}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-red-500/10 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Lower Lows</p>
+                    <p className="text-2xl font-bold text-red-400 font-mono tabular-nums" data-testid="text-ll">
+                      {patternData.marketStructure.lowerLows}
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Trend Strength</span>
+                    <span className="font-mono tabular-nums">{patternData.marketStructure.trendStrength}%</span>
+                  </div>
+                  <Progress value={patternData.marketStructure.trendStrength} className="h-2" />
+                </div>
+                {patternData.marketStructure.structure.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3" data-testid="list-structure-signals">
+                    {patternData.marketStructure.structure.map((s, i) => (
+                      <Badge key={i} variant="outline" className="text-xs" data-testid={`badge-structure-${i}`}>{s}</Badge>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Support/Resistance Levels */}
+          {patternData.levels && (
+            <Card className="glass-card border-green-500/30">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Target className="h-5 w-5 text-green-400" />
+                  Support & Resistance Levels
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-green-400 mb-2">Support Levels</h4>
+                    <div className="space-y-2" data-testid="list-support-levels">
+                      {patternData.levels.support.map((level, i) => (
+                        <div key={i} className="flex justify-between items-center p-2 rounded bg-green-500/10">
+                          <span className="text-sm">S{i + 1}</span>
+                          <span className="font-mono tabular-nums font-semibold text-green-400">${level.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-red-400 mb-2">Resistance Levels</h4>
+                    <div className="space-y-2" data-testid="list-resistance-levels">
+                      {patternData.levels.resistance.map((level, i) => (
+                        <div key={i} className="flex justify-between items-center p-2 rounded bg-red-500/10">
+                          <span className="text-sm">R{i + 1}</span>
+                          <span className="font-mono tabular-nums font-semibold text-red-400">${level.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Volume Analysis */}
+          {patternData.volumeAnalysis && (
+            <Card className="glass-card border-blue-500/30">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-blue-400" />
+                  Volume Flow Analysis
+                  <Badge 
+                    className={cn(
+                      "ml-2",
+                      patternData.volumeAnalysis.trend === 'accumulation' 
+                        ? "bg-green-500/10 text-green-400 border-green-500/30"
+                        : patternData.volumeAnalysis.trend === 'distribution'
+                        ? "bg-red-500/10 text-red-400 border-red-500/30"
+                        : "bg-muted/50 text-muted-foreground"
+                    )}
+                    data-testid="badge-volume-trend"
+                  >
+                    {patternData.volumeAnalysis.trend.toUpperCase()}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-lg bg-muted/20 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Relative Volume</p>
+                    <p className={cn(
+                      "text-xl font-bold font-mono tabular-nums",
+                      patternData.volumeAnalysis.relativeVolume > 1.5 ? "text-cyan-400" : "text-muted-foreground"
+                    )} data-testid="text-relative-volume">{patternData.volumeAnalysis.relativeVolume.toFixed(2)}x</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/20 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Volume Profile</p>
+                    <p className="text-xl font-bold capitalize" data-testid="text-volume-profile">{patternData.volumeAnalysis.volumeProfile}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/20 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Money Flow</p>
+                    <p className={cn(
+                      "text-xl font-bold font-mono tabular-nums",
+                      patternData.volumeAnalysis.moneyFlow > 0 ? "text-green-400" : "text-red-400"
+                    )} data-testid="text-money-flow">{patternData.volumeAnalysis.moneyFlow > 0 ? '+' : ''}{patternData.volumeAnalysis.moneyFlow.toFixed(0)}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/20 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Avg Volume</p>
+                    <p className="text-xl font-bold font-mono tabular-nums" data-testid="text-avg-volume">{(patternData.volumeAnalysis.averageVolume / 1000000).toFixed(2)}M</p>
+                  </div>
+                </div>
+                {patternData.volumeAnalysis.signals.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3" data-testid="list-volume-signals">
+                    {patternData.volumeAnalysis.signals.map((s, i) => (
+                      <Badge key={i} variant="outline" className="text-xs" data-testid={`badge-volume-signal-${i}`}>{s}</Badge>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>

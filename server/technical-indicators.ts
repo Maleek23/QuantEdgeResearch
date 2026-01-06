@@ -231,13 +231,13 @@ export function calculateBollingerBands(
 }
 
 /**
- * Calculate VWAP (Volume-Weighted Average Price)
+ * Calculate Simple VWAP (Volume-Weighted Average Price)
  * VWAP is the average price weighted by volume - used by institutional traders
  * @param prices - Array of closing prices (most recent last)
  * @param volumes - Array of volumes (same length as prices)
  * @returns VWAP value
  */
-export function calculateVWAP(prices: number[], volumes: number[]): number {
+export function calculateSimpleVWAP(prices: number[], volumes: number[]): number {
   if (prices.length === 0 || volumes.length === 0 || prices.length !== volumes.length) {
     return prices[prices.length - 1] || 0;
   }
@@ -490,7 +490,7 @@ export function detectCandlestickPatterns(candles: CandleData): PatternResult[] 
     { fn: TI.bullishhammerstick, name: 'Hammer', strength: 'moderate' as const },
     { fn: TI.morningstar, name: 'Morning Star', strength: 'strong' as const },
     { fn: TI.threewhitesoldiers, name: 'Three White Soldiers', strength: 'strong' as const },
-    { fn: TI.piercinglinerpattern || TI.piercingline, name: 'Piercing Line', strength: 'moderate' as const },
+    { fn: TI.piercingline, name: 'Piercing Line', strength: 'moderate' as const },
     { fn: TI.tweezerbottom, name: 'Tweezer Bottom', strength: 'moderate' as const },
   ];
   
@@ -791,5 +791,560 @@ export function calculateEnhancedSignalScore(
     supportLevel,
     resistanceLevel,
     atr
+  };
+}
+
+// =====================================================
+// ENHANCED MULTI-LAYER ANALYSIS FUNCTIONS
+// =====================================================
+
+/**
+ * Calculate Williams %R - Momentum oscillator
+ * Ranges from -100 to 0
+ * - Above -20: Overbought
+ * - Below -80: Oversold
+ */
+export function calculateWilliamsR(high: number[], low: number[], close: number[], period: number = 14): number {
+  if (high.length < period || low.length < period || close.length < period) {
+    return -50; // Neutral
+  }
+  
+  const highestHigh = Math.max(...high.slice(-period));
+  const lowestLow = Math.min(...low.slice(-period));
+  const currentClose = close[close.length - 1];
+  
+  if (highestHigh === lowestLow) return -50;
+  
+  const williamsR = ((highestHigh - currentClose) / (highestHigh - lowestLow)) * -100;
+  return Number(williamsR.toFixed(2));
+}
+
+/**
+ * Calculate CCI (Commodity Channel Index)
+ * Measures deviation from the statistical mean
+ * - Above +100: Overbought
+ * - Below -100: Oversold
+ */
+export function calculateCCI(high: number[], low: number[], close: number[], period: number = 20): number {
+  if (high.length < period || low.length < period || close.length < period) {
+    return 0;
+  }
+  
+  // Calculate Typical Price
+  const typicalPrices: number[] = [];
+  for (let i = 0; i < close.length; i++) {
+    typicalPrices.push((high[i] + low[i] + close[i]) / 3);
+  }
+  
+  // Get recent typical prices
+  const recentTP = typicalPrices.slice(-period);
+  const smaTP = recentTP.reduce((a, b) => a + b, 0) / period;
+  
+  // Calculate Mean Deviation
+  const meanDeviation = recentTP.reduce((sum, tp) => sum + Math.abs(tp - smaTP), 0) / period;
+  
+  if (meanDeviation === 0) return 0;
+  
+  const currentTP = typicalPrices[typicalPrices.length - 1];
+  const cci = (currentTP - smaTP) / (0.015 * meanDeviation);
+  
+  return Number(cci.toFixed(2));
+}
+
+/**
+ * Calculate VWAP (Volume Weighted Average Price)
+ * Key institutional level for day trading
+ */
+export function calculateVWAP(high: number[], low: number[], close: number[], volume: number[]): number {
+  if (high.length < 1 || volume.length < 1) {
+    return close[close.length - 1] || 0;
+  }
+  
+  let cumulativeTPV = 0;
+  let cumulativeVolume = 0;
+  
+  for (let i = 0; i < close.length; i++) {
+    const typicalPrice = (high[i] + low[i] + close[i]) / 3;
+    cumulativeTPV += typicalPrice * volume[i];
+    cumulativeVolume += volume[i];
+  }
+  
+  if (cumulativeVolume === 0) return close[close.length - 1];
+  
+  return Number((cumulativeTPV / cumulativeVolume).toFixed(4));
+}
+
+/**
+ * Calculate EMA (Exponential Moving Average)
+ * Returns the most recent EMA value
+ */
+export function calculateEMA(prices: number[], period: number): number {
+  if (prices.length < period) {
+    return prices[prices.length - 1] || 0;
+  }
+  
+  const multiplier = 2 / (period + 1);
+  let ema = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  
+  for (let i = period; i < prices.length; i++) {
+    ema = (prices[i] - ema) * multiplier + ema;
+  }
+  
+  return Number(ema.toFixed(4));
+}
+
+/**
+ * Calculate multiple EMAs for confluence analysis
+ * Returns null values for EMAs that don't have enough data
+ */
+export function calculateEMABundle(prices: number[]): {
+  ema9: number | null;
+  ema21: number | null;
+  ema50: number | null;
+  ema200: number | null;
+  trend: 'bullish' | 'bearish' | 'neutral';
+  alignment: number;
+  availableEMAs: number;
+} {
+  const currentPrice = prices[prices.length - 1];
+  
+  // Only calculate EMAs when we have enough data
+  const ema9 = prices.length >= 9 ? calculateEMA(prices, 9) : null;
+  const ema21 = prices.length >= 21 ? calculateEMA(prices, 21) : null;
+  const ema50 = prices.length >= 50 ? calculateEMA(prices, 50) : null;
+  const ema200 = prices.length >= 200 ? calculateEMA(prices, 200) : null;
+  
+  // Count how many EMAs we have available
+  const availableEMAs = [ema9, ema21, ema50, ema200].filter(e => e !== null).length;
+  
+  // If we don't have at least 2 EMAs, return neutral
+  if (availableEMAs < 2) {
+    return { 
+      ema9, ema21, ema50, ema200, 
+      trend: 'neutral', 
+      alignment: 50, // Neutral alignment when insufficient data
+      availableEMAs 
+    };
+  }
+  
+  // Count EMAs in bullish/bearish alignment (only for available EMAs)
+  let bullishCount = 0;
+  let bearishCount = 0;
+  let totalChecks = 0;
+  
+  // Check price vs available EMAs
+  if (ema9 !== null) {
+    if (currentPrice > ema9) bullishCount++; else bearishCount++;
+    totalChecks++;
+  }
+  if (ema21 !== null) {
+    if (currentPrice > ema21) bullishCount++; else bearishCount++;
+    totalChecks++;
+  }
+  if (ema50 !== null) {
+    if (currentPrice > ema50) bullishCount++; else bearishCount++;
+    totalChecks++;
+  }
+  if (ema200 !== null) {
+    if (currentPrice > ema200) bullishCount++; else bearishCount++;
+    totalChecks++;
+  }
+  
+  // Check EMA stacking (only for available pairs)
+  if (ema9 !== null && ema21 !== null) {
+    if (ema9 > ema21) bullishCount++; else bearishCount++;
+    totalChecks++;
+  }
+  if (ema21 !== null && ema50 !== null) {
+    if (ema21 > ema50) bullishCount++; else bearishCount++;
+    totalChecks++;
+  }
+  if (ema50 !== null && ema200 !== null) {
+    if (ema50 > ema200) bullishCount++; else bearishCount++;
+    totalChecks++;
+  }
+  
+  // Calculate raw alignment score based on available checks
+  const rawAlignment = totalChecks > 0 
+    ? Math.round((Math.max(bullishCount, bearishCount) / totalChecks) * 100)
+    : 50;
+  
+  // Cap alignment when not all EMAs available (scale by data availability)
+  // With 2 EMAs: max 70%, with 3 EMAs: max 85%, with 4 EMAs: max 100%
+  const alignmentCap = 50 + (availableEMAs / 4) * 50;
+  const alignment = Math.min(rawAlignment, Math.round(alignmentCap));
+    
+  // Determine trend (require majority for direction)
+  const trend = bullishCount > totalChecks / 2 + 1 ? 'bullish' 
+    : bearishCount > totalChecks / 2 + 1 ? 'bearish' 
+    : 'neutral';
+  
+  return { ema9, ema21, ema50, ema200, trend, alignment, availableEMAs };
+}
+
+/**
+ * Detect Support and Resistance Levels
+ * Uses pivot point detection and clustering
+ */
+export function detectSupportResistanceLevels(high: number[], low: number[], close: number[], lookback: number = 50): {
+  support: number[];
+  resistance: number[];
+  nearestSupport: number;
+  nearestResistance: number;
+  pricePosition: 'near_support' | 'near_resistance' | 'middle';
+} {
+  const recentHigh = high.slice(-lookback);
+  const recentLow = low.slice(-lookback);
+  const currentPrice = close[close.length - 1];
+  
+  const pivotHighs: number[] = [];
+  const pivotLows: number[] = [];
+  
+  // Find pivot highs and lows (local maxima/minima)
+  for (let i = 2; i < recentHigh.length - 2; i++) {
+    // Pivot high
+    if (recentHigh[i] > recentHigh[i-1] && recentHigh[i] > recentHigh[i-2] &&
+        recentHigh[i] > recentHigh[i+1] && recentHigh[i] > recentHigh[i+2]) {
+      pivotHighs.push(recentHigh[i]);
+    }
+    // Pivot low
+    if (recentLow[i] < recentLow[i-1] && recentLow[i] < recentLow[i-2] &&
+        recentLow[i] < recentLow[i+1] && recentLow[i] < recentLow[i+2]) {
+      pivotLows.push(recentLow[i]);
+    }
+  }
+  
+  // Cluster similar levels (within 1% of each other)
+  const clusterLevels = (levels: number[]): number[] => {
+    if (levels.length === 0) return [];
+    
+    levels.sort((a, b) => a - b);
+    const clustered: number[] = [];
+    let cluster = [levels[0]];
+    
+    for (let i = 1; i < levels.length; i++) {
+      const prevAvg = cluster.reduce((a, b) => a + b, 0) / cluster.length;
+      if ((levels[i] - prevAvg) / prevAvg < 0.01) {
+        cluster.push(levels[i]);
+      } else {
+        clustered.push(cluster.reduce((a, b) => a + b, 0) / cluster.length);
+        cluster = [levels[i]];
+      }
+    }
+    clustered.push(cluster.reduce((a, b) => a + b, 0) / cluster.length);
+    
+    return clustered;
+  };
+  
+  const resistance = clusterLevels(pivotHighs).filter(l => l > currentPrice).slice(0, 3);
+  const support = clusterLevels(pivotLows).filter(l => l < currentPrice).slice(-3);
+  
+  // If not enough levels found, use recent high/low
+  if (resistance.length === 0) resistance.push(Math.max(...recentHigh));
+  if (support.length === 0) support.push(Math.min(...recentLow));
+  
+  const nearestResistance = Math.min(...resistance);
+  const nearestSupport = Math.max(...support);
+  
+  // Determine price position
+  const distToSupport = ((currentPrice - nearestSupport) / currentPrice) * 100;
+  const distToResistance = ((nearestResistance - currentPrice) / currentPrice) * 100;
+  
+  let pricePosition: 'near_support' | 'near_resistance' | 'middle' = 'middle';
+  if (distToSupport < 2) pricePosition = 'near_support';
+  else if (distToResistance < 2) pricePosition = 'near_resistance';
+  
+  return {
+    support: support.map(s => Number(s.toFixed(2))),
+    resistance: resistance.map(r => Number(r.toFixed(2))),
+    nearestSupport: Number(nearestSupport.toFixed(2)),
+    nearestResistance: Number(nearestResistance.toFixed(2)),
+    pricePosition
+  };
+}
+
+/**
+ * Analyze Market Structure (Higher Highs/Lows, Trend Changes)
+ */
+export function analyzeMarketStructure(high: number[], low: number[], close: number[]): {
+  trend: 'uptrend' | 'downtrend' | 'ranging';
+  structure: string[];
+  higherHighs: number;
+  higherLows: number;
+  lowerHighs: number;
+  lowerLows: number;
+  trendStrength: number;
+  breakOfStructure: boolean;
+} {
+  const lookback = Math.min(20, high.length);
+  const recentHigh = high.slice(-lookback);
+  const recentLow = low.slice(-lookback);
+  
+  // Find swing highs and lows
+  const swingHighs: { index: number; price: number }[] = [];
+  const swingLows: { index: number; price: number }[] = [];
+  
+  for (let i = 2; i < lookback - 2; i++) {
+    if (recentHigh[i] > recentHigh[i-1] && recentHigh[i] > recentHigh[i+1]) {
+      swingHighs.push({ index: i, price: recentHigh[i] });
+    }
+    if (recentLow[i] < recentLow[i-1] && recentLow[i] < recentLow[i+1]) {
+      swingLows.push({ index: i, price: recentLow[i] });
+    }
+  }
+  
+  // Count higher highs/lows and lower highs/lows
+  let higherHighs = 0, higherLows = 0, lowerHighs = 0, lowerLows = 0;
+  
+  for (let i = 1; i < swingHighs.length; i++) {
+    if (swingHighs[i].price > swingHighs[i-1].price) higherHighs++;
+    else lowerHighs++;
+  }
+  
+  for (let i = 1; i < swingLows.length; i++) {
+    if (swingLows[i].price > swingLows[i-1].price) higherLows++;
+    else lowerLows++;
+  }
+  
+  const structure: string[] = [];
+  
+  // Determine trend
+  let trend: 'uptrend' | 'downtrend' | 'ranging' = 'ranging';
+  let trendStrength = 50;
+  
+  if (higherHighs >= 2 && higherLows >= 2) {
+    trend = 'uptrend';
+    trendStrength = Math.min(100, 50 + (higherHighs + higherLows) * 10);
+    structure.push(`Uptrend: ${higherHighs} HH, ${higherLows} HL`);
+  } else if (lowerHighs >= 2 && lowerLows >= 2) {
+    trend = 'downtrend';
+    trendStrength = Math.min(100, 50 + (lowerHighs + lowerLows) * 10);
+    structure.push(`Downtrend: ${lowerHighs} LH, ${lowerLows} LL`);
+  } else {
+    structure.push('Ranging/Consolidation');
+  }
+  
+  // Check for break of structure (trend change signal)
+  const currentPrice = close[close.length - 1];
+  let breakOfStructure = false;
+  
+  if (trend === 'uptrend' && swingLows.length >= 2) {
+    const lastSwingLow = swingLows[swingLows.length - 1];
+    if (currentPrice < lastSwingLow.price) {
+      breakOfStructure = true;
+      structure.push('⚠️ Break of Structure (BOS) - Potential Reversal');
+    }
+  } else if (trend === 'downtrend' && swingHighs.length >= 2) {
+    const lastSwingHigh = swingHighs[swingHighs.length - 1];
+    if (currentPrice > lastSwingHigh.price) {
+      breakOfStructure = true;
+      structure.push('⚠️ Break of Structure (BOS) - Potential Reversal');
+    }
+  }
+  
+  return {
+    trend,
+    structure,
+    higherHighs,
+    higherLows,
+    lowerHighs,
+    lowerLows,
+    trendStrength,
+    breakOfStructure
+  };
+}
+
+/**
+ * Calculate Multi-Timeframe Confluence Score
+ * Combines signals from multiple timeframes for higher accuracy
+ */
+export interface TimeframeAnalysis {
+  timeframe: string;
+  trend: 'bullish' | 'bearish' | 'neutral';
+  momentum: number; // -100 to 100
+  rsi: number;
+  macdSignal: 'bullish' | 'bearish' | 'neutral';
+  priceVsVwap: 'above' | 'below' | 'at';
+  emaAlignment: number; // 0-100
+  signals: string[];
+}
+
+export function calculateMultiTimeframeConfluence(timeframes: TimeframeAnalysis[]): {
+  overallSignal: 'strong_buy' | 'buy' | 'neutral' | 'sell' | 'strong_sell';
+  confluenceScore: number;
+  alignedTimeframes: number;
+  totalTimeframes: number;
+  reasoning: string[];
+  confidence: number;
+} {
+  if (timeframes.length === 0) {
+    return {
+      overallSignal: 'neutral',
+      confluenceScore: 50,
+      alignedTimeframes: 0,
+      totalTimeframes: 0,
+      reasoning: ['No timeframe data available'],
+      confidence: 0
+    };
+  }
+  
+  let bullishCount = 0;
+  let bearishCount = 0;
+  let totalScore = 0;
+  const reasoning: string[] = [];
+  
+  // Weight higher timeframes more heavily
+  const weights: Record<string, number> = {
+    '5m': 1,
+    '15m': 1.2,
+    '1h': 1.5,
+    '4h': 1.8,
+    '1d': 2.0,
+    'daily': 2.0
+  };
+  
+  let totalWeight = 0;
+  
+  for (const tf of timeframes) {
+    const weight = weights[tf.timeframe] || 1;
+    totalWeight += weight;
+    
+    if (tf.trend === 'bullish') {
+      bullishCount++;
+      totalScore += 10 * weight;
+    } else if (tf.trend === 'bearish') {
+      bearishCount++;
+      totalScore -= 10 * weight;
+    }
+    
+    // Add momentum influence
+    totalScore += (tf.momentum / 10) * weight;
+    
+    // Add EMA alignment influence
+    if (tf.emaAlignment > 70) {
+      totalScore += 5 * weight * (tf.trend === 'bullish' ? 1 : -1);
+    }
+    
+    // Log significant signals
+    if (tf.signals.length > 0) {
+      reasoning.push(`${tf.timeframe}: ${tf.trend.toUpperCase()} - ${tf.signals.slice(0, 2).join(', ')}`);
+    }
+  }
+  
+  // Normalize score to -100 to 100
+  const normalizedScore = Math.round((totalScore / totalWeight) * 5);
+  const boundedScore = Math.max(-100, Math.min(100, normalizedScore));
+  
+  // Confluence bonus for alignment
+  const alignedTimeframes = Math.max(bullishCount, bearishCount);
+  const alignmentBonus = alignedTimeframes >= 3 ? 15 : alignedTimeframes >= 2 ? 8 : 0;
+  
+  // Apply alignment bonus
+  const finalScore = bullishCount > bearishCount 
+    ? boundedScore + alignmentBonus 
+    : boundedScore - alignmentBonus;
+  
+  // Determine signal
+  let overallSignal: 'strong_buy' | 'buy' | 'neutral' | 'sell' | 'strong_sell';
+  if (finalScore >= 50 && alignedTimeframes >= 3) overallSignal = 'strong_buy';
+  else if (finalScore >= 25) overallSignal = 'buy';
+  else if (finalScore <= -50 && alignedTimeframes >= 3) overallSignal = 'strong_sell';
+  else if (finalScore <= -25) overallSignal = 'sell';
+  else overallSignal = 'neutral';
+  
+  // Calculate confidence based on alignment and score strength
+  const confidence = Math.min(95, Math.abs(finalScore) + (alignedTimeframes * 10));
+  
+  if (alignedTimeframes >= 3) {
+    reasoning.unshift(`✅ ${alignedTimeframes}/${timeframes.length} timeframes aligned`);
+  } else {
+    reasoning.unshift(`⚠️ Mixed signals across timeframes`);
+  }
+  
+  return {
+    overallSignal,
+    confluenceScore: 50 + (finalScore / 2), // Convert to 0-100 scale
+    alignedTimeframes,
+    totalTimeframes: timeframes.length,
+    reasoning,
+    confidence
+  };
+}
+
+/**
+ * Volume Flow Analysis - Detect institutional activity
+ */
+export function analyzeVolumeFlow(volume: number[], close: number[], high: number[], low: number[]): {
+  trend: 'accumulation' | 'distribution' | 'neutral';
+  volumeProfile: 'increasing' | 'decreasing' | 'stable';
+  averageVolume: number;
+  relativeVolume: number;
+  moneyFlow: number; // Positive = buying pressure, Negative = selling pressure
+  signals: string[];
+} {
+  if (volume.length < 20) {
+    return {
+      trend: 'neutral',
+      volumeProfile: 'stable',
+      averageVolume: 0,
+      relativeVolume: 1,
+      moneyFlow: 0,
+      signals: []
+    };
+  }
+  
+  const recentVolume = volume.slice(-20);
+  const currentVolume = volume[volume.length - 1];
+  const averageVolume = recentVolume.reduce((a, b) => a + b, 0) / 20;
+  const relativeVolume = currentVolume / averageVolume;
+  
+  // Calculate Money Flow (simplified On-Balance Volume concept)
+  let moneyFlow = 0;
+  for (let i = 1; i < Math.min(20, close.length); i++) {
+    const idx = close.length - 20 + i;
+    if (idx < 0) continue;
+    
+    const typicalPrice = (high[idx] + low[idx] + close[idx]) / 3;
+    const prevTypicalPrice = (high[idx-1] + low[idx-1] + close[idx-1]) / 3;
+    
+    if (typicalPrice > prevTypicalPrice) {
+      moneyFlow += volume[idx];
+    } else if (typicalPrice < prevTypicalPrice) {
+      moneyFlow -= volume[idx];
+    }
+  }
+  
+  // Normalize money flow to -100 to 100
+  const normalizedMF = (moneyFlow / (averageVolume * 20)) * 100;
+  
+  // Determine volume trend
+  const recentHalf = recentVolume.slice(-10);
+  const oldHalf = recentVolume.slice(0, 10);
+  const recentAvg = recentHalf.reduce((a, b) => a + b, 0) / 10;
+  const oldAvg = oldHalf.reduce((a, b) => a + b, 0) / 10;
+  
+  let volumeProfile: 'increasing' | 'decreasing' | 'stable' = 'stable';
+  if (recentAvg > oldAvg * 1.2) volumeProfile = 'increasing';
+  else if (recentAvg < oldAvg * 0.8) volumeProfile = 'decreasing';
+  
+  // Determine accumulation/distribution
+  let trend: 'accumulation' | 'distribution' | 'neutral' = 'neutral';
+  if (normalizedMF > 30 && volumeProfile !== 'decreasing') trend = 'accumulation';
+  else if (normalizedMF < -30 && volumeProfile !== 'decreasing') trend = 'distribution';
+  
+  const signals: string[] = [];
+  if (relativeVolume > 2) signals.push(`Volume Surge (${relativeVolume.toFixed(1)}x avg)`);
+  if (trend === 'accumulation') signals.push('Accumulation Pattern');
+  if (trend === 'distribution') signals.push('Distribution Pattern');
+  if (volumeProfile === 'increasing') signals.push('Rising Volume');
+  if (volumeProfile === 'decreasing') signals.push('Declining Volume');
+  
+  return {
+    trend,
+    volumeProfile,
+    averageVolume: Math.round(averageVolume),
+    relativeVolume: Number(relativeVolume.toFixed(2)),
+    moneyFlow: Number(normalizedMF.toFixed(2)),
+    signals
   };
 }

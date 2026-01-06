@@ -2986,7 +2986,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         calculateMACD,
         calculateBollingerBands,
         calculateADX,
-        determineMarketRegime
+        determineMarketRegime,
+        // New multi-layer indicators
+        calculateWilliamsR,
+        calculateCCI,
+        calculateVWAP,
+        calculateEMABundle,
+        detectSupportResistanceLevels,
+        analyzeMarketStructure,
+        analyzeVolumeFlow
       } = await import("./technical-indicators");
       
       // Fetch OHLCV data from Yahoo Finance
@@ -3050,6 +3058,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const stochRSI = calculateStochRSI(prices);
       const ichimoku = calculateIchimoku(highs, lows, prices);
       
+      // NEW: Multi-layer analysis indicators
+      const williamsR = calculateWilliamsR(highs, lows, prices, 14);
+      const cci = calculateCCI(highs, lows, prices, 20);
+      const vwap = calculateVWAP(highs, lows, prices, volumes);
+      const emaBundle = calculateEMABundle(prices);
+      const supportResistance = detectSupportResistanceLevels(highs, lows, prices, 50);
+      const marketStructure = analyzeMarketStructure(highs, lows, prices);
+      const volumeFlow = analyzeVolumeFlow(volumes, prices, highs, lows);
+      
       // Current price info
       const currentPrice = prices[prices.length - 1];
       const priceChange = prices.length >= 2 
@@ -3094,6 +3111,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Calculate multi-layer confluence score
+      let layerBullish = 0;
+      let layerBearish = 0;
+      const layerSignals: string[] = [];
+      
+      // Layer 1: Momentum (RSI, StochRSI, Williams %R)
+      if (rsi < 30) { layerBullish += 10; layerSignals.push("RSI Oversold"); }
+      else if (rsi > 70) { layerBearish += 10; layerSignals.push("RSI Overbought"); }
+      if (williamsR < -80) { layerBullish += 8; layerSignals.push("Williams %R Oversold"); }
+      else if (williamsR > -20) { layerBearish += 8; layerSignals.push("Williams %R Overbought"); }
+      
+      // Layer 2: Trend (EMA Bundle) - scale weight proportionally to available EMAs
+      // Full weight (15 points) only when all 4 EMAs available, scaled down otherwise
+      const emaWeight = Math.round((emaBundle.availableEMAs / 4) * 15);
+      if (emaBundle.availableEMAs >= 2) {
+        if (emaBundle.trend === 'bullish') { layerBullish += emaWeight; layerSignals.push(`EMA Bullish (${emaBundle.availableEMAs}/4 EMAs, ${emaBundle.alignment}% aligned)`); }
+        else if (emaBundle.trend === 'bearish') { layerBearish += emaWeight; layerSignals.push(`EMA Bearish (${emaBundle.availableEMAs}/4 EMAs, ${emaBundle.alignment}% aligned)`); }
+        else { layerSignals.push(`EMA Mixed (${emaBundle.availableEMAs}/4 EMAs)`); }
+      } else {
+        layerSignals.push(`Insufficient EMA data (${emaBundle.availableEMAs}/4 available)`);
+      }
+      
+      // Layer 3: Market Structure
+      if (marketStructure.trend === 'uptrend') { layerBullish += 12; layerSignals.push(`Uptrend (${marketStructure.higherHighs} HH)`); }
+      else if (marketStructure.trend === 'downtrend') { layerBearish += 12; layerSignals.push(`Downtrend (${marketStructure.lowerLows} LL)`); }
+      if (marketStructure.breakOfStructure) { layerSignals.push("Break of Structure Detected"); }
+      
+      // Layer 4: Volume Flow
+      if (volumeFlow.trend === 'accumulation') { layerBullish += 10; layerSignals.push("Accumulation Pattern"); }
+      else if (volumeFlow.trend === 'distribution') { layerBearish += 10; layerSignals.push("Distribution Pattern"); }
+      
+      // Layer 5: Support/Resistance Position
+      if (supportResistance.pricePosition === 'near_support') { layerBullish += 8; layerSignals.push(`Near Support ($${supportResistance.nearestSupport})`); }
+      else if (supportResistance.pricePosition === 'near_resistance') { layerBearish += 8; layerSignals.push(`Near Resistance ($${supportResistance.nearestResistance})`); }
+      
+      // Layer 6: VWAP Position
+      if (currentPrice > vwap) { layerBullish += 5; layerSignals.push("Above VWAP"); }
+      else if (currentPrice < vwap) { layerBearish += 5; layerSignals.push("Below VWAP"); }
+      
+      const netLayer = layerBullish - layerBearish;
+      const layerDirection = netLayer > 15 ? 'bullish' : netLayer < -15 ? 'bearish' : 'neutral';
+      const layerConfidence = Math.min(95, Math.abs(netLayer) + (layerSignals.length * 3));
+      
       res.json({
         symbol: symbol.toUpperCase(),
         currentPrice,
@@ -3105,6 +3165,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           confidence: signalScore.confidence,
           signals: signalScore.signals
         },
+        // Multi-layer confluence analysis
+        multiLayerAnalysis: {
+          confluenceScore: 50 + (netLayer / 2),
+          direction: layerDirection,
+          confidence: layerConfidence,
+          signals: layerSignals,
+          layers: {
+            momentum: { score: rsi > 50 ? (100 - rsi) : rsi, signals: [rsi < 30 ? 'Oversold' : rsi > 70 ? 'Overbought' : 'Neutral'] },
+            trend: { score: emaBundle.alignment, direction: emaBundle.trend },
+            structure: { trend: marketStructure.trend, strength: marketStructure.trendStrength, bos: marketStructure.breakOfStructure },
+            volume: { trend: volumeFlow.trend, relativeVolume: volumeFlow.relativeVolume, moneyFlow: volumeFlow.moneyFlow },
+            levels: { position: supportResistance.pricePosition, support: supportResistance.nearestSupport, resistance: supportResistance.nearestResistance }
+          }
+        },
         indicators: {
           rsi: { value: rsi, period: 14 },
           rsi2: { value: rsi2, period: 2 },
@@ -3112,7 +3186,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
           bollingerBands: { upper: bb.upper, middle: bb.middle, lower: bb.lower },
           adx: { value: adx, regime: regime.regime, suitableFor: regime.suitableFor },
           stochRSI: stochRSI,
-          ichimoku: ichimoku
+          ichimoku: ichimoku,
+          // New enhanced indicators
+          williamsR: { value: williamsR, period: 14, interpretation: williamsR < -80 ? 'oversold' : williamsR > -20 ? 'overbought' : 'neutral' },
+          cci: { value: cci, period: 20, interpretation: cci < -100 ? 'oversold' : cci > 100 ? 'overbought' : 'neutral' },
+          vwap: { value: vwap, priceVsVwap: currentPrice > vwap ? 'above' : currentPrice < vwap ? 'below' : 'at' },
+          ema: emaBundle
+        },
+        // Support/Resistance levels
+        levels: {
+          support: supportResistance.support,
+          resistance: supportResistance.resistance,
+          nearestSupport: supportResistance.nearestSupport,
+          nearestResistance: supportResistance.nearestResistance,
+          pricePosition: supportResistance.pricePosition
+        },
+        // Market Structure
+        marketStructure: {
+          trend: marketStructure.trend,
+          structure: marketStructure.structure,
+          higherHighs: marketStructure.higherHighs,
+          higherLows: marketStructure.higherLows,
+          lowerHighs: marketStructure.lowerHighs,
+          lowerLows: marketStructure.lowerLows,
+          trendStrength: marketStructure.trendStrength,
+          breakOfStructure: marketStructure.breakOfStructure
+        },
+        // Volume Analysis
+        volumeAnalysis: {
+          trend: volumeFlow.trend,
+          volumeProfile: volumeFlow.volumeProfile,
+          averageVolume: volumeFlow.averageVolume,
+          relativeVolume: volumeFlow.relativeVolume,
+          moneyFlow: volumeFlow.moneyFlow,
+          signals: volumeFlow.signals
         },
         dataPoints: prices.length,
         candles: candles_data,
