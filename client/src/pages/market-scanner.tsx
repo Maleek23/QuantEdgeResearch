@@ -1,10 +1,13 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useSearch } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -25,7 +28,9 @@ import {
   Award,
   Clock,
   Activity,
-  ChevronRight
+  ChevronRight,
+  Send,
+  Repeat
 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -155,6 +160,43 @@ interface OutlookData {
   }>;
   yearsOfData: number;
   projections: Record<number, { trades: number; wins: number; avgGain: number } | null>;
+}
+
+interface SwingOpportunity {
+  symbol: string;
+  currentPrice: number;
+  rsi14: number;
+  targetPrice: number;
+  targetPercent: number;
+  stopLoss: number;
+  stopLossPercent: number;
+  holdDays: number;
+  pattern: string;
+  grade: string;
+  score: number;
+  volume: number;
+  avgVolume: number;
+  volumeRatio: number;
+  sma50: number;
+  sma200: number;
+  trendBias: 'bullish' | 'bearish' | 'neutral';
+  reason: string;
+  createdAt: string;
+}
+
+function getSwingGradeVariant(grade: string): "default" | "secondary" | "destructive" | "outline" {
+  switch (grade) {
+    case 'S': 
+    case 'A': return 'default';
+    case 'B': return 'secondary';
+    default: return 'outline';
+  }
+}
+
+function getTrendIcon(trend: string) {
+  if (trend === 'bullish') return <TrendingUp className="w-4 h-4 text-green-500" />;
+  if (trend === 'bearish') return <TrendingDown className="w-4 h-4 text-red-500" />;
+  return <Activity className="w-4 h-4 text-gray-500" />;
 }
 
 const formatPrice = (price: number) => {
@@ -649,8 +691,19 @@ function SmartWatchlistCard({ pick, index }: { pick: SmartWatchlistPick; index: 
 }
 
 export default function MarketScanner() {
+  const searchString = useSearch();
   const [timeframe, setTimeframe] = useState<string>("day");
   const [category, setCategory] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<string>("movers");
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const tabParam = params.get('tab');
+    if (tabParam === 'swing') {
+      setActiveTab('swing');
+    }
+  }, [searchString]);
 
   const moversQuery = useQuery<MoversResponse>({
     queryKey: ["/api/market-scanner/movers", timeframe, category],
@@ -678,6 +731,42 @@ export default function MarketScanner() {
     },
     refetchInterval: 300000,
     staleTime: 120000,
+  });
+
+  const swingQuery = useQuery<SwingOpportunity[]>({
+    queryKey: ['/api/swing-scanner'],
+    queryFn: async () => {
+      const res = await fetch('/api/swing-scanner');
+      if (!res.ok) throw new Error('Failed to fetch swing opportunities');
+      return res.json();
+    },
+    refetchInterval: 5 * 60 * 1000,
+    enabled: activeTab === 'swing',
+  });
+
+  const sendSwingToDiscord = useMutation({
+    mutationFn: async (opp: SwingOpportunity) => {
+      const response = await fetch('/api/swing-scanner/send-discord', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(opp),
+      });
+      if (!response.ok) throw new Error('Failed to send');
+      return response.json();
+    },
+    onSuccess: (_, opp) => {
+      toast({
+        title: "Sent to Discord",
+        description: `${opp.symbol} swing opportunity shared`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to send",
+        description: "Check Discord webhook configuration",
+        variant: "destructive",
+      });
+    },
   });
 
   const handleRefresh = () => {
@@ -746,41 +835,57 @@ export default function MarketScanner() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {sectorsQuery.isLoading ? (
-            Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-16 bg-muted/30 rounded-lg animate-pulse" />
-            ))
-          ) : sectorsQuery.data ? (
-            Object.entries(sectorsQuery.data).slice(0, 10).map(([sector, data]) => (
-              <SectorCard key={sector} sector={sector} data={data} />
-            ))
-          ) : null}
-        </div>
-
-        <Tabs value={timeframe} onValueChange={setTimeframe} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
-            <TabsTrigger value="day" data-testid="tab-day">
-              <Calendar className="w-4 h-4 mr-2 hidden sm:inline" />
-              Daily
+        {/* Main Tab Navigation: Movers vs Swing */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-flex mb-4">
+            <TabsTrigger value="movers" data-testid="tab-movers">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Movers & Watchlist
             </TabsTrigger>
-            <TabsTrigger value="week" data-testid="tab-week">
-              <LineChart className="w-4 h-4 mr-2 hidden sm:inline" />
-              Weekly
-            </TabsTrigger>
-            <TabsTrigger value="month" data-testid="tab-month">
-              <BarChart3 className="w-4 h-4 mr-2 hidden sm:inline" />
-              Monthly
-            </TabsTrigger>
-            <TabsTrigger value="ytd" data-testid="tab-ytd">
-              <Target className="w-4 h-4 mr-2 hidden sm:inline" />
-              YTD
-            </TabsTrigger>
-            <TabsTrigger value="year" data-testid="tab-year">
-              <TrendingUp className="w-4 h-4 mr-2 hidden sm:inline" />
-              52-Week
+            <TabsTrigger value="swing" data-testid="tab-swing">
+              <Repeat className="w-4 h-4 mr-2" />
+              Swing Scanner
             </TabsTrigger>
           </TabsList>
+
+          {/* Movers Tab Content */}
+          <TabsContent value="movers" className="mt-0">
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {sectorsQuery.isLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="h-16 bg-muted/30 rounded-lg animate-pulse" />
+                  ))
+                ) : sectorsQuery.data ? (
+                  Object.entries(sectorsQuery.data).slice(0, 10).map(([sector, data]) => (
+                    <SectorCard key={sector} sector={sector} data={data} />
+                  ))
+                ) : null}
+              </div>
+
+              <Tabs value={timeframe} onValueChange={setTimeframe} className="w-full">
+                <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
+                  <TabsTrigger value="day" data-testid="tab-day">
+                    <Calendar className="w-4 h-4 mr-2 hidden sm:inline" />
+                    Daily
+                  </TabsTrigger>
+                  <TabsTrigger value="week" data-testid="tab-week">
+                    <LineChart className="w-4 h-4 mr-2 hidden sm:inline" />
+                    Weekly
+                  </TabsTrigger>
+                  <TabsTrigger value="month" data-testid="tab-month">
+                    <BarChart3 className="w-4 h-4 mr-2 hidden sm:inline" />
+                    Monthly
+                  </TabsTrigger>
+                  <TabsTrigger value="ytd" data-testid="tab-ytd">
+                    <Target className="w-4 h-4 mr-2 hidden sm:inline" />
+                    YTD
+                  </TabsTrigger>
+                  <TabsTrigger value="year" data-testid="tab-year">
+                    <TrendingUp className="w-4 h-4 mr-2 hidden sm:inline" />
+                    52-Week
+                  </TabsTrigger>
+                </TabsList>
 
           <Card className="mt-6 border-cyan-500/30 bg-cyan-500/5">
             <CardHeader className="pb-3">
@@ -917,6 +1022,152 @@ export default function MarketScanner() {
               </div>
             </TabsContent>
           ))}
+              </Tabs>
+            </div>
+          </TabsContent>
+
+          {/* Swing Tab Content */}
+          <TabsContent value="swing" className="mt-0">
+            <div className="space-y-6">
+              <Card className="bg-amber-950/20 border-amber-600/30">
+                <CardContent className="py-3">
+                  <p className="text-amber-200 text-sm flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>
+                      <strong>Research Only:</strong> These swing trade ideas are for educational purposes. 
+                      Always conduct your own analysis and manage risk appropriately.
+                    </span>
+                  </p>
+                </CardContent>
+              </Card>
+
+              {swingQuery.isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <Card key={i}>
+                      <CardContent className="p-4 space-y-3">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : swingQuery.data && swingQuery.data.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {swingQuery.data.map((opp) => (
+                    <Card 
+                      key={opp.symbol} 
+                      className="hover-elevate transition-all"
+                      data-testid={`card-swing-${opp.symbol}`}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <CardTitle className="text-xl font-bold">{opp.symbol}</CardTitle>
+                          <Badge variant={getSwingGradeVariant(opp.grade)}>
+                            {opp.grade} ({opp.score})
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          {getTrendIcon(opp.trendBias)}
+                          <span className="capitalize">{opp.trendBias} trend</span>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Entry:</span>
+                            <span className="ml-2 font-mono">${opp.currentPrice.toFixed(2)}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">RSI(14):</span>
+                            <span className={`ml-2 font-mono ${opp.rsi14 < 30 ? 'text-red-400' : opp.rsi14 < 40 ? 'text-orange-400' : ''}`}>
+                              {opp.rsi14.toFixed(1)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Target className="w-3 h-3 text-green-500" />
+                            <span className="text-green-400">
+                              ${opp.targetPrice.toFixed(2)} (+{opp.targetPercent.toFixed(1)}%)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3 text-red-500" />
+                            <span className="text-red-400">
+                              ${opp.stopLoss.toFixed(2)} (-{opp.stopLossPercent.toFixed(1)}%)
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Clock className="w-3 h-3" />
+                            <span>{opp.holdDays} day hold</span>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {opp.pattern.replace(/_/g, ' ')}
+                          </Badge>
+                        </div>
+
+                        <div className="text-xs text-muted-foreground">
+                          Volume: {opp.volumeRatio.toFixed(1)}x avg • SMA50: ${opp.sma50.toFixed(2)}
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => sendSwingToDiscord.mutate(opp)}
+                          disabled={sendSwingToDiscord.isPending}
+                          data-testid={`button-discord-${opp.symbol}`}
+                        >
+                          <Send className="w-3 h-3 mr-2" />
+                          Send to Discord
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <Activity className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium">No Swing Opportunities</h3>
+                    <p className="text-muted-foreground text-sm mt-2">
+                      No stocks currently meet the RSI(14) oversold criteria with sufficient pattern quality.
+                      Check back later as market conditions change.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Scanner Criteria</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                    <div className="space-y-1">
+                      <div className="font-medium text-primary">Timeframe</div>
+                      <div className="text-muted-foreground">Daily charts (not intraday)</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-primary">RSI Filter</div>
+                      <div className="text-muted-foreground">RSI(14) below 50, best under 40</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-primary">Target Range</div>
+                      <div className="text-muted-foreground">5-10% profit targets</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-primary">Hold Time</div>
+                      <div className="text-muted-foreground">3-10 trading days</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
         </Tabs>
 
         <Card className="bg-amber-500/10 border-amber-500/30">

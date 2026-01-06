@@ -26,7 +26,7 @@ Key features include:
 -   **Core Application**: Public informational pages, user authentication, main dashboard, trade desk with research briefs, live trading journal, market overview, and performance analytics.
 -   **Research Tools**: Chart analysis, historical trade pattern library, Data Intelligence System, Loss Analysis System for trade post-mortem, and a Data Integrity System for consistent statistics.
 -   **Automated Systems**: Auto-Lotto Bot for automated paper trading with sample size gating, and a Real-time Pricing Service consolidating market data.
--   **Specialized Intelligence**: Timing Intelligence System for optimal entry/exit, "Prop Firm Mode" for conservative futures trading, Market Scanner, Multi-Factor Analysis Engine, CT Tracker for crypto sentiment, Universal Idea Generator, and Platform Reports System.
+-   **Specialized Intelligence**: Timing Intelligence System for optimal entry/exit, "Prop Firm Mode" for conservative futures trading, Market Scanner (with integrated Swing Scanner tab for RSI-based swing trade ideas), Multi-Factor Analysis Engine, CT Tracker for crypto sentiment, Universal Idea Generator, and Platform Reports System.
 -   **Catalyst Intelligence System**: Tracks SEC filings and government contracts, performing sentiment analysis and generating catalyst scores.
 -   **Polymarket Prediction Market Module**: Integrates with prediction markets to detect arbitrage opportunities based on news sentiment.
 -   **Unified Win Rate System**: Provides consistent win rate metrics (Equities, Options, Overall) across the platform, calculated based on defined trade outcomes.

@@ -36,7 +36,7 @@ const researchItems: NavItem[] = [
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
   { title: "My Watchlist", url: "/watchlist", icon: Eye },
   { title: "Market Scanner", url: "/market-scanner", icon: BarChart2, badge: "500+" },
-  { title: "Swing Scanner", url: "/swing-scanner", icon: TrendingUp, badge: "NEW" },
+  { title: "Swing Scanner", url: "/market-scanner?tab=swing", icon: TrendingUp, badge: "NEW" },
 ];
 
 // Automations - Auto-Lotto Bot is the main hub with other automations as tabs
