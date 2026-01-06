@@ -184,6 +184,11 @@ const SMALL_ACCOUNT_MAX_POSITION = 30; // $30 max per trade (20% of $150)
 const SMALL_ACCOUNT_MIN_PREMIUM = 20; // $0.20 minimum (avoid penny options)
 const SMALL_ACCOUNT_MAX_PREMIUM = 100; // $1.00 max premium
 const SMALL_ACCOUNT_GRADE_THRESHOLD = 90; // A+ only (90%+ confidence)
+const SMALL_ACCOUNT_MIN_DTE = 5; // Minimum 5 DTE - avoid theta crush on small accounts
+
+// 🛡️ GENERAL DTE PROTECTION - All portfolios
+// Lower threshold for regular accounts, stricter for small accounts
+const GENERAL_MIN_DTE = 3; // Regular accounts: minimum 3 DTE (avoid 0-2 DTE theta death)
 
 // Priority tickers for Small Account - cheap options, high potential
 const SMALL_ACCOUNT_TICKERS = [
@@ -996,16 +1001,22 @@ export async function getSmallAccountPortfolio(): Promise<PaperPortfolio | null>
 
 /**
  * Check if a trade qualifies for Small Account
- * Requirements: A+ grade (90%+), $0.20-$1.00 premium, priority ticker
+ * Requirements: A+ grade (90%+), $0.20-$1.00 premium, priority ticker, 5+ DTE
  */
 export function isSmallAccountEligible(
   ticker: string,
   confidence: number,
-  premiumCents: number
+  premiumCents: number,
+  daysToExpiry?: number
 ): { eligible: boolean; reason: string } {
   // Must be A+ grade (90%+ confidence)
   if (confidence < SMALL_ACCOUNT_GRADE_THRESHOLD) {
     return { eligible: false, reason: `Grade ${confidence.toFixed(0)}% < ${SMALL_ACCOUNT_GRADE_THRESHOLD}% (A+ required)` };
+  }
+  
+  // 🛡️ THETA PROTECTION: Minimum 5 DTE for small accounts - avoid theta crush
+  if (daysToExpiry !== undefined && daysToExpiry < SMALL_ACCOUNT_MIN_DTE) {
+    return { eligible: false, reason: `${daysToExpiry} DTE < ${SMALL_ACCOUNT_MIN_DTE} minimum (theta crush risk)` };
   }
   
   // Premium must be in range ($0.20 - $1.00)
@@ -1021,7 +1032,7 @@ export function isSmallAccountEligible(
     return { eligible: false, reason: `${ticker} not in small account priority list` };
   }
   
-  return { eligible: true, reason: 'A+ setup on priority ticker with cheap premium' };
+  return { eligible: true, reason: 'A+ setup on priority ticker with cheap premium and safe DTE' };
 }
 
 /**
@@ -2451,6 +2462,17 @@ export async function runAutonomousBotScan(): Promise<void> {
           continue;
         }
         
+        // 🛡️ THETA PROTECTION: Skip low-DTE options (avoid Exit Intel flagging immediately after entry)
+        if (opp.expiration) {
+          const oppExpiry = new Date(opp.expiration);
+          const oppNow = new Date();
+          const oppDte = Math.ceil((oppExpiry.getTime() - oppNow.getTime()) / (1000 * 60 * 60 * 24));
+          if (oppDte < GENERAL_MIN_DTE) {
+            logger.info(`🛡️ [BOT] ${ticker}: ${oppDte} DTE < ${GENERAL_MIN_DTE} minimum (theta crush risk) - SKIPPING`);
+            continue;
+          }
+        }
+        
         // 🧠 ADAPTIVE LEARNING: Apply learning adjustments
         const symbolAdj = await getSymbolAdjustment(ticker);
         const adaptiveParams = await getAdaptiveParameters();
@@ -2667,6 +2689,47 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
       if (idea.entryPrice > 20) {
         logger.warn(`🎰 [LOTTO-EXEC] ⚠️ Rejecting ${idea.symbol} - entry price $${idea.entryPrice} too high for lotto`);
         return false;
+      }
+      
+      // 🛡️ THETA PROTECTION: Calculate DTE and reject low-DTE entries
+      const expiryDate = new Date(idea.expiryDate);
+      const now = new Date();
+      const daysToExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysToExpiry < SMALL_ACCOUNT_MIN_DTE) {
+        logger.warn(`🎰 [LOTTO-EXEC] 🛡️ THETA PROTECTION: Rejecting ${idea.symbol} - ${daysToExpiry} DTE < ${SMALL_ACCOUNT_MIN_DTE} minimum (would immediately trigger exit warnings)`);
+        return false;
+      }
+      
+      // 🧠 PRE-ENTRY EXIT INTELLIGENCE: Would this trade immediately trigger an exit warning?
+      // Simulate a position to check if Exit Intelligence would flag it
+      try {
+        const mockPosition = {
+          id: 'pre-entry-check',
+          symbol: idea.symbol,
+          entryPrice: idea.entryPrice,
+          currentPrice: idea.entryPrice, // At entry, current = entry
+          targetPrice: idea.targetPrice,
+          stopLoss: idea.stopLoss,
+          quantity: 1,
+          optionType: idea.optionType,
+          strikePrice: idea.strikePrice,
+          expiryDate: idea.expiryDate,
+          status: 'open' as const,
+          assetType: 'option' as const,
+        };
+        
+        const preEntryAdvisory = await analyzePosition(mockPosition as any, '', 'Bot Lotto');
+        if (preEntryAdvisory) {
+          // Reject if Exit Intelligence would immediately flag for exit
+          if (preEntryAdvisory.exitWindow === 'soon' || preEntryAdvisory.exitWindow === 'immediate') {
+            logger.warn(`🎰 [LOTTO-EXEC] 🧠 EXIT INTEL BLOCK: ${idea.symbol} would immediately flag "${preEntryAdvisory.exitWindow}" (${preEntryAdvisory.exitProbability}%) - ${preEntryAdvisory.exitReason}`);
+            return false;
+          }
+          logger.info(`🎰 [LOTTO-EXEC] 🧠 Pre-entry check passed: ${preEntryAdvisory.exitWindow} (${preEntryAdvisory.exitProbability}%)`);
+        }
+      } catch (exitIntelError) {
+        logger.debug(`🎰 [LOTTO-EXEC] Pre-entry Exit Intel check failed (continuing):`, exitIntelError);
       }
     }
     
