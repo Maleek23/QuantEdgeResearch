@@ -252,6 +252,7 @@ const LOTTO_SCAN_TICKERS = [
   // === 🤖 AI PENNY LOTTOS ===
   'SOUN',   // SoundHound ($5-15)
   'BBAI',   // BigBear.ai ($1-5) ⚡ TOP LOTTO
+  'ZETA',   // Zeta Global - AI marketing ($15-35)
   'GFAI'    // Guardforce AI ($0.50-2) ⚡ ULTRA LOTTO
 ];
 

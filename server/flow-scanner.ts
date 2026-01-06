@@ -150,6 +150,7 @@ const FLOW_SCAN_TICKERS = [
   'SOUN',   // SoundHound AI - Voice AI ($5-15 range)
   'BBAI',   // BigBear.ai - AI analytics ($1-5 range - TRUE PENNY LOTTO)
   'AI',     // C3.ai - Enterprise AI
+  'ZETA',   // Zeta Global - AI marketing tech ($15-35 range)
   'PLTR',   // Palantir - AI/data analytics
   'PATH',   // UiPath - AI automation
   'SNOW',   // Snowflake - AI data cloud

@@ -686,7 +686,7 @@ const EXPANDED_SCAN_UNIVERSE = [
   'L', 'LDOS', 'LEN', 'LH', 'LHX', 'LI', 'LIN', 'LKQ', 'LLY', 'LMT', 'LNC', 'LNT', 'LOW', 'LRCX', 'LULU', 'LUNR', 'LUV', 'LVS', 'LW', 'LYB', 'LYV',
   'M', 'MA', 'MAA', 'MAR', 'MARA', 'MAS', 'MCD', 'MCHP', 'MCK', 'MCO', 'MDLZ', 'MDT', 'MET', 'META', 'MGM', 'MHK', 'MKC', 'MKTX', 'MLM', 'MMC', 'MMM', 'MNST', 'MO', 'MOH', 'MOS', 'MPC', 'MPWR', 'MRK', 'MRNA', 'MRO', 'MRVL', 'MS', 'MSCI', 'MSFT', 'MSI', 'MSTR', 'MTB', 'MTCH', 'MTD', 'MU',
   'NCLH', 'NDAQ', 'NDSN', 'NEE', 'NEM', 'NET', 'NFLX', 'NI', 'NKE', 'NIO', 'NNE', 'NOC', 'NOW', 'NRG', 'NSC', 'NTAP', 'NTRS', 'NUE', 'NVDA', 'NVR', 'NWL', 'NWS', 'NXPI',
-  'O', 'ODFL', 'OKE', 'OKTA', 'OMC', 'ON', 'ORCL', 'ORLY', 'OTIS', 'OXY',
+  'O', 'ODFL', 'OKE', 'OKLO', 'OKTA', 'OMC', 'ON', 'ORCL', 'ORLY', 'OTIS', 'OXY',
   'PANW', 'PARA', 'PAYX', 'PAYC', 'PBI', 'PCAR', 'PCG', 'PDD', 'PEG', 'PEP', 'PFE', 'PFG', 'PG', 'PGR', 'PH', 'PHM', 'PKG', 'PLD', 'PLTR', 'PM', 'PNC', 'PNR', 'PNW', 'POOL', 'PPG', 'PPL', 'PRU', 'PSA', 'PSX', 'PTC', 'PWR', 'PYPL',
   'QCOM', 'QRVO', 'QUBT', 'QBTS',
   'RCL', 'RDW', 'RE', 'REG', 'REGN', 'RF', 'RHI', 'RJF', 'RL', 'RMD', 'ROK', 'ROL', 'ROP', 'ROST', 'RSG', 'RTX', 'RVTY', 'RWD', 'RKLB',
@@ -697,7 +697,7 @@ const EXPANDED_SCAN_UNIVERSE = [
   'W', 'WAB', 'WAT', 'WBA', 'WBD', 'WDC', 'WEC', 'WELL', 'WFC', 'WHR', 'WM', 'WMB', 'WMT', 'WRB', 'WST', 'WTW', 'WY', 'WYNN',
   'XEL', 'XOM', 'XRAY', 'XPEV', 'XYL',
   'YUM',
-  'Z', 'ZBH', 'ZBRA', 'ZION', 'ZTS', 'ZS'
+  'Z', 'ZBH', 'ZBRA', 'ZETA', 'ZION', 'ZTS', 'ZS'
 ];
 
 // Combined for general scanning (deduplicated)
