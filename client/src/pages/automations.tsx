@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -33,7 +34,9 @@ import {
   ArrowDownRight,
   DollarSign,
   Bitcoin,
-  LineChart
+  LineChart,
+  Rocket,
+  ExternalLink
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -186,6 +189,7 @@ function LastScanTime({ timestamp }: { timestamp: string | null }) {
 
 export default function AutomationsPage() {
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
 
   const { data: status, isLoading } = useQuery<AutomationsStatus>({
@@ -294,11 +298,22 @@ export default function AutomationsPage() {
         </Badge>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-5 w-full max-w-3xl">
+      <Tabs value={activeTab} onValueChange={(val) => {
+        if (val === "auto-lotto") {
+          setLocation("/watchlist-bot");
+        } else {
+          setActiveTab(val);
+        }
+      }} className="space-y-6">
+        <TabsList className="grid grid-cols-6 w-full max-w-4xl">
           <TabsTrigger value="overview" data-testid="tab-overview">
             <Activity className="w-4 h-4 mr-2" />
             Overview
+          </TabsTrigger>
+          <TabsTrigger value="auto-lotto" data-testid="tab-auto-lotto" className="relative">
+            <Rocket className="w-4 h-4 mr-2" />
+            Auto-Lotto
+            <Badge variant="default" className="absolute -top-1 -right-1 h-4 px-1 text-[10px] bg-green-600">LIVE</Badge>
           </TabsTrigger>
           <TabsTrigger value="quant-bot" data-testid="tab-quant-bot">
             <Bot className="w-4 h-4 mr-2" />
