@@ -1,9 +1,10 @@
 import { storage } from "./storage";
 import { searchSymbol, fetchCryptoPrice, fetchStockPrice } from "./market-api";
-import { getOptionQuote } from "./tradier-api";
+import { getOptionQuote, getTradierHistoryOHLC } from "./tradier-api";
 import { logger } from "./logger";
 import { isUSMarketOpen, normalizeDateString } from "@shared/market-calendar";
 import { analyzeTrade, recordWin } from "./loss-analyzer-service";
+import { calculateRSI } from "./technical-indicators";
 import type {
   TradeIdea,
   PaperPortfolio,
@@ -45,6 +46,167 @@ const MAX_PERCENT_PER_SYMBOL = 0.10; // 10% max exposure per symbol
 const MAX_DOLLAR_PER_TRADE = 800; // Hard cap $800 per trade (allows 3-4 contracts)
 const MAX_CONTRACTS_PER_TRADE = 5; // Target 3-4 contracts, max 5
 const ONE_POSITION_PER_SYMBOL = true; // Only allow ONE open position per underlying symbol
+
+// 📊 DTE-AWARE EXIT STRATEGY - Smarter stops for options with time value
+// Longer-dated options get wider stops because they have more time to recover
+interface DTEExitConfig {
+  hardStopPercent: number;    // Absolute max loss before forced exit
+  softStopPercent: number;    // Warn but allow hold if thesis valid
+  requireThesisCheck: boolean; // Re-validate signals before exit
+  allowMarketOverride: boolean; // Skip exit if market-wide pullback
+}
+
+function getDTEExitConfig(daysToExpiry: number): DTEExitConfig {
+  // Very short-dated (0-3 DTE): Tight stops, no mercy - theta decay is brutal
+  if (daysToExpiry <= 3) {
+    return { hardStopPercent: 35, softStopPercent: 25, requireThesisCheck: false, allowMarketOverride: false };
+  }
+  // Short-dated (4-7 DTE): Moderate stops, quick decisions needed
+  if (daysToExpiry <= 7) {
+    return { hardStopPercent: 45, softStopPercent: 30, requireThesisCheck: false, allowMarketOverride: true };
+  }
+  // Medium-dated (8-14 DTE): Wider stops, can hold through volatility
+  if (daysToExpiry <= 14) {
+    return { hardStopPercent: 55, softStopPercent: 35, requireThesisCheck: true, allowMarketOverride: true };
+  }
+  // Longer-dated (15-30 DTE): Wide stops, swing trade mentality
+  if (daysToExpiry <= 30) {
+    return { hardStopPercent: 65, softStopPercent: 40, requireThesisCheck: true, allowMarketOverride: true };
+  }
+  // LEAPS (30+ DTE): Very wide stops, hold through volatility
+  return { hardStopPercent: 75, softStopPercent: 50, requireThesisCheck: true, allowMarketOverride: true };
+}
+
+function calculateDTE(expiryDate: string | Date | null): number {
+  if (!expiryDate) return 7; // Default to 7 DTE if no expiry
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(expiryDate);
+  expiry.setHours(0, 0, 0, 0);
+  const diffTime = expiry.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays);
+}
+
+// Cache for SPY market context
+let cachedMarketContext: { spyDown: boolean; spyChange: number } = { spyDown: false, spyChange: 0 };
+let lastSpyFetchTime: number = 0;
+
+// Cache for thesis checks (avoid hammering API on every check)
+const thesisCheckCache: Map<string, { valid: boolean; timestamp: number }> = new Map();
+const THESIS_CACHE_TTL = 10 * 60 * 1000; // 10 minute cache for thesis checks
+
+/**
+ * Quick thesis validation - checks if bullish/bearish case is still intact
+ * Uses RSI and recent price action to determine if original direction is still valid
+ */
+async function quickThesisCheck(symbol: string, isCall: boolean): Promise<{ valid: boolean; reason: string }> {
+  const cacheKey = `${symbol}_${isCall ? 'call' : 'put'}`;
+  const cached = thesisCheckCache.get(cacheKey);
+  const now = Date.now();
+  
+  // Return cached result if fresh
+  if (cached && now - cached.timestamp < THESIS_CACHE_TTL) {
+    return { valid: cached.valid, reason: 'cached' };
+  }
+  
+  try {
+    // Get recent price history for multi-factor thesis check
+    const history = await getTradierHistoryOHLC(symbol, 20);
+    if (!history || !history.closes || history.closes.length < 14) {
+      return { valid: true, reason: 'insufficient_data' }; // Default to valid if no data
+    }
+    
+    const closes = history.closes;
+    const currentPrice = closes[closes.length - 1];
+    const currentRSI = calculateRSI(closes, 14);
+    
+    // Calculate 10-day SMA for trend direction
+    const sma10 = closes.slice(-10).reduce((a, b) => a + b, 0) / 10;
+    const priceAboveSMA = currentPrice > sma10;
+    
+    // Calculate momentum (price change over last 3 days) - STRICT threshold
+    const momentum3d = closes.length >= 3 
+      ? ((currentPrice - closes[closes.length - 3]) / closes[closes.length - 3]) * 100 
+      : 0;
+    // For calls: momentum must be positive (>0%) - any decline invalidates bullish thesis
+    // For puts: momentum must be negative (<0%) - any rise invalidates bearish thesis
+    
+    // For CALL options: thesis valid if not overbought AND price above SMA AND momentum positive
+    // For PUT options: thesis valid if not oversold AND price below SMA AND momentum negative
+    // ALL conditions must be true - no OR logic that weakens the check
+    let valid: boolean;
+    let reason: string;
+    
+    if (isCall) {
+      const notOverbought = currentRSI < 70;
+      const priceSupport = priceAboveSMA;
+      const momentumSupport = momentum3d > 0; // Must be rising, not just "not falling much"
+      valid = notOverbought && priceSupport && momentumSupport;
+      
+      if (!valid) {
+        if (!notOverbought) {
+          reason = `RSI ${currentRSI.toFixed(0)} overbought`;
+        } else {
+          reason = `Price ${priceAboveSMA ? 'above' : 'below'} SMA, momentum ${momentum3d.toFixed(1)}%`;
+        }
+      } else {
+        reason = `RSI ${currentRSI.toFixed(0)}, ${priceAboveSMA ? 'above' : 'below'} SMA, mom ${momentum3d.toFixed(1)}%`;
+      }
+    } else {
+      const notOversold = currentRSI > 30;
+      const priceSupport = !priceAboveSMA; // Price must be BELOW SMA for bearish
+      const momentumSupport = momentum3d < 0; // Must be falling, not rising
+      valid = notOversold && priceSupport && momentumSupport;
+      
+      if (!valid) {
+        if (!notOversold) {
+          reason = `RSI ${currentRSI.toFixed(0)} oversold`;
+        } else {
+          reason = `Price ${priceAboveSMA ? 'above' : 'below'} SMA, momentum ${momentum3d.toFixed(1)}%`;
+        }
+      } else {
+        reason = `RSI ${currentRSI.toFixed(0)}, ${priceAboveSMA ? 'above' : 'below'} SMA, mom ${momentum3d.toFixed(1)}%`;
+      }
+    }
+    
+    // Cache the result
+    thesisCheckCache.set(cacheKey, { valid, timestamp: now });
+    
+    return { valid, reason };
+  } catch (error) {
+    // On error, default to thesis valid (don't force exit on API failure)
+    return { valid: true, reason: 'api_error' };
+  }
+}
+
+async function getMarketContext(): Promise<{ spyDown: boolean; spyChange: number }> {
+  try {
+    const now = Date.now();
+    // Only fetch SPY every 5 minutes to avoid rate limits - return cached result
+    if (lastSpyFetchTime && now - lastSpyFetchTime < 5 * 60 * 1000) {
+      return cachedMarketContext; // Return cached market context
+    }
+    
+    const spyData = await fetchStockPrice('SPY');
+    // Use changePercent directly from market data (real data, not estimated)
+    const spyChange = spyData?.changePercent || 0;
+    const spyDown = spyChange < -0.5; // Market is "down" if SPY dropped more than 0.5%
+    
+    // Cache the result
+    cachedMarketContext = { spyDown, spyChange };
+    lastSpyFetchTime = now;
+    
+    if (spyDown) {
+      logger.info(`📉 [MARKET] SPY down ${spyChange.toFixed(2)}% - market pullback mode active`);
+    }
+    
+    return cachedMarketContext;
+  } catch (e) {
+    // Ignore errors, return cached or default
+  }
+  return cachedMarketContext;
+}
 
 export async function executeTradeIdea(
   portfolioId: string,
@@ -470,13 +632,74 @@ export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPo
           }
         }
         
-        // 2. Check ORIGINAL STOP LOSS (only if trailing stop is NOT active)
-        // Trailing stop takes priority once it's set above break-even
-        if (!shouldClose && position.stopLoss && !trailingStopPrice) {
-          if ((isLong && position.currentPrice <= position.stopLoss) ||
-              (!isLong && position.currentPrice >= position.stopLoss)) {
+        // 2. Check STOP LOSS with DTE-AWARE SMART EXIT LOGIC
+        // Longer-dated options get wider stops - they have time to recover!
+        if (!shouldClose && !trailingStopPrice) {
+          const currentLoss = isLong 
+            ? ((entryPrice - position.currentPrice) / entryPrice) * 100
+            : ((position.currentPrice - entryPrice) / entryPrice) * 100;
+          
+          // Get DTE-aware exit configuration
+          const dte = isOption ? calculateDTE(position.expiryDate) : 0;
+          const exitConfig = getDTEExitConfig(dte);
+          
+          // Check if we hit the SOFT stop (warning zone)
+          const hitSoftStop = currentLoss >= exitConfig.softStopPercent;
+          // Check if we hit the HARD stop (forced exit)
+          const hitHardStop = currentLoss >= exitConfig.hardStopPercent;
+          
+          if (hitHardStop) {
+            // HARD STOP: Forced exit, no exceptions
             shouldClose = true;
-            exitReason = 'stop_hit';
+            exitReason = `hard_stop_${currentLoss.toFixed(0)}pct_loss`;
+            logger.warn(`🛑 [HARD STOP] ${position.symbol}: -${currentLoss.toFixed(1)}% exceeds max ${exitConfig.hardStopPercent}% for ${dte} DTE option`);
+          } else if (hitSoftStop) {
+            // SOFT STOP: Check market context AND thesis validity before exiting
+            const marketContext = await getMarketContext();
+            const isCallOption = position.optionType === 'call';
+            
+            // Run thesis check if required by DTE config
+            let thesisValid = true;
+            let thesisReason = '';
+            if (exitConfig.requireThesisCheck && isOption) {
+              const thesisResult = await quickThesisCheck(position.symbol, isCallOption);
+              thesisValid = thesisResult.valid;
+              thesisReason = thesisResult.reason;
+            }
+            
+            // STRICT GATING: Only hold on soft stop if BOTH market is down AND thesis is valid
+            // No unconditional holds based on DTE alone!
+            const canOverride = exitConfig.allowMarketOverride && marketContext.spyDown && thesisValid;
+            
+            if (canOverride) {
+              // Market-wide pullback AND thesis still valid - hold
+              logger.info(`⏸️ [SOFT STOP] ${position.symbol}: -${currentLoss.toFixed(1)}% but SPY down ${marketContext.spyChange.toFixed(1)}% & thesis valid (${thesisReason}) - HOLDING ${dte} DTE option`);
+              // Don't exit, market is pulling back everything and thesis still intact
+            } else if (!thesisValid) {
+              // Thesis no longer valid - exit immediately
+              shouldClose = true;
+              exitReason = `thesis_invalidated_${currentLoss.toFixed(0)}pct`;
+              logger.warn(`📉 [THESIS FAIL] ${position.symbol}: -${currentLoss.toFixed(1)}% and ${thesisReason} - exiting`);
+            } else if (!marketContext.spyDown) {
+              // Market not pulling back but hit soft stop - exit
+              shouldClose = true;
+              exitReason = `soft_stop_${currentLoss.toFixed(0)}pct`;
+              logger.info(`📉 [SOFT STOP] ${position.symbol}: -${currentLoss.toFixed(1)}% with SPY flat/up - exiting`);
+            } else {
+              // Fallback: shouldn't reach here, but exit to be safe
+              shouldClose = true;
+              exitReason = `stop_hit_${currentLoss.toFixed(0)}pct`;
+              logger.info(`📉 [STOP] ${position.symbol}: -${currentLoss.toFixed(1)}% - exiting`);
+            }
+          }
+          
+          // Also check original stop loss for non-options or fallback
+          if (!shouldClose && !isOption && position.stopLoss) {
+            if ((isLong && position.currentPrice <= position.stopLoss) ||
+                (!isLong && position.currentPrice >= position.stopLoss)) {
+              shouldClose = true;
+              exitReason = 'stop_hit';
+            }
           }
         }
         

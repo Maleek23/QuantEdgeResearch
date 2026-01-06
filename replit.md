@@ -44,6 +44,14 @@ Key features include:
       - Liquidity check: Bid-ask spread must be <20% of premium
       - Volume/OI check: Min 50 open interest, 10 volume
       - Option direction fix: All options are `direction='long'` (we BUY, not sell)
+    - **DTE-Aware Smart Exit Strategy (Jan 2026)**:
+      - **0-3 DTE**: Tight stops (25% soft, 35% hard) - theta decay brutal, no mercy
+      - **4-7 DTE**: Moderate stops (30% soft, 45% hard) - market override allowed
+      - **8-14 DTE**: Wider stops (35% soft, 55% hard) - hold through volatility
+      - **15-30 DTE**: Swing trade mode (40% soft, 65% hard) - thesis revalidation
+      - **30+ DTE**: LEAPS mode (50% soft, 75% hard) - very wide stops
+      - Market context: Skip exit if SPY down and thesis still valid
+      - Soft stop warns but holds, hard stop forces exit
 
 ## External Dependencies
 
