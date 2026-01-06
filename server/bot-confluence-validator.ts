@@ -63,10 +63,12 @@ const CONFLUENCE_WEIGHTS = {
   regime: 10,
 };
 
-const MIN_CONFLUENCE_SCORE = 35; // Aggressive mode - lowered from 45 to find more opportunities
+// 🛡️ TIGHTER ENTRY REQUIREMENTS - Raised from 35 to reduce losing trades
+const MIN_CONFLUENCE_SCORE = 55; // Require higher conviction before entry
 
-// Priority tickers get +15 boost to confluence score (user's favorites)
+// Priority tickers get +5 boost (reduced from +15 to prevent weak setups from passing)
 const PRIORITY_TICKERS = ['NNE', 'BIDU', 'SOFI', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META', 'TSLA', 'NVDA', 'AMD', 'AAPL', 'GOOGL', 'MSFT', 'SPY'];
+const PRIORITY_TICKER_BOOST = 5; // Reduced from 15 to prevent weak entries
 
 /**
  * LAYER 1: GREEKS ANALYSIS

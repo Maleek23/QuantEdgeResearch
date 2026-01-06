@@ -32,7 +32,12 @@ Key features include:
 -   **Unified Win Rate System**: Provides consistent win rate metrics (Equities, Options, Overall) across the platform, calculated based on defined trade outcomes.
 -   **Watchlist Grading System**: Evaluates watchlist assets using quantitative technical analysis (RSI, momentum, ADX, volume, moving averages) to assign a tier-based score (S-F).
 -   **Adaptive Loss Intelligence System**: Learns from trading mistakes by diagnosing loss categories and adaptively adjusting bot parameters (confidence, stop loss, position size) and implementing symbol cooldowns.
--   **Auto-Lotto Bot Risk Controls (Jan 2026)**: Entry thresholds (65 day/55 weekly/50 swing/45 monthly), post-loss cooldowns (30 min after losses), premium caps ($50 A+, $30 others), mandatory confluence validation, and momentum gate for day trades.
+-   **Auto-Lotto Bot Risk Controls (Jan 2026)**: 
+    - **Entry thresholds**: Min 65% confidence required (B-grade minimum), 70%+ for batch entries, 85%+ for immediate execution
+    - **Confluence validation**: MIN_CONFLUENCE_SCORE = 55 (raised from 35), priority ticker boost reduced from +15 to +5
+    - **Post-loss cooldowns**: 30 min after losses, symbol blacklisting for repeat losers
+    - **Premium caps**: $50 max for A+ grade, $30 max for lower grades
+    - **Discord alerts**: B-grade or better only, max $2.00 premium ($1000 for 5 contracts), rate limited 3/min with 20s spacing
 
 ## External Dependencies
 

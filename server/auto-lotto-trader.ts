@@ -2268,7 +2268,8 @@ export async function runAutonomousBotScan(): Promise<void> {
         const adaptiveParams = await getAdaptiveParameters();
         
         decision.confidence += symbolAdj.confidenceBoost;
-        const effectiveMinConfidence = Math.max(50, adaptiveParams.confidenceThreshold);
+        // 🛡️ RAISED MINIMUM: From 50 to 65 to reduce losing trades (matches day trade threshold from replit.md)
+        const effectiveMinConfidence = Math.max(65, adaptiveParams.confidenceThreshold);
         
         // Apply minimum confidence score
         if (decision.confidence < effectiveMinConfidence) {
@@ -2313,8 +2314,9 @@ export async function runAutonomousBotScan(): Promise<void> {
     logger.info(`🤖 [BOT] Scan complete: ${tradesThisCycle} trades executed, ${qualifyingOpportunities.length} total opportunities found`);
     
     // END-OF-SCAN: Execute any remaining high-quality opportunities we collected
+    // 🛡️ Require at least B+ grade (70% confidence) for end-of-scan batch
     const remainingOpps = qualifyingOpportunities
-      .filter(o => !o.executed && o.decision.confidence >= 80)
+      .filter(o => !o.executed && o.decision.confidence >= 70)
       .sort((a, b) => b.decision.confidence - a.decision.confidence);
     
     for (const opportunity of remainingOpps) {
