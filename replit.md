@@ -31,6 +31,14 @@ Key features include:
 -   **Polymarket Prediction Market Module**: Integrates with prediction markets to detect arbitrage opportunities based on news sentiment.
 -   **Unified Win Rate System**: Provides consistent win rate metrics (Equities, Options, Overall) across the platform, calculated based on defined trade outcomes.
 -   **Watchlist Grading System**: Evaluates watchlist assets using quantitative technical analysis (RSI, momentum, ADX, volume, moving averages) to assign a tier-based score (S-F).
+-   **Elite Setup Trade Generator (Jan 2026)**: Converts S/A tier watchlist items into trade ideas with small-account risk management:
+    - **Target account**: $300 budget
+    - **Max position cost**: $60 (20% of account)
+    - **Max risk per trade**: $6 (2% of account)
+    - **Options**: Max $1.50 premium, stop-loss calculated to cap risk at $6
+    - **Stocks**: Position sized by ATR with $6 max risk
+    - **"Trade Elite Setups" button** on Watchlist page triggers generation
+    - **Duplicate prevention**: Skips symbols with existing active ideas (within 24h)
 -   **Adaptive Loss Intelligence System**: Learns from trading mistakes by diagnosing loss categories and adaptively adjusting bot parameters (confidence, stop loss, position size) and implementing symbol cooldowns.
 -   **Auto-Lotto Bot Risk Controls (Jan 2026)**: 
     - **Entry thresholds**: Min 65% confidence required (B-grade minimum), 70%+ for batch entries, 85%+ for immediate execution
