@@ -629,12 +629,13 @@ export async function runLottoScanner(): Promise<void> {
         const createdIdea = await storage.createTradeIdea(idea);
         successCount++;
         
-        // Send to dedicated Lotto Discord channel
-        try {
-          await sendLottoToDiscord(createdIdea as TradeIdea);
-        } catch (discordError) {
-          logger.warn(`🎰 [LOTTO] Discord notification failed for ${candidate.underlying}:`, discordError);
-        }
+        // 🛡️ DISABLED: Lotto Discord notifications (user requested to stop spam)
+        // Lotto plays are educational/research ideas only - no Discord alerts
+        // try {
+        //   await sendLottoToDiscord(createdIdea as TradeIdea);
+        // } catch (discordError) {
+        //   logger.warn(`🎰 [LOTTO] Discord notification failed for ${candidate.underlying}:`, discordError);
+        // }
         
         // Auto-execute in paper trading portfolio
         try {

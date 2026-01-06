@@ -1886,6 +1886,18 @@ export async function sendGainsToDiscord(trade: {
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
   
+  // 🛡️ QUALITY GATE: Only send significant gains to Discord (avoid spam)
+  // Skip small gains (<10%) and lotto source (lotto plays are research-only)
+  if (trade.percentGain < 10) {
+    logger.info(`🚫 [GAINS-FILTER] Skipping low-value gain: ${trade.symbol} +${trade.percentGain.toFixed(1)}%`);
+    return;
+  }
+  
+  if (trade.source === 'lotto') {
+    logger.info(`🚫 [GAINS-FILTER] Skipping lotto gain notification: ${trade.symbol}`);
+    return;
+  }
+  
   // Route bot gains to #quantbot, all other gains (including lotto) to #gains
   const isBot = trade.source === 'bot';
   const webhookUrl = isBot 
