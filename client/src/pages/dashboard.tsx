@@ -6,10 +6,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { 
   TrendingUp, TrendingDown, Activity, Target, DollarSign, 
   BarChart3, PieChart, Zap, Clock, AlertTriangle, RefreshCw,
-  ArrowRight, Rocket, Brain, LineChart
+  ArrowRight, Rocket, Brain, LineChart as LineChartIcon
 } from "lucide-react";
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart as RechartsPie, Pie, Cell, Legend
 } from "recharts";
 import { Link } from "wouter";
@@ -130,7 +130,7 @@ export default function Dashboard() {
     </Card>
   );
 
-  const Ring3DChart = ({ 
+  const DonutChart = ({ 
     data: chartData, 
     title, 
     centerLabel,
@@ -149,46 +149,43 @@ export default function Dashboard() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="relative h-[200px]" style={{ perspective: '1000px' }}>
-          <div 
-            className="absolute inset-0"
-            style={{ 
-              transform: 'rotateX(55deg)',
-              transformStyle: 'preserve-3d'
-            }}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <RechartsPie>
-                <Pie
-                  data={chartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={70}
-                  paddingAngle={2}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={entry.color}
-                      style={{
-                        filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.4))'
-                      }}
-                    />
-                  ))}
-                </Pie>
-              </RechartsPie>
-            </ResponsiveContainer>
-          </div>
+        <div className="relative h-[200px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <RechartsPie>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={55}
+                outerRadius={80}
+                paddingAngle={3}
+                dataKey="value"
+                stroke="hsl(var(--background))"
+                strokeWidth={2}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--card))', 
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  color: 'hsl(var(--foreground))'
+                }}
+                formatter={(value: number, name: string) => [`${value}%`, name]}
+              />
+            </RechartsPie>
+          </ResponsiveContainer>
           {centerLabel && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <span className="text-xl font-bold text-foreground">{centerLabel}</span>
+              <span className="text-2xl font-bold text-foreground">{centerLabel}</span>
             </div>
           )}
         </div>
-        <div className="flex flex-wrap justify-center gap-3 mt-2">
+        <div className="flex flex-wrap justify-center gap-3 mt-3">
           {chartData.map((item, i) => (
             <div key={i} className="flex items-center gap-1.5 text-xs">
               <div 
@@ -291,30 +288,40 @@ export default function Dashboard() {
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Weekly Performance Bar Chart */}
+          {/* Weekly Performance Area Chart */}
           <Card className="glass-card border-border/50 lg:col-span-2">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                <TrendingUp className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
                 Weekly Performance
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[250px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data.weeklyPerformance} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
+                  <AreaChart data={data.weeklyPerformance} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="pnlGradientPos" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0.05}/>
+                      </linearGradient>
+                      <linearGradient id="pnlGradientNeg" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" vertical={false} />
                     <XAxis 
                       dataKey="day" 
                       className="text-muted-foreground" 
-                      stroke="currentColor"
+                      stroke="hsl(var(--muted-foreground))"
                       fontSize={12} 
                       tickLine={false}
                       axisLine={false}
                     />
                     <YAxis 
                       className="text-muted-foreground"
-                      stroke="currentColor"
+                      stroke="hsl(var(--muted-foreground))"
                       fontSize={12} 
                       tickLine={false}
                       axisLine={false}
@@ -330,26 +337,23 @@ export default function Dashboard() {
                       }}
                       formatter={(value: number) => [`$${value.toLocaleString()}`, 'P&L']}
                     />
-                    <Bar 
+                    <Area 
+                      type="monotone"
                       dataKey="pnl" 
-                      radius={[4, 4, 0, 0]}
-                      fill="#22d3ee"
-                    >
-                      {data.weeklyPerformance.map((entry, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={entry.pnl >= 0 ? '#22c55e' : '#ef4444'} 
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
+                      stroke="#22c55e"
+                      strokeWidth={2}
+                      fill="url(#pnlGradientPos)"
+                      dot={{ fill: '#22c55e', strokeWidth: 0, r: 4 }}
+                      activeDot={{ r: 6, fill: '#22c55e', stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+                    />
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
 
-          {/* Asset Allocation 3D Ring */}
-          <Ring3DChart 
+          {/* Asset Allocation Donut */}
+          <DonutChart 
             data={data.assetAllocation}
             title="Asset Allocation"
             centerLabel=""
@@ -359,8 +363,8 @@ export default function Dashboard() {
 
         {/* Second Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Win/Loss Ring */}
-          <Ring3DChart 
+          {/* Win/Loss Donut */}
+          <DonutChart 
             data={data.winLossRatio}
             title="Win/Loss Ratio"
             centerLabel={`${data.winRate.toFixed(0)}%`}
@@ -435,7 +439,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
               {[
                 { name: 'Auto-Lotto Bot', status: 'active', icon: Zap },
-                { name: 'Futures Bot', status: 'active', icon: LineChart },
+                { name: 'Futures Bot', status: 'active', icon: LineChartIcon },
                 { name: 'Crypto Bot', status: 'active', icon: Activity },
                 { name: 'Quant Engine', status: 'active', icon: Brain },
                 { name: 'Price Feed', status: 'active', icon: TrendingUp },
