@@ -164,7 +164,9 @@ const CRYPTO_PORTFOLIO_NAME = "Auto-Lotto Crypto";
 const PROP_FIRM_PORTFOLIO_NAME = "Prop Firm Mode"; // Conservative futures for funded evaluations
 const SYSTEM_USER_ID = "system-auto-trader";
 const STARTING_CAPITAL = 300; // $300 per portfolio
-const MAX_POSITION_SIZE = 100; // $100 max per trade for better utilization
+// 🎯 POSITION SIZING - Allow quality plays, not just ultra-cheap lottos
+// $150 max = can buy 1x $1.50 option or 2x $0.75 options
+const MAX_POSITION_SIZE = 150; // $150 max per trade for quality plays
 const FUTURES_MAX_POSITION_SIZE_PER_TRADE = 100;
 const CRYPTO_MAX_POSITION_SIZE = 100;
 
@@ -224,8 +226,11 @@ function isApiQuotaExhausted(): boolean {
 // 🛡️ POST-LOSS COOLDOWN SYSTEM - Prevents re-entry on losing symbols
 // ═══════════════════════════════════════════════════════════════════════════
 const LOSS_COOLDOWN_MS = 30 * 60 * 1000; // 30 minute cooldown after a loss
-const MAX_ENTRY_PREMIUM = 50; // $50 max premium per contract to limit losses
-const CONSERVATIVE_ENTRY_PREMIUM = 30; // $30 max for non-A-grade entries
+// 🎯 PREMIUM TIERS FOR $300 ACCOUNT - Think quality, not just cheap lottos!
+// Quality plays: $0.50-$1.50 options can turn into $2-5+ with good setups
+const MAX_ENTRY_PREMIUM = 150; // $1.50 max premium = $150/contract (allows quality plays)
+const CONSERVATIVE_ENTRY_PREMIUM = 100; // $1.00 max for B-grade entries ($100/contract)
+const LOTTO_ENTRY_PREMIUM = 50; // $0.50 max for speculative lotto plays
 
 interface SymbolCooldown {
   lastLossTime: number;
@@ -2255,11 +2260,21 @@ export async function runAutonomousBotScan(): Promise<void> {
           continue;
         }
         
-        // 🛡️ PREMIUM CAP - Limit max entry premium to control losses
-        const isHighGrade = decision.confidence >= 85;
-        const maxPremium = isHighGrade ? MAX_ENTRY_PREMIUM : CONSERVATIVE_ENTRY_PREMIUM;
+        // 🛡️ TIERED PREMIUM CAPS - Quality plays allowed, not just cheap lottos!
+        // A+/A grade (85%+): Up to $1.50 premium (quality setups)
+        // B+/B grade (65-84%): Up to $1.00 premium (solid plays)
+        // Below B: Up to $0.50 premium (lotto plays only)
+        let maxPremium: number;
+        if (decision.confidence >= 85) {
+          maxPremium = MAX_ENTRY_PREMIUM; // $150 = $1.50 option
+        } else if (decision.confidence >= 65) {
+          maxPremium = CONSERVATIVE_ENTRY_PREMIUM; // $100 = $1.00 option
+        } else {
+          maxPremium = LOTTO_ENTRY_PREMIUM; // $50 = $0.50 option (lottos)
+        }
+        
         if (opp.price > maxPremium / 100) { // Convert to dollars per contract
-          logger.info(`🛡️ [BOT] ${ticker}: Premium $${(opp.price * 100).toFixed(0)} > max $${maxPremium} - SKIPPING`);
+          logger.info(`🛡️ [BOT] ${ticker}: Premium $${(opp.price * 100).toFixed(0)} > max $${maxPremium} for grade ${decision.confidence.toFixed(0)}% - SKIPPING`);
           continue;
         }
         

@@ -36,7 +36,8 @@ Key features include:
     - **Entry thresholds**: Min 65% confidence required (B-grade minimum), 70%+ for batch entries, 85%+ for immediate execution
     - **Confluence validation**: MIN_CONFLUENCE_SCORE = 55 (raised from 35), priority ticker boost reduced from +15 to +5
     - **Post-loss cooldowns**: 30 min after losses, symbol blacklisting for repeat losers
-    - **Premium caps**: $50 max for A+ grade, $30 max for lower grades
+    - **Tiered premium caps**: A+/A grade = $1.50 max, B+/B grade = $1.00 max, below B = $0.50 max (supports quality plays, not just cheap lottos)
+    - **Position sizing**: $150 max per trade (can buy 1x $1.50 option or 2-3x cheaper options)
     - **Discord alerts**: B-grade or better only, max $2.00 premium ($1000 for 5 contracts), rate limited 3/min with 20s spacing
 
 ## External Dependencies
