@@ -50,8 +50,11 @@ Key features include:
       - **8-14 DTE**: Wider stops (35% soft, 55% hard) - hold through volatility
       - **15-30 DTE**: Swing trade mode (40% soft, 65% hard) - thesis revalidation
       - **30+ DTE**: LEAPS mode (50% soft, 75% hard) - very wide stops
-      - Market context: Skip exit if SPY down and thesis still valid
-      - Soft stop warns but holds, hard stop forces exit
+      - **Thesis revalidation** (for 8+ DTE): RSI not overbought/oversold AND price vs 10-day SMA AND 3-day momentum (all must align)
+      - **Soft stop override** requires ALL: `allowMarketOverride=true` AND `SPY down >0.5%` AND `thesis valid`
+      - If thesis invalid → exit immediately regardless of market
+      - If market not down → exit on soft stop regardless of thesis
+      - Hard stop forces exit unconditionally (no overrides)
 
 ## External Dependencies
 
