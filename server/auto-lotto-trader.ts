@@ -2486,16 +2486,12 @@ export async function monitorLottoPositions(): Promise<void> {
         daysToExpiry = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       }
       
-      // Compute highest price inline using max of current, tracked, and entry (for proper trailing stop)
-      const trackedHigh = pos.highestPriceReached || pos.entryPrice;
-      const highestPrice = Math.max(pos.currentPrice, trackedHigh);
-      
-      // Persist new high for future iterations
-      if (highestPrice > trackedHigh) {
-        await storage.updatePaperPosition(pos.id, {
-          highestPriceReached: highestPrice
-        });
-      }
+    // Compute highest price inline using max of current and entry
+    // Note: highestPriceReached is not yet in the DB schema for positions, 
+    // so we use current price for trailing stops in-memory for now
+    const highestPrice = Math.max(pos.currentPrice || pos.entryPrice, pos.entryPrice);
+    
+    // Build confluence data from available market info
       
       // Build confluence data from available market info
       // Note: RSI/momentum data can be added when available from real-time feeds

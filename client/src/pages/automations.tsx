@@ -38,10 +38,16 @@ import {
   Rocket,
   ExternalLink,
   Save,
-  RotateCcw
+  RotateCcw,
+  Sparkles,
+  ArrowRight,
+  Brain,
+  Calculator,
+  Search
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
+import { HeroProductPanel } from "@/components/hero-product-panel";
 
 interface CryptoBotData {
   status: 'active' | 'inactive';
@@ -369,6 +375,11 @@ export default function AutomationsPage() {
 
   const { quantBot, optionsFlow, socialSentiment, weeklyReport: reportSettings } = status || {};
 
+  if (activeTab === "research") {
+    setLocation("/trade-ideas");
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-slate-900/20">
       <div className="container max-w-7xl mx-auto py-8 px-4 space-y-8">
@@ -423,6 +434,14 @@ export default function AutomationsPage() {
                 Overview
               </TabsTrigger>
               <TabsTrigger 
+                value="research" 
+                data-testid="tab-research" 
+                className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Research Hub
+              </TabsTrigger>
+              <TabsTrigger 
                 value="auto-lotto" 
                 data-testid="tab-auto-lotto" 
                 className="relative rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
@@ -475,6 +494,114 @@ export default function AutomationsPage() {
           </div>
 
         <TabsContent value="overview" className="space-y-6">
+          {/* Research Convergence Preview */}
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2 bg-slate-900/60 border-slate-700/50 overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-cyan-400" />
+                      Research Convergence
+                    </CardTitle>
+                    <CardDescription>Multi-engine intelligence output</CardDescription>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10"
+                    onClick={() => setLocation("/trade-ideas")}
+                  >
+                    View All Ideas
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col md:flex-row items-center gap-8 py-4">
+                  <div className="w-full md:w-1/2">
+                    <HeroProductPanel />
+                  </div>
+                  <div className="w-full md:w-1/2 space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button 
+                        variant="outline" 
+                        className="h-auto py-3 flex-col items-start gap-1 border-slate-700/50 hover:border-cyan-500/30"
+                        onClick={() => scanQuantBot.mutate()}
+                        disabled={scanQuantBot.isPending}
+                      >
+                        <Calculator className="w-4 h-4 text-blue-400" />
+                        <span className="text-xs font-semibold">Quant Scan</span>
+                        <span className="text-[10px] text-muted-foreground">Mean-reversion signals</span>
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="h-auto py-3 flex-col items-start gap-1 border-slate-700/50 hover:border-cyan-500/30"
+                        onClick={() => scanOptionsFlow.mutate()}
+                        disabled={scanOptionsFlow.isPending}
+                      >
+                        <Activity className="w-4 h-4 text-cyan-400" />
+                        <span className="text-xs font-semibold">Flow Scan</span>
+                        <span className="text-[10px] text-muted-foreground">Institutional activity</span>
+                      </Button>
+                    </div>
+                    <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/50 space-y-3">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground uppercase tracking-wider">Engine Status</span>
+                        <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-400">OPTIMIZED</Badge>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm font-mono">
+                          <span className="text-muted-foreground">Active Trades</span>
+                          <span className="text-foreground">{status?.quantBot?.todayTrades || 0}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm font-mono">
+                          <span className="text-muted-foreground">Last Signal</span>
+                          <span className="text-cyan-400 font-bold">
+                            {status?.quantBot?.lastScan ? format(new Date(status.quantBot.lastScan), "HH:mm:ss") : "N/A"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-900/60 border-slate-700/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Bot className="w-5 h-5 text-purple-400" />
+                  AI Intelligence
+                </CardTitle>
+                <CardDescription>Custom research generation</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Trigger on-demand analysis for specific tickers using our multi-factor engine.
+                </p>
+                <div className="space-y-2">
+                  <Button 
+                    variant="secondary" 
+                    className="w-full justify-between"
+                    onClick={() => setLocation("/trade-ideas?analyze=true")}
+                  >
+                    Analyze New Ticker
+                    <Brain className="w-4 h-4" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-between border-slate-700/50"
+                    onClick={() => setLocation("/market-scanner")}
+                  >
+                    Open Market Scanner
+                    <Search className="w-4 h-4 text-muted-foreground" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Automation Cards - Consistent cyan palette with subtle differentiation */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {/* Quant Bot Card */}
