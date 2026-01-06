@@ -462,10 +462,10 @@ function scoreStrikeCandidate(
     : ((stockPrice - opt.strike) / stockPrice) * 100;
   
   // HARD FILTERS - must pass all
-  if (midPrice < 0.05 || midPrice > 10.00) return null; // Price range for lottos (relaxed)
-  if (absDelta < 0.005 || absDelta > 0.50) return null; // Delta range (relaxed)
-  if (strikeOTMPercent > 50 || strikeOTMPercent < 0) return null; // Max 50% OTM (relaxed)
-  if (spreadPercent > 0.85) return null; // Max 85% spread (relaxed)
+  if (midPrice < 0.01 || midPrice > 15.00) return null; // Price range for lottos (ultra-relaxed for penny momentum)
+  if (absDelta < 0.001 || absDelta > 0.60) return null; // Delta range (ultra-relaxed)
+  if (strikeOTMPercent > 100 || strikeOTMPercent < -10) return null; // Max 100% OTM / 10% ITM (ultra-relaxed)
+  if (spreadPercent > 0.95) return null; // Max 95% spread (ultra-relaxed)
   
   // SCORING (0-100 for each factor)
   
@@ -552,7 +552,7 @@ const DAY_TRADE_TICKERS = [
   // Major indices & leveraged ETFs
   'SPY', 'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'ARKK', 'TQQQ', 'SOXL',
   // Mega-cap tech
-  'AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TSLA', 'AMD', 'AVGO', 'NFLX',
+  'AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TSLA', 'AMD', 'AVGO', 'NFLX', 'HOOD', 'SOFI',
   // Semiconductors
   'ARM', 'SMCI', 'MRVL', 'QCOM', 'MU',
   // AI & Growth
