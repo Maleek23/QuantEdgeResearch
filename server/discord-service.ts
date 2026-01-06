@@ -639,11 +639,19 @@ export async function sendFlowAlertToDiscord(alert: {
     const lottoTag = alert.isLotto ? '🎰 ' : '';
     const color = isCall ? 0x22c55e : 0xef4444;
     
-    // PREMIUM FILTER for Flow Alerts
-    if (alert.entryPrice > 20.00 && !alert.grade.includes('A+')) {
-      logger.info(`📊 [FLOW-PREMIUM-FILTER] Skipping expensive flow alert: ${alert.symbol} @ $${alert.entryPrice.toFixed(2)}`);
-      return;
-    }
+  // 🚫 QUALITY GATE: Only send HIGH-QUALITY flow alerts (A- to A+)
+  // User requested to stop spamming low-grade alerts
+  const isHighGrade = alert.grade.startsWith('A');
+  if (!isHighGrade && !alert.isLotto) {
+    logger.info(`📊 [FLOW-QUALITY-GATE] Skipping low-grade flow alert: ${alert.symbol} (${alert.grade})`);
+    return;
+  }
+  
+  // PREMIUM FILTER for Flow Alerts
+  if (alert.entryPrice > 20.00 && !alert.grade.includes('A+')) {
+    logger.info(`📊 [FLOW-PREMIUM-FILTER] Skipping expensive flow alert: ${alert.symbol} @ $${alert.entryPrice.toFixed(2)}`);
+    return;
+  }
 
     // Format expiry date nicely (e.g., "01/16" or "04/17")
     let expiryFormatted = alert.expiryDate;
@@ -729,6 +737,12 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
   const qualityIdeas = ideas.filter(idea => {
     // Must be an OPTION (not shares, penny stocks, or crypto)
     if (idea.assetType !== 'option') {
+      return false;
+    }
+
+    // QUALITY GATE: Only send HIGH-QUALITY ideas to Discord (A- or better)
+    const isHighGrade = idea.probabilityBand?.startsWith('A');
+    if (!isHighGrade && !idea.isLottoPlay) {
       return false;
     }
 
