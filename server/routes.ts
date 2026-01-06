@@ -13803,6 +13803,130 @@ CONSTRAINTS:
     }
   });
 
+  // POST /api/auto-lotto-bot/daily-review - Send end-of-day trading review to Discord
+  app.post("/api/auto-lotto-bot/daily-review", isAuthenticated, async (req: any, res: Response) => {
+    try {
+      const userId = req.session?.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.subscriptionTier !== 'admin') {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const { sendDailyTradingReviewToDiscord, sendNextDayOutlookToDiscord } = await import("./discord-service");
+      const { getOpenPositions, getClosedPositions } = await import("./paper-trading-service");
+      
+      // Find the Auto-Lotto Options portfolio
+      const portfolios = await storage.getAllPaperPortfolios();
+      const optionsPortfolio = portfolios.find((p: { name: string }) => p.name === "Auto-Lotto Options");
+      
+      if (!optionsPortfolio) {
+        return res.status(404).json({ error: "Auto-Lotto Options portfolio not found" });
+      }
+      
+      // Get today's date in CT timezone
+      const ctNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+      const dateStr = ctNow.toISOString().split('T')[0];
+      
+      // Get all positions
+      const openPositions = await getOpenPositions(optionsPortfolio.id);
+      const closedPositions = await getClosedPositions(optionsPortfolio.id);
+      
+      // Filter to today's closed trades
+      const todaysClosed = closedPositions.filter(p => {
+        if (!p.exitTime) return false;
+        return p.exitTime.startsWith(dateStr);
+      });
+      
+      // Calculate stats
+      const wins = todaysClosed.filter(p => (p.realizedPnL || 0) > 0).length;
+      const losses = todaysClosed.filter(p => (p.realizedPnL || 0) < 0).length;
+      const realizedPnL = todaysClosed.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
+      const unrealizedPnL = openPositions.reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0);
+      
+      // Find best and worst trades
+      const sortedByPnl = [...todaysClosed].sort((a, b) => (b.realizedPnLPercent || 0) - (a.realizedPnLPercent || 0));
+      const bestTrade = sortedByPnl.length > 0 && (sortedByPnl[0].realizedPnLPercent || 0) > 0 
+        ? { symbol: sortedByPnl[0].symbol, pnlPercent: sortedByPnl[0].realizedPnLPercent || 0 }
+        : null;
+      const worstTrade = sortedByPnl.length > 0 && (sortedByPnl[sortedByPnl.length - 1].realizedPnLPercent || 0) < 0
+        ? { symbol: sortedByPnl[sortedByPnl.length - 1].symbol, pnlPercent: sortedByPnl[sortedByPnl.length - 1].realizedPnLPercent || 0 }
+        : null;
+      
+      // Build review data
+      const reviewData = {
+        date: dateStr,
+        totalTrades: todaysClosed.length,
+        wins,
+        losses,
+        openPositions: openPositions.length,
+        realizedPnL,
+        unrealizedPnL,
+        bestTrade,
+        worstTrade,
+        closedTrades: todaysClosed.map(p => ({
+          symbol: p.symbol,
+          pnlPercent: p.realizedPnLPercent || 0,
+          optionType: p.optionType || undefined,
+          strikePrice: p.strikePrice || undefined
+        }))
+      };
+      
+      // Send daily review
+      const reviewSent = await sendDailyTradingReviewToDiscord(reviewData);
+      
+      // Generate next-day outlook from recent trade ideas
+      const allIdeas = await storage.getAllTradeIdeas();
+      const recentIdeas = allIdeas
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+        .slice(0, 20);
+      const optionIdeas = recentIdeas
+        .filter(i => i.assetType === 'option' && i.strikePrice && i.expiryDate)
+        .filter(i => {
+          const signals = i.qualitySignals?.length || 0;
+          const conf = i.confidenceScore || 0;
+          return signals >= 2 && conf >= 55;
+        })
+        .slice(0, 5);
+      
+      const tomorrowDate = new Date(ctNow);
+      tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+      const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
+      
+      const outlookData = {
+        date: tomorrowStr,
+        topPicks: optionIdeas.map(i => ({
+          symbol: i.symbol,
+          optionType: i.optionType || 'call',
+          strikePrice: i.strikePrice || 0,
+          expiryDate: i.expiryDate || '',
+          reason: (i.keyLevels?.slice(0, 50) || i.aiAnalysis?.slice(0, 50) || 'Technical setup') as string,
+          grade: i.qualitySignals?.length && i.qualitySignals.length >= 5 ? 'A' : 
+                 i.qualitySignals?.length && i.qualitySignals.length >= 3 ? 'B+' : 'B'
+        })),
+        marketNotes: openPositions.length > 0 
+          ? `Currently holding ${openPositions.length} open position(s) overnight.`
+          : 'No overnight positions. Ready for fresh entries tomorrow.'
+      };
+      
+      const outlookSent = await sendNextDayOutlookToDiscord(outlookData);
+      
+      logger.info(`📊 [BOT] Daily review sent: ${reviewSent}, Outlook sent: ${outlookSent}`);
+      
+      res.json({
+        success: true,
+        reviewSent,
+        outlookSent,
+        review: reviewData,
+        outlook: outlookData,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      logger.error("Error sending daily trading review", { error });
+      res.status(500).json({ error: "Failed to send daily review" });
+    }
+  });
+
   // ==========================================
   // WALLET TRACKER API ENDPOINTS
   // ==========================================

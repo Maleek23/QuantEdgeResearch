@@ -2167,3 +2167,200 @@ export async function sendReportNotificationToDiscord(report: {
     logger.error('❌ Failed to send Discord report notification:', error);
   }
 }
+
+/**
+ * Send End-of-Day Trading Review to Discord
+ * Summarizes the day's trading activity with P&L, wins/losses, and key trades
+ */
+export async function sendDailyTradingReviewToDiscord(review: {
+  date: string;
+  totalTrades: number;
+  wins: number;
+  losses: number;
+  openPositions: number;
+  realizedPnL: number;
+  unrealizedPnL: number;
+  bestTrade?: { symbol: string; pnlPercent: number } | null;
+  worstTrade?: { symbol: string; pnlPercent: number } | null;
+  closedTrades: Array<{ symbol: string; pnlPercent: number; optionType?: string; strikePrice?: number }>;
+}): Promise<boolean> {
+  if (DISCORD_DISABLED) {
+    logger.warn('⚠️ Discord is DISABLED - skipping daily trading review');
+    return false;
+  }
+  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_GAINS;
+  
+  if (!webhookUrl) {
+    logger.info('⚠️ DISCORD_WEBHOOK_GAINS not configured - skipping daily trading review');
+    return false;
+  }
+  
+  try {
+    const winRate = review.totalTrades > 0 ? (review.wins / review.totalTrades * 100) : 0;
+    const totalPnL = review.realizedPnL + review.unrealizedPnL;
+    const isPositive = totalPnL >= 0;
+    const color = isPositive ? 0x22c55e : 0xef4444;
+    
+    const closedTradesList = review.closedTrades.slice(0, 5).map(t => {
+      const pnlEmoji = t.pnlPercent >= 0 ? '✅' : '❌';
+      const pnlStr = t.pnlPercent >= 0 ? `+${t.pnlPercent.toFixed(1)}%` : `${t.pnlPercent.toFixed(1)}%`;
+      const optionInfo = t.optionType ? ` ${t.optionType.toUpperCase()} $${t.strikePrice}` : '';
+      return `${pnlEmoji} ${t.symbol}${optionInfo}: ${pnlStr}`;
+    }).join('\n') || 'No closed trades today';
+    
+    const embed: DiscordEmbed = {
+      title: `📊 Daily Trading Review - ${review.date}`,
+      description: `End-of-day summary for Auto-Lotto Bot paper trading.`,
+      color,
+      fields: [
+        {
+          name: '📈 Day Summary',
+          value: `**Trades:** ${review.totalTrades} | **Wins:** ${review.wins} | **Losses:** ${review.losses}\n**Win Rate:** ${winRate.toFixed(1)}%`,
+          inline: false
+        },
+        {
+          name: '💰 P&L',
+          value: `**Realized:** ${review.realizedPnL >= 0 ? '+' : ''}$${review.realizedPnL.toFixed(2)}\n**Unrealized:** ${review.unrealizedPnL >= 0 ? '+' : ''}$${review.unrealizedPnL.toFixed(2)}\n**Total:** ${totalPnL >= 0 ? '+' : ''}$${totalPnL.toFixed(2)}`,
+          inline: true
+        },
+        {
+          name: '📂 Open Positions',
+          value: String(review.openPositions),
+          inline: true
+        },
+        {
+          name: '🏆 Closed Trades',
+          value: closedTradesList,
+          inline: false
+        }
+      ],
+      footer: {
+        text: 'Quant Edge Labs • Auto-Lotto Bot • Paper Trading Only'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    if (review.bestTrade) {
+      embed.fields!.push({
+        name: '🥇 Best Trade',
+        value: `${review.bestTrade.symbol}: +${review.bestTrade.pnlPercent.toFixed(1)}%`,
+        inline: true
+      });
+    }
+    
+    if (review.worstTrade) {
+      embed.fields!.push({
+        name: '📉 Worst Trade',
+        value: `${review.worstTrade.symbol}: ${review.worstTrade.pnlPercent.toFixed(1)}%`,
+        inline: true
+      });
+    }
+    
+    const dayEmoji = isPositive ? '🟢' : '🔴';
+    const message: DiscordMessage = {
+      content: `${dayEmoji} **END OF DAY REVIEW** │ ${review.date} │ ${isPositive ? '+' : ''}$${totalPnL.toFixed(2)} │ ${CHANNEL_HEADERS.GAINS}`,
+      embeds: [embed]
+    };
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    });
+    
+    if (response.ok) {
+      logger.info(`✅ Discord daily trading review sent for ${review.date}`);
+      return true;
+    } else {
+      logger.error(`❌ Discord daily review webhook failed: ${response.status}`);
+      return false;
+    }
+  } catch (error) {
+    logger.error('❌ Failed to send Discord daily trading review:', error);
+    return false;
+  }
+}
+
+/**
+ * Send Next-Day Options Outlook to Discord
+ * Highlights options to watch for the next trading session
+ */
+export async function sendNextDayOutlookToDiscord(outlook: {
+  date: string;
+  topPicks: Array<{
+    symbol: string;
+    optionType: string;
+    strikePrice: number;
+    expiryDate: string;
+    reason: string;
+    grade: string;
+  }>;
+  marketNotes?: string;
+}): Promise<boolean> {
+  if (DISCORD_DISABLED) {
+    logger.warn('⚠️ Discord is DISABLED - skipping next-day outlook');
+    return false;
+  }
+  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_GAINS;
+  
+  if (!webhookUrl) {
+    logger.info('⚠️ DISCORD_WEBHOOK_GAINS not configured - skipping next-day outlook');
+    return false;
+  }
+  
+  try {
+    const picksList = outlook.topPicks.slice(0, 5).map((pick, i) => {
+      const gradeEmoji = pick.grade.includes('A') ? '🔥' : pick.grade.includes('B') ? '⭐' : '📌';
+      return `${i + 1}. ${gradeEmoji} **${pick.symbol}** ${pick.optionType.toUpperCase()} $${pick.strikePrice} (${pick.expiryDate})\n   └ ${pick.reason} [${pick.grade}]`;
+    }).join('\n\n') || 'No picks generated for tomorrow';
+    
+    const embed: DiscordEmbed = {
+      title: `🔮 Options to Watch - ${outlook.date}`,
+      description: `Top opportunities for the next trading session based on technical signals and flow analysis.`,
+      color: 0x8b5cf6, // Purple
+      fields: [
+        {
+          name: '🎯 Top Picks',
+          value: picksList,
+          inline: false
+        }
+      ],
+      footer: {
+        text: 'Quant Edge Labs • Research Only • Not Financial Advice'
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    if (outlook.marketNotes) {
+      embed.fields!.push({
+        name: '📝 Market Notes',
+        value: outlook.marketNotes,
+        inline: false
+      });
+    }
+    
+    const message: DiscordMessage = {
+      content: `🔮 **TOMORROW'S OPTIONS OUTLOOK** │ ${outlook.date} │ ${outlook.topPicks.length} picks │ ${CHANNEL_HEADERS.GAINS}`,
+      embeds: [embed]
+    };
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    });
+    
+    if (response.ok) {
+      logger.info(`✅ Discord next-day outlook sent for ${outlook.date}`);
+      return true;
+    } else {
+      logger.error(`❌ Discord next-day outlook webhook failed: ${response.status}`);
+      return false;
+    }
+  } catch (error) {
+    logger.error('❌ Failed to send Discord next-day outlook:', error);
+    return false;
+  }
+}
