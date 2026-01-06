@@ -229,6 +229,7 @@ const LOSS_COOLDOWN_MS = 30 * 60 * 1000; // 30 minute cooldown after a loss
 // 🎯 PREMIUM TIERS FOR $300 ACCOUNT - Think quality, not just cheap lottos!
 // Quality plays: $0.50-$1.50 options can turn into $2-5+ with good setups
 const MAX_ENTRY_PREMIUM = 150; // $1.50 max premium = $150/contract (allows quality plays)
+const PRIORITY_TICKER_PREMIUM = 250; // $2.50 max for high-conviction priority tickers (AMZN, NVDA, etc.)
 const CONSERVATIVE_ENTRY_PREMIUM = 100; // $1.00 max for B-grade entries ($100/contract)
 const LOTTO_ENTRY_PREMIUM = 50; // $0.50 max for speculative lotto plays
 
@@ -2295,11 +2296,19 @@ export async function runAutonomousBotScan(): Promise<void> {
         }
         
         // 🛡️ TIERED PREMIUM CAPS - Quality plays allowed, not just cheap lottos!
+        // Priority tickers (AMZN, NVDA, etc) with 75%+ confidence: Up to $2.50 premium
         // A+/A grade (85%+): Up to $1.50 premium (quality setups)
         // B+/B grade (65-84%): Up to $1.00 premium (solid plays)
         // Below B: Up to $0.50 premium (lotto plays only)
+        // Normalize to uppercase for case-insensitive comparison (tickers may be lowercase in loop)
+        const isPriorityTicker = BASE_PRIORITY_TICKERS.includes(ticker.toUpperCase());
         let maxPremium: number;
-        if (decision.confidence >= 85) {
+        
+        // 🚀 PRIORITY TICKER OVERRIDE: Allow higher premiums on proven names
+        if (isPriorityTicker && decision.confidence >= 75) {
+          maxPremium = PRIORITY_TICKER_PREMIUM; // $250 = $2.50 option for quality priority tickers
+          logger.info(`🌟 [BOT] ${ticker}: Priority ticker with ${decision.confidence.toFixed(0)}% confidence - premium cap raised to $2.50`);
+        } else if (decision.confidence >= 85) {
           maxPremium = MAX_ENTRY_PREMIUM; // $150 = $1.50 option
         } else if (decision.confidence >= 65) {
           maxPremium = CONSERVATIVE_ENTRY_PREMIUM; // $100 = $1.00 option
@@ -2308,7 +2317,7 @@ export async function runAutonomousBotScan(): Promise<void> {
         }
         
         if (opp.price > maxPremium / 100) { // Convert to dollars per contract
-          logger.info(`🛡️ [BOT] ${ticker}: Premium $${(opp.price * 100).toFixed(0)} > max $${maxPremium} for grade ${decision.confidence.toFixed(0)}% - SKIPPING`);
+          logger.info(`🛡️ [BOT] ${ticker}: Premium $${(opp.price * 100).toFixed(0)} > max $${maxPremium} for grade ${decision.confidence.toFixed(0)}%${isPriorityTicker ? ' (priority)' : ''} - SKIPPING`);
           continue;
         }
         

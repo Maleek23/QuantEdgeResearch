@@ -243,7 +243,8 @@ export default function TradeDeskPage() {
   // Filter state for new filter toolbar
   const [expiryFilter, setExpiryFilter] = useState<string>('all');
   const [assetTypeFilter, setAssetTypeFilter] = useState<string>('all');
-  const [gradeFilter, setGradeFilter] = useState<string>('all');
+  // Default to 'quality' which excludes D/F tier ideas (user requested no more D ratings)
+  const [gradeFilter, setGradeFilter] = useState<string>('quality');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('priority');
   const [symbolSearch, setSymbolSearch] = useState<string>('');
@@ -1015,12 +1016,19 @@ export default function TradeDeskPage() {
     }
 
     // 2. Grade filter - NOW uses signal-based grading (matches Discord cards)
+    // 'quality' = A+, A, B, C (excludes D/F) - default for cleaner trade desk
     if (gradeFilter !== 'all') {
       filtered = filtered.filter(idea => {
         if (gradeFilter === 'LOTTO') return idea.isLottoPlay;
         
         // Use signal-based grade for consistency with Discord cards
         const signalGrade = getSignalGrade(idea.qualitySignals);
+        
+        // Quality filter: Show only A+, A, B, C - exclude D and F grades
+        if (gradeFilter === 'quality') {
+          return signalGrade.grade === 'A+' || signalGrade.grade === 'A' || 
+                 signalGrade.grade === 'B' || signalGrade.grade === 'C';
+        }
         if (gradeFilter === 'A') return signalGrade.grade === 'A+' || signalGrade.grade === 'A';
         if (gradeFilter === 'B') return signalGrade.grade === 'B';
         if (gradeFilter === 'C') return signalGrade.grade === 'C';
