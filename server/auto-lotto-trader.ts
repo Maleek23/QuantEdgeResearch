@@ -2126,6 +2126,7 @@ async function executeImmediateTrade(
       
       // Send Discord notification with full analysis
       try {
+        const isSmallAcct = await isSmallAccountPortfolioAsync(portfolio.id);
         await sendBotTradeEntryToDiscord({
           symbol: opp.symbol,
           assetType: 'option',
@@ -2140,7 +2141,7 @@ async function executeImmediateTrade(
           signals: decision.signals,
           confidence: decision.confidence,
           riskRewardRatio: ideaData.riskRewardRatio,
-          isSmallAccount: isSmallAccountPortfolio(portfolio.id),
+          isSmallAccount: isSmallAcct,
         });
         logger.info(`🤖 [BOT] 📱✅ Discord notification SENT for ${opp.symbol}`);
       } catch (discordError) {
@@ -2608,6 +2609,7 @@ export async function runAutonomousBotScan(): Promise<void> {
         // Send Discord notification with full analysis
         try {
           logger.info(`🤖 [BOT] 📱 Sending Discord ENTRY notification for ${opp.symbol}...`);
+          const isSmallAcct = await isSmallAccountPortfolioAsync(portfolio.id);
           await sendBotTradeEntryToDiscord({
             symbol: opp.symbol,
             assetType: 'option',
@@ -2622,7 +2624,7 @@ export async function runAutonomousBotScan(): Promise<void> {
             signals: decision.signals,
             confidence: decision.confidence,
             riskRewardRatio: ideaData.riskRewardRatio,
-            isSmallAccount: isSmallAccountPortfolio(portfolio.id),
+            isSmallAccount: isSmallAcct,
           });
           logger.info(`🤖 [BOT] 📱✅ Discord ENTRY notification SENT for ${opp.symbol}`);
         } catch (discordError) {
@@ -2697,6 +2699,7 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
       
       // Send Discord notification with full analysis
       try {
+        const isSmallAcct = await isSmallAccountPortfolioAsync(portfolio.id);
         await sendBotTradeEntryToDiscord({
           symbol: idea.symbol,
           assetType: idea.assetType || 'option',
@@ -2711,7 +2714,7 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
           signals: idea.qualitySignals as string[] | null,
           confidence: idea.confidenceScore,
           riskRewardRatio: idea.riskRewardRatio,
-          isSmallAccount: isSmallAccountPortfolio(portfolio.id),
+          isSmallAccount: isSmallAcct,
         });
         logger.info(`🎰 [LOTTO-EXEC] 📱 Discord notification sent`);
       } catch (discordError) {
