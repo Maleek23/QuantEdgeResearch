@@ -19,6 +19,11 @@ const PENNY_STOCK_TICKERS = [
   'NVAX', 'SRNE', 'BNGO', 'NKLA', 'GOEV', 'FFIE', 'MULN'
 ];
 
+// High-conviction Semiconductor & Storage tickers (AI Infrastructure)
+const SEMI_STORAGE_TICKERS = [
+  'NVDA', 'AMD', 'MU', 'WDC', 'LRCX', 'AMAT', 'ASML', 'TSM', 'AVGO', 'SMCI', 'ARM', 'STX'
+];
+
 /**
  * Automated Daily Idea Generation Service
  * Generates fresh AI trade ideas every weekday at 9:30 AM CT (market open)
