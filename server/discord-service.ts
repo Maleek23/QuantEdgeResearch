@@ -2189,10 +2189,10 @@ export async function sendDailyTradingReviewToDiscord(review: {
     return false;
   }
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_GAINS;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_GAINS;
   
   if (!webhookUrl) {
-    logger.info('⚠️ DISCORD_WEBHOOK_GAINS not configured - skipping daily trading review');
+    logger.info('⚠️ DISCORD_WEBHOOK_QUANTFLOOR not configured - skipping daily trading review');
     return false;
   }
   
@@ -2303,10 +2303,10 @@ export async function sendNextDayOutlookToDiscord(outlook: {
     return false;
   }
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_GAINS;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_GAINS;
   
   if (!webhookUrl) {
-    logger.info('⚠️ DISCORD_WEBHOOK_GAINS not configured - skipping next-day outlook');
+    logger.info('⚠️ DISCORD_WEBHOOK_QUANTFLOOR not configured - skipping next-day outlook');
     return false;
   }
   
