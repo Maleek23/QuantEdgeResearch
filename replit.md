@@ -78,6 +78,12 @@ Key features include:
       - Discord notifications include Exit Intelligence context (reason + confidence %)
       - Logs urgency levels: 🚨 immediate, ⚠️ soon, 👀 watch, 📊 hold
       - Falls back to existing dynamic exit logic for lower-confidence scenarios
+    - **Theta Protection System (Jan 2026)**:
+      - **GENERAL_MIN_DTE = 3**: Regular accounts skip options with < 3 DTE
+      - **SMALL_ACCOUNT_MIN_DTE = 5**: Small account ($150) requires 5+ DTE to avoid theta crush
+      - **Pre-Entry Exit Intel Check**: Before executing any lotto trade, simulates position and validates via `analyzePosition()` - rejects if `exitWindow === 'soon'` or `'immediate'`
+      - **Scan Loop Protection**: Autonomous bot scan skips any option with DTE below threshold
+      - Prevents the "enter and immediately flag for exit" scenario that wasted money on theta-crushed plays
 
 ## External Dependencies
 
