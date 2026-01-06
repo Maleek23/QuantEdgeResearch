@@ -2260,6 +2260,40 @@ export async function runAutonomousBotScan(): Promise<void> {
           continue;
         }
         
+        // ═══════════════════════════════════════════════════════════════════
+        // 📋 PRO TRADER CHECKLIST - What the best traders check every trade
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // ✅ CHECK 1: EARNINGS RISK - Skip if earnings within 3 days
+        try {
+          const { shouldBlockSymbol } = await import('./earnings-service');
+          const isBlocked = await shouldBlockSymbol(ticker, false);
+          if (isBlocked) {
+            logger.info(`📅 [BOT] ${ticker}: SKIPPED - earnings within 2 days (high IV crush risk)`);
+            continue;
+          }
+        } catch (e) {
+          // Earnings service not available, continue
+        }
+        
+        // ✅ CHECK 2: LIQUIDITY - Bid-ask spread must be tight (<20% of premium)
+        // Guard against zero/undefined price to prevent division errors
+        if (!opp.price || opp.price <= 0) {
+          logger.info(`💧 [BOT] ${ticker}: SKIPPED - invalid price (${opp.price})`);
+          continue;
+        }
+        const bidAskSpreadPct = (opp.bidAskSpread || 0) / opp.price * 100;
+        if (bidAskSpreadPct > 20) {
+          logger.info(`💧 [BOT] ${ticker}: SKIPPED - bid-ask spread too wide (${bidAskSpreadPct.toFixed(0)}% > 20%)`);
+          continue;
+        }
+        
+        // ✅ CHECK 3: VOLUME/OPEN INTEREST - Must have sufficient liquidity
+        if (opp.openInterest < 50 || opp.volume < 10) {
+          logger.info(`📊 [BOT] ${ticker}: SKIPPED - low liquidity (OI=${opp.openInterest}, Vol=${opp.volume})`);
+          continue;
+        }
+        
         // 🛡️ TIERED PREMIUM CAPS - Quality plays allowed, not just cheap lottos!
         // A+/A grade (85%+): Up to $1.50 premium (quality setups)
         // B+/B grade (65-84%): Up to $1.00 premium (solid plays)

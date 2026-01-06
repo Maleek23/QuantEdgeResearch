@@ -39,6 +39,11 @@ Key features include:
     - **Tiered premium caps**: A+/A grade = $1.50 max, B+/B grade = $1.00 max, below B = $0.50 max (supports quality plays, not just cheap lottos)
     - **Position sizing**: $150 max per trade (can buy 1x $1.50 option or 2-3x cheaper options)
     - **Discord alerts**: B-grade or better only, max $2.00 premium ($1000 for 5 contracts), rate limited 3/min with 20s spacing
+    - **Pro Trader Checklist (Jan 2026)**: 
+      - Earnings check: Skip trades within 3 days of earnings (IV crush risk)
+      - Liquidity check: Bid-ask spread must be <20% of premium
+      - Volume/OI check: Min 50 open interest, 10 volume
+      - Option direction fix: All options are `direction='long'` (we BUY, not sell)
 
 ## External Dependencies
 

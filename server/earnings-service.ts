@@ -109,7 +109,8 @@ async function getEarningsData(): Promise<EarningsEvent[]> {
 export async function hasUpcomingEarnings(symbol: string): Promise<boolean> {
   const earningsData = await getEarningsData();
   const now = new Date();
-  const twoDaysFromNow = addDays(now, 2);
+  // 🛡️ Extended from 2 to 3 days to avoid IV crush risk before earnings
+  const threeDaysFromNow = addDays(now, 3);
 
   const symbolUpper = symbol.toUpperCase();
   
@@ -118,9 +119,9 @@ export async function hasUpcomingEarnings(symbol: string): Promise<boolean> {
       try {
         const reportDate = parseISO(event.reportDate);
         
-        // Check if earnings are within next 2 days
-        if (isAfter(reportDate, now) && isBefore(reportDate, twoDaysFromNow)) {
-          logger.info(`📅 EARNINGS ALERT: ${symbol} has earnings on ${event.reportDate} (within 2 days)`);
+        // Check if earnings are within next 3 days (was 2 days - too risky)
+        if (isAfter(reportDate, now) && isBefore(reportDate, threeDaysFromNow)) {
+          logger.info(`📅 EARNINGS ALERT: ${symbol} has earnings on ${event.reportDate} (within 3 days - IV crush risk)`);
           return true;
         }
       } catch (error) {
