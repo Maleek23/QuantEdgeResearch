@@ -2326,8 +2326,9 @@ export async function runAutonomousBotScan(): Promise<void> {
         const adaptiveParams = await getAdaptiveParameters();
         
         decision.confidence += symbolAdj.confidenceBoost;
-        // 🛡️ RAISED MINIMUM: From 50 to 65 to reduce losing trades (matches day trade threshold from replit.md)
-        const effectiveMinConfidence = Math.max(65, adaptiveParams.confidenceThreshold);
+        // 🛡️ RAISED MINIMUM: From 65 to 70 for higher conviction entries (Jan 2026)
+        // User was down 30% from poor plays - need to focus on best setups only
+        const effectiveMinConfidence = Math.max(70, adaptiveParams.confidenceThreshold);
         
         // Apply minimum confidence score
         if (decision.confidence < effectiveMinConfidence) {

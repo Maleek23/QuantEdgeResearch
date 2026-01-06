@@ -8,20 +8,22 @@ import { isOptionsMarketOpen } from './paper-trading-service';
 const DISCORD_DISABLED = false;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// QUALITY GATE - B-GRADE MINIMUM (65+ confidence, 3+ signals)
-// User requested: ONLY B, B+, A, A+ grades - no spam/low quality
+// QUALITY GATE - A-GRADE MINIMUM (75+ confidence, 4+ signals)
+// User requested: ONLY highly convicted setups - tired of poor plays
+// RAISED from B-grade (65%) to A-grade (75%) - Jan 2026
+// "Bot sniped good entry again...need to trade more highly convicted setups"
 // ═══════════════════════════════════════════════════════════════════════════
-const MIN_SIGNALS_REQUIRED = 3; // Need multi-engine validation
-const MIN_CONFIDENCE_REQUIRED = 65; // B-grade minimum (65% = B, 75% = A, 85% = A+)
+const MIN_SIGNALS_REQUIRED = 4; // Strong multi-engine validation (raised from 3)
+const MIN_CONFIDENCE_REQUIRED = 75; // A-grade minimum (75% = A, 85% = A+)
 
 // Maximum option premium cost (qty * price * 100) - prevents unaffordable alerts
 const MAX_PREMIUM_COST = 1000; // $1000 max premium cost
 
-// Valid grades for Discord alerts - B and above ONLY
-export const VALID_DISCORD_GRADES = ['B', 'B+', 'A', 'A+'];
+// Valid grades for Discord alerts - A and A+ ONLY (no more B grades)
+export const VALID_DISCORD_GRADES = ['A', 'A+'];
 
 // Check if idea meets quality threshold to be sent to Discord
-// Requires B-grade or better (65%+ confidence AND 3+ signals)
+// Requires A-grade or better (75%+ confidence AND 4+ signals)
 export function meetsQualityThreshold(idea: { 
   qualitySignals?: string[] | null; 
   confidenceScore?: number | null;
@@ -33,11 +35,11 @@ export function meetsQualityThreshold(idea: {
   const confidence = idea.confidenceScore || 50;
   const grade = idea.probabilityBand || '';
   
-  // STRICT: B-grade minimum (65%+ confidence AND 3+ signals)
+  // STRICT: A-grade minimum (75%+ confidence AND 4+ signals) - highly convicted only
   const meetsConfidence = confidence >= MIN_CONFIDENCE_REQUIRED;
   const meetsSignals = signalCount >= MIN_SIGNALS_REQUIRED;
   
-  // Also check grade if available - must be B or better
+  // Also check grade if available - must be A or A+ 
   const hasValidGrade = !grade || VALID_DISCORD_GRADES.includes(grade);
   
   return meetsConfidence && meetsSignals && hasValidGrade;
