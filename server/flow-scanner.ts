@@ -14,8 +14,8 @@ import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennySto
 import { getLetterGrade } from './grading';
 import { sendFlowAlertToDiscord } from './discord-service';
 
-// Valid grades for Discord alerts (B- through A+)
-const DISCORD_ALERT_GRADES = ['A+', 'A', 'A-', 'B+', 'B', 'B-'];
+// Valid grades for Discord alerts (C- through A+)
+const DISCORD_ALERT_GRADES = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-'];
 
 // Wrapper to maintain existing function signature
 function isMarketOpen(): { isOpen: boolean; reason: string; minutesUntilClose: number } {
