@@ -77,7 +77,8 @@ export async function enrichOptionIdea(aiIdea: AITradeIdea): Promise<EnrichedOpt
     logger.info(`[OPTIONS-ENRICH] Fetched ${optionsChain.length} options across multiple expirations for ${aiIdea.symbol}`);
 
     // 3. Determine option type based on AI's direction
-    const optionType: 'call' | 'put' = aiIdea.direction === 'long' ? 'call' : 'put';
+    // Direction 'long' = Call, Direction 'short' = Put
+    const optionType: 'call' | 'put' = aiIdea.direction === 'short' ? 'put' : 'call';
     
     // 4. Filter options by type and find good candidates
     // 🔒 STRICT PRICING: REQUIRE bid/ask for accurate premiums - don't use stale 'last' price

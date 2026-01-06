@@ -295,11 +295,15 @@ ASSET MIX REQUIREMENTS:
 - Include AT LEAST 1 crypto trade (40% crypto allocation target)
 - Diversify across sectors (if crypto: mix large-cap + DeFi/L1/meme)
 - Balance between stocks and crypto
+- **DIRECTION BALANCE**: Do not only provide "long" ideas. If market conditions warrant (e.g., overbought RSI, bearish catalysts, or trend exhaustion), provide "short" ideas.
+- **OPTIONS DIRECTION**: For option ideas, "short" direction means buying a PUT option. "long" direction means buying a CALL option. Always specify the correct direction.
 
 CRYPTO TRADE SETUPS:
-- Breakouts above key resistance
-- Support bounces after pullbacks
-- Oversold RSI rebounds
+- Breakouts above key resistance (Long)
+- Support bounces after pullbacks (Long)
+- Oversold RSI rebounds (Long)
+- Bearish rejections at resistance (Short)
+- Overbought RSI reversals (Short)
 - Correlation plays (BTC moves, alts follow)
 
 For each trade idea, provide:

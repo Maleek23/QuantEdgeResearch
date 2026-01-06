@@ -64,6 +64,27 @@ class AutoIdeaGenerator {
   }
 
   /**
+   * Specifically generate IWM pullback idea for tomorrow
+   */
+  private async generateIwmIdea(): Promise<void> {
+    try {
+      const marketContext = "IWM (Russell 2000) - Looking for a healthy pullback opportunity to enter $260 Calls for next Friday. Analyze current daily RSI and support levels (248-252 range). If a pullback is likely, generate a 'long' idea with the $260 strike.";
+      const ideas = await generateTradeIdeas(marketContext);
+      
+      const iwmIdea = ideas.find(i => i.symbol.toUpperCase() === 'IWM');
+      if (iwmIdea) {
+        // Ensure it's treated as a specific setup
+        iwmIdea.analysis = `[IWM Pullback Watch] ${iwmIdea.analysis}`;
+        // The normal generation flow will pick it up if we were in generateFreshIdeas,
+        // but here we manually handle the single-ticker focus.
+        logger.info('🎯 [IWM-WATCH] IWM pullback idea generated successfully');
+      }
+    } catch (error) {
+      logger.error('❌ [IWM-WATCH] Failed to generate IWM idea:', error);
+    }
+  }
+
+  /**
    * Stop the service
    */
   stop() {
@@ -109,6 +130,13 @@ class AutoIdeaGenerator {
     const currentWindow = generationWindows.find(
       window => hour === window.hour && minute >= window.minStart && minute < window.minEnd
     );
+    
+    // IWM pullback detection for tomorrow
+    const isIwmWindow = hour === 20 && minute >= 30 && minute < 35; 
+    if (isIwmWindow) {
+      logger.info('🎯 [IWM-WATCH] Detecting IWM pullback opportunities for tomorrow...');
+      this.generateIwmIdea().catch(err => logger.error('❌ IWM idea generation failed:', err));
+    }
     
     if (!currentWindow) {
       return;
