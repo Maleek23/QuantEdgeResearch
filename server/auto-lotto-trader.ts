@@ -1025,11 +1025,22 @@ export async function runCryptoBotScan(): Promise<void> {
     
     // Check existing positions using preference for max concurrent trades
     const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
-    const openPositions = positions.filter(p => p.status === 'open');
+    const openPositions = positions.filter(p => p.status === 'open' && p.assetType === 'crypto');
     
-    if (openPositions.length >= prefs.maxConcurrentTrades) {
-      logger.info(`🪙 [CRYPTO BOT] Max positions reached (${openPositions.length}/${prefs.maxConcurrentTrades})`);
+    // CRYPTO-SPECIFIC LIMITS: Max 5 total crypto positions, max 2 per symbol
+    const MAX_CRYPTO_POSITIONS = 5;
+    const MAX_POSITIONS_PER_SYMBOL = 2;
+    
+    if (openPositions.length >= MAX_CRYPTO_POSITIONS) {
+      logger.info(`🪙 [CRYPTO BOT] Max crypto positions reached (${openPositions.length}/${MAX_CRYPTO_POSITIONS})`);
       return;
+    }
+    
+    // Count positions per symbol to prevent over-concentration
+    const positionsBySymbol = new Map<string, number>();
+    for (const pos of openPositions) {
+      const count = positionsBySymbol.get(pos.symbol) || 0;
+      positionsBySymbol.set(pos.symbol, count + 1);
     }
     
     // Fetch crypto prices
@@ -1124,10 +1135,23 @@ export async function runCryptoBotScan(): Promise<void> {
       idea.assetType === 'crypto'
     );
     
-    // REMOVED: Now allows multiple positions (pyramiding into winners)
-    if (hasOpenIdea) {
-      logger.info(`🪙 [CRYPTO BOT] ${bestOpp.symbol} has open position - adding to it (pyramid)`);
-      // Don't return - continue with entry
+    // Check per-symbol limit before pyramiding
+    const symbolPositionCount = positionsBySymbol.get(bestOpp.symbol) || 0;
+    if (symbolPositionCount >= MAX_POSITIONS_PER_SYMBOL) {
+      logger.info(`🪙 [CRYPTO BOT] ${bestOpp.symbol} already has ${symbolPositionCount} positions (max ${MAX_POSITIONS_PER_SYMBOL}) - skipping`);
+      // Try next best opportunity
+      const nextOpp = opportunities.find(o => 
+        (positionsBySymbol.get(o.symbol) || 0) < MAX_POSITIONS_PER_SYMBOL
+      );
+      if (!nextOpp) {
+        logger.info(`🪙 [CRYPTO BOT] All opportunities at max positions - waiting`);
+        return;
+      }
+      // Use next opportunity instead
+      Object.assign(bestOpp, nextOpp);
+      logger.info(`🪙 [CRYPTO BOT] Switching to ${bestOpp.symbol} instead`);
+    } else if (hasOpenIdea) {
+      logger.info(`🪙 [CRYPTO BOT] ${bestOpp.symbol} has ${symbolPositionCount}/${MAX_POSITIONS_PER_SYMBOL} positions - adding (pyramid)`);
     }
     
     // Apply minimum confidence score from preferences
