@@ -498,6 +498,12 @@ export function startWatchlistGradingScheduler(): void {
 /**
  * Generate trade ideas from elite watchlist setups (S, A, A+ tiers)
  * These are high-conviction setups tagged as 'elite' source
+ * 
+ * SMALL ACCOUNT RISK MANAGEMENT:
+ * - Target account: $300
+ * - Max risk per trade: 2% = $6
+ * - Max position cost: 20% of account = $60
+ * - For options: Max premium $1.50 (1-2 contracts at $60-150 each)
  */
 export async function generateEliteTradeIdeas(userId?: string): Promise<{
   generated: number;
@@ -505,6 +511,14 @@ export async function generateEliteTradeIdeas(userId?: string): Promise<{
   skipped: string[];
 }> {
   logger.info('[ELITE] Generating trade ideas from elite watchlist setups...');
+  
+  // Small account risk parameters
+  const ACCOUNT_SIZE = 300;           // $300 target account
+  const MAX_RISK_PERCENT = 0.02;      // 2% max risk per trade  
+  const MAX_POSITION_PERCENT = 0.20;  // 20% max position size
+  const MAX_RISK_DOLLARS = ACCOUNT_SIZE * MAX_RISK_PERCENT;  // $6
+  const MAX_POSITION_DOLLARS = ACCOUNT_SIZE * MAX_POSITION_PERCENT;  // $60
+  const MAX_OPTION_PREMIUM = 1.50;    // Max option premium for small accounts
   
   const items = await getGradedWatchlist(userId);
   const eliteItems = items.filter((item: WatchlistItem) => 
@@ -516,24 +530,33 @@ export async function generateEliteTradeIdeas(userId?: string): Promise<{
   const generatedIdeas: Partial<TradeIdea>[] = [];
   const skippedSymbols: string[] = [];
   
+  // Get all existing ideas once for efficient duplicate checking
+  // Key format: "SYMBOL:source:assetType:direction"
+  const existingIdeas = await storage.getAllTradeIdeas();
+  const existingSymbolDirections = new Set(
+    existingIdeas
+      .filter((idea: TradeIdea) => 
+        idea.status === 'published' &&
+        new Date(idea.timestamp || '').getTime() > Date.now() - 24 * 60 * 60 * 1000
+      )
+      .map((idea: TradeIdea) => `${idea.symbol}:${idea.source}:${idea.assetType}:${idea.direction}`)
+  );
+  
   for (const item of eliteItems) {
     try {
-      // Check if we already have an active idea for this symbol
-      const existingIdeas = await storage.getAllTradeIdeas();
-      const hasActiveIdea = existingIdeas.some((idea: TradeIdea) => 
-        idea.symbol === item.symbol && 
-        idea.status === 'published' &&
-        new Date(idea.timestamp || '').getTime() > Date.now() - 24 * 60 * 60 * 1000 // Within 24 hours
-      );
+      const assetType = item.assetType as 'stock' | 'option' | 'crypto';
       
-      if (hasActiveIdea) {
-        logger.debug(`[ELITE] Skipping ${item.symbol} - already has active idea`);
+      // Check if we already have an active idea for this symbol with same source
+      const baseKey = `${item.symbol}:quant:${assetType}`;
+      
+      if (existingSymbolDirections.has(`${baseKey}:long`) || existingSymbolDirections.has(`${baseKey}:short`)) {
+        logger.debug(`[ELITE] Skipping ${item.symbol} - already has active quant idea`);
         skippedSymbols.push(`${item.symbol} (active idea exists)`);
         continue;
       }
       
       // Fetch current price data
-      const priceData = await fetchHistoricalPrices(item.symbol, item.assetType as AssetType);
+      const priceData = await fetchHistoricalPrices(item.symbol, assetType as AssetType);
       if (!priceData) {
         skippedSymbols.push(`${item.symbol} (no price data)`);
         continue;
@@ -542,7 +565,7 @@ export async function generateEliteTradeIdeas(userId?: string): Promise<{
       const currentPrice = priceData.currentPrice;
       const gradeInputs = item.gradeInputs ? JSON.parse(item.gradeInputs as string) : null;
       
-      // Determine direction based on signals
+      // Determine direction based on signals (needed early for target/stop calculation)
       const isBullish = gradeInputs?.signals?.some((s: string) => 
         s.toLowerCase().includes('oversold') || 
         s.toLowerCase().includes('bullish') ||
@@ -551,29 +574,127 @@ export async function generateEliteTradeIdeas(userId?: string): Promise<{
       
       const direction = isBullish ? 'long' : 'short';
       
-      // Calculate targets based on ATR or percentage
-      const atr = gradeInputs?.atr || currentPrice * 0.02;
-      const targetMultiplier = item.tier === 'S' ? 3 : 2;
-      const stopMultiplier = 1;
+      // Asset-type-aware sizing with stop/target calculation
+      let positionSize: number;
+      let positionCost: number;
+      let maxLoss: number;
+      let sizeLabel: string;
+      let stopLoss: number;
+      let targetPrice: number;
+      let riskRewardRatio: number;
       
-      const targetPrice = direction === 'long' 
-        ? currentPrice + (atr * targetMultiplier)
-        : currentPrice - (atr * targetMultiplier);
+      if (assetType === 'option') {
+        // OPTIONS: 100 shares per contract, max premium $1.50, risk capped at $6
+        const CONTRACT_MULTIPLIER = 100;
         
-      const stopLoss = direction === 'long'
-        ? currentPrice - (atr * stopMultiplier)
-        : currentPrice + (atr * stopMultiplier);
+        // Skip options that are too expensive
+        if (currentPrice > MAX_OPTION_PREMIUM) {
+          skippedSymbols.push(`${item.symbol} ($${currentPrice.toFixed(2)} premium exceeds $${MAX_OPTION_PREMIUM} cap)`);
+          continue;
+        }
         
-      const riskRewardRatio = Math.abs(targetPrice - currentPrice) / Math.abs(currentPrice - stopLoss);
+        const contractCost = currentPrice * CONTRACT_MULTIPLIER;
+        
+        // Skip if 1 contract costs more than max position
+        if (contractCost > MAX_POSITION_DOLLARS) {
+          skippedSymbols.push(`${item.symbol} ($${contractCost.toFixed(0)}/contract exceeds $${MAX_POSITION_DOLLARS} budget)`);
+          continue;
+        }
+        
+        // Calculate stop-loss percentage that limits risk to MAX_RISK_DOLLARS ($6)
+        // Risk = contractCost * stopLossPercent, so stopLossPercent = MAX_RISK_DOLLARS / contractCost
+        const stopLossPercent = Math.min(MAX_RISK_DOLLARS / contractCost, 0.50); // Cap at 50% stop
+        
+        positionSize = 1;
+        positionCost = positionSize * contractCost;
+        maxLoss = positionCost * stopLossPercent; // Risk limited by stop-loss ($6 max)
+        
+        // For options: stop and target are based on the stop loss percentage
+        stopLoss = currentPrice * (1 - stopLossPercent);
+        // Target: 2:1 R:R for A tier, 3:1 for S tier
+        const targetMultiplier = item.tier === 'S' ? 3 : 2;
+        const targetGain = (currentPrice - stopLoss) * targetMultiplier;
+        targetPrice = currentPrice + targetGain;
+        riskRewardRatio = targetMultiplier;
+        
+        sizeLabel = `1 contract @ $${currentPrice.toFixed(2)} ($${positionCost.toFixed(0)}) | Stop: $${stopLoss.toFixed(2)} (${Math.round(stopLossPercent * 100)}%)`;
+        
+      } else if (assetType === 'crypto') {
+        // CRYPTO: Can buy fractional, so just cap by position dollars
+        if (currentPrice > MAX_POSITION_DOLLARS * 10) {
+          skippedSymbols.push(`${item.symbol} ($${currentPrice.toFixed(0)} too expensive for small account)`);
+          continue;
+        }
+        
+        const atr = gradeInputs?.atr || currentPrice * 0.03;
+        const stopPercent = atr / currentPrice;
+        const riskPerUnit = currentPrice * stopPercent;
+        let units = MAX_RISK_DOLLARS / riskPerUnit;
+        
+        // Cap position cost
+        if (units * currentPrice > MAX_POSITION_DOLLARS) {
+          units = MAX_POSITION_DOLLARS / currentPrice;
+        }
+        
+        positionSize = Math.round(units * 1000) / 1000; // 3 decimal places for crypto
+        positionCost = positionSize * currentPrice;
+        maxLoss = positionSize * riskPerUnit;
+        
+        // Calculate stop/target
+        const targetMultiplier = item.tier === 'S' ? 3 : 2;
+        stopLoss = direction === 'long' ? currentPrice - atr : currentPrice + atr;
+        targetPrice = direction === 'long' 
+          ? currentPrice + (atr * targetMultiplier) 
+          : currentPrice - (atr * targetMultiplier);
+        riskRewardRatio = targetMultiplier;
+        
+        sizeLabel = `${positionSize} coins @ $${currentPrice.toFixed(2)} = $${positionCost.toFixed(0)}`;
+        
+      } else {
+        // STOCKS: Max $60 position, max $6 risk
+        if (currentPrice > MAX_POSITION_DOLLARS) {
+          skippedSymbols.push(`${item.symbol} ($${currentPrice.toFixed(0)} exceeds $${MAX_POSITION_DOLLARS} budget)`);
+          continue;
+        }
+        
+        const atr = gradeInputs?.atr || currentPrice * 0.02;
+        const riskPerShare = atr; // Use ATR as stop distance
+        let shares = Math.floor(MAX_RISK_DOLLARS / riskPerShare);
+        
+        // Cap position cost
+        if (shares * currentPrice > MAX_POSITION_DOLLARS) {
+          shares = Math.floor(MAX_POSITION_DOLLARS / currentPrice);
+        }
+        
+        if (shares < 1) {
+          skippedSymbols.push(`${item.symbol} (can't afford 1 share at $${currentPrice.toFixed(2)})`);
+          continue;
+        }
+        
+        positionSize = shares;
+        positionCost = shares * currentPrice;
+        maxLoss = shares * riskPerShare;
+        
+        // Calculate stop/target
+        const targetMultiplier = item.tier === 'S' ? 3 : 2;
+        stopLoss = direction === 'long' ? currentPrice - atr : currentPrice + atr;
+        targetPrice = direction === 'long' 
+          ? currentPrice + (atr * targetMultiplier) 
+          : currentPrice - (atr * targetMultiplier);
+        riskRewardRatio = targetMultiplier;
+        
+        sizeLabel = `${shares} shares @ $${currentPrice.toFixed(2)} = $${positionCost.toFixed(0)}`;
+      }
       
-      // Build analysis from grade inputs
+      // Build analysis from grade inputs with position sizing
       const signals = gradeInputs?.signals || [];
-      const analysis = `Elite ${item.tier}-Tier Setup | Score: ${item.gradeScore}/100 | ${signals.slice(0, 3).join(' | ')}`;
+      const analysis = `Elite ${item.tier}-Tier Setup | Score: ${item.gradeScore}/100 | ` +
+        `${sizeLabel} | Max Risk: $${maxLoss.toFixed(0)} | ${signals.slice(0, 2).join(' | ')}`;
       
       const newIdea = await storage.createTradeIdea({
         userId: userId || null,
         symbol: item.symbol,
-        assetType: item.assetType as 'stock' | 'option' | 'crypto',
+        assetType: assetType,
         direction: direction,
         holdingPeriod: 'swing',
         entryPrice: currentPrice,
@@ -582,18 +703,24 @@ export async function generateEliteTradeIdeas(userId?: string): Promise<{
         riskRewardRatio: Math.round(riskRewardRatio * 100) / 100,
         catalyst: `${item.tier}-Tier Elite Setup`,
         analysis: analysis,
-        liquidityWarning: currentPrice < 5,
+        liquidityWarning: currentPrice < 5 || (assetType === 'option' && currentPrice < 0.10),
         sessionContext: 'RTH',
         timestamp: new Date().toISOString(),
-        source: 'quant', // Using quant since 'elite' isn't a defined source
+        source: 'quant',
         status: 'published',
-        isElite: true, // Custom tag for elite setups
+        isElite: true,
         eliteTier: item.tier,
         gradeScore: item.gradeScore,
+        positionSize: positionSize,
+        positionCost: positionCost,
+        maxRisk: maxLoss,
       } as any);
       
+      // Add to existing set to prevent same-run duplicates
+      existingSymbolDirections.add(`${item.symbol}:quant:${assetType}:${direction}`);
+      
       generatedIdeas.push(newIdea);
-      logger.info(`[ELITE] Generated trade idea for ${item.symbol} (${item.tier}-tier, ${direction})`);
+      logger.info(`[ELITE] Generated trade idea for ${item.symbol} (${item.tier}-tier, ${assetType}, ${direction}, $${positionCost.toFixed(0)} cost)`);
       
       // Rate limit
       await new Promise(resolve => setTimeout(resolve, 200));
