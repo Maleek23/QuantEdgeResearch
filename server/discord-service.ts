@@ -1797,13 +1797,14 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
 
 // Send daily summary of top trade ideas (scheduled for 8:30 AM CT)
 // FORMAT: Compact one-liner style for quick scanning
+// DESTINATION: #quant-floor channel
 export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<void> {
   if (DISCORD_DISABLED) return;
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_GAINS;
   
   if (!webhookUrl) {
-    logger.info('⚠️ Discord webhook URL not configured - skipping daily summary');
+    logger.info('⚠️ DISCORD_WEBHOOK_QUANTFLOOR not configured - skipping daily summary');
     return;
   }
   
