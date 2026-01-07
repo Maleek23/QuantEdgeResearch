@@ -94,6 +94,26 @@ Key features include:
       - **Pre-Entry Exit Intel Check**: Before executing any lotto trade, simulates position and validates via `analyzePosition()` - rejects if `exitWindow === 'soon'` or `'immediate'`
       - **Scan Loop Protection**: Autonomous bot scan skips any option with DTE below threshold
       - Prevents the "enter and immediately flag for exit" scenario that wasted money on theta-crushed plays
+-   **Unified Entry Gate System (Jan 2026)**: Regime-aware trading safeguards across all bots:
+    - **Market Context Service** (`server/market-context-service.ts`): Centralized trading session and regime analysis
+    - **Trading Sessions**: power_hour (3:00-4:00 PM CT), morning_momentum (8:30-10:00 AM CT), midday (10:00-11:30 AM CT), lunch_lull (11:30 AM-1:00 PM CT), afternoon (1:00-3:00 PM CT), after_hours
+    - **Session Gating by Strategy**:
+      - `lotto`: Blocked during lunch_lull and after_hours
+      - `daytrade`: Blocked during lunch_lull and after_hours
+      - `mean_reversion`: Allowed all sessions (mean reversion works across sessions)
+      - `swing`: Allowed all sessions
+    - **Confidence Multipliers**:
+      - power_hour: 1.15x boost (highest liquidity)
+      - morning_momentum: 1.15x boost (strong opening trends)
+      - midday: 1.0x (neutral)
+      - lunch_lull: 0.85x penalty (low volume, choppy)
+      - afternoon: 1.0x (neutral)
+      - after_hours: 0.75x penalty (low liquidity)
+    - **Unified Entry Gate** (`checkUnifiedEntryGate`): Combines session + regime + exhaustion checks
+      - Returns `allowed: boolean`, `adjustedConfidence: number`, `reason: string`
+      - Applied at execution level in Auto-Lotto Bot, Day Trade Scanner, Quant Mean Reversion Bot
+    - **Exit-Intelligence Veto**: Blocks entries on exhausted moves (counter-trend signals, volatile regime, low volume, high VIX)
+    - **ATR Risk Bands** (`calculateAtrRiskBands`): Volatility-adjusted stop/target calculation (available for future use)
 
 ## External Dependencies
 
