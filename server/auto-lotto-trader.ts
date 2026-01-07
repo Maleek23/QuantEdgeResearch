@@ -1943,6 +1943,35 @@ async function scanForOpportunities(ticker: string): Promise<LottoOpportunity[]>
     
     const thresholds = getLottoThresholds();
     
+    // 🎯 MOMENTUM-ALIGNED DIRECTION FILTER
+    // Only consider CALLs when stock is trending UP, PUTs when trending DOWN
+    // This prevents buying puts on +11% movers or calls on -5% dumps
+    // 
+    // IMPORTANT: If change_percentage is null/undefined, we SKIP the ticker entirely
+    // rather than defaulting to neutral (which would allow both directions)
+    const priceChange = quote.change_percentage;
+    if (priceChange === null || priceChange === undefined) {
+      logger.warn(`🎯 [MOMENTUM] ${ticker}: No price change data available - skipping to avoid wrong direction trades`);
+      return [];
+    }
+    
+    // STRICT MOMENTUM ALIGNMENT:
+    // - Bullish (+0.5% or more): CALLs ONLY - betting on continued upward movement
+    // - Bearish (-0.5% or less): PUTs ONLY - betting on continued downward movement
+    // - Neutral (-0.5% to +0.5%): SKIP entirely - not enough directional conviction
+    // This is MORE conservative than before - we no longer trade neutral conditions
+    const momentumDirection: 'bullish' | 'bearish' | 'skip' = 
+      priceChange >= 0.5 ? 'bullish' : 
+      priceChange <= -0.5 ? 'bearish' : 
+      'skip';
+    
+    if (momentumDirection === 'skip') {
+      logger.debug(`🎯 [MOMENTUM] ${ticker}: ${priceChange.toFixed(2)}% → neutral territory - skipping (need >=0.5% for calls or <=-0.5% for puts)`);
+      return [];
+    }
+    
+    logger.debug(`🎯 [MOMENTUM] ${ticker}: ${priceChange.toFixed(2)}% → ${momentumDirection.toUpperCase()} → ${momentumDirection === 'bullish' ? 'CALLs only' : 'PUTs only'}`);
+    
     // 🔄 Rate limit before second API call
     await rateLimitDelay();
     const optionsData = await getTradierOptionsChainsByDTE(ticker);
@@ -1977,9 +2006,12 @@ async function scanForOpportunities(ticker: string): Promise<LottoOpportunity[]>
       
       if (candidates.length === 0) continue;
       
-      // Select the BEST call and BEST put for this expiration
-      const bestCall = selectBestStrike(candidates, 'call');
-      const bestPut = selectBestStrike(candidates, 'put');
+      // 🎯 STRICT MOMENTUM-ALIGNED SELECTION: Only consider THE ONE option type that matches direction
+      // - Bullish momentum (+0.5% or more) → CALLs ONLY
+      // - Bearish momentum (-0.5% or less) → PUTs ONLY
+      // No more neutral - we skip those in the guard above
+      const bestCall = momentumDirection === 'bullish' ? selectBestStrike(candidates, 'call') : null;
+      const bestPut = momentumDirection === 'bearish' ? selectBestStrike(candidates, 'put') : null;
       
       // Add best call if found
       if (bestCall && bestCall.score >= 50) { // Minimum score threshold
