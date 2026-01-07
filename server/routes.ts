@@ -13474,10 +13474,11 @@ CONSTRAINTS:
   // Returns aggregated stats publicly, detailed positions only for admin
   app.get("/api/auto-lotto-bot", isAuthenticated, async (req: any, res: Response) => {
     try {
-      const { getOptionsPortfolio, getFuturesPortfolio, getCryptoPortfolio } = await import("./auto-lotto-trader");
+      const { getOptionsPortfolio, getFuturesPortfolio, getCryptoPortfolio, getSmallAccountPortfolio } = await import("./auto-lotto-trader");
       const optionsPortfolio = await getOptionsPortfolio();
       const futuresPortfolio = await getFuturesPortfolio();
       const cryptoPortfolio = await getCryptoPortfolio();
+      const smallAccountPortfolio = await getSmallAccountPortfolio();
       
       // Use options portfolio as main for backward compatibility
       const portfolio = optionsPortfolio;
@@ -13605,6 +13606,32 @@ CONSTRAINTS:
         };
       }
       
+      // Get Small Account portfolio stats if available
+      let smallAccountStats = null;
+      let smallAccountPositions: any[] = [];
+      if (smallAccountPortfolio) {
+        smallAccountPositions = await storage.getPaperPositionsByPortfolio(smallAccountPortfolio.id);
+        const smallOpen = smallAccountPositions.filter(p => p.status === 'open');
+        const smallClosed = smallAccountPositions.filter(p => p.status === 'closed');
+        const smallWithOutcome = smallClosed.filter(p => (p.realizedPnL || 0) !== 0);
+        const smallWins = smallWithOutcome.filter(p => (p.realizedPnL || 0) > 0).length;
+        const smallLosses = smallWithOutcome.filter(p => (p.realizedPnL || 0) < 0).length;
+        const smallRealizedPnL = smallClosed.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
+        smallAccountStats = {
+          name: smallAccountPortfolio.name,
+          startingCapital: smallAccountPortfolio.startingCapital,
+          cashBalance: smallAccountPortfolio.cashBalance,
+          totalValue: smallAccountPortfolio.totalValue,
+          totalPnL: smallAccountPortfolio.totalPnL,
+          openPositions: smallOpen.length,
+          closedPositions: smallClosed.length,
+          wins: smallWins,
+          losses: smallLosses,
+          winRate: smallWithOutcome.length > 0 ? (smallWins / smallWithOutcome.length * 100).toFixed(1) : '0',
+          totalRealizedPnL: smallRealizedPnL,
+        };
+      }
+      
       if (isAdmin) {
         // Admin gets full access
         res.json({
@@ -13618,9 +13645,11 @@ CONSTRAINTS:
           },
           futuresPortfolio: futuresStats,
           cryptoPortfolio: cryptoStats,
+          smallAccountPortfolio: smallAccountStats,
           positions: positions.slice(0, 50),
           futuresPositions: futuresPositions.slice(0, 20),
           cryptoPositions: cryptoPositions.slice(0, 20),
+          smallAccountPositions: smallAccountPositions.slice(0, 20),
           stats: {
             openPositions: openPositions.length,
             closedPositions: closedPositions.length,
@@ -13656,9 +13685,15 @@ CONSTRAINTS:
             startingCapital: cryptoStats.startingCapital,
             cashBalance: cryptoStats.cashBalance,
           } : null,
+          smallAccountPortfolio: smallAccountStats ? {
+            name: smallAccountStats.name,
+            startingCapital: smallAccountStats.startingCapital,
+            cashBalance: smallAccountStats.cashBalance,
+          } : null,
           positions: [], // Never show positions to non-admin
           futuresPositions: [],
           cryptoPositions: [],
+          smallAccountPositions: [],
           stats: hasStatisticalValidity ? {
             openPositions: openPositions.length,
             closedPositions: closedPositions.length,
