@@ -46,3 +46,5 @@ integrations = ["javascript_mem_db:1.0.0", "javascript_openai:1.0.0", "javascrip
 
 [userenv.shared]
 ADMIN_EMAIL = "abdulmalikajisegiri@gmail.com"
+APP_URL = "https://quantedgelabs.net"
+FROM_EMAIL = "hello@quantedgelabs.net"
