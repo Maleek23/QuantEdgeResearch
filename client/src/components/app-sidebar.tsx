@@ -30,18 +30,16 @@ interface NavItem {
   badge?: string;
 }
 
-// Research - unified trading research hub (Futures is now a tab in Trade Desk)
-const researchItems: NavItem[] = [
+// Trading - core trading tools
+const tradingItems: NavItem[] = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Trade Desk", url: "/trade-desk", icon: TrendingUp },
   { title: "My Watchlist", url: "/watchlist", icon: Eye },
-  { title: "Market Scanner", url: "/market-scanner", icon: BarChart2, badge: "500+" },
-  { title: "Swing Scanner", url: "/market-scanner?tab=swing", icon: TrendingUp, badge: "NEW" },
 ];
 
-// Automations - Auto-Lotto Bot is the main hub with other automations as tabs
+// Automations - Trading bots + Market Scanner consolidated
 const automationItems: NavItem[] = [
-  { title: "Automations Hub", url: "/automations", icon: Zap, badge: "LIVE" },
+  { title: "Trading Bots", url: "/automations", icon: Zap, badge: "LIVE" },
 ];
 
 // Analytics - performance and analysis tools (Data Audit is now part of Performance page)
@@ -213,10 +211,10 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent className="gap-0 py-2">
-        {/* Research - Trade Desk (Main Dashboard) & Market Data */}
+        {/* Trading - Trade Desk & Core Tools */}
         <NavSection 
-          label="Research" 
-          items={researchItems} 
+          label="Trading" 
+          items={tradingItems} 
           location={location} 
           onNavigate={handleNavigation}
         />

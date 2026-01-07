@@ -364,56 +364,64 @@ function TradeHistoryRow({ position }: { position: BotPosition }) {
 
   return (
     <div 
-      className="flex items-center justify-between p-3 rounded-lg bg-slate-800/40 border border-slate-700/30 hover:border-slate-600/50 transition-colors"
+      className="flex flex-col p-3 rounded-lg bg-slate-800/40 border border-slate-700/30 hover:border-slate-600/50 transition-colors gap-2"
       data-testid={`trade-row-${position.id}`}
     >
-      <div className="flex items-center gap-3">
-        <div className={cn(
-          "w-1 h-10 rounded-full",
-          isProfit ? "bg-green-500" : "bg-red-500"
-        )} />
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono font-bold text-foreground" data-testid={`trade-symbol-${position.id}`}>{position.symbol}</span>
-            <Badge variant="outline" className="text-[10px] border-cyan-500/30 text-cyan-400 uppercase">
-              {position.optionType} ${position.strikePrice}
-            </Badge>
-            <Badge 
-              variant="outline" 
-              className={cn(
-                "text-[10px]",
-                position.status === 'open' 
-                  ? "border-amber-500/30 text-amber-400" 
-                  : "border-slate-500/30 text-slate-400"
-              )}
-              data-testid={`trade-status-${position.id}`}
-            >
-              {position.status}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-            <span>Entry: ${position.entryPrice.toFixed(2)}</span>
-            <span>|</span>
-            <span>Qty: {position.quantity}</span>
-            <span>|</span>
-            <span>{format(new Date(position.createdAt), "MMM dd, HH:mm")}</span>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "w-1 h-10 rounded-full",
+            isProfit ? "bg-green-500" : "bg-red-500"
+          )} />
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-mono font-bold text-foreground" data-testid={`trade-symbol-${position.id}`}>{position.symbol}</span>
+              <Badge variant="outline" className="text-[10px] border-cyan-500/30 text-cyan-400 uppercase">
+                {position.optionType} ${position.strikePrice}
+              </Badge>
+              <Badge 
+                variant="outline" 
+                className={cn(
+                  "text-[10px]",
+                  position.status === 'open' 
+                    ? "border-amber-500/30 text-amber-400" 
+                    : "border-slate-500/30 text-slate-400"
+                )}
+                data-testid={`trade-status-${position.id}`}
+              >
+                {position.status}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+              <span>Entry: ${position.entryPrice.toFixed(2)}</span>
+              <span>|</span>
+              <span>Qty: {position.quantity}</span>
+              <span>|</span>
+              <span>{format(new Date(position.createdAt), "MMM dd, HH:mm")}</span>
+            </div>
           </div>
         </div>
+        <div className="text-right">
+          <p className={cn(
+            "text-lg font-bold font-mono",
+            isProfit ? "text-green-400" : "text-red-400"
+          )} data-testid={`trade-pnl-${position.id}`}>
+            {isProfit ? "+" : ""}{pnl >= 0 ? "$" : "-$"}{Math.abs(pnl).toFixed(2)}
+          </p>
+          <p className={cn(
+            "text-xs font-mono",
+            isProfit ? "text-green-400/70" : "text-red-400/70"
+          )}>
+            {isProfit ? "+" : ""}{pnlPercent.toFixed(1)}%
+          </p>
+        </div>
       </div>
-      <div className="text-right">
-        <p className={cn(
-          "text-lg font-bold font-mono",
-          isProfit ? "text-green-400" : "text-red-400"
-        )} data-testid={`trade-pnl-${position.id}`}>
-          {isProfit ? "+" : ""}{pnl >= 0 ? "$" : "-$"}{Math.abs(pnl).toFixed(2)}
-        </p>
-        <p className={cn(
-          "text-xs font-mono",
-          isProfit ? "text-green-400/70" : "text-red-400/70"
-        )}>
-          {isProfit ? "+" : ""}{pnlPercent.toFixed(1)}%
-        </p>
-      </div>
+      {position.exitReason && position.status === 'closed' && (
+        <div className="text-xs text-muted-foreground pl-4 border-l-2 border-slate-600/50">
+          <span className="text-slate-400">Exit: </span>
+          <span className={isProfit ? "text-green-400" : "text-red-400"}>{position.exitReason}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -586,35 +594,30 @@ export function AutoLottoDashboard() {
       <div className="rounded-xl bg-gradient-to-r from-cyan-500/10 via-slate-900/80 to-purple-500/10 border border-cyan-500/20 p-6" data-testid="hero-status-bar">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="flex items-center gap-4">
-            <div className={cn(
-              "p-3 rounded-xl border-2 transition-all duration-300",
-              botStatus?.isActive 
-                ? "bg-green-500/20 border-green-500/40 animate-pulse" 
-                : "bg-slate-800/60 border-slate-600/40"
-            )}>
-              <Rocket className={cn(
-                "h-8 w-8 transition-colors",
-                botStatus?.isActive ? "text-green-400" : "text-slate-400"
-              )} />
+            <div className="p-3 rounded-xl border-2 transition-all duration-300 bg-green-500/20 border-green-500/40 animate-pulse">
+              <Rocket className="h-8 w-8 transition-colors text-green-400" />
             </div>
             <div>
               <div className="flex items-center gap-3">
                 <h2 className="text-2xl font-bold text-foreground" data-testid="text-bot-title">Auto-Lotto Bot</h2>
                 <Badge 
                   variant="outline" 
-                  className={cn(
-                    "font-bold uppercase tracking-wider",
-                    botStatus?.isActive 
-                      ? "bg-green-500/20 text-green-400 border-green-500/40" 
-                      : "bg-slate-700/50 text-slate-400 border-slate-600/40"
-                  )}
+                  className="font-bold uppercase tracking-wider bg-green-500/20 text-green-400 border-green-500/40 animate-pulse"
                   data-testid="badge-bot-status"
                 >
-                  {botStatus?.isActive ? "LIVE" : "PAUSED"}
+                  LIVE
+                </Badge>
+                <Badge 
+                  variant="outline" 
+                  className="font-medium text-xs bg-cyan-500/10 text-cyan-400 border-cyan-500/30"
+                  data-testid="badge-scanning"
+                >
+                  <Activity className="h-3 w-3 mr-1 animate-pulse" />
+                  Scanning Markets
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Autonomous options hunting with Exit Intelligence
+                Autonomous options hunting with Exit Intelligence • Runs every 5 min during market hours
               </p>
             </div>
           </div>
@@ -634,7 +637,7 @@ export function AutoLottoDashboard() {
               variant="outline"
               size="sm"
               onClick={() => manualScan.mutate()}
-              disabled={manualScan.isPending || !botStatus?.isActive}
+              disabled={manualScan.isPending}
               className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
               data-testid="button-manual-scan"
             >
@@ -646,21 +649,18 @@ export function AutoLottoDashboard() {
               Scan Now
             </Button>
             <Button
-              variant={botStatus?.isActive ? "destructive" : "default"}
+              variant="destructive"
               size="sm"
-              onClick={() => toggleBot.mutate(!botStatus?.isActive)}
+              onClick={() => toggleBot.mutate(false)}
               disabled={toggleBot.isPending}
-              className={!botStatus?.isActive ? "bg-green-600 hover:bg-green-500" : ""}
-              data-testid="button-toggle-bot"
+              data-testid="button-stop-bot"
             >
               {toggleBot.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : botStatus?.isActive ? (
-                <Pause className="h-4 w-4 mr-2" />
               ) : (
-                <Play className="h-4 w-4 mr-2" />
+                <Pause className="h-4 w-4 mr-2" />
               )}
-              {botStatus?.isActive ? "Pause Bot" : "Start Bot"}
+              Stop Bot
             </Button>
           </div>
         </div>

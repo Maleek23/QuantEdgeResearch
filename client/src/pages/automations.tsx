@@ -474,6 +474,19 @@ export default function AutomationsPage() {
     refetchInterval: 5000,
   });
 
+  // Main portfolio bots data
+  const { data: botData } = useQuery<{
+    portfolio: { name: string; startingCapital: number; cashBalance: number; totalValue: number; totalPnL: number } | null;
+    futuresPortfolio: { name: string; startingCapital: number; cashBalance: number; totalValue: number; totalPnL: number; openPositions: number; winRate: string } | null;
+    cryptoPortfolio: { name: string; startingCapital: number; cashBalance: number; totalValue: number; totalPnL: number; openPositions: number; winRate: string } | null;
+    smallAccountPortfolio: { name: string; startingCapital: number; cashBalance: number; totalValue: number; totalPnL: number; openPositions: number; winRate: string } | null;
+    stats: { openPositions: number; winRate: string; totalRealizedPnL: number } | null;
+    botStatus: string;
+  }>({
+    queryKey: ["/api/auto-lotto-bot"],
+    refetchInterval: 5000,
+  });
+
   const { data: weeklyReport } = useQuery<{
     period?: { start: string; end: string };
     summary?: { totalTrades: number; winRate: number; totalPnL: number };
@@ -642,7 +655,7 @@ export default function AutomationsPage() {
           </div>
         </div>
 
-        {/* Tabs Navigation - Cyan accent focused */}
+        {/* Simplified Tabs Navigation - Focus on trading bots */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="overflow-x-auto">
             <TabsList className="inline-flex h-11 bg-slate-800/40 border border-slate-700/50 rounded-lg p-1 gap-1">
@@ -652,15 +665,16 @@ export default function AutomationsPage() {
                 className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
               >
                 <Activity className="w-4 h-4 mr-2" />
-                Overview
+                Trading Bots
+                <Badge variant="default" className="ml-2 h-4 px-1 text-[9px] bg-green-600 animate-pulse">LIVE</Badge>
               </TabsTrigger>
               <TabsTrigger 
-                value="research" 
-                data-testid="tab-research" 
+                value="scanner" 
+                data-testid="tab-scanner"
                 className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
               >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Research Hub
+                <Search className="w-4 h-4 mr-2" />
+                Market Scanner
               </TabsTrigger>
               <TabsTrigger 
                 value="auto-lotto" 
@@ -668,40 +682,15 @@ export default function AutomationsPage() {
                 className="relative rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
               >
                 <Rocket className="w-4 h-4 mr-2" />
-                Auto-Lotto
-                <Badge variant="default" className="ml-2 h-4 px-1 text-[9px] bg-green-600">LIVE</Badge>
+                Positions
               </TabsTrigger>
               <TabsTrigger 
-                value="quant-bot" 
-                data-testid="tab-quant-bot"
+                value="scanners" 
+                data-testid="tab-scanners"
                 className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
               >
                 <Bot className="w-4 h-4 mr-2" />
-                Quant Bot
-              </TabsTrigger>
-              <TabsTrigger 
-                value="options-flow" 
-                data-testid="tab-options-flow"
-                className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
-              >
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Options Flow
-              </TabsTrigger>
-              <TabsTrigger 
-                value="social" 
-                data-testid="tab-social"
-                className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
-              >
-                <MessageSquare className="w-4 h-4 mr-2" />
-                Social
-              </TabsTrigger>
-              <TabsTrigger 
-                value="reports" 
-                data-testid="tab-reports"
-                className="rounded-md px-4 py-2 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                Reports
+                Signal Scanners
               </TabsTrigger>
               <TabsTrigger 
                 value="settings" 
@@ -715,220 +704,366 @@ export default function AutomationsPage() {
           </div>
 
         <TabsContent value="overview" className="space-y-6">
-          {/* Research Convergence Preview */}
-          <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="lg:col-span-2 bg-slate-900/60 border-slate-700/50 overflow-hidden">
+          {/* 4 Main Portfolio Bots - Primary Display */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {/* Options Bot - $300 */}
+            <Card className="bg-gradient-to-br from-cyan-500/10 to-slate-900/60 border-cyan-500/30" data-testid="card-options-bot">
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-cyan-400" />
-                      Research Convergence
-                    </CardTitle>
-                    <CardDescription>Multi-engine intelligence output</CardDescription>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-cyan-500/20 border border-cyan-500/30">
+                      <TrendingUp className="w-5 h-5 text-cyan-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-foreground">Options Bot</h3>
+                      <p className="text-[10px] text-muted-foreground">US Market Hours</p>
+                    </div>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10"
-                    onClick={() => setLocation("/trade-ideas")}
-                  >
-                    View All Ideas
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-green-500/20 border border-green-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    <span className="text-[10px] font-bold text-green-400">LIVE</span>
+                  </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className="flex flex-col md:flex-row items-center gap-8 py-4">
-                  <div className="w-full md:w-1/2">
-                    <HeroProductPanel />
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="p-2 rounded bg-slate-800/50">
+                    <p className="text-[10px] text-muted-foreground">Capital</p>
+                    <p className="text-lg font-bold font-mono text-cyan-400">${botData?.portfolio?.startingCapital || 300}</p>
                   </div>
-                  <div className="w-full md:w-1/2 space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button 
-                        variant="outline" 
-                        className="h-auto py-3 flex-col items-start gap-1 border-slate-700/50 hover:border-cyan-500/30"
-                        onClick={() => scanQuantBot.mutate()}
-                        disabled={scanQuantBot.isPending}
-                      >
-                        <Calculator className="w-4 h-4 text-blue-400" />
-                        <span className="text-xs font-semibold">Quant Scan</span>
-                        <span className="text-[10px] text-muted-foreground">Mean-reversion signals</span>
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        className="h-auto py-3 flex-col items-start gap-1 border-slate-700/50 hover:border-cyan-500/30"
-                        onClick={() => scanOptionsFlow.mutate()}
-                        disabled={scanOptionsFlow.isPending}
-                      >
-                        <Activity className="w-4 h-4 text-cyan-400" />
-                        <span className="text-xs font-semibold">Flow Scan</span>
-                        <span className="text-[10px] text-muted-foreground">Institutional activity</span>
-                      </Button>
-                    </div>
-                    <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/50 space-y-3">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground uppercase tracking-wider">Engine Status</span>
-                        <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-400">OPTIMIZED</Badge>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm font-mono">
-                          <span className="text-muted-foreground">Active Trades</span>
-                          <span className="text-foreground">{status?.quantBot?.todayTrades || 0}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm font-mono">
-                          <span className="text-muted-foreground">Last Signal</span>
-                          <span className="text-cyan-400 font-bold">
-                            {status?.quantBot?.lastScan ? format(new Date(status.quantBot.lastScan), "HH:mm:ss") : "N/A"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="p-2 rounded bg-slate-800/50">
+                    <p className="text-[10px] text-muted-foreground">P&L</p>
+                    <p className={cn("text-lg font-bold font-mono", (botData?.portfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
+                      {(botData?.portfolio?.totalPnL || 0) >= 0 ? "+" : ""}{(botData?.portfolio?.totalPnL || 0).toFixed(2)}
+                    </p>
                   </div>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Open: {botData?.stats?.openPositions || 0}</span>
+                  <span className="text-muted-foreground">Win: {botData?.stats?.winRate || '0'}%</span>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-slate-900/60 border-slate-700/50">
+            {/* Futures Bot - $300 */}
+            <Card className="bg-gradient-to-br from-purple-500/10 to-slate-900/60 border-purple-500/30" data-testid="card-futures-bot">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Bot className="w-5 h-5 text-purple-400" />
-                  AI Intelligence
-                </CardTitle>
-                <CardDescription>Custom research generation</CardDescription>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-purple-500/20 border border-purple-500/30">
+                      <LineChart className="w-5 h-5 text-purple-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-foreground">Futures Bot</h3>
+                      <p className="text-[10px] text-muted-foreground">CME Hours (NQ/GC)</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-green-500/20 border border-green-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    <span className="text-[10px] font-bold text-green-400">LIVE</span>
+                  </div>
+                </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Trigger on-demand analysis for specific tickers using our multi-factor engine.
-                </p>
-                <div className="space-y-2">
-                  <Button 
-                    variant="secondary" 
-                    className="w-full justify-between"
-                    onClick={() => setLocation("/trade-ideas?analyze=true")}
-                  >
-                    Analyze New Ticker
-                    <Brain className="w-4 h-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-between border-slate-700/50"
-                    onClick={() => setLocation("/market-scanner")}
-                  >
-                    Open Market Scanner
-                    <Search className="w-4 h-4 text-muted-foreground" />
-                  </Button>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="p-2 rounded bg-slate-800/50">
+                    <p className="text-[10px] text-muted-foreground">Capital</p>
+                    <p className="text-lg font-bold font-mono text-purple-400">${botData?.futuresPortfolio?.startingCapital || 300}</p>
+                  </div>
+                  <div className="p-2 rounded bg-slate-800/50">
+                    <p className="text-[10px] text-muted-foreground">P&L</p>
+                    <p className={cn("text-lg font-bold font-mono", (botData?.futuresPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
+                      {(botData?.futuresPortfolio?.totalPnL || 0) >= 0 ? "+" : ""}{(botData?.futuresPortfolio?.totalPnL || 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Open: {botData?.futuresPortfolio?.openPositions || 0}</span>
+                  <span className="text-muted-foreground">Win: {botData?.futuresPortfolio?.winRate || '0'}%</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Crypto Bot - $300 */}
+            <Card className="bg-gradient-to-br from-amber-500/10 to-slate-900/60 border-amber-500/30" data-testid="card-crypto-bot">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-amber-500/20 border border-amber-500/30">
+                      <Bitcoin className="w-5 h-5 text-amber-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-foreground">Crypto Bot</h3>
+                      <p className="text-[10px] text-muted-foreground">24/7 (13 coins)</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-green-500/20 border border-green-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    <span className="text-[10px] font-bold text-green-400">LIVE</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="p-2 rounded bg-slate-800/50">
+                    <p className="text-[10px] text-muted-foreground">Capital</p>
+                    <p className="text-lg font-bold font-mono text-amber-400">${botData?.cryptoPortfolio?.startingCapital || 300}</p>
+                  </div>
+                  <div className="p-2 rounded bg-slate-800/50">
+                    <p className="text-[10px] text-muted-foreground">P&L</p>
+                    <p className={cn("text-lg font-bold font-mono", (botData?.cryptoPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
+                      {(botData?.cryptoPortfolio?.totalPnL || 0) >= 0 ? "+" : ""}{(botData?.cryptoPortfolio?.totalPnL || 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Open: {botData?.cryptoPortfolio?.openPositions || 0}</span>
+                  <span className="text-muted-foreground">Win: {botData?.cryptoPortfolio?.winRate || '0'}%</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Small Account Lotto - $150 */}
+            <Card className="bg-gradient-to-br from-green-500/10 to-slate-900/60 border-green-500/30" data-testid="card-small-account-bot">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-green-500/20 border border-green-500/30">
+                      <Rocket className="w-5 h-5 text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-foreground">Small Account</h3>
+                      <p className="text-[10px] text-muted-foreground">A+ Lottos Only</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 px-2 py-1 rounded bg-green-500/20 border border-green-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    <span className="text-[10px] font-bold text-green-400">LIVE</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 text-center">
+                  <div className="p-2 rounded bg-slate-800/50">
+                    <p className="text-[10px] text-muted-foreground">Capital</p>
+                    <p className="text-lg font-bold font-mono text-green-400">${botData?.smallAccountPortfolio?.startingCapital || 150}</p>
+                  </div>
+                  <div className="p-2 rounded bg-slate-800/50">
+                    <p className="text-[10px] text-muted-foreground">P&L</p>
+                    <p className={cn("text-lg font-bold font-mono", (botData?.smallAccountPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
+                      {(botData?.smallAccountPortfolio?.totalPnL || 0) >= 0 ? "+" : ""}{(botData?.smallAccountPortfolio?.totalPnL || 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Open: {botData?.smallAccountPortfolio?.openPositions || 0}</span>
+                  <span className="text-muted-foreground">Win: {botData?.smallAccountPortfolio?.winRate || '0'}%</span>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Bot Exit Intelligence - Full width prominent section */}
+          {/* Exit Intelligence - Critical Position Monitoring */}
           <ExitIntelligenceCard botOnly />
 
-          {/* Automation Cards - Consistent cyan palette with subtle differentiation */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {/* Quant Bot Card */}
-            <Card className="hover-elevate bg-slate-900/60 border-slate-700/50">
-              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-2">
-                <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                  <Bot className="w-4 h-4 text-cyan-400" />
-                </div>
-                <StatusBadge active={quantBot?.isActive || false} />
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <h3 className="font-semibold text-sm">Quant Mean-Reversion</h3>
-                  <p className="text-xs text-muted-foreground">RSI(2) strategy</p>
-                </div>
-                <div className="pt-2 border-t border-slate-700/50">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold font-mono text-foreground">{quantBot?.tradesExecuted || 0}</span>
-                    <span className="text-xs text-muted-foreground">trades</span>
+          {/* Quick Actions Row */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card className="bg-slate-900/60 border-slate-700/50">
+              <CardContent className="p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Search className="w-5 h-5 text-cyan-400" />
+                  <div>
+                    <h4 className="font-semibold text-sm">Market Scanner</h4>
+                    <p className="text-xs text-muted-foreground">Find new opportunities</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="w-3 h-3" />
+                <Button size="sm" variant="outline" onClick={() => setActiveTab("scanner")} className="border-cyan-500/30 text-cyan-400">
+                  Open
+                </Button>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-900/60 border-slate-700/50">
+              <CardContent className="p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Wallet className="w-5 h-5 text-purple-400" />
+                  <div>
+                    <h4 className="font-semibold text-sm">View Positions</h4>
+                    <p className="text-xs text-muted-foreground">All open trades</p>
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setActiveTab("auto-lotto")} className="border-purple-500/30 text-purple-400">
+                  Open
+                </Button>
+              </CardContent>
+            </Card>
+            <Card className="bg-slate-900/60 border-slate-700/50">
+              <CardContent className="p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Brain className="w-5 h-5 text-amber-400" />
+                  <div>
+                    <h4 className="font-semibold text-sm">Trade Ideas</h4>
+                    <p className="text-xs text-muted-foreground">AI-generated research</p>
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setLocation("/trade-desk")} className="border-amber-500/30 text-amber-400">
+                  Open
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Market Scanner Tab */}
+        <TabsContent value="scanner" className="space-y-6">
+          <Card className="bg-slate-900/60 border-slate-700/50">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Search className="w-5 h-5 text-cyan-400" />
+                    Market Scanner
+                  </CardTitle>
+                  <CardDescription>Find trading opportunities in real-time</CardDescription>
+                </div>
+                <Button onClick={() => setLocation("/market-scanner")} className="bg-cyan-600 hover:bg-cyan-700">
+                  Open Full Scanner
+                  <ExternalLink className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
+                <Button 
+                  variant="outline" 
+                  className="h-auto py-6 flex-col gap-2 border-slate-700/50 hover:border-cyan-500/30"
+                  onClick={() => setLocation("/market-scanner?tab=movers")}
+                >
+                  <TrendingUp className="w-8 h-8 text-cyan-400" />
+                  <span className="font-semibold">Top Movers</span>
+                  <span className="text-xs text-muted-foreground">Daily gainers & losers</span>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-auto py-6 flex-col gap-2 border-slate-700/50 hover:border-cyan-500/30"
+                  onClick={() => setLocation("/market-scanner?tab=daytrade")}
+                >
+                  <Zap className="w-8 h-8 text-amber-400" />
+                  <span className="font-semibold">Day Trade</span>
+                  <span className="text-xs text-muted-foreground">Intraday setups</span>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-auto py-6 flex-col gap-2 border-slate-700/50 hover:border-cyan-500/30"
+                  onClick={() => setLocation("/market-scanner?tab=swing")}
+                >
+                  <Target className="w-8 h-8 text-purple-400" />
+                  <span className="font-semibold">Swing Trade</span>
+                  <span className="text-xs text-muted-foreground">Multi-day holds</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Signal Scanners Tab (consolidated Quant, Flow, Social) */}
+        <TabsContent value="scanners" className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            {/* Quant Scanner */}
+            <Card className="bg-slate-900/60 border-slate-700/50">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Calculator className="w-5 h-5 text-blue-400" />
+                    <CardTitle className="text-base">Quant Scanner</CardTitle>
+                  </div>
+                  <StatusBadge active={quantBot?.isActive || false} />
+                </div>
+                <CardDescription>RSI(2) mean-reversion signals</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Trades Today</span>
+                  <span className="font-mono font-bold">{quantBot?.todayTrades || 0}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Last Scan</span>
                   <LastScanTime timestamp={quantBot?.lastScan || null} />
                 </div>
+                <Button 
+                  className="w-full" 
+                  variant="outline"
+                  onClick={() => scanQuantBot.mutate()}
+                  disabled={scanQuantBot.isPending}
+                >
+                  {scanQuantBot.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                  Run Scan
+                </Button>
               </CardContent>
             </Card>
 
-            {/* Options Flow Card */}
-            <Card className="hover-elevate bg-slate-900/60 border-slate-700/50">
-              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-2">
-                <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                  <TrendingUp className="w-4 h-4 text-cyan-400" />
+            {/* Options Flow Scanner */}
+            <Card className="bg-slate-900/60 border-slate-700/50">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-cyan-400" />
+                    <CardTitle className="text-base">Options Flow</CardTitle>
+                  </div>
+                  <StatusBadge active={optionsFlow?.isActive || false} />
                 </div>
-                <StatusBadge active={optionsFlow?.isActive || false} />
+                <CardDescription>Institutional options activity</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div>
-                  <h3 className="font-semibold text-sm">Options Flow Scanner</h3>
-                  <p className="text-xs text-muted-foreground">Institutional activity</p>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Flows Detected</span>
+                  <span className="font-mono font-bold">{optionsFlow?.flowsDetected || 0}</span>
                 </div>
-                <div className="pt-2 border-t border-slate-700/50">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold font-mono text-foreground">{optionsFlow?.flowsDetected || 0}</span>
-                    <span className="text-xs text-muted-foreground">flows</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="w-3 h-3" />
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Last Scan</span>
                   <LastScanTime timestamp={optionsFlow?.lastScan || null} />
                 </div>
+                <Button 
+                  className="w-full" 
+                  variant="outline"
+                  onClick={() => scanOptionsFlow.mutate()}
+                  disabled={scanOptionsFlow.isPending}
+                >
+                  {scanOptionsFlow.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                  Run Scan
+                </Button>
               </CardContent>
             </Card>
 
-            {/* Social Sentiment Card */}
-            <Card className="hover-elevate bg-slate-900/60 border-slate-700/50">
-              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-2">
-                <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                  <MessageSquare className="w-4 h-4 text-cyan-400" />
+            {/* Social Sentiment Scanner */}
+            <Card className="bg-slate-900/60 border-slate-700/50">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-purple-400" />
+                    <CardTitle className="text-base">Social Sentiment</CardTitle>
+                  </div>
+                  <StatusBadge active={socialSentiment?.isActive || false} />
                 </div>
-                <StatusBadge active={socialSentiment?.isActive || false} />
+                <CardDescription>Twitter/Reddit tracking</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div>
-                  <h3 className="font-semibold text-sm">Social Sentiment</h3>
-                  <p className="text-xs text-muted-foreground">Twitter/Reddit tracking</p>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Mentions Found</span>
+                  <span className="font-mono font-bold">{socialSentiment?.mentionsFound || 0}</span>
                 </div>
-                <div className="pt-2 border-t border-slate-700/50">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold font-mono text-foreground">{socialSentiment?.mentionsFound || 0}</span>
-                    <span className="text-xs text-muted-foreground">mentions</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="w-3 h-3" />
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Last Scan</span>
                   <LastScanTime timestamp={socialSentiment?.lastScan || null} />
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Crypto Bot Card */}
-            <Card className="hover-elevate bg-slate-900/60 border-slate-700/50">
-              <CardHeader className="pb-3 flex flex-row items-start justify-between gap-2">
-                <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                  <Bitcoin className="w-4 h-4 text-cyan-400" />
-                </div>
-                <StatusBadge active={cryptoData?.status === 'active'} />
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <h3 className="font-semibold text-sm">Crypto Bot</h3>
-                  <p className="text-xs text-muted-foreground">13 coins (24/7)</p>
-                </div>
-                <div className="pt-2 border-t border-slate-700/50">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold font-mono text-foreground">{cryptoData?.openPositions || 0}/{cryptoData?.maxPositions || 3}</span>
-                    <span className="text-xs text-muted-foreground">positions</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Activity className="w-3 h-3" />
-                  <span>Always running</span>
-                </div>
+                <Button 
+                  className="w-full" 
+                  variant="outline"
+                  onClick={() => scanSocialSentiment.mutate()}
+                  disabled={scanSocialSentiment.isPending}
+                >
+                  {scanSocialSentiment.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                  Run Scan
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -937,344 +1072,6 @@ export default function AutomationsPage() {
         {/* Auto-Lotto Bot Dashboard */}
         <TabsContent value="auto-lotto" className="space-y-6">
           <AutoLottoDashboard />
-        </TabsContent>
-
-        <TabsContent value="quant-bot" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bot className="w-5 h-5 text-cyan-400" />
-                    Quant Mean-Reversion Bot
-                  </CardTitle>
-                  <CardDescription>RSI(2) strategy targeting liquid tickers with 0-1 DTE focus</CardDescription>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="quant-toggle">Active</Label>
-                    <Switch 
-                      id="quant-toggle"
-                      checked={quantBot?.isActive || false}
-                      onCheckedChange={(checked) => toggleQuantBot.mutate(checked)}
-                      data-testid="switch-quant-bot-toggle"
-                    />
-                  </div>
-                  <Button 
-                    onClick={() => scanQuantBot.mutate()}
-                    disabled={scanQuantBot.isPending || !quantBot?.isActive}
-                    data-testid="button-quant-scan"
-                  >
-                    {scanQuantBot.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                    Scan Now
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Total Trades</div>
-                  <div className="text-2xl font-bold">{quantBot?.tradesExecuted || 0}</div>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Win Rate</div>
-                  <div className="text-2xl font-bold">{(quantBot?.winRate || 0).toFixed(1)}%</div>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Today's Trades</div>
-                  <div className="text-2xl font-bold">{quantBot?.todayTrades || 0}</div>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Expected Edge</div>
-                  <div className="text-2xl font-bold text-green-400">+$4.12</div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-3">Strategy Settings</h4>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div>
-                    <Label>Scan Universe</Label>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge variant="default" className="bg-cyan-600">500+ Tickers</Badge>
-                      <span className="text-xs text-muted-foreground">Full market coverage + dynamic movers</span>
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Max DTE</Label>
-                    <p className="text-sm text-muted-foreground mt-1">{quantBot?.settings.maxDTE} days</p>
-                  </div>
-                  <div>
-                    <Label>Profit Target / Stop Loss</Label>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      +{((quantBot?.settings.profitTarget || 0) * 100).toFixed(0)}% / -{((quantBot?.settings.stopLoss || 0) * 100).toFixed(0)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="options-flow" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-purple-400" />
-                    Options Flow Scanner
-                  </CardTitle>
-                  <CardDescription>Detect unusual institutional options activity</CardDescription>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="flow-toggle">Active</Label>
-                    <Switch 
-                      id="flow-toggle"
-                      checked={optionsFlow?.isActive || false}
-                      onCheckedChange={(checked) => toggleOptionsFlow.mutate(checked)}
-                      data-testid="switch-options-flow-toggle"
-                    />
-                  </div>
-                  <Button 
-                    onClick={() => scanOptionsFlow.mutate()}
-                    disabled={scanOptionsFlow.isPending || !optionsFlow?.isActive}
-                    data-testid="button-options-flow-scan"
-                  >
-                    {scanOptionsFlow.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                    Scan Now
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Flows Detected</div>
-                  <div className="text-2xl font-bold">{optionsFlow?.flowsDetected || 0}</div>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Today's Flows</div>
-                  <div className="text-2xl font-bold">{optionsFlow?.todayFlows?.length || 0}</div>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Min Premium</div>
-                  <div className="text-2xl font-bold">${(optionsFlow?.settings.minPremium || 0) / 1000}k</div>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Alert Threshold</div>
-                  <div className="text-2xl font-bold">{optionsFlow?.settings.alertThreshold || 75}</div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-3">Scan Universe</h4>
-                <div className="flex items-center gap-2">
-                  <Badge variant="default" className="bg-purple-600">500+ Tickers</Badge>
-                  <span className="text-xs text-muted-foreground">S&P 500 + growth stocks + penny stocks + ETFs</span>
-                </div>
-              </div>
-
-              {optionsFlow?.todayFlows && optionsFlow.todayFlows.length > 0 && (
-                <div>
-                  <h4 className="font-medium mb-3">Recent Unusual Flows</h4>
-                  <div className="space-y-2">
-                    {optionsFlow.todayFlows.slice(0, 5).map((flow: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Badge variant={flow.sentiment === 'bullish' ? 'default' : flow.sentiment === 'bearish' ? 'destructive' : 'secondary'}>
-                            {flow.sentiment}
-                          </Badge>
-                          <span className="font-medium">{flow.symbol}</span>
-                          <span className="text-muted-foreground">{flow.optionType?.toUpperCase()} ${flow.strikePrice}</span>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium">${(flow.premium / 1000).toFixed(0)}k</div>
-                          <div className="text-xs text-muted-foreground">Score: {flow.unusualScore}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="social" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5 text-blue-400" />
-                    Social Sentiment Scanner
-                  </CardTitle>
-                  <CardDescription>Track Twitter/Reddit mentions and sentiment</CardDescription>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="social-toggle">Active</Label>
-                    <Switch 
-                      id="social-toggle"
-                      checked={socialSentiment?.isActive || false}
-                      onCheckedChange={(checked) => toggleSocialSentiment.mutate(checked)}
-                      data-testid="switch-social-sentiment-toggle"
-                    />
-                  </div>
-                  <Button 
-                    onClick={() => scanSocialSentiment.mutate()}
-                    disabled={scanSocialSentiment.isPending || !socialSentiment?.isActive}
-                    data-testid="button-social-scan"
-                  >
-                    {scanSocialSentiment.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                    Scan Now
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-4">
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Total Mentions</div>
-                  <div className="text-2xl font-bold">{socialSentiment?.mentionsFound || 0}</div>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Trending Tickers</div>
-                  <div className="text-2xl font-bold">{socialSentiment?.trendingTickers?.length || 0}</div>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Platforms</div>
-                  <div className="text-lg font-bold">{socialSentiment?.settings.platforms.join(', ')}</div>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Update Interval</div>
-                  <div className="text-2xl font-bold">{socialSentiment?.settings.updateInterval || 15}m</div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium mb-3">Watchlist</h4>
-                <div className="flex flex-wrap gap-1">
-                  {socialSentiment?.settings.watchlist.map(ticker => (
-                    <Badge key={ticker} variant="outline">{ticker}</Badge>
-                  ))}
-                </div>
-              </div>
-
-              {socialSentiment?.trendingTickers && socialSentiment.trendingTickers.length > 0 && (
-                <div>
-                  <h4 className="font-medium mb-3">Trending Now</h4>
-                  <div className="space-y-2">
-                    {socialSentiment.trendingTickers.slice(0, 5).map((ticker: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Badge variant={ticker.sentiment === 'bullish' ? 'default' : ticker.sentiment === 'bearish' ? 'destructive' : 'secondary'}>
-                            {ticker.sentiment}
-                          </Badge>
-                          <span className="font-medium">{ticker.symbol}</span>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium">{ticker.mentionCount as number} mentions</div>
-                          <div className="text-xs text-muted-foreground">Score: {(ticker.sentimentScore as number)?.toFixed(0)}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="reports" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-amber-400" />
-                    Weekly Performance Report
-                  </CardTitle>
-                  <CardDescription>Automated weekly summary sent to Discord every Sunday</CardDescription>
-                </div>
-                <Button 
-                  onClick={() => generateReport.mutate()}
-                  disabled={generateReport.isPending}
-                  data-testid="button-send-report"
-                >
-                  {generateReport.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-                  Send Report Now
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Schedule</div>
-                  <div className="text-lg font-bold capitalize">{reportSettings?.sendOnDay || 'Sunday'} at {reportSettings?.sendAtHour || 20}:00</div>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Status</div>
-                  <StatusBadge active={reportSettings?.isEnabled || false} />
-                </div>
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground">Includes Recommendations</div>
-                  <div className="text-lg font-bold">{reportSettings?.includeRecommendations ? 'Yes' : 'No'}</div>
-                </div>
-              </div>
-
-              {weeklyReport && (
-                <div className="border rounded-lg p-4 space-y-4">
-                  <h4 className="font-medium">Report Preview</h4>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <div className="text-sm text-muted-foreground">Period</div>
-                      <div className="font-medium">{weeklyReport.period?.start || ''} - {weeklyReport.period?.end || ''}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground">Total Trades</div>
-                      <div className="font-medium">{weeklyReport.summary?.totalTrades || 0}</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground">Win Rate</div>
-                      <div className="font-medium">{(weeklyReport.summary?.winRate || 0).toFixed(1)}%</div>
-                    </div>
-                    <div>
-                      <div className="text-sm text-muted-foreground">Total P&L</div>
-                      <div className={`font-medium ${(weeklyReport.summary?.totalPnL || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {(weeklyReport.summary?.totalPnL || 0) >= 0 ? '+' : ''}{(weeklyReport.summary?.totalPnL || 0).toFixed(1)}%
-                      </div>
-                    </div>
-                  </div>
-
-                  {weeklyReport.insights && weeklyReport.insights.length > 0 && (
-                    <div>
-                      <h5 className="text-sm font-medium mb-2">Insights</h5>
-                      <ul className="text-sm text-muted-foreground space-y-1">
-                        {weeklyReport.insights.map((insight, i) => (
-                          <li key={i}>{insight}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {weeklyReport.recommendations && weeklyReport.recommendations.length > 0 && (
-                    <div>
-                      <h5 className="text-sm font-medium mb-2">Recommendations</h5>
-                      <ul className="text-sm text-muted-foreground space-y-1">
-                        {weeklyReport.recommendations.map((rec, i) => (
-                          <li key={i}>{rec}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* Settings Tab - Clean, Trade Desk inspired design */}

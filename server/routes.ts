@@ -13667,28 +13667,42 @@ CONSTRAINTS:
           isAdmin: true,
         });
       } else {
-        // Non-admin: sample size gating on ALL metrics
+        // Non-admin: show portfolio stats (hide positions but show metrics)
         res.json({
           portfolio: {
             name: portfolio.name,
             startingCapital: portfolio.startingCapital,
             cashBalance: portfolio.cashBalance,
+            totalValue: portfolio.totalValue,
+            totalPnL: portfolio.totalPnL,
             createdAt: portfolio.createdAt,
           },
           futuresPortfolio: futuresStats ? {
             name: futuresStats.name,
             startingCapital: futuresStats.startingCapital,
             cashBalance: futuresStats.cashBalance,
+            totalValue: futuresStats.totalValue,
+            totalPnL: futuresStats.totalPnL,
+            openPositions: futuresStats.openPositions,
+            winRate: futuresStats.winRate,
           } : null,
           cryptoPortfolio: cryptoStats ? {
             name: cryptoStats.name,
             startingCapital: cryptoStats.startingCapital,
             cashBalance: cryptoStats.cashBalance,
+            totalValue: cryptoStats.totalValue,
+            totalPnL: cryptoStats.totalPnL,
+            openPositions: cryptoStats.openPositions,
+            winRate: cryptoStats.winRate,
           } : null,
           smallAccountPortfolio: smallAccountStats ? {
             name: smallAccountStats.name,
             startingCapital: smallAccountStats.startingCapital,
             cashBalance: smallAccountStats.cashBalance,
+            totalValue: smallAccountStats.totalValue,
+            totalPnL: smallAccountStats.totalPnL,
+            openPositions: smallAccountStats.openPositions,
+            winRate: smallAccountStats.winRate,
           } : null,
           positions: [], // Never show positions to non-admin
           futuresPositions: [],
