@@ -438,8 +438,20 @@ export function AutoLottoDashboard() {
     refetchInterval: 10000,
   });
 
-  const { data: trades, isLoading: tradesLoading } = useQuery<BotTradesResponse>({
-    queryKey: ["/api/bot/trades"],
+  // Fetch from the correct endpoint that returns all portfolio positions
+  const { data: botData, isLoading: tradesLoading } = useQuery<{
+    portfolio: any;
+    futuresPortfolio: any;
+    cryptoPortfolio: any;
+    smallAccountPortfolio: any;
+    positions: BotPosition[];
+    futuresPositions: BotPosition[];
+    cryptoPositions: BotPosition[];
+    smallAccountPositions: BotPosition[];
+    stats: any;
+    isAdmin: boolean;
+  }>({
+    queryKey: ["/api/auto-lotto-bot"],
     refetchInterval: 15000,
   });
 
@@ -459,27 +471,37 @@ export function AutoLottoDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auto-lotto-bot/status"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bot/trades"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auto-lotto-bot"] });
       toast({ title: "Scan Complete", description: "Manual scan finished" });
     },
   });
 
-  const lottoPortfolio = trades?.portfolios?.find(p => 
-    p.botType === 'lotto' || p.name.toLowerCase().includes('lotto')
-  );
+  // Combine all portfolio positions into one array with proper labeling
+  const allPositions: BotPosition[] = [
+    ...(botData?.positions || []).map(p => ({ ...p, portfolioName: botData?.portfolio?.name || 'Options', botType: 'options' })),
+    ...(botData?.futuresPositions || []).map(p => ({ ...p, portfolioName: botData?.futuresPortfolio?.name || 'Futures', botType: 'futures' })),
+    ...(botData?.cryptoPositions || []).map(p => ({ ...p, portfolioName: botData?.cryptoPortfolio?.name || 'Crypto', botType: 'crypto' })),
+    ...(botData?.smallAccountPositions || []).map(p => ({ ...p, portfolioName: botData?.smallAccountPortfolio?.name || 'Small Account', botType: 'lotto' })),
+  ];
 
-  const lottoPositions = trades?.positions?.filter(p => 
-    p.botType === 'lotto' || p.portfolioName.toLowerCase().includes('lotto')
-  ) || [];
+  // Main portfolio for stats display
+  const lottoPortfolio = botData?.stats ? {
+    startingCapital: botData?.portfolio?.startingCapital || 300,
+    totalValue: botData?.portfolio?.totalValue || 0,
+    cashBalance: botData?.portfolio?.cashBalance || 0,
+    realizedPnL: botData?.stats?.totalRealizedPnL || 0,
+    unrealizedPnL: botData?.stats?.totalUnrealizedPnL || 0,
+    winRate: parseFloat(botData?.stats?.winRate || '0'),
+  } : null;
 
-  const filteredPositions = lottoPositions.filter(p => {
+  const filteredPositions = allPositions.filter(p => {
     if (assetFilter !== "all" && p.assetType !== assetFilter) return false;
     if (statusFilter !== "all" && p.status !== statusFilter) return false;
     return true;
   });
 
   // Compute real P&L data from closed positions grouped by date
-  const closedPositions = lottoPositions.filter(p => p.status === 'closed');
+  const closedPositions = allPositions.filter(p => p.status === 'closed');
   const pnlByDate = new Map<string, number>();
   closedPositions.forEach(p => {
     const dateKey = format(new Date(p.createdAt), "MM-dd");
@@ -547,7 +569,7 @@ export function AutoLottoDashboard() {
 
   // Compute real asset distribution from actual positions
   const assetCounts = { options: 0, futures: 0, crypto: 0, stock: 0 };
-  lottoPositions.forEach(p => {
+  allPositions.forEach(p => {
     if (p.assetType === 'option') assetCounts.options++;
     else if (p.assetType === 'futures') assetCounts.futures++;
     else if (p.assetType === 'crypto') assetCounts.crypto++;
@@ -804,8 +826,8 @@ export function AutoLottoDashboard() {
             />
             <KPICard
               title="Total Trades"
-              value={`${lottoPositions.length}`}
-              changeLabel={`${lottoPositions.filter(p => p.status === 'open').length} open`}
+              value={`${allPositions.length}`}
+              changeLabel={`${allPositions.filter(p => p.status === 'open').length} open`}
               icon={Activity}
               sparkData={sparkTrades}
               color="purple"
