@@ -470,33 +470,103 @@ export function AutoLottoDashboard() {
     return true;
   });
 
-  const mockPnLData = Array.from({ length: 14 }, (_, i) => ({
-    date: format(subDays(new Date(), 13 - i), "MM-dd"),
-    pnl: Math.floor(Math.random() * 200 - 50),
-  }));
+  // Compute real P&L data from closed positions grouped by date
+  const closedPositions = lottoPositions.filter(p => p.status === 'closed');
+  const pnlByDate = new Map<string, number>();
+  closedPositions.forEach(p => {
+    const dateKey = format(new Date(p.createdAt), "MM-dd");
+    pnlByDate.set(dateKey, (pnlByDate.get(dateKey) || 0) + p.realizedPnL);
+  });
+  
+  // Generate last 14 days with real data (cumulative)
+  let cumulativePnL = 0;
+  const realPnLData = Array.from({ length: 14 }, (_, i) => {
+    const dateKey = format(subDays(new Date(), 13 - i), "MM-dd");
+    const dayPnL = pnlByDate.get(dateKey) || 0;
+    cumulativePnL += dayPnL;
+    return { date: dateKey, pnl: Math.round(cumulativePnL * 100) / 100 };
+  });
 
-  const mockWinRateData = Array.from({ length: 14 }, (_, i) => ({
-    date: format(subDays(new Date(), 13 - i), "MM-dd"),
-    winRate: Math.floor(Math.random() * 30 + 50),
-  }));
+  // Compute real win rate trend from closed positions
+  const winsByDate = new Map<string, { wins: number; total: number }>();
+  closedPositions.forEach(p => {
+    const dateKey = format(new Date(p.createdAt), "MM-dd");
+    const current = winsByDate.get(dateKey) || { wins: 0, total: 0 };
+    current.total++;
+    if (p.realizedPnL > 0) current.wins++;
+    winsByDate.set(dateKey, current);
+  });
+  
+  let runningWins = 0;
+  let runningTotal = 0;
+  const realWinRateData = Array.from({ length: 14 }, (_, i) => {
+    const dateKey = format(subDays(new Date(), 13 - i), "MM-dd");
+    const dayStats = winsByDate.get(dateKey);
+    if (dayStats) {
+      runningWins += dayStats.wins;
+      runningTotal += dayStats.total;
+    }
+    return { 
+      date: dateKey, 
+      winRate: runningTotal > 0 ? Math.round((runningWins / runningTotal) * 100) : 0 
+    };
+  });
 
-  const sessionData = [
-    { session: "Pre-Market", winRate: 62, trades: 24 },
-    { session: "Open", winRate: 71, trades: 89 },
-    { session: "Midday", winRate: 48, trades: 45 },
-    { session: "Power Hour", winRate: 68, trades: 67 },
-  ];
+  // Compute real session performance from trade timestamps
+  const sessionStats = new Map<string, { wins: number; total: number }>();
+  closedPositions.forEach(p => {
+    const hour = new Date(p.createdAt).getHours();
+    let session = "After Hours";
+    if (hour >= 4 && hour < 9) session = "Pre-Market";
+    else if (hour >= 9 && hour < 11) session = "Open";
+    else if (hour >= 11 && hour < 14) session = "Midday";
+    else if (hour >= 14 && hour < 16) session = "Power Hour";
+    
+    const current = sessionStats.get(session) || { wins: 0, total: 0 };
+    current.total++;
+    if (p.realizedPnL > 0) current.wins++;
+    sessionStats.set(session, current);
+  });
+  
+  const sessionData = ["Pre-Market", "Open", "Midday", "Power Hour"].map(session => {
+    const stats = sessionStats.get(session) || { wins: 0, total: 0 };
+    return {
+      session,
+      winRate: stats.total > 0 ? Math.round((stats.wins / stats.total) * 100) : 0,
+      trades: stats.total
+    };
+  });
 
+  // Compute real asset distribution from actual positions
+  const assetCounts = { options: 0, futures: 0, crypto: 0, stock: 0 };
+  lottoPositions.forEach(p => {
+    if (p.assetType === 'option') assetCounts.options++;
+    else if (p.assetType === 'futures') assetCounts.futures++;
+    else if (p.assetType === 'crypto') assetCounts.crypto++;
+    else assetCounts.stock++;
+  });
+  
   const distributionData = [
-    { name: "Options", value: trades?.summary?.byAssetType?.options || 40, color: "#22d3ee" },
-    { name: "Futures", value: trades?.summary?.byAssetType?.futures || 30, color: "#a78bfa" },
-    { name: "Crypto", value: trades?.summary?.byAssetType?.crypto || 20, color: "#fbbf24" },
-    { name: "Stocks", value: trades?.summary?.byAssetType?.stock || 10, color: "#4ade80" },
-  ];
+    { name: "Options", value: assetCounts.options, color: "#22d3ee" },
+    { name: "Futures", value: assetCounts.futures, color: "#a78bfa" },
+    { name: "Crypto", value: assetCounts.crypto, color: "#fbbf24" },
+    { name: "Stocks", value: assetCounts.stock, color: "#4ade80" },
+  ].filter(d => d.value > 0);
 
-  const sparkProfit = [12, 18, 15, 22, 28, 24, 32, 29, 35, 38, 42, 45];
-  const sparkWinRate = [55, 58, 62, 60, 65, 63, 68, 70, 72, 68, 74, 76];
-  const sparkTrades = [5, 8, 6, 12, 10, 14, 11, 16, 13, 18, 15, 20];
+  // Compute sparkline data from recent trades (last 12 data points)
+  const recentClosedByDay = Array.from({ length: 12 }, (_, i) => {
+    const dateKey = format(subDays(new Date(), 11 - i), "MM-dd");
+    return {
+      pnl: pnlByDate.get(dateKey) || 0,
+      stats: winsByDate.get(dateKey) || { wins: 0, total: 0 }
+    };
+  });
+  
+  const sparkProfit = recentClosedByDay.map(d => d.pnl);
+  const sparkWinRate = recentClosedByDay.map(d => 
+    d.stats.total > 0 ? Math.round((d.stats.wins / d.stats.total) * 100) : 0
+  );
+  const sparkTrades = recentClosedByDay.map(d => d.stats.total);
 
   if (statusLoading) {
     return (
@@ -714,36 +784,37 @@ export function AutoLottoDashboard() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <KPICard
               title="Total Profit"
-              value={`$${(lottoPortfolio?.realizedPnL || 0).toFixed(2)}`}
-              change="+12.5%"
+              value={`${(lottoPortfolio?.realizedPnL || 0) >= 0 ? '+' : ''}$${(lottoPortfolio?.realizedPnL || 0).toFixed(2)}`}
+              changeLabel={`${closedPositions.length} closed trades`}
               icon={DollarSign}
-              trend="up"
+              trend={(lottoPortfolio?.realizedPnL || 0) >= 0 ? "up" : "down"}
               sparkData={sparkProfit}
-              color="green"
+              color={(lottoPortfolio?.realizedPnL || 0) >= 0 ? "green" : "red"}
               testId="kpi-total-profit"
             />
             <KPICard
               title="Win Rate"
               value={`${(lottoPortfolio?.winRate || 0).toFixed(1)}%`}
-              change="+3.2%"
+              changeLabel={`${closedPositions.filter(p => p.realizedPnL > 0).length}W / ${closedPositions.filter(p => p.realizedPnL <= 0).length}L`}
               icon={Target}
-              trend="up"
+              trend={(lottoPortfolio?.winRate || 0) >= 55 ? "up" : "down"}
               sparkData={sparkWinRate}
-              color="cyan"
+              color={(lottoPortfolio?.winRate || 0) >= 55 ? "cyan" : "red"}
               testId="kpi-win-rate"
             />
             <KPICard
               title="Total Trades"
-              value={`${lottoPortfolio?.closedPositions || 0}`}
-              changeLabel="Since inception"
+              value={`${lottoPositions.length}`}
+              changeLabel={`${lottoPositions.filter(p => p.status === 'open').length} open`}
               icon={Activity}
               sparkData={sparkTrades}
               color="purple"
               testId="kpi-total-trades"
             />
             <KPICard
-              title="Avg Return"
-              value={`${((lottoPortfolio?.realizedPnL || 0) / Math.max(lottoPortfolio?.closedPositions || 1, 1)).toFixed(2)}%`}
+              title="Avg P&L"
+              value={`$${closedPositions.length > 0 ? ((lottoPortfolio?.realizedPnL || 0) / closedPositions.length).toFixed(2) : '0.00'}`}
+              changeLabel="Per trade"
               icon={TrendingUp}
               color="amber"
               testId="kpi-avg-return"
@@ -761,7 +832,7 @@ export function AutoLottoDashboard() {
                 <CardDescription>14-day profit/loss trend</CardDescription>
               </CardHeader>
               <CardContent>
-                <PnLChart data={mockPnLData} />
+                <PnLChart data={realPnLData} />
               </CardContent>
             </Card>
 
@@ -774,7 +845,7 @@ export function AutoLottoDashboard() {
                 <CardDescription>Rolling 14-day performance</CardDescription>
               </CardHeader>
               <CardContent>
-                <WinRateTrendChart data={mockWinRateData} />
+                <WinRateTrendChart data={realWinRateData} />
               </CardContent>
             </Card>
           </div>
