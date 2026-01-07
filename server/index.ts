@@ -9,6 +9,7 @@ import { logger } from "./logger";
 import { validateTradierAPI } from "./tradier-api";
 import { deriveTimingWindows, verifyTimingUniqueness } from "./timing-intelligence";
 import { initializeRealtimePrices, getRealtimeStatus } from "./realtime-price-service";
+import { initializeBotNotificationService } from "./bot-notification-service";
 import { securityHeaders } from "./security";
 import { csrfMiddleware, validateCSRF } from "./csrf";
 
@@ -126,6 +127,10 @@ app.use((req, res, next) => {
     // Initialize real-time price feeds with WebSocket broadcast (Coinbase for crypto, Databento for futures)
     initializeRealtimePrices(server);
     log('📡 Real-time price feeds initialized with WebSocket broadcast on /ws/prices');
+    
+    // Initialize bot notification WebSocket for real-time trade alerts
+    initializeBotNotificationService(server);
+    log('🤖 Bot notification service initialized with WebSocket broadcast on /ws/bot');
     
     // Start Catalyst Intelligence polling (SEC filings, government contracts)
     const { startCatalystPolling } = await import('./catalyst-intelligence-service');

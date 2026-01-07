@@ -17,6 +17,7 @@ import { LogOut, User, Loader2 } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { ScrollParticles } from "@/components/scroll-particles";
 import { AIChatbotPopup } from "@/components/ai-chatbot-popup";
+import { BotNotificationPopup } from "@/components/bot-notification-popup";
 import { cn } from "@/lib/utils";
 import { ProtectedRoute } from "@/components/protected-route";
 
@@ -298,6 +299,7 @@ function App() {
               </div>
             </SidebarProvider>
             <AIChatbotPopup />
+            <BotNotificationPopup />
             <Toaster />
           </RealtimePricesProvider>
         </TooltipProvider>

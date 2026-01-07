@@ -37,6 +37,7 @@ import {
   getLearningState
 } from "./loss-analyzer-service";
 import { analyzePosition, ExitAdvisory } from "./position-monitor-service";
+import { broadcastBotEvent } from "./bot-notification-service";
 
 // User preferences interface with defaults
 interface BotPreferences {
@@ -2587,6 +2588,18 @@ export async function runAutonomousBotScan(): Promise<void> {
         if (decision.action === 'enter' && entryTiming.shouldEnterNow) {
           logger.info(`🤖 [BOT] ✅ ${ticker} ${opp.optionType.toUpperCase()} $${opp.strike}: ${decision.reason} | ${entryTiming.reason}`);
           
+          // 🔔 BROADCAST: Bot is LOOKING at this opportunity
+          broadcastBotEvent({
+            eventType: 'looking',
+            symbol: ticker,
+            optionType: opp.optionType,
+            strike: opp.strike,
+            expiry: opp.expiration,
+            price: opp.price,
+            confidence: decision.confidence,
+            reason: `${opp.optionType.toUpperCase()} $${opp.strike} @ $${opp.price.toFixed(2)} - ${decision.reason}`
+          });
+          
           // 🚀 IMMEDIATE EXECUTION: Trade A+ opportunities right away (don't wait for full scan!)
           // Only wait if we've already traded 5 this cycle
           if (tradesThisCycle < 5 && decision.confidence >= 85) {
@@ -2747,6 +2760,20 @@ export async function runAutonomousBotScan(): Promise<void> {
       if (result.success && result.position) {
         const portfolioLabel = isSmallAcctTrade ? '💰 SMALL ACCOUNT' : '🤖 BOT';
         logger.info(`${portfolioLabel} ✅ TRADE EXECUTED: ${opp.symbol} x${result.position.quantity} @ $${opp.price.toFixed(2)}`);
+        
+        // 🔔 BROADCAST: Bot ENTERED a trade
+        broadcastBotEvent({
+          eventType: 'entry',
+          symbol: opp.symbol,
+          optionType: opp.optionType,
+          strike: opp.strike,
+          expiry: opp.expiration,
+          price: opp.price,
+          quantity: result.position.quantity,
+          confidence: decision.confidence,
+          portfolio: isSmallAcctTrade ? 'small_account' : 'options',
+          reason: `ENTERED: ${opp.optionType?.toUpperCase()} $${opp.strike} x${result.position.quantity} @ $${opp.price.toFixed(2)}`
+        });
         
         // Send Discord notification with full analysis
         try {
@@ -3041,6 +3068,20 @@ export async function monitorLottoPositions(): Promise<void> {
             
             // Send Discord notification with Exit Intelligence context
             const isSmallAcct = await isSmallAccountPortfolioAsync(pos.portfolioId);
+            
+            // 🔔 BROADCAST: Bot EXITED a trade
+            broadcastBotEvent({
+              eventType: 'exit',
+              symbol: pos.symbol,
+              optionType: pos.optionType as 'call' | 'put' | undefined,
+              strike: pos.strikePrice || undefined,
+              price: exitPrice,
+              quantity: pos.quantity,
+              pnl,
+              portfolio: isSmallAcct ? 'small_account' : 'options',
+              reason: `EXIT-INTEL: ${exitIntelligence.exitReason} | P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`
+            });
+            
             await sendBotTradeExitToDiscord({
               symbol: pos.symbol,
               assetType: pos.assetType || 'option',
@@ -3126,6 +3167,20 @@ export async function monitorLottoPositions(): Promise<void> {
           // Send Discord notification for exit - route to QUANTFLOOR + OPTIONSTRADES
           logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
           const isSmallAcct = await isSmallAccountPortfolioAsync(pos.portfolioId);
+          
+          // 🔔 BROADCAST: Bot EXITED a trade (dynamic exit)
+          broadcastBotEvent({
+            eventType: 'exit',
+            symbol: pos.symbol,
+            optionType: pos.optionType as 'call' | 'put' | undefined,
+            strike: pos.strikePrice || undefined,
+            price: exitPrice,
+            quantity: pos.quantity,
+            pnl,
+            portfolio: isSmallAcct ? 'small_account' : 'options',
+            reason: `${exitSignal.exitType}: ${exitSignal.reason} | P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`
+          });
+          
           await sendBotTradeExitToDiscord({
             symbol: pos.symbol,
             assetType: pos.assetType || 'option',
@@ -3172,6 +3227,20 @@ export async function monitorLottoPositions(): Promise<void> {
         try {
           logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
           const isSmallAcct = await isSmallAccountPortfolioAsync(pos.portfolioId);
+          
+          // 🔔 BROADCAST: Bot EXITED a trade (stop/target hit)
+          broadcastBotEvent({
+            eventType: 'exit',
+            symbol: pos.symbol,
+            optionType: pos.optionType as 'call' | 'put' | undefined,
+            strike: pos.strikePrice || undefined,
+            price: pos.exitPrice || pos.currentPrice,
+            quantity: pos.quantity,
+            pnl,
+            portfolio: isSmallAcct ? 'small_account' : 'options',
+            reason: `${pos.exitReason} | P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`
+          });
+          
           await sendBotTradeExitToDiscord({
             symbol: pos.symbol,
             assetType: pos.assetType || 'option',
