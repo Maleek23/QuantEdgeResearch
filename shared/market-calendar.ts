@@ -39,24 +39,46 @@ export interface MarketStatus {
  * Get current date string in ET timezone (YYYY-MM-DD)
  */
 export function getETDateString(): string {
-  // FORCE TIME FOR ANALYSIS: Jan 5th, 2026 (Monday)
-  return '2026-01-05';
+  const now = new Date();
+  const options: Intl.DateTimeFormatOptions = {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  };
+  const parts = new Intl.DateTimeFormat('en-CA', options).formatToParts(now);
+  const year = parts.find(p => p.type === 'year')?.value || '2026';
+  const month = parts.find(p => p.type === 'month')?.value || '01';
+  const day = parts.find(p => p.type === 'day')?.value || '01';
+  return `${year}-${month}-${day}`;
 }
 
 /**
  * Get current time in ET timezone
  */
 export function getETTime(): { hour: number; minute: number; day: number; timeInMinutes: number; dateStr: string } {
-  // FORCE TIME FOR ANALYSIS: 2:24 PM ET on Monday, Jan 5, 2026
-  // 2:24 PM = 14:24
-  const hour = 14;
-  const minute = 24;
+  const now = new Date();
+  const options: Intl.DateTimeFormatOptions = { timeZone: 'America/New_York' };
+  
+  // Get ET time components
+  const etString = now.toLocaleString('en-US', { ...options, hour12: false });
+  const dateParts = now.toLocaleDateString('en-CA', options).split('-'); // YYYY-MM-DD format
+  const dateStr = dateParts.join('-');
+  
+  // Parse hour and minute
+  const timeParts = now.toLocaleTimeString('en-US', { ...options, hour12: false, hour: '2-digit', minute: '2-digit' }).split(':');
+  const hour = parseInt(timeParts[0], 10);
+  const minute = parseInt(timeParts[1], 10);
+  
+  // Get day of week (0=Sunday, 6=Saturday)
+  const day = new Date(now.toLocaleString('en-US', options)).getDay();
+  
   return {
     hour,
     minute,
-    day: 1, // Monday
+    day,
     timeInMinutes: hour * 60 + minute,
-    dateStr: '2026-01-05',
+    dateStr,
   };
 }
 
@@ -102,7 +124,7 @@ export function isUSMarketOpen(): MarketStatus {
   }
   
   if (timeInMinutes >= marketClose) {
-    return { isOpen: true, reason: 'Market is open (Late Session)', minutesUntilClose: 0 };
+    return { isOpen: false, reason: 'After hours - market closed' };
   }
   
   const minutesUntilClose = marketClose - timeInMinutes;

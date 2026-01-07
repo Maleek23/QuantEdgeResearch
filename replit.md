@@ -59,3 +59,12 @@ Key features include:
 
 ### Other Integrations
 -   **Discord:** Webhook notifications (A-grade only quality filtering for flow alerts).
+
+## Recent Updates (Jan 2026)
+
+### Dashboard Accuracy Fixes
+- **Market Calendar Fix**: Fixed `getETTime()` and `getETDateString()` functions to use actual current ET time instead of hardcoded test data. Fixed `isUSMarketOpen()` to correctly return `isOpen: false` after 4PM ET (was incorrectly returning `isOpen: true` for "Late Session").
+- **Bot Status Aggregation**: `/api/auto-lotto/bot-status` now aggregates data from ALL auto-lotto portfolios (Options, Futures, Crypto, Small Account, Prop Firm) instead of looking for a single non-existent "Auto-Lotto Bot" portfolio.
+- **Performance Summary Consistency**: `/api/auto-lotto/performance-summary` now uses `exitTime OR closedAt` for position close detection and includes all portfolio types (options, futures, crypto, prop firm).
+- **P&L Calculation Fix**: Dashboard now uses `totalValue` field for accurate P&L display instead of `cashBalance`.
+- **Bot Activity Status**: Correctly displays "SCANNING" during market hours and "MARKET CLOSED" during after hours.

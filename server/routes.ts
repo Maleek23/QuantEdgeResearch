@@ -4895,24 +4895,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // 📊 Performance Summary - Rolling win rates and symbol leaderboard
   app.get("/api/auto-lotto/performance-summary", async (_req: any, res) => {
     try {
-      // Get all auto-lotto portfolios
+      // Get all auto-lotto portfolios (same filter as bot-status)
       const portfolios = await storage.getAllPaperPortfolios();
       const autoLottoPortfolios = portfolios.filter(p => 
         p.name?.toLowerCase().includes('auto-lotto') || 
-        p.name?.toLowerCase().includes('small account')
+        p.name?.toLowerCase().includes('small account') ||
+        p.name?.toLowerCase().includes('prop firm')
       );
       
-      // Get all closed positions from auto-lotto portfolios
+      // Get all positions from auto-lotto portfolios
       let allPositions: any[] = [];
       for (const portfolio of autoLottoPortfolios) {
         const portfolioPositions = await storage.getPaperPositionsByPortfolio(portfolio.id);
         allPositions = allPositions.concat(portfolioPositions);
       }
       
+      // Filter for closed positions - use exitTime OR closedAt, support all asset types
       const closedPositions = allPositions.filter(p => 
         p.status === 'closed' && 
-        p.assetType === 'option' &&
-        p.closedAt
+        (p.exitTime || p.closedAt)
       );
 
       const now = new Date();
@@ -4926,13 +4927,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const avgWin = wins.length > 0 ? wins.reduce((sum, p) => sum + (p.realizedPnL || 0), 0) / wins.length : 0;
       const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((sum, p) => sum + (p.realizedPnL || 0), 0) / losses.length) : 0;
 
-      // Weekly stats
-      const weeklyPositions = closedPositions.filter(p => new Date(p.closedAt!) >= weekAgo);
+      // Weekly stats (use exitTime OR closedAt)
+      const weeklyPositions = closedPositions.filter(p => {
+        const closeDate = new Date(p.exitTime || p.closedAt);
+        return closeDate >= weekAgo;
+      });
       const weeklyWins = weeklyPositions.filter(p => (p.realizedPnL || 0) > 0);
       const weeklyPnL = weeklyPositions.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
 
-      // Monthly stats
-      const monthlyPositions = closedPositions.filter(p => new Date(p.closedAt!) >= monthAgo);
+      // Monthly stats (use exitTime OR closedAt)
+      const monthlyPositions = closedPositions.filter(p => {
+        const closeDate = new Date(p.exitTime || p.closedAt);
+        return closeDate >= monthAgo;
+      });
       const monthlyWins = monthlyPositions.filter(p => (p.realizedPnL || 0) > 0);
       const monthlyPnL = monthlyPositions.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
 

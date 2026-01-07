@@ -18,15 +18,26 @@ function BotActivityMonitor() {
     openPositions: number;
     todayTrades: number;
     todayPnL: number;
+    marketStatus: string;
   }>({
     queryKey: ['/api/auto-lotto/bot-status'],
     refetchInterval: 10000,
   });
 
-  const isRunning = botStatus?.isRunning ?? false;
+  const isMarketOpen = botStatus?.isRunning ?? false;
   const openPositions = botStatus?.openPositions ?? 0;
   const todayTrades = botStatus?.todayTrades ?? 0;
   const todayPnL = botStatus?.todayPnL ?? 0;
+  const marketStatus = botStatus?.marketStatus ?? 'unknown';
+  
+  const getStatusDisplay = () => {
+    if (isMarketOpen) {
+      return { label: 'SCANNING', color: 'bg-green-500 animate-pulse', textColor: 'text-green-400' };
+    }
+    return { label: 'MARKET CLOSED', color: 'bg-amber-500', textColor: 'text-amber-400' };
+  };
+  
+  const status = getStatusDisplay();
 
   return (
     <Card className="bg-card/50 backdrop-blur-sm border-border/50" data-testid="card-bot-monitor">
@@ -39,10 +50,8 @@ function BotActivityMonitor() {
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className={cn("w-3 h-3 rounded-full",
-              isRunning ? "bg-green-500 animate-pulse" : "bg-red-500"
-            )} />
-            <span className="font-medium">{isRunning ? 'ACTIVE' : 'PAUSED'}</span>
+            <div className={cn("w-3 h-3 rounded-full", status.color)} />
+            <span className={cn("font-medium text-sm", status.textColor)}>{status.label}</span>
           </div>
           <Link href="/automations">
             <Button size="sm" variant="outline" className="text-xs h-7">
@@ -110,8 +119,9 @@ function PaperPortfolios() {
     name: string;
     cashBalance: number;
     startingCapital: number;
-    totalPnL?: number;
-    totalPnLPercent?: number;
+    totalValue: number;
+    totalPnL: number;
+    totalPnLPercent: number;
   }>>({
     queryKey: ['/api/paper-portfolios'],
     refetchInterval: 30000,
@@ -129,14 +139,14 @@ function PaperPortfolios() {
       <CardContent>
         <div className="space-y-2">
           {portfolioList.length > 0 ? portfolioList.map((p) => {
-            const cash = typeof p.cashBalance === 'number' ? p.cashBalance : parseFloat(String(p.cashBalance)) || 0;
+            const totalValue = typeof p.totalValue === 'number' ? p.totalValue : parseFloat(String(p.totalValue)) || 0;
             const starting = typeof p.startingCapital === 'number' ? p.startingCapital : parseFloat(String(p.startingCapital)) || 0;
-            const pnlPct = starting > 0 ? ((cash - starting) / starting) * 100 : 0;
+            const pnlPct = typeof p.totalPnLPercent === 'number' ? p.totalPnLPercent : (starting > 0 ? ((totalValue - starting) / starting) * 100 : 0);
             return (
               <div key={p.id} className="flex items-center justify-between p-2 rounded bg-muted/30">
                 <span className="text-sm">{p.name}</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-mono">${cash.toFixed(0)}</span>
+                  <span className="text-sm font-mono">${totalValue.toFixed(0)}</span>
                   <Badge variant="outline" className={cn("text-xs",
                     pnlPct >= 0 ? "text-green-400" : "text-red-400"
                   )}>
