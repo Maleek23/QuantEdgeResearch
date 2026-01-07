@@ -184,6 +184,29 @@ interface SwingOpportunity {
   createdAt: string;
 }
 
+interface DayTradeOpportunity {
+  symbol: string;
+  name?: string;
+  currentPrice: number;
+  vwap: number;
+  vwapDistance: number;
+  rsi2: number;
+  momentum5m: number;
+  volumeSpike: number;
+  direction: 'long' | 'short';
+  pattern: string;
+  entry: number;
+  target: number;
+  targetPercent: number;
+  stopLoss: number;
+  stopPercent: number;
+  riskReward: number;
+  confidence: number;
+  signals: string[];
+  timeframe: string;
+  createdAt: string;
+}
+
 function getSwingGradeVariant(grade: string): "default" | "secondary" | "destructive" | "outline" {
   switch (grade) {
     case 'S': 
@@ -702,6 +725,8 @@ export default function MarketScanner() {
     const tabParam = params.get('tab');
     if (tabParam === 'swing') {
       setActiveTab('swing');
+    } else if (tabParam === 'daytrade') {
+      setActiveTab('daytrade');
     }
   }, [searchString]);
 
@@ -742,6 +767,17 @@ export default function MarketScanner() {
     },
     refetchInterval: 5 * 60 * 1000,
     enabled: activeTab === 'swing',
+  });
+
+  const daytradeQuery = useQuery<DayTradeOpportunity[]>({
+    queryKey: ['/api/daytrade-scanner'],
+    queryFn: async () => {
+      const res = await fetch('/api/daytrade-scanner');
+      if (!res.ok) throw new Error('Failed to fetch day trade opportunities');
+      return res.json();
+    },
+    refetchInterval: 60 * 1000,
+    enabled: activeTab === 'daytrade',
   });
 
   const sendSwingToDiscord = useMutation({
@@ -835,16 +871,20 @@ export default function MarketScanner() {
           </div>
         </div>
 
-        {/* Main Tab Navigation: Movers vs Swing */}
+        {/* Main Tab Navigation: Movers vs Day Trade vs Swing */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-flex mb-4">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex mb-4 gap-1">
             <TabsTrigger value="movers" data-testid="tab-movers">
               <TrendingUp className="w-4 h-4 mr-2" />
-              Movers & Watchlist
+              Movers
+            </TabsTrigger>
+            <TabsTrigger value="daytrade" data-testid="tab-daytrade">
+              <Zap className="w-4 h-4 mr-2" />
+              Day Trade
             </TabsTrigger>
             <TabsTrigger value="swing" data-testid="tab-swing">
               <Repeat className="w-4 h-4 mr-2" />
-              Swing Scanner
+              Swing
             </TabsTrigger>
           </TabsList>
 
@@ -1023,6 +1063,154 @@ export default function MarketScanner() {
             </TabsContent>
           ))}
               </Tabs>
+            </div>
+          </TabsContent>
+
+          {/* Day Trade Tab Content */}
+          <TabsContent value="daytrade" className="mt-0">
+            <div className="space-y-6">
+              <Card className="bg-cyan-950/20 border-cyan-600/30">
+                <CardContent className="py-3">
+                  <p className="text-cyan-200 text-sm flex items-center gap-2">
+                    <Zap className="w-4 h-4" />
+                    <span>
+                      <strong>Intraday Focus:</strong> These are short-term setups for same-day entries/exits. 
+                      Uses VWAP, RSI(2), momentum breakouts, and volume spikes. 0-2 day holds max.
+                    </span>
+                  </p>
+                </CardContent>
+              </Card>
+
+              {daytradeQuery.isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <Card key={i}>
+                      <CardContent className="p-4 space-y-3">
+                        <Skeleton className="h-6 w-24" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : daytradeQuery.data && daytradeQuery.data.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {daytradeQuery.data.map((opp, idx) => (
+                    <Card 
+                      key={`${opp.symbol}-${idx}`} 
+                      className={`hover-elevate transition-all ${opp.direction === 'long' ? 'border-green-500/30' : 'border-red-500/30'}`}
+                      data-testid={`card-daytrade-${opp.symbol}`}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-xl font-bold">{opp.symbol}</CardTitle>
+                            <Badge 
+                              variant={opp.direction === 'long' ? 'default' : 'destructive'}
+                              className="text-xs"
+                            >
+                              {opp.direction === 'long' ? 'LONG' : 'SHORT'}
+                            </Badge>
+                          </div>
+                          <Badge variant="secondary" className="font-mono">
+                            {opp.confidence}%
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span className="font-mono">${opp.currentPrice.toFixed(2)}</span>
+                          <span>•</span>
+                          <span className="truncate text-xs">{opp.pattern}</span>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">VWAP:</span>
+                            <span className={`ml-2 font-mono ${opp.vwapDistance > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              ${opp.vwap.toFixed(2)} ({opp.vwapDistance > 0 ? '+' : ''}{opp.vwapDistance.toFixed(1)}%)
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">RSI(2):</span>
+                            <span className={`ml-2 font-mono ${opp.rsi2 < 20 ? 'text-red-400' : opp.rsi2 > 80 ? 'text-green-400' : ''}`}>
+                              {opp.rsi2.toFixed(0)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Target className="w-3 h-3 text-green-500" />
+                            <span className="text-green-400">
+                              ${opp.target.toFixed(2)} (+{opp.targetPercent.toFixed(1)}%)
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3 text-red-500" />
+                            <span className="text-red-400">
+                              ${opp.stopLoss.toFixed(2)} (-{opp.stopPercent.toFixed(1)}%)
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <Activity className="w-3 h-3" />
+                            <span>{opp.volumeSpike.toFixed(1)}x vol</span>
+                          </div>
+                          <Badge variant="outline" className={`text-xs ${opp.riskReward >= 2 ? 'text-green-400 border-green-500/30' : ''}`}>
+                            R:R {opp.riskReward.toFixed(1)}:1
+                          </Badge>
+                        </div>
+
+                        {opp.signals && opp.signals.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {opp.signals.slice(0, 3).map((signal, i) => (
+                              <Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0">
+                                {signal}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <Zap className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium">No Day Trade Setups</h3>
+                    <p className="text-muted-foreground text-sm mt-2">
+                      No intraday opportunities currently meet the VWAP/momentum criteria.
+                      Check back during market hours for active setups.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Day Trade Criteria</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                    <div className="space-y-1">
+                      <div className="font-medium text-cyan-400">VWAP Strategy</div>
+                      <div className="text-muted-foreground">Price vs VWAP for direction bias</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-cyan-400">RSI(2) Extreme</div>
+                      <div className="text-muted-foreground">Oversold {"<"}20 or overbought {">"}80</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-cyan-400">Volume Spike</div>
+                      <div className="text-muted-foreground">1.5x+ average volume required</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-medium text-cyan-400">Hold Time</div>
+                      <div className="text-muted-foreground">Same-day to next-day exits</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 

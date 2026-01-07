@@ -9925,6 +9925,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Day Trade Scanner - Intraday setups using VWAP, RSI(2), volume spikes
+  app.get("/api/daytrade-scanner", async (req, res) => {
+    try {
+      const { getDayTradeOpportunities } = await import("./daytrade-scanner");
+      const limit = parseInt(req.query.limit as string) || 15;
+      const opportunities = await getDayTradeOpportunities(limit);
+      
+      logger.info(`[DAYTRADE-API] Found ${opportunities.length} day trade opportunities`);
+      res.json(opportunities);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/daytrade-scanner' });
+      res.status(500).json({ error: "Failed to fetch day trade opportunities" });
+    }
+  });
+
   // Options Data Routes
   app.get("/api/options/:symbol", async (req, res) => {
     try {
