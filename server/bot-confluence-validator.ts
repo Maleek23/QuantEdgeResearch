@@ -67,7 +67,21 @@ const CONFLUENCE_WEIGHTS = {
 const MIN_CONFLUENCE_SCORE = 55; // Require higher conviction before entry
 
 // Priority tickers get +5 boost (reduced from +15 to prevent weak setups from passing)
-const PRIORITY_TICKERS = ['NNE', 'BIDU', 'SOFI', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META', 'TSLA', 'NVDA', 'AMD', 'AAPL', 'GOOGL', 'MSFT', 'SPY'];
+// 🎯 PRIORITY SECTORS: Nuclear, Space, Quantum, AI, Tech, Chinese stocks
+const PRIORITY_TICKERS = [
+  // ☢️ NUCLEAR & FUSION
+  'NNE', 'OKLO', 'SMR', 'CCJ', 'LEU', 'UUUU',
+  // 🚀 SPACE
+  'RKLB', 'ASTS', 'LUNR', 'JOBY', 'ACHR', 'RDW', 'SPCE',
+  // 🧠 AI & QUANTUM COMPUTING  
+  'PLTR', 'AI', 'SOUN', 'IONQ', 'RGTI', 'QUBT', 'QBTS', 'UPST',
+  // 🇨🇳 CHINESE STOCKS
+  'BIDU', 'NIO', 'BABA', 'JD', 'PDD', 'XPEV', 'LI',
+  // 📈 MEGA-CAP TECH (high liquidity)
+  'NVDA', 'TSLA', 'AMD', 'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'META',
+  // 🏦 INDICES & CRYPTO
+  'SPY', 'QQQ', 'IWM', 'COIN', 'MARA', 'RIOT', 'ARM', 'INTC', 'SOFI',
+];
 const PRIORITY_TICKER_BOOST = 5; // Reduced from 15 to prevent weak entries
 
 /**
