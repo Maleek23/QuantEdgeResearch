@@ -3759,13 +3759,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Asset allocation from portfolios
-      const assetAllocation = [
-        { name: 'Stocks', value: 40, color: '#22d3ee' },
-        { name: 'Options', value: 30, color: '#a855f7' },
-        { name: 'Crypto', value: 20, color: '#f59e0b' },
-        { name: 'Futures', value: 10, color: '#10b981' },
-      ];
+      // Asset allocation calculated from active trade ideas
+      const assetCounts = { stock: 0, option: 0, crypto: 0, future: 0 };
+      openIdeas.forEach(idea => {
+        const type = idea.assetType?.toLowerCase() || 'stock';
+        if (type === 'stock' || type === 'equity') assetCounts.stock++;
+        else if (type === 'option' || type === 'options') assetCounts.option++;
+        else if (type === 'crypto' || type === 'cryptocurrency') assetCounts.crypto++;
+        else if (type === 'future' || type === 'futures') assetCounts.future++;
+        else assetCounts.stock++; // Default to stock
+      });
+      
+      const totalPositions = assetCounts.stock + assetCounts.option + assetCounts.crypto + assetCounts.future;
+      const assetAllocation = totalPositions > 0 ? [
+        { name: 'Stocks', value: Math.round((assetCounts.stock / totalPositions) * 100), color: '#22d3ee' },
+        { name: 'Options', value: Math.round((assetCounts.option / totalPositions) * 100), color: '#a855f7' },
+        { name: 'Crypto', value: Math.round((assetCounts.crypto / totalPositions) * 100), color: '#f59e0b' },
+        { name: 'Futures', value: Math.round((assetCounts.future / totalPositions) * 100), color: '#10b981' },
+      ].filter(a => a.value > 0) : [];
       
       // Win/Loss ratio
       const winLossRatio = [
