@@ -1,5 +1,6 @@
 import { getTradierQuote } from "./tradier-api";
 import { logger } from "./logger";
+import { isUSMarketOpen } from "@shared/market-calendar";
 
 export interface MarketContext {
   regime: 'trending_up' | 'trending_down' | 'ranging' | 'volatile';
@@ -52,12 +53,13 @@ export async function getMarketContext(forceRefresh = false): Promise<MarketCont
   } catch (error) {
     logger.error("📊 [MARKET] Failed to fetch market context:", error);
     
+    const marketStatus = isUSMarketOpen();
     return {
       regime: 'ranging',
       riskSentiment: 'neutral',
       score: 50,
-      shouldTrade: true,
-      reasons: ['Market data unavailable - using neutral defaults'],
+      shouldTrade: marketStatus.isOpen,
+      reasons: marketStatus.isOpen ? ['Market data unavailable - using neutral defaults'] : [`⛔ Market closed: ${marketStatus.reason}`],
       spyData: null,
       vixLevel: null,
       timestamp: new Date(),
@@ -76,12 +78,13 @@ function analyzeMarketConditions(
   let riskSentiment: MarketContext['riskSentiment'] = 'neutral';
 
   if (!spy) {
+    const marketStatus = isUSMarketOpen();
     return {
       regime: 'ranging',
       riskSentiment: 'neutral',
       score: 50,
-      shouldTrade: true,
-      reasons: ['SPY data unavailable'],
+      shouldTrade: marketStatus.isOpen,
+      reasons: marketStatus.isOpen ? ['SPY data unavailable'] : [`⛔ Market closed: ${marketStatus.reason}`],
       spyData: null,
       vixLevel: null,
       timestamp: new Date(),
@@ -146,10 +149,13 @@ function analyzeMarketConditions(
   }
 
   // 🛡️ PROPER TRADING GATE - Only trade in favorable conditions
-  // Require score >= 30 AND not extreme volatility
-  const shouldTrade = score >= 30 && regime !== 'volatile';
+  // Require: market open, score >= 30, and not extreme volatility
+  const marketStatus = isUSMarketOpen();
+  const shouldTrade = marketStatus.isOpen && score >= 30 && regime !== 'volatile';
 
-  if (!shouldTrade) {
+  if (!marketStatus.isOpen) {
+    reasons.push(`⛔ Market closed: ${marketStatus.reason}`);
+  } else if (!shouldTrade) {
     reasons.push(`⛔ Skip trading: Score ${score} < 30 or volatile regime (${regime})`);
   }
 

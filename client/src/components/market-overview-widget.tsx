@@ -140,11 +140,12 @@ export function MarketOverviewWidget() {
               {context.score}
             </div>
             <Badge 
-              variant={context.shouldTrade ? "default" : "destructive"} 
-              className="text-xs mt-1"
+              variant={context.shouldTrade ? "default" : "secondary"} 
+              className={cn("text-xs mt-1", !context.shouldTrade && "opacity-60")}
               data-testid="badge-trade-status"
             >
-              {context.shouldTrade ? 'TRADEABLE' : 'CAUTION'}
+              {context.shouldTrade ? 'TRADEABLE' : 
+               (session.label.includes('Hours') || session.label === 'Weekend' ? 'CLOSED' : 'CAUTION')}
             </Badge>
           </div>
           
