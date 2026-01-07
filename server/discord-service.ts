@@ -207,7 +207,134 @@ const COLORS = {
   QUANT: 0x3b82f6,   // Blue for quant signals
   HYBRID: 0x10b981,  // Emerald for hybrid (AI + Quant)
   MANUAL: 0x64748b,  // Gray for manual trades
+  LOTTO: 0xfacc15,   // Amber for Lotto
 };
+
+// Map portfolio IDs to display names and emojis
+const PORTFOLIO_METADATA: Record<string, { name: string; emoji: string }> = {
+  'options': { name: 'Options Portfolio', emoji: '🎯' },
+  'small_account': { name: 'Small Account Lotto', emoji: '🎰' },
+  'futures': { name: 'Futures Portfolio', emoji: '📈' },
+  'crypto': { name: 'Crypto Portfolio', emoji: '₿' },
+};
+
+// Format bot trade for Discord - ENHANCED with portfolio context
+export async function sendBotTradeEntryToDiscordV2(trade: {
+  symbol: string;
+  optionType?: string;
+  strike?: number;
+  expiry?: string;
+  price: number;
+  quantity: number;
+  confidence?: number;
+  portfolio?: string;
+  isLotto?: boolean;
+}): Promise<void> {
+  if (DISCORD_DISABLED) return;
+
+  const portfolioId = trade.portfolio || 'options';
+  const meta = PORTFOLIO_METADATA[portfolioId] || { name: 'Bot Portfolio', emoji: '🤖' };
+  const isLotto = trade.isLotto || portfolioId === 'small_account';
+
+  // ROUTING:
+  // 1. #lottos (DISCORD_WEBHOOK_LOTTO) if it's a lotto play
+  // 2. #quant-ai (DISCORD_WEBHOOK_QUANTBOT) for regular bot trades
+  const webhookUrl = isLotto 
+    ? (process.env.DISCORD_WEBHOOK_LOTTO || process.env.DISCORD_WEBHOOK_QUANTBOT)
+    : process.env.DISCORD_WEBHOOK_QUANTBOT;
+
+  if (!webhookUrl) {
+    logger.warn('⚠️ Discord webhook for bot trade not configured');
+    return;
+  }
+
+  try {
+    const color = isLotto ? COLORS.LOTTO : COLORS.QUANT;
+    const title = `${trade.symbol} ${trade.optionType?.toUpperCase()} ${trade.strike ? `$${trade.strike}` : ''} ENTRY`;
+    
+    const embed: DiscordEmbed = {
+      title: `${meta.emoji} ${title}`,
+      description: `**${meta.name}** has entered a new position.`,
+      color,
+      fields: [
+        { name: '💰 Price', value: `$${trade.price.toFixed(2)}`, inline: true },
+        { name: '📦 Quantity', value: `${trade.quantity}`, inline: true },
+        { name: '🎯 Confidence', value: `${trade.confidence || 0}%`, inline: true },
+      ],
+      timestamp: new Date().toISOString(),
+      footer: { text: `Quant Edge Labs • ${meta.name}` }
+    };
+
+    if (trade.expiry) {
+      embed.fields.push({ name: '📅 Expiry', value: trade.expiry, inline: true });
+    }
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: `🚀 **BOT ENTRY**: ${trade.symbol} (${meta.name})`,
+        embeds: [embed]
+      }),
+    });
+
+    if (!response.ok) logger.error(`Discord bot alert failed: ${response.status}`);
+  } catch (error) {
+    logger.error('❌ Failed to send Discord bot alert:', error);
+  }
+}
+
+// Send bot exit to Discord
+export async function sendBotTradeExitToDiscordV2(exit: {
+  symbol: string;
+  price: number;
+  pnl: number;
+  pnlPercent: number;
+  reason: string;
+  portfolio?: string;
+}): Promise<void> {
+  if (DISCORD_DISABLED) return;
+
+  const portfolioId = exit.portfolio || 'options';
+  const meta = PORTFOLIO_METADATA[portfolioId] || { name: 'Bot Portfolio', emoji: '🤖' };
+  
+  // Exits also route based on portfolio/lotto status
+  const isLotto = portfolioId === 'small_account';
+  const webhookUrl = isLotto 
+    ? (process.env.DISCORD_WEBHOOK_LOTTO || process.env.DISCORD_WEBHOOK_QUANTBOT)
+    : process.env.DISCORD_WEBHOOK_QUANTBOT;
+
+  if (!webhookUrl) return;
+
+  try {
+    const isProfit = exit.pnl > 0;
+    const color = isProfit ? COLORS.LONG : COLORS.SHORT;
+    
+    const embed: DiscordEmbed = {
+      title: `${isProfit ? '💰' : '📉'} ${exit.symbol} EXIT (${isProfit ? 'PROFIT' : 'LOSS'})`,
+      description: `**${meta.name}** has closed this position.`,
+      color,
+      fields: [
+        { name: '💵 Exit Price', value: `$${exit.price.toFixed(2)}`, inline: true },
+        { name: '📊 P&L', value: `${isProfit ? '+' : ''}$${exit.pnl.toFixed(2)} (${exit.pnlPercent.toFixed(1)}%)`, inline: true },
+        { name: '📝 Reason', value: exit.reason, inline: false },
+      ],
+      timestamp: new Date().toISOString(),
+      footer: { text: `Quant Edge Labs • ${meta.name}` }
+    };
+
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: `${isProfit ? '✅' : '❌'} **BOT EXIT**: ${exit.symbol} (${meta.name})`,
+        embeds: [embed]
+      }),
+    });
+  } catch (error) {
+    logger.error('❌ Failed to send Discord bot exit alert:', error);
+  }
+}
 
 // Helper to convert confidence score to letter grade
 function getLetterGrade(score: number): string {

@@ -1570,6 +1570,25 @@ export async function monitorCryptoPositions(): Promise<void> {
           cashBalance: runningCashBalance,
         });
         
+        // Send Discord notification
+        try {
+          await sendBotTradeExitToDiscord({
+            symbol: pos.symbol,
+            assetType: pos.assetType,
+            optionType: pos.optionType,
+            strikePrice: pos.strikePrice,
+            entryPrice,
+            exitPrice: currentPrice,
+            quantity: pos.quantity,
+            realizedPnL: unrealizedPnL,
+            exitReason: 'hit_stop',
+            portfolio: portfolio.id,
+            source: portfolio.id === 'small_account' ? 'small_account' : 'quant'
+          });
+        } catch (discordError) {
+          logger.warn(`🪙 [CRYPTO BOT] Discord notification failed:`, discordError);
+        }
+
         // 🛡️ Record loss for cooldown system
         if (unrealizedPnL < 0) {
           recordSymbolLoss(pos.symbol, Math.abs(unrealizedPnL));
@@ -2264,6 +2283,8 @@ async function executeImmediateTrade(
           isSmallAccount: isSmallAccountTrade,
           source: isSmallAccountTrade ? 'small_account' : 'quant', // Route Small Account trades separately
           delta: opp.delta, // 📊 Greeks display
+          portfolio: targetPortfolio.id,
+          isLotto: isSmallAccountTrade
         });
         logger.info(`${portfolioLabel} 📱✅ Discord notification SENT for ${opp.symbol}`);
       } catch (discordError) {

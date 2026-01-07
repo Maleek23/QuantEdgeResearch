@@ -621,7 +621,7 @@ export function AutoLottoDashboard() {
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-bold text-foreground" data-testid="text-bot-title">Auto-Lotto Bot</h2>
+                <h2 className="text-2xl font-bold text-foreground" data-testid="text-bot-title">Auto-Lotto Hub</h2>
                 <Badge 
                   variant="outline" 
                   className="font-bold uppercase tracking-wider bg-green-500/20 text-green-400 border-green-500/40 animate-pulse"
@@ -639,7 +639,7 @@ export function AutoLottoDashboard() {
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground mt-1">
-                Autonomous options hunting with Exit Intelligence • Runs every 5 min during market hours
+                Autonomous portfolio hunting with Exit Intelligence • 4 Active Bots
               </p>
             </div>
           </div>
@@ -648,27 +648,17 @@ export function AutoLottoDashboard() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => refetchStatus()}
-              className="border-slate-600 hover:border-cyan-500/50"
-              data-testid="button-refresh-status"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
               onClick={() => manualScan.mutate()}
               disabled={manualScan.isPending}
-              className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
+              className="border-cyan-500/30 hover:bg-cyan-500/10 text-cyan-400"
               data-testid="button-manual-scan"
             >
               {manualScan.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
-                <Zap className="h-4 w-4 mr-2" />
+                <RefreshCw className="h-4 w-4 mr-2" />
               )}
-              Scan Now
+              Force Scan
             </Button>
             <Button
               variant="destructive"
@@ -677,45 +667,55 @@ export function AutoLottoDashboard() {
               disabled={toggleBot.isPending}
               data-testid="button-stop-bot"
             >
-              {toggleBot.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Pause className="h-4 w-4 mr-2" />
-              )}
-              Stop Bot
+              <Pause className="h-4 w-4 mr-2" />
+              Stop All Bots
             </Button>
           </div>
         </div>
+      </div>
 
-        {/* Quick Stats Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-700/50" data-testid="quick-stats-strip">
-          <div className="text-center">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Today's Trades</p>
-            <p className="text-2xl font-bold font-mono text-cyan-400" data-testid="stat-today-trades">{botStatus?.todayTrades || 0}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Open Positions</p>
-            <p className="text-2xl font-bold font-mono text-amber-400" data-testid="stat-open-positions">{botStatus?.openPositions || 0}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Win Rate</p>
-            <p className={cn(
-              "text-2xl font-bold font-mono",
-              (botStatus?.winRate || 0) >= 55 ? "text-green-400" : "text-red-400"
-            )} data-testid="stat-win-rate">
-              {(botStatus?.winRate || 0).toFixed(1)}%
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Profit</p>
-            <p className={cn(
-              "text-2xl font-bold font-mono",
-              (botStatus?.totalProfit || 0) >= 0 ? "text-green-400" : "text-red-400"
-            )} data-testid="stat-total-profit">
-              {(botStatus?.totalProfit || 0) >= 0 ? "+" : ""}${(botStatus?.totalProfit || 0).toFixed(2)}
-            </p>
-          </div>
-        </div>
+      {/* 4 Main Portfolio Bots Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="portfolio-grid">
+        <KPICard 
+          title="Options Portfolio"
+          value={`$${botData?.portfolio?.totalValue?.toFixed(2) || '300.00'}`}
+          change={`${botData?.portfolio?.totalPnL >= 0 ? '+' : ''}${botData?.portfolio?.totalPnL?.toFixed(2) || '0.00'}`}
+          changeLabel="Total P&L"
+          trend={botData?.portfolio?.totalPnL >= 0 ? "up" : "down"}
+          icon={Target}
+          color="cyan"
+          testId="kpi-options-portfolio"
+        />
+        <KPICard 
+          title="Futures Portfolio"
+          value={`$${botData?.futuresPortfolio?.totalValue?.toFixed(2) || '300.00'}`}
+          change={`${botData?.futuresPortfolio?.totalPnL >= 0 ? '+' : ''}${botData?.futuresPortfolio?.totalPnL?.toFixed(2) || '0.00'}`}
+          changeLabel="Total P&L"
+          trend={botData?.futuresPortfolio?.totalPnL >= 0 ? "up" : "down"}
+          icon={TrendingUp}
+          color="purple"
+          testId="kpi-futures-portfolio"
+        />
+        <KPICard 
+          title="Crypto Portfolio"
+          value={`$${botData?.cryptoPortfolio?.totalValue?.toFixed(2) || '300.00'}`}
+          change={`${botData?.cryptoPortfolio?.totalPnL >= 0 ? '+' : ''}${botData?.cryptoPortfolio?.totalPnL?.toFixed(2) || '0.00'}`}
+          changeLabel="Total P&L"
+          trend={botData?.cryptoPortfolio?.totalPnL >= 0 ? "up" : "down"}
+          icon={DollarSign}
+          color="amber"
+          testId="kpi-crypto-portfolio"
+        />
+        <KPICard 
+          title="Small Account Lotto"
+          value={`$${botData?.smallAccountPortfolio?.totalValue?.toFixed(2) || '150.00'}`}
+          change={`${botData?.smallAccountPortfolio?.totalPnL >= 0 ? '+' : ''}${botData?.smallAccountPortfolio?.totalPnL?.toFixed(2) || '0.00'}`}
+          changeLabel="Total P&L"
+          trend={botData?.smallAccountPortfolio?.totalPnL >= 0 ? "up" : "down"}
+          icon={Zap}
+          color="green"
+          testId="kpi-small-account-lotto"
+        />
       </div>
 
       {/* Filter Toolbar */}
