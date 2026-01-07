@@ -41,15 +41,18 @@ interface PortfolioStats {
   losses?: number;
   winRate?: string;
   createdAt?: string;
+  totalRealizedPnL?: number;
 }
 
 interface AutoLottoBotData {
   portfolio: PortfolioStats | null;
   futuresPortfolio?: PortfolioStats | null;
   cryptoPortfolio?: PortfolioStats | null;
+  smallAccountPortfolio?: PortfolioStats | null;
   positions: PaperPosition[];
   futuresPositions?: PaperPosition[];
   cryptoPositions?: PaperPosition[];
+  smallAccountPositions?: PaperPosition[];
   stats: {
     openPositions: number | null;
     closedPositions: number;
@@ -647,64 +650,6 @@ export default function WatchlistBotPage() {
                   )}
                 </div>
               </div>
-
-              {/* Daily Recommended Plays */}
-              {dailyIdeas.length > 0 && (
-                <Card className="glass-card border-cyan-500/20">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          <Zap className="h-5 w-5 text-cyan-400" />
-                          Session Recommended Plays
-                        </CardTitle>
-                        <CardDescription>High-confidence ideas from the AI & Quant engines for the current session</CardDescription>
-                      </div>
-                      <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
-                        {dailyIdeas.length} Ideas
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {dailyIdeas.slice(0, 6).map((idea) => (
-                        <div key={idea.id} className="p-4 rounded-lg border border-slate-700 bg-slate-900/50 hover-elevate">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex flex-col">
-                              <span className="font-mono font-bold text-lg">{idea.symbol}</span>
-                              {idea.optionType && (
-                                <span className="text-[10px] uppercase font-bold text-muted-foreground">
-                                  {idea.optionType} ${idea.strikePrice}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex flex-col items-end">
-                              <Badge className={cn(
-                                idea.confidenceScore && idea.confidenceScore >= 80 ? "bg-green-500/20 text-green-400" : "bg-blue-500/20 text-blue-400"
-                              )}>
-                                {idea.confidenceScore}% Conf.
-                              </Badge>
-                              {idea.isLottoPlay && (
-                                <span className="text-[10px] font-bold text-amber-500 mt-1 flex items-center gap-1 bg-amber-500/5 px-1.5 py-0.5 rounded border border-amber-500/20">
-                                  <AlertTriangle className="h-2 w-2" />
-                                  SPECULATIVE LOTTO
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                            <div className="text-muted-foreground">Entry: <span className="text-foreground font-mono">${idea.entryPrice}</span></div>
-                            <div className="text-muted-foreground">Target: <span className="text-foreground font-mono">${idea.targetPrice}</span></div>
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2 italic italic-mono">
-                            {idea.catalyst}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
 
               {/* Combined Stats Bar */}
               <Card className="glass-card relative overflow-hidden">
@@ -2056,6 +2001,64 @@ export default function WatchlistBotPage() {
 
         {/* Bot Picks / Suggestions Tab */}
         <TabsContent value="suggestions" className="space-y-6">
+          {/* Session Recommended Plays - High-confidence daily ideas */}
+          {dailyIdeas.length > 0 && (
+            <Card className="glass-card border-cyan-500/20">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-cyan-400" />
+                      Session Recommended Plays
+                    </CardTitle>
+                    <CardDescription>High-confidence ideas from the AI & Quant engines for the current session</CardDescription>
+                  </div>
+                  <Badge variant="outline" className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30">
+                    {dailyIdeas.length} Ideas
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {dailyIdeas.slice(0, 6).map((idea) => (
+                    <div key={idea.id} className="p-4 rounded-lg border border-slate-700 bg-slate-900/50 hover-elevate">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex flex-col">
+                          <span className="font-mono font-bold text-lg">{idea.symbol}</span>
+                          {idea.optionType && (
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                              {idea.optionType} ${idea.strikePrice}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <Badge className={cn(
+                            idea.confidenceScore && idea.confidenceScore >= 80 ? "bg-green-500/20 text-green-400" : "bg-blue-500/20 text-blue-400"
+                          )}>
+                            {idea.confidenceScore}% Conf.
+                          </Badge>
+                          {idea.isLottoPlay && (
+                            <span className="text-[10px] font-bold text-amber-500 mt-1 flex items-center gap-1 bg-amber-500/5 px-1.5 py-0.5 rounded border border-amber-500/20">
+                              <AlertTriangle className="h-2 w-2" />
+                              SPECULATIVE LOTTO
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+                        <div className="text-muted-foreground">Entry: <span className="text-foreground font-mono">${idea.entryPrice}</span></div>
+                        <div className="text-muted-foreground">Target: <span className="text-foreground font-mono">${idea.targetPrice}</span></div>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2 italic italic-mono">
+                        {idea.catalyst}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="glass-card border-emerald-500/20">
             <CardHeader>
               <div className="flex items-center justify-between gap-4 flex-wrap">
