@@ -3908,30 +3908,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const openIdeas = ideas.filter(i => i.outcomeStatus === 'open' || !i.outcomeStatus);
       const uniqueSymbols = Array.from(new Set(openIdeas.map(i => i.symbol)));
       
-      // VALIDATION: Auto-correct option types based on entry/target logic
-      // Also update linked paper positions to maintain data consistency
-      for (const idea of openIdeas) {
-        if (idea.assetType === 'option' && idea.optionType) {
-          const isBullish = idea.targetPrice > idea.entryPrice;
-          const correctType = isBullish ? 'call' : 'put';
-          
-          if (idea.optionType !== correctType) {
-            logger.warn(`[OPTION-VALIDATION] ${idea.symbol}: Correcting optionType from '${idea.optionType}' to '${correctType}' (entry: $${idea.entryPrice}, target: $${idea.targetPrice})`);
-            await storage.updateTradeIdea(idea.id, { optionType: correctType });
-            idea.optionType = correctType; // Update in-memory for this response
-            
-            // Also update any linked paper positions to maintain consistency
-            try {
-              const result = await db.update(paperPositions)
-                .set({ optionType: correctType })
-                .where(eq(paperPositions.tradeIdeaId, idea.id));
-              logger.info(`[OPTION-VALIDATION] Also corrected paper positions for trade idea ${idea.id}`);
-            } catch (err) {
-              logger.warn(`[OPTION-VALIDATION] Failed to update paper positions for ${idea.id}`, err);
-            }
-          }
-        }
-      }
+      // NOTE: Previous "auto-correct" validation was REMOVED because it was WRONG
+      // The logic assumed targetPrice > entryPrice = call, but that's incorrect!
+      // For ALL option trades (calls AND puts), we want targetPrice > entryPrice
+      // because we're BUYING options and want to sell them for a profit.
+      // The optionType is determined by momentum direction at time of entry, not by price targets.
       
       // Fetch current prices for stocks and crypto (NOT options - they use entry/target/stop premiums)
       const stockSymbols = uniqueSymbols.filter(s => {

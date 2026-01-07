@@ -134,7 +134,7 @@ function SparklineChart({ data, color = "#22d3ee", height = 40 }: { data: number
   const chartData = data.map((value, index) => ({ value, index }));
   
   return (
-    <div className="w-full" style={{ height }}>
+    <div className="w-full pointer-events-none" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
           <defs>
