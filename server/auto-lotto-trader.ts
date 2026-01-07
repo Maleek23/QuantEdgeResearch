@@ -2132,10 +2132,39 @@ async function executeImmediateTrade(
   portfolio: PaperPortfolio
 ): Promise<boolean> {
   try {
+    // 💰 SMALL ACCOUNT ROUTING - Check if trade qualifies for $150 Small Account
+    // A+ trades (90%+ confidence), $0.20-$1.00 premium, 5+ DTE, priority tickers
+    const premiumCents = Math.round(opp.price * 100);
+    const smallAccountCheck = isSmallAccountEligible(
+      opp.symbol,
+      decision.confidence,
+      premiumCents,
+      opp.daysToExpiry
+    );
+    
+    let targetPortfolio = portfolio; // Default to main portfolio
+    let isSmallAccountTrade = false;
+    
+    if (smallAccountCheck.eligible) {
+      // Get or create Small Account portfolio
+      const smallAcct = await getSmallAccountPortfolio();
+      if (smallAcct && smallAcct.cashBalance >= opp.price * 100) { // Can afford 1 contract
+        targetPortfolio = smallAcct;
+        isSmallAccountTrade = true;
+        logger.info(`💰 [SMALL ACCOUNT] A+ Trade routed! ${opp.symbol} ${opp.optionType.toUpperCase()} $${opp.strike} @ $${opp.price.toFixed(2)} (${smallAccountCheck.reason})`);
+      } else if (smallAcct) {
+        logger.info(`💰 [SMALL ACCOUNT] Insufficient balance ($${smallAcct.cashBalance.toFixed(2)}) for ${opp.symbol} @ $${opp.price.toFixed(2)}`);
+      }
+    } else {
+      logger.debug(`💰 [SMALL ACCOUNT] Trade not eligible: ${opp.symbol} - ${smallAccountCheck.reason}`);
+    }
+    
     // 🎯 UNIFIED ENTRY GATE CHECK - Apply session/regime filters before execution
-    const entryGate = await checkUnifiedEntryGate('lotto', decision.confidence);
+    const direction = opp.optionType === 'call' ? 'long' : 'short';
+    const estimatedTarget = opp.price * 2; // 100% gain target for lotto plays
+    const entryGate = await checkUnifiedEntryGate(opp.symbol, direction as 'long' | 'short', opp.price, estimatedTarget, decision.confidence, 'lotto');
     if (!entryGate.allowed) {
-      logger.info(`🤖 [BOT] ⛔ UNIFIED GATE BLOCKED: ${opp.symbol} - ${entryGate.reason}`);
+      logger.info(`🤖 [BOT] ⛔ UNIFIED GATE BLOCKED: ${opp.symbol} - ${entryGate.reasons.join(', ')}`);
       return false;
     }
     
@@ -2177,14 +2206,14 @@ async function executeImmediateTrade(
     }
     
     const savedIdea = await storage.createTradeIdea(ideaData);
-    const result = await executeTradeIdea(portfolio.id, savedIdea as TradeIdea);
+    const result = await executeTradeIdea(targetPortfolio.id, savedIdea as TradeIdea);
     
     if (result.success && result.position) {
-      logger.info(`🤖 [BOT] ✅ IMMEDIATE TRADE EXECUTED: ${opp.symbol} x${result.position.quantity} @ $${opp.price.toFixed(2)}`);
+      const portfolioLabel = isSmallAccountTrade ? '💰 SMALL ACCOUNT' : '🤖 BOT';
+      logger.info(`${portfolioLabel} ✅ IMMEDIATE TRADE EXECUTED: ${opp.symbol} x${result.position.quantity} @ $${opp.price.toFixed(2)}`);
       
-      // Send Discord notification with full analysis - route to QUANTFLOOR + OPTIONSTRADES
+      // Send Discord notification with full analysis
       try {
-        const isSmallAcct = await isSmallAccountPortfolioAsync(portfolio.id);
         await sendBotTradeEntryToDiscord({
           symbol: opp.symbol,
           assetType: 'option',
@@ -2199,13 +2228,23 @@ async function executeImmediateTrade(
           signals: decision.signals,
           confidence: decision.confidence,
           riskRewardRatio: ideaData.riskRewardRatio,
-          isSmallAccount: isSmallAcct,
-          source: 'quant', // Route to #quant-ai and #ai-quant-options
+          isSmallAccount: isSmallAccountTrade,
+          source: isSmallAccountTrade ? 'small_account' : 'quant', // Route Small Account trades separately
           delta: opp.delta, // 📊 Greeks display
         });
-        logger.info(`🤖 [BOT] 📱✅ Discord notification SENT for ${opp.symbol}`);
+        logger.info(`${portfolioLabel} 📱✅ Discord notification SENT for ${opp.symbol}`);
       } catch (discordError) {
         logger.error(`🤖 [BOT] 📱❌ Discord notification FAILED:`, discordError);
+      }
+      
+      // 🔄 CACHE REFRESH - Update portfolio cache after trade execution
+      const updated = await storage.getPaperPortfolioById(targetPortfolio.id);
+      if (updated) {
+        if (isSmallAccountTrade) {
+          smallAccountPortfolio = updated;
+        } else {
+          optionsPortfolio = updated;
+        }
       }
       
       return true;
@@ -2682,15 +2721,36 @@ export async function runAutonomousBotScan(): Promise<void> {
       // NOTE: Discord notification moved to AFTER trade execution to avoid double-sending
       // The sendBotTradeEntryToDiscord below handles the notification
       
-      const result = await executeTradeIdea(portfolio.id, savedIdea as TradeIdea);
+      // 🎯 SMALL ACCOUNT ROUTING - Check if this trade qualifies for Small Account
+      // Small Account requirements: 90%+ confidence, $0.20-$1.00 premium, 5+ DTE, priority tickers
+      let targetPortfolio = portfolio;
+      let isSmallAcctTrade = false;
+      const premiumCentsForCheck = Math.round(opp.price * 100);
+      
+      const smallAccountCheck = isSmallAccountEligible(opp.symbol, decision.confidence, premiumCentsForCheck, opp.dte || 7);
+      if (smallAccountCheck.eligible) {
+        const smallAcct = await getSmallAccountPortfolio();
+        if (smallAcct) {
+          const minCost = opp.price * 100; // 1 contract minimum
+          if (smallAcct.cashBalance >= minCost) {
+            targetPortfolio = smallAcct;
+            isSmallAcctTrade = true;
+            logger.info(`💰 [SMALL ACCOUNT] Routing A+ trade ${opp.symbol} to Small Account (cash: $${smallAcct.cashBalance.toFixed(2)})`);
+          } else {
+            logger.info(`💰 [SMALL ACCOUNT] ${opp.symbol} eligible but insufficient funds ($${smallAcct.cashBalance.toFixed(2)} < $${minCost.toFixed(2)})`);
+          }
+        }
+      }
+      
+      const result = await executeTradeIdea(targetPortfolio.id, savedIdea as TradeIdea);
       
       if (result.success && result.position) {
-        logger.info(`🤖 [BOT] ✅ TRADE EXECUTED: ${opp.symbol} x${result.position.quantity} @ $${opp.price.toFixed(2)}`);
+        const portfolioLabel = isSmallAcctTrade ? '💰 SMALL ACCOUNT' : '🤖 BOT';
+        logger.info(`${portfolioLabel} ✅ TRADE EXECUTED: ${opp.symbol} x${result.position.quantity} @ $${opp.price.toFixed(2)}`);
         
-        // Send Discord notification with full analysis - route to QUANTFLOOR + OPTIONSTRADES
+        // Send Discord notification with full analysis
         try {
-          logger.info(`🤖 [BOT] 📱 Sending Discord ENTRY notification for ${opp.symbol}...`);
-          const isSmallAcct = await isSmallAccountPortfolioAsync(portfolio.id);
+          logger.info(`${portfolioLabel} 📱 Sending Discord ENTRY notification for ${opp.symbol}...`);
           await sendBotTradeEntryToDiscord({
             symbol: opp.symbol,
             assetType: 'option',
@@ -2705,16 +2765,23 @@ export async function runAutonomousBotScan(): Promise<void> {
             signals: decision.signals,
             confidence: decision.confidence,
             riskRewardRatio: ideaData.riskRewardRatio,
-            isSmallAccount: isSmallAcct,
-            source: 'quant', // Route to #quant-ai and #ai-quant-options
+            isSmallAccount: isSmallAcctTrade,
+            source: isSmallAcctTrade ? 'small_account' : 'quant', // Route Small Account trades separately
           });
-          logger.info(`🤖 [BOT] 📱✅ Discord ENTRY notification SENT for ${opp.symbol}`);
+          logger.info(`${portfolioLabel} 📱✅ Discord ENTRY notification SENT for ${opp.symbol}`);
         } catch (discordError) {
-          logger.error(`🤖 [BOT] 📱❌ Discord ENTRY notification FAILED for ${opp.symbol}:`, discordError);
+          logger.error(`${portfolioLabel} 📱❌ Discord ENTRY notification FAILED for ${opp.symbol}:`, discordError);
         }
         
-        const updated = await storage.getPaperPortfolioById(portfolio.id);
-        if (updated) optionsPortfolio = updated;
+        // Refresh the correct portfolio cache
+        const updated = await storage.getPaperPortfolioById(targetPortfolio.id);
+        if (updated) {
+          if (isSmallAcctTrade) {
+            smallAccountPortfolio = updated;
+          } else {
+            optionsPortfolio = updated;
+          }
+        }
       } else {
         logger.warn(`🤖 [BOT] ❌ Trade failed: ${result.error}`);
       }
@@ -2738,9 +2805,11 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
     logger.info(`🎰 [LOTTO-EXEC] Attempting to execute: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} @ $${idea.entryPrice}`);
     
     // 🎯 UNIFIED ENTRY GATE - Check session/regime/exhaustion before execution
-    const entryGate = await checkUnifiedEntryGate('lotto', idea.confidenceScore || 70);
+    const ideaDirection = (idea.direction || (idea.optionType === 'call' ? 'long' : 'short')) as 'long' | 'short';
+    const ideaTarget = idea.targetPrice || idea.entryPrice * 2;
+    const entryGate = await checkUnifiedEntryGate(idea.symbol, ideaDirection, idea.entryPrice, ideaTarget, idea.confidenceScore || 70, 'lotto');
     if (!entryGate.allowed) {
-      logger.info(`🎰 [LOTTO-EXEC] ⛔ UNIFIED GATE BLOCKED ${idea.symbol}: ${entryGate.reason}`);
+      logger.info(`🎰 [LOTTO-EXEC] ⛔ UNIFIED GATE BLOCKED ${idea.symbol}: ${entryGate.reasons.join(', ')}`);
       return false;
     }
     
@@ -2797,15 +2866,45 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
       }
     }
     
-    const portfolio = await getLottoPortfolio();
-    if (!portfolio) {
+    const basePortfolio = await getLottoPortfolio();
+    if (!basePortfolio) {
       logger.error("🎰 [LOTTO-EXEC] ❌ No portfolio available");
       return false;
     }
     
-    logger.info(`🎰 [LOTTO-EXEC] Portfolio: ${portfolio.name}, Cash: $${portfolio.cashBalance.toFixed(2)}`);
+    // 💰 SMALL ACCOUNT ROUTING - Check if trade qualifies for $150 Small Account
+    const premiumCents = Math.round(idea.entryPrice * 100);
+    const expiryDate = new Date(idea.expiryDate || '');
+    const now = new Date();
+    const daysToExpiry = Math.max(0, Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    
+    const smallAccountCheck = isSmallAccountEligible(
+      idea.symbol,
+      idea.confidenceScore || 0,
+      premiumCents,
+      daysToExpiry
+    );
+    
+    let targetPortfolio = basePortfolio;
+    let isSmallAccountTrade = false;
+    
+    if (smallAccountCheck.eligible) {
+      const smallAcct = await getSmallAccountPortfolio();
+      if (smallAcct && smallAcct.cashBalance >= idea.entryPrice * 100) {
+        targetPortfolio = smallAcct;
+        isSmallAccountTrade = true;
+        logger.info(`💰 [SMALL ACCOUNT] A+ Lotto routed! ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} @ $${idea.entryPrice.toFixed(2)} (${smallAccountCheck.reason})`);
+      } else if (smallAcct) {
+        logger.info(`💰 [SMALL ACCOUNT] Insufficient balance ($${smallAcct.cashBalance.toFixed(2)}) for ${idea.symbol} @ $${idea.entryPrice.toFixed(2)}`);
+      }
+    } else {
+      logger.debug(`💰 [SMALL ACCOUNT] Lotto not eligible: ${idea.symbol} - ${smallAccountCheck.reason}`);
+    }
+    
+    const portfolioLabel = isSmallAccountTrade ? '💰 [SMALL ACCOUNT]' : '🎰 [LOTTO-EXEC]';
+    logger.info(`${portfolioLabel} Portfolio: ${targetPortfolio.name}, Cash: $${targetPortfolio.cashBalance.toFixed(2)}`);
 
-    const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+    const positions = await storage.getPaperPositionsByPortfolio(targetPortfolio.id);
     const openPositions = positions.filter(p => p.status === 'open');
     
     // Check for exact duplicate (same strike)
@@ -2815,21 +2914,20 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
     );
 
     if (exactDuplicate) {
-      logger.info(`🎰 [LOTTO-EXEC] Skipping ${idea.symbol} $${idea.strikePrice} - exact duplicate exists`);
+      logger.info(`${portfolioLabel} Skipping ${idea.symbol} $${idea.strikePrice} - exact duplicate exists`);
       return false;
     }
     
     // Log current position count
-    logger.info(`🎰 [LOTTO-EXEC] Current open positions: ${openPositions.length}`);
+    logger.info(`${portfolioLabel} Current open positions: ${openPositions.length}`);
 
-    const result = await executeTradeIdea(portfolio.id, idea);
+    const result = await executeTradeIdea(targetPortfolio.id, idea);
     
     if (result.success && result.position) {
-      logger.info(`🎰 [LOTTO-EXEC] ✅ SUCCESS: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} x${result.position.quantity} @ $${idea.entryPrice.toFixed(2)}`);
+      logger.info(`${portfolioLabel} ✅ SUCCESS: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} x${result.position.quantity} @ $${idea.entryPrice.toFixed(2)}`);
       
-      // Send Discord notification with full analysis - route to LOTTO channel
+      // Send Discord notification with full analysis
       try {
-        const isSmallAcct = await isSmallAccountPortfolioAsync(portfolio.id);
         await sendBotTradeEntryToDiscord({
           symbol: idea.symbol,
           assetType: idea.assetType || 'option',
@@ -2844,22 +2942,29 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
           signals: idea.qualitySignals as string[] | null,
           confidence: idea.confidenceScore,
           riskRewardRatio: idea.riskRewardRatio,
-          isSmallAccount: isSmallAcct,
-          source: 'lotto', // Route to #lottos channel
+          isSmallAccount: isSmallAccountTrade,
+          source: isSmallAccountTrade ? 'small_account' : 'lotto', // Route Small Account trades separately
           delta: idea.optionDelta, // 📊 Greeks display
         });
-        logger.info(`🎰 [LOTTO-EXEC] 📱 Discord notification sent to #lottos`);
+        logger.info(`${portfolioLabel} 📱 Discord notification sent`);
       } catch (discordError) {
-        logger.error(`🎰 [LOTTO-EXEC] 📱❌ Discord failed:`, discordError);
+        logger.error(`${portfolioLabel} 📱❌ Discord failed:`, discordError);
       }
       
-      const updated = await storage.getPaperPortfolioById(portfolio.id);
-      if (updated) optionsPortfolio = updated;
+      // Update the appropriate portfolio cache
+      const updated = await storage.getPaperPortfolioById(targetPortfolio.id);
+      if (updated) {
+        if (isSmallAccountTrade) {
+          smallAccountPortfolio = updated;
+        } else {
+          optionsPortfolio = updated;
+        }
+      }
       
       return true;
     } else {
       // Log detailed failure reason
-      logger.error(`🎰 [LOTTO-EXEC] ❌ FAILED: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} - Reason: ${result.error}`);
+      logger.error(`${portfolioLabel} ❌ FAILED: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} - Reason: ${result.error}`);
       return false;
     }
   } catch (error) {
@@ -3032,7 +3137,7 @@ export async function monitorLottoPositions(): Promise<void> {
             realizedPnL: pnl,
             exitReason: `${exitSignal.exitType}: ${exitSignal.reason}`,
             isSmallAccount: isSmallAcct,
-            source: 'quant', // Route to #quant-ai and #ai-quant-options
+            source: isSmallAcct ? 'small_account' : 'quant', // Route Small Account trades separately
           });
           
           logger.info(`🤖 [BOT] 📱✅ Discord EXIT notification SENT for ${pos.symbol} | P&L: $${pnl.toFixed(2)}`);
@@ -3078,7 +3183,7 @@ export async function monitorLottoPositions(): Promise<void> {
             realizedPnL: pos.realizedPnL,
             exitReason: pos.exitReason,
             isSmallAccount: isSmallAcct,
-            source: 'quant', // Route to #quant-ai and #ai-quant-options
+            source: isSmallAcct ? 'small_account' : 'quant', // Route Small Account trades separately
           });
           logger.info(`🤖 [BOT] 📱✅ Discord EXIT notification SENT for ${pos.symbol}`);
         } catch (discordError) {

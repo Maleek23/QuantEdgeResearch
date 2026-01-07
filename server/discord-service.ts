@@ -1219,7 +1219,7 @@ export async function sendBotTradeEntryToDiscord(position: {
   confidence?: number | null;
   riskRewardRatio?: number | null;
   isSmallAccount?: boolean; // Flag for Small Account trades
-  source?: 'quant' | 'lotto' | 'futures'; // Routing source
+  source?: 'quant' | 'lotto' | 'futures' | 'small_account'; // Routing source
   delta?: number | null; // Options delta for Greeks display
 }): Promise<void> {
   logger.info(`📱 [DISCORD] sendBotTradeEntryToDiscord called for ${position.symbol} (source: ${position.source || 'quant'})`);
@@ -1371,7 +1371,7 @@ export async function sendBotTradeExitToDiscord(position: {
   realizedPnL?: number | null;
   exitReason?: string | null;
   isSmallAccount?: boolean; // Flag for Small Account trades
-  source?: 'quant' | 'lotto' | 'futures'; // Routing source
+  source?: 'quant' | 'lotto' | 'futures' | 'small_account'; // Routing source
 }): Promise<void> {
   logger.info(`📱 [DISCORD] sendBotTradeExitToDiscord called for ${position.symbol} (source: ${position.source || 'quant'})`);
   
