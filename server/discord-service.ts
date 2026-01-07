@@ -1243,16 +1243,15 @@ export async function sendBotTradeEntryToDiscord(position: {
     const lottoWebhook = process.env.DISCORD_WEBHOOK_LOTTO;
     if (lottoWebhook) webhookUrls.push(lottoWebhook);
   } else {
-    // Quant bot entries go to QUANTBOT channel (dedicated bot channel)
+    // Quant bot entries go to QUANTBOT channel ONLY (dedicated bot channel)
+    // DO NOT send to OPTIONSTRADES/QUANTFLOOR to avoid spamming other channels
     const quantBotWebhook = process.env.DISCORD_WEBHOOK_QUANTBOT;
-    const optionsWebhook = process.env.DISCORD_WEBHOOK_OPTIONSTRADES;
     if (quantBotWebhook) webhookUrls.push(quantBotWebhook);
-    if (optionsWebhook) webhookUrls.push(optionsWebhook);
   }
   
   // Fallback to generic webhook if none configured
   if (webhookUrls.length === 0) {
-    const fallback = process.env.DISCORD_WEBHOOK_URL;
+    const fallback = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
     if (fallback) webhookUrls.push(fallback);
   }
   
@@ -1261,7 +1260,7 @@ export async function sendBotTradeEntryToDiscord(position: {
     return;
   }
   
-  logger.info(`📱 [DISCORD] Sending entry notification to ${webhookUrls.length} webhook(s) for ${position.symbol}...`);
+  logger.info(`📱 [DISCORD] Sending entry notification to QUANTBOT only for ${position.symbol}...`);
   
   try {
     const isCall = position.optionType === 'call';
@@ -1393,16 +1392,15 @@ export async function sendBotTradeExitToDiscord(position: {
     const lottoWebhook = process.env.DISCORD_WEBHOOK_LOTTO;
     if (lottoWebhook) webhookUrls.push(lottoWebhook);
   } else {
-    // Quant bot exits go to QUANTBOT channel (dedicated bot channel)
+    // Quant bot exits go to QUANTBOT channel ONLY (dedicated bot channel)
+    // DO NOT send to OPTIONSTRADES/QUANTFLOOR to avoid spamming other channels
     const quantBotWebhook = process.env.DISCORD_WEBHOOK_QUANTBOT;
-    const optionsWebhook = process.env.DISCORD_WEBHOOK_OPTIONSTRADES;
     if (quantBotWebhook) webhookUrls.push(quantBotWebhook);
-    if (optionsWebhook) webhookUrls.push(optionsWebhook);
   }
   
   // Fallback to generic webhook if none configured
   if (webhookUrls.length === 0) {
-    const fallback = process.env.DISCORD_WEBHOOK_URL;
+    const fallback = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
     if (fallback) webhookUrls.push(fallback);
   }
   
@@ -1411,7 +1409,7 @@ export async function sendBotTradeExitToDiscord(position: {
     return;
   }
   
-  logger.info(`📱 [DISCORD] Sending exit notification to ${webhookUrls.length} webhook(s) for ${position.symbol}...`);
+  logger.info(`📱 [DISCORD] Sending exit notification to QUANTBOT only for ${position.symbol}...`);
   
   try {
     const pnl = position.realizedPnL || 0;
