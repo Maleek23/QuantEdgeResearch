@@ -148,7 +148,7 @@ export default function WatchlistBotPage() {
   const [newSymbol, setNewSymbol] = useState("");
   const [newAssetType, setNewAssetType] = useState<string>("stock");
   const [activeTab, setActiveTab] = useState("bot");
-  const [portfolioTab, setPortfolioTab] = useState<"options" | "futures" | "crypto" | "smallaccount">("options");
+  const [portfolioTab, setPortfolioTab] = useState<"performance" | "options" | "futures" | "crypto" | "smallaccount">("performance");
 
   const { data: watchlistItems = [], isLoading: watchlistLoading, refetch: refetchWatchlist } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
@@ -651,93 +651,9 @@ export default function WatchlistBotPage() {
                 </div>
               </div>
 
-              {/* Combined Stats Bar */}
-              <Card className="glass-card relative overflow-hidden">
-                <BorderBeam size={300} duration={20} colorFrom="#22d3ee" colorTo="#a855f7" borderWidth={1} />
-                <CardContent className="p-4 relative z-10">
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-6">
-                      <div className="text-center">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Combined Value</p>
-                        {showMetrics ? (
-                          <div className="text-xl font-bold font-mono tabular-nums text-cyan-400" data-testid="text-combined-balance">
-                            <NumberTicker 
-                              value={accountBalance + ((botData.futuresPortfolio?.startingCapital || 300) + (botData.futuresPortfolio?.totalPnL || 0))} 
-                              prefix="$"
-                              decimalPlaces={2}
-                              className="text-cyan-400"
-                            />
-                          </div>
-                        ) : (
-                          <p className="text-lg text-muted-foreground">Hidden</p>
-                        )}
-                      </div>
-                      <div className="h-8 w-px bg-slate-700" />
-                      <div className="text-center">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Day's P&L</p>
-                        {showMetrics ? (
-                          <div className={cn("text-xl font-bold font-mono tabular-nums", todaysPnL >= 0 ? "text-green-400" : "text-red-400")} data-testid="text-days-pnl">
-                            {todaysPnL >= 0 ? '+' : ''}<NumberTicker value={Math.abs(todaysPnL)} prefix="$" decimalPlaces={2} />
-                          </div>
-                        ) : (
-                          <p className="text-lg text-muted-foreground">Hidden</p>
-                        )}
-                      </div>
-                      <div className="h-8 w-px bg-slate-700" />
-                      <div className="text-center">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Trades</p>
-                        <div className="text-xl font-bold font-mono tabular-nums">
-                          <NumberTicker value={closedCount + (botData.futuresPortfolio?.closedPositions || 0)} />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="border-slate-700" 
-                        onClick={() => {
-                          if (dailyIdeas.length === 0) {
-                            toast({ 
-                              title: "No ideas found for today", 
-                              description: "The analysis PDF requires active trade ideas from the current session.",
-                              variant: "destructive"
-                            });
-                            return;
-                          }
-                          generateDailyTradeAnalysisPDF(dailyIdeas);
-                          toast({ title: "Generating PDF analysis..." });
-                        }}
-                        data-testid="button-download-pdf"
-                      >
-                        <FileText className="h-4 w-4 mr-2 text-cyan-400" />
-                        Daily Analysis PDF
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="border-slate-700" 
-                        onClick={() => {
-                          window.open('/api/audit/auto-lotto-bot?format=csv', '_blank');
-                          toast({ title: "Downloading trade audit data..." });
-                        }}
-                        data-testid="button-download-trades"
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Export All
-                      </Button>
-                      <Button variant="outline" size="sm" className="border-slate-700" onClick={() => refetchBot()} data-testid="button-refresh-bot">
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Refresh
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Portfolio Tabs - Options, Futures, Crypto */}
+              {/* Portfolio Tabs - Performance, Options, Futures, Crypto, Small Acct */}
               <Card className="glass-card">
-                <Tabs value={portfolioTab} onValueChange={(v) => setPortfolioTab(v as "options" | "futures" | "crypto" | "smallaccount")} className="w-full">
+                <Tabs value={portfolioTab} onValueChange={(v) => setPortfolioTab(v as "performance" | "options" | "futures" | "crypto" | "smallaccount")} className="w-full">
                   <CardHeader className="pb-3">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
@@ -746,6 +662,14 @@ export default function WatchlistBotPage() {
                           Portfolio Dashboard
                         </CardTitle>
                         <TabsList className="bg-slate-800/50">
+                          <TabsTrigger 
+                            value="performance"
+                            className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400"
+                            data-testid="tab-performance"
+                          >
+                            <Trophy className="h-4 w-4 mr-1.5" />
+                            Performance
+                          </TabsTrigger>
                           <TabsTrigger 
                             value="options" 
                             className="data-[state=active]:bg-pink-500/20 data-[state=active]:text-pink-400"
@@ -775,7 +699,7 @@ export default function WatchlistBotPage() {
                             className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
                             data-testid="tab-smallaccount"
                           >
-                            <Wallet className="h-4 w-4 mr-1.5" />
+                            <PiggyBank className="h-4 w-4 mr-1.5" />
                             Small Acct
                           </TabsTrigger>
                         </TabsList>
@@ -786,6 +710,163 @@ export default function WatchlistBotPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
+                    {/* Performance Tab - Combined Overview */}
+                    <TabsContent value="performance" className="mt-0">
+                      <div className="space-y-4">
+                        {/* Combined Equity Overview */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-lg bg-gradient-to-br from-purple-500/5 to-cyan-500/5 border border-purple-500/20">
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Combined Value</p>
+                            {showMetrics ? (
+                              <div className="text-2xl font-bold font-mono tabular-nums text-purple-400" data-testid="text-combined-value">
+                                <NumberTicker 
+                                  value={
+                                    accountBalance + 
+                                    ((botData.futuresPortfolio?.startingCapital || 300) + (botData.futuresPortfolio?.totalPnL || 0)) +
+                                    ((botData.cryptoPortfolio?.startingCapital || 300) + (botData.cryptoPortfolio?.totalPnL || 0)) +
+                                    ((botData.smallAccountPortfolio?.startingCapital || 150) + (botData.smallAccountPortfolio?.totalRealizedPnL || 0))
+                                  } 
+                                  prefix="$"
+                                  decimalPlaces={2}
+                                  className="text-purple-400"
+                                />
+                              </div>
+                            ) : (
+                              <p className="text-lg text-muted-foreground">Hidden</p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Day's P&L</p>
+                            {showMetrics ? (
+                              <div className={cn("text-2xl font-bold font-mono tabular-nums", todaysPnL >= 0 ? "text-green-400" : "text-red-400")} data-testid="text-days-pnl">
+                                {todaysPnL >= 0 ? '+' : ''}<NumberTicker value={Math.abs(todaysPnL)} prefix="$" decimalPlaces={2} />
+                              </div>
+                            ) : (
+                              <p className="text-lg text-muted-foreground">Hidden</p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Total Trades</p>
+                            <div className="text-2xl font-bold font-mono tabular-nums">
+                              <NumberTicker value={
+                                closedCount + 
+                                (botData.futuresPortfolio?.closedPositions || 0) +
+                                (botData.cryptoPortfolio?.closedPositions || 0) +
+                                (botData.smallAccountPortfolio?.closedPositions || 0)
+                              } />
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Win Rate</p>
+                            {showMetrics && botData.stats?.winRate !== null ? (
+                              <div className={cn(
+                                "text-2xl font-bold font-mono tabular-nums",
+                                parseFloat(botData.stats?.winRate || '0') >= 50 ? "text-green-400" : "text-red-400"
+                              )}>
+                                {botData.stats?.winRate}%
+                              </div>
+                            ) : (
+                              <p className="text-lg text-muted-foreground">Pending</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Portfolio Breakdown Cards */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <div 
+                            className="p-3 rounded-lg bg-pink-500/10 border border-pink-500/20 cursor-pointer hover:bg-pink-500/20 transition-colors"
+                            onClick={() => setPortfolioTab('options')}
+                            data-testid="card-options-overview"
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <Target className="h-4 w-4 text-pink-400" />
+                              <span className="text-xs font-medium text-pink-400">Options</span>
+                            </div>
+                            <p className="text-lg font-bold font-mono text-white" data-testid="text-options-value">{formatCurrency(accountBalance)}</p>
+                            <p className="text-xs text-muted-foreground">{openPositions.filter(p => p.assetType === 'option').length} open</p>
+                          </div>
+                          <div 
+                            className="p-3 rounded-lg bg-cyan-500/10 border border-cyan-500/20 cursor-pointer hover:bg-cyan-500/20 transition-colors"
+                            onClick={() => setPortfolioTab('futures')}
+                            data-testid="card-futures-overview"
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <BarChart3 className="h-4 w-4 text-cyan-400" />
+                              <span className="text-xs font-medium text-cyan-400">Futures</span>
+                            </div>
+                            <p className="text-lg font-bold font-mono text-white" data-testid="text-futures-value">{formatCurrency((botData.futuresPortfolio?.startingCapital || 300) + (botData.futuresPortfolio?.totalPnL || 0))}</p>
+                            <p className="text-xs text-muted-foreground">{botData.futuresPortfolio?.openPositions || 0} open</p>
+                          </div>
+                          <div 
+                            className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 cursor-pointer hover:bg-amber-500/20 transition-colors"
+                            onClick={() => setPortfolioTab('crypto')}
+                            data-testid="card-crypto-overview"
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <Bitcoin className="h-4 w-4 text-amber-400" />
+                              <span className="text-xs font-medium text-amber-400">Crypto</span>
+                            </div>
+                            <p className="text-lg font-bold font-mono text-white" data-testid="text-crypto-value">{formatCurrency((botData.cryptoPortfolio?.startingCapital || 300) + (botData.cryptoPortfolio?.totalPnL || 0))}</p>
+                            <p className="text-xs text-muted-foreground">{botData.cryptoPortfolio?.openPositions || 0} open</p>
+                          </div>
+                          <div 
+                            className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 cursor-pointer hover:bg-emerald-500/20 transition-colors"
+                            onClick={() => setPortfolioTab('smallaccount')}
+                            data-testid="card-smallaccount-overview"
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <PiggyBank className="h-4 w-4 text-emerald-400" />
+                              <span className="text-xs font-medium text-emerald-400">Small Acct</span>
+                            </div>
+                            <p className="text-lg font-bold font-mono text-white" data-testid="text-smallaccount-value">{formatCurrency((botData.smallAccountPortfolio?.startingCapital || 150) + (botData.smallAccountPortfolio?.totalRealizedPnL || 0))}</p>
+                            <p className="text-xs text-muted-foreground">{botData.smallAccountPortfolio?.openPositions || 0} open</p>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex flex-wrap items-center gap-2 pt-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="border-slate-700" 
+                            onClick={() => {
+                              if (dailyIdeas.length === 0) {
+                                toast({ 
+                                  title: "No ideas found for today", 
+                                  description: "The analysis PDF requires active trade ideas from the current session.",
+                                  variant: "destructive"
+                                });
+                                return;
+                              }
+                              generateDailyTradeAnalysisPDF(dailyIdeas);
+                              toast({ title: "Generating PDF analysis..." });
+                            }}
+                            data-testid="button-download-pdf-perf"
+                          >
+                            <FileText className="h-4 w-4 mr-2 text-cyan-400" />
+                            Daily Analysis PDF
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="border-slate-700" 
+                            onClick={() => {
+                              window.open('/api/audit/auto-lotto-bot?format=csv', '_blank');
+                              toast({ title: "Downloading trade audit data..." });
+                            }}
+                            data-testid="button-download-trades-perf"
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Export All
+                          </Button>
+                          <Button variant="outline" size="sm" className="border-slate-700" onClick={() => refetchBot()} data-testid="button-refresh-bot-perf">
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Refresh
+                          </Button>
+                        </div>
+                      </div>
+                    </TabsContent>
+
                     {/* Options Tab */}
                     <TabsContent value="options" className="mt-0">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-lg bg-gradient-to-br from-pink-500/5 to-purple-500/5 border border-pink-500/20">
