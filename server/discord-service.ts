@@ -97,18 +97,27 @@ export async function sendBotTradeEntryToDiscord(trade: {
 
   const portfolioId = trade.portfolio || (trade.isSmallAccount ? 'small_account' : 'options');
   const meta = PORTFOLIO_METADATA[portfolioId] || { name: 'Bot Portfolio', emoji: '🤖' };
-  const isLotto = trade.isLotto || trade.source === 'lotto' || portfolioId === 'small_account';
+  const isSmallAccount = trade.isSmallAccount || portfolioId === 'small_account';
+  // Lotto branding only for actual lotto plays, NOT for small account portfolio
+  const isLotto = (trade.isLotto || trade.source === 'lotto') && !isSmallAccount;
 
   let webhookUrls: string[] = [];
   const source = trade.source || (trade.assetType === 'future' ? 'futures' : 'quant');
 
   if (source === 'futures' || trade.assetType === 'future') {
+    // Futures go to #future-trades channel
     const fw = process.env.DISCORD_WEBHOOK_FUTURE_TRADES;
     if (fw) webhookUrls.push(fw);
-  } else if (source === 'lotto' || isLotto) {
+  } else if (isSmallAccount) {
+    // Small Account entries go to #quantbot channel (per user request)
+    const qw = process.env.DISCORD_WEBHOOK_QUANTBOT;
+    if (qw) webhookUrls.push(qw);
+  } else if (source === 'lotto' || trade.isLotto) {
+    // Lotto plays (not small account) go to #lottos channel
     const lw = process.env.DISCORD_WEBHOOK_LOTTO;
     if (lw) webhookUrls.push(lw);
   } else {
+    // All other options/quant entries go to #quantbot
     const qw = process.env.DISCORD_WEBHOOK_QUANTBOT;
     if (qw) webhookUrls.push(qw);
   }
@@ -145,14 +154,14 @@ export async function sendBotTradeEntryToDiscord(trade: {
       : `**${directionEmoji} ${directionLabel}** - ${meta.name} position opened.`;
 
     const embed: DiscordEmbed = {
-      title: `${meta.emoji} ${trade.isSmallAccount ? '💰 SMALL ACCOUNT' : '🤖 BOT'} ENTRY: ${trade.symbol} ${trade.optionType?.toUpperCase() || ''} ${trade.strikePrice ? '$' + trade.strikePrice : ''}`,
+      title: `${meta.emoji} ${isSmallAccount ? '💰 SMALL ACCOUNT' : '🤖 BOT'} ENTRY: ${trade.symbol} ${trade.optionType?.toUpperCase() || ''} ${trade.strikePrice ? '$' + trade.strikePrice : ''}`,
       description: cleanAnalysis,
-      color: trade.isSmallAccount ? 0xfbbf24 : color,
+      color: isSmallAccount ? 0xfbbf24 : color,
       fields: [
         { name: '💰 Entry', value: `$${trade.entryPrice.toFixed(2)}`, inline: true },
-        { name: '🎯 Target', value: `$${trade.targetPrice?.toFixed(2) || 'N/A'}`, inline: true },
-        { name: '🛑 Stop', value: `$${trade.stopLoss?.toFixed(2) || 'N/A'}`, inline: true },
-        { name: '⚖️ R:R', value: `${trade.riskRewardRatio?.toFixed(1) || 'N/A'}:1`, inline: true },
+        { name: '🎯 Target', value: trade.targetPrice ? `$${trade.targetPrice.toFixed(2)}` : 'N/A', inline: true },
+        { name: '🛑 Stop', value: trade.stopLoss ? `$${trade.stopLoss.toFixed(2)}` : 'N/A', inline: true },
+        { name: '⚖️ R:R', value: trade.riskRewardRatio ? `${trade.riskRewardRatio.toFixed(1)}:1` : 'N/A', inline: true },
         { name: '🎯 Grade', value: grade || 'N/A', inline: true },
         { name: '📊 Details', value: deltaDisplay || `Qty: ${trade.quantity}`, inline: true }
       ],
@@ -203,8 +212,11 @@ export async function sendBotTradeExitToDiscord(exit: {
   const portfolioId = exit.portfolio || (exit.isSmallAccount ? 'small_account' : 'options');
   const meta = PORTFOLIO_METADATA[portfolioId] || { name: 'Bot Portfolio', emoji: '🤖' };
   
-  const isLotto = exit.source === 'lotto' || portfolioId === 'small_account';
-  const webhookUrl = isLotto 
+  // Small Account entries/exits go to #quantbot channel (per user request)
+  // Only pure lotto plays (not small account) go to lotto channel
+  const isSmallAccountExit = exit.isSmallAccount || portfolioId === 'small_account';
+  const isLottoExit = exit.source === 'lotto' && !isSmallAccountExit;
+  const webhookUrl = isLottoExit 
     ? (process.env.DISCORD_WEBHOOK_LOTTO || process.env.DISCORD_WEBHOOK_QUANTBOT)
     : process.env.DISCORD_WEBHOOK_QUANTBOT;
 
@@ -311,8 +323,19 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
   const webhookUrl = process.env.DISCORD_WEBHOOK_LOTTO;
   if (!webhookUrl) return;
   try {
+    // Build title with option details if available
+    const optionType = (idea as any).optionType ? (idea as any).optionType.toUpperCase() : '';
+    const strike = (idea as any).strikePrice ? `$${(idea as any).strikePrice}` : '';
+    const rawExpiry = (idea as any).expiryDate || (idea as any).expirationDate;
+    const expiry = rawExpiry ? `exp ${String(rawExpiry).split('T')[0]}` : '';
+    
+    // Format: 🎰 LOTTO: INTC CALL $25 (exp 2026-01-09)
+    const titleSuffix = (optionType && strike) 
+      ? ` ${optionType} ${strike} ${expiry ? `(${expiry})` : ''}`
+      : '';
+    
     const embed: DiscordEmbed = {
-      title: `🎰 LOTTO: ${idea.symbol}`,
+      title: `🎰 LOTTO: ${idea.symbol}${titleSuffix}`,
       description: idea.analysis || 'New lotto detected',
       color: COLORS.LOTTO,
       fields: [
@@ -333,9 +356,25 @@ export async function sendBatchTradeIdeasToDiscord(ideas: TradeIdea[], source: s
   const webhookUrl = process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   try {
+    const description = ideas.slice(0, 10).map((i: any) => {
+      const optionType = i.optionType ? i.optionType.toUpperCase() : '';
+      const strike = i.strikePrice ? `$${i.strikePrice}` : '';
+      // Support both expiryDate and expirationDate field names
+      const rawExpiry = i.expiryDate || i.expirationDate;
+      const expiry = rawExpiry ? `exp ${String(rawExpiry).split('T')[0]}` : '';
+      // Format price properly - avoid "$N/A"
+      const priceStr = i.entryPrice != null ? `$${Number(i.entryPrice).toFixed(2)}` : 'N/A';
+      
+      // Format: INTC CALL $25 @ $0.48 (exp 2026-01-09)
+      if (i.assetType === 'option' && optionType && strike) {
+        return `${i.symbol} ${optionType} ${strike} @ ${priceStr} ${expiry ? `(${expiry})` : ''}`;
+      }
+      return `${i.symbol}: ${priceStr}`;
+    }).join('\n');
+    
     const embed: DiscordEmbed = {
       title: `📢 BATCH: ${source.toUpperCase()} - ${ideas.length} Ideas`,
-      description: ideas.slice(0, 10).map(i => `${i.symbol}: $${i.entryPrice.toFixed(2)}`).join('\n'),
+      description,
       color: COLORS.QUANT,
       fields: [],
       timestamp: new Date().toISOString()
@@ -386,9 +425,23 @@ export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Pr
   const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return;
   try {
-    const summary = ideas.slice(0, 10).map((i: any) => 
-      `${i.direction === 'long' ? '🟢' : '🔴'} **${i.symbol}** $${i.entryPrice?.toFixed(2) || 'N/A'}`
-    ).join('\n');
+    const summary = ideas.slice(0, 10).map((i: any) => {
+      const emoji = i.direction === 'long' ? '🟢' : '🔴';
+      const optionType = i.optionType ? i.optionType.toUpperCase() : '';
+      const strike = i.strikePrice ? `$${i.strikePrice}` : '';
+      // Support both expiryDate and expirationDate field names
+      const rawExpiry = i.expiryDate || i.expirationDate;
+      const expiry = rawExpiry ? `exp ${String(rawExpiry).split('T')[0]}` : '';
+      // Format price properly - avoid "$N/A"
+      const priceStr = i.entryPrice != null ? `$${Number(i.entryPrice).toFixed(2)}` : 'N/A';
+      
+      // Format: 🟢 INTC CALL $25 @ $0.48 (exp 2026-01-09)
+      if (i.assetType === 'option' && optionType && strike) {
+        return `${emoji} **${i.symbol}** ${optionType} ${strike} @ ${priceStr} ${expiry ? `(${expiry})` : ''}`;
+      }
+      // Fallback for non-options
+      return `${emoji} **${i.symbol}** ${priceStr}`;
+    }).join('\n');
     
     await fetch(webhookUrl, {
       method: 'POST',
