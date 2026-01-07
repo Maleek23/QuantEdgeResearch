@@ -1,5 +1,5 @@
 import { storage } from "./storage";
-import { executeTradeIdea, checkStopsAndTargets, updatePositionPrices } from "./paper-trading-service";
+import { executeTradeIdea, checkStopsAndTargets, updatePositionPrices, registerExitCallback } from "./paper-trading-service";
 import { sendBotTradeEntryToDiscord, sendBotTradeExitToDiscord, sendFuturesTradesToDiscord } from "./discord-service";
 import { getTradierQuote, getTradierOptionsChainsByDTE } from "./tradier-api";
 import { calculateLottoTargets, getLottoThresholds } from "./lotto-detector";
@@ -38,6 +38,19 @@ import {
 } from "./loss-analyzer-service";
 import { analyzePosition, ExitAdvisory } from "./position-monitor-service";
 import { broadcastBotEvent } from "./bot-notification-service";
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🛡️ REGISTER EXIT CALLBACK - Ensures ALL exits trigger cooldowns
+// This is called when the module is loaded to hook into paper-trading-service
+// ═══════════════════════════════════════════════════════════════════════════
+function initExitCooldownHook(): void {
+  registerExitCallback((symbol, optionType, strike, wasWin) => {
+    recordExitCooldown(symbol, optionType, strike, wasWin ?? true);
+  });
+}
+
+// Register on module load (deferred to after recordExitCooldown is defined)
+setTimeout(initExitCooldownHook, 0);
 
 // User preferences interface with defaults
 interface BotPreferences {

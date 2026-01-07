@@ -20,6 +20,22 @@ export function isOptionsMarketOpen(): { isOpen: boolean; reason: string } {
   return { isOpen: status.isOpen, reason: status.reason };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// 🛡️ EXIT CALLBACK HOOK - Notifies external systems (like auto-lotto) of ALL exits
+// This ensures cooldowns are recorded for EVERY exit, not just manual ones
+// ═══════════════════════════════════════════════════════════════════════════
+type ExitCallbackFn = (symbol: string, optionType?: string, strike?: number, wasWin?: boolean) => void;
+let onExitCallback: ExitCallbackFn | null = null;
+
+/**
+ * Register a callback to be invoked on EVERY position close
+ * Used by auto-lotto-trader to record exit cooldowns
+ */
+export function registerExitCallback(callback: ExitCallbackFn): void {
+  onExitCallback = callback;
+  logger.info('🛡️ [EXIT-HOOK] Exit callback registered - all closes will now trigger cooldowns');
+}
+
 export interface ExecuteTradeResult {
   success: boolean;
   position?: PaperPosition;
@@ -372,6 +388,20 @@ export async function closePosition(
       exitReason,
       realizedPnL: position.realizedPnL,
     });
+    
+    // 🛡️ CRITICAL: Invoke exit callback for EVERY close
+    // This ensures auto-lotto cooldowns are recorded for ALL exits, not just manual ones
+    if (onExitCallback) {
+      const pnlPercent = position.realizedPnLPercent || 0;
+      const wasWin = pnlPercent >= 0;
+      onExitCallback(
+        position.symbol, 
+        position.optionType || undefined, 
+        position.strikePrice || undefined, 
+        wasWin
+      );
+      logger.info(`🛡️ [EXIT-HOOK] Notified: ${position.symbol} ${position.optionType || ''} $${position.strikePrice || ''} (${wasWin ? 'WIN' : 'LOSS'})`);
+    }
 
     // === ADAPTIVE LOSS INTELLIGENCE ===
     // Analyze ALL closed trades to learn from both wins and losses
