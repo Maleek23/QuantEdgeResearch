@@ -210,6 +210,12 @@ export default function AdminPanel() {
   const [testAIProvider, setTestAIProvider] = useState<'openai' | 'anthropic' | 'gemini'>('openai');
   const [testPrompt, setTestPrompt] = useState("Generate a bullish research brief for NVDA.");
 
+  // New invite form state
+  const [newInviteEmail, setNewInviteEmail] = useState("");
+  const [newInviteTier, setNewInviteTier] = useState<"free" | "advanced" | "pro">("free");
+  const [newInviteMessage, setNewInviteMessage] = useState("");
+  const [isCreatingInvite, setIsCreatingInvite] = useState(false);
+
   // User management mutations
   const updateUserTierMutation = useMutation({
     mutationFn: async ({ userId, tier }: { userId: string; tier: string }) => {
@@ -2039,6 +2045,124 @@ export default function AdminPanel() {
                     <p className="text-2xl font-bold font-mono tabular-nums text-purple-400">
                       {(waitlistData?.entries as any[])?.filter((e: any) => e.status === 'joined').length || 0}
                     </p>
+                  </div>
+                </div>
+
+                {/* Create New Invite Card */}
+                <div className="rounded-lg border border-cyan-600/30 bg-gradient-to-br from-cyan-900/20 to-blue-900/20 p-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-cyan-600/30 to-blue-600/30 flex items-center justify-center border border-cyan-500/40">
+                      <Send className="h-5 w-5 text-cyan-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold">Send New Invite</h3>
+                      <p className="text-xs text-muted-foreground">Invite someone directly to the beta with a beautiful email</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground">Email Address</label>
+                      <Input
+                        type="email"
+                        placeholder="user@example.com"
+                        value={newInviteEmail}
+                        onChange={(e) => setNewInviteEmail(e.target.value)}
+                        className="bg-slate-900/50"
+                        data-testid="input-invite-email"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground">Access Tier</label>
+                      <select
+                        value={newInviteTier}
+                        onChange={(e) => setNewInviteTier(e.target.value as "free" | "advanced" | "pro")}
+                        className="w-full h-9 px-3 rounded-md border border-slate-700/50 bg-slate-900/50 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+                        data-testid="select-invite-tier"
+                      >
+                        <option value="free">Free Tier</option>
+                        <option value="advanced">Advanced Tier</option>
+                        <option value="pro">Pro Tier</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground">Personal Message (Optional)</label>
+                      <Input
+                        type="text"
+                        placeholder="Welcome to the platform!"
+                        value={newInviteMessage}
+                        onChange={(e) => setNewInviteMessage(e.target.value)}
+                        className="bg-slate-900/50"
+                        data-testid="input-invite-message"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4 flex items-center gap-3">
+                    <Button
+                      onClick={async () => {
+                        if (!newInviteEmail || !newInviteEmail.includes('@')) {
+                          toast({ title: "Invalid email", description: "Please enter a valid email address", variant: "destructive" });
+                          return;
+                        }
+                        setIsCreatingInvite(true);
+                        try {
+                          const csrfToken = getCSRFToken();
+                          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                          if (csrfToken) headers['x-csrf-token'] = csrfToken;
+                          
+                          const res = await fetch('/api/admin/invites', {
+                            method: 'POST',
+                            headers,
+                            credentials: 'include',
+                            body: JSON.stringify({
+                              email: newInviteEmail,
+                              tierOverride: newInviteTier,
+                              personalMessage: newInviteMessage || undefined,
+                            })
+                          });
+                          
+                          if (res.ok) {
+                            toast({ 
+                              title: "Invite Sent!", 
+                              description: `Beautiful invite email sent to ${newInviteEmail}` 
+                            });
+                            setNewInviteEmail("");
+                            setNewInviteMessage("");
+                            refetchInvites();
+                          } else {
+                            const data = await res.json();
+                            toast({ 
+                              title: "Failed to send invite", 
+                              description: data.error || "Unknown error", 
+                              variant: "destructive" 
+                            });
+                          }
+                        } catch (err) {
+                          toast({ title: "Error", description: "Failed to create invite", variant: "destructive" });
+                        } finally {
+                          setIsCreatingInvite(false);
+                        }
+                      }}
+                      disabled={isCreatingInvite || !emailStatus?.configured}
+                      className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500"
+                      data-testid="button-send-invite"
+                    >
+                      {isCreatingInvite ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Send Invite Email
+                        </>
+                      )}
+                    </Button>
+                    {!emailStatus?.configured && (
+                      <span className="text-xs text-amber-400">Email service not configured - check RESEND_API_KEY</span>
+                    )}
                   </div>
                 </div>
 
