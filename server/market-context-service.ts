@@ -1112,6 +1112,17 @@ export function shouldAllowSessionEntry(
   const session = getTradingSession();
   const rules = STRATEGY_SESSION_RULES[strategy];
   
+  // Handle unknown strategy types gracefully
+  if (!rules) {
+    console.warn(`[ENTRY GATE] Unknown strategy type: ${strategy}, defaulting to allowed`);
+    return {
+      allowed: true,
+      session,
+      reason: `Unknown strategy ${strategy}, allowing entry`,
+      confidenceMultiplier: 1.0,
+    };
+  }
+  
   // Override allows entry in any session (for high-conviction plays)
   if (overrideAllow) {
     return {
