@@ -10400,6 +10400,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Expiry Pattern Analysis Routes
+  app.get("/api/expiry-patterns", async (req, res) => {
+    try {
+      const { analyzeExpiryPatterns } = await import("./expiry-pattern-service");
+      const portfolioId = req.query.portfolioId as string | undefined;
+      const lookbackDays = parseInt(req.query.lookbackDays as string) || 90;
+      
+      const patterns = await analyzeExpiryPatterns(portfolioId, lookbackDays);
+      res.json({ patterns, count: patterns.length });
+    } catch (error) {
+      logger.error("Expiry pattern analysis error:", error);
+      res.status(500).json({ error: "Failed to analyze expiry patterns" });
+    }
+  });
+  
+  app.get("/api/expiry-patterns/weekly", async (req, res) => {
+    try {
+      const { analyzeWeeklyPatterns } = await import("./expiry-pattern-service");
+      const portfolioId = req.query.portfolioId as string | undefined;
+      const weeksBack = parseInt(req.query.weeksBack as string) || 12;
+      
+      const patterns = await analyzeWeeklyPatterns(portfolioId, weeksBack);
+      res.json({ patterns, count: patterns.length });
+    } catch (error) {
+      logger.error("Weekly pattern analysis error:", error);
+      res.status(500).json({ error: "Failed to analyze weekly patterns" });
+    }
+  });
+  
+  app.get("/api/expiry-patterns/summary", async (req, res) => {
+    try {
+      const { getExpiryPatternSummary } = await import("./expiry-pattern-service");
+      const portfolioId = req.query.portfolioId as string | undefined;
+      
+      const summary = await getExpiryPatternSummary(portfolioId);
+      res.json(summary);
+    } catch (error) {
+      logger.error("Expiry pattern summary error:", error);
+      res.status(500).json({ error: "Failed to get expiry pattern summary" });
+    }
+  });
+  
+  app.get("/api/expiry-patterns/signals/:symbol", async (req, res) => {
+    try {
+      const { generateExpirySignals } = await import("./expiry-pattern-service");
+      const { symbol } = req.params;
+      const currentPrice = parseFloat(req.query.price as string) || 0;
+      
+      const signals = await generateExpirySignals(symbol.toUpperCase(), currentPrice);
+      res.json({ signals, symbol: symbol.toUpperCase() });
+    } catch (error) {
+      logger.error("Expiry signals error:", error);
+      res.status(500).json({ error: "Failed to generate expiry signals" });
+    }
+  });
+
   // User Preferences Routes
   app.get("/api/preferences", async (_req, res) => {
     try {
