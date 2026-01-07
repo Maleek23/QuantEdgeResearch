@@ -219,7 +219,6 @@ const PORTFOLIO_METADATA: Record<string, { name: string; emoji: string }> = {
 };
 
 // Format bot trade for Discord - ENHANCED with portfolio context
-// V1 preserved for backward compatibility
 export async function sendBotTradeEntryToDiscord(trade: {
   symbol: string;
   assetType?: string | null;
@@ -275,16 +274,16 @@ export async function sendBotTradeEntryToDiscord(trade: {
     const color = isLotto ? COLORS.LOTTO : (isCall ? 0x22c55e : 0xef4444);
     
     const embed: DiscordEmbed = {
-      title: `${meta.emoji} ${trade.symbol} ${trade.optionType?.toUpperCase()} ${trade.strikePrice ? `$${trade.strikePrice}` : ''} ENTRY`,
-      description: trade.analysis || `**${meta.name}** has entered a new position.`,
+      title: `${meta.emoji} ${trade.symbol} ${trade.optionType?.toUpperCase()} ${trade.strikePrice ? \`$\${trade.strikePrice}\` : ''} ENTRY`,
+      description: trade.analysis || \`**\${meta.name}** has entered a new position.\`,
       color,
       fields: [
-        { name: '💰 Entry', value: `$${trade.entryPrice.toFixed(2)}`, inline: true },
-        { name: '📦 Quantity', value: `${trade.quantity}`, inline: true },
-        { name: '🎯 Confidence', value: `${trade.confidence || 0}%`, inline: true },
+        { name: '💰 Entry', value: \`$\${trade.entryPrice.toFixed(2)}\`, inline: true },
+        { name: '📦 Quantity', value: \`\${trade.quantity}\`, inline: true },
+        { name: '🎯 Confidence', value: \`\${trade.confidence || 0}%\`, inline: true },
       ],
       timestamp: new Date().toISOString(),
-      footer: { text: `Quant Edge Labs • ${meta.name}` }
+      footer: { text: \`Quant Edge Labs • \${meta.name}\` }
     };
 
     if (trade.expiryDate) {
@@ -296,7 +295,7 @@ export async function sendBotTradeEntryToDiscord(trade: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          content: `🚀 **BOT ENTRY**: ${trade.symbol} (${meta.name})`,
+          content: \`🚀 **BOT ENTRY**: \${trade.symbol} (\${meta.name})\`,
           embeds: [embed]
         }),
       })
@@ -345,23 +344,23 @@ export async function sendBotTradeExitToDiscord(exit: {
     const exitReason = exit.exitReason ?? exit.reason ?? 'Unknown';
     
     const embed: DiscordEmbed = {
-      title: `${isProfit ? '💰' : '📉'} ${exit.symbol} EXIT (${isProfit ? 'PROFIT' : 'LOSS'})`,
-      description: `**${meta.name}** has closed this position.`,
+      title: \`\${isProfit ? '💰' : '📉'} \${exit.symbol} EXIT (\${isProfit ? 'PROFIT' : 'LOSS'})\`,
+      description: \`**\${meta.name}** has closed this position.\`,
       color,
       fields: [
-        { name: '💵 Exit Price', value: `$${exitPrice.toFixed(2)}`, inline: true },
-        { name: '📊 P&L', value: `${isProfit ? '+' : ''}$${realizedPnL.toFixed(2)}`, inline: true },
+        { name: '💵 Exit Price', value: \`$\${exitPrice.toFixed(2)}\`, inline: true },
+        { name: '📊 P&L', value: \`\${isProfit ? '+' : ''}$\${realizedPnL.toFixed(2)}\`, inline: true },
         { name: '📝 Reason', value: exitReason, inline: false },
       ],
       timestamp: new Date().toISOString(),
-      footer: { text: `Quant Edge Labs • ${meta.name}` }
+      footer: { text: \`Quant Edge Labs • \${meta.name}\` }
     };
 
     await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        content: `${isProfit ? '✅' : '❌'} **BOT EXIT**: ${exit.symbol} (${meta.name})`,
+        content: \`\${isProfit ? '✅' : '❌'} **BOT EXIT**: \${exit.symbol} (\${meta.name})\`,
         embeds: [embed]
       }),
     });
@@ -444,48 +443,48 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
   let description = '';
   if (idea.assetType === 'option') {
     const optType = (idea.optionType || 'OPTION').toUpperCase();
-    const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
+    const strike = idea.strikePrice ? \`$\${idea.strikePrice}\` : '';
     const expFormatted = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
     
-    description = `**${optType} ${strike} exp ${expFormatted}**\n\n`;
-    description += `${sourceEmoji} **${sourceLabel}** | ${gradeEmoji} Grade: **${letterGrade}** (${confidenceScore}%)\n`;
-    description += `Signal Strength: ${signalStars} (${signalCount}/5)`;
+    description = \`**\${optType} \${strike} exp \${expFormatted}**\n\n\`;
+    description += \`\${sourceEmoji} **\${sourceLabel}** | \${gradeEmoji} Grade: **\${letterGrade}** (\${confidenceScore}%)\n\`;
+    description += \`Signal Strength: \${signalStars} (\${signalCount}/5)\`;
   } else if (idea.assetType === 'crypto') {
-    description = `**Crypto Position**\n\n${sourceEmoji} **${sourceLabel}** | ${gradeEmoji} Grade: **${letterGrade}**`;
+    description = \`**Crypto Position**\n\n\${sourceEmoji} **\${sourceLabel}** | \${gradeEmoji} Grade: **\${letterGrade}**\`;
   } else if (idea.assetType === 'penny_stock') {
-    description = `**Penny Moonshot**\n\n${sourceEmoji} **${sourceLabel}** | ${gradeEmoji} Grade: **${letterGrade}**`;
+    description = \`**Penny Moonshot**\n\n\${sourceEmoji} **\${sourceLabel}** | \${gradeEmoji} Grade: **\${letterGrade}**\`;
   } else {
-    description = `**Shares**\n\n${sourceEmoji} **${sourceLabel}** | ${gradeEmoji} Grade: **${letterGrade}**`;
+    description = \`**Shares**\n\n\${sourceEmoji} **\${sourceLabel}** | \${gradeEmoji} Grade: **\${letterGrade}**\`;
   }
   
   const embed: DiscordEmbed = {
-    title: `${directionEmoji} ${idea.symbol} ${idea.direction.toUpperCase()} ${assetEmoji}`,
+    title: \`\${directionEmoji} \${idea.symbol} \${idea.direction.toUpperCase()} \${assetEmoji}\`,
     description,
     color,
     fields: [
       {
         name: '💰 Entry',
-        value: `$${idea.entryPrice.toFixed(2)}`,
+        value: \`$\${idea.entryPrice.toFixed(2)}\`,
         inline: true
       },
       {
         name: '🎯 Target',
-        value: `$${idea.targetPrice.toFixed(2)} (+${potentialGain}%)`,
+        value: \`$\${idea.targetPrice.toFixed(2)} (+\${potentialGain}%)\`,
         inline: true
       },
       {
         name: '🛡️ Stop',
-        value: idea.stopLoss ? `$${idea.stopLoss.toFixed(2)} (-${potentialLoss}%)` : 'Not set',
+        value: idea.stopLoss ? \`$\${idea.stopLoss.toFixed(2)} (-\${potentialLoss}%)\` : 'Not set',
         inline: true
       },
       {
         name: '📊 Risk/Reward',
-        value: `**${idea.riskRewardRatio}:1**`,
+        value: \`**\${idea.riskRewardRatio}:1**\`,
         inline: true
       },
       {
         name: '⭐ Quant Edge Labs Grade',
-        value: `${gradeEmoji} **${letterGrade}** (${confidenceScore}%)`,
+        value: \`\${gradeEmoji} **\${letterGrade}** (\${confidenceScore}%)\`,
         inline: true
       },
       {
@@ -505,11 +504,11 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
     const deltaLabel = delta < 0.15 ? '🎰 Far OTM' : 
                        delta < 0.30 ? '📈 OTM' : 
                        delta < 0.45 ? '⚖️ ATM' : '💪 ITM';
-    const thetaDisplay = idea.optionTheta ? `θ=${idea.optionTheta.toFixed(3)}` : '';
+    const thetaDisplay = idea.optionTheta ? \`θ=\${idea.optionTheta.toFixed(3)}\` : '';
     
     embed.fields.push({
       name: '📊 Greeks',
-      value: `δ=${delta.toFixed(2)} ${deltaLabel}${thetaDisplay ? ` | ${thetaDisplay}` : ''}`,
+      value: \`δ=\${delta.toFixed(2)} \${deltaLabel}\${thetaDisplay ? \` | \${thetaDisplay}\` : ''}\`,
       inline: true
     });
   }
@@ -518,7 +517,7 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
   if (idea.qualitySignals && idea.qualitySignals.length > 0) {
     const signalsDisplay = idea.qualitySignals.slice(0, 4).join(' • ');
     embed.fields.push({
-      name: `📶 Technical Signals (${signalCount}/5)`,
+      name: \`📶 Technical Signals (\${signalCount}/5)\`,
       value: signalsDisplay || 'Momentum detected',
       inline: false
     });
@@ -538,7 +537,7 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
     const analysisExcerpt = idea.analysis.substring(0, 200).replace(/\n/g, ' ');
     embed.fields.push({
       name: '📝 Analysis',
-      value: `>>> ${analysisExcerpt}${idea.analysis.length > 200 ? '...' : ''}`,
+      value: \`>>> \${analysisExcerpt}\${idea.analysis.length > 200 ? '...' : ''}\`,
       inline: false
     });
   }
@@ -548,7 +547,7 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
   const riskLevel = idea.riskProfile === 'speculative' ? 'HIGH RISK' : 
                    idea.riskProfile === 'aggressive' ? 'AGGRESSIVE' : 'MODERATE';
   embed.footer = {
-    text: `${qualityEmoji} ${idea.dataSourceUsed || 'Live Data'} | ${riskLevel} | Quant Edge Labs`
+    text: \`\${qualityEmoji} \${idea.dataSourceUsed || 'Live Data'} | \${riskLevel} | Quant Edge Labs\`
   };
   
   return embed;
@@ -558,7 +557,7 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
 // ALL research ideas (quant, AI, hybrid, flow) go to #trade-alerts
 // Bot entries (when bot actually trades) go to #quantbot via sendBotTradeEntryToDiscord
 export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
-  logger.info(`📨 Discord single trade called: ${idea.symbol} (${idea.source || 'unknown'}) assetType=${idea.assetType}`);
+  logger.info(\`📨 Discord single trade called: \${idea.symbol} (\${idea.source || 'unknown'}) assetType=\${idea.assetType}\`);
   
   if (DISCORD_DISABLED) {
     logger.warn('⚠️ Discord is DISABLED - skipping notification');
@@ -568,7 +567,7 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
   // QUALITY GATE: Only send trades with high/medium confidence
   if (!meetsQualityThreshold(idea)) {
     const signalCount = idea.qualitySignals?.length || 0;
-    logger.info(`📨 [QUALITY-GATE] Skipping ${idea.symbol} - only ${signalCount}/5 signals (below B grade threshold)`);
+    logger.info(\`📨 [QUALITY-GATE] Skipping \${idea.symbol} - only \${signalCount}/5 signals (below B grade threshold)\`);
     return;
   }
   
@@ -584,287 +583,118 @@ export async function sendTradeIdeaToDiscord(idea: TradeIdea): Promise<void> {
 
   // PREMIUM FILTER
   if (isPremiumTooHigh(idea)) {
-    logger.info(`🚫 [DISCORD-FILTER] Skipping ${idea.symbol} - premium too high ($${idea.entryPrice})`);
+    logger.info(\`📨 [PREMIUM-FILTER] Skipping \${idea.symbol} - premium too high ($\${idea.entryPrice})\`);
     return;
   }
-  
-  // DEDUP: Create unique key for this trade idea
-  const optionKey = idea.assetType === 'option' ? `${idea.optionType}_${idea.strikePrice}_${idea.expiryDate}` : '';
-  const dedupKey = `${idea.symbol}_${idea.direction}_${idea.source}_${optionKey}_${idea.entryPrice?.toFixed(2)}`;
-  const hash = generateMessageHash('trade', dedupKey);
-  
-  if (isDuplicateMessage(hash)) {
-    return; // Skip duplicate
+
+  // AFFORDABILITY: Skip entries that cost more than $1000 for 5 contracts
+  if (!isAffordablePremium(idea.entryPrice)) {
+    logger.info(\`📨 [AFFORDABILITY-GATE] Skipping \${idea.symbol} - too expensive ($\${idea.entryPrice})\`);
+    return;
   }
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // CHANNEL ROUTING BY ASSET TYPE
-  // ═══════════════════════════════════════════════════════════════════════════
-  // OPTIONS → #options-trades (DISCORD_WEBHOOK_OPTIONSTRADES)
-  // STOCKS/PENNY STOCKS → #stock-shares (DISCORD_WEBHOOK_SHARES)
-  // FUTURES → handled by separate function, but fallback here
-  // ═══════════════════════════════════════════════════════════════════════════
-  
-  let webhookUrl: string | undefined;
-  let channelHeader: string;
-  let isPennyStock = false;
-  
-  if (idea.assetType === 'option') {
-    // OPTIONS go to dedicated options channel (fallback to main URL)
-    webhookUrl = process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL;
-    channelHeader = CHANNEL_HEADERS.OPTIONS_TRADES;
-    logger.info(`📨 [ROUTING] ${idea.symbol} → #options-trades (option)`);
-  } else if (idea.assetType === 'stock' || idea.assetType === 'penny_stock') {
-    // STOCKS/PENNY STOCKS go to shares channel
-    isPennyStock = (idea.entryPrice || 0) < PENNY_STOCK_THRESHOLD;
-    webhookUrl = process.env.DISCORD_WEBHOOK_SHARES;
-    channelHeader = CHANNEL_HEADERS.STOCK_SHARES;
-    logger.info(`📨 [ROUTING] ${idea.symbol} → #stock-shares (${isPennyStock ? 'penny stock' : 'stock'})`);
-  } else if (idea.assetType === 'future') {
-    // FUTURES go to futures channel
-    webhookUrl = process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_URL;
-    channelHeader = CHANNEL_HEADERS.FUTURES;
-    logger.info(`📨 [ROUTING] ${idea.symbol} → #futures`);
-  } else {
-    // Default fallback for crypto or unknown types
-    webhookUrl = process.env.DISCORD_WEBHOOK_URL;
-    channelHeader = CHANNEL_HEADERS.TRADE_ALERTS;
-    logger.info(`📨 [ROUTING] ${idea.symbol} → #trade-alerts (default: ${idea.assetType})`);
-  }
-  
+
+  // Generate message hash for final dedup
+  const messageHash = generateMessageHash('trade', \`\${idea.symbol}:\${idea.source}:\${idea.assetType}\`);
+  if (isDuplicateMessage(messageHash)) return;
+
+  // Determine webhook URL based on asset type
+  const webhookUrl = idea.assetType === 'option' 
+    ? (process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL)
+    : process.env.DISCORD_WEBHOOK_URL;
+
   if (!webhookUrl) {
-    logger.warn(`⚠️ Discord webhook not configured for ${idea.assetType} trades - skipping alert`);
+    logger.warn('⚠️ Discord webhook not configured for single trade');
     return;
   }
-  
+
   try {
     const embed = formatTradeIdeaEmbed(idea);
-    const sourceLabel = idea.source === 'ai' ? 'AI' : idea.source === 'quant' ? 'QUANT' : idea.source === 'hybrid' ? 'HYBRID' : 'FLOW';
-    const pennyLabel = isPennyStock ? ' 🪙' : '';
-    const message: DiscordMessage = {
-      content: `🎯 **${sourceLabel} TRADE** → ${idea.symbol}${pennyLabel} │ ${channelHeader}`,
-      embeds: [embed]
-    };
+    const channelHeader = idea.assetType === 'option' ? CHANNEL_HEADERS.OPTIONS_TRADES : CHANNEL_HEADERS.TRADE_ALERTS;
     
+    // Add special highlighting for GEMs (A+ grade)
+    const isGem = isGemTrade({ qualitySignals: idea.qualitySignals, confidenceScore: idea.confidenceScore });
+    const content = isGem ? \`💎 **A+ GEM DETECTED** → \${idea.symbol} │ \${channelHeader}\` : \`📢 **NEW RESEARCH** → \${idea.symbol} │ \${channelHeader}\`;
+
     const response = await fetch(webhookUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, embeds: [embed] }),
     });
-    
-    if (!response.ok) {
-      throw new Error(`Discord webhook failed: ${response.status} ${response.statusText}`);
+
+    if (response.ok) {
+      logger.info(\`✅ Discord notification sent for \${idea.symbol}\`);
+    } else {
+      logger.error(\`❌ Discord webhook failed: \${response.status}\`);
     }
-    
-    logger.info(`✅ Discord alert sent: ${idea.symbol} ${idea.direction.toUpperCase()} → ${channelHeader}`);
   } catch (error) {
-    logger.error('❌ Failed to send Discord alert:', error);
+    logger.error('❌ Failed to send Discord trade idea:', error);
   }
 }
 
-/**
- * Send Watchlist Price Alert to Discord
- */
-export async function sendDiscordAlert(alert: {
-  symbol: string;
-  assetType: string;
-  alertType: 'entry' | 'stop' | 'target';
-  currentPrice: number;
-  alertPrice: number;
-  percentFromTarget: number;
-  notes?: string;
-  // Option-specific fields
-  optionType?: string;
-  strike?: number;
-  expiry?: string;
-}): Promise<void> {
-  if (DISCORD_DISABLED) return;
+// Send batch of trade ideas to Discord
+export async function sendBatchTradeIdeasToDiscord(ideas: TradeIdea[], source: string): Promise<void> {
+  if (DISCORD_DISABLED || ideas.length === 0) return;
   
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
-  
-  if (!webhookUrl) {
-    logger.info('⚠️ Discord webhook URL not configured - skipping watchlist alert');
-    return;
-  }
-  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) return;
+
   try {
-    const alertEmoji = alert.alertType === 'entry' ? '🚨' : alert.alertType === 'stop' ? '🛑' : '🎯';
-    const alertTitle = alert.alertType === 'entry' ? 'ENTRY OPPORTUNITY' : 
-                      alert.alertType === 'stop' ? 'STOP LOSS ALERT' : 'PROFIT TARGET HIT';
-    const color = alert.alertType === 'entry' ? 0x00ff00 : // Green for entry
-                  alert.alertType === 'stop' ? 0xff0000 : // Red for stop
-                  0x0099ff; // Blue for target
+    const sourceLabel = source === 'ai' ? 'AI Engine' : 
+                       source === 'quant' ? 'Quant Engine' : 
+                       source === 'hybrid' ? 'Hybrid Intelligence' : 'Flow Scanner';
     
-    // Format prices appropriately (fewer decimals for stocks)
-    const priceDecimals = alert.assetType === 'crypto' && alert.currentPrice < 1 ? 6 : 2;
+    const longIdeas = ideas.filter(i => i.direction === 'long');
+    const shortIdeas = ideas.filter(i => i.direction === 'short');
     
-    // Build description - for options, put type/strike/expiry on its own line first
-    let description = `**${alertTitle}**`;
-    if (alert.assetType === 'option' && alert.optionType) {
-      // STANDALONE LINE: CALL $150 01/17
-      const optionLine = `${alert.optionType.toUpperCase()}${alert.strike ? ` $${alert.strike}` : ''}${alert.expiry ? ` ${alert.expiry}` : ''}`;
-      description = `**${optionLine}**\n\n${alertTitle}`;
+    // Check if any idea is a GEM
+    const hasGem = ideas.some(i => isGemTrade({ qualitySignals: i.qualitySignals, confidenceScore: i.confidenceScore }));
+    const gemIndicator = hasGem ? ' 💎' : '';
+    
+    // Filter to meet quality threshold
+    const filteredIdeas = ideas.filter(meetsQualityThreshold);
+    if (filteredIdeas.length === 0) {
+      logger.info(\`Batch \${sourceLabel}: 0/\${ideas.length} ideas met quality threshold (75%+ conf)\`);
+      return;
     }
+
+    const avgConfidence = Math.round(filteredIdeas.reduce((sum, i) => sum + (i.confidenceScore || 0), 0) / filteredIdeas.length);
+    const avgRR = (filteredIdeas.reduce((sum, i) => sum + (i.riskRewardRatio || 0), 0) / filteredIdeas.length).toFixed(1);
+    const avgGrade = getLetterGrade(avgConfidence);
+    const color = source === 'ai' ? COLORS.AI : source === 'quant' ? COLORS.QUANT : COLORS.HYBRID;
     
-    // Simple asset emoji for title
-    const assetEmoji = alert.assetType === 'option' ? '🎯' : alert.assetType === 'crypto' ? '₿' : '📈';
+    const topIdeas = filteredIdeas.slice(0, 15);
+    const listLines = topIdeas.map(idea => {
+      const isLong = idea.direction === 'long';
+      const side = isLong ? '🟢' : '🔴';
+      const type = idea.optionType?.toUpperCase() || 'OPT';
+      const strike = idea.strikePrice ? \`$\${idea.strikePrice}\` : '';
+      const exp = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
+      const grade = getLetterGrade(idea.confidenceScore || 50);
+      const entry = idea.entryPrice?.toFixed(2);
+      const target = idea.targetPrice?.toFixed(2);
+      const gain = idea.entryPrice ? ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(0) : '0';
+      
+      return \`\${side} **\${idea.symbol}** \${type} \${strike} \${exp} • \$\${entry}→\$\${target} (+\${gain}%) │ \${grade}\`;
+    });
+
+    const description = listLines.join('\n') + (filteredIdeas.length > 15 ? \`\\n*+\${filteredIdeas.length - 15} more in dashboard*\` : '');
     
     const embed: DiscordEmbed = {
-      title: `${alertEmoji} ${alert.symbol} ${assetEmoji}`,
+      title: \`\${sourceLabel} - \${filteredIdeas.length} Trade Ideas\${gemIndicator}\`,
       description,
       color,
       fields: [
-        {
-          name: '💰 Current',
-          value: `$${alert.currentPrice.toFixed(priceDecimals)}`,
-          inline: true
-        },
-        {
-          name: '🎯 Alert At',
-          value: `$${alert.alertPrice.toFixed(priceDecimals)}`,
-          inline: true
-        },
-        {
-          name: '📊 Distance',
-          value: `${alert.percentFromTarget > 0 ? '+' : ''}${alert.percentFromTarget.toFixed(2)}%`,
-          inline: true
-        }
+        { name: '📊 Direction', value: \`🟢 \${longIdeas.length} Long • 🔴 \${shortIdeas.length} Short\`, inline: true },
+        { name: '✨ Avg Grade', value: \`**\${avgGrade}** (\${avgConfidence}%)\`, inline: true },
+        { name: '📈 Avg R:R', value: \`**\${avgRR}:1**\`, inline: true }
       ],
-      timestamp: new Date().toISOString(),
-      footer: {
-        text: `Quant Edge Labs Watchlist • ${alert.assetType === 'crypto' ? '24/7' : 'Market Hours'}`
-      }
-    };
-    
-    // Only add notes if meaningful (skip default/auto-generated notes)
-    if (alert.notes && 
-        !alert.notes.includes('symbol search') && 
-        !alert.notes.includes('Watchlist alert') &&
-        alert.notes.length > 5) {
-      embed.fields.push({
-        name: '📝 Notes',
-        value: alert.notes.substring(0, 100),
-        inline: false
-      });
-    }
-    
-    const assetDetail = alert.assetType === 'option' && alert.optionType 
-      ? `${alert.optionType.toUpperCase()}${alert.strike ? ` $${alert.strike}` : ''}${alert.expiry ? ` ${alert.expiry}` : ''}` 
-      : alert.assetType === 'crypto' ? 'Crypto' : 'Shares';
-    const message: DiscordMessage = {
-      content: `${alertEmoji} **WATCHLIST ALERT** → ${alert.symbol} ${assetDetail} │ ${CHANNEL_HEADERS.TRADE_ALERTS}`,
-      embeds: [embed]
-    };
-    
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Discord watchlist alert failed: ${response.status} ${response.statusText}`);
-    }
-    
-    logger.info(`✅ Discord watchlist alert sent: ${alert.symbol} ${alert.alertType.toUpperCase()}`);
-  } catch (error) {
-    logger.error('❌ Failed to send Discord watchlist alert:', error);
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// REAL-TIME FLOW SCANNER ALERT - Sends B- to A+ options as they're discovered
-// ═══════════════════════════════════════════════════════════════════════════
-
-export async function sendFlowAlertToDiscord(alert: {
-  symbol: string;
-  optionType: string;
-  strikePrice: number;
-  expiryDate: string;
-  entryPrice: number;
-  targetPrice: number;
-  targetPercent: string;
-  grade: string;
-  riskReward: string;
-  isLotto: boolean;
-}): Promise<void> {
-  if (DISCORD_DISABLED) return;
-  
-  // 🚫 MARKET HOURS CHECK: Only send flow alerts during market hours (9:30 AM - 4:00 PM ET)
-  const marketStatus = isOptionsMarketOpen();
-  if (!marketStatus.isOpen) {
-    logger.info(`📊 Flow alert skipped - ${marketStatus.reason}. No stale alerts.`);
-    return;
-  }
-  
-  // Route to options channel or lotto channel based on type
-  const webhookUrl = alert.isLotto 
-    ? (process.env.DISCORD_WEBHOOK_LOTTO || process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL)
-    : (process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL);
-  
-  if (!webhookUrl) {
-    logger.warn('⚠️ No Discord webhook configured for flow alerts');
-    return;
-  }
-  
-  // 🛑 SYMBOL-LEVEL COOLDOWN: Prevent spam for same symbol (uses existing system)
-  if (isSymbolOnCooldown(alert.symbol, 'flow')) {
-    return;
-  }
-  
-  // Standard deduplication for exact option match
-  const flowKey = `${alert.symbol}-${alert.optionType}-${alert.strikePrice}-${alert.expiryDate}`;
-  const hash = generateMessageHash('flow-alert', flowKey);
-  if (isDuplicateMessage(hash)) {
-    return;
-  }
-  
-  try {
-    const isCall = alert.optionType.toLowerCase() === 'call';
-    const emoji = isCall ? '🟢' : '🔴';
-    const gradeEmoji = alert.grade.includes('A') ? '🔥' : '⭐';
-    const lottoTag = alert.isLotto ? '🎰 ' : '';
-    const color = isCall ? 0x22c55e : 0xef4444;
-    
-  // 🚫 QUALITY GATE: Only send HIGH-QUALITY flow alerts (A- to A+)
-  // User requested to stop spamming low-grade alerts
-  const isHighGrade = alert.grade.startsWith('A');
-  if (!isHighGrade && !alert.isLotto) {
-    logger.info(`📊 [FLOW-QUALITY-GATE] Skipping low-grade flow alert: ${alert.symbol} (${alert.grade})`);
-    return;
-  }
-  
-  // PREMIUM FILTER for Flow Alerts
-  if (alert.entryPrice > 20.00 && !alert.grade.includes('A+')) {
-    logger.info(`📊 [FLOW-PREMIUM-FILTER] Skipping expensive flow alert: ${alert.symbol} @ $${alert.entryPrice.toFixed(2)}`);
-    return;
-  }
-
-    // Format expiry date nicely (e.g., "01/16" or "04/17")
-    let expiryFormatted = alert.expiryDate;
-    try {
-      const expDate = new Date(alert.expiryDate);
-      expiryFormatted = `${(expDate.getMonth() + 1).toString().padStart(2, '0')}/${expDate.getDate().toString().padStart(2, '0')}`;
-    } catch {}
-    
-    const embed: DiscordEmbed = {
-      title: `${lottoTag}${emoji} ${alert.symbol} ${alert.optionType.toUpperCase()} $${alert.strikePrice} ${expiryFormatted}`,
-      description: `**${gradeEmoji} Grade ${alert.grade}** | Entry: **$${alert.entryPrice.toFixed(2)}**`,
-      color,
-      fields: [
-        { name: '🎯 Target', value: `$${alert.targetPrice.toFixed(2)} (+${alert.targetPercent}%)`, inline: true },
-        { name: '📊 R:R', value: `${alert.riskReward}:1`, inline: true }
-      ],
-      footer: { text: 'Flow Scanner • Quant Edge Labs' },
+      footer: { text: '⚠️ For educational research only | Quant Edge Labs' },
       timestamp: new Date().toISOString()
     };
     
+    const channelHeader = CHANNEL_HEADERS.TRADE_ALERTS;
     const message: DiscordMessage = {
-      content: `📊 **FLOW ALERT** → ${alert.symbol} ${alert.optionType.toUpperCase()} $${alert.strikePrice} | ${gradeEmoji} ${alert.grade}`,
+      content: \`📢 **BATCH ALERT** → \${ideas.length} \${sourceLabel} Ideas │ \${channelHeader}\`,
       embeds: [embed]
     };
     
@@ -875,207 +705,7 @@ export async function sendFlowAlertToDiscord(alert: {
     });
     
     if (response.ok) {
-      logger.info(`✅ Discord flow alert sent: ${alert.symbol} ${alert.optionType.toUpperCase()} $${alert.strikePrice} (${alert.grade})`);
-    } else {
-      logger.error(`❌ Discord flow alert failed: ${response.status}`);
-    }
-  } catch (error) {
-    logger.error('❌ Failed to send Discord flow alert:', error);
-  }
-}
-
-// Send batch summary to Discord
-// OPTIONS → #options-trades (DISCORD_WEBHOOK_OPTIONSTRADES)
-// STOCKS/CRYPTO → #stock-shares (DISCORD_WEBHOOK_SHARES)  
-// Bot entries go to #quantbot via sendBotTradeEntryToDiscord
-export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai' | 'quant' | 'hybrid' | 'flow' | 'news'): Promise<void> {
-  logger.info(`📨 Discord batch summary called: ${ideas.length} ${source} ideas`);
-  
-  if (DISCORD_DISABLED) {
-    logger.warn('⚠️ Discord is DISABLED - skipping notification');
-    return;
-  }
-  
-  // 🚫 MARKET HOURS CHECK: Only send batch alerts during market hours (9:30 AM - 4:00 PM ET)
-  const marketStatus = isOptionsMarketOpen();
-  if (!marketStatus.isOpen) {
-    logger.info(`📨 Discord batch skipped - ${marketStatus.reason}. No stale alerts.`);
-    return;
-  }
-  
-  // Route to appropriate channel based on predominant asset type
-  // OPTIONS go to dedicated options channel, everything else to shares/main
-  const optionCount = ideas.filter(i => i.assetType === 'option').length;
-  const isOptionsHeavy = optionCount > ideas.length / 2;
-  
-  const webhookUrl = isOptionsHeavy 
-    ? (process.env.DISCORD_WEBHOOK_OPTIONSTRADES || process.env.DISCORD_WEBHOOK_URL)
-    : (process.env.DISCORD_WEBHOOK_SHARES || process.env.DISCORD_WEBHOOK_URL);
-  
-  if (!webhookUrl) {
-    logger.warn('⚠️ No Discord webhook configured - skipping notification');
-    return;
-  }
-  
-  if (ideas.length === 0) {
-    logger.info('📨 No ideas to send to Discord');
-    return;
-  }
-  
-  // QUALITY GATE: Only send OPTIONS with high/medium confidence (70%+, 4+ signals)
-  // EXCLUDE: penny stocks, moonshots, shares - only options go to Discord
-  // PREMIUM FILTER: Exclude "crazy premiums" (>$20/contract) unless high confidence (A+)
-  const qualityIdeas = ideas.filter(idea => {
-    // Must be an OPTION (not shares, penny stocks, or crypto)
-    if (idea.assetType !== 'option') {
-      return false;
-    }
-
-    // QUALITY GATE: Only send HIGH-QUALITY ideas to Discord (A- or better)
-    const isHighGrade = idea.probabilityBand?.startsWith('A');
-    if (!isHighGrade && !idea.isLottoPlay) {
-      return false;
-    }
-
-    // PREMIUM FILTER: Exclude very expensive contracts (>$20.00)
-    // Most retail lotto/momentum players want cheap contracts
-    const isVeryExpensive = idea.entryPrice > 20.00;
-    const isTopTier = (idea.confidenceScore || 0) >= 90;
-    
-    if (isVeryExpensive && !isTopTier) {
-      logger.info(`📨 [PREMIUM-FILTER] Excluded expensive option: ${idea.symbol} @ $${idea.entryPrice.toFixed(2)}`);
-      return false;
-    }
-
-    // Must meet quality threshold (70%+ confidence, 4+ signals)
-    return meetsQualityThreshold(idea);
-  });
-  
-  if (qualityIdeas.length === 0) {
-    const nonOptions = ideas.filter(i => i.assetType !== 'option').length;
-    const lowQuality = ideas.filter(i => i.assetType === 'option' && !meetsQualityThreshold(i)).length;
-    logger.info(`📨 [QUALITY-GATE] No high-confidence OPTIONS in batch of ${ideas.length} (${nonOptions} non-options, ${lowQuality} low-grade options) - skipping Discord`);
-    return;
-  }
-  
-  if (qualityIdeas.length < ideas.length) {
-    logger.info(`📨 [QUALITY-GATE] Filtered to ${qualityIdeas.length} high-confidence OPTIONS (excluded ${ideas.length - qualityIdeas.length} non-options/low-grade)`);
-  }
-  
-  // Use filtered ideas from here
-  const filteredIdeas = qualityIdeas;
-  
-  // DEDUP: Create unique key for this batch (source + symbols sorted)
-  const symbols = filteredIdeas.map(i => i.symbol).sort().join(',');
-  const dedupKey = `${source}_${filteredIdeas.length}_${symbols.substring(0, 100)}`;
-  const hash = generateMessageHash('batch', dedupKey);
-  
-  if (isDuplicateMessage(hash)) {
-    return; // Skip duplicate batch
-  }
-  
-  try {
-    const sourceLabel = source === 'ai' ? '🧠 AI' : 
-                       source === 'hybrid' ? '🎯 Hybrid (AI+Quant)' :
-                       source === 'flow' ? '📊 Flow Scanner' :
-                       source === 'news' ? '📰 News Catalyst' :
-                       '✨ Quant';
-    const color = source === 'ai' ? COLORS.AI :
-                 source === 'hybrid' ? COLORS.HYBRID :
-                 source === 'flow' ? 0x9B59B6 : // Purple for flow
-                 source === 'news' ? 0xE67E22 : // Orange for news
-                 COLORS.QUANT;
-    
-    // ACTIONABLE FORMAT: Show asset type, entry→target, and signal count (not misleading %)
-    const longIdeas = filteredIdeas.filter(i => i.direction === 'long');
-    const shortIdeas = filteredIdeas.filter(i => i.direction === 'short');
-    
-    // Check for GEMs (A+ trades) to highlight
-    const gems = filteredIdeas.filter(i => isGemTrade(i));
-    const hasGems = gems.length > 0;
-    
-    // Format actionably with QuantEdge grading: emoji SYMBOL TYPE $entry→$target Grade
-    const formatIdea = (idea: TradeIdea) => {
-      const emoji = idea.direction === 'long' ? '🟢' : '🔴';
-      const signalCount = idea.qualitySignals?.length || 0;
-      
-      // QuantEdge confidence grading
-      const confidence = idea.confidenceScore || (40 + signalCount * 10);
-      const grade = getLetterGrade(confidence);
-      const gradeEmoji = getGradeEmoji(confidence);
-      
-      // Calculate gain target
-      const gainPct = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(0);
-      
-      if (idea.assetType === 'option') {
-        const optType = idea.optionType?.toUpperCase() || 'OPT';
-        const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
-        const exp = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
-        return `${emoji} **${idea.symbol}** ${optType} ${strike} ${exp}\n   💰 $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${gradeEmoji} ${grade} | R:R ${idea.riskRewardRatio || 'N/A'}:1`;
-      } else if (idea.assetType === 'crypto') {
-        return `${emoji} **${idea.symbol}** CRYPTO | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${gradeEmoji} ${grade}`;
-      } else if (idea.assetType === 'penny_stock') {
-        return `${emoji} **${idea.symbol}** MOONSHOT | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${gradeEmoji} ${grade}`;
-      }
-      return `${emoji} **${idea.symbol}** SHARES | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${gradeEmoji} ${grade}`;
-    };
-    
-    // Limit to top 8 ideas (sorted by signal count then R:R) to keep readable
-    // Put GEMs first, then sort by signals
-    const sortedIdeas = [...filteredIdeas].sort((a, b) => {
-      const aIsGem = isGemTrade(a) ? 1 : 0;
-      const bIsGem = isGemTrade(b) ? 1 : 0;
-      if (bIsGem !== aIsGem) return bIsGem - aIsGem;
-      const aSignals = a.qualitySignals?.length || 0;
-      const bSignals = b.qualitySignals?.length || 0;
-      if (bSignals !== aSignals) return bSignals - aSignals;
-      return (b.riskRewardRatio || 0) - (a.riskRewardRatio || 0);
-    });
-    const listLines = topIdeas.map(idea => {
-      const isLong = idea.direction === 'long';
-      const side = isLong ? '🟢' : '🔴';
-      const type = idea.optionType?.toUpperCase() || 'OPT';
-      const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
-      const exp = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
-      const grade = getLetterGrade(idea.confidenceScore || 50);
-      const entry = idea.entryPrice?.toFixed(2);
-      const target = idea.targetPrice?.toFixed(2);
-      const gain = idea.entryPrice ? ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(0) : '0';
-      
-      return `${side} **${idea.symbol}** ${type} ${strike} ${exp} • $${entry}→$${target} (+${gain}%) │ ${grade}`;
-    });
-
-    const description = listLines.join('\n') + (filteredIdeas.length > 15 ? `\n*+${filteredIdeas.length - 15} more in dashboard*` : '');
-    
-    const embed: DiscordEmbed = {
-      title: `${sourceLabel} - ${filteredIdeas.length} Trade Ideas${gemIndicator}`,
-      description,
-      color,
-      fields: [
-        { name: '📊 Direction', value: `🟢 ${longIdeas.length} Long • 🔴 ${shortIdeas.length} Short`, inline: true },
-        { name: '✨ Avg Grade', value: `**${avgGrade}** (${avgConfidence}%)`, inline: true },
-        { name: '📈 Avg R:R', value: `**${avgRR}:1**`, inline: true }
-      ],
-      footer: { text: '⚠️ For educational research only | Quant Edge Labs' },
-      timestamp: new Date().toISOString()
-    };
-    
-    const channelHeader = CHANNEL_HEADERS.TRADE_ALERTS;
-    const message: DiscordMessage = {
-      content: `📢 **BATCH ALERT** → ${ideas.length} ${sourceLabel} Ideas │ ${channelHeader}`,
-      embeds: [embed]
-    };
-    
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
-    });
-    
-    if (response.ok) {
-      logger.info(`✅ Discord batch summary sent: ${ideas.length} ${source} ideas`);
+      logger.info(\`✅ Discord batch summary sent: \${ideas.length} \${source} ideas\`);
     }
   } catch (error) {
     logger.error('❌ Failed to send Discord batch summary:', error);
@@ -1084,84 +714,54 @@ export async function sendBatchSummaryToDiscord(ideas: TradeIdea[], source: 'ai'
 
 // Send futures trade ideas to dedicated Discord channel
 export async function sendFuturesTradesToDiscord(ideas: TradeIdea[]): Promise<void> {
-  logger.info(`📨 Discord futures trades called: ${ideas.length} ideas`);
+  logger.info(\`📨 Discord futures trades called: \${ideas.length} ideas\`);
   
   if (DISCORD_DISABLED) {
     logger.warn('⚠️ Discord is DISABLED - skipping futures notification');
     return;
   }
   
-  // Use dedicated futures webhook, fall back to general webhook
   const webhookUrl = process.env.DISCORD_WEBHOOK_FUTURE_TRADES || process.env.DISCORD_WEBHOOK_URL;
-  
-  if (!webhookUrl) {
-    logger.warn('⚠️ No DISCORD_WEBHOOK_FUTURE_TRADES configured - skipping futures notification');
-    return;
-  }
-  
-  if (ideas.length === 0) {
-    logger.info('📨 No futures ideas to send to Discord');
-    return;
-  }
-  
+  if (!webhookUrl || ideas.length === 0) return;
+
   try {
-    // Format each futures idea
     const formatFuturesIdea = (idea: TradeIdea) => {
       const emoji = idea.direction === 'long' ? '🟢' : '🔴';
       const gainPct = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(2);
       const riskPct = ((idea.entryPrice - idea.stopLoss) / idea.entryPrice * 100).toFixed(2);
-      
-      // Show contract code if available
       const contractInfo = idea.futuresContractCode || idea.symbol;
       const rootSymbol = idea.futuresRootSymbol || idea.symbol.substring(0, 2);
       
-      return `${emoji} **${rootSymbol}** (${contractInfo}) ${idea.direction.toUpperCase()}\n` +
-             `Entry: $${idea.entryPrice.toFixed(2)} → Target: $${idea.targetPrice.toFixed(2)} (+${gainPct}%)\n` +
-             `Stop: $${idea.stopLoss.toFixed(2)} (-${riskPct}%) | R:R ${idea.riskRewardRatio?.toFixed(1) || 'N/A'}:1`;
+      return \`\${emoji} **\${rootSymbol}** (\${contractInfo}) \${idea.direction.toUpperCase()}\\n\` +
+             \`Entry: \$\${idea.entryPrice.toFixed(2)} → Target: \$\${idea.targetPrice.toFixed(2)} (+\${gainPct}%)\\n\` +
+             \`Stop: \$\${idea.stopLoss.toFixed(2)} (-\${riskPct}%) | R:R \${idea.riskRewardRatio?.toFixed(1) || 'N/A'}:1\`;
     };
     
     const description = ideas.map(formatFuturesIdea).join('\n\n');
     
     const embed: DiscordEmbed = {
-      title: `🔮 Futures Trade Ideas - ${ideas.length} Setups`,
+      title: \`🔮 Futures Trade Ideas - \${ideas.length} Setups\`,
       description,
-      color: 0x8B5CF6, // Purple for futures
+      color: 0x8B5CF6,
       fields: [
         {
           name: 'Direction',
-          value: `🟢 ${ideas.filter(i => i.direction === 'long').length} Long • 🔴 ${ideas.filter(i => i.direction === 'short').length} Short`,
-          inline: true
-        },
-        {
-          name: 'Contracts',
-          value: ideas.map(i => i.futuresRootSymbol || i.symbol.substring(0, 2)).join(', '),
+          value: \`🟢 \${ideas.filter(i => i.direction === 'long').length} Long • 🔴 \${ideas.filter(i => i.direction === 'short').length} Short\`,
           inline: true
         }
       ],
-      footer: {
-        text: 'Quant Edge Labs Futures • Educational Research Only'
-      },
+      footer: { text: 'Quant Edge Labs Futures • Educational Research Only' },
       timestamp: new Date().toISOString()
     };
     
-    const message: DiscordMessage = {
-      content: `🔮 **${ideas.length} FUTURES TRADES** → NQ/GC Ideas │ ${CHANNEL_HEADERS.FUTURES}`,
-      embeds: [embed]
-    };
-    
-    const response = await fetch(webhookUrl, {
+    await fetch(webhookUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: \`🔮 **\${ideas.length} FUTURES TRADES** → NQ/GC Ideas │ \${CHANNEL_HEADERS.FUTURES}\`,
+        embeds: [embed]
+      }),
     });
-    
-    if (response.ok) {
-      logger.info(`✅ Discord futures trades sent: ${ideas.length} ideas`);
-    } else {
-      logger.error(`❌ Discord futures webhook failed: ${response.status} ${response.statusText}`);
-    }
   } catch (error) {
     logger.error('❌ Failed to send Discord futures trades:', error);
   }
@@ -1182,90 +782,43 @@ export async function sendChartAnalysisToDiscord(analysis: {
 }): Promise<boolean> {
   if (DISCORD_DISABLED) return false;
   
-  // Use dedicated chart analysis webhook, fall back to general webhook
   const webhookUrl = process.env.DISCORD_WEBHOOK_CHARTANALYSIS || process.env.DISCORD_WEBHOOK_URL;
-  
-  if (!webhookUrl) {
-    logger.info('⚠️ DISCORD_WEBHOOK_CHARTANALYSIS not configured - skipping chart analysis alert');
-    return false;
-  }
-  
+  if (!webhookUrl) return false;
+
   try {
     const isBullish = analysis.sentiment === "bullish";
     const isBearish = analysis.sentiment === "bearish";
     const sentimentEmoji = isBullish ? "🟢" : isBearish ? "🔴" : "🟡";
     const color = isBullish ? 0x22c55e : isBearish ? 0xef4444 : 0xf59e0b;
-    
-    // Calculate gain %
     const gainPercent = ((analysis.targetPrice - analysis.entryPoint) / analysis.entryPoint * 100).toFixed(1);
     
     const embed: DiscordEmbed = {
-      title: `${sentimentEmoji} Chart Analysis: ${analysis.symbol.toUpperCase()}`,
-      description: `**${analysis.sentiment.toUpperCase()}** • ${analysis.confidence}% Confidence`,
+      title: \`\${sentimentEmoji} Chart Analysis: \${analysis.symbol.toUpperCase()}\`,
+      description: \`**\${analysis.sentiment.toUpperCase()}** • \${analysis.confidence}% Confidence\`,
       color,
       fields: [
-        {
-          name: '💰 Entry',
-          value: `$${analysis.entryPoint.toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: '🎯 Target',
-          value: `$${analysis.targetPrice.toFixed(2)} (+${gainPercent}%)`,
-          inline: true
-        },
-        {
-          name: '🛡️ Stop',
-          value: `$${analysis.stopLoss.toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: '📊 R:R',
-          value: `${analysis.riskRewardRatio.toFixed(1)}:1`,
-          inline: true
-        },
-        {
-          name: '⏰ Timeframe',
-          value: analysis.timeframe || 'Daily',
-          inline: true
-        },
-        {
-          name: '📈 Patterns',
-          value: analysis.patterns.slice(0, 3).join(', ') || 'None detected',
-          inline: true
-        },
-        {
-          name: '📝 Analysis',
-          value: analysis.analysis.length > 1020 
-            ? analysis.analysis.substring(0, 1020) + '...' 
-            : analysis.analysis,
-          inline: false
-        }
+        { name: '💰 Entry', value: \`$\${analysis.entryPoint.toFixed(2)}\`, inline: true },
+        { name: '🎯 Target', value: \`$\${analysis.targetPrice.toFixed(2)} (+\${gainPercent}%)\`, inline: true },
+        { name: '🛡️ Stop', value: \`$\${analysis.stopLoss.toFixed(2)}\`, inline: true },
+        { name: '📊 R:R', value: \`\${analysis.riskRewardRatio.toFixed(1)}:1\`, inline: true },
+        { name: '⏰ Timeframe', value: analysis.timeframe || 'Daily', inline: true },
+        { name: '📈 Patterns', value: analysis.patterns.slice(0, 3).join(', ') || 'None detected', inline: true },
+        { name: '📝 Analysis', value: analysis.analysis.length > 1020 ? analysis.analysis.substring(0, 1020) + '...' : analysis.analysis, inline: false }
       ],
-      footer: {
-        text: 'Quant Edge Labs Chart Analysis • Not financial advice'
-      },
+      footer: { text: 'Quant Edge Labs Chart Analysis • Not financial advice' },
       timestamp: new Date().toISOString()
-    };
-    
-    const message: DiscordMessage = {
-      content: `📊 **CHART ANALYSIS** → ${analysis.symbol.toUpperCase()} ${sentimentEmoji} │ ${CHANNEL_HEADERS.CHART_ANALYSIS}`,
-      embeds: [embed]
     };
     
     const response = await fetch(webhookUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: \`📊 **CHART ANALYSIS** → \${analysis.symbol.toUpperCase()} \${sentimentEmoji} │ \${CHANNEL_HEADERS.CHART_ANALYSIS}\`,
+        embeds: [embed]
+      }),
     });
     
-    if (response.ok) {
-      logger.info(`✅ Discord chart analysis sent: ${analysis.symbol}`);
-      return true;
-    }
-    return false;
+    return response.ok;
   } catch (error) {
     logger.error('❌ Failed to send Discord chart analysis:', error);
     return false;
@@ -1275,355 +828,38 @@ export async function sendChartAnalysisToDiscord(analysis: {
 // Send lotto play to dedicated lotto Discord channel
 export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
   if (DISCORD_DISABLED) return;
-  
   const webhookUrl = process.env.DISCORD_WEBHOOK_LOTTO;
-  
-  if (!webhookUrl) {
-    logger.info('⚠️ DISCORD_WEBHOOK_LOTTO not configured - skipping lotto alert');
-    return;
-  }
-  
+  if (!webhookUrl) return;
+
   try {
     const isCall = idea.optionType === 'call';
-    const color = isCall ? 0x22c55e : 0xef4444; // Green for calls, red for puts
-    
-    // Format expiry nicely
+    const color = isCall ? 0x22c55e : 0xef4444;
     const expiryFormatted = idea.expiryDate || 'N/A';
-    
-    // Calculate DTE from expiry and determine target multiplier
-    let dteText = 'N/A';
-    let dte = 7; // Default to 7 if unknown
-    if (idea.expiryDate) {
-      const expiryDate = new Date(idea.expiryDate);
-      const now = new Date();
-      dte = Math.max(0, Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
-      dteText = `${dte}d`;
-    }
-    
-    // DTE-aware target multiplier (matches calculateLottoTargets logic)
-    const targetMultiplier = dte === 0 ? 4 : dte <= 2 ? 7 : 15;
-    const targetLabel = dte === 0 ? 'gamma play' : dte <= 2 ? 'short-term' : 'weekly lotto';
-    
-    // Calculate potential return
     const potentialReturn = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(0);
     
-    // Determine holding period label
-    const holdingLabel = idea.holdingPeriod === 'position' ? 'Position Trade' : 
-                         idea.holdingPeriod === 'swing' ? 'Swing Trade' : 'Day Trade';
-    
-    // Get sector if available
-    const sectorText = idea.sectorFocus && (idea.sectorFocus as string) !== 'general' ? idea.sectorFocus.toUpperCase() : '';
-    
     const embed: DiscordEmbed = {
-      title: `🎰 LOTTO: ${idea.symbol} ${(idea.optionType || 'OPT').toUpperCase()} $${idea.strikePrice}`,
-      description: `**${expiryFormatted} exp** (${dteText}) | ${holdingLabel} targeting **${potentialReturn}%**`,
+      title: \`🎰 LOTTO: \${idea.symbol} \${(idea.optionType || 'OPT').toUpperCase()} \$\${idea.strikePrice}\`,
+      description: \`**\${expiryFormatted} exp** | Targeting **\${potentialReturn}%**\`,
       color,
       fields: [
-        { name: '💰 Entry', value: `$${idea.entryPrice.toFixed(2)}`, inline: true },
-        { name: '🎯 Target', value: `$${idea.targetPrice.toFixed(2)}`, inline: true },
-        { name: '🛡️ Stop', value: `$${idea.stopLoss.toFixed(2)}`, inline: true }
+        { name: '💰 Entry', value: \`$\${idea.entryPrice.toFixed(2)}\`, inline: true },
+        { name: '🎯 Target', value: \`$\${idea.targetPrice.toFixed(2)}\`, inline: true },
+        { name: '🛡️ Stop', value: \`$\${idea.stopLoss.toFixed(2)}\`, inline: true }
       ],
       footer: { text: '⚠️ HIGH RISK | Quant Edge Labs' },
       timestamp: new Date().toISOString()
     };
     
-    // Add unique analysis if available
-    if (idea.analysis && idea.analysis.length > 50) {
-      embed.fields.push({
-        name: '📝 Analysis',
-        value: idea.analysis.substring(0, 250) + (idea.analysis.length > 250 ? '...' : ''),
-        inline: false
-      });
-    }
-    
-    const message: DiscordMessage = {
-      content: `🎰 **LOTTO ALERT** → ${idea.symbol} ${(idea.optionType || 'OPT').toUpperCase()} $${idea.strikePrice} exp ${expiryFormatted} │ ${CHANNEL_HEADERS.LOTTO}`,
-      embeds: [embed]
-    };
-    
-    const response = await fetch(webhookUrl, {
+    await fetch(webhookUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: \`🎰 **LOTTO ALERT** → \${idea.symbol} \${(idea.optionType || 'OPT').toUpperCase()} \$\${idea.strikePrice} exp \${expiryFormatted} │ \${CHANNEL_HEADERS.LOTTO}\`,
+        embeds: [embed]
+      }),
     });
-    
-    if (response.ok) {
-      logger.info(`✅ Discord lotto alert sent: ${idea.symbol} ${idea.optionType} $${idea.strikePrice}`);
-    } else {
-      logger.warn(`⚠️ Discord lotto webhook failed: ${response.status}`);
-    }
   } catch (error) {
     logger.error('❌ Failed to send Discord lotto alert:', error);
-  }
-}
-
-// Send bot trade entry notification to Discord
-// Routes to appropriate channels based on source:
-// - 'quant': QUANTFLOOR (overview) + OPTIONSTRADES (trade log)
-// - 'lotto': LOTTO channel
-// - 'futures': FUTURE_TRADES channel
-export async function sendBotTradeEntryToDiscord(position: {
-  symbol: string;
-  assetType?: string | null;
-  optionType?: string | null;
-  strikePrice?: number | null;
-  expiryDate?: string | null;
-  entryPrice: number;
-  quantity: number;
-  targetPrice?: number | null;
-  stopLoss?: number | null;
-  direction?: 'long' | 'short' | null;
-  analysis?: string | null;
-  signals?: string[] | null;
-  confidence?: number | null;
-  riskRewardRatio?: number | null;
-  isSmallAccount?: boolean; // Flag for Small Account trades
-  source?: 'quant' | 'lotto' | 'futures' | 'small_account'; // Routing source
-  delta?: number | null; // Options delta for Greeks display
-}): Promise<void> {
-  logger.info(`📱 [DISCORD] sendBotTradeEntryToDiscord called for ${position.symbol} (source: ${position.source || 'quant'})`);
-  
-  if (DISCORD_DISABLED) {
-    logger.warn(`📱 [DISCORD] DISABLED - skipping entry notification for ${position.symbol}`);
-    return;
-  }
-  
-  // Determine webhook URLs based on source/asset type
-  const source = position.source || (position.assetType === 'future' ? 'futures' : 'quant');
-  
-  let webhookUrls: string[] = [];
-  
-  if (source === 'futures' || position.assetType === 'future') {
-    // Futures go to FUTURE_TRADES
-    const futuresWebhook = process.env.DISCORD_WEBHOOK_FUTURE_TRADES;
-    if (futuresWebhook) webhookUrls.push(futuresWebhook);
-  } else if (source === 'lotto') {
-    // Lotto entries go to LOTTO channel
-    const lottoWebhook = process.env.DISCORD_WEBHOOK_LOTTO;
-    if (lottoWebhook) webhookUrls.push(lottoWebhook);
-  } else {
-    // Quant bot entries go to QUANTBOT channel ONLY (dedicated bot channel)
-    // DO NOT send to OPTIONSTRADES/QUANTFLOOR to avoid spamming other channels
-    const quantBotWebhook = process.env.DISCORD_WEBHOOK_QUANTBOT;
-    if (quantBotWebhook) webhookUrls.push(quantBotWebhook);
-  }
-  
-  // Fallback to generic webhook if none configured
-  if (webhookUrls.length === 0) {
-    const fallback = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
-    if (fallback) webhookUrls.push(fallback);
-  }
-  
-  if (webhookUrls.length === 0) {
-    logger.warn(`📱 [DISCORD] No webhook URL configured - skipping entry notification for ${position.symbol}`);
-    return;
-  }
-  
-  logger.info(`📱 [DISCORD] Sending entry notification to QUANTBOT only for ${position.symbol}...`);
-  
-  try {
-    const isCall = position.optionType === 'call';
-    const color = isCall ? 0x22c55e : 0xef4444;
-    
-    // Format expiry date
-    let expiryFormatted = 'N/A';
-    if (position.expiryDate) {
-      try {
-        const expDate = new Date(position.expiryDate);
-        expiryFormatted = expDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      } catch { expiryFormatted = position.expiryDate; }
-    }
-    
-    // Calculate R:R if not provided
-    let rrDisplay = 'N/A';
-    if (position.riskRewardRatio) {
-      rrDisplay = `${position.riskRewardRatio.toFixed(1)}:1`;
-    } else if (position.targetPrice && position.stopLoss && position.entryPrice) {
-      const reward = position.targetPrice - position.entryPrice;
-      const risk = position.entryPrice - position.stopLoss;
-      if (risk > 0) rrDisplay = `${(reward / risk).toFixed(1)}:1`;
-    }
-    
-    // Calculate target % gain
-    const targetPct = position.targetPrice && position.entryPrice 
-      ? ((position.targetPrice - position.entryPrice) / position.entryPrice * 100).toFixed(0)
-      : '?';
-    
-    // Build analysis summary
-    let analysisText = position.analysis || 'Auto-Lotto Bot trade';
-    if (position.signals && position.signals.length > 0) {
-      const topSignals = position.signals.slice(0, 3).join(' | ');
-      analysisText = `**Signals:** ${topSignals}`;
-    }
-    
-    // Confidence grade
-    const grade = position.confidence 
-      ? (position.confidence >= 85 ? 'A+' : position.confidence >= 75 ? 'A' : position.confidence >= 65 ? 'B+' : 'B')
-      : '';
-    
-    // Small Account or standard bot label
-    const accountLabel = position.isSmallAccount ? '💰 SMALL ACCOUNT' : '🤖 BOT';
-    const footerText = position.isSmallAccount 
-      ? `💰 Small Account Lotto${grade ? ` | Grade: ${grade}` : ''} | A+ ONLY`
-      : `🤖 Auto-Lotto Bot${grade ? ` | Grade: ${grade}` : ''}`;
-    
-    // 📊 Format delta with moneyness label
-    let deltaDisplay = '';
-    if (position.delta !== undefined && position.delta !== null) {
-      const absDelta = Math.abs(position.delta);
-      const deltaLabel = absDelta < 0.15 ? '🎰 Far OTM' : 
-                         absDelta < 0.30 ? '📈 OTM' : 
-                         absDelta < 0.45 ? '⚖️ ATM' : '💪 ITM';
-      deltaDisplay = `δ=${absDelta.toFixed(2)} ${deltaLabel}`;
-    }
-    
-    const embed: DiscordEmbed = {
-      title: `${accountLabel} ENTRY: ${position.symbol} ${(position.optionType || 'OPT').toUpperCase()} $${position.strikePrice}`,
-      description: analysisText,
-      color: position.isSmallAccount ? 0xfbbf24 : color, // Gold for small account
-      fields: [
-        { name: '💰 Entry', value: `$${position.entryPrice.toFixed(2)}`, inline: true },
-        { name: '🎯 Target', value: `$${position.targetPrice?.toFixed(2) || 'N/A'} (+${targetPct}%)`, inline: true },
-        { name: '🛑 Stop', value: `$${position.stopLoss?.toFixed(2) || 'N/A'}`, inline: true },
-        { name: '📅 Expiry', value: expiryFormatted, inline: true },
-        { name: '⚖️ R:R', value: rrDisplay, inline: true },
-        ...(deltaDisplay ? [{ name: '📊 Delta', value: deltaDisplay, inline: true }] : [{ name: '📦 Qty', value: `${position.quantity}`, inline: true }])
-      ],
-      footer: { text: footerText },
-      timestamp: new Date().toISOString()
-    };
-    
-    const message: DiscordMessage = {
-      content: `${accountLabel} **ENTRY** → ${position.symbol} ${(position.optionType || '').toUpperCase()} $${position.strikePrice} exp ${expiryFormatted} x${position.quantity} @ $${position.entryPrice.toFixed(2)} │ R:R ${rrDisplay}${position.isSmallAccount ? ' │ $150 ACCOUNT' : ''}`,
-      embeds: [embed]
-    };
-    
-    // Send to all configured webhooks
-    const results = await Promise.allSettled(
-      webhookUrls.map(url => 
-        fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(message),
-        })
-      )
-    );
-    
-    const successCount = results.filter(r => r.status === 'fulfilled').length;
-    logger.info(`✅ Discord bot entry notification sent to ${successCount}/${webhookUrls.length} channels: ${position.symbol}`);
-  } catch (error) {
-    logger.error('❌ Failed to send Discord bot entry notification:', error);
-  }
-}
-
-// Send bot trade exit notification to Discord
-// Routes to appropriate channels based on source (same as entry routing)
-// Winning trades ALSO go to #gains via sendGainsToDiscord
-export async function sendBotTradeExitToDiscord(position: {
-  symbol: string;
-  assetType?: string | null;
-  optionType?: string | null;
-  strikePrice?: number | null;
-  entryPrice: number;
-  exitPrice?: number | null;
-  quantity: number;
-  realizedPnL?: number | null;
-  exitReason?: string | null;
-  isSmallAccount?: boolean; // Flag for Small Account trades
-  source?: 'quant' | 'lotto' | 'futures' | 'small_account'; // Routing source
-}): Promise<void> {
-  logger.info(`📱 [DISCORD] sendBotTradeExitToDiscord called for ${position.symbol} (source: ${position.source || 'quant'})`);
-  
-  if (DISCORD_DISABLED) {
-    logger.warn(`📱 [DISCORD] DISABLED - skipping exit notification for ${position.symbol}`);
-    return;
-  }
-  
-  // Determine webhook URLs based on source/asset type (same logic as entry)
-  const source = position.source || (position.assetType === 'future' ? 'futures' : 'quant');
-  
-  let webhookUrls: string[] = [];
-  
-  if (source === 'futures' || position.assetType === 'future') {
-    const futuresWebhook = process.env.DISCORD_WEBHOOK_FUTURE_TRADES;
-    if (futuresWebhook) webhookUrls.push(futuresWebhook);
-  } else if (source === 'lotto') {
-    const lottoWebhook = process.env.DISCORD_WEBHOOK_LOTTO;
-    if (lottoWebhook) webhookUrls.push(lottoWebhook);
-  } else {
-    // Quant bot exits go to QUANTBOT channel ONLY (dedicated bot channel)
-    // DO NOT send to OPTIONSTRADES/QUANTFLOOR to avoid spamming other channels
-    const quantBotWebhook = process.env.DISCORD_WEBHOOK_QUANTBOT;
-    if (quantBotWebhook) webhookUrls.push(quantBotWebhook);
-  }
-  
-  // Fallback to generic webhook if none configured
-  if (webhookUrls.length === 0) {
-    const fallback = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
-    if (fallback) webhookUrls.push(fallback);
-  }
-  
-  if (webhookUrls.length === 0) {
-    logger.warn(`📱 [DISCORD] No webhook URL configured - skipping exit notification for ${position.symbol}`);
-    return;
-  }
-  
-  logger.info(`📱 [DISCORD] Sending exit notification to QUANTBOT only for ${position.symbol}...`);
-  
-  try {
-    const pnl = position.realizedPnL || 0;
-    const isWin = pnl > 0;
-    const color = isWin ? 0x22c55e : 0xef4444;
-    const emoji = isWin ? '🎉' : '💀';
-    const pnlPercent = position.entryPrice > 0 
-      ? ((position.exitPrice || 0) - position.entryPrice) / position.entryPrice * 100 
-      : 0;
-    
-    const reasonText = position.exitReason === 'target_hit' ? 'Target Hit' :
-                       position.exitReason === 'stop_hit' ? 'Stop Hit' :
-                       position.exitReason === 'expired' ? 'Expired' : 'Closed';
-    
-    // Small Account or standard bot label
-    const accountLabel = position.isSmallAccount ? '💰 SMALL ACCOUNT' : '🤖 BOT';
-    const footerText = position.isSmallAccount 
-      ? '💰 Small Account Lotto | A+ ONLY'
-      : '🤖 Auto-Lotto Bot';
-    
-    const embed: DiscordEmbed = {
-      title: `${emoji} ${accountLabel} EXIT: ${position.symbol} ${(position.optionType || 'OPT').toUpperCase()} $${position.strikePrice}`,
-      description: `Closed - **${reasonText}**`,
-      color: position.isSmallAccount ? 0xfbbf24 : color, // Gold for ALL small account trades (wins and losses)
-      fields: [
-        { name: '🚪 Exit', value: `$${(position.exitPrice || 0).toFixed(2)}`, inline: true },
-        { name: '📊 P&L', value: `${pnl >= 0 ? '+' : ''}${pnlPercent.toFixed(1)}%`, inline: true },
-        { name: '📋 Reason', value: reasonText, inline: true }
-      ],
-      footer: { text: footerText },
-      timestamp: new Date().toISOString()
-    };
-    
-    const message: DiscordMessage = {
-      content: `${emoji} ${accountLabel} **EXIT** → ${position.symbol} | ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} | ${reasonText}${position.isSmallAccount ? ' │ $150 ACCOUNT' : ''}`,
-      embeds: [embed]
-    };
-    
-    // Send to all configured webhooks
-    const results = await Promise.allSettled(
-      webhookUrls.map(url => 
-        fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(message),
-        })
-      )
-    );
-    
-    const successCount = results.filter(r => r.status === 'fulfilled').length;
-    logger.info(`✅ Discord bot exit notification sent to ${successCount}/${webhookUrls.length} channels: ${position.symbol} P&L: $${pnl.toFixed(2)}`);
-  } catch (error) {
-    logger.error('❌ Failed to send Discord bot exit notification:', error);
   }
 }
 
@@ -1638,12 +874,11 @@ export async function sendCryptoBotTradeToDiscord(trade: {
   stopLoss: number;
   signals: string[];
 }): Promise<void> {
-  // USER REQUEST: ONLY options to Discord. Crypto bot trades only on platform.
-  logger.info(`🪙 [CRYPTO-BOT] Skipping Discord notification for ${trade.symbol} (Options-only policy)`);
+  logger.info(\`🪙 [CRYPTO-BOT] Skipping Discord notification for \${trade.symbol} (Options-only policy)\`);
   return;
 }
 
-// Send watchlist items to QuantBot channel (for bot page watchlist)
+// Send watchlist items to QuantBot channel
 export async function sendWatchlistToQuantBot(items: Array<{
   symbol: string;
   assetType: string;
@@ -1653,86 +888,50 @@ export async function sendWatchlistToQuantBot(items: Array<{
   stopAlertPrice?: number | null;
 }>): Promise<{ success: boolean; message: string }> {
   if (DISCORD_DISABLED) return { success: false, message: 'Discord disabled' };
-  
   const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
-  
-  if (!webhookUrl) {
-    logger.info('⚠️ DISCORD_WEBHOOK_QUANTFLOOR not configured - skipping watchlist to QuantBot');
-    return { success: false, message: 'Discord webhook not configured' };
-  }
-  
-  if (items.length === 0) {
-    logger.info('📭 No watchlist items to send to QuantBot');
-    return { success: false, message: 'No items to send' };
-  }
-  
+  if (!webhookUrl) return { success: false, message: 'Discord webhook not configured' };
+  if (items.length === 0) return { success: false, message: 'No items to send' };
+
   try {
     const now = new Date();
     const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Chicago' });
-    
-    // Format watchlist items with trade details
     const itemList = items.slice(0, 15).map((item, i) => {
       const typeIcon = item.assetType === 'crypto' ? '₿' : item.assetType === 'option' ? '📋' : '📈';
-      const entry = item.entryAlertPrice ? `Entry $${item.entryAlertPrice.toFixed(2)}` : '';
-      const target = item.targetAlertPrice ? `Target $${item.targetAlertPrice.toFixed(2)}` : '';
-      const stop = item.stopAlertPrice ? `Stop $${item.stopAlertPrice.toFixed(2)}` : '';
+      const entry = item.entryAlertPrice ? \`Entry \$\${item.entryAlertPrice.toFixed(2)}\` : '';
+      const target = item.targetAlertPrice ? \`Target \$\${item.targetAlertPrice.toFixed(2)}\` : '';
+      const stop = item.stopAlertPrice ? \`Stop \$\${item.stopAlertPrice.toFixed(2)}\` : '';
       const levels = [entry, target, stop].filter(Boolean).join(' • ');
-      const notesStr = item.notes ? `\n   _${item.notes.substring(0, 60)}${item.notes.length > 60 ? '...' : ''}_` : '';
-      return `${i + 1}. ${typeIcon} **${item.symbol}** ${levels ? `→ ${levels}` : ''}${notesStr}`;
+      return \`\${i + 1}. \${typeIcon} **\${item.symbol}** \${levels ? \`→ \${levels}\` : ''}\`;
     }).join('\n');
     
-    // Count by asset type
-    const stocks = items.filter(i => i.assetType === 'stock').length;
-    const options = items.filter(i => i.assetType === 'option').length;
-    const crypto = items.filter(i => i.assetType === 'crypto').length;
-    
     const embed: DiscordEmbed = {
-      title: `🤖 QuantBot Watchlist - ${dateStr} CT`,
-      description: `**${items.length} Items Under Surveillance**\n\n${itemList}`,
-      color: 0x06b6d4, // Cyan for QuantBot
+      title: \`🤖 QuantBot Watchlist - \${dateStr} CT\`,
+      description: \`**\${items.length} Items Under Surveillance**\\n\\n\${itemList}\`,
+      color: 0x06b6d4,
       fields: [
-        {
-          name: '📊 Asset Mix',
-          value: `${stocks} Stocks • ${options} Options • ${crypto} Crypto`,
-          inline: true
-        },
-        {
-          name: '🎯 With Alerts',
-          value: `${items.filter(i => i.entryAlertPrice || i.targetAlertPrice || i.stopAlertPrice).length} of ${items.length}`,
-          inline: true
-        }
+        { name: '📊 Asset Mix', value: \`\${items.filter(i => i.assetType === 'stock').length} Stocks • \${items.filter(i => i.assetType === 'option').length} Options • \${items.filter(i => i.assetType === 'crypto').length} Crypto\`, inline: true }
       ],
-      footer: {
-        text: '⚠️ Research only - not financial advice | Quant Edge Labs QuantBot'
-      },
+      footer: { text: '⚠️ Research only - not financial advice | Quant Edge Labs QuantBot' },
       timestamp: new Date().toISOString()
-    };
-    
-    const message: DiscordMessage = {
-      content: `🤖 **QUANTBOT WATCHLIST** → ${items.length} items on radar`,
-      embeds: [embed]
     };
     
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
+      body: JSON.stringify({
+        content: \`🤖 **QUANTBOT WATCHLIST** → \${items.length} items on radar\`,
+        embeds: [embed]
+      }),
     });
     
-    if (response.ok) {
-      logger.info(`✅ Discord QuantBot watchlist sent: ${items.length} items`);
-      return { success: true, message: `Sent ${items.length} items to QuantBot channel` };
-    } else {
-      logger.warn(`⚠️ Discord QuantBot webhook failed: ${response.status}`);
-      return { success: false, message: `Discord error: ${response.status}` };
-    }
+    return { success: response.ok, message: response.ok ? 'Sent to Discord' : \`Discord error: \${response.status}\` };
   } catch (error) {
     logger.error('❌ Failed to send QuantBot watchlist:', error);
     return { success: false, message: 'Failed to send to Discord' };
   }
 }
 
-// Send annual breakout candidates to Discord (all 20 stocks)
+// Send annual breakout candidates to Discord
 export async function sendAnnualBreakoutsToDiscord(items: Array<{
   symbol: string;
   sector?: string | null;
@@ -1741,96 +940,39 @@ export async function sendAnnualBreakoutsToDiscord(items: Array<{
   conviction?: string | null;
   thesis?: string | null;
 }>): Promise<{ success: boolean; message: string }> {
-  if (DISCORD_DISABLED) return { success: false, message: 'Discord disabled' };
-  
-  const webhookUrl = process.env.DISCORD_WEBHOOK_WEEKLYWATCHLISTS || process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
-  
-  if (!webhookUrl) {
-    logger.info('⚠️ Discord webhook not configured - skipping annual breakouts');
-    return { success: false, message: 'Discord webhook not configured' };
-  }
-  
-  if (items.length === 0) {
-    return { success: false, message: 'No breakout candidates to send' };
-  }
-  
+  if (DISCORD_DISABLED || items.length === 0) return { success: false, message: 'Disabled/No items' };
+  const webhookUrl = process.env.DISCORD_WEBHOOK_WEEKLYWATCHLISTS || process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) return { success: false, message: 'No webhook' };
+
   try {
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    
-    // Format all breakout candidates (up to 20)
     const itemList = items.slice(0, 20).map((item, i) => {
-      const entry = item.startOfYearPrice ? `$${item.startOfYearPrice.toFixed(0)}` : '-';
-      const target = item.yearlyTargetPrice ? `$${item.yearlyTargetPrice.toFixed(0)}` : '-';
-      const upside = item.yearlyTargetPrice && item.startOfYearPrice 
-        ? `+${Math.round(((item.yearlyTargetPrice - item.startOfYearPrice) / item.startOfYearPrice) * 100)}%`
-        : '';
+      const entry = item.startOfYearPrice ? \`$\${item.startOfYearPrice.toFixed(0)}\` : '-';
+      const target = item.yearlyTargetPrice ? \`$\${item.yearlyTargetPrice.toFixed(0)}\` : '-';
       const conviction = item.conviction === 'high' ? '🔥' : item.conviction === 'speculative' ? '⚡' : '📊';
-      return `${i + 1}. ${conviction} **${item.symbol}** → ${entry} → ${target} ${upside}`;
+      return \`\${i + 1}. \${conviction} **\${item.symbol}** → \${entry} → \${target}\`;
     }).join('\n');
     
-    // Count by conviction
-    const highConviction = items.filter(i => i.conviction === 'high').length;
-    const speculative = items.filter(i => i.conviction === 'speculative').length;
-    const sectors = new Set(items.map(i => i.sector).filter(Boolean)).size;
-    const avgUpside = Math.round(items.reduce((sum, item) => {
-      if (!item.yearlyTargetPrice || !item.startOfYearPrice) return sum;
-      return sum + ((item.yearlyTargetPrice - item.startOfYearPrice) / item.startOfYearPrice) * 100;
-    }, 0) / items.length);
-    
     const embed: DiscordEmbed = {
-      title: `🚀 2026 Breakout Candidates - ${dateStr}`,
-      description: `**${items.length} Stocks with $70+ Target Potential**\n\n${itemList}`,
-      color: 0x10b981, // Emerald
-      fields: [
-        {
-          name: '🔥 High Conviction',
-          value: `${highConviction}`,
-          inline: true
-        },
-        {
-          name: '⚡ Speculative',
-          value: `${speculative}`,
-          inline: true
-        },
-        {
-          name: '📈 Avg Upside',
-          value: `+${avgUpside}%`,
-          inline: true
-        },
-        {
-          name: '🏷️ Sectors',
-          value: `${sectors} sectors`,
-          inline: true
-        }
-      ],
-      footer: {
-        text: '⚠️ Research only - not financial advice | Quant Edge Labs'
-      },
+      title: \`🚀 2026 Breakout Candidates\`,
+      description: itemList,
+      color: 0x10b981,
+      footer: { text: '⚠️ Research only - not financial advice | Quant Edge Labs' },
       timestamp: new Date().toISOString()
-    };
-    
-    const message: DiscordMessage = {
-      content: `🚀 **2026 BREAKOUT WATCHLIST** → ${items.length} curated candidates`,
-      embeds: [embed]
     };
     
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
+      body: JSON.stringify({
+        content: \`🚀 **2026 BREAKOUT WATCHLIST** → \${items.length} curated candidates\`,
+        embeds: [embed]
+      }),
     });
     
-    if (response.ok) {
-      logger.info(`✅ Discord annual breakouts sent: ${items.length} candidates`);
-      return { success: true, message: `Sent ${items.length} breakout candidates to Discord` };
-    } else {
-      logger.warn(`⚠️ Discord annual breakouts webhook failed: ${response.status}`);
-      return { success: false, message: `Discord error: ${response.status}` };
-    }
+    return { success: response.ok, message: 'Sent' };
   } catch (error) {
     logger.error('❌ Failed to send annual breakouts:', error);
-    return { success: false, message: 'Failed to send to Discord' };
+    return { success: false, message: 'Failed' };
   }
 }
 
@@ -1843,80 +985,32 @@ export async function sendWeeklyWatchlistToDiscord(items: Array<{
   targetAlertPrice?: number | null;
   stopAlertPrice?: number | null;
 }>): Promise<void> {
-  if (DISCORD_DISABLED) return;
-  
+  if (DISCORD_DISABLED || items.length === 0) return;
   const webhookUrl = process.env.DISCORD_WEBHOOK_WEEKLYWATCHLISTS;
-  
-  if (!webhookUrl) {
-    logger.info('⚠️ DISCORD_WEBHOOK_WEEKLYWATCHLISTS not configured - skipping watchlist summary');
-    return;
-  }
-  
-  if (items.length === 0) {
-    logger.info('📭 No watchlist items to send');
-    return;
-  }
-  
+  if (!webhookUrl) return;
+
   try {
-    // Get current date
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-    
-    // Format watchlist items
     const itemList = items.slice(0, 10).map((item, i) => {
       const typeIcon = item.assetType === 'crypto' ? '₿' : item.assetType === 'option' ? '📋' : '📈';
-      const entry = item.entryAlertPrice ? `Entry $${item.entryAlertPrice.toFixed(2)}` : '';
-      const target = item.targetAlertPrice ? `Target $${item.targetAlertPrice.toFixed(2)}` : '';
-      const stop = item.stopAlertPrice ? `Stop $${item.stopAlertPrice.toFixed(2)}` : '';
-      const levels = [entry, target, stop].filter(Boolean).join(' • ');
-      return `${i + 1}. ${typeIcon} **${item.symbol}** ${levels ? `→ ${levels}` : ''}`;
+      return \`\${i + 1}. \${typeIcon} **\${item.symbol}**\`;
     }).join('\n');
     
-    // Count by asset type
-    const stocks = items.filter(i => i.assetType === 'stock').length;
-    const options = items.filter(i => i.assetType === 'option').length;
-    const crypto = items.filter(i => i.assetType === 'crypto').length;
-    
     const embed: DiscordEmbed = {
-      title: `📋 Weekly Watchlist - ${dateStr}`,
-      description: `**${items.length} Items on Radar**\n\n${itemList}`,
-      color: 0x8b5cf6, // Purple
-      fields: [
-        {
-          name: '📊 Breakdown',
-          value: `${stocks} Stocks • ${options} Options • ${crypto} Crypto`,
-          inline: true
-        },
-        {
-          name: '🔔 Alerts Set',
-          value: `${items.filter(i => i.entryAlertPrice || i.targetAlertPrice || i.stopAlertPrice).length}`,
-          inline: true
-        }
-      ],
-      footer: {
-        text: '⚠️ Educational research only - not financial advice | Quant Edge Labs'
-      },
+      title: \`📋 Weekly Watchlist\`,
+      description: itemList,
+      color: 0x8b5cf6,
+      footer: { text: '⚠️ Educational research only - not financial advice | Quant Edge Labs' },
       timestamp: new Date().toISOString()
     };
     
-    const message: DiscordMessage = {
-      content: `📋 **WEEKLY WATCHLIST** → ${items.length} items tracked │ ${CHANNEL_HEADERS.WEEKLY_WATCHLIST}`,
-      embeds: [embed]
-    };
-    
-    const response = await fetch(webhookUrl, {
+    await fetch(webhookUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: \`📋 **WEEKLY WATCHLIST** → \${items.length} items tracked │ \${CHANNEL_HEADERS.WEEKLY_WATCHLIST}\`,
+        embeds: [embed]
+      }),
     });
-    
-    if (response.ok) {
-      logger.info(`✅ Discord weekly watchlist sent: ${items.length} items`);
-    } else {
-      logger.warn(`⚠️ Discord watchlist webhook failed: ${response.status}`);
-    }
   } catch (error) {
     logger.error('❌ Failed to send Discord watchlist summary:', error);
   }
@@ -1928,707 +1022,75 @@ export async function sendNextWeekPicksToDiscord(picks: Array<{
   optionType: 'call' | 'put';
   strike: number;
   expiration: string;
-  expirationFormatted?: string;
-  suggestedExitDate?: string;
   entryPrice: number;
   targetPrice: number;
   stopLoss: number;
   targetMultiplier: number;
-  dteCategory: '0DTE' | '1-2DTE' | '3-7DTE' | 'swing';
   playType: 'lotto' | 'day_trade' | 'swing';
   confidence: number;
-  catalyst: string;
   delta: number;
-  volume: number;
-  dte?: number;
-  optimalHoldDays?: number;
-  riskAnalysis?: string;
-  botAnalysis?: string;
 }>, weekRange: { start: string; end: string }): Promise<void> {
-  if (DISCORD_DISABLED) return;
-  
-  // Use weekly watchlist webhook for premium picks, NOT gains channel
+  if (DISCORD_DISABLED || picks.length === 0) return;
   const webhookUrl = process.env.DISCORD_WEBHOOK_WEEKLYWATCHLISTS || process.env.DISCORD_WEBHOOK_URL;
-  
-  if (!webhookUrl) {
-    logger.info('⚠️ Discord webhook not configured - skipping next week picks');
-    return;
-  }
-  
-  if (picks.length === 0) {
-    logger.info('📭 No premium picks generated for next week');
-    return;
-  }
-  
+  if (!webhookUrl) return;
+
   try {
-    // Group by play type
-    const lottos = picks.filter(p => p.playType === 'lotto');
-    const dayTrades = picks.filter(p => p.playType === 'day_trade');
-    const swings = picks.filter(p => p.playType === 'swing');
-    
-    // Format picks by category with enhanced date analysis and bot thoughts
     const formatPick = (p: typeof picks[0]) => {
       const emoji = p.optionType === 'call' ? '🟢' : '🔴';
-      const type = p.optionType.toUpperCase();
-      const exp = p.expirationFormatted || p.expiration.substring(5).replace('-', '/');
-      const gain = ((p.targetPrice - p.entryPrice) / p.entryPrice * 100).toFixed(0);
-      const dteInfo = p.dte ? ` (${p.dte}DTE)` : '';
-      const exitInfo = p.suggestedExitDate ? `\n   📅 Exit by: ${p.suggestedExitDate}` : '';
-      const holdInfo = p.optimalHoldDays !== undefined ? ` • Hold: ${p.optimalHoldDays === 0 ? 'same day' : p.optimalHoldDays + 'd'}` : '';
-      const botThoughts = p.botAnalysis ? `\n   🤖 *${p.botAnalysis}*` : '';
-      
-      return `${emoji} **${p.symbol}** ${type} $${p.strike} exp ${exp}${dteInfo}\n` +
-             `   💰 Entry $${p.entryPrice.toFixed(2)} → Target $${p.targetPrice.toFixed(2)} (${p.targetMultiplier}x, +${gain}%)${holdInfo}${exitInfo}\n` +
-             `   ⚡ ${p.confidence}% conf | δ${(p.delta * 100).toFixed(0)}${botThoughts}`;
+      return \`\${emoji} **\${p.symbol}** \${p.optionType.toUpperCase()} \$\${p.strike} exp \${p.expiration}\\n\` +
+             \`   💰 Entry \$\${p.entryPrice.toFixed(2)} → Target \$\${p.targetPrice.toFixed(2)} (\${p.targetMultiplier}x)\`;
     };
     
-    // Build description
-    let description = '';
-    
-    if (lottos.length > 0) {
-      description += `**🎰 LOTTO PLAYS (4x-15x targets)**\n`;
-      description += lottos.slice(0, 5).map(formatPick).join('\n');
-      description += '\n\n';
-    }
-    
-    if (dayTrades.length > 0) {
-      description += `**⚡ DAY TRADES (2x targets)**\n`;
-      description += dayTrades.slice(0, 5).map(formatPick).join('\n');
-      description += '\n\n';
-    }
-    
-    if (swings.length > 0) {
-      description += `**📊 SWING TRADES (1.5x targets)**\n`;
-      description += swings.slice(0, 5).map(formatPick).join('\n');
-    }
-    
-    // Calculate average DTE
-    const avgDTE = picks.filter(p => p.dte).length > 0 
-      ? Math.round(picks.filter(p => p.dte).reduce((sum, p) => sum + (p.dte || 0), 0) / picks.filter(p => p.dte).length)
-      : 0;
-    
     const embed: DiscordEmbed = {
-      title: `🎯 NEXT WEEK'S PREMIUM PICKS (${weekRange.start} - ${weekRange.end})`,
-      description: description.trim(),
-      color: 0xa855f7, // Purple for premium
-      fields: [
-        {
-          name: '📊 Breakdown',
-          value: `${lottos.length} Lotto • ${dayTrades.length} Day Trades • ${swings.length} Swings`,
-          inline: true
-        },
-        {
-          name: '🔥 Avg Confidence',
-          value: `${Math.round(picks.reduce((sum, p) => sum + p.confidence, 0) / picks.length)}%`,
-          inline: true
-        },
-        {
-          name: '📅 Avg DTE',
-          value: avgDTE > 0 ? `${avgDTE} days` : 'N/A',
-          inline: true
-        }
-      ],
-      footer: {
-        text: '⚠️ Educational research only - not financial advice | Quant Edge Labs Auto-Lotto Bot Style'
-      },
+      title: \`🎯 NEXT WEEK'S PREMIUM PICKS (\${weekRange.start} - \${weekRange.end})\`,
+      description: picks.slice(0, 10).map(formatPick).join('\n\n'),
+      color: 0xa855f7,
+      footer: { text: '⚠️ Educational research only - not financial advice | Quant Edge Labs' },
       timestamp: new Date().toISOString()
     };
     
-    const message: DiscordMessage = {
-      content: `🎯 **NEXT WEEK PREMIUM PICKS** → ${picks.length} curated plays │ ${CHANNEL_HEADERS.WEEKLY_WATCHLIST}`,
-      embeds: [embed]
-    };
-    
-    const response = await fetch(webhookUrl, {
+    await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message)
+      body: JSON.stringify({
+        content: \`🎯 **NEXT WEEK PREMIUM PICKS** → \${picks.length} curated plays │ \${CHANNEL_HEADERS.WEEKLY_WATCHLIST}\`,
+        embeds: [embed]
+      }),
     });
-    
-    if (response.ok) {
-      logger.info(`✅ Discord next week picks sent: ${picks.length} plays`);
-    } else {
-      logger.warn(`⚠️ Discord next week picks webhook failed: ${response.status}`);
-    }
   } catch (error) {
     logger.error('❌ Failed to send Discord next week picks:', error);
   }
 }
 
-// Send daily summary of top trade ideas (scheduled for 8:30 AM CT)
-// FORMAT: Compact one-liner style for quick scanning
-// DESTINATION: #quant-floor channel
+// Send daily summary of top trade ideas
 export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<void> {
   if (DISCORD_DISABLED) return;
-  
   const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_GAINS;
-  
-  if (!webhookUrl) {
-    logger.info('⚠️ DISCORD_WEBHOOK_QUANTFLOOR not configured - skipping daily summary');
-    return;
-  }
-  
+  if (!webhookUrl) return;
+
   try {
-    // Get today's date in CT
-    const nowCT = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
-    const dateStr = nowCT.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-    
-    // Filter to OPTIONS ONLY with any confidence - no crypto, no stocks
-    // SMALL ACCOUNT FOCUS: Prioritize cheap lottery premiums ($1 or less)
-    const MAX_AFFORDABLE_PREMIUM = 1.00; // $1.00 max for true lotto plays ($300 budget)
-    
-    const allOptions = ideas
-      .filter(i => 
-        i.outcomeStatus === 'open' && 
-        i.assetType === 'option' &&  // OPTIONS ONLY
-        i.strikePrice &&  // Must have strike
-        i.expiryDate     // Must have expiry
-      );
-    
-    // Split into affordable and expensive options
-    const affordableOptions = allOptions.filter(i => i.entryPrice <= MAX_AFFORDABLE_PREMIUM);
-    const expensiveOptions = allOptions.filter(i => i.entryPrice > MAX_AFFORDABLE_PREMIUM);
-    
-    // Sort affordable by confidence first, then expensive as backup
-    const sortByQuality = (a: TradeIdea, b: TradeIdea) => {
-      const aConf = a.confidenceScore || 50;
-      const bConf = b.confidenceScore || 50;
-      if (bConf !== aConf) return bConf - aConf;
-      return (b.riskRewardRatio || 1) - (a.riskRewardRatio || 1);
-    };
-    
-    affordableOptions.sort(sortByQuality);
-    expensiveOptions.sort(sortByQuality);
-    
-    // Prioritize affordable options, fill remaining slots with expensive if needed
-    const eligibleIdeas = [...affordableOptions, ...expensiveOptions];
-    
-    // Deduplicate by symbol + strike + expiry + optionType
-    const seen = new Set<string>();
-    const topIdeas: TradeIdea[] = [];
-    for (const idea of eligibleIdeas) {
-      const key = `${idea.symbol}_${idea.strikePrice}_${idea.expiryDate}_${idea.optionType}`;
-      if (!seen.has(key) && topIdeas.length < 5) {
-        seen.add(key);
-        topIdeas.push(idea);
-      }
-    }
-    
-    if (topIdeas.length === 0) {
-      logger.info('📭 No options trade ideas for daily preview');
-      return;
-    }
-    
-    // Build compact one-liner format like user wants
-    const tradeLines: string[] = [];
-    let longCount = 0;
-    let shortCount = 0;
-    let totalSignals = 0;
-    let totalRR = 0;
-    
-    for (const idea of topIdeas) {
-      const isLong = idea.direction === 'long';
-      const arrow = isLong ? '🟢' : '🔴';
-      longCount += isLong ? 1 : 0;
-      shortCount += isLong ? 0 : 1;
-      
-      // Asset type label
-      let assetLabel = '';
-      if (idea.assetType === 'option') {
-        const cpLabel = idea.optionType === 'call' ? 'CALL' : 'PUT';
-        const strike = idea.strikePrice ? `$${idea.strikePrice}` : '';
-        const exp = idea.expiryDate ? idea.expiryDate.substring(5).replace('-', '/') : '';
-        assetLabel = `${cpLabel} ${strike} ${exp}`;
-      } else if (idea.assetType === 'crypto') {
-        assetLabel = 'CRYPTO';
-      } else {
-        assetLabel = 'SHARES';
-      }
-      
-      // Calculate gain %
-      const gainPct = ((idea.targetPrice - idea.entryPrice) / idea.entryPrice * 100).toFixed(1);
-      
-      // Confidence grade
-      const confidence = idea.confidenceScore || 50;
-      const signalCount = idea.qualitySignals?.length || 0;
-      totalSignals += signalCount;
-      totalRR += idea.riskRewardRatio || 1;
-      
-      const grade = confidence >= 90 ? 'A+' : 
-                    confidence >= 80 ? 'A' : 
-                    confidence >= 70 ? 'B' : 'C';
-      
-      // Source icon
-      const sourceIcon = idea.source === 'ai' ? '🧠' : 
-                        idea.source === 'flow' ? '📊' : 
-                        idea.source === 'quant' ? '📈' : '⚡';
-      
-      // Compact one-liner: 🟢 AAPL CALL $280 01/16 | $1.19→$1.49 (+25.0%) | A (4/5) 🧠
-      const line = `${arrow} **${idea.symbol}** ${assetLabel} | $${idea.entryPrice.toFixed(2)}→$${idea.targetPrice.toFixed(2)} (+${gainPct}%) | ${grade} (${signalCount}/5) ${sourceIcon}`;
-      tradeLines.push(line);
-    }
-    
-    // Calculate averages
-    const avgSignals = (totalSignals / topIdeas.length).toFixed(0);
-    const avgRR = (totalRR / topIdeas.length).toFixed(1);
-    
-    // Build the full message with stats
-    const statsLine = `📊 **Total Open**: ${topIdeas.length} ideas | 📈 **Direction**: ${longCount} Long • ${shortCount} Short | ⭐ **Avg Signals**: ${avgSignals}/5 | R:R ${avgRR}:1`;
-    
-    const embed: DiscordEmbed = {
-      title: `📈 Daily Trading Preview - ${dateStr}`,
-      description: `**Top ${topIdeas.length} Trade Ideas Today**\n\n${tradeLines.join('\n')}\n\n${statsLine}`,
-      color: 0x22c55e,
-      footer: {
-        text: 'QuantEdge Research • View full details at Trade Desk'
-      }
-    };
-    
-    const message: DiscordMessage = {
-      content: '',
-      embeds: [embed]
-    };
-    
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
+    const listLines = ideas.slice(0, 10).map(idea => {
+      const emoji = idea.direction === 'long' ? '🟢' : '🔴';
+      return \`\${emoji} **\${idea.symbol}** \${idea.optionType?.toUpperCase()} \$\${idea.strikePrice} exp \${idea.expiryDate}\`;
     });
     
-    if (response.ok) {
-      logger.info(`✅ Discord daily preview sent: ${topIdeas.length} options plays`);
-    }
+    const embed: DiscordEmbed = {
+      title: \`🤖 Daily Trade Summary\`,
+      description: listLines.join('\n'),
+      color: 0x06b6d4,
+      footer: { text: 'Quant Edge Labs • Daily Highlights' },
+      timestamp: new Date().toISOString()
+    };
+    
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: \`🤖 **DAILY SUMMARY** → \${ideas.length} setups on radar\`,
+        embeds: [embed]
+      }),
+    });
   } catch (error) {
     logger.error('❌ Failed to send Discord daily summary:', error);
-  }
-}
-
-/**
- * 💰 Send Gains Notification to Discord
- * Routes to proper channel based on source:
- * - Bot gains → DISCORD_WEBHOOK_QUANTBOT (#quantbot)
- * - AI/Quant/Manual gains → DISCORD_WEBHOOK_GAINS (#gains)
- */
-export async function sendGainsToDiscord(trade: {
-  symbol: string;
-  direction: 'long' | 'short';
-  assetType: string;
-  entryPrice: number;
-  exitPrice: number;
-  percentGain: number;
-  source?: string;
-  optionType?: string;
-  strikePrice?: number;
-  expiryDate?: string;
-  holdingPeriod?: string;
-}): Promise<void> {
-  if (DISCORD_DISABLED) return;
-  
-  // 🛡️ QUALITY GATE: Only send significant gains to Discord (avoid spam)
-  // Skip small gains (<10%) and lotto source (lotto plays are research-only)
-  if (trade.percentGain < 10) {
-    logger.info(`🚫 [GAINS-FILTER] Skipping low-value gain: ${trade.symbol} +${trade.percentGain.toFixed(1)}%`);
-    return;
-  }
-  
-  if (trade.source === 'lotto') {
-    logger.info(`🚫 [GAINS-FILTER] Skipping lotto gain notification: ${trade.symbol}`);
-    return;
-  }
-  
-  // Route bot gains to #quantbot, all other gains (including lotto) to #gains
-  const isBot = trade.source === 'bot';
-  const webhookUrl = isBot 
-    ? (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL)
-    : process.env.DISCORD_WEBHOOK_GAINS;
-  
-  if (!webhookUrl) {
-    logger.info('⚠️ DISCORD_WEBHOOK_GAINS not configured - skipping gains alert');
-    return;
-  }
-  
-  // DEDUP: Create unique key for this gains notification
-  const optionKey = trade.assetType === 'option' ? `${trade.optionType}_${trade.strikePrice}_${trade.expiryDate}` : '';
-  const dedupKey = `${trade.symbol}_${trade.direction}_${optionKey}_${trade.entryPrice?.toFixed(2)}_${trade.exitPrice?.toFixed(2)}`;
-  const hash = generateMessageHash('gains', dedupKey);
-  
-  if (isDuplicateMessage(hash)) {
-    logger.info(`🚫 [GAINS-DEDUP] Skipping duplicate gains notification: ${trade.symbol}`);
-    return; // Skip duplicate
-  }
-  
-  try {
-    const gainEmoji = trade.percentGain >= 50 ? '🚀' : trade.percentGain >= 20 ? '🔥' : trade.percentGain >= 10 ? '💰' : '✅';
-    const sourceIcon = trade.source === 'ai' ? '🧠 AI' : 
-                       trade.source === 'quant' ? '✨ Quant' : 
-                       trade.source === 'hybrid' ? '🎯 Hybrid' : 
-                       trade.source === 'flow' ? '📊 Flow' :
-                       trade.source === 'lotto' ? '🎰 Lotto' : '📝 Manual';
-    
-    // Build asset label
-    let assetLabel: string;
-    if (trade.assetType === 'option') {
-      const optType = trade.optionType?.toUpperCase() || 'OPT';
-      const strike = trade.strikePrice ? `$${trade.strikePrice}` : '';
-      const exp = trade.expiryDate ? trade.expiryDate.substring(5).replace('-', '/') : '';
-      assetLabel = `${optType} ${strike} ${exp}`.trim();
-    } else if (trade.assetType === 'crypto') {
-      assetLabel = 'CRYPTO';
-    } else {
-      assetLabel = 'SHARES';
-    }
-    
-    // Calculate dollar gain (assuming $100 position for display)
-    const dollarGainPer100 = (trade.percentGain / 100) * 100;
-    
-    const embed: DiscordEmbed = {
-      title: `${gainEmoji} WINNER: ${trade.symbol} +${trade.percentGain.toFixed(1)}%`,
-      description: `**${assetLabel}** Signal Hit Target!`,
-      color: 0x22c55e, // Green
-      fields: [
-        { name: '📥 Entry', value: `$${trade.entryPrice.toFixed(2)}`, inline: true },
-        { name: '📤 Exit', value: `$${trade.exitPrice.toFixed(2)}`, inline: true },
-        { name: '💵 Gain', value: `+${trade.percentGain.toFixed(1)}%`, inline: true }
-      ],
-      footer: { text: 'Quant Edge Labs Results' },
-      timestamp: new Date().toISOString()
-    };
-    
-    // Use correct channel header based on routing
-    const channelHeader = isBot ? CHANNEL_HEADERS.QUANTBOT : CHANNEL_HEADERS.GAINS;
-    const botLabel = isBot ? '🤖 BOT WIN' : 'WINNER';
-    
-    const message: DiscordMessage = {
-      content: `${gainEmoji} **${botLabel}** → ${trade.symbol} **+${trade.percentGain.toFixed(1)}%** │ ${channelHeader}`,
-      embeds: [embed]
-    };
-    
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
-    });
-    
-    if (response.ok) {
-      const channelName = isBot ? '#quantbot' : '#gains';
-      logger.info(`✅ Discord ${channelName} alert sent: ${trade.symbol} +${trade.percentGain.toFixed(1)}%`);
-    } else {
-      logger.error(`❌ Discord gains webhook failed: ${response.status}`);
-    }
-  } catch (error) {
-    logger.error('❌ Failed to send Discord gains alert:', error);
-  }
-}
-
-// Engine labels for Discord display
-const ENGINE_LABELS_DISCORD: Record<string, string> = {
-  ai: "AI Engine",
-  quant: "Quant Engine",
-  hybrid: "Hybrid Engine",
-  flow: "Flow Scanner",
-  lotto: "Lotto Scanner",
-};
-
-/**
- * Send Platform Report Notification to Discord
- * Called after daily/weekly/monthly reports are generated
- */
-export async function sendReportNotificationToDiscord(report: {
-  period: string;
-  startDate: string;
-  endDate: string;
-  totalIdeasGenerated: number;
-  overallWinRate: number | null;
-  totalPnlPercent: number | null;
-  bestPerformingEngine: string | null;
-  totalWins?: number;
-  totalLosses?: number;
-}): Promise<void> {
-  if (DISCORD_DISABLED) {
-    logger.warn('⚠️ Discord is DISABLED - skipping report notification');
-    return;
-  }
-  
-  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
-  
-  if (!webhookUrl) {
-    logger.info('⚠️ Discord webhook URL not configured - skipping report notification');
-    return;
-  }
-  
-  try {
-    const periodLabel = report.period.charAt(0).toUpperCase() + report.period.slice(1);
-    const pnl = report.totalPnlPercent || 0;
-    const isPositive = pnl >= 0;
-    const color = isPositive ? 0x22c55e : 0xef4444; // Green for positive, red for negative
-    
-    const periodEmoji = report.period === 'daily' ? '📅' : report.period === 'weekly' ? '📆' : '🗓️';
-    const pnlEmoji = isPositive ? '📈' : '📉';
-    const winRate = report.overallWinRate?.toFixed(1) || '—';
-    const bestEngine = ENGINE_LABELS_DISCORD[report.bestPerformingEngine || ''] || 'N/A';
-    
-    const embed: DiscordEmbed = {
-      title: `${periodEmoji} ${periodLabel} Platform Report`,
-      description: `**Report Period:** ${report.startDate} to ${report.endDate}\n\nPlatform performance summary for the ${report.period} period.`,
-      color,
-      fields: [
-        {
-          name: '💡 Ideas Generated',
-          value: String(report.totalIdeasGenerated),
-          inline: true
-        },
-        {
-          name: '🎯 Win Rate',
-          value: `${winRate}%`,
-          inline: true
-        },
-        {
-          name: `${pnlEmoji} Total P&L`,
-          value: `${isPositive ? '+' : ''}${pnl.toFixed(2)}%`,
-          inline: true
-        },
-        {
-          name: '🏆 Best Engine',
-          value: bestEngine,
-          inline: true
-        },
-        {
-          name: '✅ Wins',
-          value: String(report.totalWins || 0),
-          inline: true
-        },
-        {
-          name: '❌ Losses',
-          value: String(report.totalLosses || 0),
-          inline: true
-        }
-      ],
-      footer: {
-        text: 'Quant Edge Labs • Automated Report'
-      },
-      timestamp: new Date().toISOString()
-    };
-    
-    const message: DiscordMessage = {
-      content: `📊 **${periodLabel.toUpperCase()} REPORT GENERATED** │ ${periodEmoji} ${report.startDate} to ${report.endDate}`,
-      embeds: [embed]
-    };
-    
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
-    });
-    
-    if (response.ok) {
-      logger.info(`✅ Discord report notification sent: ${periodLabel} report`);
-    } else {
-      logger.error(`❌ Discord report webhook failed: ${response.status}`);
-    }
-  } catch (error) {
-    logger.error('❌ Failed to send Discord report notification:', error);
-  }
-}
-
-/**
- * Send End-of-Day Trading Review to Discord
- * Summarizes the day's trading activity with P&L, wins/losses, and key trades
- */
-export async function sendDailyTradingReviewToDiscord(review: {
-  date: string;
-  totalTrades: number;
-  wins: number;
-  losses: number;
-  openPositions: number;
-  realizedPnL: number;
-  unrealizedPnL: number;
-  bestTrade?: { symbol: string; pnlPercent: number } | null;
-  worstTrade?: { symbol: string; pnlPercent: number } | null;
-  closedTrades: Array<{ symbol: string; pnlPercent: number; optionType?: string; strikePrice?: number }>;
-}): Promise<boolean> {
-  if (DISCORD_DISABLED) {
-    logger.warn('⚠️ Discord is DISABLED - skipping daily trading review');
-    return false;
-  }
-  
-  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_GAINS;
-  
-  if (!webhookUrl) {
-    logger.info('⚠️ DISCORD_WEBHOOK_QUANTFLOOR not configured - skipping daily trading review');
-    return false;
-  }
-  
-  try {
-    const winRate = review.totalTrades > 0 ? (review.wins / review.totalTrades * 100) : 0;
-    const totalPnL = review.realizedPnL + review.unrealizedPnL;
-    const isPositive = totalPnL >= 0;
-    const color = isPositive ? 0x22c55e : 0xef4444;
-    
-    const closedTradesList = review.closedTrades.slice(0, 5).map(t => {
-      const pnlEmoji = t.pnlPercent >= 0 ? '✅' : '❌';
-      const pnlStr = t.pnlPercent >= 0 ? `+${t.pnlPercent.toFixed(1)}%` : `${t.pnlPercent.toFixed(1)}%`;
-      const optionInfo = t.optionType ? ` ${t.optionType.toUpperCase()} $${t.strikePrice}` : '';
-      return `${pnlEmoji} ${t.symbol}${optionInfo}: ${pnlStr}`;
-    }).join('\n') || 'No closed trades today';
-    
-    const embed: DiscordEmbed = {
-      title: `📊 Daily Trading Review - ${review.date}`,
-      description: `End-of-day summary for Auto-Lotto Bot paper trading.`,
-      color,
-      fields: [
-        {
-          name: '📈 Day Summary',
-          value: `**Trades:** ${review.totalTrades} | **Wins:** ${review.wins} | **Losses:** ${review.losses}\n**Win Rate:** ${winRate.toFixed(1)}%`,
-          inline: false
-        },
-        {
-          name: '💰 P&L',
-          value: `**Realized:** ${review.realizedPnL >= 0 ? '+' : ''}$${review.realizedPnL.toFixed(2)}\n**Unrealized:** ${review.unrealizedPnL >= 0 ? '+' : ''}$${review.unrealizedPnL.toFixed(2)}\n**Total:** ${totalPnL >= 0 ? '+' : ''}$${totalPnL.toFixed(2)}`,
-          inline: true
-        },
-        {
-          name: '📂 Open Positions',
-          value: String(review.openPositions),
-          inline: true
-        },
-        {
-          name: '🏆 Closed Trades',
-          value: closedTradesList,
-          inline: false
-        }
-      ],
-      footer: {
-        text: 'Quant Edge Labs • Auto-Lotto Bot • Paper Trading Only'
-      },
-      timestamp: new Date().toISOString()
-    };
-    
-    if (review.bestTrade) {
-      embed.fields!.push({
-        name: '🥇 Best Trade',
-        value: `${review.bestTrade.symbol}: +${review.bestTrade.pnlPercent.toFixed(1)}%`,
-        inline: true
-      });
-    }
-    
-    if (review.worstTrade) {
-      embed.fields!.push({
-        name: '📉 Worst Trade',
-        value: `${review.worstTrade.symbol}: ${review.worstTrade.pnlPercent.toFixed(1)}%`,
-        inline: true
-      });
-    }
-    
-    const dayEmoji = isPositive ? '🟢' : '🔴';
-    const message: DiscordMessage = {
-      content: `${dayEmoji} **END OF DAY REVIEW** │ ${review.date} │ ${isPositive ? '+' : ''}$${totalPnL.toFixed(2)} │ ${CHANNEL_HEADERS.GAINS}`,
-      embeds: [embed]
-    };
-    
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-    });
-    
-    if (response.ok) {
-      logger.info(`✅ Discord daily trading review sent for ${review.date}`);
-      return true;
-    } else {
-      logger.error(`❌ Discord daily review webhook failed: ${response.status}`);
-      return false;
-    }
-  } catch (error) {
-    logger.error('❌ Failed to send Discord daily trading review:', error);
-    return false;
-  }
-}
-
-/**
- * Send Next-Day Options Outlook to Discord
- * Highlights options to watch for the next trading session
- */
-export async function sendNextDayOutlookToDiscord(outlook: {
-  date: string;
-  topPicks: Array<{
-    symbol: string;
-    optionType: string;
-    strikePrice: number;
-    expiryDate: string;
-    reason: string;
-    grade: string;
-  }>;
-  marketNotes?: string;
-}): Promise<boolean> {
-  if (DISCORD_DISABLED) {
-    logger.warn('⚠️ Discord is DISABLED - skipping next-day outlook');
-    return false;
-  }
-  
-  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_GAINS;
-  
-  if (!webhookUrl) {
-    logger.info('⚠️ DISCORD_WEBHOOK_QUANTFLOOR not configured - skipping next-day outlook');
-    return false;
-  }
-  
-  try {
-    const picksList = outlook.topPicks.slice(0, 5).map((pick, i) => {
-      const gradeEmoji = pick.grade.includes('A') ? '🔥' : pick.grade.includes('B') ? '⭐' : '📌';
-      return `${i + 1}. ${gradeEmoji} **${pick.symbol}** ${pick.optionType.toUpperCase()} $${pick.strikePrice} (${pick.expiryDate})\n   └ ${pick.reason} [${pick.grade}]`;
-    }).join('\n\n') || 'No picks generated for tomorrow';
-    
-    const embed: DiscordEmbed = {
-      title: `🔮 Options to Watch - ${outlook.date}`,
-      description: `Top opportunities for the next trading session based on technical signals and flow analysis.`,
-      color: 0x8b5cf6, // Purple
-      fields: [
-        {
-          name: '🎯 Top Picks',
-          value: picksList,
-          inline: false
-        }
-      ],
-      footer: {
-        text: 'Quant Edge Labs • Research Only • Not Financial Advice'
-      },
-      timestamp: new Date().toISOString()
-    };
-    
-    if (outlook.marketNotes) {
-      embed.fields!.push({
-        name: '📝 Market Notes',
-        value: outlook.marketNotes,
-        inline: false
-      });
-    }
-    
-    const message: DiscordMessage = {
-      content: `🔮 **TOMORROW'S OPTIONS OUTLOOK** │ ${outlook.date} │ ${outlook.topPicks.length} picks │ ${CHANNEL_HEADERS.GAINS}`,
-      embeds: [embed]
-    };
-    
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(message),
-    });
-    
-    if (response.ok) {
-      logger.info(`✅ Discord next-day outlook sent for ${outlook.date}`);
-      return true;
-    } else {
-      logger.error(`❌ Discord next-day outlook webhook failed: ${response.status}`);
-      return false;
-    }
-  } catch (error) {
-    logger.error('❌ Failed to send Discord next-day outlook:', error);
-    return false;
   }
 }
