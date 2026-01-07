@@ -88,6 +88,7 @@ import {
   assessMarketRegime,
   getCompanyContext,
 } from './multi-factor-analysis';
+import { getMarketContext, getTradingSession } from './market-context-service';
 
 // Session-based authentication middleware
 function isAuthenticated(req: any, res: any, next: any) {
@@ -4888,6 +4889,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logger.error("Failed to get exit intelligence:", error);
       res.status(500).json({ error: "Failed to fetch exit intelligence" });
+    }
+  });
+
+  // 📊 Performance Summary - Rolling win rates and symbol leaderboard
+  app.get("/api/auto-lotto/performance-summary", async (_req: any, res) => {
+    try {
+      // Get all auto-lotto portfolios
+      const portfolios = await storage.getAllPaperPortfolios();
+      const autoLottoPortfolios = portfolios.filter(p => 
+        p.name?.toLowerCase().includes('auto-lotto') || 
+        p.name?.toLowerCase().includes('small account')
+      );
+      
+      // Get all closed positions from auto-lotto portfolios
+      let allPositions: any[] = [];
+      for (const portfolio of autoLottoPortfolios) {
+        const portfolioPositions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+        allPositions = allPositions.concat(portfolioPositions);
+      }
+      
+      const closedPositions = allPositions.filter(p => 
+        p.status === 'closed' && 
+        p.assetType === 'option' &&
+        p.closedAt
+      );
+
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      // Overall stats
+      const wins = closedPositions.filter(p => (p.realizedPnL || 0) > 0);
+      const losses = closedPositions.filter(p => (p.realizedPnL || 0) <= 0);
+      const totalPnL = closedPositions.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
+      const avgWin = wins.length > 0 ? wins.reduce((sum, p) => sum + (p.realizedPnL || 0), 0) / wins.length : 0;
+      const avgLoss = losses.length > 0 ? Math.abs(losses.reduce((sum, p) => sum + (p.realizedPnL || 0), 0) / losses.length) : 0;
+
+      // Weekly stats
+      const weeklyPositions = closedPositions.filter(p => new Date(p.closedAt!) >= weekAgo);
+      const weeklyWins = weeklyPositions.filter(p => (p.realizedPnL || 0) > 0);
+      const weeklyPnL = weeklyPositions.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
+
+      // Monthly stats
+      const monthlyPositions = closedPositions.filter(p => new Date(p.closedAt!) >= monthAgo);
+      const monthlyWins = monthlyPositions.filter(p => (p.realizedPnL || 0) > 0);
+      const monthlyPnL = monthlyPositions.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
+
+      // Symbol leaderboard
+      const symbolStats: Record<string, { trades: number; wins: number; pnl: number }> = {};
+      for (const pos of closedPositions) {
+        const symbol = pos.symbol;
+        if (!symbolStats[symbol]) {
+          symbolStats[symbol] = { trades: 0, wins: 0, pnl: 0 };
+        }
+        symbolStats[symbol].trades++;
+        if ((pos.realizedPnL || 0) > 0) symbolStats[symbol].wins++;
+        symbolStats[symbol].pnl += pos.realizedPnL || 0;
+      }
+
+      const topSymbols = Object.entries(symbolStats)
+        .map(([symbol, stats]) => ({
+          symbol,
+          trades: stats.trades,
+          winRate: stats.trades > 0 ? (stats.wins / stats.trades) * 100 : 0,
+          pnl: stats.pnl,
+        }))
+        .sort((a, b) => b.pnl - a.pnl)
+        .slice(0, 5);
+
+      res.json({
+        overall: {
+          totalTrades: closedPositions.length,
+          wins: wins.length,
+          losses: losses.length,
+          winRate: closedPositions.length > 0 ? (wins.length / closedPositions.length) * 100 : 0,
+          totalPnL,
+          avgWin,
+          avgLoss,
+        },
+        weekly: {
+          trades: weeklyPositions.length,
+          winRate: weeklyPositions.length > 0 ? (weeklyWins.length / weeklyPositions.length) * 100 : 0,
+          pnl: weeklyPnL,
+        },
+        monthly: {
+          trades: monthlyPositions.length,
+          winRate: monthlyPositions.length > 0 ? (monthlyWins.length / monthlyPositions.length) * 100 : 0,
+          pnl: monthlyPnL,
+        },
+        topSymbols,
+      });
+    } catch (error) {
+      logger.error("Failed to get performance summary:", error);
+      res.status(500).json({ error: "Failed to fetch performance summary" });
     }
   });
 
@@ -9719,6 +9814,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       logError(error as Error, { context: 'GET /api/market-regime' });
       res.status(500).json({ error: "Failed to assess market regime" });
+    }
+  });
+
+  // Market Context - Full market overview with VIX, SPY, trading session
+  app.get("/api/market-context", async (_req, res) => {
+    try {
+      const context = await getMarketContext(true); // Force refresh for latest data
+      const session = getTradingSession();
+      res.json({
+        ...context,
+        tradingSession: session,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/market-context' });
+      res.status(500).json({ error: "Failed to get market context" });
     }
   });
   

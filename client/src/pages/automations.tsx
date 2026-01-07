@@ -52,6 +52,8 @@ import { format } from "date-fns";
 import { HeroProductPanel } from "@/components/hero-product-panel";
 import { AutoLottoDashboard } from "@/components/auto-lotto-dashboard";
 import { ExpiryPatternInsights } from "@/components/expiry-pattern-insights";
+import { MarketOverviewWidget } from "@/components/market-overview-widget";
+import { WinRateWidget } from "@/components/win-rate-widget";
 
 interface ExitAdvisory {
   positionId: string;
@@ -705,6 +707,13 @@ export default function AutomationsPage() {
           </div>
 
         <TabsContent value="overview" className="space-y-6">
+          {/* Market Intelligence Row */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <MarketOverviewWidget />
+            <ExpiryPatternInsights />
+            <WinRateWidget />
+          </div>
+
           {/* 4 Main Portfolio Bots - Primary Display */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {/* Options Bot - $300 */}
