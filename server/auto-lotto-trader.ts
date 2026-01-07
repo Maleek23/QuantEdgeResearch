@@ -99,7 +99,7 @@ const PREFERENCES_CACHE_TTL = 60000; // 1 minute cache
 /**
  * Get bot preferences for the system user, with fallback to defaults
  */
-async function getBotPreferences(): Promise<BotPreferences> {
+export async function getBotPreferences(): Promise<BotPreferences> {
   const now = Date.now();
   
   // Use cached preferences if still valid
