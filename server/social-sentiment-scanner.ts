@@ -48,7 +48,7 @@ interface ScannerStatus {
 }
 
 let scannerStatus: ScannerStatus = {
-  isActive: false,
+  isActive: true,  // Scanners run by default via cron schedules
   lastScan: null,
   mentionsFound: 0,
   trendingTickers: [],

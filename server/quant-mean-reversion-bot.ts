@@ -89,7 +89,7 @@ interface BotStatus {
 }
 
 let botStatus: BotStatus = {
-  isActive: false,
+  isActive: true,  // Bots run by default via cron schedules
   lastScan: null,
   tradesExecuted: 0,
   winRate: 0,

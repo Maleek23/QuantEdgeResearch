@@ -65,7 +65,7 @@ const DEFAULT_OPTIONS_WATCHLIST = [
 ];
 
 let scannerStatus: ScannerStatus = {
-  isActive: false,
+  isActive: true,  // Scanners run by default via cron schedules
   lastScan: null,
   flowsDetected: 0,
   todayFlows: [],
