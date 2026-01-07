@@ -145,7 +145,7 @@ export default function WatchlistBotPage() {
   const [newSymbol, setNewSymbol] = useState("");
   const [newAssetType, setNewAssetType] = useState<string>("stock");
   const [activeTab, setActiveTab] = useState("bot");
-  const [portfolioTab, setPortfolioTab] = useState<"options" | "futures" | "crypto">("options");
+  const [portfolioTab, setPortfolioTab] = useState<"options" | "futures" | "crypto" | "smallaccount">("options");
 
   const { data: watchlistItems = [], isLoading: watchlistLoading, refetch: refetchWatchlist } = useQuery<WatchlistItem[]>({
     queryKey: ['/api/watchlist'],
@@ -792,7 +792,7 @@ export default function WatchlistBotPage() {
 
               {/* Portfolio Tabs - Options, Futures, Crypto */}
               <Card className="glass-card">
-                <Tabs value={portfolioTab} onValueChange={(v) => setPortfolioTab(v as "options" | "futures" | "crypto")} className="w-full">
+                <Tabs value={portfolioTab} onValueChange={(v) => setPortfolioTab(v as "options" | "futures" | "crypto" | "smallaccount")} className="w-full">
                   <CardHeader className="pb-3">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
@@ -824,6 +824,14 @@ export default function WatchlistBotPage() {
                           >
                             <Bitcoin className="h-4 w-4 mr-1.5" />
                             Crypto
+                          </TabsTrigger>
+                          <TabsTrigger 
+                            value="smallaccount"
+                            className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
+                            data-testid="tab-smallaccount"
+                          >
+                            <Wallet className="h-4 w-4 mr-1.5" />
+                            Small Acct
                           </TabsTrigger>
                         </TabsList>
                       </div>
@@ -1003,6 +1011,73 @@ export default function WatchlistBotPage() {
                               <RotateCcw className="h-3 w-3 mr-1" /> Reset
                             </Button>
                           )}
+                        </div>
+                      </div>
+                    </TabsContent>
+
+                    {/* Small Account Tab */}
+                    <TabsContent value="smallaccount" className="mt-0">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-lg bg-gradient-to-br from-emerald-500/5 to-green-500/5 border border-emerald-500/20">
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Account Value</p>
+                          {showMetrics && botData.smallAccountPortfolio ? (
+                            <div className="text-xl font-bold font-mono tabular-nums text-emerald-400" data-testid="text-smallaccount-balance">
+                              <NumberTicker value={(botData.smallAccountPortfolio?.startingCapital || 150) + (botData.smallAccountPortfolio?.totalPnL || 0)} prefix="$" decimalPlaces={2} className="text-emerald-400" />
+                            </div>
+                          ) : (
+                            <p className="text-lg text-muted-foreground">{botData.smallAccountPortfolio ? formatCurrency((botData.smallAccountPortfolio?.startingCapital || 150) + (botData.smallAccountPortfolio?.totalPnL || 0)) : '--'}</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Starting Capital</p>
+                          <p className="text-lg font-mono">{formatCurrency(botData.smallAccountPortfolio?.startingCapital || 150)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Realized P&L</p>
+                          {showMetrics && botData.smallAccountPortfolio ? (
+                            <p className={cn("text-lg font-bold font-mono", (botData.smallAccountPortfolio?.totalPnL || 0) >= 0 ? "text-green-400" : "text-red-400")}>
+                              {(botData.smallAccountPortfolio?.totalPnL || 0) >= 0 ? '+' : '-'}{formatCurrency(Math.abs(botData.smallAccountPortfolio?.totalPnL || 0))}
+                            </p>
+                          ) : (
+                            <p className="text-lg text-muted-foreground">--</p>
+                          )}
+                        </div>
+                        <div className="flex flex-col justify-between">
+                          <div>
+                            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Positions</p>
+                            <p className="text-lg font-mono">
+                              <span className="text-green-400">{botData.smallAccountPortfolio?.openPositions || 0}</span>
+                              <span className="text-muted-foreground"> open / </span>
+                              <span>{botData.smallAccountPortfolio?.closedPositions || 0}</span>
+                              <span className="text-muted-foreground"> closed</span>
+                            </p>
+                          </div>
+                          {botData.isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-xs text-emerald-400/60 hover:text-emerald-400 hover:bg-emerald-500/10 mt-2 w-fit"
+                              onClick={async () => {
+                                if (!confirm('Reset SMALL ACCOUNT portfolio to $150?')) return;
+                                try {
+                                  const res = await fetch('/api/auto-lotto-bot/reset?type=smallaccount', { method: 'POST' });
+                                  if (res.ok) { toast({ title: 'Small Account Reset', description: 'Reset to $150' }); refetchBot(); }
+                                } catch { toast({ title: 'Error', variant: 'destructive' }); }
+                              }}
+                              data-testid="button-reset-smallaccount"
+                            >
+                              <RotateCcw className="h-3 w-3 mr-1" /> Reset
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      {/* Small Account Info Banner */}
+                      <div className="mt-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <div className="flex items-start gap-2">
+                          <Sparkles className="h-4 w-4 text-emerald-400 mt-0.5" />
+                          <div className="text-xs text-muted-foreground">
+                            <span className="text-emerald-400 font-medium">Small Account Lotto</span> — A+ grade only, $0.20-$1.00 premiums, 5+ DTE, priority tickers (TSLA, SPY, nuclear, space, quantum, AI sectors). Optimized for 90%+ confidence plays.
+                          </div>
                         </div>
                       </div>
                     </TabsContent>
