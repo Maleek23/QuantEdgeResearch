@@ -51,6 +51,7 @@ import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
 import { HeroProductPanel } from "@/components/hero-product-panel";
 import { AutoLottoDashboard } from "@/components/auto-lotto-dashboard";
+import { ExpiryPatternInsights } from "@/components/expiry-pattern-insights";
 
 interface ExitAdvisory {
   positionId: string;
@@ -1072,6 +1073,7 @@ export default function AutomationsPage() {
         {/* Auto-Lotto Bot Dashboard */}
         <TabsContent value="auto-lotto" className="space-y-6">
           <AutoLottoDashboard />
+          <ExpiryPatternInsights />
         </TabsContent>
 
         {/* Settings Tab - Clean, Trade Desk inspired design */}
