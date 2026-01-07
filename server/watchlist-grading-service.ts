@@ -189,11 +189,15 @@ function calculateGrade(
       } else if (rsi2 < 25) {
         score += 12;
         signals.push(`RSI2 Oversold (${rsi2.toFixed(0)})`);
+      } else if (rsi2 > 95) {
+        // Extreme overbought - major penalty, likely pullback imminent
+        score -= 30;
+        signals.push(`RSI2 EXTREME Overbought (${rsi2.toFixed(0)}) - Pullback Risk`);
       } else if (rsi2 > 90) {
-        score -= 15;
+        score -= 22;
         signals.push(`RSI2 Extreme Overbought (${rsi2.toFixed(0)})`);
       } else if (rsi2 > 75) {
-        score -= 8;
+        score -= 12;
         signals.push(`RSI2 Overbought (${rsi2.toFixed(0)})`);
       }
     }
@@ -224,6 +228,24 @@ function calculateGrade(
       } else if (momentum20d < -10) {
         score -= 5;
         signals.push(`Weak 20D Trend (${momentum20d.toFixed(1)}%)`);
+      }
+    }
+    
+    // EXHAUSTION DETECTION: High momentum + extreme RSI = overextended, pullback likely
+    // This prevents grading stretched moves as "Strong"
+    if (rsi2 !== null && momentum5d !== null) {
+      if (rsi2 > 90 && momentum5d > 15) {
+        // Parabolic move - extremely stretched, high reversal risk
+        score -= 20;
+        signals.push(`EXHAUSTION: Parabolic Move (RSI2 ${rsi2.toFixed(0)} + ${momentum5d.toFixed(0)}% 5D)`);
+      } else if (rsi2 > 85 && momentum5d > 10) {
+        // Very stretched move
+        score -= 12;
+        signals.push(`Exhaustion Warning (RSI2 ${rsi2.toFixed(0)} + ${momentum5d.toFixed(0)}% 5D)`);
+      } else if (rsi2 < 10 && momentum5d < -15) {
+        // Panic selling - potential bounce
+        score += 10;
+        signals.push(`Capitulation Bounce Setup (RSI2 ${rsi2.toFixed(0)} + ${momentum5d.toFixed(0)}% 5D)`);
       }
     }
   } catch (e) {
