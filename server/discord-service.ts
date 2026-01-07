@@ -1889,8 +1889,8 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
     const dateStr = nowCT.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     
     // Filter to OPTIONS ONLY with any confidence - no crypto, no stocks
-    // SMALL ACCOUNT FOCUS: Prioritize affordable premiums ($2 or less)
-    const MAX_AFFORDABLE_PREMIUM = 2.00; // $2.00 max for small accounts ($300 budget, $60 max per position)
+    // SMALL ACCOUNT FOCUS: Prioritize cheap lottery premiums ($1 or less)
+    const MAX_AFFORDABLE_PREMIUM = 1.00; // $1.00 max for true lotto plays ($300 budget)
     
     const allOptions = ideas
       .filter(i => 
