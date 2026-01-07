@@ -8,7 +8,18 @@ import { formatInTimeZone } from "date-fns-tz";
 import { TradeIdea, PaperPortfolio, InsertTradeIdea, AutoLottoPreferences } from "@shared/schema";
 import { isUSMarketOpen, isCMEMarketOpen, normalizeDateString } from "@shared/market-calendar";
 import { logger } from "./logger";
-import { getMarketContext, getEntryTiming, checkDynamicExit, checkDynamicExitEnhanced, MarketContext, ExitConfluenceData } from "./market-context-service";
+import { 
+  getMarketContext, 
+  getEntryTiming, 
+  checkDynamicExit, 
+  checkDynamicExitEnhanced, 
+  MarketContext, 
+  ExitConfluenceData,
+  shouldAllowSessionEntry,
+  checkUnifiedEntryGate,
+  getTradingSession,
+  type StrategyType
+} from "./market-context-service";
 import { getActiveFuturesContract, getFuturesPrice } from "./futures-data-service";
 import { getTopMovers } from "./market-scanner";
 import { 
@@ -2107,11 +2118,33 @@ async function executeImmediateTrade(
   portfolio: PaperPortfolio
 ): Promise<boolean> {
   try {
+    // 🎯 UNIFIED ENTRY GATE CHECK - Apply session/regime filters before execution
+    const entryGate = await checkUnifiedEntryGate('lotto', decision.confidence);
+    if (!entryGate.allowed) {
+      logger.info(`🤖 [BOT] ⛔ UNIFIED GATE BLOCKED: ${opp.symbol} - ${entryGate.reason}`);
+      return false;
+    }
+    
+    // Apply adjusted confidence from unified gate
+    const adjustedConfidence = entryGate.adjustedConfidence;
+    if (adjustedConfidence !== decision.confidence) {
+      logger.info(`🤖 [BOT] 📊 Confidence adjusted: ${decision.confidence.toFixed(0)}% → ${adjustedConfidence.toFixed(0)}% (session/regime)`);
+    }
+    
+    // Apply minimum threshold after adjustments
+    const MIN_ADJUSTED_CONFIDENCE = 65; // Must still be B-grade after adjustments
+    if (adjustedConfidence < MIN_ADJUSTED_CONFIDENCE) {
+      logger.info(`🤖 [BOT] ⛔ CONFIDENCE TOO LOW after adjustment: ${adjustedConfidence.toFixed(0)}% < ${MIN_ADJUSTED_CONFIDENCE}%`);
+      return false;
+    }
+    
     logger.info(`🤖 [BOT] 🟢 IMMEDIATE BUYING ${opp.symbol} ${opp.optionType.toUpperCase()} $${opp.strike} @ $${opp.price.toFixed(2)}`);
     logger.info(`🤖 [BOT] 📊 REASON: ${decision.reason}`);
-    logger.info(`🤖 [BOT] 📊 CONFIDENCE: ${decision.confidence.toFixed(0)}%`);
+    logger.info(`🤖 [BOT] 📊 CONFIDENCE: ${adjustedConfidence.toFixed(0)}% (adjusted from ${decision.confidence.toFixed(0)}%)`);
     
-    const ideaData = createTradeIdea(opp, decision);
+    // Use adjusted confidence for the trade idea
+    const adjustedDecision = { ...decision, confidence: adjustedConfidence };
+    const ideaData = createTradeIdea(opp, adjustedDecision);
     
     // 🛑 DEDUPLICATION CHECK
     const existingSimilar = await storage.findSimilarTradeIdea(
@@ -2211,6 +2244,16 @@ export async function runAutonomousBotScan(): Promise<void> {
     
     logger.info(`🤖 [BOT] ========== AUTONOMOUS SCAN STARTED ==========`);
     logger.debug(`🤖 [BOT] Prefs: ${prefs.riskTolerance} risk, max ${prefs.maxConcurrentTrades} positions, $${prefs.maxPositionSize} max size`);
+    
+    // 🎯 SESSION GATING - Check if current session is favorable for lotto trading
+    const sessionCheck = shouldAllowSessionEntry('lotto');
+    const currentSession = getTradingSession();
+    logger.info(`🤖 [BOT] Session: ${currentSession} | Allowed: ${sessionCheck.allowed} | Multiplier: ${sessionCheck.confidenceMultiplier.toFixed(2)}x`);
+    
+    if (!sessionCheck.allowed) {
+      logger.info(`🤖 [BOT] ⛔ SESSION GATE: ${sessionCheck.reason}`);
+      return;
+    }
     
     // 📊 MARKET CONTEXT ANALYSIS - Check overall market conditions before trading
     const marketContext = await getMarketContext();
@@ -2678,6 +2721,13 @@ export async function runAutonomousBotScan(): Promise<void> {
 export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
   try {
     logger.info(`🎰 [LOTTO-EXEC] Attempting to execute: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} @ $${idea.entryPrice}`);
+    
+    // 🎯 UNIFIED ENTRY GATE - Check session/regime/exhaustion before execution
+    const entryGate = await checkUnifiedEntryGate('lotto', idea.confidenceScore || 70);
+    if (!entryGate.allowed) {
+      logger.info(`🎰 [LOTTO-EXEC] ⛔ UNIFIED GATE BLOCKED ${idea.symbol}: ${entryGate.reason}`);
+      return false;
+    }
     
     if (idea.assetType === 'option') {
       if (!idea.strikePrice || !idea.expiryDate || !idea.optionType) {

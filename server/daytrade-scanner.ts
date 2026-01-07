@@ -1,4 +1,5 @@
 import { logger } from "./logger";
+import { shouldAllowSessionEntry, getTradingSession, checkUnifiedEntryGate } from "./market-context-service";
 
 export interface DayTradeOpportunity {
   symbol: string;
@@ -308,6 +309,17 @@ async function analyzeTicker(symbol: string): Promise<DayTradeOpportunity | null
 }
 
 export async function getDayTradeOpportunities(limit: number = 15): Promise<DayTradeOpportunity[]> {
+  // 🎯 SESSION GATING - Check if current session is favorable for day trading
+  const sessionCheck = shouldAllowSessionEntry('daytrade');
+  const currentSession = getTradingSession();
+  logger.info(`[DAYTRADE] Session: ${currentSession} | Allowed: ${sessionCheck.allowed} | Confidence multiplier: ${sessionCheck.confidenceMultiplier.toFixed(2)}x`);
+  
+  // 🛑 BLOCK: If session is not allowed for day trading, return empty array
+  if (!sessionCheck.allowed) {
+    logger.info(`[DAYTRADE] ⛔ SESSION BLOCKED: ${sessionCheck.reason}`);
+    return []; // Don't scan during unfavorable sessions
+  }
+  
   logger.info(`[DAYTRADE] Scanning ${DAYTRADE_TICKERS.length} tickers for day trade setups...`);
   
   const opportunities: DayTradeOpportunity[] = [];
@@ -319,7 +331,23 @@ export async function getDayTradeOpportunities(limit: number = 15): Promise<DayT
     
     for (const result of results) {
       if (result) {
-        opportunities.push(result);
+        // 🎯 APPLY SESSION CONFIDENCE MULTIPLIER - boost/reduce based on session quality
+        const adjustedConfidence = Math.round(result.confidence * sessionCheck.confidenceMultiplier);
+        
+        // 🎯 UNIFIED ENTRY GATE - Check regime, exhaustion, and session factors
+        const entryGate = await checkUnifiedEntryGate('daytrade', adjustedConfidence);
+        if (!entryGate.allowed) {
+          logger.debug(`[DAYTRADE] ⛔ GATE BLOCKED ${result.symbol}: ${entryGate.reason}`);
+          continue; // Skip this opportunity
+        }
+        
+        // Use the final adjusted confidence from unified gate
+        opportunities.push({
+          ...result,
+          confidence: entryGate.adjustedConfidence,
+          // Keep original ATR-based stops/targets from analyzeTicker (already ATR-adjusted)
+          // No further modification needed - analyzeTicker already calculates proper ATR-based levels
+        });
       }
     }
     
@@ -332,7 +360,7 @@ export async function getDayTradeOpportunities(limit: number = 15): Promise<DayT
   
   const topOpportunities = opportunities.slice(0, limit);
   
-  logger.info(`[DAYTRADE] Found ${opportunities.length} setups, returning top ${topOpportunities.length}`);
+  logger.info(`[DAYTRADE] Found ${opportunities.length} setups, returning top ${topOpportunities.length} (session multiplier: ${sessionCheck.confidenceMultiplier.toFixed(2)}x)`);
   
   return topOpportunities;
 }

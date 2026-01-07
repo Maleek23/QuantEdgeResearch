@@ -4,6 +4,7 @@ import { generateTradeIdeas, validateTradeRisk } from "./ai-service";
 import { shouldBlockSymbol } from "./earnings-service";
 import { enrichOptionIdea } from "./options-enricher";
 import { validateTradeWithChart } from "./chart-analysis";
+import { getMarketContext, getTradingSession, type TradingSession } from "./market-context-service";
 
 // Penny stock tickers to emphasize during evening "Tomorrow's Playbook" sessions
 const PENNY_STOCK_TICKERS = [
@@ -174,6 +175,12 @@ class AutoIdeaGenerator {
 
     try {
       const nowCT = new Date(this.lastRunTime.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+      
+      // 🎯 REGIME CONTEXT LOGGING - Track market conditions for win rate analysis
+      const currentSession = getTradingSession();
+      const regimeData = await getMarketContext();
+      logger.info(`📊 [REGIME] Session: ${currentSession} | Regime: ${regimeData.regime} | Sentiment: ${regimeData.riskSentiment} | Score: ${regimeData.score}`);
+      logger.info(`📊 [REGIME] SPY: ${regimeData.spyData ? `${regimeData.spyData.change.toFixed(1)}%, Vol ${regimeData.spyData.relativeVolume.toFixed(1)}x` : 'N/A'} | VIX: ${regimeData.vixLevel?.toFixed(1) || 'N/A'}`);
       
       // 🌙 TOMORROW'S PLAYBOOK: Evening session for next-day trading
       const sessionLabel = isEveningSession ? "🌙 [TOMORROW'S PLAYBOOK]" : "🎯 [AUTO-GEN]";

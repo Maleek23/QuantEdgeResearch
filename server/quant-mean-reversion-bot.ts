@@ -9,6 +9,11 @@
 import { logger } from './logger';
 import { storage } from './storage';
 import type { InsertTradeIdea } from '@shared/schema';
+import { 
+  shouldAllowSessionEntry, 
+  checkUnifiedEntryGate,
+  getTradingSession
+} from './market-context-service';
 
 // Configuration based on performance analysis - OPTIMIZED FOR VOLUME + WIN RATE
 const LIQUID_TICKERS = [
@@ -372,11 +377,30 @@ async function scanForSignals(): Promise<RSI2Signal[]> {
  */
 async function executeTrade(signal: RSI2Signal): Promise<boolean> {
   try {
+    // 🎯 UNIFIED ENTRY GATE - Final check before execution
+    const entryGate = await checkUnifiedEntryGate('mean_reversion', signal.confidence);
+    if (!entryGate.allowed) {
+      logger.info(`[QUANT-BOT] ⛔ GATE BLOCKED ${signal.symbol}: ${entryGate.reason}`);
+      return false;
+    }
+    
+    // Use adjusted confidence from gate
+    const adjustedConfidence = entryGate.adjustedConfidence;
+    
+    // 🎯 USE FIXED MEAN-REVERSION LEVELS - proven profitable from historical analysis
+    // Mean reversion uses fixed percentages because the strategy targets quick reversals
     const targetMultiplier = signal.direction === 'long' ? (1 + PROFIT_TARGET_PCT) : (1 - PROFIT_TARGET_PCT);
     const stopMultiplier = signal.direction === 'long' ? (1 - STOP_LOSS_PCT) : (1 + STOP_LOSS_PCT);
     
     const targetPrice = signal.currentPrice * targetMultiplier;
     const stopLoss = signal.currentPrice * stopMultiplier;
+    const riskRewardRatio = PROFIT_TARGET_PCT / STOP_LOSS_PCT;
+    
+    logger.info(`[QUANT-BOT] 📊 Mean Reversion Levels: Entry $${signal.currentPrice.toFixed(2)} | Target $${targetPrice.toFixed(2)} (+${(PROFIT_TARGET_PCT*100).toFixed(0)}%) | Stop $${stopLoss.toFixed(2)} (-${(STOP_LOSS_PCT*100).toFixed(0)}%)`);
+    
+    // Calculate percentage moves for display
+    const targetPct = Math.abs((targetPrice - signal.currentPrice) / signal.currentPrice) * 100;
+    const stopPct = Math.abs((stopLoss - signal.currentPrice) / signal.currentPrice) * 100;
     
     const ideaData: InsertTradeIdea = {
       symbol: signal.symbol,
@@ -385,21 +409,22 @@ async function executeTrade(signal: RSI2Signal): Promise<boolean> {
       entryPrice: signal.currentPrice,
       targetPrice,
       stopLoss,
-      riskRewardRatio: PROFIT_TARGET_PCT / STOP_LOSS_PCT,
-      confidenceScore: signal.confidence,
+      riskRewardRatio: riskRewardRatio, // ATR-based R:R
+      confidenceScore: adjustedConfidence, // Use adjusted confidence
       qualitySignals: signal.signals,
-      probabilityBand: signal.confidence >= 80 ? 'A' : signal.confidence >= 70 ? 'B' : 'C',
+      probabilityBand: adjustedConfidence >= 80 ? 'A' : adjustedConfidence >= 70 ? 'B' : 'C',
       holdingPeriod: 'day',
       catalyst: `RSI(2) Mean Reversion: ${signal.rsi2.toFixed(1)}`,
       analysis: `📊 QUANT MEAN-REVERSION BOT\n\n` +
         `${signal.symbol} - ${signal.direction.toUpperCase()}\n\n` +
-        `Strategy: RSI(2) Mean Reversion\n` +
+        `Strategy: RSI(2) Mean Reversion (ATR-Adjusted)\n` +
         `RSI(2): ${signal.rsi2.toFixed(1)} (${signal.rsi2 < 50 ? 'Oversold' : 'Overbought'})\n\n` +
         `Entry: $${signal.currentPrice.toFixed(2)}\n` +
-        `Target: $${targetPrice.toFixed(2)} (+${(PROFIT_TARGET_PCT * 100).toFixed(0)}%)\n` +
-        `Stop: $${stopLoss.toFixed(2)} (-${(STOP_LOSS_PCT * 100).toFixed(0)}%)\n\n` +
+        `Target: $${targetPrice.toFixed(2)} (+${targetPct.toFixed(1)}%)\n` +
+        `Stop: $${stopLoss.toFixed(2)} (-${stopPct.toFixed(1)}%)\n` +
+        `R:R: ${riskRewardRatio.toFixed(2)}\n\n` +
         `Signals: ${signal.signals.join(', ')}\n\n` +
-        `⚡ Proven +$4.12 expectancy per trade\n` +
+        `⚡ ATR-normalized risk bands for volatility-adjusted exits\n` +
         `🎯 Focus: Quick mean reversion plays`,
       sessionContext: 'Quant Bot',
       timestamp: new Date().toISOString(),
@@ -444,6 +469,16 @@ export async function runQuantBotScan(): Promise<void> {
     return;
   }
   
+  // 🎯 SESSION GATING - Check if current session is favorable for mean reversion
+  const sessionCheck = shouldAllowSessionEntry('mean_reversion');
+  const currentSession = getTradingSession();
+  logger.info(`[QUANT-BOT] Session: ${currentSession} | Allowed: ${sessionCheck.allowed} | Multiplier: ${sessionCheck.confidenceMultiplier.toFixed(2)}x`);
+  
+  if (!sessionCheck.allowed) {
+    logger.info(`[QUANT-BOT] ⛔ SESSION GATE: ${sessionCheck.reason}`);
+    return;
+  }
+  
   logger.info('[QUANT-BOT] Starting RSI(2) mean reversion scan...');
   botStatus.lastScan = new Date().toISOString();
   
@@ -458,11 +493,25 @@ export async function runQuantBotScan(): Promise<void> {
     logger.info(`[QUANT-BOT] Found ${signals.length} potential signals`);
     
     // Execute best signal only (conservative approach)
+    // 🎯 Apply session confidence multiplier
     const bestSignal = signals[0];
-    if (bestSignal.confidence >= 70) {
-      await executeTrade(bestSignal);
+    const sessionAdjustedConfidence = Math.round(bestSignal.confidence * sessionCheck.confidenceMultiplier);
+    logger.info(`[QUANT-BOT] Best signal: ${bestSignal.symbol} confidence ${bestSignal.confidence}% → ${sessionAdjustedConfidence}% (session adjusted)`);
+    
+    // 🎯 UNIFIED ENTRY GATE - Check before execution
+    const entryGate = await checkUnifiedEntryGate('mean_reversion', sessionAdjustedConfidence);
+    if (!entryGate.allowed) {
+      logger.info(`[QUANT-BOT] ⛔ UNIFIED GATE BLOCKED ${bestSignal.symbol}: ${entryGate.reason}`);
+      return;
+    }
+    
+    const finalConfidence = entryGate.adjustedConfidence;
+    logger.info(`[QUANT-BOT] Final confidence after unified gate: ${finalConfidence}%`);
+    
+    if (finalConfidence >= 70) {
+      await executeTrade({ ...bestSignal, confidence: finalConfidence });
     } else {
-      logger.info(`[QUANT-BOT] Best signal confidence (${bestSignal.confidence}%) below threshold`);
+      logger.info(`[QUANT-BOT] Unified gate adjusted confidence (${finalConfidence}%) below threshold - skipping`);
     }
   } catch (error) {
     logger.error('[QUANT-BOT] Scan error:', error);

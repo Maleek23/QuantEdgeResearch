@@ -262,9 +262,9 @@ export interface ExitConfluenceData {
 }
 
 // Time-of-day trading session awareness
-type TradingSession = 'pre_market' | 'opening_drive' | 'mid_morning' | 'lunch_lull' | 'afternoon' | 'power_hour' | 'after_hours';
+export type TradingSession = 'pre_market' | 'opening_drive' | 'mid_morning' | 'lunch_lull' | 'afternoon' | 'power_hour' | 'after_hours';
 
-function getTradingSession(): TradingSession {
+export function getTradingSession(): TradingSession {
   const now = new Date();
   const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
   const hour = etTime.getHours();
@@ -1055,5 +1055,344 @@ export function checkDynamicExitEnhanced(
     confluenceScore: confluence.holdScore,
     holdSignals: confluence.holdSignals,
     exitSignals: confluence.exitSignals,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🎯 WIN RATE IMPROVEMENT: SESSION-BASED ENTRY GATING
+// Prevents entries during unfavorable trading sessions
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface SessionEntryResult {
+  allowed: boolean;
+  session: TradingSession;
+  reason: string;
+  confidenceMultiplier: number; // 1.0 = normal, <1 = reduce confidence, >1 = boost
+}
+
+export type StrategyType = 'lotto' | 'daytrade' | 'swing' | 'mean_reversion' | 'momentum';
+
+// Strategy-specific session preferences
+const STRATEGY_SESSION_RULES: Record<StrategyType, {
+  allowedSessions: TradingSession[];
+  preferredSessions: TradingSession[];
+  blockedSessions: TradingSession[];
+}> = {
+  lotto: {
+    allowedSessions: ['opening_drive', 'mid_morning', 'afternoon', 'power_hour'],
+    preferredSessions: ['opening_drive', 'power_hour'],
+    blockedSessions: ['lunch_lull'], // Low volume kills lottos
+  },
+  daytrade: {
+    allowedSessions: ['opening_drive', 'mid_morning', 'afternoon', 'power_hour'],
+    preferredSessions: ['opening_drive', 'mid_morning'],
+    blockedSessions: ['lunch_lull', 'after_hours'],
+  },
+  swing: {
+    allowedSessions: ['opening_drive', 'mid_morning', 'lunch_lull', 'afternoon', 'power_hour'],
+    preferredSessions: ['mid_morning', 'afternoon'],
+    blockedSessions: [], // Swings are less session-sensitive
+  },
+  mean_reversion: {
+    allowedSessions: ['opening_drive', 'mid_morning', 'afternoon', 'power_hour'],
+    preferredSessions: ['opening_drive'], // Best for catching extremes
+    blockedSessions: ['lunch_lull'], // Chop kills mean reversion
+  },
+  momentum: {
+    allowedSessions: ['opening_drive', 'mid_morning', 'power_hour'],
+    preferredSessions: ['opening_drive', 'power_hour'],
+    blockedSessions: ['lunch_lull', 'after_hours'],
+  },
+};
+
+export function shouldAllowSessionEntry(
+  strategy: StrategyType,
+  overrideAllow: boolean = false
+): SessionEntryResult {
+  const session = getTradingSession();
+  const rules = STRATEGY_SESSION_RULES[strategy];
+  
+  // Override allows entry in any session (for high-conviction plays)
+  if (overrideAllow) {
+    return {
+      allowed: true,
+      session,
+      reason: `Override: Entry allowed in ${session} session`,
+      confidenceMultiplier: session === 'lunch_lull' ? 0.8 : 1.0,
+    };
+  }
+  
+  // Check blocked sessions first
+  if (rules.blockedSessions.includes(session)) {
+    return {
+      allowed: false,
+      session,
+      reason: `⛔ ${strategy.toUpperCase()} blocked in ${session} - low win rate expected`,
+      confidenceMultiplier: 0,
+    };
+  }
+  
+  // Check if session is allowed
+  if (!rules.allowedSessions.includes(session)) {
+    return {
+      allowed: false,
+      session,
+      reason: `⛔ ${strategy.toUpperCase()} not allowed in ${session}`,
+      confidenceMultiplier: 0,
+    };
+  }
+  
+  // Preferred sessions get confidence boost
+  if (rules.preferredSessions.includes(session)) {
+    return {
+      allowed: true,
+      session,
+      reason: `✅ ${session} is preferred for ${strategy} - boosted confidence`,
+      confidenceMultiplier: 1.15,
+    };
+  }
+  
+  // Regular allowed session
+  return {
+    allowed: true,
+    session,
+    reason: `✅ ${session} is acceptable for ${strategy}`,
+    confidenceMultiplier: 1.0,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 📊 WIN RATE IMPROVEMENT: ATR-NORMALIZED RISK BANDS
+// Replaces fixed-point stops with volatility-adjusted levels
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface AtrRiskBands {
+  atr: number;
+  stopDistance: number;
+  targetDistance: number;
+  stopPrice: number;
+  targetPrice: number;
+  riskRewardRatio: number;
+  positionSizeForRisk: number; // How many shares/contracts for given $ risk
+}
+
+// ATR multipliers by strategy (tuned for win rate)
+const STRATEGY_ATR_MULTIPLIERS: Record<StrategyType, { stop: number; target: number }> = {
+  lotto: { stop: 1.2, target: 2.4 }, // Tighter stops, 2:1 target
+  daytrade: { stop: 0.7, target: 1.4 }, // Very tight for intraday
+  swing: { stop: 2.0, target: 4.0 }, // Wider for multi-day holds
+  mean_reversion: { stop: 1.0, target: 2.0 }, // Standard for reversals
+  momentum: { stop: 1.5, target: 3.0 }, // Let winners run
+};
+
+export function calculateAtrRiskBands(
+  entryPrice: number,
+  atr: number,
+  direction: 'long' | 'short',
+  strategy: StrategyType,
+  maxRiskDollars: number = 50
+): AtrRiskBands {
+  const multipliers = STRATEGY_ATR_MULTIPLIERS[strategy];
+  
+  const stopDistance = atr * multipliers.stop;
+  const targetDistance = atr * multipliers.target;
+  
+  let stopPrice: number;
+  let targetPrice: number;
+  
+  if (direction === 'long') {
+    stopPrice = entryPrice - stopDistance;
+    targetPrice = entryPrice + targetDistance;
+  } else {
+    stopPrice = entryPrice + stopDistance;
+    targetPrice = entryPrice - targetDistance;
+  }
+  
+  const riskRewardRatio = targetDistance / stopDistance;
+  const positionSizeForRisk = Math.floor(maxRiskDollars / stopDistance);
+  
+  return {
+    atr,
+    stopDistance,
+    targetDistance,
+    stopPrice: Number(stopPrice.toFixed(2)),
+    targetPrice: Number(targetPrice.toFixed(2)),
+    riskRewardRatio: Number(riskRewardRatio.toFixed(2)),
+    positionSizeForRisk: Math.max(1, positionSizeForRisk),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🚫 WIN RATE IMPROVEMENT: EXIT INTELLIGENCE ENTRY VETO
+// Blocks entries on exhausted moves by simulating exit intelligence
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface EntryVetoResult {
+  blocked: boolean;
+  reason: string;
+  exhaustionScore: number; // 0-100, higher = more exhausted
+  signals: string[];
+}
+
+export async function shouldBlockEntry(
+  symbol: string,
+  direction: 'long' | 'short',
+  entryPrice: number,
+  targetPrice: number,
+  marketContext: MarketContext
+): Promise<EntryVetoResult> {
+  const signals: string[] = [];
+  let exhaustionScore = 0;
+  
+  // Check 1: Counter-trend entries in strong trends
+  if (marketContext.regime === 'trending_up' && direction === 'short') {
+    exhaustionScore += 30;
+    signals.push('Counter-trend SHORT in uptrend');
+  }
+  if (marketContext.regime === 'trending_down' && direction === 'long') {
+    exhaustionScore += 30;
+    signals.push('Counter-trend LONG in downtrend');
+  }
+  
+  // Check 2: Volatile regime = higher exhaustion risk
+  if (marketContext.regime === 'volatile') {
+    exhaustionScore += 20;
+    signals.push('Volatile market regime');
+  }
+  
+  // Check 3: Low volume = thin market, harder to exit
+  if (marketContext.spyData && marketContext.spyData.relativeVolume < 0.8) {
+    exhaustionScore += 15;
+    signals.push(`Low market volume (${marketContext.spyData.relativeVolume.toFixed(1)}x)`);
+  }
+  
+  // Check 4: High VIX = elevated fear, mean reversion likely
+  if (marketContext.vixLevel && marketContext.vixLevel > 25) {
+    if (direction === 'long') {
+      exhaustionScore += 15;
+      signals.push(`High VIX (${marketContext.vixLevel.toFixed(1)}) - fear elevated`);
+    }
+  }
+  
+  // Check 5: Extended move already in progress
+  if (marketContext.spyData) {
+    const spyMove = Math.abs(marketContext.spyData.change);
+    if (spyMove > 1.5) {
+      exhaustionScore += 20;
+      signals.push(`Large SPY move (${marketContext.spyData.change.toFixed(1)}%) - may be extended`);
+    }
+  }
+  
+  // Check 6: Session-based exhaustion
+  const session = getTradingSession();
+  if (session === 'lunch_lull') {
+    exhaustionScore += 15;
+    signals.push('Lunch lull session - moves often stall');
+  }
+  if (session === 'power_hour') {
+    // Power hour can be good but also exhausting for existing trends
+    exhaustionScore += 5;
+    signals.push('Power hour - late entry risk');
+  }
+  
+  // Decision: Block if exhaustion score is too high
+  const blocked = exhaustionScore >= 50;
+  
+  return {
+    blocked,
+    reason: blocked 
+      ? `⛔ ENTRY BLOCKED: Exhaustion score ${exhaustionScore}/100 - ${signals.slice(0, 2).join(', ')}`
+      : `✅ Entry allowed: Exhaustion score ${exhaustionScore}/100`,
+    exhaustionScore,
+    signals,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🎯 UNIFIED ENTRY GATE: Combines all win-rate checks
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface UnifiedEntryGate {
+  allowed: boolean;
+  reasons: string[];
+  adjustedConfidence: number; // Original confidence * multipliers
+  sessionResult: SessionEntryResult;
+  vetoResult: EntryVetoResult;
+  marketContext: MarketContext;
+}
+
+export async function checkUnifiedEntryGate(
+  symbol: string,
+  direction: 'long' | 'short',
+  entryPrice: number,
+  targetPrice: number,
+  originalConfidence: number,
+  strategy: StrategyType,
+  overrideSession: boolean = false
+): Promise<UnifiedEntryGate> {
+  const reasons: string[] = [];
+  let confidenceMultiplier = 1.0;
+  
+  // Get market context
+  const marketContext = await getMarketContext();
+  
+  // Check 1: Market conditions
+  if (!marketContext.shouldTrade) {
+    return {
+      allowed: false,
+      reasons: ['Market conditions unfavorable', ...marketContext.reasons],
+      adjustedConfidence: 0,
+      sessionResult: shouldAllowSessionEntry(strategy, overrideSession),
+      vetoResult: { blocked: true, reason: 'Market gate failed', exhaustionScore: 100, signals: marketContext.reasons },
+      marketContext,
+    };
+  }
+  reasons.push(`Market: ${marketContext.regime}, score ${marketContext.score}`);
+  
+  // Check 2: Session gating
+  const sessionResult = shouldAllowSessionEntry(strategy, overrideSession);
+  if (!sessionResult.allowed) {
+    return {
+      allowed: false,
+      reasons: [sessionResult.reason],
+      adjustedConfidence: 0,
+      sessionResult,
+      vetoResult: { blocked: true, reason: sessionResult.reason, exhaustionScore: 100, signals: [sessionResult.reason] },
+      marketContext,
+    };
+  }
+  confidenceMultiplier *= sessionResult.confidenceMultiplier;
+  reasons.push(sessionResult.reason);
+  
+  // Check 3: Exit intelligence veto
+  const vetoResult = await shouldBlockEntry(symbol, direction, entryPrice, targetPrice, marketContext);
+  if (vetoResult.blocked) {
+    return {
+      allowed: false,
+      reasons: [vetoResult.reason, ...vetoResult.signals],
+      adjustedConfidence: 0,
+      sessionResult,
+      vetoResult,
+      marketContext,
+    };
+  }
+  
+  // Apply exhaustion-based confidence reduction
+  if (vetoResult.exhaustionScore > 30) {
+    const reduction = (vetoResult.exhaustionScore - 30) / 100; // 0-0.2 reduction
+    confidenceMultiplier *= (1 - reduction);
+    reasons.push(`Exhaustion adj: -${(reduction * 100).toFixed(0)}%`);
+  }
+  
+  const adjustedConfidence = Math.round(originalConfidence * confidenceMultiplier);
+  reasons.push(`Confidence: ${originalConfidence}% → ${adjustedConfidence}%`);
+  
+  return {
+    allowed: true,
+    reasons,
+    adjustedConfidence,
+    sessionResult,
+    vetoResult,
+    marketContext,
   };
 }
