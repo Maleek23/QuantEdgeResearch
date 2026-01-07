@@ -57,10 +57,11 @@ export interface PortfolioValue {
 }
 
 // 🎯 SMART POSITION SIZING LIMITS
-const MAX_PERCENT_PER_TRADE = 0.10; // 10% of portfolio per trade (bigger positions)
-const MAX_PERCENT_PER_SYMBOL = 0.10; // 10% max exposure per symbol
-const MAX_DOLLAR_PER_TRADE = 800; // Hard cap $800 per trade (allows 3-4 contracts)
-const MAX_CONTRACTS_PER_TRADE = 5; // Target 3-4 contracts, max 5
+// These limits ensure trades never exceed available capital
+const MAX_PERCENT_PER_TRADE = 0.20; // 20% of CURRENT cash per trade (small account friendly)
+const MAX_PERCENT_PER_SYMBOL = 0.25; // 25% max exposure per symbol
+const MAX_DOLLAR_PER_TRADE = 60; // Hard cap $60 per trade for small accounts (matching Elite Setup $60 max)
+const MAX_CONTRACTS_PER_TRADE = 3; // Max 3 contracts per trade (small account friendly)
 const ONE_POSITION_PER_SYMBOL = true; // Only allow ONE open position per underlying symbol
 
 // 📊 DTE-AWARE EXIT STRATEGY - Smarter stops for options with time value
@@ -284,17 +285,53 @@ export async function executeTradeIdea(
 
     if (tradeIdea.assetType === 'option') {
       // 🎯 SMART POSITION SIZING: Use the MINIMUM of:
-      // 1. 5% of total portfolio value
-      // 2. Hard cap of $500 per trade
-      // 3. Available cash
-      const percentBasedMax = portfolio.startingCapital * MAX_PERCENT_PER_TRADE;
+      // 1. 20% of CURRENT cash balance (not starting capital)
+      // 2. Hard cap of $60 per trade (small account friendly)
+      // 3. Available cash balance
+      const percentBasedMax = portfolio.cashBalance * MAX_PERCENT_PER_TRADE;
       const maxAllowedSpend = Math.min(percentBasedMax, MAX_DOLLAR_PER_TRADE, portfolio.cashBalance);
       
       const contractCost = currentPrice * 100;
-      quantity = Math.max(1, Math.min(MAX_CONTRACTS_PER_TRADE, Math.floor(maxAllowedSpend / contractCost)));
+      
+      // 🛡️ CRITICAL: Verify we can afford at least 1 contract
+      if (contractCost > portfolio.cashBalance) {
+        logger.warn(`🛑 [POSITION-SIZE] Cannot afford 1 contract of ${tradeIdea.symbol} @ $${currentPrice.toFixed(2)} (cost: $${contractCost.toFixed(0)}, balance: $${portfolio.cashBalance.toFixed(2)})`);
+        return { success: false, error: `Insufficient cash for ${tradeIdea.symbol}. Need $${contractCost.toFixed(0)}, have $${portfolio.cashBalance.toFixed(2)}` };
+      }
+      
+      // 🛡️ CRITICAL: Reject if 1 contract exceeds the spend limit (small account protection)
+      // This prevents buying expensive options that don't fit the account size
+      if (contractCost > maxAllowedSpend) {
+        logger.warn(`🛑 [POSITION-SIZE] Contract too expensive for account size: $${contractCost.toFixed(0)} > max allowed $${maxAllowedSpend.toFixed(0)} (${tradeIdea.symbol} @ $${currentPrice.toFixed(2)})`);
+        return { success: false, error: `Option premium too high for account. Cost: $${contractCost.toFixed(0)}, Max allowed: $${maxAllowedSpend.toFixed(0)}` };
+      }
+      
+      // 🛡️ Cap quantity to what we can actually afford within spend limit
+      const maxAffordable = Math.floor(portfolio.cashBalance / contractCost);
+      const maxBySpendLimit = Math.floor(maxAllowedSpend / contractCost);
+      // Only buy what fits within spend limit AND what we can afford - NO forcing to 1
+      quantity = Math.min(MAX_CONTRACTS_PER_TRADE, maxBySpendLimit, maxAffordable);
+      
+      // Safety: ensure at least 1 contract (should always pass given prior checks)
+      if (quantity < 1) {
+        logger.warn(`🛑 [POSITION-SIZE] Quantity calculation resulted in 0 contracts for ${tradeIdea.symbol}`);
+        return { success: false, error: `Cannot calculate valid position size for ${tradeIdea.symbol}` };
+      }
+      
       positionCost = quantity * contractCost;
       
-      logger.info(`📊 [POSITION-SIZE] ${tradeIdea.symbol}: ${quantity} contracts @ $${currentPrice.toFixed(2)} = $${positionCost.toFixed(0)} (${(positionCost / portfolio.startingCapital * 100).toFixed(1)}% of portfolio)`);
+      // 🛡️ FINAL CHECK: Reject if position cost exceeds cash OR spend limit
+      if (positionCost > portfolio.cashBalance) {
+        logger.warn(`🛑 [POSITION-SIZE] Position cost $${positionCost.toFixed(0)} exceeds cash $${portfolio.cashBalance.toFixed(2)}`);
+        return { success: false, error: `Position too large. Cost: $${positionCost.toFixed(0)}, Cash: $${portfolio.cashBalance.toFixed(2)}` };
+      }
+      
+      if (positionCost > maxAllowedSpend) {
+        logger.warn(`🛑 [POSITION-SIZE] Position cost $${positionCost.toFixed(0)} exceeds spend limit $${maxAllowedSpend.toFixed(0)}`);
+        return { success: false, error: `Position exceeds max allowed. Cost: $${positionCost.toFixed(0)}, Limit: $${maxAllowedSpend.toFixed(0)}` };
+      }
+      
+      logger.info(`📊 [POSITION-SIZE] ${tradeIdea.symbol}: ${quantity} contracts @ $${currentPrice.toFixed(2)} = $${positionCost.toFixed(0)} (${(positionCost / portfolio.cashBalance * 100).toFixed(1)}% of cash, limit: $${maxAllowedSpend.toFixed(0)})`);
     } else {
       const riskPerTrade = portfolio.riskPerTrade || 0.02;
       const riskAmount = portfolio.cashBalance * riskPerTrade;
