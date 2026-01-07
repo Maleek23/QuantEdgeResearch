@@ -277,9 +277,76 @@ function isApiQuotaExhausted(): boolean {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 🛡️ POST-LOSS COOLDOWN SYSTEM - Prevents re-entry on losing symbols
+// 🛡️ POST-EXIT COOLDOWN SYSTEM - Prevents repeated re-entry on ANY closed position
 // ═══════════════════════════════════════════════════════════════════════════
+const EXIT_COOLDOWN_MS = 15 * 60 * 1000; // 15 minute cooldown after ANY exit (win or loss)
 const LOSS_COOLDOWN_MS = 30 * 60 * 1000; // 30 minute cooldown after a loss
+
+// Track recently exited symbols to prevent infinite profit loops
+interface ExitCooldownEntry {
+  exitTime: number;
+  symbol: string;
+  optionType?: string;
+  strike?: number;
+  wasWin: boolean;
+}
+
+const exitCooldowns = new Map<string, ExitCooldownEntry>();
+
+/**
+ * Record any exit (win or loss) - triggers re-entry cooldown
+ */
+export function recordExitCooldown(symbol: string, optionType?: string, strike?: number, wasWin: boolean = true): void {
+  const key = `${symbol}_${optionType || ''}_${strike || ''}`;
+  exitCooldowns.set(key, {
+    exitTime: Date.now(),
+    symbol,
+    optionType,
+    strike,
+    wasWin
+  });
+  logger.info(`🛡️ [EXIT-COOLDOWN] ${symbol} ${optionType || ''} $${strike || ''} on 15min cooldown after ${wasWin ? 'WIN' : 'LOSS'}`);
+}
+
+/**
+ * Check if a symbol/option is on exit cooldown (prevents re-entry after any exit)
+ */
+function isOnExitCooldown(symbol: string, optionType?: string, strike?: number): { onCooldown: boolean; reason: string } {
+  const key = `${symbol}_${optionType || ''}_${strike || ''}`;
+  const entry = exitCooldowns.get(key);
+  
+  if (!entry) {
+    // Also check for same symbol with any strike (prevent same-direction re-entry)
+    const sameSymbolKey = `${symbol}_${optionType || ''}_`;
+    const entries = Array.from(exitCooldowns.entries());
+    for (const [k, v] of entries) {
+      if (k.startsWith(sameSymbolKey)) {
+        const timeSinceExit = Date.now() - v.exitTime;
+        if (timeSinceExit < EXIT_COOLDOWN_MS) {
+          const minutesRemaining = Math.ceil((EXIT_COOLDOWN_MS - timeSinceExit) / 60000);
+          return {
+            onCooldown: true,
+            reason: `${symbol} ${optionType} on ${minutesRemaining}min cooldown after recent ${v.wasWin ? 'WIN' : 'LOSS'} exit`
+          };
+        }
+      }
+    }
+    return { onCooldown: false, reason: '' };
+  }
+  
+  const timeSinceExit = Date.now() - entry.exitTime;
+  if (timeSinceExit < EXIT_COOLDOWN_MS) {
+    const minutesRemaining = Math.ceil((EXIT_COOLDOWN_MS - timeSinceExit) / 60000);
+    return {
+      onCooldown: true,
+      reason: `${symbol} ${optionType || ''} $${strike || ''} on ${minutesRemaining}min cooldown after ${entry.wasWin ? 'WIN' : 'LOSS'}`
+    };
+  }
+  
+  // Clean up expired entry
+  exitCooldowns.delete(key);
+  return { onCooldown: false, reason: '' };
+}
 // 🎯 PREMIUM TIERS - User said $1000 max, not $1.50!
 // For $300 account: $10.00 option = 1 contract @ $1000 total
 // This allows quality names like AMZN, NVDA, GOOGL which often have higher premiums
@@ -2553,6 +2620,13 @@ export async function runAutonomousBotScan(): Promise<void> {
           continue;
         }
         
+        // 🛡️ POST-EXIT COOLDOWN CHECK - Prevent immediate re-entry after any exit (win or loss)
+        const exitCooldownStatus = isOnExitCooldown(ticker, opp.optionType, opp.strike);
+        if (exitCooldownStatus.onCooldown) {
+          logger.info(`🛡️ [BOT] ${ticker}: ${exitCooldownStatus.reason}`);
+          continue;
+        }
+        
         // ═══════════════════════════════════════════════════════════════════
         // 📋 PRO TRADER CHECKLIST - What the best traders check every trade
         // ═══════════════════════════════════════════════════════════════════
@@ -3120,6 +3194,9 @@ export async function monitorLottoPositions(): Promise<void> {
               recordSymbolWin(pos.symbol);
             }
             
+            // 🛡️ Record exit cooldown to prevent immediate re-entry
+            recordExitCooldown(pos.symbol, pos.optionType || undefined, pos.strikePrice || undefined, pnl >= 0);
+            
             // Send Discord notification with Exit Intelligence context
             const isSmallAcct = await isSmallAccountPortfolioAsync(pos.portfolioId);
             
@@ -3218,6 +3295,9 @@ export async function monitorLottoPositions(): Promise<void> {
             recordSymbolWin(pos.symbol);
           }
           
+          // 🛡️ Record exit cooldown to prevent immediate re-entry
+          recordExitCooldown(pos.symbol, pos.optionType || undefined, pos.strikePrice || undefined, pnl >= 0);
+          
           // Send Discord notification for exit - route to QUANTFLOOR + OPTIONSTRADES
           logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
           const isSmallAcct = await isSmallAccountPortfolioAsync(pos.portfolioId);
@@ -3277,6 +3357,9 @@ export async function monitorLottoPositions(): Promise<void> {
         } else if (pnl > 0) {
           recordSymbolWin(pos.symbol);
         }
+        
+        // 🛡️ Record exit cooldown to prevent immediate re-entry
+        recordExitCooldown(pos.symbol, pos.optionType || undefined, pos.strikePrice || undefined, pnl >= 0);
         
         try {
           logger.info(`🤖 [BOT] 📱 Sending Discord EXIT notification for ${pos.symbol}...`);
