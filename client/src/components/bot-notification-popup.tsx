@@ -120,12 +120,18 @@ function NotificationCard({ notification, onDismiss }: NotificationCardProps) {
             {config.title}
           </span>
           {notification.portfolio === 'small_account' && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-300 font-medium">
+            <span 
+              className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-300 font-medium"
+              data-testid="badge-small-account"
+            >
               SMALL ACCT
             </span>
           )}
           {notification.confidence && notification.confidence >= 90 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/30 text-cyan-300 font-medium">
+            <span 
+              className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/30 text-cyan-300 font-medium"
+              data-testid="badge-a-plus"
+            >
               A+
             </span>
           )}

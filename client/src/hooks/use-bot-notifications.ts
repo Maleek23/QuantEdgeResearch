@@ -67,16 +67,19 @@ export function useBotNotifications(options: UseBotNotificationsOptions = {}) {
         }
       };
       
-      wsRef.current.onclose = () => {
+      wsRef.current.onclose = (event) => {
         setIsConnected(false);
         console.log('[BOT-WS] Disconnected');
         
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
+        // Only reconnect if not intentionally closed (code 1000) or component unmounting
+        if (event.code !== 1000 && event.code !== 1001) {
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+          }
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connect();
+          }, 5000);
         }
-        reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
-        }, 5000);
       };
       
       wsRef.current.onerror = (error) => {
