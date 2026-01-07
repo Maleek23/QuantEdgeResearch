@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
@@ -163,7 +165,8 @@ function KPICard({
   trend,
   sparkData,
   color = "cyan",
-  testId
+  testId,
+  onClick
 }: { 
   title: string;
   value: string;
@@ -174,6 +177,7 @@ function KPICard({
   sparkData?: number[];
   color?: "cyan" | "green" | "red" | "amber" | "purple";
   testId?: string;
+  onClick?: () => void;
 }) {
   const colorClasses = {
     cyan: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
@@ -192,7 +196,14 @@ function KPICard({
   };
 
   return (
-    <Card className="bg-slate-900/60 border-slate-700/50 overflow-hidden" data-testid={testId}>
+    <Card 
+      className={cn(
+        "bg-slate-900/60 border-slate-700/50 overflow-hidden",
+        onClick && "cursor-pointer hover:border-slate-500/50 hover:bg-slate-800/60 transition-all"
+      )} 
+      data-testid={testId}
+      onClick={onClick}
+    >
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-3">
           <div className={cn("p-2 rounded-lg border", colorClasses[color])}>
@@ -426,12 +437,16 @@ function TradeHistoryRow({ position }: { position: BotPosition }) {
   );
 }
 
+type PortfolioType = 'options' | 'futures' | 'crypto' | 'smallAccount';
+
 export function AutoLottoDashboard() {
   const { toast } = useToast();
   const [timeframe, setTimeframe] = useState("7d");
   const [assetFilter, setAssetFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeView, setActiveView] = useState("dashboard");
+  const [selectedPortfolio, setSelectedPortfolio] = useState<PortfolioType | null>(null);
+  const [portfolioTab, setPortfolioTab] = useState<'open' | 'closed' | 'all'>('all');
 
   const { data: botStatus, isLoading: statusLoading, refetch: refetchStatus } = useQuery<BotStatus>({
     queryKey: ["/api/auto-lotto-bot/status"],
@@ -598,6 +613,52 @@ export function AutoLottoDashboard() {
   );
   const sparkTrades = recentClosedByDay.map(d => d.stats.total);
 
+  // Get positions for selected portfolio
+  const getPortfolioPositions = (type: PortfolioType): BotPosition[] => {
+    switch (type) {
+      case 'options':
+        return (botData?.positions || []).map(p => ({ ...p, portfolioName: 'Options', botType: 'options' }));
+      case 'futures':
+        return (botData?.futuresPositions || []).map(p => ({ ...p, portfolioName: 'Futures', botType: 'futures' }));
+      case 'crypto':
+        return (botData?.cryptoPositions || []).map(p => ({ ...p, portfolioName: 'Crypto', botType: 'crypto' }));
+      case 'smallAccount':
+        return (botData?.smallAccountPositions || []).map(p => ({ ...p, portfolioName: 'Small Account', botType: 'lotto' }));
+      default:
+        return [];
+    }
+  };
+
+  const getPortfolioInfo = (type: PortfolioType) => {
+    switch (type) {
+      case 'options':
+        return { name: 'Options Portfolio', portfolio: botData?.portfolio, color: 'cyan' as const };
+      case 'futures':
+        return { name: 'Futures Portfolio', portfolio: botData?.futuresPortfolio, color: 'purple' as const };
+      case 'crypto':
+        return { name: 'Crypto Portfolio', portfolio: botData?.cryptoPortfolio, color: 'amber' as const };
+      case 'smallAccount':
+        return { name: 'Small Account Lotto', portfolio: botData?.smallAccountPortfolio, color: 'green' as const };
+      default:
+        return { name: '', portfolio: null, color: 'cyan' as const };
+    }
+  };
+
+  const selectedPositions = selectedPortfolio ? getPortfolioPositions(selectedPortfolio) : [];
+  const selectedInfo = selectedPortfolio ? getPortfolioInfo(selectedPortfolio) : null;
+  
+  const modalPositions = selectedPositions.filter(p => {
+    if (portfolioTab === 'open') return p.status === 'open';
+    if (portfolioTab === 'closed') return p.status === 'closed';
+    return true;
+  });
+
+  const openCount = selectedPositions.filter(p => p.status === 'open').length;
+  const closedCount = selectedPositions.filter(p => p.status === 'closed').length;
+  const portfolioTotalPnL = selectedPositions.reduce((sum, p) => 
+    sum + (p.status === 'closed' ? (p.realizedPnL || 0) : (p.unrealizedPnL || 0)), 0
+  );
+
   if (statusLoading) {
     return (
       <div className="space-y-6">
@@ -674,47 +735,51 @@ export function AutoLottoDashboard() {
         </div>
       </div>
 
-      {/* 4 Main Portfolio Bots Grid */}
+      {/* 4 Main Portfolio Bots Grid - Clickable */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="portfolio-grid">
         <KPICard 
           title="Options Portfolio"
           value={`$${botData?.portfolio?.totalValue?.toFixed(2) || '300.00'}`}
           change={`${botData?.portfolio?.totalPnL >= 0 ? '+' : ''}${botData?.portfolio?.totalPnL?.toFixed(2) || '0.00'}`}
-          changeLabel="Total P&L"
+          changeLabel="Click to view trades"
           trend={botData?.portfolio?.totalPnL >= 0 ? "up" : "down"}
           icon={Target}
           color="cyan"
           testId="kpi-options-portfolio"
+          onClick={() => { setSelectedPortfolio('options'); setPortfolioTab('all'); }}
         />
         <KPICard 
           title="Futures Portfolio"
           value={`$${botData?.futuresPortfolio?.totalValue?.toFixed(2) || '300.00'}`}
           change={`${botData?.futuresPortfolio?.totalPnL >= 0 ? '+' : ''}${botData?.futuresPortfolio?.totalPnL?.toFixed(2) || '0.00'}`}
-          changeLabel="Total P&L"
+          changeLabel="Click to view trades"
           trend={botData?.futuresPortfolio?.totalPnL >= 0 ? "up" : "down"}
           icon={TrendingUp}
           color="purple"
           testId="kpi-futures-portfolio"
+          onClick={() => { setSelectedPortfolio('futures'); setPortfolioTab('all'); }}
         />
         <KPICard 
           title="Crypto Portfolio"
           value={`$${botData?.cryptoPortfolio?.totalValue?.toFixed(2) || '300.00'}`}
           change={`${botData?.cryptoPortfolio?.totalPnL >= 0 ? '+' : ''}${botData?.cryptoPortfolio?.totalPnL?.toFixed(2) || '0.00'}`}
-          changeLabel="Total P&L"
+          changeLabel="Click to view trades"
           trend={botData?.cryptoPortfolio?.totalPnL >= 0 ? "up" : "down"}
           icon={DollarSign}
           color="amber"
           testId="kpi-crypto-portfolio"
+          onClick={() => { setSelectedPortfolio('crypto'); setPortfolioTab('all'); }}
         />
         <KPICard 
           title="Small Account Lotto"
           value={`$${botData?.smallAccountPortfolio?.totalValue?.toFixed(2) || '150.00'}`}
           change={`${botData?.smallAccountPortfolio?.totalPnL >= 0 ? '+' : ''}${botData?.smallAccountPortfolio?.totalPnL?.toFixed(2) || '0.00'}`}
-          changeLabel="Total P&L"
+          changeLabel="Click to view trades"
           trend={botData?.smallAccountPortfolio?.totalPnL >= 0 ? "up" : "down"}
           icon={Zap}
           color="green"
           testId="kpi-small-account-lotto"
+          onClick={() => { setSelectedPortfolio('smallAccount'); setPortfolioTab('all'); }}
         />
       </div>
 
@@ -1018,6 +1083,69 @@ export function AutoLottoDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Portfolio Trades Modal */}
+      <Dialog open={selectedPortfolio !== null} onOpenChange={(open) => !open && setSelectedPortfolio(null)}>
+        <DialogContent className="max-w-2xl bg-slate-900 border-slate-700" data-testid="modal-portfolio-trades">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className={cn(
+                "p-2 rounded-lg border",
+                selectedInfo?.color === 'cyan' && "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+                selectedInfo?.color === 'purple' && "text-purple-400 bg-purple-500/10 border-purple-500/20",
+                selectedInfo?.color === 'amber' && "text-amber-400 bg-amber-500/10 border-amber-500/20",
+                selectedInfo?.color === 'green' && "text-green-400 bg-green-500/10 border-green-500/20"
+              )}>
+                {selectedPortfolio === 'options' && <Target className="h-4 w-4" />}
+                {selectedPortfolio === 'futures' && <TrendingUp className="h-4 w-4" />}
+                {selectedPortfolio === 'crypto' && <DollarSign className="h-4 w-4" />}
+                {selectedPortfolio === 'smallAccount' && <Zap className="h-4 w-4" />}
+              </div>
+              <span data-testid="text-modal-title">{selectedInfo?.name}</span>
+            </DialogTitle>
+            <DialogDescription className="flex items-center gap-4 pt-2">
+              <span className="text-muted-foreground">
+                Balance: <span className="font-mono text-foreground">${selectedInfo?.portfolio?.totalValue?.toFixed(2) || '0.00'}</span>
+              </span>
+              <span className={cn(
+                "font-mono font-medium",
+                portfolioTotalPnL >= 0 ? "text-green-400" : "text-red-400"
+              )} data-testid="text-modal-pnl">
+                Total P&L: {portfolioTotalPnL >= 0 ? '+' : ''}${portfolioTotalPnL.toFixed(2)}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <Tabs value={portfolioTab} onValueChange={(v) => setPortfolioTab(v as 'open' | 'closed' | 'all')} className="mt-2">
+            <TabsList className="grid w-full grid-cols-3 bg-slate-800/40">
+              <TabsTrigger value="open" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400" data-testid="tab-open">
+                Open ({openCount})
+              </TabsTrigger>
+              <TabsTrigger value="closed" className="data-[state=active]:bg-slate-500/20 data-[state=active]:text-slate-300" data-testid="tab-closed">
+                Closed ({closedCount})
+              </TabsTrigger>
+              <TabsTrigger value="all" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400" data-testid="tab-all">
+                All ({selectedPositions.length})
+              </TabsTrigger>
+            </TabsList>
+
+            <ScrollArea className="h-[400px] mt-4 pr-3">
+              {modalPositions.length > 0 ? (
+                <div className="space-y-2">
+                  {modalPositions.map((position) => (
+                    <TradeHistoryRow key={position.id} position={position} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Activity className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p>No {portfolioTab === 'all' ? '' : portfolioTab} trades in this portfolio</p>
+                </div>
+              )}
+            </ScrollArea>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
