@@ -4,7 +4,7 @@ import { randomBytes } from 'crypto';
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const APP_NAME = 'Quant Edge Labs';
-const APP_URL = process.env.APP_URL || 'https://quantedgeresearch.onrender.com';
+const APP_URL = process.env.APP_URL || 'https://quantedgelabs.net';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
 
 export function generateInviteToken(): string {
