@@ -41,7 +41,7 @@ const researchItems: NavItem[] = [
 
 // Automations - Auto-Lotto Bot is the main hub with other automations as tabs
 const automationItems: NavItem[] = [
-  { title: "Automations Hub", url: "/watchlist-bot", icon: Zap, badge: "LIVE" },
+  { title: "Automations Hub", url: "/automations", icon: Zap, badge: "LIVE" },
 ];
 
 // Analytics - performance and analysis tools (Data Audit is now part of Performance page)

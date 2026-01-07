@@ -474,7 +474,12 @@ export default function AutomationsPage() {
     refetchInterval: 5000,
   });
 
-  const { data: weeklyReport } = useQuery({
+  const { data: weeklyReport } = useQuery<{
+    period?: { start: string; end: string };
+    summary?: { totalTrades: number; winRate: number; totalPnL: number };
+    insights?: string[];
+    recommendations?: string[];
+  }>({
     queryKey: ["/api/automations/weekly-report/preview"],
   });
 
@@ -1227,41 +1232,41 @@ export default function AutomationsPage() {
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <div className="text-sm text-muted-foreground">Period</div>
-                      <div className="font-medium">{String((weeklyReport as any)?.period?.start || '')} - {String((weeklyReport as any)?.period?.end || '')}</div>
+                      <div className="font-medium">{weeklyReport.period?.start || ''} - {weeklyReport.period?.end || ''}</div>
                     </div>
                     <div>
                       <div className="text-sm text-muted-foreground">Total Trades</div>
-                      <div className="font-medium">{String((weeklyReport as any)?.summary?.totalTrades || 0)}</div>
+                      <div className="font-medium">{weeklyReport.summary?.totalTrades || 0}</div>
                     </div>
                     <div>
                       <div className="text-sm text-muted-foreground">Win Rate</div>
-                      <div className="font-medium">{((weeklyReport as any)?.summary?.winRate as number || 0).toFixed(1)}%</div>
+                      <div className="font-medium">{(weeklyReport.summary?.winRate || 0).toFixed(1)}%</div>
                     </div>
                     <div>
                       <div className="text-sm text-muted-foreground">Total P&L</div>
-                      <div className={`font-medium ${((weeklyReport as any)?.summary?.totalPnL as number || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {((weeklyReport as any)?.summary?.totalPnL as number || 0) >= 0 ? '+' : ''}{((weeklyReport as any)?.summary?.totalPnL as number || 0).toFixed(1)}%
+                      <div className={`font-medium ${(weeklyReport.summary?.totalPnL || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {(weeklyReport.summary?.totalPnL || 0) >= 0 ? '+' : ''}{(weeklyReport.summary?.totalPnL || 0).toFixed(1)}%
                       </div>
                     </div>
                   </div>
 
-                  {(weeklyReport as any)?.insights && (weeklyReport as any).insights.length > 0 && (
+                  {weeklyReport.insights && weeklyReport.insights.length > 0 && (
                     <div>
                       <h5 className="text-sm font-medium mb-2">Insights</h5>
                       <ul className="text-sm text-muted-foreground space-y-1">
-                        {(weeklyReport as any).insights.map((insight: any, i: number) => (
-                          <li key={i}>{String(insight)}</li>
+                        {weeklyReport.insights.map((insight, i) => (
+                          <li key={i}>{insight}</li>
                         ))}
                       </ul>
                     </div>
                   )}
 
-                  {(weeklyReport as any)?.recommendations && (weeklyReport as any).recommendations.length > 0 && (
+                  {weeklyReport.recommendations && weeklyReport.recommendations.length > 0 && (
                     <div>
                       <h5 className="text-sm font-medium mb-2">Recommendations</h5>
                       <ul className="text-sm text-muted-foreground space-y-1">
-                        {(weeklyReport as any).recommendations.map((rec: any, i: number) => (
-                          <li key={i}>{String(rec)}</li>
+                        {weeklyReport.recommendations.map((rec, i) => (
+                          <li key={i}>{rec}</li>
                         ))}
                       </ul>
                     </div>
