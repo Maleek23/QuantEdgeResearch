@@ -2460,20 +2460,20 @@ export async function runAutonomousBotScan(): Promise<void> {
           // Earnings service not available, continue
         }
         
-        // ✅ CHECK 2: LIQUIDITY - Bid-ask spread must be tight (<20% of premium)
+        // ✅ CHECK 2: LIQUIDITY - Bid-ask spread must be reasonable (<25% of premium) [BALANCED]
         // Guard against zero/undefined price to prevent division errors
         if (!opp.price || opp.price <= 0) {
           logger.info(`💧 [BOT] ${ticker}: SKIPPED - invalid price (${opp.price})`);
           continue;
         }
         const bidAskSpreadPct = (opp.bidAskSpread || 0) / opp.price * 100;
-        if (bidAskSpreadPct > 20) {
-          logger.info(`💧 [BOT] ${ticker}: SKIPPED - bid-ask spread too wide (${bidAskSpreadPct.toFixed(0)}% > 20%)`);
+        if (bidAskSpreadPct > 25) {
+          logger.info(`💧 [BOT] ${ticker}: SKIPPED - bid-ask spread too wide (${bidAskSpreadPct.toFixed(0)}% > 25%)`);
           continue;
         }
         
         // ✅ CHECK 3: VOLUME/OPEN INTEREST - Must have sufficient liquidity
-        if (opp.openInterest < 50 || opp.volume < 10) {
+        if (opp.openInterest < 40 || opp.volume < 8) {
           logger.info(`📊 [BOT] ${ticker}: SKIPPED - low liquidity (OI=${opp.openInterest}, Vol=${opp.volume})`);
           continue;
         }
@@ -2520,9 +2520,8 @@ export async function runAutonomousBotScan(): Promise<void> {
         const adaptiveParams = await getAdaptiveParameters();
         
         decision.confidence += symbolAdj.confidenceBoost;
-        // 🛡️ RAISED MINIMUM: From 65 to 70 for higher conviction entries (Jan 2026)
-        // User was down 30% from poor plays - need to focus on best setups only
-        const effectiveMinConfidence = Math.max(70, adaptiveParams.confidenceThreshold);
+        // 🔧 BALANCED MINIMUM: 65% confidence to generate quality ideas while maintaining standards (Jan 2026)
+        const effectiveMinConfidence = Math.max(65, adaptiveParams.confidenceThreshold);
         
         // Apply minimum confidence score
         if (decision.confidence < effectiveMinConfidence) {
