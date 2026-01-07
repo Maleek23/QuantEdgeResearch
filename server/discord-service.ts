@@ -338,6 +338,21 @@ function formatTradeIdeaEmbed(idea: TradeIdea): DiscordEmbed {
     timestamp: new Date().toISOString()
   };
   
+  // 📊 OPTIONS GREEKS - Critical for options traders
+  if (idea.assetType === 'option' && idea.optionDelta) {
+    const delta = Math.abs(idea.optionDelta);
+    const deltaLabel = delta < 0.15 ? '🎰 Far OTM' : 
+                       delta < 0.30 ? '📈 OTM' : 
+                       delta < 0.45 ? '⚖️ ATM' : '💪 ITM';
+    const thetaDisplay = idea.optionTheta ? `θ=${idea.optionTheta.toFixed(3)}` : '';
+    
+    embed.fields.push({
+      name: '📊 Greeks',
+      value: `δ=${delta.toFixed(2)} ${deltaLabel}${thetaDisplay ? ` | ${thetaDisplay}` : ''}`,
+      inline: true
+    });
+  }
+  
   // Add signals breakdown if available
   if (idea.qualitySignals && idea.qualitySignals.length > 0) {
     const signalsDisplay = idea.qualitySignals.slice(0, 4).join(' • ');
@@ -1205,6 +1220,7 @@ export async function sendBotTradeEntryToDiscord(position: {
   riskRewardRatio?: number | null;
   isSmallAccount?: boolean; // Flag for Small Account trades
   source?: 'quant' | 'lotto' | 'futures'; // Routing source
+  delta?: number | null; // Options delta for Greeks display
 }): Promise<void> {
   logger.info(`📱 [DISCORD] sendBotTradeEntryToDiscord called for ${position.symbol} (source: ${position.source || 'quant'})`);
   
@@ -1293,6 +1309,16 @@ export async function sendBotTradeEntryToDiscord(position: {
       ? `💰 Small Account Lotto${grade ? ` | Grade: ${grade}` : ''} | A+ ONLY`
       : `🤖 Auto-Lotto Bot${grade ? ` | Grade: ${grade}` : ''}`;
     
+    // 📊 Format delta with moneyness label
+    let deltaDisplay = '';
+    if (position.delta !== undefined && position.delta !== null) {
+      const absDelta = Math.abs(position.delta);
+      const deltaLabel = absDelta < 0.15 ? '🎰 Far OTM' : 
+                         absDelta < 0.30 ? '📈 OTM' : 
+                         absDelta < 0.45 ? '⚖️ ATM' : '💪 ITM';
+      deltaDisplay = `δ=${absDelta.toFixed(2)} ${deltaLabel}`;
+    }
+    
     const embed: DiscordEmbed = {
       title: `${accountLabel} ENTRY: ${position.symbol} ${(position.optionType || 'OPT').toUpperCase()} $${position.strikePrice}`,
       description: analysisText,
@@ -1303,7 +1329,7 @@ export async function sendBotTradeEntryToDiscord(position: {
         { name: '🛑 Stop', value: `$${position.stopLoss?.toFixed(2) || 'N/A'}`, inline: true },
         { name: '📅 Expiry', value: expiryFormatted, inline: true },
         { name: '⚖️ R:R', value: rrDisplay, inline: true },
-        { name: '📦 Qty', value: `${position.quantity}`, inline: true }
+        ...(deltaDisplay ? [{ name: '📊 Delta', value: deltaDisplay, inline: true }] : [{ name: '📦 Qty', value: `${position.quantity}`, inline: true }])
       ],
       footer: { text: footerText },
       timestamp: new Date().toISOString()

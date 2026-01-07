@@ -2111,9 +2111,12 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
     researchHorizon: (opportunity.daysToExpiry <= 2 ? 'intraday' : opportunity.daysToExpiry <= 7 ? 'short_swing' : 'multi_week') as 'intraday' | 'short_swing' | 'multi_week',
     liquidityWarning: true,
     engineVersion: 'bot_autonomous_v1.2', // v1.2: Intelligent strike selection algorithm
+    
+    // 📊 OPTIONS GREEKS - Store for risk assessment and Discord display
+    optionDelta: opportunity.delta,
   };
   
-  logger.debug(`🤖 [BOT] Trade idea data: optionType=${ideaData.optionType}, catalyst contains=${ideaData.catalyst.includes('PUT') ? 'PUT' : 'CALL'}`);
+  logger.debug(`🤖 [BOT] Trade idea data: optionType=${ideaData.optionType}, delta=${opportunity.delta.toFixed(3)}, catalyst contains=${ideaData.catalyst.includes('PUT') ? 'PUT' : 'CALL'}`);
   
   return ideaData;
 }
@@ -2198,6 +2201,7 @@ async function executeImmediateTrade(
           riskRewardRatio: ideaData.riskRewardRatio,
           isSmallAccount: isSmallAcct,
           source: 'quant', // Route to #quant-ai and #ai-quant-options
+          delta: opp.delta, // 📊 Greeks display
         });
         logger.info(`🤖 [BOT] 📱✅ Discord notification SENT for ${opp.symbol}`);
       } catch (discordError) {
@@ -2842,6 +2846,7 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
           riskRewardRatio: idea.riskRewardRatio,
           isSmallAccount: isSmallAcct,
           source: 'lotto', // Route to #lottos channel
+          delta: idea.optionDelta, // 📊 Greeks display
         });
         logger.info(`🎰 [LOTTO-EXEC] 📱 Discord notification sent to #lottos`);
       } catch (discordError) {

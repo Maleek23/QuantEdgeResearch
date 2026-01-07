@@ -179,6 +179,13 @@ export const tradeIdeas = pgTable("trade_ideas", {
   // Lotto Mode - High-risk far-OTM options ($20-70 entry) with 20x potential
   isLottoPlay: boolean("is_lotto_play").default(false), // True for $20-70 options with delta <0.30 (far OTM)
   
+  // 📊 OPTIONS GREEKS - Critical for options trading risk assessment
+  optionDelta: real("option_delta"), // Price sensitivity to underlying (0.0-1.0)
+  optionTheta: real("option_theta"), // Time decay per day (negative = losing value daily)
+  optionGamma: real("option_gamma"), // Delta acceleration (how fast delta changes)
+  optionVega: real("option_vega"), // IV sensitivity (price change per 1% IV move)
+  optionIV: real("option_iv"), // Implied volatility at entry (%)
+  
   // 🎓 EDUCATIONAL TRACKING - For missed entries (entry window expired before trade placed)
   // These fields track what WOULD HAVE happened - separate from real performance metrics
   missedEntryTheoreticalOutcome: text("missed_entry_theoretical_outcome").$type<'would_have_won' | 'would_have_lost' | 'inconclusive'>(), // What would have happened if entry was made
