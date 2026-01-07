@@ -901,132 +901,106 @@ app.use((req, res, next) => {
     
     log('📊 Flow Scanner started - scanning unusual options every 15 minutes during market hours (9:30 AM-4:00 PM ET)');
     
-    // Start automated lotto scanner (every 15 minutes during market hours)
-    const { runLottoScanner } = await import('./lotto-scanner');
+    // CONSOLIDATED BOT SCANNING - Opportunistic, not redundant
+    // Single unified scan loop that checks for opportunities once, then monitors positions
+    const lastScanTime: Record<string, number> = {};
+    const SCAN_COOLDOWN_MS = 15 * 60 * 1000; // 15 minute cooldown between full scans
+    const POSITION_CHECK_MS = 5 * 60 * 1000; // 5 minute cooldown for position monitoring
     
-    // Schedule lotto scanning every 15 minutes
-    cron.default.schedule('*/15 * * * *', async () => {
-      try {
-        // Check if market is open (9:30 AM - 4:00 PM ET, Mon-Fri)
-        if (!isMarketHoursForFlow()) {
-          return;
-        }
-        
-        logger.info('🎰 [LOTTO-CRON] Starting automated lotto scan...');
-        
-        // Scan for lotto plays
-        await runLottoScanner();
-        
-        logger.info('🎰 [LOTTO-CRON] Lotto scan complete');
-        
-      } catch (error: any) {
-        logger.error('🎰 [LOTTO-CRON] Lotto scan failed:', error);
-      }
-    });
-    
-    log('🎰 Lotto Scanner started - hunting for cheap far-OTM weeklies every 15 minutes during market hours (9:30 AM-4:00 PM ET)');
-    
-    // Monitor lotto paper trading positions every 5 minutes during market hours
+    // Unified options bot - scans ONCE then only monitors positions
     cron.default.schedule('*/5 * * * *', async () => {
       try {
         if (!isMarketHoursForFlow()) {
           return;
         }
         
-        const { monitorLottoPositions } = await import('./auto-lotto-trader');
+        const now = Date.now();
+        const lastOptionsScan = lastScanTime['options'] || 0;
+        const { runAutonomousBotScan, monitorLottoPositions } = await import('./auto-lotto-trader');
+        
+        // Always monitor existing positions (quick check)
         await monitorLottoPositions();
         
+        // Only do full scan if cooldown has passed (prevents redundant scanning)
+        if (now - lastOptionsScan >= SCAN_COOLDOWN_MS) {
+          logger.info('🤖 [UNIFIED-BOT] Running opportunistic OPTIONS scan...');
+          await runAutonomousBotScan();
+          lastScanTime['options'] = now;
+        }
+        
       } catch (error: any) {
-        logger.error('🤖 [AUTO-LOTTO-CRON] Position monitoring failed:', error);
+        logger.error('🤖 [UNIFIED-BOT] Options scan failed:', error);
       }
     });
     
-    // Autonomous OPTIONS bot scan every 5 minutes during US market hours
+    log('🤖 Unified Options Bot started - opportunistic scanning with 15min cooldown (9:30 AM-4:00 PM ET)');
+    
+    // UNIFIED FUTURES BOT - Combines Futures + Prop Firm (both scan NQ, no need for redundancy)
+    // Scans once every 15 min, monitors positions every 5 min
     cron.default.schedule('*/5 * * * *', async () => {
       try {
-        if (!isMarketHoursForFlow()) {
-          return;
-        }
-        
-        logger.info('🤖 [AUTO-BOT] Starting autonomous OPTIONS market scan...');
-        const { runAutonomousBotScan } = await import('./auto-lotto-trader');
-        await runAutonomousBotScan();
-        
-      } catch (error: any) {
-        logger.error('🤖 [AUTO-BOT-CRON] Autonomous scan failed:', error);
-      }
-    });
-    
-    log('🤖 Auto-Lotto Bot started - scanning options every 5 minutes (9:30 AM-4:00 PM ET)');
-    
-    // Separate futures bot cron - runs INDEPENDENTLY during CME hours (nearly 24/7)
-    cron.default.schedule('*/15 * * * *', async () => {
-      try {
-        const { isCMEOpen, runFuturesBotScan, monitorFuturesPositions } = await import('./auto-lotto-trader');
-        
-        if (!isCMEOpen()) {
-          logger.info('🔮 [FUTURES-BOT] CME market closed - skipping futures scan');
-          return;
-        }
-        
-        logger.info('🔮 [FUTURES-BOT] CME market OPEN - starting futures scan...');
-        await runFuturesBotScan();
-        await monitorFuturesPositions();
-        
-        // Also generate futures research ideas (NQ, GC)
-        const { generateFuturesIdeas } = await import('./quantitative-engine');
-        const futuresIdeas = await generateFuturesIdeas();
-        if (futuresIdeas.length > 0) {
-          const savedFuturesIdeas = [];
-          for (const idea of futuresIdeas) {
-            const saved = await storage.createTradeIdea(idea);
-            savedFuturesIdeas.push(saved);
-          }
-          logger.info(`🔮 [FUTURES-BOT] Generated ${futuresIdeas.length} futures research ideas`);
-          
-          const { sendFuturesTradesToDiscord } = await import('./discord-service');
-          await sendFuturesTradesToDiscord(savedFuturesIdeas);
-        }
-        
-      } catch (error: any) {
-        logger.error('🔮 [FUTURES-BOT] Futures scan failed:', error);
-      }
-    });
-    
-    log('🔮 Futures Bot started - scanning NQ/GC every 15 minutes during CME hours (nearly 24/7)');
-    
-    // Crypto bot - runs 24/7 since crypto markets never close
-    cron.default.schedule('*/20 * * * *', async () => {
-      try {
-        logger.info('🪙 [CRYPTO-BOT] Starting crypto market scan...');
-        const { runCryptoBotScan, monitorCryptoPositions } = await import('./auto-lotto-trader');
-        await runCryptoBotScan();
-        await monitorCryptoPositions();
-      } catch (error: any) {
-        logger.error('🪙 [CRYPTO-BOT] Crypto scan failed:', error);
-      }
-    });
-    
-    log('🪙 Crypto Bot started - scanning 13 major coins every 20 minutes (24/7 markets)');
-    
-    // Prop Firm Mode - Conservative futures trading during CME hours
-    cron.default.schedule('*/10 * * * *', async () => {
-      try {
-        const { isCMEOpen, runPropFirmBotScan, monitorPropFirmPositions } = await import('./auto-lotto-trader');
+        const { isCMEOpen, runFuturesBotScan, monitorFuturesPositions, runPropFirmBotScan, monitorPropFirmPositions } = await import('./auto-lotto-trader');
         
         if (!isCMEOpen()) {
           return; // Silent skip when market is closed
         }
         
-        logger.info('🏆 [PROP-FIRM] Starting prop firm scan...');
-        await runPropFirmBotScan();
+        const now = Date.now();
+        const lastFuturesScan = lastScanTime['futures'] || 0;
+        
+        // Always monitor existing positions (quick)
+        await monitorFuturesPositions();
         await monitorPropFirmPositions();
+        
+        // Only do full scan if cooldown has passed (15 min)
+        if (now - lastFuturesScan >= SCAN_COOLDOWN_MS) {
+          logger.info('🔮 [UNIFIED-FUTURES] Running opportunistic NQ/GC scan...');
+          await runFuturesBotScan();
+          await runPropFirmBotScan();
+          lastScanTime['futures'] = now;
+          
+          // Generate research ideas only on full scan
+          const { generateFuturesIdeas } = await import('./quantitative-engine');
+          const futuresIdeas = await generateFuturesIdeas();
+          if (futuresIdeas.length > 0) {
+            const savedFuturesIdeas = [];
+            for (const idea of futuresIdeas) {
+              const saved = await storage.createTradeIdea(idea);
+              savedFuturesIdeas.push(saved);
+            }
+            logger.info(`🔮 [UNIFIED-FUTURES] Generated ${futuresIdeas.length} futures research ideas`);
+          }
+        }
+        
       } catch (error: any) {
-        logger.error('🏆 [PROP-FIRM] Scan failed:', error);
+        logger.error('🔮 [UNIFIED-FUTURES] Futures scan failed:', error);
       }
     });
     
-    log('🏆 Prop Firm Bot started - conservative NQ trading every 10 minutes during CME hours');
+    log('🔮 Unified Futures Bot started - opportunistic NQ/GC scanning with 15min cooldown (CME hours)');
+    
+    // CRYPTO BOT - Opportunistic scanning with cooldown
+    cron.default.schedule('*/10 * * * *', async () => {
+      try {
+        const now = Date.now();
+        const lastCryptoScan = lastScanTime['crypto'] || 0;
+        const { runCryptoBotScan, monitorCryptoPositions } = await import('./auto-lotto-trader');
+        
+        // Always monitor positions
+        await monitorCryptoPositions();
+        
+        // Only full scan every 20 min
+        if (now - lastCryptoScan >= 20 * 60 * 1000) {
+          logger.info('🪙 [CRYPTO-BOT] Running opportunistic crypto scan...');
+          await runCryptoBotScan();
+          lastScanTime['crypto'] = now;
+        }
+      } catch (error: any) {
+        logger.error('🪙 [CRYPTO-BOT] Crypto scan failed:', error);
+      }
+    });
+    
+    log('🪙 Crypto Bot started - opportunistic scanning with 20min cooldown (24/7 markets)');
     
     // Prediction Market Scanner - Polymarket arbitrage opportunities every 30 minutes
     cron.default.schedule('*/30 * * * *', async () => {

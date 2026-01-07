@@ -373,3 +373,44 @@ export async function sendNextWeekPicksToDiscord(picks: any[], range: any): Prom
 export async function sendDailySummaryToDiscord(ideas: any[]): Promise<void> {}
 export async function sendAnnualBreakoutsToDiscord(items: any[]): Promise<any> { return { success: true }; }
 export async function sendCryptoBotTradeToDiscord(trade: any): Promise<void> {}
+export async function sendFuturesTradesToDiscord(ideas: any[]): Promise<void> {}
+export async function sendBatchSummaryToDiscord(ideas: any[], type?: string): Promise<void> {
+  if (DISCORD_DISABLED || !ideas || ideas.length === 0) return;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) return;
+  try {
+    const summary = ideas.slice(0, 10).map((i: any) => 
+      `${i.direction === 'long' ? '🟢' : '🔴'} **${i.symbol}** $${i.entryPrice?.toFixed(2) || 'N/A'}`
+    ).join('\n');
+    
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        content: `📊 **${type || 'BATCH'}**: ${ideas.length} ideas\n${summary}` 
+      }),
+    });
+  } catch (e) {}
+}
+export async function sendFlowAlertToDiscord(flow: any): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) return;
+  try {
+    const embed: DiscordEmbed = {
+      title: `📊 Unusual Flow: ${flow.symbol}`,
+      description: flow.description || 'Unusual options activity detected',
+      color: flow.type === 'call' ? COLORS.LONG : COLORS.SHORT,
+      fields: [
+        { name: 'Volume', value: String(flow.volume || 'N/A'), inline: true },
+        { name: 'Premium', value: `$${flow.premium?.toFixed(0) || 'N/A'}`, inline: true }
+      ],
+      timestamp: new Date().toISOString()
+    };
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ embeds: [embed] }),
+    });
+  } catch (e) {}
+}
