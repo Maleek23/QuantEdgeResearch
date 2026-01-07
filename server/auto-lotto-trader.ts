@@ -235,9 +235,18 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 const BASE_PRIORITY_TICKERS = [
-  'NNE', 'BIDU', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META', // User's explicit priority list (removed SOFI - fake trades issue)
-  'TSLA', 'NVDA', 'AMD', 'AAPL', 'GOOGL', 'MSFT', // High-liquidity favorites
-  'SPY', 'IWM', 'DIA', 'COIN', 'MARA', 'RIOT', 'ARM', 'SNOW', // High-vol tickers
+  // 🚀 SPACE - User priority (Jan 2026)
+  'RKLB', 'ASTS', 'LUNR', 'JOBY', 'ACHR', 'RDW', 'SPCE',
+  // 🧠 AI & QUANTUM COMPUTING
+  'PLTR', 'AI', 'SOUN', 'IONQ', 'RGTI', 'QUBT', 'QBTS', 'UPST',
+  // ☢️ NUCLEAR & FUSION
+  'NNE', 'OKLO', 'SMR', 'CCJ', 'LEU', 'UUUU',
+  // 🇨🇳 CHINESE STOCKS
+  'BIDU', 'NIO', 'BABA', 'JD', 'PDD', 'XPEV', 'LI',
+  // 📈 MEGA-CAP TECH (high liquidity)
+  'NVDA', 'TSLA', 'AMD', 'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'META',
+  // 🏦 INDICES & CRYPTO
+  'SPY', 'QQQ', 'IWM', 'COIN', 'MARA', 'RIOT', 'ARM',
 ];
 
 // Get randomized ticker list each time (for diversification)
@@ -661,18 +670,20 @@ function selectBestStrike(
 // Day trade tickers: High volatility, good for 0-7 DTE plays
 // User's priority watchlist - ensures all favorite tickers are scanned first
 const DAY_TRADE_TICKERS = [
-  // 🎯 USER PRIORITY - Always scan first!
-  'BIDU', 'UUUU', 'AMZN', 'QQQ', 'INTC', 'META',
+  // 🚀 SPACE - User priority (Jan 2026)
+  'RKLB', 'ASTS', 'LUNR', 'JOBY', 'ACHR', 'RDW', 'SPCE',
+  // 🧠 AI & QUANTUM COMPUTING - User priority
+  'PLTR', 'AI', 'SOUN', 'IONQ', 'RGTI', 'QUBT', 'QBTS', 'UPST', 'SNOW', 'CRWD',
+  // ☢️ NUCLEAR & FUSION - User priority
+  'NNE', 'OKLO', 'SMR', 'CCJ', 'LEU', 'UUUU',
+  // 🇨🇳 CHINESE STOCKS - User priority
+  'BIDU', 'NIO', 'BABA', 'JD', 'PDD', 'XPEV', 'LI',
   // Major indices & leveraged ETFs
-  'SPY', 'IWM', 'DIA', 'XLF', 'XLE', 'XLK', 'XLV', 'ARKK', 'TQQQ', 'SOXL',
+  'SPY', 'IWM', 'DIA', 'QQQ', 'XLF', 'XLE', 'XLK', 'XLV', 'ARKK', 'TQQQ', 'SOXL',
   // Mega-cap tech
-  'AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TSLA', 'AMD', 'AVGO', 'NFLX', 'HOOD',
+  'AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TSLA', 'AMD', 'AVGO', 'NFLX', 'META', 'AMZN',
   // Semiconductors
-  'ARM', 'SMCI', 'MRVL', 'QCOM', 'MU',
-  // AI & Growth
-  'PLTR', 'SNOW', 'CRWD', 'AI', 'IONQ', 'RGTI', 'QUBT', 'QBTS',
-  // Nuclear & Energy - User priority
-  'OKLO', 'SMR', 'CCJ', 'NNE', 'LEU',
+  'ARM', 'SMCI', 'MRVL', 'QCOM', 'MU', 'INTC',
   // Crypto-adjacent
   'MSTR', 'COIN', 'HOOD', 'MARA', 'RIOT',
   // Fintech
