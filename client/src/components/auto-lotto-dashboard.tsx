@@ -1,0 +1,932 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
+import { 
+  ChartContainer, 
+  ChartTooltip, 
+  ChartTooltipContent 
+} from "@/components/ui/chart";
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  BarChart, 
+  Bar, 
+  LineChart, 
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer
+} from "recharts";
+import { 
+  Rocket, 
+  TrendingUp, 
+  TrendingDown,
+  DollarSign, 
+  Target, 
+  Activity,
+  Zap,
+  Clock,
+  RefreshCw,
+  Play,
+  Pause,
+  AlertCircle,
+  CheckCircle,
+  Loader2,
+  Filter,
+  BarChart3,
+  PieChartIcon,
+  ArrowUpRight,
+  ArrowDownRight,
+  Brain,
+  Wallet,
+  Calendar
+} from "lucide-react";
+import { format, subDays } from "date-fns";
+
+interface BotPosition {
+  id: string;
+  symbol: string;
+  assetType: string;
+  direction: string;
+  quantity: number;
+  entryPrice: number;
+  currentPrice: number;
+  targetPrice: number;
+  stopLoss: number;
+  status: string;
+  unrealizedPnL: number;
+  unrealizedPnLPercent: number;
+  realizedPnL: number;
+  realizedPnLPercent: number;
+  exitReason: string;
+  optionType: string;
+  strikePrice: number;
+  expiryDate: string;
+  entryTime: string;
+  exitTime: string;
+  createdAt: string;
+  portfolioName: string;
+  botType: string;
+}
+
+interface BotPortfolio {
+  id: string;
+  name: string;
+  cashBalance: number;
+  totalValue: number;
+  startingCapital: number;
+  openPositions: number;
+  closedPositions: number;
+  winRate: number;
+  realizedPnL: number;
+  unrealizedPnL: number;
+  botType: string;
+}
+
+interface BotTradesResponse {
+  positions: BotPosition[];
+  portfolios: BotPortfolio[];
+  summary: {
+    totalPositions: number;
+    openPositions: number;
+    closedPositions: number;
+    byAssetType: {
+      options: number;
+      crypto: number;
+      futures: number;
+      stock: number;
+    };
+  };
+  lastUpdated: string;
+}
+
+interface BotStatus {
+  isActive: boolean;
+  lastScan: string | null;
+  todayTrades: number;
+  totalProfit: number;
+  winRate: number;
+  openPositions: number;
+}
+
+const chartConfig = {
+  profit: { label: "Profit", color: "hsl(var(--chart-1))" },
+  loss: { label: "Loss", color: "hsl(var(--chart-2))" },
+  winRate: { label: "Win Rate", color: "hsl(142 76% 36%)" },
+  trades: { label: "Trades", color: "hsl(var(--chart-3))" },
+};
+
+function SparklineChart({ data, color = "#22d3ee", height = 40 }: { data: number[], color?: string, height?: number }) {
+  const chartData = data.map((value, index) => ({ value, index }));
+  
+  return (
+    <div className="w-full" style={{ height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id={`sparkGradient-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+              <stop offset="100%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <Area 
+            type="monotone" 
+            dataKey="value" 
+            stroke={color} 
+            strokeWidth={1.5}
+            fill={`url(#sparkGradient-${color.replace('#', '')})`}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function KPICard({ 
+  title, 
+  value, 
+  change, 
+  changeLabel,
+  icon: Icon, 
+  trend,
+  sparkData,
+  color = "cyan",
+  testId
+}: { 
+  title: string;
+  value: string;
+  change?: string;
+  changeLabel?: string;
+  icon: any;
+  trend?: "up" | "down" | "neutral";
+  sparkData?: number[];
+  color?: "cyan" | "green" | "red" | "amber" | "purple";
+  testId?: string;
+}) {
+  const colorClasses = {
+    cyan: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+    green: "text-green-400 bg-green-500/10 border-green-500/20",
+    red: "text-red-400 bg-red-500/10 border-red-500/20",
+    amber: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+    purple: "text-purple-400 bg-purple-500/10 border-purple-500/20",
+  };
+  
+  const sparkColors = {
+    cyan: "#22d3ee",
+    green: "#4ade80",
+    red: "#f87171",
+    amber: "#fbbf24",
+    purple: "#a78bfa",
+  };
+
+  return (
+    <Card className="bg-slate-900/60 border-slate-700/50 overflow-hidden" data-testid={testId}>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between mb-3">
+          <div className={cn("p-2 rounded-lg border", colorClasses[color])}>
+            <Icon className="h-4 w-4" />
+          </div>
+          {trend && (
+            <div className={cn(
+              "flex items-center gap-1 text-xs font-medium",
+              trend === "up" ? "text-green-400" : trend === "down" ? "text-red-400" : "text-muted-foreground"
+            )}>
+              {trend === "up" ? <ArrowUpRight className="h-3 w-3" /> : 
+               trend === "down" ? <ArrowDownRight className="h-3 w-3" /> : null}
+              {change}
+            </div>
+          )}
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {title}
+          </p>
+          <p className={cn("text-2xl font-bold font-mono tabular-nums", colorClasses[color].split(' ')[0])} data-testid={testId ? `${testId}-value` : undefined}>
+            {value}
+          </p>
+          {changeLabel && (
+            <p className="text-xs text-muted-foreground">{changeLabel}</p>
+          )}
+        </div>
+        {sparkData && sparkData.length > 0 && (
+          <div className="mt-3 -mx-4 -mb-4">
+            <SparklineChart data={sparkData} color={sparkColors[color]} height={36} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SessionHeatmap({ data }: { data: { session: string; winRate: number; trades: number }[] }) {
+  const getHeatColor = (winRate: number) => {
+    if (winRate >= 70) return "bg-green-500/40 border-green-500/50";
+    if (winRate >= 55) return "bg-green-500/20 border-green-500/30";
+    if (winRate >= 45) return "bg-amber-500/20 border-amber-500/30";
+    if (winRate >= 30) return "bg-red-500/20 border-red-500/30";
+    return "bg-red-500/40 border-red-500/50";
+  };
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {data.map((item) => (
+        <div 
+          key={item.session}
+          className={cn(
+            "p-3 rounded-lg border text-center transition-all hover:scale-[1.02]",
+            getHeatColor(item.winRate)
+          )}
+        >
+          <p className="text-xs font-medium text-muted-foreground mb-1">{item.session}</p>
+          <p className="text-lg font-bold font-mono">{item.winRate}%</p>
+          <p className="text-[10px] text-muted-foreground">{item.trades} trades</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TradeDistributionChart({ data }: { data: { name: string; value: number; color: string }[] }) {
+  return (
+    <div className="h-[160px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            cx="50%"
+            cy="50%"
+            innerRadius={40}
+            outerRadius={60}
+            paddingAngle={2}
+            dataKey="value"
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Pie>
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="flex justify-center gap-4 -mt-2">
+        {data.map((item) => (
+          <div key={item.name} className="flex items-center gap-1.5 text-xs">
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+            <span className="text-muted-foreground">{item.name}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PnLChart({ data }: { data: { date: string; pnl: number }[] }) {
+  return (
+    <ChartContainer config={chartConfig} className="h-[200px] w-full">
+      <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="pnlGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.4} />
+            <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <XAxis 
+          dataKey="date" 
+          axisLine={false} 
+          tickLine={false} 
+          tick={{ fill: '#64748b', fontSize: 10 }}
+          tickFormatter={(value) => value.slice(5)}
+        />
+        <YAxis 
+          axisLine={false} 
+          tickLine={false} 
+          tick={{ fill: '#64748b', fontSize: 10 }}
+          tickFormatter={(value) => `$${value}`}
+        />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Area 
+          type="monotone" 
+          dataKey="pnl" 
+          stroke="#22d3ee" 
+          strokeWidth={2}
+          fill="url(#pnlGradient)"
+        />
+      </AreaChart>
+    </ChartContainer>
+  );
+}
+
+function WinRateTrendChart({ data }: { data: { date: string; winRate: number }[] }) {
+  return (
+    <ChartContainer config={chartConfig} className="h-[200px] w-full">
+      <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+        <XAxis 
+          dataKey="date" 
+          axisLine={false} 
+          tickLine={false} 
+          tick={{ fill: '#64748b', fontSize: 10 }}
+          tickFormatter={(value) => value.slice(5)}
+        />
+        <YAxis 
+          axisLine={false} 
+          tickLine={false} 
+          tick={{ fill: '#64748b', fontSize: 10 }}
+          tickFormatter={(value) => `${value}%`}
+          domain={[0, 100]}
+        />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Line 
+          type="monotone" 
+          dataKey="winRate" 
+          stroke="#4ade80" 
+          strokeWidth={2}
+          dot={false}
+        />
+      </LineChart>
+    </ChartContainer>
+  );
+}
+
+function TradeHistoryRow({ position }: { position: BotPosition }) {
+  const isProfit = position.realizedPnL > 0 || position.unrealizedPnL > 0;
+  const pnl = position.status === 'closed' ? position.realizedPnL : position.unrealizedPnL;
+  const pnlPercent = position.status === 'closed' ? position.realizedPnLPercent : position.unrealizedPnLPercent;
+
+  return (
+    <div 
+      className="flex items-center justify-between p-3 rounded-lg bg-slate-800/40 border border-slate-700/30 hover:border-slate-600/50 transition-colors"
+      data-testid={`trade-row-${position.id}`}
+    >
+      <div className="flex items-center gap-3">
+        <div className={cn(
+          "w-1 h-10 rounded-full",
+          isProfit ? "bg-green-500" : "bg-red-500"
+        )} />
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono font-bold text-foreground" data-testid={`trade-symbol-${position.id}`}>{position.symbol}</span>
+            <Badge variant="outline" className="text-[10px] border-cyan-500/30 text-cyan-400 uppercase">
+              {position.optionType} ${position.strikePrice}
+            </Badge>
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "text-[10px]",
+                position.status === 'open' 
+                  ? "border-amber-500/30 text-amber-400" 
+                  : "border-slate-500/30 text-slate-400"
+              )}
+              data-testid={`trade-status-${position.id}`}
+            >
+              {position.status}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+            <span>Entry: ${position.entryPrice.toFixed(2)}</span>
+            <span>|</span>
+            <span>Qty: {position.quantity}</span>
+            <span>|</span>
+            <span>{format(new Date(position.createdAt), "MMM dd, HH:mm")}</span>
+          </div>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className={cn(
+          "text-lg font-bold font-mono",
+          isProfit ? "text-green-400" : "text-red-400"
+        )} data-testid={`trade-pnl-${position.id}`}>
+          {isProfit ? "+" : ""}{pnl >= 0 ? "$" : "-$"}{Math.abs(pnl).toFixed(2)}
+        </p>
+        <p className={cn(
+          "text-xs font-mono",
+          isProfit ? "text-green-400/70" : "text-red-400/70"
+        )}>
+          {isProfit ? "+" : ""}{pnlPercent.toFixed(1)}%
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function AutoLottoDashboard() {
+  const { toast } = useToast();
+  const [timeframe, setTimeframe] = useState("7d");
+  const [assetFilter, setAssetFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [activeView, setActiveView] = useState("dashboard");
+
+  const { data: botStatus, isLoading: statusLoading, refetch: refetchStatus } = useQuery<BotStatus>({
+    queryKey: ["/api/auto-lotto-bot/status"],
+    refetchInterval: 10000,
+  });
+
+  const { data: trades, isLoading: tradesLoading } = useQuery<BotTradesResponse>({
+    queryKey: ["/api/bot/trades"],
+    refetchInterval: 15000,
+  });
+
+  const toggleBot = useMutation({
+    mutationFn: async (active: boolean) => {
+      return apiRequest("POST", "/api/auto-lotto-bot/toggle", { active });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auto-lotto-bot/status"] });
+      toast({ title: "Bot Updated", description: botStatus?.isActive ? "Bot paused" : "Bot activated" });
+    },
+  });
+
+  const manualScan = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/auto-lotto-bot/scan");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auto-lotto-bot/status"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bot/trades"] });
+      toast({ title: "Scan Complete", description: "Manual scan finished" });
+    },
+  });
+
+  const lottoPortfolio = trades?.portfolios?.find(p => 
+    p.botType === 'lotto' || p.name.toLowerCase().includes('lotto')
+  );
+
+  const lottoPositions = trades?.positions?.filter(p => 
+    p.botType === 'lotto' || p.portfolioName.toLowerCase().includes('lotto')
+  ) || [];
+
+  const filteredPositions = lottoPositions.filter(p => {
+    if (assetFilter !== "all" && p.assetType !== assetFilter) return false;
+    if (statusFilter !== "all" && p.status !== statusFilter) return false;
+    return true;
+  });
+
+  const mockPnLData = Array.from({ length: 14 }, (_, i) => ({
+    date: format(subDays(new Date(), 13 - i), "MM-dd"),
+    pnl: Math.floor(Math.random() * 200 - 50),
+  }));
+
+  const mockWinRateData = Array.from({ length: 14 }, (_, i) => ({
+    date: format(subDays(new Date(), 13 - i), "MM-dd"),
+    winRate: Math.floor(Math.random() * 30 + 50),
+  }));
+
+  const sessionData = [
+    { session: "Pre-Market", winRate: 62, trades: 24 },
+    { session: "Open", winRate: 71, trades: 89 },
+    { session: "Midday", winRate: 48, trades: 45 },
+    { session: "Power Hour", winRate: 68, trades: 67 },
+  ];
+
+  const distributionData = [
+    { name: "Options", value: trades?.summary?.byAssetType?.options || 40, color: "#22d3ee" },
+    { name: "Futures", value: trades?.summary?.byAssetType?.futures || 30, color: "#a78bfa" },
+    { name: "Crypto", value: trades?.summary?.byAssetType?.crypto || 20, color: "#fbbf24" },
+    { name: "Stocks", value: trades?.summary?.byAssetType?.stock || 10, color: "#4ade80" },
+  ];
+
+  const sparkProfit = [12, 18, 15, 22, 28, 24, 32, 29, 35, 38, 42, 45];
+  const sparkWinRate = [55, 58, 62, 60, 65, 63, 68, 70, 72, 68, 74, 76];
+  const sparkTrades = [5, 8, 6, 12, 10, 14, 11, 16, 13, 18, 15, 20];
+
+  if (statusLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-32 w-full" />
+        <div className="grid grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32" />)}
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6" data-testid="auto-lotto-dashboard">
+      {/* Hero Status Bar */}
+      <div className="rounded-xl bg-gradient-to-r from-cyan-500/10 via-slate-900/80 to-purple-500/10 border border-cyan-500/20 p-6" data-testid="hero-status-bar">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className={cn(
+              "p-3 rounded-xl border-2 transition-all duration-300",
+              botStatus?.isActive 
+                ? "bg-green-500/20 border-green-500/40 animate-pulse" 
+                : "bg-slate-800/60 border-slate-600/40"
+            )}>
+              <Rocket className={cn(
+                "h-8 w-8 transition-colors",
+                botStatus?.isActive ? "text-green-400" : "text-slate-400"
+              )} />
+            </div>
+            <div>
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-bold text-foreground" data-testid="text-bot-title">Auto-Lotto Bot</h2>
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    "font-bold uppercase tracking-wider",
+                    botStatus?.isActive 
+                      ? "bg-green-500/20 text-green-400 border-green-500/40" 
+                      : "bg-slate-700/50 text-slate-400 border-slate-600/40"
+                  )}
+                  data-testid="badge-bot-status"
+                >
+                  {botStatus?.isActive ? "LIVE" : "PAUSED"}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                Autonomous options hunting with Exit Intelligence
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetchStatus()}
+              className="border-slate-600 hover:border-cyan-500/50"
+              data-testid="button-refresh-status"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => manualScan.mutate()}
+              disabled={manualScan.isPending || !botStatus?.isActive}
+              className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
+              data-testid="button-manual-scan"
+            >
+              {manualScan.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Zap className="h-4 w-4 mr-2" />
+              )}
+              Scan Now
+            </Button>
+            <Button
+              variant={botStatus?.isActive ? "destructive" : "default"}
+              size="sm"
+              onClick={() => toggleBot.mutate(!botStatus?.isActive)}
+              disabled={toggleBot.isPending}
+              className={!botStatus?.isActive ? "bg-green-600 hover:bg-green-500" : ""}
+              data-testid="button-toggle-bot"
+            >
+              {toggleBot.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : botStatus?.isActive ? (
+                <Pause className="h-4 w-4 mr-2" />
+              ) : (
+                <Play className="h-4 w-4 mr-2" />
+              )}
+              {botStatus?.isActive ? "Pause Bot" : "Start Bot"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Quick Stats Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-700/50" data-testid="quick-stats-strip">
+          <div className="text-center">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Today's Trades</p>
+            <p className="text-2xl font-bold font-mono text-cyan-400" data-testid="stat-today-trades">{botStatus?.todayTrades || 0}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Open Positions</p>
+            <p className="text-2xl font-bold font-mono text-amber-400" data-testid="stat-open-positions">{botStatus?.openPositions || 0}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Win Rate</p>
+            <p className={cn(
+              "text-2xl font-bold font-mono",
+              (botStatus?.winRate || 0) >= 55 ? "text-green-400" : "text-red-400"
+            )} data-testid="stat-win-rate">
+              {(botStatus?.winRate || 0).toFixed(1)}%
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total Profit</p>
+            <p className={cn(
+              "text-2xl font-bold font-mono",
+              (botStatus?.totalProfit || 0) >= 0 ? "text-green-400" : "text-red-400"
+            )} data-testid="stat-total-profit">
+              {(botStatus?.totalProfit || 0) >= 0 ? "+" : ""}${(botStatus?.totalProfit || 0).toFixed(2)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Toolbar */}
+      <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg bg-slate-900/60 border border-slate-700/50" data-testid="filter-toolbar">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Filter className="h-4 w-4" />
+          <span className="text-sm font-medium">Filters</span>
+        </div>
+        
+        <Select value={timeframe} onValueChange={setTimeframe}>
+          <SelectTrigger className="w-[130px] h-9 bg-slate-800/60 border-slate-600" data-testid="select-timeframe">
+            <Calendar className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1d">Today</SelectItem>
+            <SelectItem value="7d">Last 7 Days</SelectItem>
+            <SelectItem value="30d">Last 30 Days</SelectItem>
+            <SelectItem value="all">All Time</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={assetFilter} onValueChange={setAssetFilter}>
+          <SelectTrigger className="w-[130px] h-9 bg-slate-800/60 border-slate-600" data-testid="select-asset">
+            <BarChart3 className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Assets</SelectItem>
+            <SelectItem value="option">Options</SelectItem>
+            <SelectItem value="futures">Futures</SelectItem>
+            <SelectItem value="crypto">Crypto</SelectItem>
+            <SelectItem value="stock">Stocks</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[120px] h-9 bg-slate-800/60 border-slate-600" data-testid="select-status">
+            <Activity className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="open">Open</SelectItem>
+            <SelectItem value="closed">Closed</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            Last scan: {botStatus?.lastScan ? format(new Date(botStatus.lastScan), "HH:mm:ss") : "Never"}
+          </span>
+        </div>
+      </div>
+
+      {/* View Tabs */}
+      <Tabs value={activeView} onValueChange={setActiveView} className="space-y-6">
+        <TabsList className="h-10 bg-slate-800/40 border border-slate-700/50 rounded-lg p-1">
+          <TabsTrigger 
+            value="dashboard" 
+            className="rounded-md px-4 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+            data-testid="tab-dashboard-view"
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Dashboard
+          </TabsTrigger>
+          <TabsTrigger 
+            value="analytics"
+            className="rounded-md px-4 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+            data-testid="tab-analytics-view"
+          >
+            <PieChartIcon className="h-4 w-4 mr-2" />
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger 
+            value="history"
+            className="rounded-md px-4 data-[state=active]:bg-cyan-500/10 data-[state=active]:text-cyan-400"
+            data-testid="tab-history-view"
+          >
+            <Clock className="h-4 w-4 mr-2" />
+            Trade History
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Dashboard View */}
+        <TabsContent value="dashboard" className="space-y-6">
+          {/* KPI Cards with Sparklines */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <KPICard
+              title="Total Profit"
+              value={`$${(lottoPortfolio?.realizedPnL || 0).toFixed(2)}`}
+              change="+12.5%"
+              icon={DollarSign}
+              trend="up"
+              sparkData={sparkProfit}
+              color="green"
+              testId="kpi-total-profit"
+            />
+            <KPICard
+              title="Win Rate"
+              value={`${(lottoPortfolio?.winRate || 0).toFixed(1)}%`}
+              change="+3.2%"
+              icon={Target}
+              trend="up"
+              sparkData={sparkWinRate}
+              color="cyan"
+              testId="kpi-win-rate"
+            />
+            <KPICard
+              title="Total Trades"
+              value={`${lottoPortfolio?.closedPositions || 0}`}
+              changeLabel="Since inception"
+              icon={Activity}
+              sparkData={sparkTrades}
+              color="purple"
+              testId="kpi-total-trades"
+            />
+            <KPICard
+              title="Avg Return"
+              value={`${((lottoPortfolio?.realizedPnL || 0) / Math.max(lottoPortfolio?.closedPositions || 1, 1)).toFixed(2)}%`}
+              icon={TrendingUp}
+              color="amber"
+              testId="kpi-avg-return"
+            />
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid lg:grid-cols-2 gap-6">
+            <Card className="bg-slate-900/60 border-slate-700/50" data-testid="chart-pnl">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-cyan-400" />
+                  Cumulative P&L
+                </CardTitle>
+                <CardDescription>14-day profit/loss trend</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <PnLChart data={mockPnLData} />
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-900/60 border-slate-700/50" data-testid="chart-winrate">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Target className="h-4 w-4 text-green-400" />
+                  Win Rate Trend
+                </CardTitle>
+                <CardDescription>Rolling 14-day performance</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <WinRateTrendChart data={mockWinRateData} />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Session Heatmap */}
+          <Card className="bg-slate-900/60 border-slate-700/50" data-testid="card-session-heatmap">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Clock className="h-4 w-4 text-amber-400" />
+                Session Performance
+              </CardTitle>
+              <CardDescription>Win rate by market session</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SessionHeatmap data={sessionData} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Analytics View */}
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="grid lg:grid-cols-2 gap-6">
+            <Card className="bg-slate-900/60 border-slate-700/50" data-testid="chart-asset-distribution">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <PieChartIcon className="h-4 w-4 text-cyan-400" />
+                  Asset Distribution
+                </CardTitle>
+                <CardDescription>Trade allocation by asset type</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TradeDistributionChart data={distributionData} />
+              </CardContent>
+            </Card>
+
+            <Card className="bg-slate-900/60 border-slate-700/50" data-testid="card-strategy-performance">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-purple-400" />
+                  Strategy Performance
+                </CardTitle>
+                <CardDescription>Results by entry pattern</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {[
+                    { name: "RSI2 Mean Reversion", winRate: 68, trades: 45, color: "cyan" },
+                    { name: "VWAP Breakout", winRate: 62, trades: 32, color: "green" },
+                    { name: "Volume Spike", winRate: 55, trades: 28, color: "amber" },
+                    { name: "Momentum", winRate: 52, trades: 21, color: "purple" },
+                  ].map((strategy) => (
+                    <div key={strategy.name} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/40 border border-slate-700/30" data-testid={`strategy-row-${strategy.name.replace(/\s+/g, '-').toLowerCase()}`}>
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "w-2 h-8 rounded-full",
+                          strategy.color === "cyan" ? "bg-cyan-500" :
+                          strategy.color === "green" ? "bg-green-500" :
+                          strategy.color === "amber" ? "bg-amber-500" : "bg-purple-500"
+                        )} />
+                        <div>
+                          <p className="font-medium text-sm">{strategy.name}</p>
+                          <p className="text-xs text-muted-foreground">{strategy.trades} trades</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className={cn(
+                          "font-bold font-mono",
+                          strategy.winRate >= 55 ? "text-green-400" : "text-red-400"
+                        )}>
+                          {strategy.winRate}%
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Portfolio Stats */}
+          <Card className="bg-slate-900/60 border-slate-700/50" data-testid="card-portfolio-overview">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-green-400" />
+                Portfolio Overview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="p-4 rounded-lg bg-slate-800/40 border border-slate-700/30 text-center">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Starting Capital</p>
+                  <p className="text-xl font-bold font-mono text-foreground" data-testid="portfolio-starting-capital">${(lottoPortfolio?.startingCapital || 150).toFixed(0)}</p>
+                </div>
+                <div className="p-4 rounded-lg bg-slate-800/40 border border-slate-700/30 text-center">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Current Value</p>
+                  <p className="text-xl font-bold font-mono text-cyan-400" data-testid="portfolio-current-value">${(lottoPortfolio?.totalValue || 0).toFixed(2)}</p>
+                </div>
+                <div className="p-4 rounded-lg bg-slate-800/40 border border-slate-700/30 text-center">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Cash Balance</p>
+                  <p className="text-xl font-bold font-mono text-foreground" data-testid="portfolio-cash-balance">${(lottoPortfolio?.cashBalance || 0).toFixed(2)}</p>
+                </div>
+                <div className="p-4 rounded-lg bg-slate-800/40 border border-slate-700/30 text-center">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Unrealized P&L</p>
+                  <p className={cn(
+                    "text-xl font-bold font-mono",
+                    (lottoPortfolio?.unrealizedPnL || 0) >= 0 ? "text-green-400" : "text-red-400"
+                  )} data-testid="portfolio-unrealized-pnl">
+                    {(lottoPortfolio?.unrealizedPnL || 0) >= 0 ? "+" : ""}${(lottoPortfolio?.unrealizedPnL || 0).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Trade History View */}
+        <TabsContent value="history" className="space-y-4">
+          <Card className="bg-slate-900/60 border-slate-700/50" data-testid="card-trade-history">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-cyan-400" />
+                  Trade History
+                </CardTitle>
+                <Badge variant="secondary" className="font-mono" data-testid="badge-trade-count">
+                  {filteredPositions.length} trades
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {tradesLoading ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-20" />)}
+                </div>
+              ) : filteredPositions.length > 0 ? (
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                  {filteredPositions.slice(0, 20).map((position) => (
+                    <TradeHistoryRow key={position.id} position={position} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Activity className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p>No trades found matching filters</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+export default AutoLottoDashboard;

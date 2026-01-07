@@ -50,6 +50,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { format } from "date-fns";
 import { HeroProductPanel } from "@/components/hero-product-panel";
+import { AutoLottoDashboard } from "@/components/auto-lotto-dashboard";
 
 interface ExitAdvisory {
   positionId: string;
@@ -637,13 +638,7 @@ export default function AutomationsPage() {
         </div>
 
         {/* Tabs Navigation - Cyan accent focused */}
-        <Tabs value={activeTab} onValueChange={(val) => {
-          if (val === "auto-lotto") {
-            setLocation("/watchlist-bot");
-          } else {
-            setActiveTab(val);
-          }
-        }} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="overflow-x-auto">
             <TabsList className="inline-flex h-11 bg-slate-800/40 border border-slate-700/50 rounded-lg p-1 gap-1">
               <TabsTrigger 
@@ -932,6 +927,11 @@ export default function AutomationsPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Auto-Lotto Bot Dashboard */}
+        <TabsContent value="auto-lotto" className="space-y-6">
+          <AutoLottoDashboard />
         </TabsContent>
 
         <TabsContent value="quant-bot" className="space-y-4">
