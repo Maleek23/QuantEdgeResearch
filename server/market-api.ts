@@ -1658,3 +1658,237 @@ function generatePotentialCatalysts(sector: string, industry: string): string[] 
   
   return catalysts.slice(0, 4);
 }
+
+/**
+ * Comprehensive fundamental data for stock analysis
+ * Includes valuation metrics, growth rates, analyst ratings, and short interest
+ */
+export interface FundamentalData {
+  symbol: string;
+  // Valuation metrics
+  peRatio: number | null;         // Price-to-Earnings
+  forwardPE: number | null;       // Forward P/E
+  pegRatio: number | null;        // PEG ratio (P/E to Growth)
+  priceToBook: number | null;     // Price-to-Book
+  priceToSales: number | null;    // Price-to-Sales
+  enterpriseValue: number | null; // Enterprise Value
+  
+  // Earnings
+  eps: number | null;             // Earnings Per Share (TTM)
+  forwardEps: number | null;      // Forward EPS estimate
+  
+  // Growth metrics
+  revenueGrowth: number | null;   // YoY revenue growth %
+  earningsGrowth: number | null;  // YoY earnings growth %
+  quarterlyRevenueGrowth: number | null;
+  quarterlyEarningsGrowth: number | null;
+  
+  // Profitability
+  profitMargin: number | null;    // Net profit margin %
+  operatingMargin: number | null; // Operating margin %
+  grossMargin: number | null;     // Gross margin %
+  returnOnEquity: number | null;  // ROE %
+  returnOnAssets: number | null;  // ROA %
+  
+  // Financial health
+  debtToEquity: number | null;    // D/E ratio
+  currentRatio: number | null;    // Current ratio
+  quickRatio: number | null;      // Quick ratio
+  freeCashFlow: number | null;    // Free cash flow
+  
+  // Analyst data
+  analystTargetPrice: number | null;     // Mean analyst target
+  analystHighTarget: number | null;      // Highest target
+  analystLowTarget: number | null;       // Lowest target
+  numberOfAnalysts: number | null;       // Analyst coverage
+  recommendationKey: string | null;      // buy/hold/sell
+  recommendationMean: number | null;     // 1-5 scale (1=strong buy)
+  
+  // Short interest
+  shortRatio: number | null;             // Days to cover
+  shortPercentOfFloat: number | null;    // Short % of float
+  sharesShort: number | null;            // Shares shorted
+  
+  // Dividend
+  dividendYield: number | null;          // Dividend yield %
+  dividendRate: number | null;           // Annual dividend $
+  payoutRatio: number | null;            // Payout ratio %
+  
+  // Fair value indicators
+  fairValueUpside: number | null;        // % to analyst target
+  
+  // Metadata
+  fetchedAt: string;
+}
+
+/**
+ * Fetch comprehensive fundamental data from Yahoo Finance
+ * Uses multiple quoteSummary modules for complete coverage
+ * Includes retry logic with exponential backoff for rate limiting
+ */
+export async function fetchFundamentalData(symbol: string): Promise<FundamentalData | null> {
+  const upperSymbol = symbol.toUpperCase();
+  
+  // User agent rotation to reduce rate limiting
+  const userAgents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  ];
+  const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
+  
+  try {
+    // Extended modules for comprehensive data
+    const modules = [
+      'defaultKeyStatistics',  // P/E, EPS, short interest, shares outstanding
+      'financialData',         // Revenue, margins, analyst targets
+      'summaryDetail',         // Dividend, market cap, volume
+      'earnings',              // EPS history and estimates
+      'recommendationTrend',   // Analyst ratings trend
+    ].join(',');
+    
+    // Retry logic with exponential backoff
+    const maxRetries = 2;
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      if (attempt > 0) {
+        // Exponential backoff: 500ms, 1500ms
+        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempt - 1)));
+      }
+      
+      try {
+        const response = await fetch(
+          `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${upperSymbol}?modules=${modules}`,
+          {
+            headers: {
+              'User-Agent': randomUserAgent,
+              'Accept': 'application/json',
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Cache-Control': 'no-cache',
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          const result = data?.quoteSummary?.result?.[0];
+          
+          if (result) {
+            return parseFundamentalResult(upperSymbol, result);
+          }
+        } else if (response.status === 401 || response.status === 429) {
+          // Rate limited - retry
+          lastError = new Error(`HTTP ${response.status}`);
+          continue;
+        } else {
+          logger.warn(`[FUNDAMENTALS] Yahoo quoteSummary failed for ${symbol}: HTTP ${response.status}`);
+          return null;
+        }
+      } catch (fetchError) {
+        lastError = fetchError as Error;
+        continue;
+      }
+    }
+    
+    // All retries exhausted
+    if (lastError) {
+      logger.warn(`[FUNDAMENTALS] Yahoo quoteSummary failed for ${symbol} after retries: ${lastError.message}`);
+    }
+    return null;
+  } catch (error) {
+    logger.warn(`[FUNDAMENTALS] Exception fetching data for ${symbol}: ${error}`);
+    return null;
+  }
+}
+
+/**
+ * Parse Yahoo Finance quoteSummary result into FundamentalData
+ */
+function parseFundamentalResult(symbol: string, result: any): FundamentalData {
+  const keyStats = result.defaultKeyStatistics || {};
+  const financials = result.financialData || {};
+  const summary = result.summaryDetail || {};
+  const recTrend = result.recommendationTrend?.trend?.[0] || {};
+  
+  // Helper to extract raw value from Yahoo response objects
+  const raw = (obj: any): number | null => {
+    if (obj === undefined || obj === null) return null;
+    if (typeof obj === 'number') return obj;
+    if (obj.raw !== undefined) return obj.raw;
+    if (obj.fmt !== undefined && obj.raw === undefined) {
+      const parsed = parseFloat(obj.fmt.replace(/[%,]/g, ''));
+      return isNaN(parsed) ? null : parsed;
+    }
+    return null;
+  };
+  
+  // Calculate fair value upside
+  const currentPrice = raw(financials.currentPrice);
+  const targetPrice = raw(financials.targetMeanPrice);
+  const fairValueUpside = currentPrice && targetPrice 
+    ? ((targetPrice - currentPrice) / currentPrice) * 100 
+    : null;
+    
+  const fundamental: FundamentalData = {
+    symbol: symbol,
+      
+      // Valuation
+      peRatio: raw(keyStats.trailingPE) || raw(summary.trailingPE),
+      forwardPE: raw(keyStats.forwardPE) || raw(summary.forwardPE),
+      pegRatio: raw(keyStats.pegRatio),
+      priceToBook: raw(keyStats.priceToBook),
+      priceToSales: raw(keyStats.priceToSalesTrailing12Months) || raw(summary.priceToSalesTrailing12Months),
+      enterpriseValue: raw(keyStats.enterpriseValue),
+      
+      // Earnings
+      eps: raw(financials.trailingEps) || raw(keyStats.trailingEps),
+      forwardEps: raw(financials.forwardEps) || raw(keyStats.forwardEps),
+      
+      // Growth
+      revenueGrowth: raw(financials.revenueGrowth) ? raw(financials.revenueGrowth)! * 100 : null,
+      earningsGrowth: raw(financials.earningsGrowth) ? raw(financials.earningsGrowth)! * 100 : null,
+      quarterlyRevenueGrowth: raw(financials.revenueQuarterlyGrowth) ? raw(financials.revenueQuarterlyGrowth)! * 100 : null,
+      quarterlyEarningsGrowth: raw(financials.earningsQuarterlyGrowth) ? raw(financials.earningsQuarterlyGrowth)! * 100 : null,
+      
+      // Profitability
+      profitMargin: raw(financials.profitMargins) ? raw(financials.profitMargins)! * 100 : null,
+      operatingMargin: raw(financials.operatingMargins) ? raw(financials.operatingMargins)! * 100 : null,
+      grossMargin: raw(financials.grossMargins) ? raw(financials.grossMargins)! * 100 : null,
+      returnOnEquity: raw(financials.returnOnEquity) ? raw(financials.returnOnEquity)! * 100 : null,
+      returnOnAssets: raw(financials.returnOnAssets) ? raw(financials.returnOnAssets)! * 100 : null,
+      
+      // Financial health
+      debtToEquity: raw(financials.debtToEquity),
+      currentRatio: raw(financials.currentRatio),
+      quickRatio: raw(financials.quickRatio),
+      freeCashFlow: raw(financials.freeCashflow),
+      
+      // Analyst data
+      analystTargetPrice: raw(financials.targetMeanPrice),
+      analystHighTarget: raw(financials.targetHighPrice),
+      analystLowTarget: raw(financials.targetLowPrice),
+      numberOfAnalysts: raw(financials.numberOfAnalystOpinions),
+      recommendationKey: financials.recommendationKey || null,
+      recommendationMean: raw(financials.recommendationMean),
+      
+      // Short interest
+      shortRatio: raw(keyStats.shortRatio),
+      shortPercentOfFloat: raw(keyStats.shortPercentOfFloat) ? raw(keyStats.shortPercentOfFloat)! * 100 : null,
+      sharesShort: raw(keyStats.sharesShort),
+      
+      // Dividend
+      dividendYield: raw(summary.dividendYield) ? raw(summary.dividendYield)! * 100 : null,
+      dividendRate: raw(summary.dividendRate),
+      payoutRatio: raw(summary.payoutRatio) ? raw(summary.payoutRatio)! * 100 : null,
+      
+    // Fair value
+    fairValueUpside,
+      
+    fetchedAt: new Date().toISOString(),
+  };
+    
+  logger.info(`[FUNDAMENTALS] Fetched for ${symbol}: P/E=${fundamental.peRatio?.toFixed(1) || 'N/A'}, EPS=${fundamental.eps?.toFixed(2) || 'N/A'}, Target=$${fundamental.analystTargetPrice?.toFixed(0) || 'N/A'}`);
+    
+  return fundamental;
+}

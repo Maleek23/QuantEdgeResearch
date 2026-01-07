@@ -22,17 +22,20 @@ import {
   calculateSMA,
   calculateATR,
   calculateADX,
+  calculateBollingerBands,
   calculateEnhancedSignalScore,
   determineMarketRegime,
 } from './technical-indicators';
 import { getCryptoPrice } from './realtime-price-service';
 import { getFuturesPrice } from './futures-data-service';
 import { getRealtimeQuote } from './realtime-pricing-service';
+import { fetchFundamentalData, type FundamentalData } from './market-api';
 import type { WatchlistItem, AssetType, TradeIdea } from '@shared/schema';
 
 type WatchlistTier = 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
 
 interface GradeInputs {
+  // Technical indicators
   rsi14: number | null;
   rsi2: number | null;
   momentum5d: number | null;
@@ -43,6 +46,31 @@ interface GradeInputs {
   priceVsMA20: number | null;
   priceVsMA50: number | null;
   atr: number | null;
+  
+  // Bollinger Bands
+  bollingerPosition: 'above_upper' | 'near_upper' | 'middle' | 'near_lower' | 'below_lower' | null;
+  bollingerWidth: number | null; // % width for volatility
+  
+  // Support/Resistance
+  supportLevel: number | null;
+  resistanceLevel: number | null;
+  distanceToSupport: number | null; // % distance
+  distanceToResistance: number | null; // % distance
+  
+  // Fundamental data (stocks only)
+  peRatio: number | null;
+  forwardPE: number | null;
+  eps: number | null;
+  revenueGrowth: number | null;
+  earningsGrowth: number | null;
+  profitMargin: number | null;
+  returnOnEquity: number | null;
+  debtToEquity: number | null;
+  analystTargetPrice: number | null;
+  recommendationKey: string | null;
+  shortPercentOfFloat: number | null;
+  fairValueUpside: number | null;
+  
   signals: string[];
 }
 
@@ -148,13 +176,15 @@ function calculateGrade(
   high: number[],
   low: number[],
   volume: number[],
-  assetType: AssetType
+  assetType: AssetType,
+  fundamentals: FundamentalData | null = null
 ): GradeResult {
   const signals: string[] = [];
   let score = 50;
   
   const currentPrice = prices[prices.length - 1];
   
+  // Technical indicator variables
   let rsi14: number | null = null;
   let rsi2: number | null = null;
   let momentum5d: number | null = null;
@@ -165,6 +195,30 @@ function calculateGrade(
   let priceVsMA20: number | null = null;
   let priceVsMA50: number | null = null;
   let atr: number | null = null;
+  
+  // Bollinger Bands variables
+  let bollingerPosition: 'above_upper' | 'near_upper' | 'middle' | 'near_lower' | 'below_lower' | null = null;
+  let bollingerWidth: number | null = null;
+  
+  // Support/Resistance variables
+  let supportLevel: number | null = null;
+  let resistanceLevel: number | null = null;
+  let distanceToSupport: number | null = null;
+  let distanceToResistance: number | null = null;
+  
+  // Fundamental data variables (will be populated from fundamentals param)
+  let peRatio: number | null = fundamentals?.peRatio ?? null;
+  let forwardPE: number | null = fundamentals?.forwardPE ?? null;
+  let eps: number | null = fundamentals?.eps ?? null;
+  let revenueGrowth: number | null = fundamentals?.revenueGrowth ?? null;
+  let earningsGrowth: number | null = fundamentals?.earningsGrowth ?? null;
+  let profitMargin: number | null = fundamentals?.profitMargin ?? null;
+  let returnOnEquity: number | null = fundamentals?.returnOnEquity ?? null;
+  let debtToEquity: number | null = fundamentals?.debtToEquity ?? null;
+  let analystTargetPrice: number | null = fundamentals?.analystTargetPrice ?? null;
+  let recommendationKey: string | null = fundamentals?.recommendationKey ?? null;
+  let shortPercentOfFloat: number | null = fundamentals?.shortPercentOfFloat ?? null;
+  let fairValueUpside: number | null = fundamentals?.fairValueUpside ?? null;
   
   try {
     if (prices.length >= 14) {
@@ -347,6 +401,196 @@ function calculateGrade(
     logger.debug(`[GRADE] ATR calculation failed: ${e}`);
   }
   
+  // Bollinger Bands calculation
+  try {
+    if (prices.length >= 20) {
+      const bb = calculateBollingerBands(prices, 20, 2);
+      bollingerWidth = ((bb.upper - bb.lower) / bb.middle) * 100;
+      
+      // Determine position relative to bands
+      if (currentPrice > bb.upper) {
+        bollingerPosition = 'above_upper';
+        score -= 8;
+        signals.push(`Above Upper BB (Overbought)`);
+      } else if (currentPrice > bb.upper - (bb.upper - bb.middle) * 0.2) {
+        bollingerPosition = 'near_upper';
+        score -= 3;
+        signals.push(`Near Upper BB`);
+      } else if (currentPrice < bb.lower) {
+        bollingerPosition = 'below_lower';
+        score += 12;
+        signals.push(`Below Lower BB (Oversold)`);
+      } else if (currentPrice < bb.lower + (bb.middle - bb.lower) * 0.2) {
+        bollingerPosition = 'near_lower';
+        score += 8;
+        signals.push(`Near Lower BB (Potential Bounce)`);
+      } else {
+        bollingerPosition = 'middle';
+      }
+      
+      // Volatility squeeze detection (low width = potential breakout)
+      if (bollingerWidth < 5) {
+        score += 5;
+        signals.push(`BB Squeeze (Low Volatility, Breakout Potential)`);
+      }
+    }
+  } catch (e) {
+    logger.debug(`[GRADE] Bollinger Bands calculation failed: ${e}`);
+  }
+  
+  // Support/Resistance detection using pivot points
+  try {
+    if (high.length >= 20 && low.length >= 20) {
+      // Find recent swing highs/lows for support/resistance
+      const recentHigh = high.slice(-20);
+      const recentLow = low.slice(-20);
+      
+      // Simple support = lowest low, resistance = highest high in period
+      supportLevel = Math.min(...recentLow);
+      resistanceLevel = Math.max(...recentHigh);
+      
+      distanceToSupport = ((currentPrice - supportLevel) / currentPrice) * 100;
+      distanceToResistance = ((resistanceLevel - currentPrice) / currentPrice) * 100;
+      
+      // Score based on proximity to levels
+      if (distanceToSupport < 2) {
+        score += 8;
+        signals.push(`Near Support ($${supportLevel.toFixed(2)})`);
+      } else if (distanceToResistance < 2) {
+        score -= 5;
+        signals.push(`Near Resistance ($${resistanceLevel.toFixed(2)})`);
+      }
+      
+      // Room to run ratio (more room to resistance vs support = bullish)
+      if (distanceToResistance > distanceToSupport * 2) {
+        score += 5;
+        signals.push(`Good R:R to Resistance`);
+      }
+    }
+  } catch (e) {
+    logger.debug(`[GRADE] Support/Resistance calculation failed: ${e}`);
+  }
+  
+  // Fundamental scoring (stocks only)
+  if (assetType === 'stock' && fundamentals) {
+    // P/E Ratio scoring
+    if (peRatio !== null) {
+      if (peRatio > 0 && peRatio < 15) {
+        score += 8;
+        signals.push(`Value P/E (${peRatio.toFixed(1)})`);
+      } else if (peRatio >= 15 && peRatio <= 25) {
+        score += 3;
+        signals.push(`Fair P/E (${peRatio.toFixed(1)})`);
+      } else if (peRatio > 50) {
+        score -= 5;
+        signals.push(`High P/E (${peRatio.toFixed(1)})`);
+      } else if (peRatio < 0) {
+        score -= 8;
+        signals.push(`Negative P/E (Unprofitable)`);
+      }
+    }
+    
+    // Revenue growth scoring
+    if (revenueGrowth !== null) {
+      if (revenueGrowth > 25) {
+        score += 10;
+        signals.push(`Strong Revenue Growth (+${revenueGrowth.toFixed(0)}%)`);
+      } else if (revenueGrowth > 10) {
+        score += 5;
+        signals.push(`Solid Revenue Growth (+${revenueGrowth.toFixed(0)}%)`);
+      } else if (revenueGrowth < -10) {
+        score -= 8;
+        signals.push(`Revenue Decline (${revenueGrowth.toFixed(0)}%)`);
+      }
+    }
+    
+    // Earnings growth scoring
+    if (earningsGrowth !== null) {
+      if (earningsGrowth > 30) {
+        score += 8;
+        signals.push(`Strong Earnings Growth (+${earningsGrowth.toFixed(0)}%)`);
+      } else if (earningsGrowth > 15) {
+        score += 4;
+        signals.push(`Solid Earnings Growth (+${earningsGrowth.toFixed(0)}%)`);
+      } else if (earningsGrowth < -20) {
+        score -= 6;
+        signals.push(`Earnings Decline (${earningsGrowth.toFixed(0)}%)`);
+      }
+    }
+    
+    // Profitability scoring
+    if (profitMargin !== null) {
+      if (profitMargin > 20) {
+        score += 5;
+        signals.push(`High Profit Margin (${profitMargin.toFixed(0)}%)`);
+      } else if (profitMargin < 0) {
+        score -= 5;
+        signals.push(`Negative Margin (${profitMargin.toFixed(0)}%)`);
+      }
+    }
+    
+    // ROE scoring
+    if (returnOnEquity !== null) {
+      if (returnOnEquity > 20) {
+        score += 5;
+        signals.push(`Strong ROE (${returnOnEquity.toFixed(0)}%)`);
+      } else if (returnOnEquity < 5 && returnOnEquity > 0) {
+        score -= 3;
+        signals.push(`Weak ROE (${returnOnEquity.toFixed(0)}%)`);
+      }
+    }
+    
+    // Debt scoring
+    if (debtToEquity !== null) {
+      if (debtToEquity > 200) {
+        score -= 8;
+        signals.push(`High Debt (D/E: ${debtToEquity.toFixed(0)})`);
+      } else if (debtToEquity < 50) {
+        score += 3;
+        signals.push(`Low Debt (D/E: ${debtToEquity.toFixed(0)})`);
+      }
+    }
+    
+    // Analyst rating scoring
+    if (recommendationKey) {
+      const recLower = recommendationKey.toLowerCase();
+      if (recLower === 'strong_buy' || recLower === 'buy') {
+        score += 8;
+        signals.push(`Analyst: ${recommendationKey.replace('_', ' ').toUpperCase()}`);
+      } else if (recLower === 'hold') {
+        // No score change
+        signals.push(`Analyst: HOLD`);
+      } else if (recLower === 'sell' || recLower === 'underperform') {
+        score -= 8;
+        signals.push(`Analyst: ${recommendationKey.toUpperCase()}`);
+      }
+    }
+    
+    // Fair value upside scoring
+    if (fairValueUpside !== null) {
+      if (fairValueUpside > 30) {
+        score += 10;
+        signals.push(`Undervalued (+${fairValueUpside.toFixed(0)}% to Target)`);
+      } else if (fairValueUpside > 15) {
+        score += 5;
+        signals.push(`Upside Potential (+${fairValueUpside.toFixed(0)}% to Target)`);
+      } else if (fairValueUpside < -15) {
+        score -= 5;
+        signals.push(`Overvalued (${fairValueUpside.toFixed(0)}% to Target)`);
+      }
+    }
+    
+    // Short interest scoring
+    if (shortPercentOfFloat !== null) {
+      if (shortPercentOfFloat > 20) {
+        score += 5; // High short = squeeze potential
+        signals.push(`High Short Interest (${shortPercentOfFloat.toFixed(0)}% Float)`);
+      } else if (shortPercentOfFloat > 10) {
+        signals.push(`Elevated Short Interest (${shortPercentOfFloat.toFixed(0)}% Float)`);
+      }
+    }
+  }
+  
   if (assetType === 'crypto') {
     score += 3;
   } else if (assetType === 'future') {
@@ -363,6 +607,7 @@ function calculateGrade(
     gradeLetter: grade,
     tier,
     gradeInputs: {
+      // Technical indicators
       rsi14,
       rsi2,
       momentum5d,
@@ -373,6 +618,31 @@ function calculateGrade(
       priceVsMA20,
       priceVsMA50,
       atr,
+      
+      // Bollinger Bands
+      bollingerPosition,
+      bollingerWidth,
+      
+      // Support/Resistance
+      supportLevel,
+      resistanceLevel,
+      distanceToSupport,
+      distanceToResistance,
+      
+      // Fundamental data
+      peRatio,
+      forwardPE,
+      eps,
+      revenueGrowth,
+      earningsGrowth,
+      profitMargin,
+      returnOnEquity,
+      debtToEquity,
+      analystTargetPrice,
+      recommendationKey,
+      shortPercentOfFloat,
+      fairValueUpside,
+      
       signals,
     },
   };
@@ -381,7 +651,12 @@ function calculateGrade(
 export async function gradeWatchlistItem(item: WatchlistItem): Promise<GradeResult | null> {
   logger.info(`[GRADE] Evaluating ${item.symbol} (${item.assetType})`);
   
-  const priceData = await fetchHistoricalPrices(item.symbol, item.assetType as AssetType);
+  // Fetch price data and fundamentals in parallel for efficiency
+  const [priceData, fundamentals] = await Promise.all([
+    fetchHistoricalPrices(item.symbol, item.assetType as AssetType),
+    // Only fetch fundamentals for stocks (not crypto/futures)
+    item.assetType === 'stock' ? fetchFundamentalData(item.symbol) : Promise.resolve(null)
+  ]);
   
   if (!priceData) {
     logger.warn(`[GRADE] Could not fetch price data for ${item.symbol}`);
@@ -393,10 +668,15 @@ export async function gradeWatchlistItem(item: WatchlistItem): Promise<GradeResu
     priceData.high,
     priceData.low,
     priceData.volume,
-    item.assetType as AssetType
+    item.assetType as AssetType,
+    fundamentals
   );
   
-  logger.info(`[GRADE] ${item.symbol}: Score=${grade.gradeScore}, Grade=${grade.gradeLetter}, Tier=${grade.tier}`);
+  const fundamentalInfo = fundamentals 
+    ? `, P/E=${fundamentals.peRatio?.toFixed(1) || 'N/A'}, Target=$${fundamentals.analystTargetPrice?.toFixed(0) || 'N/A'}`
+    : '';
+  
+  logger.info(`[GRADE] ${item.symbol}: Score=${grade.gradeScore}, Grade=${grade.gradeLetter}, Tier=${grade.tier}${fundamentalInfo}`);
   
   return grade;
 }

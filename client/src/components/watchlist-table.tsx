@@ -187,30 +187,120 @@ function GradeBadge({ item }: { item: WatchlistItem }) {
           </span>
         </div>
       </TooltipTrigger>
-      <TooltipContent side="left" className="max-w-xs">
+      <TooltipContent side="left" className="max-w-sm">
         <div className="space-y-1 text-xs">
           <div className="font-semibold">Quantitative Grade: {gradeLetter} ({score}/100)</div>
           <div className="text-muted-foreground">Tier {tier}: {style.label}</div>
           {gradeInputs && (
-            <div className="pt-1 border-t border-border/50 space-y-0.5">
-              {typeof gradeInputs.rsi14 === 'number' && (
-                <div>RSI(14): {gradeInputs.rsi14.toFixed(1)}</div>
+            <div className="pt-1 border-t border-border/50 space-y-2">
+              {/* Technical Indicators */}
+              <div className="space-y-0.5">
+                <div className="font-medium text-[10px] text-muted-foreground">Technical</div>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                  {typeof gradeInputs.rsi14 === 'number' && (
+                    <div>RSI(14): {gradeInputs.rsi14.toFixed(1)}</div>
+                  )}
+                  {typeof gradeInputs.rsi2 === 'number' && (
+                    <div>RSI(2): {gradeInputs.rsi2.toFixed(1)}</div>
+                  )}
+                  {typeof gradeInputs.momentum5d === 'number' && (
+                    <div>5D Mom: {gradeInputs.momentum5d >= 0 ? '+' : ''}{gradeInputs.momentum5d.toFixed(1)}%</div>
+                  )}
+                  {typeof gradeInputs.adx === 'number' && (
+                    <div>ADX: {gradeInputs.adx.toFixed(1)}</div>
+                  )}
+                  {typeof gradeInputs.volumeRatio === 'number' && (
+                    <div>Vol: {gradeInputs.volumeRatio.toFixed(2)}x</div>
+                  )}
+                  {gradeInputs.bollingerPosition && (
+                    <div>BB: {String(gradeInputs.bollingerPosition).replace(/_/g, ' ')}</div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Support/Resistance */}
+              {(typeof gradeInputs.supportLevel === 'number' || typeof gradeInputs.resistanceLevel === 'number') && (
+                <div className="space-y-0.5">
+                  <div className="font-medium text-[10px] text-muted-foreground">Levels</div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                    {typeof gradeInputs.supportLevel === 'number' && (
+                      <div className="text-green-600 dark:text-green-400">
+                        S: ${gradeInputs.supportLevel.toFixed(2)}
+                      </div>
+                    )}
+                    {typeof gradeInputs.resistanceLevel === 'number' && (
+                      <div className="text-red-600 dark:text-red-400">
+                        R: ${gradeInputs.resistanceLevel.toFixed(2)}
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
-              {typeof gradeInputs.rsi2 === 'number' && (
-                <div>RSI(2): {gradeInputs.rsi2.toFixed(1)}</div>
+              
+              {/* Fundamentals (stocks only) */}
+              {(typeof gradeInputs.peRatio === 'number' || typeof gradeInputs.revenueGrowth === 'number') && (
+                <div className="space-y-0.5">
+                  <div className="font-medium text-[10px] text-muted-foreground">Fundamentals</div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                    {typeof gradeInputs.peRatio === 'number' && (
+                      <div>P/E: {gradeInputs.peRatio.toFixed(1)}</div>
+                    )}
+                    {typeof gradeInputs.eps === 'number' && (
+                      <div>EPS: ${gradeInputs.eps.toFixed(2)}</div>
+                    )}
+                    {typeof gradeInputs.revenueGrowth === 'number' && (
+                      <div className={gradeInputs.revenueGrowth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                        Rev: {gradeInputs.revenueGrowth >= 0 ? '+' : ''}{gradeInputs.revenueGrowth.toFixed(0)}%
+                      </div>
+                    )}
+                    {typeof gradeInputs.profitMargin === 'number' && (
+                      <div>Margin: {gradeInputs.profitMargin.toFixed(0)}%</div>
+                    )}
+                    {typeof gradeInputs.returnOnEquity === 'number' && (
+                      <div>ROE: {gradeInputs.returnOnEquity.toFixed(0)}%</div>
+                    )}
+                    {typeof gradeInputs.debtToEquity === 'number' && (
+                      <div>D/E: {gradeInputs.debtToEquity.toFixed(0)}</div>
+                    )}
+                  </div>
+                </div>
               )}
-              {typeof gradeInputs.momentum5d === 'number' && (
-                <div>5D Momentum: {gradeInputs.momentum5d >= 0 ? '+' : ''}{gradeInputs.momentum5d.toFixed(2)}%</div>
+              
+              {/* Analyst & Short Interest */}
+              {(gradeInputs.recommendationKey || typeof gradeInputs.shortPercentOfFloat === 'number') && (
+                <div className="space-y-0.5">
+                  <div className="font-medium text-[10px] text-muted-foreground">Sentiment</div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                    {gradeInputs.recommendationKey && (
+                      <div className={
+                        String(gradeInputs.recommendationKey).toLowerCase().includes('buy') 
+                          ? 'text-green-600 dark:text-green-400' 
+                          : String(gradeInputs.recommendationKey).toLowerCase().includes('sell')
+                            ? 'text-red-600 dark:text-red-400'
+                            : ''
+                      }>
+                        {String(gradeInputs.recommendationKey).replace(/_/g, ' ').toUpperCase()}
+                      </div>
+                    )}
+                    {typeof gradeInputs.fairValueUpside === 'number' && (
+                      <div className={gradeInputs.fairValueUpside >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                        {gradeInputs.fairValueUpside >= 0 ? '+' : ''}{gradeInputs.fairValueUpside.toFixed(0)}% to Target
+                      </div>
+                    )}
+                    {typeof gradeInputs.shortPercentOfFloat === 'number' && (
+                      <div>Short: {gradeInputs.shortPercentOfFloat.toFixed(0)}% Float</div>
+                    )}
+                    {typeof gradeInputs.analystTargetPrice === 'number' && (
+                      <div>Target: ${gradeInputs.analystTargetPrice.toFixed(0)}</div>
+                    )}
+                  </div>
+                </div>
               )}
-              {typeof gradeInputs.adx === 'number' && (
-                <div>ADX: {gradeInputs.adx.toFixed(1)}</div>
-              )}
-              {typeof gradeInputs.volumeRatio === 'number' && (
-                <div>Vol Ratio: {gradeInputs.volumeRatio.toFixed(2)}x</div>
-              )}
+              
+              {/* Signals */}
               {Array.isArray(gradeInputs.signals) && gradeInputs.signals.length > 0 && (
-                <div className="pt-1 text-[10px] text-muted-foreground">
-                  {gradeInputs.signals.slice(0, 3).join(', ')}
+                <div className="pt-1 text-[10px] text-muted-foreground border-t border-border/50">
+                  {gradeInputs.signals.slice(0, 4).join(' · ')}
                 </div>
               )}
             </div>
