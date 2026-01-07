@@ -1889,20 +1889,34 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
     const dateStr = nowCT.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     
     // Filter to OPTIONS ONLY with any confidence - no crypto, no stocks
-    const eligibleIdeas = ideas
+    // SMALL ACCOUNT FOCUS: Prioritize affordable premiums ($2 or less)
+    const MAX_AFFORDABLE_PREMIUM = 2.00; // $2.00 max for small accounts ($300 budget, $60 max per position)
+    
+    const allOptions = ideas
       .filter(i => 
         i.outcomeStatus === 'open' && 
         i.assetType === 'option' &&  // OPTIONS ONLY
         i.strikePrice &&  // Must have strike
         i.expiryDate     // Must have expiry
-      )
-      .sort((a, b) => {
-        // Sort by confidence then R:R
-        const aConf = a.confidenceScore || 50;
-        const bConf = b.confidenceScore || 50;
-        if (bConf !== aConf) return bConf - aConf;
-        return (b.riskRewardRatio || 1) - (a.riskRewardRatio || 1);
-      });
+      );
+    
+    // Split into affordable and expensive options
+    const affordableOptions = allOptions.filter(i => i.entryPrice <= MAX_AFFORDABLE_PREMIUM);
+    const expensiveOptions = allOptions.filter(i => i.entryPrice > MAX_AFFORDABLE_PREMIUM);
+    
+    // Sort affordable by confidence first, then expensive as backup
+    const sortByQuality = (a: TradeIdea, b: TradeIdea) => {
+      const aConf = a.confidenceScore || 50;
+      const bConf = b.confidenceScore || 50;
+      if (bConf !== aConf) return bConf - aConf;
+      return (b.riskRewardRatio || 1) - (a.riskRewardRatio || 1);
+    };
+    
+    affordableOptions.sort(sortByQuality);
+    expensiveOptions.sort(sortByQuality);
+    
+    // Prioritize affordable options, fill remaining slots with expensive if needed
+    const eligibleIdeas = [...affordableOptions, ...expensiveOptions];
     
     // Deduplicate by symbol + strike + expiry + optionType
     const seen = new Set<string>();
