@@ -347,6 +347,30 @@ function isOnExitCooldown(symbol: string, optionType?: string, strike?: number):
   exitCooldowns.delete(key);
   return { onCooldown: false, reason: '' };
 }
+// ═══════════════════════════════════════════════════════════════════════════
+// 🔄 PER-SYMBOL SCAN THROTTLE - Prevents scanning same ticker repeatedly
+// ═══════════════════════════════════════════════════════════════════════════
+const SCAN_THROTTLE_MS = 10 * 60 * 1000; // 10 minute cooldown between scans of same symbol
+const lastScanTime = new Map<string, number>();
+
+/**
+ * Check if a symbol was recently scanned - prevents repeated scanning
+ */
+function shouldSkipScan(symbol: string): boolean {
+  const lastScan = lastScanTime.get(symbol);
+  if (lastScan && Date.now() - lastScan < SCAN_THROTTLE_MS) {
+    return true; // Skip - recently scanned
+  }
+  return false;
+}
+
+/**
+ * Record that we just scanned a symbol
+ */
+function recordScan(symbol: string): void {
+  lastScanTime.set(symbol, Date.now());
+}
+
 // 🎯 PREMIUM TIERS - User said $1000 max, not $1.50!
 // For $300 account: $10.00 option = 1 contract @ $1000 total
 // This allows quality names like AMZN, NVDA, GOOGL which often have higher premiums
@@ -2023,6 +2047,12 @@ function makeBotDecision(
  */
 async function scanForOpportunities(ticker: string): Promise<LottoOpportunity[]> {
   try {
+    // 🔄 SCAN THROTTLE - Don't scan same ticker repeatedly
+    if (shouldSkipScan(ticker)) {
+      return []; // Already scanned recently
+    }
+    recordScan(ticker);
+    
     // 🔄 Rate limit before first API call
     await rateLimitDelay();
     const quote = await getTradierQuote(ticker);

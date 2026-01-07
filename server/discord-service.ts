@@ -137,9 +137,16 @@ export async function sendBotTradeEntryToDiscord(trade: {
       deltaDisplay = `δ=${absDelta.toFixed(2)} ${deltaLabel}`;
     }
 
+    // CLEAR direction statement - no ambiguity
+    const directionEmoji = isCall ? '📈' : '📉';
+    const directionLabel = isCall ? 'BULLISH (CALL)' : 'BEARISH (PUT)';
+    const cleanAnalysis = trade.analysis 
+      ? `**${directionEmoji} ${directionLabel}** - ${trade.analysis}`
+      : `**${directionEmoji} ${directionLabel}** - ${meta.name} position opened.`;
+
     const embed: DiscordEmbed = {
       title: `${meta.emoji} ${trade.isSmallAccount ? '💰 SMALL ACCOUNT' : '🤖 BOT'} ENTRY: ${trade.symbol} ${trade.optionType?.toUpperCase() || ''} ${trade.strikePrice ? '$' + trade.strikePrice : ''}`,
-      description: trade.analysis || `**${meta.name}** has entered a new position.`,
+      description: cleanAnalysis,
       color: trade.isSmallAccount ? 0xfbbf24 : color,
       fields: [
         { name: '💰 Entry', value: `$${trade.entryPrice.toFixed(2)}`, inline: true },
