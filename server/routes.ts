@@ -43,6 +43,7 @@ import { createUser, authenticateUser, sanitizeUser } from "./userAuth";
 import { getTierLimits, canAccessFeature, TierLimits } from "./tierConfig";
 import { syncDocumentationToNotion } from "./notion-sync";
 import * as paperTradingService from "./paper-trading-service";
+import { registerExitCallback } from "./paper-trading-service";
 import { getAutoLottoExitIntelligence, getPortfolioExitIntelligence } from "./position-monitor-service";
 import { telemetryService } from "./telemetry-service";
 import { analyzeLoss, analyzeAllLosses, getLossSummary } from "./loss-analyzer";
@@ -510,6 +511,18 @@ async function requireBetaAccess(req: Request, res: Response, next: NextFunction
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // 🛡️ REGISTER EXIT COOLDOWN CALLBACK - CRITICAL for preventing repeated trades
+  try {
+    const { recordExitCooldown } = await import("./auto-lotto-trader");
+    registerExitCallback((symbol, optionType, strike, wasWin) => {
+      recordExitCooldown(symbol, optionType, strike, wasWin ?? true);
+      logger.info(`🛡️ [EXIT-HOOK] Cooldown triggered: ${symbol} ${optionType} ${strike} (win=${wasWin})`);
+    });
+    logger.info("🛡️ [EXIT-HOOK] Exit cooldown callback registered successfully");
+  } catch (err) {
+    logger.error("⚠️ [EXIT-HOOK] Failed to register exit cooldown callback:", err);
+  }
+
   // Health check endpoint for Render/uptime monitors (no auth required)
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

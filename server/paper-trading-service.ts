@@ -767,7 +767,32 @@ export async function checkStopsAndTargets(portfolioId: string): Promise<PaperPo
       }
 
       if (shouldClose) {
-        const result = await closePosition(position.id, position.currentPrice, exitReason);
+        // 🛡️ CRITICAL FIX: Fetch REAL market price before closing
+        // This prevents P&L inflation from using stale/assumed prices
+        let realExitPrice = position.currentPrice;
+        
+        if (position.assetType === 'option' && position.strikePrice && position.optionType && position.expiryDate) {
+          try {
+            const freshQuote = await getOptionQuote({
+              underlying: position.symbol,
+              expiryDate: position.expiryDate,
+              optionType: position.optionType as 'call' | 'put',
+              strike: position.strikePrice,
+            });
+            
+            if (freshQuote && freshQuote.bid > 0) {
+              // Use BID price for selling (realistic fill)
+              realExitPrice = freshQuote.bid;
+              logger.info(`📊 [REAL-PRICE] ${position.symbol}: Closing at REAL bid $${realExitPrice.toFixed(2)} (was $${position.currentPrice?.toFixed(2)})`);
+            } else {
+              logger.warn(`📊 [REAL-PRICE] ${position.symbol}: No fresh quote available, using cached price $${position.currentPrice?.toFixed(2)}`);
+            }
+          } catch (quoteErr) {
+            logger.warn(`📊 [REAL-PRICE] ${position.symbol}: Quote fetch failed, using cached price`, { error: quoteErr });
+          }
+        }
+        
+        const result = await closePosition(position.id, realExitPrice, exitReason);
         if (result.success && result.position) {
           closedPositions.push(result.position);
         }
