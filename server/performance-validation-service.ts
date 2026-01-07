@@ -182,26 +182,11 @@ class PerformanceValidationService {
           
           if (result.outcomeStatus === 'hit_target') {
             winners++;
-            // 💰 Send gains notification to Discord
-            if (idea && result.percentGain && result.percentGain > 0) {
-              try {
-                await sendGainsToDiscord({
-                  symbol: idea.symbol,
-                  direction: idea.direction as 'long' | 'short',
-                  assetType: idea.assetType,
-                  entryPrice: idea.entryPrice,
-                  exitPrice: result.exitPrice || idea.targetPrice,
-                  percentGain: result.percentGain,
-                  source: idea.source || undefined,
-                  optionType: idea.optionType || undefined,
-                  strikePrice: idea.strikePrice || undefined,
-                  expiryDate: idea.expiryDate || undefined,
-                  holdingPeriod: idea.holdingPeriod || undefined,
-                });
-              } catch (err) {
-                console.warn(`  ⚠️  Failed to send gains to Discord for ${idea.symbol}:`, err);
-              }
-            }
+            // 🚫 DISABLED: Do NOT send theoretical gains to Discord
+            // These are from trade_ideas (research signals), NOT actual bot trades
+            // Real bot gains come from paper_positions exits via sendBotTradeExitToDiscord
+            // Sending theoretical gains as "WINNERS" is misleading to users
+            console.log(`  📊 ${idea?.symbol}: THEORETICAL target hit (not posted to Discord)`);
           }
           else if (result.outcomeStatus === 'hit_stop') {
             losers++;
