@@ -31,6 +31,16 @@ Key features include:
 -   **Polymarket Prediction Market Module**: Integrates with prediction markets to detect arbitrage opportunities based on news sentiment.
 -   **Unified Win Rate System**: Provides consistent win rate metrics (Equities, Options, Overall) across the platform, calculated based on defined trade outcomes.
 -   **Watchlist Grading System**: Evaluates watchlist assets using quantitative technical analysis (RSI, momentum, ADX, volume, moving averages) to assign a tier-based score (S-F).
+-   **Market Scanner with Day Trade + Swing modes (Jan 2026)**:
+    - **3-Tab Structure**: Movers (daily/weekly/monthly), Day Trade Scanner, Swing Scanner
+    - **Day Trade Scanner**: Intraday setups for same-day entries using VWAP, RSI(2), momentum, volume spikes
+      - Uses 5-minute intraday data from Yahoo Finance
+      - Patterns: RSI2 Mean Reversion, VWAP Breakout/Breakdown, Volume Capitulation, Momentum Continuation
+      - Supports LONG and SHORT setups with direction-specific styling
+      - Confidence scoring (55%+ required), R:R filtering (1.5:1+ required)
+      - ATR-based entry/target/stop calculation
+      - API Endpoint: GET `/api/daytrade-scanner`
+    - **Swing Scanner**: Multi-day setups (3-10 day holds) using RSI(14), SMA50/200, daily patterns
 -   **Elite Setup Trade Generator (Jan 2026)**: Converts S/A tier watchlist items into trade ideas with small-account risk management:
     - **Target account**: $300 budget
     - **Max position cost**: $60 (20% of account)
