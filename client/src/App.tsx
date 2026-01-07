@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect } from "react";
+import { lazy, Suspense, useState, useEffect, ComponentType } from "react";
 import { getMarketStatus } from "@/lib/market-hours";
 import { Switch, Route, useLocation, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
@@ -18,6 +18,7 @@ import { Footer } from "@/components/footer";
 import { ScrollParticles } from "@/components/scroll-particles";
 import { AIChatbotPopup } from "@/components/ai-chatbot-popup";
 import { cn } from "@/lib/utils";
+import { ProtectedRoute } from "@/components/protected-route";
 
 const Landing = lazy(() => import("@/pages/landing"));
 const Login = lazy(() => import("@/pages/login"));
@@ -68,6 +69,16 @@ function PageLoader() {
     </div>
   );
 }
+
+function withBetaProtection<P extends object>(Component: ComponentType<P>) {
+  return function ProtectedComponent(props: P) {
+    return (
+      <ProtectedRoute requireBetaAccess={true}>
+        <Component {...props} />
+      </ProtectedRoute>
+    );
+  };
+}
 function SmartLanding() {
   const { user, isLoading } = useAuth();
   
@@ -97,25 +108,25 @@ function Router() {
       <Route path="/home">
         <Redirect to="/trade-desk" />
       </Route>
-      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/dashboard" component={withBetaProtection(Dashboard)} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
-      <Route path="/trade-desk" component={TradeDeskPage} />
-      <Route path="/paper-trading" component={PaperTrading} />
-      <Route path="/wallet-tracker" component={WalletTracker} />
-      <Route path="/ct-tracker" component={CTTracker} />
-      <Route path="/watchlist-bot" component={WatchlistBot} />
-      <Route path="/automations" component={AutomationsPage} />
-      <Route path="/chart-analysis" component={ChartAnalysis} />
-      <Route path="/backtest" component={BacktestPage} />
-      <Route path="/performance" component={PerformancePage} />
-      <Route path="/trade-ideas/:id/audit" component={TradeAudit} />
+      <Route path="/trade-desk" component={withBetaProtection(TradeDeskPage)} />
+      <Route path="/paper-trading" component={withBetaProtection(PaperTrading)} />
+      <Route path="/wallet-tracker" component={withBetaProtection(WalletTracker)} />
+      <Route path="/ct-tracker" component={withBetaProtection(CTTracker)} />
+      <Route path="/watchlist-bot" component={withBetaProtection(WatchlistBot)} />
+      <Route path="/automations" component={withBetaProtection(AutomationsPage)} />
+      <Route path="/chart-analysis" component={withBetaProtection(ChartAnalysis)} />
+      <Route path="/backtest" component={withBetaProtection(BacktestPage)} />
+      <Route path="/performance" component={withBetaProtection(PerformancePage)} />
+      <Route path="/trade-ideas/:id/audit" component={withBetaProtection(TradeAudit)} />
       <Route path="/data-audit">
         <Redirect to="/performance" />
       </Route>
-      <Route path="/market" component={MarketPage} />
-      <Route path="/market-scanner" component={MarketScanner} />
-      <Route path="/swing-scanner" component={SwingScanner} />
+      <Route path="/market" component={withBetaProtection(MarketPage)} />
+      <Route path="/market-scanner" component={withBetaProtection(MarketScanner)} />
+      <Route path="/swing-scanner" component={withBetaProtection(SwingScanner)} />
       <Route path="/futures">
         <Redirect to="/trade-desk?tab=futures" />
       </Route>
@@ -138,8 +149,8 @@ function Router() {
       <Route path="/blog/:slug" component={BlogPost} />
       
       {/* System Pages */}
-      <Route path="/my-account" component={MyAccountPage} />
-      <Route path="/settings" component={SettingsPage} />
+      <Route path="/my-account" component={withBetaProtection(MyAccountPage)} />
+      <Route path="/settings" component={withBetaProtection(SettingsPage)} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/admin" component={AdminPanel} />
       <Route path="/admin/reports" component={AdminReports} />
@@ -166,7 +177,7 @@ function Router() {
       <Route path="/signals">
         <Redirect to="/performance" />
       </Route>
-      <Route path="/watchlist" component={WatchlistPage} />
+      <Route path="/watchlist" component={withBetaProtection(WatchlistPage)} />
       
       {/* Redirects - Removed Pages */}
       <Route path="/trading-guide">

@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage, isRealLoss, isRealLossByResolution, isCurrentGenEngine, getDecidedTrades, getDecidedTradesByResolution, applyCanonicalPerformanceFilters, CANONICAL_LOSS_THRESHOLD } from "./storage";
 import { db } from "./db";
@@ -470,6 +470,45 @@ export function getBandInfo(confidenceScore: number): { band: string; detailedBa
   return { band, detailedBand };
 }
 
+// Beta access middleware - verifies user has beta access for protected API routes
+async function requireBetaAccess(req: Request, res: Response, next: NextFunction) {
+  try {
+    let userId = (req.session as any)?.userId;
+    if (!userId && req.user) {
+      const replitUser = req.user as any;
+      userId = replitUser.claims?.sub;
+    }
+    
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+    
+    // Check for beta access - grandfathered tiers or explicit beta access
+    const hasBetaAccess = user.hasBetaAccess || 
+                          user.subscriptionTier === 'admin' || 
+                          user.subscriptionTier === 'pro';
+    
+    if (!hasBetaAccess) {
+      return res.status(403).json({ 
+        error: "Beta access required", 
+        message: "Please redeem an invite code to access this feature" 
+      });
+    }
+    
+    // Attach user to request for downstream use
+    (req as any).betaUser = user;
+    next();
+  } catch (error) {
+    logError(error as Error, { context: 'requireBetaAccess' });
+    return res.status(500).json({ error: "Access check failed" });
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint for Render/uptime monitors (no auth required)
   app.get('/api/health', (_req, res) => {
@@ -530,10 +569,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ error: "An account with this email already exists" });
       }
       
-      // Update user tier if invite had a tier override
-      if (validatedInvite?.tierOverride) {
-        await storage.updateUser(user.id, { subscriptionTier: validatedInvite.tierOverride });
-      }
+      // Update user with beta access and tier if invite had a tier override
+      await storage.updateUser(user.id, { 
+        hasBetaAccess: true,
+        betaInviteId: validatedInvite?.id || null,
+        ...(validatedInvite?.tierOverride ? { subscriptionTier: validatedInvite.tierOverride } : {})
+      });
       
       // Update waitlist entry status if exists
       const waitlistEntry = await storage.getWaitlistEntry(email.toLowerCase());
@@ -703,6 +744,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ count });
     } catch (error) {
       res.json({ count: 0 });
+    }
+  });
+
+  // Redeem beta invite code - For existing users who need beta access
+  // Apply strict rate limiting to prevent brute force attacks
+  app.post("/api/beta/redeem", adminLimiter, async (req: Request, res: Response) => {
+    try {
+      // Get current user from session
+      let userId = (req.session as any)?.userId;
+      if (!userId && req.user) {
+        const replitUser = req.user as any;
+        userId = replitUser.claims?.sub;
+      }
+      
+      if (!userId) {
+        return res.status(401).json({ error: "You must be logged in to redeem an invite code" });
+      }
+      
+      const { token } = req.body;
+      
+      // Validate token format (alphanumeric, reasonable length)
+      if (!token || typeof token !== 'string' || token.length < 4 || token.length > 30) {
+        logger.warn('Invalid invite code format attempt', { userId, tokenLength: token?.length });
+        return res.status(400).json({ error: "Invalid invite code format" });
+      }
+      
+      const sanitizedToken = token.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      if (sanitizedToken.length < 4) {
+        return res.status(400).json({ error: "Invalid invite code format" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Check if user already has beta access
+      if (user.hasBetaAccess || user.subscriptionTier === 'admin' || user.subscriptionTier === 'pro') {
+        return res.status(200).json({ 
+          success: true, 
+          message: "You already have beta access!",
+          alreadyHasAccess: true 
+        });
+      }
+      
+      // Try to redeem the invite code from database
+      const invite = await storage.redeemBetaInvite(sanitizedToken);
+      
+      if (!invite) {
+        // Check admin access code as fallback (must be set via env var, no default)
+        const adminCode = process.env.ADMIN_ACCESS_CODE;
+        if (!adminCode || sanitizedToken !== adminCode) {
+          logger.warn('Failed invite code redemption attempt', { userId, email: user.email });
+          return res.status(400).json({ error: "Invalid or expired invite code" });
+        }
+        
+        // Admin code grants beta access
+        await storage.updateUser(userId, { hasBetaAccess: true });
+        logger.info('User redeemed beta access via admin code', { userId, email: user.email });
+        
+        return res.json({ 
+          success: true, 
+          message: "Beta access granted!" 
+        });
+      }
+      
+      // Update user with beta access
+      await storage.updateUser(userId, { 
+        hasBetaAccess: true,
+        betaInviteId: invite.id,
+        ...(invite.tierOverride ? { subscriptionTier: invite.tierOverride } : {})
+      });
+      
+      logger.info('User redeemed beta invite', { 
+        userId, 
+        email: user.email, 
+        inviteToken: invite.token,
+        tierOverride: invite.tierOverride 
+      });
+      
+      res.json({ 
+        success: true, 
+        message: "Beta access granted!",
+        tierUpgrade: invite.tierOverride || null
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'beta/redeem' });
+      res.status(500).json({ error: "Failed to redeem invite code" });
     }
   });
 
@@ -3685,8 +3814,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Trade Ideas Routes
-  app.get("/api/trade-ideas", async (req: any, res) => {
+  // Trade Ideas Routes - Protected by beta access
+  app.get("/api/trade-ideas", requireBetaAccess, async (req: any, res) => {
     try {
       // Get user from session OR Replit Auth (same pattern as /api/auth/me)
       let userId = req.session?.userId;
@@ -9593,7 +9722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Market Scanner Routes - Scan 500+ stocks across timeframes
-  app.get("/api/market-scanner", async (req, res) => {
+  app.get("/api/market-scanner", requireBetaAccess, async (req, res) => {
     try {
       const { scanStockPerformance, getStockUniverse } = await import('./market-scanner');
       const category = (req.query.category as string) || 'all';
@@ -9620,7 +9749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/market-scanner/movers", async (req, res) => {
+  app.get("/api/market-scanner/movers", requireBetaAccess, async (req, res) => {
     try {
       const { getTopMovers } = await import('./market-scanner');
       const timeframe = (req.query.timeframe as string) || 'day';
@@ -9651,7 +9780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/market-scanner/sectors", async (_req, res) => {
+  app.get("/api/market-scanner/sectors", requireBetaAccess, async (_req, res) => {
     try {
       const { getSectorPerformance } = await import('./market-scanner');
       const sectors = await getSectorPerformance();
@@ -9663,7 +9792,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Smart Watchlist - Curated 10-20 picks with trade idea analysis
-  app.get("/api/market-scanner/watchlist", async (req, res) => {
+  app.get("/api/market-scanner/watchlist", requireBetaAccess, async (req, res) => {
     try {
       const { generateSmartWatchlist } = await import('./market-scanner');
       const timeframe = (req.query.timeframe as string) || 'day';
@@ -9689,7 +9818,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Catalyst Intelligence for Scanner - Get SEC filings, gov contracts, and catalysts for a symbol
-  app.get("/api/market-scanner/catalyst/:symbol", async (req, res) => {
+  app.get("/api/market-scanner/catalyst/:symbol", requireBetaAccess, async (req, res) => {
     try {
       const { symbol } = req.params;
       const ticker = symbol.toUpperCase();
@@ -9715,7 +9844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Historical Performance Patterns - Get how a stock performed in similar conditions
-  app.get("/api/market-scanner/historical/:symbol", async (req, res) => {
+  app.get("/api/market-scanner/historical/:symbol", requireBetaAccess, async (req, res) => {
     try {
       const { symbol } = req.params;
       const ticker = symbol.toUpperCase();
@@ -9799,7 +9928,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Multi-Year Outlook - Get yearly performance projections
-  app.get("/api/market-scanner/outlook/:symbol", async (req, res) => {
+  app.get("/api/market-scanner/outlook/:symbol", requireBetaAccess, async (req, res) => {
     try {
       const { symbol } = req.params;
       const ticker = symbol.toUpperCase();
@@ -9926,7 +10055,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Day Trade Scanner - Intraday setups using VWAP, RSI(2), volume spikes
-  app.get("/api/daytrade-scanner", async (req, res) => {
+  app.get("/api/daytrade-scanner", requireBetaAccess, async (req, res) => {
     try {
       const { getDayTradeOpportunities } = await import("./daytrade-scanner");
       const limit = parseInt(req.query.limit as string) || 15;
@@ -11549,7 +11678,7 @@ CONSTRAINTS:
   });
 
   // Chart Analysis Route - AI-powered technical analysis from uploaded charts
-  app.post("/api/chart-analysis", upload.single('chart'), aiGenerationLimiter, async (req, res) => {
+  app.post("/api/chart-analysis", upload.single('chart'), requireBetaAccess, aiGenerationLimiter, async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No chart image provided" });

@@ -135,3 +135,25 @@ Key features include:
 
 ### Other Integrations
 -   **Discord:** Webhook notifications (A-grade only quality filtering for flow alerts).
+
+## Beta Access Control System (Jan 2026)
+The platform operates in invite-only beta mode with the following access controls:
+-   **User Fields**: `hasBetaAccess` (boolean), `betaInviteId` (optional link to invite used)
+-   **Grandfathered Access**: Admin and Pro tier users automatically have beta access
+-   **Invite Redemption**: 
+    - New signups require an invite code during registration
+    - Existing users can redeem invite codes via POST `/api/beta/redeem`
+    - Admin access code (ADMIN_ACCESS_CODE env var) grants beta access as fallback
+-   **Protected Routes (Frontend)**: Platform pages (trade-desk, paper-trading, chart-analysis, performance, market, automations, etc.) wrapped with `withBetaProtection` HOC
+-   **Protected Routes (Backend)**: Key API endpoints protected by `requireBetaAccess` middleware:
+    - `/api/trade-ideas` - Trade research briefs
+    - `/api/chart-analysis` - AI-powered chart analysis
+    - `/api/market-scanner` - Stock scanner
+    - `/api/daytrade-scanner` - Day trade setups
+-   **ProtectedRoute Component** (`client/src/components/protected-route.tsx`): Wraps protected pages with auth + beta access check, showing invite code redemption UI for users without beta access
+-   **Security Features**:
+    - Rate limiting on `/api/beta/redeem` endpoint (adminLimiter)
+    - Input sanitization (alphanumeric only, 4-30 chars)
+    - Failed attempt logging
+    - No default admin code (must be set via env var)
+-   **Database Tables**: `beta_invites` for invite codes with tier overrides and expiry, `beta_waitlist` for waitlist signups

@@ -43,6 +43,10 @@ export const users = pgTable("users", {
   stripePriceId: varchar("stripe_price_id"),
   stripeCurrentPeriodEnd: timestamp("stripe_current_period_end"),
   
+  // Beta Access Control
+  hasBetaAccess: boolean("has_beta_access").default(false), // True if user has redeemed invite or is grandfathered
+  betaInviteId: varchar("beta_invite_id"), // Which invite they used to join
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
