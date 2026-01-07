@@ -1888,11 +1888,13 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
     const nowCT = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
     const dateStr = nowCT.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
     
-    // Filter to open ideas with decent confidence (60%+)
-    const topIdeas = ideas
+    // Filter to OPTIONS ONLY with any confidence - no crypto, no stocks
+    const eligibleIdeas = ideas
       .filter(i => 
         i.outcomeStatus === 'open' && 
-        (i.confidenceScore || 50) >= 60
+        i.assetType === 'option' &&  // OPTIONS ONLY
+        i.strikePrice &&  // Must have strike
+        i.expiryDate     // Must have expiry
       )
       .sort((a, b) => {
         // Sort by confidence then R:R
@@ -1900,11 +1902,21 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
         const bConf = b.confidenceScore || 50;
         if (bConf !== aConf) return bConf - aConf;
         return (b.riskRewardRatio || 1) - (a.riskRewardRatio || 1);
-      })
-      .slice(0, 5);
+      });
+    
+    // Deduplicate by symbol + strike + expiry + optionType
+    const seen = new Set<string>();
+    const topIdeas: TradeIdea[] = [];
+    for (const idea of eligibleIdeas) {
+      const key = `${idea.symbol}_${idea.strikePrice}_${idea.expiryDate}_${idea.optionType}`;
+      if (!seen.has(key) && topIdeas.length < 5) {
+        seen.add(key);
+        topIdeas.push(idea);
+      }
+    }
     
     if (topIdeas.length === 0) {
-      logger.info('📭 No trade ideas for daily preview');
+      logger.info('📭 No options trade ideas for daily preview');
       return;
     }
     
