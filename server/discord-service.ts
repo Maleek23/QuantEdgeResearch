@@ -219,45 +219,67 @@ const PORTFOLIO_METADATA: Record<string, { name: string; emoji: string }> = {
 };
 
 // Format bot trade for Discord - ENHANCED with portfolio context
-export async function sendBotTradeEntryToDiscordV2(trade: {
+// V1 preserved for backward compatibility
+export async function sendBotTradeEntryToDiscord(trade: {
   symbol: string;
-  optionType?: string;
-  strike?: number;
-  expiry?: string;
-  price: number;
+  assetType?: string | null;
+  optionType?: string | null;
+  strikePrice?: number | null;
+  expiryDate?: string | null;
+  entryPrice: number;
   quantity: number;
-  confidence?: number;
+  targetPrice?: number | null;
+  stopLoss?: number | null;
+  direction?: 'long' | 'short' | null;
+  analysis?: string | null;
+  signals?: string[] | null;
+  confidence?: number | null;
+  riskRewardRatio?: number | null;
+  isSmallAccount?: boolean;
+  source?: 'quant' | 'lotto' | 'futures' | 'small_account';
+  delta?: number | null;
   portfolio?: string;
   isLotto?: boolean;
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
 
-  const portfolioId = trade.portfolio || 'options';
+  const portfolioId = trade.portfolio || (trade.isSmallAccount ? 'small_account' : 'options');
   const meta = PORTFOLIO_METADATA[portfolioId] || { name: 'Bot Portfolio', emoji: '🤖' };
-  const isLotto = trade.isLotto || portfolioId === 'small_account';
+  const isLotto = trade.isLotto || trade.source === 'lotto' || portfolioId === 'small_account';
 
-  // ROUTING:
-  // 1. #lottos (DISCORD_WEBHOOK_LOTTO) if it's a lotto play
-  // 2. #quant-ai (DISCORD_WEBHOOK_QUANTBOT) for regular bot trades
-  const webhookUrl = isLotto 
-    ? (process.env.DISCORD_WEBHOOK_LOTTO || process.env.DISCORD_WEBHOOK_QUANTBOT)
-    : process.env.DISCORD_WEBHOOK_QUANTBOT;
-
-  if (!webhookUrl) {
-    logger.warn('⚠️ Discord webhook for bot trade not configured');
-    return;
+  // Determine webhook URLs based on source/asset type
+  const source = trade.source || (trade.assetType === 'future' ? 'futures' : 'quant');
+  
+  let webhookUrls: string[] = [];
+  
+  if (source === 'futures' || trade.assetType === 'future') {
+    const futuresWebhook = process.env.DISCORD_WEBHOOK_FUTURE_TRADES;
+    if (futuresWebhook) webhookUrls.push(futuresWebhook);
+  } else if (source === 'lotto' || isLotto) {
+    const lottoWebhook = process.env.DISCORD_WEBHOOK_LOTTO;
+    if (lottoWebhook) webhookUrls.push(lottoWebhook);
+  } else {
+    const quantBotWebhook = process.env.DISCORD_WEBHOOK_QUANTBOT;
+    if (quantBotWebhook) webhookUrls.push(quantBotWebhook);
   }
+  
+  if (webhookUrls.length === 0) {
+    const fallback = process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
+    if (fallback) webhookUrls.push(fallback);
+  }
+  
+  if (webhookUrls.length === 0) return;
 
   try {
-    const color = isLotto ? COLORS.LOTTO : COLORS.QUANT;
-    const title = `${trade.symbol} ${trade.optionType?.toUpperCase()} ${trade.strike ? `$${trade.strike}` : ''} ENTRY`;
+    const isCall = trade.optionType === 'call';
+    const color = isLotto ? COLORS.LOTTO : (isCall ? 0x22c55e : 0xef4444);
     
     const embed: DiscordEmbed = {
-      title: `${meta.emoji} ${title}`,
-      description: `**${meta.name}** has entered a new position.`,
+      title: `${meta.emoji} ${trade.symbol} ${trade.optionType?.toUpperCase()} ${trade.strikePrice ? `$${trade.strikePrice}` : ''} ENTRY`,
+      description: trade.analysis || `**${meta.name}** has entered a new position.`,
       color,
       fields: [
-        { name: '💰 Price', value: `$${trade.price.toFixed(2)}`, inline: true },
+        { name: '💰 Entry', value: `$${trade.entryPrice.toFixed(2)}`, inline: true },
         { name: '📦 Quantity', value: `${trade.quantity}`, inline: true },
         { name: '🎯 Confidence', value: `${trade.confidence || 0}%`, inline: true },
       ],
@@ -265,41 +287,50 @@ export async function sendBotTradeEntryToDiscordV2(trade: {
       footer: { text: `Quant Edge Labs • ${meta.name}` }
     };
 
-    if (trade.expiry) {
-      embed.fields.push({ name: '📅 Expiry', value: trade.expiry, inline: true });
+    if (trade.expiryDate) {
+      embed.fields.push({ name: '📅 Expiry', value: trade.expiryDate, inline: true });
     }
 
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        content: `🚀 **BOT ENTRY**: ${trade.symbol} (${meta.name})`,
-        embeds: [embed]
-      }),
-    });
-
-    if (!response.ok) logger.error(`Discord bot alert failed: ${response.status}`);
+    await Promise.allSettled(webhookUrls.map(url => 
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: `🚀 **BOT ENTRY**: ${trade.symbol} (${meta.name})`,
+          embeds: [embed]
+        }),
+      })
+    ));
   } catch (error) {
     logger.error('❌ Failed to send Discord bot alert:', error);
   }
 }
 
 // Send bot exit to Discord
-export async function sendBotTradeExitToDiscordV2(exit: {
+export async function sendBotTradeExitToDiscord(exit: {
   symbol: string;
-  price: number;
-  pnl: number;
-  pnlPercent: number;
-  reason: string;
+  assetType?: string | null;
+  optionType?: string | null;
+  strikePrice?: number | null;
+  entryPrice: number;
+  exitPrice?: number | null;
+  quantity: number;
+  realizedPnL?: number | null;
+  exitReason?: string | null;
+  isSmallAccount?: boolean;
+  source?: 'quant' | 'lotto' | 'futures' | 'small_account';
   portfolio?: string;
+  price?: number; // V1 fallback
+  pnl?: number; // V1 fallback
+  pnlPercent?: number; // V1 fallback
+  reason?: string; // V1 fallback
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
 
-  const portfolioId = exit.portfolio || 'options';
+  const portfolioId = exit.portfolio || (exit.isSmallAccount ? 'small_account' : 'options');
   const meta = PORTFOLIO_METADATA[portfolioId] || { name: 'Bot Portfolio', emoji: '🤖' };
   
-  // Exits also route based on portfolio/lotto status
-  const isLotto = portfolioId === 'small_account';
+  const isLotto = exit.source === 'lotto' || portfolioId === 'small_account';
   const webhookUrl = isLotto 
     ? (process.env.DISCORD_WEBHOOK_LOTTO || process.env.DISCORD_WEBHOOK_QUANTBOT)
     : process.env.DISCORD_WEBHOOK_QUANTBOT;
@@ -307,17 +338,20 @@ export async function sendBotTradeExitToDiscordV2(exit: {
   if (!webhookUrl) return;
 
   try {
-    const isProfit = exit.pnl > 0;
+    const realizedPnL = exit.realizedPnL ?? exit.pnl ?? 0;
+    const isProfit = realizedPnL > 0;
     const color = isProfit ? COLORS.LONG : COLORS.SHORT;
+    const exitPrice = exit.exitPrice ?? exit.price ?? 0;
+    const exitReason = exit.exitReason ?? exit.reason ?? 'Unknown';
     
     const embed: DiscordEmbed = {
       title: `${isProfit ? '💰' : '📉'} ${exit.symbol} EXIT (${isProfit ? 'PROFIT' : 'LOSS'})`,
       description: `**${meta.name}** has closed this position.`,
       color,
       fields: [
-        { name: '💵 Exit Price', value: `$${exit.price.toFixed(2)}`, inline: true },
-        { name: '📊 P&L', value: `${isProfit ? '+' : ''}$${exit.pnl.toFixed(2)} (${exit.pnlPercent.toFixed(1)}%)`, inline: true },
-        { name: '📝 Reason', value: exit.reason, inline: false },
+        { name: '💵 Exit Price', value: `$${exitPrice.toFixed(2)}`, inline: true },
+        { name: '📊 P&L', value: `${isProfit ? '+' : ''}$${realizedPnL.toFixed(2)}`, inline: true },
+        { name: '📝 Reason', value: exitReason, inline: false },
       ],
       timestamp: new Date().toISOString(),
       footer: { text: `Quant Edge Labs • ${meta.name}` }

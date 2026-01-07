@@ -1572,14 +1572,15 @@ export async function monitorCryptoPositions(): Promise<void> {
         
         // Send Discord notification
         try {
+          // Use the correct function signature for sendBotTradeExitToDiscord
           await sendBotTradeExitToDiscord({
             symbol: pos.symbol,
             assetType: pos.assetType,
             optionType: pos.optionType,
             strikePrice: pos.strikePrice,
-            entryPrice,
+            entryPrice: typeof pos.entryPrice === 'string' ? parseFloat(pos.entryPrice) : pos.entryPrice,
             exitPrice: currentPrice,
-            quantity: pos.quantity,
+            quantity: quantity,
             realizedPnL: unrealizedPnL,
             exitReason: 'hit_stop',
             portfolio: portfolio.id,
