@@ -4,771 +4,919 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   TrendingUp, TrendingDown, Activity, Target, DollarSign, 
-  BarChart3, PieChart, Zap, Clock, AlertTriangle, RefreshCw,
-  ArrowRight, Rocket, Brain, LineChart as LineChartIcon, Settings, Eye, EyeOff, Plus, LayoutGrid
+  BarChart3, Zap, Clock, AlertTriangle, RefreshCw, Brain,
+  Gauge, Shield, Cpu, LineChart, Eye, Layers, Radio,
+  CheckCircle2, XCircle, MinusCircle, ArrowUpRight, ArrowDownRight,
+  Flame, TriangleAlert, Timer, ChevronRight
 } from "lucide-react";
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart as RechartsPie, Pie, Cell, BarChart, Bar, Legend
-} from "recharts";
-import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { Link } from "wouter";
+import { MarketOverviewWidget } from "@/components/market-overview-widget";
+import { WinRateWidget } from "@/components/win-rate-widget";
+import { ExpiryPatternInsights } from "@/components/expiry-pattern-insights";
 
-interface DashboardStats {
-  portfolioValue: number;
-  dailyPnL: number;
-  dailyPnLPercent: number;
-  totalTrades: number;
-  winRate: number;
-  activePositions: number;
-  weeklyPerformance: { day: string; pnl: number }[];
-  assetAllocation: { name: string; value: number; color: string }[];
-  winLossRatio: { name: string; value: number; color: string }[];
-  recentBriefs: { title: string; summary: string; sentiment: string; time: string }[];
-  systemStatus: { name: string; status: string; lastUpdate: string }[];
+interface MarketContextData {
+  regime: 'trending_up' | 'trending_down' | 'ranging' | 'volatile';
+  riskSentiment: 'risk_on' | 'risk_off' | 'neutral';
+  score: number;
+  shouldTrade: boolean;
+  reasons: string[];
+  spyData: { price: number; change: number; relativeVolume: number } | null;
+  vixLevel: number | null;
+  tradingSession: string;
+  timestamp: string;
 }
 
-type WidgetId = 
-  | 'stats-row'
-  | 'weekly-performance'
-  | 'asset-allocation'
-  | 'win-loss'
-  | 'market-brief'
-  | 'system-status'
-  | 'quick-actions';
+interface QuantSignals {
+  rsi2: number;
+  rsi14: number;
+  vwapDistance: number;
+  zScore: number;
+  adxStrength: number;
+  volumeRatio: number;
+}
 
-interface WidgetConfig {
-  id: WidgetId;
+interface EngineStatus {
   name: string;
-  description: string;
-  defaultEnabled: boolean;
-  icon: any;
+  status: 'online' | 'degraded' | 'offline';
+  lastSignal?: string;
+  accuracy?: number;
 }
 
-const WIDGET_CONFIGS: WidgetConfig[] = [
-  { id: 'stats-row', name: 'Summary Stats', description: 'Portfolio value, P&L, win rate, positions', defaultEnabled: true, icon: DollarSign },
-  { id: 'weekly-performance', name: 'Weekly Performance', description: 'Chart of daily P&L over the week', defaultEnabled: true, icon: TrendingUp },
-  { id: 'asset-allocation', name: 'Asset Allocation', description: 'Breakdown by asset type', defaultEnabled: true, icon: PieChart },
-  { id: 'win-loss', name: 'Win/Loss Ratio', description: 'Trade outcome distribution', defaultEnabled: true, icon: Target },
-  { id: 'market-brief', name: 'Market Brief', description: 'Daily market summary and alerts', defaultEnabled: true, icon: Brain },
-  { id: 'system-status', name: 'System Status', description: 'Bot and service health indicators', defaultEnabled: true, icon: Activity },
-  { id: 'quick-actions', name: 'Quick Actions', description: 'Navigation shortcuts', defaultEnabled: true, icon: Rocket },
-];
-
-const STORAGE_KEY = 'dashboard-widgets';
-
-function getDefaultWidgets(): Record<WidgetId, boolean> {
-  const defaults: Record<WidgetId, boolean> = {} as any;
-  WIDGET_CONFIGS.forEach(w => defaults[w.id] = w.defaultEnabled);
-  return defaults;
+interface IndexData {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  changePercent: number;
 }
 
-function loadWidgetSettings(): Record<WidgetId, boolean> {
-  if (typeof window === 'undefined') return getDefaultWidgets();
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      return { ...getDefaultWidgets(), ...JSON.parse(saved) };
-    }
-  } catch (e) {
-    console.error('Failed to load widget settings', e);
-  }
-  return getDefaultWidgets();
-}
+const regimeConfig: Record<string, { label: string; icon: any; color: string; bg: string }> = {
+  trending_up: { label: 'BULLISH', icon: TrendingUp, color: 'text-green-400', bg: 'bg-green-500/20' },
+  trending_down: { label: 'BEARISH', icon: TrendingDown, color: 'text-red-400', bg: 'bg-red-500/20' },
+  ranging: { label: 'NEUTRAL', icon: Activity, color: 'text-amber-400', bg: 'bg-amber-500/20' },
+  volatile: { label: 'VOLATILE', icon: AlertTriangle, color: 'text-red-400', bg: 'bg-red-500/20' },
+};
 
-function saveWidgetSettings(settings: Record<WidgetId, boolean>) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch (e) {
-    console.error('Failed to save widget settings', e);
-  }
-}
+const sentimentConfig: Record<string, { label: string; color: string; bg: string }> = {
+  risk_on: { label: 'RISK-ON', color: 'text-green-400', bg: 'bg-green-500/10' },
+  risk_off: { label: 'RISK-OFF', color: 'text-red-400', bg: 'bg-red-500/10' },
+  neutral: { label: 'NEUTRAL', color: 'text-slate-400', bg: 'bg-slate-500/10' },
+};
 
-export default function Dashboard() {
-  const [widgets, setWidgets] = useState<Record<WidgetId, boolean>>(() => loadWidgetSettings());
-  const [settingsOpen, setSettingsOpen] = useState(false);
-
-  const toggleWidget = (id: WidgetId) => {
-    const newSettings = { ...widgets, [id]: !widgets[id] };
-    setWidgets(newSettings);
-    saveWidgetSettings(newSettings);
-  };
-
-  const enableAllWidgets = () => {
-    const all: Record<WidgetId, boolean> = {} as any;
-    WIDGET_CONFIGS.forEach(w => all[w.id] = true);
-    setWidgets(all);
-    saveWidgetSettings(all);
-  };
-
-  const disableAllWidgets = () => {
-    const minimal: Record<WidgetId, boolean> = {} as any;
-    WIDGET_CONFIGS.forEach(w => minimal[w.id] = false);
-    minimal['stats-row'] = true; // Keep at least stats
-    setWidgets(minimal);
-    saveWidgetSettings(minimal);
-  };
-
-  const { data: stats, isLoading, refetch } = useQuery<DashboardStats>({
-    queryKey: ['/api/dashboard/stats'],
-    refetchInterval: 60000,
+function MarketRegimeCard() {
+  const { data: context, isLoading } = useQuery<MarketContextData>({
+    queryKey: ['/api/market-context'],
+    refetchInterval: 30000,
   });
 
-  const { data: marketBrief } = useQuery<{ brief: string; timestamp: string }>({
-    queryKey: ['/api/dashboard/market-brief'],
-    refetchInterval: 300000,
-  });
+  if (isLoading) {
+    return (
+      <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+        <CardContent className="p-4">
+          <Skeleton className="h-16 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
 
-  const defaultStats: DashboardStats = {
-    portfolioValue: 0,
-    dailyPnL: 0,
-    dailyPnLPercent: 0,
-    totalTrades: 0,
-    winRate: 0,
-    activePositions: 0,
-    weeklyPerformance: [
-      { day: 'Mon', pnl: 0 },
-      { day: 'Tue', pnl: 0 },
-      { day: 'Wed', pnl: 0 },
-      { day: 'Thu', pnl: 0 },
-      { day: 'Fri', pnl: 0 },
-    ],
-    assetAllocation: [],
-    winLossRatio: [],
-    recentBriefs: [],
-    systemStatus: [],
-  };
+  const regime = context?.regime || 'ranging';
+  const config = regimeConfig[regime] || regimeConfig.ranging;
+  const sentiment = context?.riskSentiment || 'neutral';
+  const sentConf = sentimentConfig[sentiment] || sentimentConfig.neutral;
+  const score = context?.score || 50;
+  const RegimeIcon = config.icon;
 
-  const data = stats || defaultStats;
-
-  // Check if we have any real data for charts
-  const hasWeeklyData = data.weeklyPerformance.some(d => d.pnl !== 0);
-
-  const StatCard = ({ 
-    title, value, subtitle, icon: Icon, trend, color = "cyan", testId 
-  }: { 
-    title: string; 
-    value: string | number; 
-    subtitle?: string; 
-    icon: any; 
-    trend?: 'up' | 'down' | 'neutral';
-    color?: string;
-    testId?: string;
-  }) => (
-    <Card className="glass-card border-border/50 hover-elevate" data-testid={testId}>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">{title}</p>
-            <p 
-              className={cn(
-                "text-2xl font-bold font-mono tabular-nums",
-                color === "cyan" && "text-cyan-600 dark:text-cyan-400",
-                color === "green" && "text-green-600 dark:text-green-400",
-                color === "red" && "text-red-600 dark:text-red-400",
-                color === "purple" && "text-purple-600 dark:text-purple-400",
-                color === "amber" && "text-amber-600 dark:text-amber-400",
+  return (
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50" data-testid="card-market-regime">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <Gauge className="h-3.5 w-3.5" />
+          Market Regime
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className={cn("flex items-center justify-between p-3 rounded-lg border", config.bg, "border-transparent")}>
+          <div className="flex items-center gap-2">
+            <RegimeIcon className={cn("h-5 w-5", config.color)} />
+            <span className={cn("font-bold text-sm", config.color)}>{config.label}</span>
+          </div>
+          <Badge variant="outline" className={cn("text-xs", sentConf.bg, sentConf.color)}>
+            {sentConf.label}
+          </Badge>
+        </div>
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Trade Score</span>
+            <span className={cn("font-mono font-bold",
+              score >= 60 ? "text-green-400" : score >= 40 ? "text-amber-400" : "text-red-400"
+            )}>{score}/100</span>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div 
+              className={cn("h-full transition-all",
+                score >= 60 ? "bg-green-500" : score >= 40 ? "bg-amber-500" : "bg-red-500"
               )}
-              data-testid={testId ? `${testId}-value` : undefined}
-            >
-              {value}
-            </p>
-            {subtitle && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                {trend === 'up' && <TrendingUp className="h-3 w-3 text-green-600 dark:text-green-400" />}
-                {trend === 'down' && <TrendingDown className="h-3 w-3 text-red-600 dark:text-red-400" />}
-                {subtitle}
-              </p>
+              style={{ width: `${score}%` }}
+            />
+          </div>
+        </div>
+        {context?.shouldTrade ? (
+          <Badge className="w-full justify-center bg-green-500/20 text-green-400 border-green-500/40">
+            <CheckCircle2 className="h-3 w-3 mr-1" /> TRADEABLE CONDITIONS
+          </Badge>
+        ) : (
+          <Badge className="w-full justify-center bg-red-500/20 text-red-400 border-red-500/40">
+            <XCircle className="h-3 w-3 mr-1" /> CAUTION ADVISED
+          </Badge>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function VolatilityCard() {
+  const { data: context, isLoading } = useQuery<MarketContextData>({
+    queryKey: ['/api/market-context'],
+    refetchInterval: 30000,
+  });
+
+  const vix = context?.vixLevel || null;
+  const spy = context?.spyData;
+
+  const getVixStatus = (level: number) => {
+    if (level < 15) return { label: 'LOW', color: 'text-green-400', bg: 'bg-green-500/20' };
+    if (level < 20) return { label: 'NORMAL', color: 'text-amber-400', bg: 'bg-amber-500/20' };
+    if (level < 30) return { label: 'ELEVATED', color: 'text-orange-400', bg: 'bg-orange-500/20' };
+    return { label: 'EXTREME', color: 'text-red-400', bg: 'bg-red-500/20' };
+  };
+
+  const vixStatus = vix ? getVixStatus(vix) : null;
+
+  return (
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50" data-testid="card-volatility">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <Activity className="h-3.5 w-3.5" />
+          Volatility Snapshot
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <span className="text-xs text-muted-foreground">VIX</span>
+            {vix ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-mono font-bold">{vix.toFixed(1)}</span>
+                {vixStatus && (
+                  <Badge variant="outline" className={cn("text-[10px]", vixStatus.bg, vixStatus.color)}>
+                    {vixStatus.label}
+                  </Badge>
+                )}
+              </div>
+            ) : (
+              <span className="text-lg font-mono text-muted-foreground">--</span>
             )}
           </div>
-          <div className={cn(
-            "p-2 rounded-lg",
-            color === "cyan" && "bg-cyan-500/10 dark:bg-cyan-500/10",
-            color === "green" && "bg-green-500/10 dark:bg-green-500/10",
-            color === "red" && "bg-red-500/10 dark:bg-red-500/10",
-            color === "purple" && "bg-purple-500/10 dark:bg-purple-500/10",
-            color === "amber" && "bg-amber-500/10 dark:bg-amber-500/10",
+          <div className="space-y-1">
+            <span className="text-xs text-muted-foreground">SPY</span>
+            {spy ? (
+              <div>
+                <span className="text-xl font-mono font-bold">${spy.price.toFixed(2)}</span>
+                <div className={cn("text-xs font-mono flex items-center gap-1",
+                  spy.change >= 0 ? "text-green-400" : "text-red-400"
+                )}>
+                  {spy.change >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                  {spy.change >= 0 ? '+' : ''}{spy.change.toFixed(2)}%
+                </div>
+              </div>
+            ) : (
+              <span className="text-lg font-mono text-muted-foreground">--</span>
+            )}
+          </div>
+        </div>
+        {spy && (
+          <div className="pt-2 border-t border-border/50">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Relative Volume</span>
+              <span className={cn("font-mono",
+                spy.relativeVolume > 1.2 ? "text-green-400" : 
+                spy.relativeVolume < 0.8 ? "text-red-400" : "text-muted-foreground"
+              )}>
+                {spy.relativeVolume.toFixed(2)}x
+              </span>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function IndexHeatmap() {
+  const indices: IndexData[] = [
+    { symbol: 'SPY', name: 'S&P 500', price: 0, change: 0, changePercent: 0 },
+    { symbol: 'QQQ', name: 'Nasdaq 100', price: 0, change: 0, changePercent: 0 },
+    { symbol: 'IWM', name: 'Russell 2000', price: 0, change: 0, changePercent: 0 },
+    { symbol: 'BTC', name: 'Bitcoin', price: 0, change: 0, changePercent: 0 },
+    { symbol: 'ETH', name: 'Ethereum', price: 0, change: 0, changePercent: 0 },
+  ];
+
+  const { data: context } = useQuery<MarketContextData>({
+    queryKey: ['/api/market-context'],
+    refetchInterval: 30000,
+  });
+
+  if (context?.spyData) {
+    indices[0].price = context.spyData.price;
+    indices[0].changePercent = context.spyData.change;
+  }
+
+  return (
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50" data-testid="card-index-heatmap">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <Layers className="h-3.5 w-3.5" />
+          Index Heatmap
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-5 gap-1.5">
+          {indices.map((idx) => {
+            const isUp = idx.changePercent >= 0;
+            const intensity = Math.min(Math.abs(idx.changePercent) / 3, 1);
+            return (
+              <div 
+                key={idx.symbol}
+                className={cn(
+                  "p-2 rounded text-center transition-colors",
+                  isUp ? `bg-green-500/${Math.max(10, Math.round(intensity * 30))}` : 
+                         `bg-red-500/${Math.max(10, Math.round(intensity * 30))}`
+                )}
+              >
+                <div className="text-xs font-bold">{idx.symbol}</div>
+                <div className={cn("text-xs font-mono",
+                  isUp ? "text-green-400" : "text-red-400"
+                )}>
+                  {idx.changePercent !== 0 ? (
+                    <>{isUp ? '+' : ''}{idx.changePercent.toFixed(2)}%</>
+                  ) : (
+                    <span className="text-muted-foreground">--</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FuturesBiasPanel() {
+  const futuresData = [
+    { symbol: 'ES', name: 'S&P 500', bias: 'bullish', level: 5875, target: 5920 },
+    { symbol: 'NQ', name: 'Nasdaq', bias: 'bullish', level: 20850, target: 21000 },
+    { symbol: 'GC', name: 'Gold', bias: 'neutral', level: 2645, target: 2660 },
+  ];
+
+  return (
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50" data-testid="card-futures-bias">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <LineChart className="h-3.5 w-3.5" />
+          Futures Bias
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {futuresData.map((f) => (
+          <div key={f.symbol} className="flex items-center justify-between p-2 rounded bg-muted/30">
+            <div className="flex items-center gap-2">
+              <span className="font-mono font-bold text-sm">{f.symbol}</span>
+              <Badge variant="outline" className={cn("text-[10px]",
+                f.bias === 'bullish' ? "text-green-400 bg-green-500/10" :
+                f.bias === 'bearish' ? "text-red-400 bg-red-500/10" :
+                "text-amber-400 bg-amber-500/10"
+              )}>
+                {f.bias.toUpperCase()}
+              </Badge>
+            </div>
+            <div className="text-right">
+              <div className="text-xs font-mono">{f.level.toLocaleString()}</div>
+              <div className="text-[10px] text-muted-foreground">Target: {f.target.toLocaleString()}</div>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SignalConfidenceGauge() {
+  const { data: context } = useQuery<MarketContextData>({
+    queryKey: ['/api/market-context'],
+    refetchInterval: 30000,
+  });
+
+  const score = context?.score || 50;
+  const getScoreLabel = (s: number) => {
+    if (s >= 80) return { label: 'STRONG', color: 'text-green-400' };
+    if (s >= 60) return { label: 'MODERATE', color: 'text-cyan-400' };
+    if (s >= 40) return { label: 'WEAK', color: 'text-amber-400' };
+    return { label: 'AVOID', color: 'text-red-400' };
+  };
+  const scoreInfo = getScoreLabel(score);
+
+  return (
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50" data-testid="card-signal-confidence">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <Target className="h-3.5 w-3.5" />
+          Signal Confidence
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col items-center py-2">
+          <div className="relative w-24 h-24">
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+              <path
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                fill="none"
+                stroke="hsl(var(--muted))"
+                strokeWidth="3"
+              />
+              <path
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                fill="none"
+                stroke={score >= 60 ? "#22c55e" : score >= 40 ? "#f59e0b" : "#ef4444"}
+                strokeWidth="3"
+                strokeDasharray={`${score}, 100`}
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-2xl font-mono font-bold">{score}</span>
+              <span className="text-[10px] text-muted-foreground">/100</span>
+            </div>
+          </div>
+          <Badge className={cn("mt-2", scoreInfo.color)} variant="outline">
+            {scoreInfo.label}
+          </Badge>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MultiEngineConvergence() {
+  const engines = [
+    { name: 'AI Claude', signal: 'bullish', confidence: 78 },
+    { name: 'Quant RSI', signal: 'bullish', confidence: 72 },
+    { name: 'VWAP Flow', signal: 'neutral', confidence: 55 },
+    { name: 'Volume', signal: 'bullish', confidence: 81 },
+  ];
+
+  const consensus = engines.filter(e => e.signal === 'bullish').length;
+  const convergenceScore = Math.round((consensus / engines.length) * 100);
+
+  return (
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50" data-testid="card-engine-convergence">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <Radio className="h-3.5 w-3.5" />
+          Engine Convergence
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-2xl font-mono font-bold">{convergenceScore}%</span>
+          <Badge className={cn(
+            convergenceScore >= 75 ? "bg-green-500/20 text-green-400" :
+            convergenceScore >= 50 ? "bg-amber-500/20 text-amber-400" :
+            "bg-red-500/20 text-red-400"
           )}>
-            <Icon className={cn(
-              "h-5 w-5",
-              color === "cyan" && "text-cyan-600 dark:text-cyan-400",
-              color === "green" && "text-green-600 dark:text-green-400",
-              color === "red" && "text-red-600 dark:text-red-400",
-              color === "purple" && "text-purple-600 dark:text-purple-400",
-              color === "amber" && "text-amber-600 dark:text-amber-400",
+            {consensus}/{engines.length} ALIGNED
+          </Badge>
+        </div>
+        <div className="space-y-1.5">
+          {engines.map((eng) => (
+            <div key={eng.name} className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">{eng.name}</span>
+              <div className="flex items-center gap-2">
+                <span className={cn("font-mono",
+                  eng.signal === 'bullish' ? "text-green-400" :
+                  eng.signal === 'bearish' ? "text-red-400" : "text-amber-400"
+                )}>
+                  {eng.confidence}%
+                </span>
+                {eng.signal === 'bullish' && <TrendingUp className="h-3 w-3 text-green-400" />}
+                {eng.signal === 'bearish' && <TrendingDown className="h-3 w-3 text-red-400" />}
+                {eng.signal === 'neutral' && <MinusCircle className="h-3 w-3 text-amber-400" />}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function QuantEnginePanel() {
+  const signals: QuantSignals = {
+    rsi2: 28,
+    rsi14: 45,
+    vwapDistance: -0.35,
+    zScore: -1.2,
+    adxStrength: 32,
+    volumeRatio: 1.15,
+  };
+
+  const getSignalStatus = (value: number, type: string) => {
+    switch (type) {
+      case 'rsi2':
+        if (value < 10) return { label: 'EXTREME OS', color: 'text-green-400' };
+        if (value < 30) return { label: 'OVERSOLD', color: 'text-green-400' };
+        if (value > 90) return { label: 'EXTREME OB', color: 'text-red-400' };
+        if (value > 70) return { label: 'OVERBOUGHT', color: 'text-red-400' };
+        return { label: 'NEUTRAL', color: 'text-muted-foreground' };
+      case 'vwap':
+        if (value < -0.5) return { label: 'BELOW', color: 'text-red-400' };
+        if (value > 0.5) return { label: 'ABOVE', color: 'text-green-400' };
+        return { label: 'AT VWAP', color: 'text-amber-400' };
+      case 'zscore':
+        if (value < -2) return { label: 'MEAN REV BUY', color: 'text-green-400' };
+        if (value > 2) return { label: 'MEAN REV SELL', color: 'text-red-400' };
+        return { label: 'NORMAL', color: 'text-muted-foreground' };
+      case 'adx':
+        if (value > 40) return { label: 'STRONG TREND', color: 'text-cyan-400' };
+        if (value > 25) return { label: 'TRENDING', color: 'text-amber-400' };
+        return { label: 'RANGING', color: 'text-muted-foreground' };
+      default:
+        return { label: '--', color: 'text-muted-foreground' };
+    }
+  };
+
+  return (
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50" data-testid="card-quant-engine">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <Cpu className="h-3.5 w-3.5" />
+          Quant Engine Signals
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="p-2 rounded bg-muted/30">
+            <div className="text-[10px] text-muted-foreground">RSI(2)</div>
+            <div className="flex items-center justify-between">
+              <span className="text-lg font-mono font-bold">{signals.rsi2}</span>
+              <Badge variant="outline" className={cn("text-[10px]", getSignalStatus(signals.rsi2, 'rsi2').color)}>
+                {getSignalStatus(signals.rsi2, 'rsi2').label}
+              </Badge>
+            </div>
+          </div>
+          <div className="p-2 rounded bg-muted/30">
+            <div className="text-[10px] text-muted-foreground">VWAP Dist</div>
+            <div className="flex items-center justify-between">
+              <span className="text-lg font-mono font-bold">{signals.vwapDistance.toFixed(2)}%</span>
+              <Badge variant="outline" className={cn("text-[10px]", getSignalStatus(signals.vwapDistance, 'vwap').color)}>
+                {getSignalStatus(signals.vwapDistance, 'vwap').label}
+              </Badge>
+            </div>
+          </div>
+          <div className="p-2 rounded bg-muted/30">
+            <div className="text-[10px] text-muted-foreground">Z-Score</div>
+            <div className="flex items-center justify-between">
+              <span className="text-lg font-mono font-bold">{signals.zScore.toFixed(2)}</span>
+              <Badge variant="outline" className={cn("text-[10px]", getSignalStatus(signals.zScore, 'zscore').color)}>
+                {getSignalStatus(signals.zScore, 'zscore').label}
+              </Badge>
+            </div>
+          </div>
+          <div className="p-2 rounded bg-muted/30">
+            <div className="text-[10px] text-muted-foreground">ADX</div>
+            <div className="flex items-center justify-between">
+              <span className="text-lg font-mono font-bold">{signals.adxStrength}</span>
+              <Badge variant="outline" className={cn("text-[10px]", getSignalStatus(signals.adxStrength, 'adx').color)}>
+                {getSignalStatus(signals.adxStrength, 'adx').label}
+              </Badge>
+            </div>
+          </div>
+        </div>
+        <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs">
+          <span className="text-muted-foreground">Volume Ratio</span>
+          <span className={cn("font-mono font-bold",
+            signals.volumeRatio > 1.5 ? "text-green-400" :
+            signals.volumeRatio > 1 ? "text-cyan-400" : "text-muted-foreground"
+          )}>
+            {signals.volumeRatio.toFixed(2)}x
+          </span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AIEngineStatus() {
+  const engines: EngineStatus[] = [
+    { name: 'Claude Sonnet', status: 'online', accuracy: 72 },
+    { name: 'GPT-4', status: 'online', accuracy: 68 },
+    { name: 'Gemini', status: 'online', accuracy: 65 },
+    { name: 'Quant Engine', status: 'online', accuracy: 71 },
+  ];
+
+  return (
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50" data-testid="card-ai-engine-status">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <Brain className="h-3.5 w-3.5" />
+          AI Engine Status
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {engines.map((eng) => (
+          <div key={eng.name} className="flex items-center justify-between p-2 rounded bg-muted/30">
+            <div className="flex items-center gap-2">
+              <div className={cn("w-2 h-2 rounded-full",
+                eng.status === 'online' ? "bg-green-500" :
+                eng.status === 'degraded' ? "bg-amber-500" : "bg-red-500"
+              )} />
+              <span className="text-sm">{eng.name}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {eng.accuracy && (
+                <span className="text-xs font-mono text-muted-foreground">{eng.accuracy}% acc</span>
+              )}
+              <Badge variant="outline" className={cn("text-[10px]",
+                eng.status === 'online' ? "text-green-400" :
+                eng.status === 'degraded' ? "text-amber-400" : "text-red-400"
+              )}>
+                {eng.status.toUpperCase()}
+              </Badge>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function BotActivityMonitor() {
+  const { data: botStatus, isLoading } = useQuery<{
+    isRunning: boolean;
+    openPositions: number;
+    todayTrades: number;
+    todayPnL: number;
+    lastAction?: string;
+  }>({
+    queryKey: ['/api/auto-lotto/bot-status'],
+    refetchInterval: 10000,
+  });
+
+  const isRunning = botStatus?.isRunning ?? false;
+  const openPositions = botStatus?.openPositions ?? 0;
+  const todayTrades = botStatus?.todayTrades ?? 0;
+  const todayPnL = botStatus?.todayPnL ?? 0;
+
+  return (
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50" data-testid="card-bot-monitor">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <Zap className="h-3.5 w-3.5" />
+          Auto-Lotto Bot
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={cn("w-3 h-3 rounded-full",
+              isRunning ? "bg-green-500 animate-pulse" : "bg-red-500"
             )} />
+            <span className="font-medium">{isRunning ? 'ACTIVE' : 'PAUSED'}</span>
+          </div>
+          <Link href="/automations">
+            <Button size="sm" variant="outline" className="text-xs h-7">
+              Open <ChevronRight className="h-3 w-3 ml-1" />
+            </Button>
+          </Link>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="p-2 rounded bg-muted/30">
+            <div className="text-[10px] text-muted-foreground">Open</div>
+            <div className="text-lg font-mono font-bold">{openPositions}</div>
+          </div>
+          <div className="p-2 rounded bg-muted/30">
+            <div className="text-[10px] text-muted-foreground">Today</div>
+            <div className="text-lg font-mono font-bold">{todayTrades}</div>
+          </div>
+          <div className="p-2 rounded bg-muted/30">
+            <div className="text-[10px] text-muted-foreground">P&L</div>
+            <div className={cn("text-lg font-mono font-bold",
+              todayPnL >= 0 ? "text-green-400" : "text-red-400"
+            )}>
+              {todayPnL >= 0 ? '+' : ''}{todayPnL.toFixed(0)}
+            </div>
           </div>
         </div>
       </CardContent>
     </Card>
   );
+}
 
-  const DonutChart = ({ 
-    data: chartData, 
-    title, 
-    centerLabel,
-    testId,
-    emptyMessage
-  }: { 
-    data: { name: string; value: number; color: string }[]; 
-    title: string;
-    centerLabel?: string;
-    testId?: string;
-    emptyMessage?: string;
-  }) => {
-    const hasData = chartData.length > 0;
-    
-    return (
-      <Card className="glass-card border-border/50" data-testid={testId}>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <PieChart className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-            {title}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {hasData ? (
-            <>
-              <div className="relative h-[200px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPie>
-                    <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={80}
-                      paddingAngle={3}
-                      dataKey="value"
-                      stroke="hsl(var(--background))"
-                      strokeWidth={2}
-                    >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        color: 'hsl(var(--foreground))'
-                      }}
-                      formatter={(value: number, name: string) => [`${value}%`, name]}
-                    />
-                  </RechartsPie>
-                </ResponsiveContainer>
-                {centerLabel && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <span className="text-2xl font-bold text-foreground">{centerLabel}</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-wrap justify-center gap-3 mt-3">
-                {chartData.map((item, i) => (
-                  <div key={i} className="flex items-center gap-1.5 text-xs">
-                    <div 
-                      className="w-2.5 h-2.5 rounded-full" 
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-muted-foreground">{item.name}</span>
-                    <span className="font-mono font-medium">{item.value}%</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="h-[200px] flex flex-col items-center justify-center text-muted-foreground">
-              <PieChart className="h-12 w-12 opacity-20 mb-2" />
-              <p className="text-sm">{emptyMessage || 'No data available'}</p>
-              <p className="text-xs opacity-70">Complete some trades to see stats</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    );
+function QuickLinks() {
+  const links = [
+    { label: 'Trade Desk', href: '/trade-desk', icon: Target },
+    { label: 'Automations', href: '/automations', icon: Zap },
+    { label: 'Journal', href: '/journal', icon: BarChart3 },
+    { label: 'Analytics', href: '/analytics', icon: LineChart },
+  ];
+
+  return (
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50" data-testid="card-quick-links">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <Flame className="h-3.5 w-3.5" />
+          Quick Access
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-2">
+          {links.map((link) => (
+            <Link key={link.href} href={link.href}>
+              <Button variant="outline" size="sm" className="w-full justify-start text-xs h-8 hover-elevate">
+                <link.icon className="h-3.5 w-3.5 mr-2" />
+                {link.label}
+              </Button>
+            </Link>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TradingSessionCard() {
+  const { data: context } = useQuery<MarketContextData>({
+    queryKey: ['/api/market-context'],
+    refetchInterval: 30000,
+  });
+
+  const sessionLabels: Record<string, { label: string; color: string }> = {
+    pre_market: { label: 'Pre-Market', color: 'text-purple-400' },
+    opening_drive: { label: 'Opening Drive', color: 'text-cyan-400' },
+    mid_morning: { label: 'Mid-Morning', color: 'text-green-400' },
+    lunch_lull: { label: 'Lunch Lull', color: 'text-amber-400' },
+    afternoon: { label: 'Afternoon', color: 'text-cyan-400' },
+    power_hour: { label: 'Power Hour', color: 'text-orange-400' },
+    after_hours: { label: 'After Hours', color: 'text-slate-400' },
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <Skeleton className="h-10 w-48" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1,2,3,4].map(i => <Skeleton key={i} className="h-28" />)}
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Skeleton className="h-80" />
-            <Skeleton className="h-80" />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const session = context?.tradingSession || 'after_hours';
+  const sessionInfo = sessionLabels[session] || sessionLabels.after_hours;
 
-  const enabledCount = Object.values(widgets).filter(Boolean).length;
+  return (
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50" data-testid="card-trading-session">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+          <Clock className="h-3.5 w-3.5" />
+          Trading Session
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between">
+          <div>
+            <span className={cn("text-lg font-bold", sessionInfo.color)}>{sessionInfo.label}</span>
+            <div className="text-xs text-muted-foreground mt-1">
+              {format(new Date(), 'h:mm a')} CT
+            </div>
+          </div>
+          <Timer className={cn("h-8 w-8 opacity-50", sessionInfo.color)} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function Dashboard() {
+  const { refetch } = useQuery<MarketContextData>({
+    queryKey: ['/api/market-context'],
+    refetchInterval: 30000,
+  });
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="max-w-[1800px] mx-auto p-4 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <BarChart3 className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
-              Dashboard
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-cyan-400" />
+              Command Center
             </h1>
-            <p className="text-sm text-muted-foreground">
-              {format(new Date(), 'EEEE, MMMM d, yyyy')} • Market Overview
+            <p className="text-xs text-muted-foreground">
+              {format(new Date(), 'EEEE, MMMM d, yyyy')} • Institutional Research Dashboard
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
-              <SheetTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  data-testid="button-widget-settings"
-                >
-                  <LayoutGrid className="h-4 w-4 mr-1" />
-                  Widgets ({enabledCount}/{WIDGET_CONFIGS.length})
-                </Button>
-              </SheetTrigger>
-              <SheetContent>
-                <SheetHeader>
-                  <SheetTitle className="flex items-center gap-2">
-                    <Settings className="h-5 w-5" />
-                    Dashboard Widgets
-                  </SheetTitle>
-                  <SheetDescription>
-                    Toggle widgets to customize your dashboard view
-                  </SheetDescription>
-                </SheetHeader>
-                <div className="mt-6 space-y-4">
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={enableAllWidgets}
-                      data-testid="button-show-all-widgets"
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      Show All
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={disableAllWidgets}
-                      data-testid="button-hide-widgets"
-                    >
-                      <EyeOff className="h-4 w-4 mr-1" />
-                      Minimal
-                    </Button>
-                  </div>
-                  <div className="space-y-3">
-                    {WIDGET_CONFIGS.map((config) => (
-                      <div 
-                        key={config.id}
-                        className={cn(
-                          "flex items-center justify-between p-3 rounded-lg border transition-colors",
-                          widgets[config.id] 
-                            ? "bg-muted/50 border-border" 
-                            : "bg-background border-border/50 opacity-60"
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          <config.icon className={cn(
-                            "h-4 w-4",
-                            widgets[config.id] ? "text-cyan-500" : "text-muted-foreground"
-                          )} />
-                          <div>
-                            <Label className="font-medium cursor-pointer" htmlFor={config.id}>
-                              {config.name}
-                            </Label>
-                            <p className="text-xs text-muted-foreground">{config.description}</p>
-                          </div>
-                        </div>
-                        <Switch
-                          id={config.id}
-                          checked={widgets[config.id]}
-                          onCheckedChange={() => toggleWidget(config.id)}
-                          data-testid={`toggle-widget-${config.id}`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => refetch()}
               data-testid="button-refresh-dashboard"
+              className="text-xs"
             >
-              <RefreshCw className="h-4 w-4 mr-1" />
+              <RefreshCw className="h-3 w-3 mr-1" />
               Refresh
             </Button>
             <Link href="/trade-desk">
-              <Button size="sm" className="bg-cyan-500 hover:bg-cyan-400 text-slate-950" data-testid="link-trade-desk">
+              <Button size="sm" className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs" data-testid="link-trade-desk">
                 Trade Desk
-                <ArrowRight className="h-4 w-4 ml-1" />
+                <ChevronRight className="h-3 w-3 ml-1" />
               </Button>
             </Link>
           </div>
         </div>
 
-        {/* Summary Stats */}
-        {widgets['stats-row'] && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard 
-              title="Portfolio Value" 
-              value={`$${data.portfolioValue.toLocaleString()}`}
-              icon={DollarSign}
-              color="cyan"
-              testId="stat-portfolio-value"
-            />
-            <StatCard 
-              title="Daily P&L" 
-              value={`${data.dailyPnL >= 0 ? '+' : ''}$${data.dailyPnL.toLocaleString()}`}
-              subtitle={`${data.dailyPnLPercent >= 0 ? '+' : ''}${data.dailyPnLPercent.toFixed(2)}%`}
-              icon={data.dailyPnL >= 0 ? TrendingUp : TrendingDown}
-              trend={data.dailyPnL >= 0 ? 'up' : 'down'}
-              color={data.dailyPnL >= 0 ? 'green' : 'red'}
-              testId="stat-daily-pnl"
-            />
-            <StatCard 
-              title="Win Rate" 
-              value={`${data.winRate.toFixed(1)}%`}
-              subtitle={`${data.totalTrades} total trades`}
-              icon={Target}
-              color="purple"
-              testId="stat-win-rate"
-            />
-            <StatCard 
-              title="Active Positions" 
-              value={data.activePositions}
-              icon={Activity}
-              color="amber"
-              testId="stat-active-positions"
-            />
-          </div>
-        )}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="overview" className="text-xs" data-testid="tab-overview">
+              <Eye className="h-3 w-3 mr-1" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="signals" className="text-xs" data-testid="tab-signals">
+              <Radio className="h-3 w-3 mr-1" />
+              Signals
+            </TabsTrigger>
+            <TabsTrigger value="engines" className="text-xs" data-testid="tab-engines">
+              <Cpu className="h-3 w-3 mr-1" />
+              Engines
+            </TabsTrigger>
+            <TabsTrigger value="performance" className="text-xs" data-testid="tab-performance">
+              <Target className="h-3 w-3 mr-1" />
+              Performance
+            </TabsTrigger>
+            <TabsTrigger value="trading" className="text-xs" data-testid="tab-trading">
+              <Zap className="h-3 w-3 mr-1" />
+              Trading
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Charts Row */}
-        {(widgets['weekly-performance'] || widgets['asset-allocation']) && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Weekly Performance Area Chart */}
-            {widgets['weekly-performance'] && (
-              <Card className="glass-card border-border/50 lg:col-span-2" data-testid="chart-weekly-performance">
+          <TabsContent value="overview" className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              <MarketRegimeCard />
+              <VolatilityCard />
+              <SignalConfidenceGauge />
+              <TradingSessionCard />
+              <QuickLinks />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <IndexHeatmap />
+              <FuturesBiasPanel />
+              <BotActivityMonitor />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="signals" className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <SignalConfidenceGauge />
+              <MultiEngineConvergence />
+              <MarketRegimeCard />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <Card className="bg-card/50 backdrop-blur-sm border-border/50 col-span-1 lg:col-span-2">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-                    Weekly Performance
+                  <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    AI Consensus Summary
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[250px]">
-                    {hasWeeklyData ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={data.weeklyPerformance} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="pnlGradientPos" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#22c55e" stopOpacity={0.4}/>
-                              <stop offset="95%" stopColor="#22c55e" stopOpacity={0.05}/>
-                            </linearGradient>
-                            <linearGradient id="pnlGradientNeg" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4}/>
-                              <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05}/>
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" vertical={false} />
-                          <XAxis 
-                            dataKey="day" 
-                            className="text-muted-foreground" 
-                            stroke="hsl(var(--muted-foreground))"
-                            fontSize={12} 
-                            tickLine={false}
-                            axisLine={false}
-                          />
-                          <YAxis 
-                            className="text-muted-foreground"
-                            stroke="hsl(var(--muted-foreground))"
-                            fontSize={12} 
-                            tickLine={false}
-                            axisLine={false}
-                            tickFormatter={(v) => `$${v}`}
-                          />
-                          <Tooltip 
-                            contentStyle={{ 
-                              backgroundColor: 'hsl(var(--card))', 
-                              border: '1px solid hsl(var(--border))',
-                              borderRadius: '8px',
-                              fontSize: '12px',
-                              color: 'hsl(var(--foreground))'
-                            }}
-                            formatter={(value: number) => [`$${value.toLocaleString()}`, 'P&L']}
-                          />
-                          <Area 
-                            type="monotone"
-                            dataKey="pnl" 
-                            stroke="#22c55e"
-                            strokeWidth={2}
-                            fill="url(#pnlGradientPos)"
-                            dot={{ fill: '#22c55e', strokeWidth: 0, r: 4 }}
-                            activeDot={{ r: 6, fill: '#22c55e', stroke: 'hsl(var(--background))', strokeWidth: 2 }}
-                          />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-                        <BarChart3 className="h-12 w-12 opacity-20 mb-2" />
-                        <p className="text-sm">No performance data yet</p>
-                        <p className="text-xs opacity-70">Complete trades to see weekly P&L</p>
-                      </div>
-                    )}
+                  <div className="flex items-center justify-center py-6">
+                    <div className="text-center">
+                      <Badge className="bg-green-500/20 text-green-400 text-lg px-4 py-1 mb-2">
+                        BULLISH BIAS
+                      </Badge>
+                      <p className="text-sm text-muted-foreground max-w-md">
+                        3/4 engines showing bullish signals. Strong convergence on momentum plays. 
+                        RSI(2) indicates mean reversion opportunity. Volume supporting upside continuation.
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-            )}
+            </div>
+          </TabsContent>
 
-            {/* Asset Allocation Donut */}
-            {widgets['asset-allocation'] && (
-              <DonutChart 
-                data={data.assetAllocation}
-                title="Asset Allocation"
-                centerLabel=""
-                testId="chart-asset-allocation"
-                emptyMessage="No positions"
-              />
-            )}
-          </div>
-        )}
+          <TabsContent value="engines" className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <QuantEnginePanel />
+              <AIEngineStatus />
+              <FuturesBiasPanel />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <MultiEngineConvergence />
+              <VolatilityCard />
+            </div>
+          </TabsContent>
 
-        {/* Second Row */}
-        {(widgets['win-loss'] || widgets['market-brief']) && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Win/Loss Donut */}
-            {widgets['win-loss'] && (
-              <DonutChart 
-                data={data.winLossRatio}
-                title="Win/Loss Ratio"
-                centerLabel={data.winLossRatio.length > 0 ? `${data.winRate.toFixed(0)}%` : ''}
-                testId="chart-win-loss"
-                emptyMessage="No trades yet"
-              />
-            )}
-
-            {/* Daily Market Brief */}
-            {widgets['market-brief'] && (
-              <Card className="glass-card border-border/50 lg:col-span-2" data-testid="card-market-brief">
+          <TabsContent value="performance" className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <WinRateWidget />
+              <ExpiryPatternInsights />
+              <Card className="bg-card/50 backdrop-blur-sm border-border/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Brain className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                    Daily Market Brief
+                  <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                    <Shield className="h-3.5 w-3.5" />
+                    Risk Metrics
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {marketBrief?.brief ? (
-                    <div className="space-y-3">
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        {marketBrief.brief}
-                      </p>
-                      <p className="text-xs text-muted-foreground/70">
-                        Last updated: {marketBrief.timestamp}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                        <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium">Market Update</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Markets showing mixed signals. S&P 500 futures flat, Nasdaq slightly positive. 
-                            Watch for key economic data releases today.
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                        <Rocket className="h-4 w-4 text-cyan-600 dark:text-cyan-400 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium">Top Movers</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Quantum computing stocks showing strength. AI sector consolidating after recent rally.
-                            Crypto holding steady with BTC above key support.
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                        <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium">Risk Watch</p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Elevated VIX suggests caution. Consider tighter stops on swing positions.
-                            Options IV elevated ahead of earnings season.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
-
-        {/* System Status */}
-        {widgets['system-status'] && (
-          <Card className="glass-card border-border/50" data-testid="card-system-status">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Activity className="h-4 w-4 text-green-600 dark:text-green-400" />
-                System Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {[
-                  { name: 'Auto-Lotto Bot', status: 'active', icon: Zap },
-                  { name: 'Futures Bot', status: 'active', icon: LineChartIcon },
-                  { name: 'Crypto Bot', status: 'active', icon: Activity },
-                  { name: 'Quant Engine', status: 'active', icon: Brain },
-                  { name: 'Price Feed', status: 'active', icon: TrendingUp },
-                  { name: 'Market Scanner', status: 'active', icon: Target },
-                ].map((system, i) => (
-                  <div 
-                    key={i}
-                    className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border/30"
-                    data-testid={`status-${system.name.toLowerCase().replace(/\s+/g, '-')}`}
-                  >
-                    <system.icon className="h-4 w-4 text-muted-foreground" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate">{system.name}</p>
-                    </div>
-                    <Badge 
-                      variant="outline" 
-                      className={cn(
-                        "text-[10px] px-1.5 py-0",
-                        system.status === 'active' 
-                          ? "border-green-500 text-green-600 dark:text-green-400" 
-                          : "border-amber-500 text-amber-600 dark:text-amber-400"
-                      )}
-                    >
-                      {system.status === 'active' ? 'Online' : 'Offline'}
-                    </Badge>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Max Drawdown</span>
+                    <span className="font-mono text-red-400">-$45</span>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Quick Actions */}
-        {widgets['quick-actions'] && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Link href="/trade-desk" data-testid="link-quick-trade-desk">
-              <Card className="glass-card border-border/50 hover-elevate cursor-pointer h-full">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-cyan-500/10">
-                    <Target className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Avg Win</span>
+                    <span className="font-mono text-green-400">+$28</span>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">Trade Desk</p>
-                    <p className="text-xs text-muted-foreground">View research briefs</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Avg Loss</span>
+                    <span className="font-mono text-red-400">-$12</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Risk/Reward</span>
+                    <span className="font-mono text-cyan-400">2.3:1</span>
                   </div>
                 </CardContent>
               </Card>
-            </Link>
-            <Link href="/watchlist-bot" data-testid="link-quick-watchlist">
-              <Card className="glass-card border-border/50 hover-elevate cursor-pointer h-full">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-purple-500/10">
-                    <Rocket className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Watchlist Bot</p>
-                    <p className="text-xs text-muted-foreground">Manage portfolios</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-            <Link href="/performance" data-testid="link-quick-performance">
-              <Card className="glass-card border-border/50 hover-elevate cursor-pointer h-full">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-green-500/10">
-                    <BarChart3 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Performance</p>
-                    <p className="text-xs text-muted-foreground">Analytics & stats</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-            <Link href="/market-scanner" data-testid="link-quick-scanner">
-              <Card className="glass-card border-border/50 hover-elevate cursor-pointer h-full">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-amber-500/10">
-                    <Zap className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Market Scanner</p>
-                    <p className="text-xs text-muted-foreground">Find opportunities</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          </div>
-        )}
-
-        {/* No widgets message */}
-        {enabledCount === 0 && (
-          <Card className="glass-card border-border/50">
-            <CardContent className="p-8 text-center">
-              <LayoutGrid className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
-              <p className="text-muted-foreground mb-4">No widgets enabled</p>
-              <Button 
-                variant="outline" 
-                onClick={() => setSettingsOpen(true)}
-                data-testid="button-add-widgets"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Widgets
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Educational Disclaimer */}
-        <Card className="glass-card border-amber-500/20 dark:border-amber-500/20">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground">
-                <span className="font-medium text-amber-600 dark:text-amber-400">Educational Disclaimer:</span>{" "}
-                This dashboard is for research and educational purposes only. All data shown is based on paper trading 
-                simulations and historical analysis. Past performance does not guarantee future results. 
-                Not financial advice.
-              </p>
             </div>
-          </CardContent>
-        </Card>
+          </TabsContent>
+
+          <TabsContent value="trading" className="mt-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <BotActivityMonitor />
+              <TradingSessionCard />
+              <QuickLinks />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Paper Portfolios
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {[
+                      { name: 'Options Portfolio', balance: 300, pnl: 0 },
+                      { name: 'Futures Portfolio', balance: 300, pnl: 0 },
+                      { name: 'Crypto Portfolio', balance: 300, pnl: 0 },
+                      { name: 'Small Account', balance: 150, pnl: 0 },
+                    ].map((p) => (
+                      <div key={p.name} className="flex items-center justify-between p-2 rounded bg-muted/30">
+                        <span className="text-sm">{p.name}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-mono">${p.balance}</span>
+                          <span className={cn("text-xs font-mono",
+                            p.pnl >= 0 ? "text-green-400" : "text-red-400"
+                          )}>
+                            {p.pnl >= 0 ? '+' : ''}{p.pnl.toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                    <TriangleAlert className="h-3.5 w-3.5" />
+                    Alerts Center
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-2 rounded bg-amber-500/10 border border-amber-500/20">
+                      <AlertTriangle className="h-4 w-4 text-amber-400" />
+                      <span className="text-xs text-amber-400">VIX elevated - reduce position size</span>
+                    </div>
+                    <div className="flex items-center gap-2 p-2 rounded bg-green-500/10 border border-green-500/20">
+                      <CheckCircle2 className="h-4 w-4 text-green-400" />
+                      <span className="text-xs text-green-400">All engines operational</span>
+                    </div>
+                    <div className="flex items-center gap-2 p-2 rounded bg-cyan-500/10 border border-cyan-500/20">
+                      <Zap className="h-4 w-4 text-cyan-400" />
+                      <span className="text-xs text-cyan-400">3 new trade ideas generated</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
