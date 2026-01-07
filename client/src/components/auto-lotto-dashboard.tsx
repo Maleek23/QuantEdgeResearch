@@ -195,6 +195,12 @@ function KPICard({
     purple: "#a78bfa",
   };
 
+  const handleClick = onClick ? (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onClick();
+  } : undefined;
+
   return (
     <Card 
       className={cn(
@@ -202,7 +208,15 @@ function KPICard({
         onClick && "cursor-pointer hover:border-slate-500/50 hover:bg-slate-800/60 transition-all"
       )} 
       data-testid={testId}
-      onClick={onClick}
+      onClick={handleClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      } : undefined}
     >
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-3">
