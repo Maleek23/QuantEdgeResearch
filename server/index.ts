@@ -842,6 +842,37 @@ app.use((req, res, next) => {
             
             logger.info(`✅ [FLOW-CRON] Created flow trade: ${tradeIdea.symbol} ${tradeIdea.direction.toUpperCase()} - Entry=$${tradeIdea.entryPrice}, Target=$${tradeIdea.targetPrice}, R:R=${tradeIdea.riskRewardRatio.toFixed(2)}:1`);
             
+            // 📣 Send individual Discord alert AFTER successful save (prevents ghost alerts)
+            const grade = tradeIdea.probabilityBand || '';
+            const entryPrice = tradeIdea.entryPrice || 0;
+            const DISCORD_ALERT_GRADES = ['A+', 'A', 'A-', 'B+', 'B', 'B-'];
+            const isValidGrade = DISCORD_ALERT_GRADES.includes(grade);
+            const maxPremiumFor5Contracts = 2.00; // $1000 budget / 5 contracts / 100 shares
+            const isAffordable = entryPrice <= maxPremiumFor5Contracts;
+            
+            if (isValidGrade && isAffordable) {
+              const { sendFlowAlertToDiscord } = await import('./discord-service');
+              const targetPercent = tradeIdea.targetPrice && entryPrice 
+                ? ((tradeIdea.targetPrice - entryPrice) / entryPrice * 100).toFixed(0)
+                : '?';
+              const rr = tradeIdea.riskRewardRatio?.toFixed(1) || '?';
+              
+              sendFlowAlertToDiscord({
+                symbol: tradeIdea.symbol,
+                optionType: tradeIdea.optionType || 'call',
+                strikePrice: tradeIdea.strikePrice || 0,
+                expiryDate: tradeIdea.expiryDate || '',
+                entryPrice: entryPrice,
+                targetPrice: tradeIdea.targetPrice || 0,
+                targetPercent,
+                grade,
+                riskReward: rr,
+                isLotto: (tradeIdea as any).isLottoPlay || false
+              }).catch(err => logger.error(`📊 [FLOW-CRON] Discord alert failed for ${tradeIdea.symbol}:`, err));
+              
+              logger.info(`📣 [FLOW-CRON] Discord alert sent: ${tradeIdea.symbol} ${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} (${grade})`);
+            }
+            
           } catch (error: any) {
             logger.error(`📊 [FLOW-CRON] Failed to process ${idea.symbol}:`, error);
             rejectedCount++;

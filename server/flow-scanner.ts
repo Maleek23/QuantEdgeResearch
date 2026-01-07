@@ -1029,65 +1029,20 @@ export async function scanUnusualOptionsFlow(holdingPeriod?: string, forceGenera
       if (tradeIdea) {
         tradeIdeas.push(tradeIdea);
         
-        // 📣 REAL-TIME DISCORD ALERT: B-grade or better, affordable premium only
-        // 🐋 EXCEPTION: Whale flow ($1M+) ALWAYS gets alerted regardless of affordability
-        const grade = tradeIdea.probabilityBand || '';
-        const entryPrice = tradeIdea.entryPrice || 0;
-        
-        // Check if this is whale flow (any option in signal with $1M+ notional)
+        // 🐋 Log whale flow detection (alerts sent AFTER trade is saved in cron job)
         const hasWhaleFlow = signal.unusualOptions.some(opt => opt.isWhaleFlow);
         const hasMegaWhale = signal.unusualOptions.some(opt => opt.isMegaWhale);
-        const isWhaleTierTicker = WHALE_TIER_TICKERS.includes(ticker);
         
-        // Quality gates (check in order: grade first, then premium, then rate limit, then market hours)
-        const isValidGrade = DISCORD_ALERT_GRADES.includes(grade);
-        // Check premium affordability - typical sizing is 5 contracts
-        // $2.00 premium × 5 contracts × 100 shares = $1,000 max total cost
-        const maxPremiumFor5Contracts = 2.00; // $1000 budget / 5 contracts / 100 shares
-        // 🐋 WHALE BYPASS: Skip affordability check for whale flow or whale-tier tickers
-        const isAffordable = entryPrice <= maxPremiumFor5Contracts || hasWhaleFlow || (isWhaleTierTicker && entryPrice <= 10.00);
-        const isMarketOpen = isMarketHoursForFlow();
-        
-        // Log whale flow even if other gates fail
         if (hasWhaleFlow || hasMegaWhale) {
           const whaleNotional = signal.unusualOptions.filter(o => o.isWhaleFlow).reduce((sum, o) => sum + o.premium, 0);
           logger.warn(`🐋 [WHALE-ALERT] ${ticker}: $${(whaleNotional / 1000000).toFixed(2)}M institutional flow detected! ${hasMegaWhale ? '🐋🐋 MEGA' : ''}`);
         }
         
-        // Only check rate limit if other gates pass (preserves rate limit quota)
-        if (!isValidGrade) {
-          logger.debug(`📊 [FLOW] Skipping ${ticker}: Grade ${grade} not in ${DISCORD_ALERT_GRADES.join(', ')}`);
-        } else if (!isAffordable) {
-          logger.info(`📊 [FLOW] Skipping ${ticker}: Premium $${(entryPrice * 5 * 100).toFixed(0)} exceeds $1000 cap (not whale flow)`);
-        } else if (!isMarketOpen) {
-          logger.debug(`📊 [FLOW] Skipping ${ticker}: Outside market hours`);
-        } else if (!canSendAlert(ticker)) {
-          // Rate limit reached - logged in canSendAlert
-        } else {
-          // All gates passed - send alert!
-          const targetPercent = tradeIdea.targetPrice && entryPrice 
-            ? ((tradeIdea.targetPrice - entryPrice) / entryPrice * 100).toFixed(0)
-            : '?';
-          const rr = tradeIdea.riskRewardRatio?.toFixed(1) || '?';
-          const premiumCost = (entryPrice * 5 * 100).toFixed(0);
-          
-          sendFlowAlertToDiscord({
-            symbol: tradeIdea.symbol,
-            optionType: tradeIdea.optionType || 'call',
-            strikePrice: tradeIdea.strikePrice || 0,
-            expiryDate: tradeIdea.expiryDate || '',
-            entryPrice: entryPrice,
-            targetPrice: tradeIdea.targetPrice || 0,
-            targetPercent,
-            grade,
-            riskReward: rr,
-            isLotto: tradeIdea.isLottoPlay || false
-          }).then(() => {
-            recordAlertSent(ticker); // Only record after successful send
-          }).catch(err => logger.error(`📊 [FLOW] Discord alert failed for ${ticker}:`, err));
-          
-          logger.info(`📣 [FLOW-DISCORD] Sent ${grade} alert: ${ticker} ${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} @ $${entryPrice.toFixed(2)} ($${premiumCost} cost)`);
-        }
+        const grade = tradeIdea.probabilityBand || '';
+        logger.info(`📊 [FLOW] Generated: ${ticker} ${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} @ $${tradeIdea.entryPrice?.toFixed(2)} (${grade}) - will alert if saved`);
+        
+        // NOTE: Discord alerts moved to index.ts cron job - only sent AFTER trade passes validation and is saved
+        // This prevents "ghost alerts" for trades that get rejected by validation/deduplication
       }
 
     } catch (error) {
