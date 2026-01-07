@@ -152,7 +152,7 @@ export function isOptionOnCooldown(symbol: string, strikePrice?: number | null, 
  * #ai-quant-options   │ DISCORD_WEBHOOK_OPTIONSTRADES│ Options trade ideas ONLY
  *                     │ (fallback: DISCORD_WEBHOOK_URL) │ Calls/puts with strike/exp
  * ───────────────────────────────────────────────────────────────────────────
- * #quant-ai           │ DISCORD_WEBHOOK_QUANTFLOOR   │ Bot entries, exits & bot gains
+ * #quant-ai           │ DISCORD_WEBHOOK_QUANTBOT     │ Bot entries, exits & bot gains
  *                     │                              │ Auto-Lotto Bot paper trading
  * ───────────────────────────────────────────────────────────────────────────
  * #lottos             │ DISCORD_WEBHOOK_LOTTO        │ Lotto detector alerts
@@ -1243,10 +1243,10 @@ export async function sendBotTradeEntryToDiscord(position: {
     const lottoWebhook = process.env.DISCORD_WEBHOOK_LOTTO;
     if (lottoWebhook) webhookUrls.push(lottoWebhook);
   } else {
-    // Quant bot entries go to both QUANTFLOOR and OPTIONSTRADES
-    const quantFloorWebhook = process.env.DISCORD_WEBHOOK_QUANTFLOOR;
+    // Quant bot entries go to QUANTBOT channel (dedicated bot channel)
+    const quantBotWebhook = process.env.DISCORD_WEBHOOK_QUANTBOT;
     const optionsWebhook = process.env.DISCORD_WEBHOOK_OPTIONSTRADES;
-    if (quantFloorWebhook) webhookUrls.push(quantFloorWebhook);
+    if (quantBotWebhook) webhookUrls.push(quantBotWebhook);
     if (optionsWebhook) webhookUrls.push(optionsWebhook);
   }
   
@@ -1393,10 +1393,10 @@ export async function sendBotTradeExitToDiscord(position: {
     const lottoWebhook = process.env.DISCORD_WEBHOOK_LOTTO;
     if (lottoWebhook) webhookUrls.push(lottoWebhook);
   } else {
-    // Quant bot exits go to both QUANTFLOOR and OPTIONSTRADES
-    const quantFloorWebhook = process.env.DISCORD_WEBHOOK_QUANTFLOOR;
+    // Quant bot exits go to QUANTBOT channel (dedicated bot channel)
+    const quantBotWebhook = process.env.DISCORD_WEBHOOK_QUANTBOT;
     const optionsWebhook = process.env.DISCORD_WEBHOOK_OPTIONSTRADES;
-    if (quantFloorWebhook) webhookUrls.push(quantFloorWebhook);
+    if (quantBotWebhook) webhookUrls.push(quantBotWebhook);
     if (optionsWebhook) webhookUrls.push(optionsWebhook);
   }
   
@@ -2049,7 +2049,7 @@ export async function sendDailySummaryToDiscord(ideas: TradeIdea[]): Promise<voi
 /**
  * 💰 Send Gains Notification to Discord
  * Routes to proper channel based on source:
- * - Bot gains → DISCORD_WEBHOOK_QUANTFLOOR (#quantbot)
+ * - Bot gains → DISCORD_WEBHOOK_QUANTBOT (#quantbot)
  * - AI/Quant/Manual gains → DISCORD_WEBHOOK_GAINS (#gains)
  */
 export async function sendGainsToDiscord(trade: {
@@ -2082,7 +2082,7 @@ export async function sendGainsToDiscord(trade: {
   // Route bot gains to #quantbot, all other gains (including lotto) to #gains
   const isBot = trade.source === 'bot';
   const webhookUrl = isBot 
-    ? (process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_URL)
+    ? (process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL)
     : process.env.DISCORD_WEBHOOK_GAINS;
   
   if (!webhookUrl) {
