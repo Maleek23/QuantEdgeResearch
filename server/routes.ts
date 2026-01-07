@@ -1286,6 +1286,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/admin/trigger-morning-preview", requireAdminJWT, async (_req, res) => {
+    try {
+      const allIdeas = await storage.getAllTradeIdeas();
+      const { sendDailySummaryToDiscord } = await import('./discord-service');
+      await sendDailySummaryToDiscord(allIdeas);
+      res.json({ success: true, message: "Morning preview sent to Discord" });
+    } catch (error) {
+      logger.error('Failed to send morning preview:', error);
+      res.status(500).json({ error: "Failed to send morning preview" });
+    }
+  });
+
   // System Health Check (SECURITY: No API key presence disclosure)
   app.get("/api/admin/system-health", requireAdminJWT, async (_req, res) => {
     try {
