@@ -2460,20 +2460,20 @@ export async function runAutonomousBotScan(): Promise<void> {
           // Earnings service not available, continue
         }
         
-        // ✅ CHECK 2: LIQUIDITY - Bid-ask spread must be reasonable (<25% of premium) [BALANCED]
+        // ✅ CHECK 2: LIQUIDITY - Bid-ask spread must be tight (<20% of premium) [STRICT - Restored Jan 2026]
         // Guard against zero/undefined price to prevent division errors
         if (!opp.price || opp.price <= 0) {
           logger.info(`💧 [BOT] ${ticker}: SKIPPED - invalid price (${opp.price})`);
           continue;
         }
         const bidAskSpreadPct = (opp.bidAskSpread || 0) / opp.price * 100;
-        if (bidAskSpreadPct > 25) {
-          logger.info(`💧 [BOT] ${ticker}: SKIPPED - bid-ask spread too wide (${bidAskSpreadPct.toFixed(0)}% > 25%)`);
+        if (bidAskSpreadPct > 20) {
+          logger.info(`💧 [BOT] ${ticker}: SKIPPED - bid-ask spread too wide (${bidAskSpreadPct.toFixed(0)}% > 20%)`);
           continue;
         }
         
-        // ✅ CHECK 3: VOLUME/OPEN INTEREST - Must have sufficient liquidity
-        if (opp.openInterest < 40 || opp.volume < 8) {
+        // ✅ CHECK 3: VOLUME/OPEN INTEREST - Must have sufficient liquidity [STRICT]
+        if (opp.openInterest < 50 || opp.volume < 10) {
           logger.info(`📊 [BOT] ${ticker}: SKIPPED - low liquidity (OI=${opp.openInterest}, Vol=${opp.volume})`);
           continue;
         }
@@ -2520,8 +2520,9 @@ export async function runAutonomousBotScan(): Promise<void> {
         const adaptiveParams = await getAdaptiveParameters();
         
         decision.confidence += symbolAdj.confidenceBoost;
-        // 🔧 BALANCED MINIMUM: 65% confidence to generate quality ideas while maintaining standards (Jan 2026)
-        const effectiveMinConfidence = Math.max(65, adaptiveParams.confidenceThreshold);
+        // 🔧 STRICT A-GRADE MINIMUM: 75% confidence required (restored Jan 2026 after losses)
+        // Was 6/7 Friday with strict gates, went AWFUL after relaxing to 60-65%
+        const effectiveMinConfidence = Math.max(75, adaptiveParams.confidenceThreshold);
         
         // Apply minimum confidence score
         if (decision.confidence < effectiveMinConfidence) {

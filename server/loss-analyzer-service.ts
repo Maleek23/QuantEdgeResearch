@@ -423,16 +423,33 @@ export async function getAdaptiveParameters(): Promise<{
   stopLossMultiplier: number;
   positionSizeMultiplier: number;
 }> {
+  // STRICT A-GRADE MINIMUM: Never go below 75% confidence (restored Jan 2026 after losses)
+  const MIN_CONFIDENCE_FLOOR = 75;
+  const MAX_CONFIDENCE_REDUCTION = 5; // Cap adaptive reduction to -5 max
+  
   try {
     const state = await storage.getBotLearningState(BOT_LEARNING_ID);
+    
+    // Start at A-grade floor (75%), adaptive can only adjust within limits
+    let threshold = MIN_CONFIDENCE_FLOOR;
+    if (state?.confidenceThreshold) {
+      // Cap how much adaptive learning can LOWER the threshold
+      const reduction = MIN_CONFIDENCE_FLOOR - state.confidenceThreshold;
+      if (reduction > MAX_CONFIDENCE_REDUCTION) {
+        threshold = MIN_CONFIDENCE_FLOOR; // Don't allow more than -5 reduction
+      } else {
+        threshold = Math.max(MIN_CONFIDENCE_FLOOR, state.confidenceThreshold);
+      }
+    }
+    
     return {
-      confidenceThreshold: state?.confidenceThreshold || 50, // Lowered from 65
-      stopLossMultiplier: state?.stopLossMultiplier || 1.0,
+      confidenceThreshold: threshold,
+      stopLossMultiplier: Math.min(state?.stopLossMultiplier || 1.0, 1.2), // Cap stop widening at 1.2x
       positionSizeMultiplier: state?.positionSizeMultiplier || 1.0,
     };
   } catch (error) {
     return {
-      confidenceThreshold: 50, // Lowered from 65
+      confidenceThreshold: MIN_CONFIDENCE_FLOOR, // A-grade minimum
       stopLossMultiplier: 1.0,
       positionSizeMultiplier: 1.0,
     };
