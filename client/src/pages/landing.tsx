@@ -394,12 +394,17 @@ export default function Landing() {
       <section className="py-10 lg:py-16" id="pricing" data-testid="section-pricing">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Pricing Plans
-            </p>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Pricing Plans
+              </p>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30" data-testid="badge-pricing-beta">
+                BETA
+              </span>
+            </div>
             <h2 className="text-xl font-semibold mb-4">Choose Your Plan</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto mb-8">
-              Start free and upgrade as you grow
+              Early access pricing - lock in these rates before launch
             </p>
             
             <div className="flex items-center justify-center gap-4" data-testid="billing-toggle">
@@ -471,8 +476,9 @@ export default function Landing() {
 
             {/* Advanced Tier */}
             <Card className="glass-card border-cyan-500/50" data-testid="card-pricing-advanced">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-1">
                 <Badge className="bg-cyan-500 text-slate-950">Most Popular</Badge>
+                <Badge className="bg-purple-500/20 text-purple-400 border border-purple-500/30">BETA</Badge>
               </div>
               <CardContent className="p-6 pt-8 flex flex-col h-full">
                 <div className="mb-6">

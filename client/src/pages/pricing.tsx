@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Check, X, Crown, Zap, TrendingUp, Rocket, Clock, AlertTriangle, Loader2 } from "lucide-react";
+import { Check, X, Crown, Zap, TrendingUp, Rocket, Clock, AlertTriangle, Loader2, FlaskConical } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -177,13 +177,37 @@ export default function Pricing() {
           </div>
         </div>
 
+        {/* Beta Access Banner */}
+        <div className="max-w-3xl mx-auto mb-6" data-testid="banner-beta-access">
+          <div className="glass-card rounded-xl p-4 border border-purple-500/30 bg-gradient-to-r from-purple-500/10 to-cyan-500/10">
+            <div className="flex items-center justify-center gap-3">
+              <div className="h-8 w-8 rounded-full bg-purple-500/20 flex items-center justify-center">
+                <FlaskConical className="h-4 w-4 text-purple-400" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium text-purple-300">
+                  Early Access Beta
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  You're getting exclusive early access to Quant Edge Labs. Some features are still in development.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Hero Header - Glassmorphism */}
         <div className="relative overflow-hidden rounded-xl glass-card p-6 sm:p-8 mb-12">
           <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-transparent to-cyan-400/10" />
           <div className="relative z-10 text-center">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-              Research Platform
-            </p>
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Research Platform
+              </p>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30" data-testid="badge-beta">
+                BETA
+              </span>
+            </div>
             <h1 
               className="text-2xl sm:text-3xl font-semibold mb-3"
               data-testid="text-pricing-header"
@@ -194,7 +218,7 @@ export default function Pricing() {
               className="text-muted-foreground max-w-2xl mx-auto leading-relaxed"
               data-testid="text-pricing-subtext"
             >
-              Start with Free to explore the research platform, then upgrade to Advanced for unlimited access and real-time data.
+              Start with Free to explore the platform, then upgrade to Advanced for unlimited access and real-time data. Beta pricing - lock in these rates before launch.
             </p>
           </div>
         </div>
@@ -277,6 +301,9 @@ export default function Pricing() {
                     >
                       <Crown className="w-3 h-3" />
                       Most Popular
+                      <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-500/30 text-purple-300">
+                        BETA
+                      </span>
                     </span>
                   </div>
                 )}
