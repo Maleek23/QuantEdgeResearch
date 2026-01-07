@@ -9832,6 +9832,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to get market context" });
     }
   });
+
+  // Dashboard: Get all paper portfolios (public for dashboard widget)
+  app.get("/api/paper-portfolios", async (_req, res) => {
+    try {
+      const portfolios = await storage.getAllPaperPortfolios();
+      // Filter to only auto-lotto portfolios and format response
+      const autoLottoPortfolios = portfolios.filter(p => 
+        p.name?.toLowerCase().includes('auto-lotto') || 
+        p.name?.toLowerCase().includes('small account') ||
+        p.name?.toLowerCase().includes('prop firm')
+      );
+      res.json(autoLottoPortfolios);
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/paper-portfolios' });
+      res.status(500).json({ error: "Failed to get portfolios" });
+    }
+  });
+
+  // Dashboard: Get bot status (public for dashboard widget)
+  app.get("/api/auto-lotto/bot-status", async (_req, res) => {
+    try {
+      const portfolios = await storage.getAllPaperPortfolios();
+      // Get ALL auto-lotto portfolios
+      const autoLottoPortfolios = portfolios.filter(p => 
+        p.name?.toLowerCase().includes('auto-lotto') || 
+        p.name?.toLowerCase().includes('small account') ||
+        p.name?.toLowerCase().includes('prop firm')
+      );
+      
+      // Aggregate data across all portfolios
+      let openPositions = 0;
+      let todayTrades = 0;
+      let todayPnL = 0;
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      for (const portfolio of autoLottoPortfolios) {
+        const positions = await storage.getPaperPositionsByPortfolio(portfolio.id);
+        openPositions += positions.filter(p => p.status === 'open').length;
+        
+        // Get today's closed trades
+        const closedToday = positions.filter(p => {
+          if (p.status !== 'closed' || !p.exitTime) return false;
+          const exitDate = new Date(p.exitTime);
+          return exitDate >= today;
+        });
+        todayTrades += closedToday.length;
+        todayPnL += closedToday.reduce((sum, p) => sum + (parseFloat(String(p.realizedPnL)) || 0), 0);
+      }
+      
+      // Check if bot should be running (market hours check)
+      const { isUSMarketOpen } = await import('@shared/market-calendar');
+      const marketStatus = isUSMarketOpen();
+      const isRunning = marketStatus.isOpen;
+      
+      res.json({
+        isRunning,
+        openPositions,
+        todayTrades,
+        todayPnL,
+        marketStatus: marketStatus.session,
+      });
+    } catch (error) {
+      logError(error as Error, { context: 'GET /api/auto-lotto/bot-status' });
+      res.status(500).json({ error: "Failed to get bot status" });
+    }
+  });
   
   // Multi-Factor Analysis - Get company context
   app.get("/api/company-context/:symbol", async (req, res) => {

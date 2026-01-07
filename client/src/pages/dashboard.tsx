@@ -106,11 +106,12 @@ function QuickLinks() {
 
 function PaperPortfolios() {
   const { data: portfolios } = useQuery<Array<{
-    id: number;
+    id: string;
     name: string;
-    portfolioType: string;
-    cashBalance: string;
-    startingCapital: string;
+    cashBalance: number;
+    startingCapital: number;
+    totalPnL?: number;
+    totalPnLPercent?: number;
   }>>({
     queryKey: ['/api/paper-portfolios'],
     refetchInterval: 30000,
@@ -119,7 +120,7 @@ function PaperPortfolios() {
   const portfolioList = portfolios || [];
 
   return (
-    <Card className="bg-card/50 backdrop-blur-sm border-border/50">
+    <Card className="bg-card/50 backdrop-blur-sm border-border/50" data-testid="card-paper-portfolios">
       <CardHeader className="pb-2">
         <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           Paper Portfolios
@@ -128,8 +129,8 @@ function PaperPortfolios() {
       <CardContent>
         <div className="space-y-2">
           {portfolioList.length > 0 ? portfolioList.map((p) => {
-            const cash = parseFloat(p.cashBalance);
-            const starting = parseFloat(p.startingCapital);
+            const cash = typeof p.cashBalance === 'number' ? p.cashBalance : parseFloat(String(p.cashBalance)) || 0;
+            const starting = typeof p.startingCapital === 'number' ? p.startingCapital : parseFloat(String(p.startingCapital)) || 0;
             const pnlPct = starting > 0 ? ((cash - starting) / starting) * 100 : 0;
             return (
               <div key={p.id} className="flex items-center justify-between p-2 rounded bg-muted/30">
