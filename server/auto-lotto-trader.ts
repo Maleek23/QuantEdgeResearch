@@ -3315,52 +3315,57 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
   try {
     logger.info(`🎰 [LOTTO-EXEC] Attempting to execute: ${idea.symbol} ${idea.optionType?.toUpperCase()} $${idea.strikePrice} @ $${idea.entryPrice}`);
     
-    // 🎯 UNIFIED ENTRY GATE - Check session/regime/exhaustion before execution
+    // 🎯 UNIFIED ENTRY GATE - Check session/regime/exhaustion (ADVISORY for paper trading)
     const ideaDirection = (idea.direction || (idea.optionType === 'call' ? 'long' : 'short')) as 'long' | 'short';
     const ideaTarget = idea.targetPrice || idea.entryPrice * 2;
     const entryGate = await checkUnifiedEntryGate(idea.symbol, ideaDirection, idea.entryPrice, ideaTarget, idea.confidenceScore || 70, 'lotto');
     if (!entryGate.allowed) {
-      logger.info(`🎰 [LOTTO-EXEC] ⛔ UNIFIED GATE BLOCKED ${idea.symbol}: ${entryGate.reasons.join(', ')}`);
-      return false;
+      // 📊 PAPER TRADING: Log warning but CONTINUE - we want to track all lotto plays
+      logger.info(`🎰 [LOTTO-EXEC] ⚠️ UNIFIED GATE ADVISORY ${idea.symbol}: ${entryGate.reasons.join(', ')} (continuing for paper trading)`);
     }
     
-    // 🧠 TRADING ENGINE GATE - Institutional-grade validation (IV, Confluence, Catalysts)
+    // 🧠 TRADING ENGINE GATE - RELAXED for paper trading (log but don't block)
     const engineGate = await checkTradingEngineGate(idea.symbol, ideaDirection, idea.entryPrice, entryGate.adjustedConfidence, 'options');
     if (!engineGate.allowed) {
-      logger.info(`🎰 [LOTTO-EXEC] 🧠 ENGINE GATE BLOCKED ${idea.symbol}: ${engineGate.reasons.join(', ')}`);
-      return false;
+      // 📊 PAPER TRADING: Log warning but CONTINUE - track performance across all setups
+      logger.info(`🎰 [LOTTO-EXEC] ⚠️ ENGINE GATE ADVISORY ${idea.symbol}: ${engineGate.reasons.join(', ')} (continuing for paper trading)`);
+    } else {
+      logger.info(`🎰 [LOTTO-EXEC] 🧠 ENGINE GATE PASSED: ${idea.symbol} | Confluence: ${engineGate.confluenceScore}% | IV Rank: ${engineGate.ivRank?.toFixed(0) || 'N/A'}%`);
     }
-    logger.info(`🎰 [LOTTO-EXEC] 🧠 ENGINE GATE PASSED: ${idea.symbol} | Confluence: ${engineGate.confluenceScore}% | IV Rank: ${engineGate.ivRank?.toFixed(0) || 'N/A'}%`);
     
     if (idea.assetType === 'option') {
+      // ESSENTIAL CHECK: Must have option metadata
       if (!idea.strikePrice || !idea.expiryDate || !idea.optionType) {
         logger.error(`🎰 [LOTTO-EXEC] ❌ Rejecting ${idea.symbol} - missing option metadata (strike=${idea.strikePrice}, expiry=${idea.expiryDate}, type=${idea.optionType})`);
         return false;
       }
       
-      if (idea.entryPrice > 20) {
-        logger.warn(`🎰 [LOTTO-EXEC] ⚠️ Rejecting ${idea.symbol} - entry price $${idea.entryPrice} too high for lotto`);
+      // RELAXED: Allow premiums up to $5 for paper trading (was $20)
+      if (idea.entryPrice > 5) {
+        logger.warn(`🎰 [LOTTO-EXEC] ⚠️ Rejecting ${idea.symbol} - entry price $${idea.entryPrice} too high for lotto (max $5)`);
         return false;
       }
       
-      // 🛡️ THETA PROTECTION: Calculate DTE and reject low-DTE entries
+      // 🛡️ THETA PROTECTION: Warn on low DTE but allow (relaxed from block)
       const expiryDate = new Date(idea.expiryDate);
       const now = new Date();
       const daysToExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       
-      if (daysToExpiry < SMALL_ACCOUNT_MIN_DTE) {
-        logger.warn(`🎰 [LOTTO-EXEC] 🛡️ THETA PROTECTION: Rejecting ${idea.symbol} - ${daysToExpiry} DTE < ${SMALL_ACCOUNT_MIN_DTE} minimum (would immediately trigger exit warnings)`);
+      if (daysToExpiry < 1) {
+        // Only block 0-DTE entries - they expire too fast
+        logger.warn(`🎰 [LOTTO-EXEC] 🛡️ THETA BLOCK: Rejecting ${idea.symbol} - 0 DTE expires too fast`);
         return false;
+      } else if (daysToExpiry < SMALL_ACCOUNT_MIN_DTE) {
+        logger.info(`🎰 [LOTTO-EXEC] 🛡️ Low DTE notice: ${idea.symbol} has ${daysToExpiry} DTE (continuing for paper trading)`);
       }
       
-      // 🧠 PRE-ENTRY EXIT INTELLIGENCE: Would this trade immediately trigger an exit warning?
-      // Simulate a position to check if Exit Intelligence would flag it
+      // 🧠 PRE-ENTRY EXIT INTELLIGENCE - ADVISORY ONLY (don't block)
       try {
         const mockPosition = {
           id: 'pre-entry-check',
           symbol: idea.symbol,
           entryPrice: idea.entryPrice,
-          currentPrice: idea.entryPrice, // At entry, current = entry
+          currentPrice: idea.entryPrice,
           targetPrice: idea.targetPrice,
           stopLoss: idea.stopLoss,
           quantity: 1,
@@ -3373,12 +3378,12 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
         
         const preEntryAdvisory = await analyzePosition(mockPosition as any, '', 'Bot Lotto');
         if (preEntryAdvisory) {
-          // Reject if Exit Intelligence would immediately flag for exit
           if (preEntryAdvisory.exitWindow === 'soon' || preEntryAdvisory.exitWindow === 'immediate') {
-            logger.warn(`🎰 [LOTTO-EXEC] 🧠 EXIT INTEL BLOCK: ${idea.symbol} would immediately flag "${preEntryAdvisory.exitWindow}" (${preEntryAdvisory.exitProbability}%) - ${preEntryAdvisory.exitReason}`);
-            return false;
+            // ADVISORY: Log but continue for paper trading
+            logger.info(`🎰 [LOTTO-EXEC] 🧠 EXIT INTEL ADVISORY: ${idea.symbol} would flag "${preEntryAdvisory.exitWindow}" (continuing for paper trading)`);
+          } else {
+            logger.info(`🎰 [LOTTO-EXEC] 🧠 Pre-entry check passed: ${preEntryAdvisory.exitWindow} (${preEntryAdvisory.exitProbability}%)`);
           }
-          logger.info(`🎰 [LOTTO-EXEC] 🧠 Pre-entry check passed: ${preEntryAdvisory.exitWindow} (${preEntryAdvisory.exitProbability}%)`);
         }
       } catch (exitIntelError) {
         logger.debug(`🎰 [LOTTO-EXEC] Pre-entry Exit Intel check failed (continuing):`, exitIntelError);

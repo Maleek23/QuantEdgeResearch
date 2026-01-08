@@ -926,6 +926,15 @@ app.use((req, res, next) => {
           logger.info('🤖 [UNIFIED-BOT] Running opportunistic OPTIONS scan...');
           await runAutonomousBotScan();
           lastScanTime['options'] = now;
+          
+          // 🎰 LOTTO SCANNER - Generate and auto-execute lotto plays
+          try {
+            const { runLottoScanner } = await import('./lotto-scanner');
+            logger.info('🎰 [LOTTO-SCANNER] Running lotto scanner for cheap far-OTM plays...');
+            await runLottoScanner();
+          } catch (lottoError: any) {
+            logger.error('🎰 [LOTTO-SCANNER] Lotto scan failed:', lottoError);
+          }
         }
         
       } catch (error: any) {
@@ -934,6 +943,7 @@ app.use((req, res, next) => {
     });
     
     log('🤖 Unified Options Bot started - opportunistic scanning with 15min cooldown (9:30 AM-4:00 PM ET)');
+    log('🎰 Lotto Scanner added - hunts cheap far-OTM weeklies during market hours');
     
     // UNIFIED FUTURES BOT - Combines Futures + Prop Firm (both scan NQ, no need for redundancy)
     // Scans once every 15 min, monitors positions every 5 min
