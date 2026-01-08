@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, keepPreviousData } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -465,6 +465,11 @@ export function AutoLottoDashboard() {
   const [activeView, setActiveView] = useState("dashboard");
   const [selectedPortfolio, setSelectedPortfolio] = useState<PortfolioType | null>(null);
   const [portfolioTab, setPortfolioTab] = useState<'open' | 'closed' | 'all'>('all');
+
+  // Reset tab to 'all' whenever selected portfolio changes to ensure correct filtering
+  useEffect(() => {
+    setPortfolioTab('all');
+  }, [selectedPortfolio]);
 
   const { data: botStatus, isPending: statusPending, refetch: refetchStatus } = useQuery<BotStatus>({
     queryKey: ["/api/auto-lotto-bot/status"],

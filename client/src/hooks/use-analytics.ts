@@ -3,6 +3,7 @@ import { useLocation } from 'wouter';
 import type { UserActivityType } from '@shared/schema';
 
 const SESSION_KEY = 'qel_session_id';
+const CSRF_TOKEN_KEY = 'qel_csrf_token';
 
 function getSessionId(): string {
   let sessionId = sessionStorage.getItem(SESSION_KEY);
@@ -11,6 +12,37 @@ function getSessionId(): string {
     sessionStorage.setItem(SESSION_KEY, sessionId);
   }
   return sessionId;
+}
+
+// Fetch and cache CSRF token for POST requests
+let csrfTokenPromise: Promise<string> | null = null;
+
+async function getCsrfToken(): Promise<string> {
+  // Check cache first
+  let token = sessionStorage.getItem(CSRF_TOKEN_KEY);
+  if (token) return token;
+  
+  // Only fetch once (reuse promise for concurrent calls)
+  if (!csrfTokenPromise) {
+    csrfTokenPromise = (async () => {
+      try {
+        const response = await fetch('/api/csrf-token', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          const fetchedToken = data.csrfToken;
+          if (fetchedToken) {
+            sessionStorage.setItem(CSRF_TOKEN_KEY, fetchedToken);
+            return fetchedToken;
+          }
+        }
+      } catch {
+        // Silently fail - analytics shouldn't break the app
+      }
+      return '';
+    })();
+  }
+  
+  return csrfTokenPromise;
 }
 
 function getUTMParams() {
@@ -33,9 +65,13 @@ export function usePageTracking() {
     
     const trackPageView = async () => {
       try {
+        const csrfToken = await getCsrfToken();
         const response = await fetch('/api/tracking/pageview', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(csrfToken && { 'X-CSRF-Token': csrfToken })
+          },
           credentials: 'include',
           body: JSON.stringify({
             path: location,
@@ -77,9 +113,13 @@ export function useActivityTracking() {
   ) => {
     try {
       const sessionId = getSessionId();
+      const csrfToken = await getCsrfToken();
       await fetch('/api/tracking/activity', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(csrfToken && { 'X-CSRF-Token': csrfToken })
+        },
         credentials: 'include',
         body: JSON.stringify({
           activityType,
