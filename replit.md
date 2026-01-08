@@ -1,7 +1,7 @@
 # Quant Edge Labs - Trading Platform
 
 ## Overview
-Quant Edge Labs is a dual-engine quantitative trading research platform (AI Analysis + Quantitative Signals) for US equities, options, crypto, and futures markets. Its core purpose is to provide educational, research-grade market analysis with robust risk parameters and real-time data, emphasizing strong risk controls. The platform is designed for research and educational purposes only, not financial advice, and features a dark-themed UI for rapid data scanning. The project's ambition is to offer a comprehensive, institutional-style research environment for individual traders, focusing on risk management and data integrity.
+Quant Edge Labs is a dual-engine quantitative trading research platform (AI Analysis + Quantitative Signals) for US equities, options, crypto, and futures markets. Its core purpose is to provide educational, research-grade market analysis with robust risk parameters and real-time data, emphasizing strong risk controls. The platform is designed for research and educational purposes only, not financial advice. It features a dark-themed UI for rapid data scanning, aiming to offer a comprehensive, institutional-style research environment for individual traders focused on risk management and data integrity.
 
 ## User Preferences
 - All timestamps displayed in **America/Chicago (CT)** timezone with market session context
@@ -26,18 +26,20 @@ Key features include:
 -   **Core Application**: Public informational pages, user authentication, main dashboard, trade desk with research briefs, live trading journal, market overview, and performance analytics.
 -   **Research Tools**: Chart analysis, historical trade pattern library, Data Intelligence System, Loss Analysis System, and Data Integrity System.
 -   **Automated Systems**: Auto-Lotto Bot for automated paper trading with sample size gating, and a Real-time Pricing Service.
--   **Specialized Intelligence**: Timing Intelligence System, "Prop Firm Mode" for conservative futures trading, Market Scanner (with Day Trade and Swing modes), Multi-Factor Analysis Engine, CT Tracker for crypto sentiment, Universal Idea Generator, and Platform Reports System.
+-   **Specialized Intelligence**: Timing Intelligence System, "Prop Firm Mode", Market Scanner (Day Trade/Swing modes), Multi-Factor Analysis Engine, CT Tracker for crypto sentiment, Universal Idea Generator, and Platform Reports System.
 -   **Catalyst Intelligence System**: Tracks SEC filings and government contracts, performing sentiment analysis.
--   **Polymarket Prediction Market Module**: Integrates with prediction markets to detect arbitrage opportunities.
--   **Unified Win Rate System**: Provides consistent win rate metrics across the platform.
--   **Watchlist Grading System**: Evaluates watchlist assets using quantitative technical analysis to assign a tier-based score (S-F).
--   **Elite Setup Trade Generator**: Converts high-grade watchlist items into small-account friendly trade ideas with strict risk management ($300 budget, $60 max position, $6 max risk per trade).
--   **Best Setups System**: Enforces trading discipline by highlighting top 5 high-conviction setups daily/weekly, calculated via a comprehensive conviction score formula.
--   **Adaptive Loss Intelligence System**: Learns from trading mistakes, diagnosing loss categories and adaptively adjusting bot parameters and implementing symbol cooldowns.
--   **Auto-Lotto Bot Risk Controls**: Advanced entry thresholds, confluence validation, post-loss cooldowns, tiered premium caps, and position sizing. Includes a "Pro Trader Checklist" for earnings, liquidity, and volume checks, and a DTE-Aware Smart Exit Strategy with tiered stop-loss logic and thesis revalidation. Integrates with Exit Intelligence for smart position management and Theta Protection System for DTE-based option filtering. **Momentum-Direction Alignment (Jan 2026)**: Bot now STRICTLY aligns option type with price momentum - CALLs only when stock is bullish (+0.5%+), PUTs only when bearish (-0.5% or less). Neutral conditions are skipped entirely. This prevents wrong-direction trades like buying PUTs on +11% movers. **Post-Exit Cooldown (Jan 2026)**: 15-minute cooldown after ANY position exit (win or loss) to prevent infinite re-entry loops that artificially inflate P&L by repeatedly trading the same profitable position. **Exit Callback Hook System (Jan 2026)**: Centralized exit callback registered at server startup in routes.ts - ALL position closes now trigger cooldowns via paper-trading-service's registerExitCallback connecting to auto-lotto-trader's recordExitCooldown. This fixes the root cause where exits from checkStopsAndTargets bypassed cooldown system entirely. **Duplicate Position Guard**: Prevents multiple positions on same symbol/optionType/strike combination with proper key format.
--   **Unified Entry Gate System**: Centralized, regime-aware trading safeguards using a Market Context Service to analyze trading sessions and market regimes. Applies session-specific confidence multipliers and block entries based on strategy type, market exhaustion, and Exit-Intelligence veto.
--   **Automations Hub UI**: A restructured interface prominently displaying 4 main portfolio trading bots (Options, Futures, Crypto, Small Account) with real-time stats, simplified tab navigation, and quick actions.
--   **Beta Access Control System**: An invite-only beta mode with user fields for `hasBetaAccess` and `betaInviteId`. Features grandfathered access for Admin/Pro users, invite redemption via API, protected frontend routes (`withBetaProtection` HOC), and protected backend API endpoints (`requireBetaAccess` middleware). Includes security features like rate limiting, input sanitization, and failed attempt logging.
+-   **Polymarket Prediction Market Module**: Integrates with prediction markets for arbitrage detection.
+-   **Unified Win Rate System**: Provides consistent win rate metrics.
+-   **Watchlist Grading System**: Evaluates watchlist assets using quantitative technical analysis for a tier-based score (S-F).
+-   **Elite Setup Trade Generator**: Converts high-grade watchlist items into small-account friendly trade ideas with strict risk management.
+-   **Best Setups System**: Enforces trading discipline by highlighting top high-conviction setups daily/weekly.
+-   **Adaptive Loss Intelligence System**: Learns from trading mistakes, diagnosing loss categories and adaptively adjusting bot parameters.
+-   **Auto-Lotto Bot Risk Controls**: Advanced entry thresholds, confluence validation, post-loss cooldowns, tiered premium caps, and position sizing. Includes a "Pro Trader Checklist" and a DTE-Aware Smart Exit Strategy with tiered stop-loss logic and thesis revalidation. It features Momentum-Direction Alignment, Post-Exit Cooldown, an Exit Callback Hook System, and a Duplicate Position Guard.
+-   **Unified Entry Gate System**: Centralized, regime-aware trading safeguards using a Market Context Service to analyze trading sessions and market regimes.
+-   **Automations Hub UI**: A restructured interface displaying 4 main portfolio trading bots (Options, Futures, Crypto, Small Account) with real-time stats and simplified navigation.
+-   **Beta Access Control System**: An invite-only beta mode with user fields for `hasBetaAccess` and `betaInviteId`, including grandfathered access for Admin/Pro users, invite redemption via API, protected frontend routes, and protected backend API endpoints.
+-   **ML Intelligence System**: Comprehensive machine learning system with 5 core capabilities: Price Direction Prediction, Sentiment Analysis, Chart Pattern Recognition, Adaptive Position Sizing, and Market Regime Detection. It integrates with the Auto-Lotto Bot to boost/reduce confidence scores and has a dedicated dashboard.
+-   **RBI Framework - Backtesting & Breakout Scanner**: Implements Research → Backtest → Implement framework with a backtesting module for various strategies and a breakout scanner detecting resistance/support levels with volume confirmation.
 
 ## External Dependencies
 
@@ -59,116 +61,3 @@ Key features include:
 
 ### Other Integrations
 -   **Discord:** Webhook notifications (A-grade only quality filtering for flow alerts).
-
-## Recent Updates (Jan 2026)
-
-### Elite Trading Engine Gate (Jan 2026)
-The Auto-Lotto Bot now features an **Elite Trading Engine Gate** - institutional-grade validation designed to match top 1% trader standards:
-
-**Core Capabilities:**
-1. **IV Rank Analysis** - Blocks entry when IV Rank >85% (extreme), penalizes >70% (overpriced premium), bonuses <30% (cheap premium)
-2. **Confluence Scoring** - REQUIRES 70%+ confluence (elite threshold, upgraded from 50%). 85%+ gets significant conviction bonus
-3. **Fundamental Alignment** - Direction must align with fundamental bias. LONG on bearish stocks blocked without 80%+ confluence
-4. **Catalyst Intelligence** - Blocks entry within 3 days of earnings (IV crush zone), boosts for gov contracts, M&A, insider buying
-5. **Scenario Planning** - Calculates expected value based on win probability and R/R assumptions
-6. **Edge Detection** - Identifies asymmetric opportunities: high momentum + cheap IV, catalyst boosts
-
-**Thresholds:**
-- `ELITE_CONFLUENCE_MIN = 70%` - Minimum confluence required for entry
-- `ELITE_CONFLUENCE_STRONG = 85%` - Strong setup threshold (+12 confidence bonus)
-- `IV_RANK_EXTREME = 85%` - Block entry (premium 2-3x overpriced)
-- `IV_RANK_EXPENSIVE = 70%` - Penalty zone (-15 confidence)
-- `IV_RANK_CHEAP = 30%` - Bonus zone (+8 confidence)
-- `EARNINGS_DANGER_DAYS = 3` - Block entry (IV crush zone)
-
-**Recommendation Levels (Position Sizing Guidance):**
-- 90%+ confidence: `ELITE BUY: Top 1% setup - full position`
-- 80-89%: `STRONG BUY: Excellent conditions - 75% position`
-- 70-79%: `BUY: Good conditions - 50% position`
-- 55-69%: `CAUTIOUS: Reduced edge - 25% position`
-- <55%: `WEAK: Marginal edge - consider skipping`
-
-**Anti-Over-Penalization:**
-- Trades passing 70%+ confluence get confidence floor at 55%
-- Trades passing 85%+ confluence get confidence floor at 65%
-- Scenario planning is ADVISORY only (no auto-blocks)
-- Recommendation guides position sizing, doesn't force additional blocks
-
-### Dashboard Accuracy Fixes
-- **Market Calendar Fix**: Fixed `getETTime()` and `getETDateString()` functions to use actual current ET time instead of hardcoded test data. Fixed `isUSMarketOpen()` to correctly return `isOpen: false` after 4PM ET (was incorrectly returning `isOpen: true` for "Late Session").
-- **Bot Status Aggregation**: `/api/auto-lotto/bot-status` now aggregates data from ALL auto-lotto portfolios (Options, Futures, Crypto, Small Account, Prop Firm) instead of looking for a single non-existent "Auto-Lotto Bot" portfolio.
-- **Performance Summary Consistency**: `/api/auto-lotto/performance-summary` now uses `exitTime OR closedAt` for position close detection and includes all portfolio types (options, futures, crypto, prop firm).
-- **P&L Calculation Fix**: Dashboard now uses `totalValue` field for accurate P&L display instead of `cashBalance`.
-- **Bot Activity Status**: Correctly displays "SCANNING" during market hours and "MARKET CLOSED" during after hours.
-
-### Beta Onboarding System (Jan 2026)
-Complete invite-only beta access system with email-based onboarding:
-
-**User Flow:**
-1. User joins waitlist via public form
-2. Admin sends invite via `/api/admin/waitlist/:id/invite` or `/api/admin/invites`
-3. User receives email with link to `/join-beta?code={token}`
-4. User enters email + code for verification (15min session expiry)
-5. User completes onboarding questionnaire with password creation
-6. Account created with `hasBetaAccess: true`
-7. Welcome email sent via Resend
-8. User auto-logged in and redirected to Automations Hub
-
-**Onboarding Data Collected:**
-- `occupation` - professional background
-- `tradingExperienceLevel` - beginner/intermediate/advanced/professional
-- `knowledgeFocus` - array of interests (stocks/options/futures/crypto/forex/technical_analysis)
-- `investmentGoals` - income/growth/speculation/hedging
-- `riskTolerance` - conservative/moderate/aggressive/very_aggressive
-- `referralSource` - how they found the platform
-
-**Protected Endpoints (Beta Access Required):**
-- `/api/auto-lotto-bot` - main bot data endpoint
-- `/api/auto-lotto/stats` - bot statistics
-- `/api/auto-lotto/exit-intelligence` - position exit analysis
-- `/api/auto-lotto/performance-summary` - rolling win rates
-- `/api/auto-lotto/bot-status` - dashboard widget data
-- `/api/paper-portfolios` - portfolio listing
-
-**Security Features:**
-- 7-day invite expiry
-- Session-based code verification (15min window)
-- bcrypt password hashing
-- Rate limiting on public beta endpoints
-- Failed attempt logging
-
-### ML Intelligence System (Jan 2026)
-Comprehensive machine learning system for enhanced trading signals:
-
-**5 Core ML Capabilities:**
-1. **Price Direction Prediction** - Statistical analysis using RSI, MACD, momentum indicators
-2. **Sentiment Analysis** - Keyword-based scoring of news headlines
-3. **Chart Pattern Recognition** - Detects breakouts, engulfing patterns, double top/bottom, trends
-4. **Adaptive Position Sizing** - Kelly Criterion-based sizing with regime adjustments
-5. **Market Regime Detection** - Clustering-based identification (trending, ranging, volatile states)
-
-**ML API Endpoints:**
-- `GET /api/ml/status` - System status and model health
-- `GET /api/ml/predict/:symbol` - Price direction prediction
-- `GET /api/ml/sentiment/:symbol` - Sentiment analysis for a symbol
-- `GET /api/ml/patterns/:symbol` - Chart pattern detection
-- `GET /api/ml/regime` - Current market regime (uses SPY as proxy)
-- `GET /api/ml/position-size/:symbol` - Adaptive position sizing
-- `GET /api/ml/signal/:symbol` - Full composite ML signal
-- `GET /api/ml/scan` - Scan multiple symbols by ML signal strength
-- `POST /api/ml/record-trade` - Record trade results for learning (admin)
-- `POST /api/ml/clear-cache` - Clear ML caches (admin)
-
-**Bot Integration:**
-- Auto-Lotto Bot now uses ML predictions to boost/reduce confidence scores
-- ML direction alignment: +10 confidence when ML agrees with option type, -10 when conflicts
-- ML enhancement is optional - bot continues without it if ML fails
-
-**Dashboard:**
-- New `/ml-intelligence` page with symbol analysis, market scanning, regime details
-- Real-time data via React Query integration
-
-**Caching:**
-- Predictions: 5 min TTL
-- Sentiment: 15 min TTL
-- Regime: 30 min TTL

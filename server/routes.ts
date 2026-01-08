@@ -17772,6 +17772,173 @@ Use this checklist before entering any trade:
     }
   });
 
+  // =====================================================
+  // BACKTESTING & BREAKOUT SCANNER ROUTES
+  // =====================================================
+
+  // POST /api/backtest - Run a backtest on historical data (requires beta access)
+  app.post("/api/backtest", requireBetaAccess, async (req, res) => {
+    try {
+      const { runBacktest } = await import("./backtesting-service");
+      const config = req.body;
+      
+      if (!config.symbol || !config.strategy) {
+        return res.status(400).json({ error: "Missing required fields: symbol, strategy" });
+      }
+      
+      // Set defaults
+      const backtestConfig = {
+        symbol: config.symbol.toUpperCase(),
+        strategy: config.strategy,
+        initialCapital: config.initialCapital || 300,
+        positionSizePercent: config.positionSizePercent || 20,
+        stopLossPercent: config.stopLossPercent || 5,
+        takeProfitPercent: config.takeProfitPercent || 10,
+        lookbackPeriod: config.lookbackPeriod || 20,
+        rsiPeriod: config.rsiPeriod || 2,
+        rsiOversold: config.rsiOversold || 10,
+        rsiOverbought: config.rsiOverbought || 90
+      };
+      
+      const result = await runBacktest(backtestConfig);
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Error running backtest", { error });
+      res.status(500).json({ error: error.message || "Failed to run backtest" });
+    }
+  });
+
+  // POST /api/backtest/optimize - Run parameter optimization (requires beta access)
+  app.post("/api/backtest/optimize", requireBetaAccess, async (req, res) => {
+    try {
+      const { optimizeParameters } = await import("./backtesting-service");
+      const config = req.body;
+      
+      if (!config.symbol || !config.strategy) {
+        return res.status(400).json({ error: "Missing required fields: symbol, strategy" });
+      }
+      
+      const optimizationConfig = {
+        symbol: config.symbol.toUpperCase(),
+        strategy: config.strategy,
+        initialCapital: config.initialCapital || 300,
+        positionSizePercent: config.positionSizePercent || 20,
+        stopLossRange: config.stopLossRange || { min: 2, max: 8, step: 1 },
+        takeProfitRange: config.takeProfitRange || { min: 3, max: 12, step: 1 },
+        lookbackRange: config.lookbackRange || { min: 10, max: 30, step: 5 }
+      };
+      
+      const result = await optimizeParameters(optimizationConfig);
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Error running optimization", { error });
+      res.status(500).json({ error: error.message || "Failed to run optimization" });
+    }
+  });
+
+  // GET /api/breakout/scan/:symbol - Scan single symbol for breakout
+  app.get("/api/breakout/scan/:symbol", async (req, res) => {
+    try {
+      const { scanSymbolForBreakout } = await import("./breakout-scanner");
+      const { symbol } = req.params;
+      const config = {
+        lookbackDays: parseInt(req.query.lookback as string) || 20,
+        stopLossPercent: parseFloat(req.query.stopLoss as string) || 3,
+        targetPercent: parseFloat(req.query.target as string) || 6
+      };
+      
+      const signal = await scanSymbolForBreakout(symbol.toUpperCase(), config);
+      
+      if (!signal) {
+        return res.json({ 
+          symbol: symbol.toUpperCase(),
+          hasBreakout: false,
+          message: "No breakout signal detected"
+        });
+      }
+      
+      res.json({ ...signal, hasBreakout: true });
+    } catch (error: any) {
+      logger.error("Error scanning for breakout", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Failed to scan for breakout" });
+    }
+  });
+
+  // GET /api/breakout/scan-stocks - Scan stock watchlist for breakouts
+  app.get("/api/breakout/scan-stocks", async (req, res) => {
+    try {
+      const { scanStocksForBreakouts } = await import("./breakout-scanner");
+      const config = {
+        lookbackDays: parseInt(req.query.lookback as string) || 20,
+        stopLossPercent: parseFloat(req.query.stopLoss as string) || 3,
+        targetPercent: parseFloat(req.query.target as string) || 6
+      };
+      
+      const signals = await scanStocksForBreakouts(config);
+      res.json({
+        totalScanned: 30,
+        breakoutsFound: signals.length,
+        signals,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      logger.error("Error scanning stocks for breakouts", { error });
+      res.status(500).json({ error: "Failed to scan stocks" });
+    }
+  });
+
+  // GET /api/breakout/scan-crypto - Scan crypto watchlist for breakouts
+  app.get("/api/breakout/scan-crypto", async (req, res) => {
+    try {
+      const { scanCryptoForBreakouts } = await import("./breakout-scanner");
+      const config = {
+        lookbackDays: parseInt(req.query.lookback as string) || 20,
+        stopLossPercent: parseFloat(req.query.stopLoss as string) || 3,
+        targetPercent: parseFloat(req.query.target as string) || 6
+      };
+      
+      const signals = await scanCryptoForBreakouts(config);
+      res.json({
+        totalScanned: 20,
+        breakoutsFound: signals.length,
+        signals,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      logger.error("Error scanning crypto for breakouts", { error });
+      res.status(500).json({ error: "Failed to scan crypto" });
+    }
+  });
+
+  // GET /api/breakout/full-scan - Full market scan (stocks + crypto)
+  app.get("/api/breakout/full-scan", async (req, res) => {
+    try {
+      const { fullMarketScan } = await import("./breakout-scanner");
+      const config = {
+        lookbackDays: parseInt(req.query.lookback as string) || 20,
+        stopLossPercent: parseFloat(req.query.stopLoss as string) || 3,
+        targetPercent: parseFloat(req.query.target as string) || 6
+      };
+      
+      const result = await fullMarketScan(config);
+      res.json(result);
+    } catch (error: any) {
+      logger.error("Error running full market scan", { error });
+      res.status(500).json({ error: "Failed to run full market scan" });
+    }
+  });
+
+  // GET /api/breakout/watchlists - Get available watchlists
+  app.get("/api/breakout/watchlists", async (_req, res) => {
+    try {
+      const { getWatchlists } = await import("./breakout-scanner");
+      res.json(getWatchlists());
+    } catch (error: any) {
+      logger.error("Error getting watchlists", { error });
+      res.status(500).json({ error: "Failed to get watchlists" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

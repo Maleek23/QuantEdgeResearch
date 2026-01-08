@@ -45,6 +45,16 @@ export function validateCSRF(req: Request, res: Response, next: NextFunction) {
     return next();
   }
   
+  // Exempt breakout scanner GET routes (read-only scanning)
+  if (req.path.startsWith('/api/breakout')) {
+    return next();
+  }
+  
+  // Backtest POST routes require beta access auth, exempt from CSRF but require session
+  if (req.path.startsWith('/api/backtest')) {
+    return next();
+  }
+  
   const cookieToken = req.cookies[CSRF_COOKIE_NAME];
   const headerToken = req.headers[CSRF_HEADER_NAME] as string;
   
