@@ -437,9 +437,11 @@ async function checkTradingEngineGate(
         }
         
         // 🎯 SCENARIO PLANNING: Calculate expected move vs cost
-        if (volatilityData.expectedMove && entryPrice > 0) {
-          const expectedMovePercent = volatilityData.expectedMove;
-          const breakEvenMove = (entryPrice / (volatilityData.underlyingPrice || 100)) * 100;
+        const expectedMove = (volatilityData as any).expectedMove;
+        const underlyingPrice = (volatilityData as any).underlyingPrice;
+        if (expectedMove && entryPrice > 0) {
+          const expectedMovePercent = expectedMove;
+          const breakEvenMove = (entryPrice / (underlyingPrice || 100)) * 100;
           
           if (expectedMovePercent > breakEvenMove * 2) {
             reasons.push(`📈 EDGE: Expected move ${expectedMovePercent.toFixed(1)}% > 2x break-even`);
@@ -504,13 +506,16 @@ async function checkTradingEngineGate(
       }
       
       // 📊 EDGE DETECTION: Look for asymmetric opportunities
-      if (technical.momentum > 70 && ivRank !== null && ivRank < 40) {
-        reasons.push(`🎯 EDGE DETECTED: High momentum (${technical.momentum.toFixed(0)}) + cheap IV`);
+      const momentumValue = typeof technical.momentum === 'object' ? technical.momentum.rsi14 : technical.momentum;
+      if (momentumValue > 70 && ivRank !== null && ivRank < 40) {
+        reasons.push(`🎯 EDGE DETECTED: High momentum (${momentumValue.toFixed(0)}) + cheap IV`);
         adjustedConfidence += 8;
       }
       
-      if (fundamental.catalystBoost && fundamental.catalystBoost > 10) {
-        reasons.push(`🚀 CATALYST BOOST: +${fundamental.catalystBoost.toFixed(0)} from recent news`);
+      // Check for catalyst boost from catalysts array
+      const catalystBoost = fundamental.catalysts && fundamental.catalysts.length > 0 ? fundamental.catalysts.length * 5 : 0;
+      if (catalystBoost > 10) {
+        reasons.push(`🚀 CATALYST BOOST: +${catalystBoost} from recent news`);
         adjustedConfidence += 5;
       }
       
@@ -2543,6 +2548,36 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
   
   logger.debug(`🤖 [BOT] Creating trade idea for ${opportunity.symbol}: optionType=${optionTypeValue}, strike=${opportunity.strike}`);
   
+  // Build comprehensive analysis with all factors
+  const grade = getLetterGrade(decision.confidence);
+  const deltaLabel = Math.abs(opportunity.delta) < 0.15 ? 'Far OTM' : 
+                     Math.abs(opportunity.delta) < 0.30 ? 'OTM' : 
+                     Math.abs(opportunity.delta) < 0.45 ? 'ATM' : 'ITM';
+  
+  // Extract key signals for display
+  const momentumSignals = decision.signals.filter(s => s.includes('MOMENTUM') || s.includes('ALIGNED') || s.includes('INTRADAY'));
+  const technicalSignals = decision.signals.filter(s => s.includes('DELTA') || s.includes('DTE') || s.includes('VOL'));
+  
+  const comprehensiveAnalysis = [
+    `[${grade}] ${decision.confidence}% Conviction`,
+    ``,
+    `TRADE: ${opportunity.symbol} ${optionTypeValue.toUpperCase()} $${opportunity.strike} (${dteCategory} ${targetLabel})`,
+    ``,
+    `GREEKS:`,
+    `- Delta: ${opportunity.delta.toFixed(2)} (${deltaLabel})`,
+    `- DTE: ${opportunity.daysToExpiry} days`,
+    ``,
+    `TECHNICALS:`,
+    `- ${momentumSignals.length > 0 ? momentumSignals.join(', ') : 'Momentum neutral'}`,
+    `- ${technicalSignals.slice(0, 2).join(', ')}`,
+    ``,
+    `ENTRY/EXIT:`,
+    `- Entry: $${opportunity.price.toFixed(2)}`,
+    `- Target: $${targetPrice.toFixed(2)} (${targetMultiplier}x)`,
+    `- Stop: $${stopLoss.toFixed(2)} (50% max loss)`,
+    `- R:R: ${riskRewardRatio.toFixed(1)}:1`,
+  ].join('\n');
+
   const ideaData = {
     symbol: opportunity.symbol,
     assetType: 'option' as const,
@@ -2553,9 +2588,9 @@ function createTradeIdea(opportunity: LottoOpportunity, decision: BotDecision): 
     riskRewardRatio,
     confidenceScore: decision.confidence,
     qualitySignals: decision.signals,
-    probabilityBand: getLetterGrade(decision.confidence),
-    catalyst: `🤖 BOT DECISION: ${opportunity.symbol} ${optionTypeValue.toUpperCase()} $${opportunity.strike} | ${decision.signals.slice(0, 3).join(' | ')}`,
-    analysis: `Auto-Lotto Bot autonomous trade (${dteCategory} ${targetLabel}): ${decision.reason}. Entry $${opportunity.price.toFixed(2)}, Target $${targetPrice.toFixed(2)} (${targetMultiplier}x), Stop $${stopLoss.toFixed(2)} (50%).`,
+    probabilityBand: grade,
+    catalyst: `[${grade}] ${opportunity.symbol} ${optionTypeValue.toUpperCase()} $${opportunity.strike} | Delta ${opportunity.delta.toFixed(2)} | ${decision.signals.slice(0, 2).join(' | ')}`,
+    analysis: comprehensiveAnalysis,
     sessionContext: 'Bot autonomous trading',
     holdingPeriod,
     source: 'lotto' as const,
@@ -3777,7 +3812,7 @@ export async function monitorLottoPositions(): Promise<void> {
             symbol: pos.symbol,
             optionType: pos.optionType as 'call' | 'put' | undefined,
             strike: pos.strikePrice ?? undefined,
-            price: pos.exitPrice || pos.currentPrice,
+            price: pos.exitPrice ?? pos.currentPrice ?? undefined,
             quantity: pos.quantity,
             pnl,
             portfolio: isSmallAcct ? 'small_account' : 'options',
