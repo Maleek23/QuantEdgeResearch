@@ -218,6 +218,14 @@ interface BestSetup extends TradeIdea {
   convictionScore: number;
   signalCount: number;
   riskReward: number;
+  mlBoost?: number;
+  hourlyConfirmed?: boolean;
+  breakoutBonus?: number;
+  historicalWinRate?: number;
+  sampleSize?: number;
+  winRateBonus?: number;
+  confidence?: number;
+  thesis?: string;
 }
 
 interface BestSetupsResponse {
@@ -230,6 +238,7 @@ interface BestSetupsResponse {
 
 function BestSetupsCard() {
   const [period, setPeriod] = useState<'daily' | 'weekly'>('daily');
+  const [expandedSetup, setExpandedSetup] = useState<string | null>(null);
   
   const { data: bestSetups, isLoading } = useQuery<BestSetupsResponse>({
     queryKey: ['/api/trade-ideas/best-setups', period],
@@ -306,41 +315,110 @@ function BestSetupsCard() {
           </div>
         ) : bestSetups?.setups && bestSetups.setups.length > 0 ? (
           <div className="space-y-2">
-            {bestSetups.setups.map((setup, idx) => (
-              <div 
-                key={setup.id}
-                className="flex items-center gap-3 p-2 rounded-lg bg-muted/30 hover-elevate cursor-pointer"
-                data-testid={`setup-row-${setup.symbol}`}
-              >
-                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold">
-                  {idx + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-semibold text-sm">{setup.symbol}</span>
-                    {getGradeBadge(setup.probabilityBand)}
-                    <Badge variant="outline" className={cn(
-                      "text-xs",
-                      setup.direction === 'long' ? "text-green-400 border-green-500/30" : "text-red-400 border-red-500/30"
-                    )}>
-                      {setup.direction === 'long' ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                    </Badge>
+            {bestSetups.setups.map((setup, idx) => {
+              const isExpanded = expandedSetup === setup.id;
+              return (
+                <div key={setup.id} className="rounded-lg bg-muted/30 overflow-hidden">
+                  <div 
+                    className="flex items-center gap-3 p-2 hover-elevate cursor-pointer"
+                    onClick={() => setExpandedSetup(isExpanded ? null : setup.id)}
+                    data-testid={`setup-row-${setup.symbol}`}
+                  >
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold">
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-semibold text-sm">{setup.symbol}</span>
+                        {getGradeBadge(setup.probabilityBand)}
+                        <Badge variant="outline" className={cn(
+                          "text-xs",
+                          setup.direction === 'long' ? "text-green-400 border-green-500/30" : "text-red-400 border-red-500/30"
+                        )}>
+                          {setup.direction === 'long' ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{setup.signalCount} signals</span>
+                        <span className="text-muted-foreground/50">|</span>
+                        <span>{setup.riskReward}:1 R:R</span>
+                      </div>
+                    </div>
+                    <div className="text-right flex items-center gap-2">
+                      <div>
+                        <div className="flex items-center gap-1 text-amber-400">
+                          <Flame className="h-3.5 w-3.5" />
+                          <span className="font-mono font-bold text-sm">{setup.convictionScore}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">conviction</span>
+                      </div>
+                      <ChevronDown className={cn(
+                        "h-4 w-4 text-muted-foreground transition-transform",
+                        isExpanded && "rotate-180"
+                      )} />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{setup.signalCount} signals</span>
-                    <span className="text-muted-foreground/50">|</span>
-                    <span>{setup.riskReward}:1 R:R</span>
-                  </div>
+                  {isExpanded && (
+                    <div className="px-3 pb-3 pt-1 border-t border-border/30 space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Conviction Breakdown:</p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex justify-between bg-background/50 rounded px-2 py-1">
+                          <span className="text-muted-foreground">Base Confidence</span>
+                          <span className="font-mono">{setup.confidence || 50}</span>
+                        </div>
+                        <div className="flex justify-between bg-background/50 rounded px-2 py-1">
+                          <span className="text-muted-foreground">Signals ({setup.signalCount}x5)</span>
+                          <span className="font-mono text-green-400">+{setup.signalCount * 5}</span>
+                        </div>
+                        <div className="flex justify-between bg-background/50 rounded px-2 py-1">
+                          <span className="text-muted-foreground">R:R Bonus</span>
+                          <span className="font-mono text-green-400">+{Math.min(setup.riskReward, 3) * 10}</span>
+                        </div>
+                        <div className="flex justify-between bg-background/50 rounded px-2 py-1">
+                          <span className="text-muted-foreground">Grade Bonus</span>
+                          <span className={cn("font-mono", 
+                            (setup.probabilityBand === 'A+' || setup.probabilityBand === 'A') ? "text-green-400" : "text-muted-foreground"
+                          )}>
+                            {(setup.probabilityBand === 'A+' || setup.probabilityBand === 'A') ? '+10' : 
+                             (setup.probabilityBand === 'A-' || setup.probabilityBand === 'B+') ? '+5' : '0'}
+                          </span>
+                        </div>
+                        {setup.mlBoost !== undefined && setup.mlBoost !== 0 && (
+                          <div className="flex justify-between bg-background/50 rounded px-2 py-1">
+                            <span className="text-muted-foreground">ML Intelligence</span>
+                            <span className={cn("font-mono", setup.mlBoost > 0 ? "text-cyan-400" : "text-red-400")}>
+                              {setup.mlBoost > 0 ? `+${setup.mlBoost}` : setup.mlBoost}
+                            </span>
+                          </div>
+                        )}
+                        {setup.breakoutBonus !== undefined && setup.breakoutBonus > 0 && (
+                          <div className="flex justify-between bg-background/50 rounded px-2 py-1">
+                            <span className="text-muted-foreground">Breakout {setup.hourlyConfirmed ? '(Confirmed)' : ''}</span>
+                            <span className="font-mono text-purple-400">+{setup.breakoutBonus}</span>
+                          </div>
+                        )}
+                        {setup.winRateBonus !== undefined && setup.winRateBonus !== 0 && (
+                          <div className="flex justify-between bg-background/50 rounded px-2 py-1">
+                            <span className="text-muted-foreground">
+                              Win Rate ({setup.historicalWinRate}% / {setup.sampleSize} trades)
+                            </span>
+                            <span className={cn("font-mono", setup.winRateBonus > 0 ? "text-green-400" : "text-red-400")}>
+                              {setup.winRateBonus > 0 ? `+${setup.winRateBonus}` : setup.winRateBonus}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {setup.thesis && (
+                        <div className="mt-2 text-xs">
+                          <span className="text-muted-foreground">Thesis: </span>
+                          <span>{setup.thesis}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-1 text-amber-400">
-                    <Flame className="h-3.5 w-3.5" />
-                    <span className="font-mono font-bold text-sm">{setup.convictionScore}</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">conviction</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-6 text-muted-foreground">
