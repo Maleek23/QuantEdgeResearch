@@ -104,18 +104,31 @@ export async function sendBotTradeEntryToDiscord(trade: {
   let webhookUrls: string[] = [];
   const source = trade.source || (trade.assetType === 'future' ? 'futures' : 'quant');
 
+  // MULTI-CHANNEL ROUTING: Send to ALL applicable channels
+  // User request: Trades applicable to multiple channels should go to all of them
+  
   if (source === 'futures' || trade.assetType === 'future') {
     // Futures go to #future-trades channel
     const fw = process.env.DISCORD_WEBHOOK_FUTURE_TRADES;
     if (fw) webhookUrls.push(fw);
+    // Also send to quantbot channel for bot activity visibility
+    const qw = process.env.DISCORD_WEBHOOK_QUANTBOT;
+    if (qw && qw !== fw) webhookUrls.push(qw);
   } else if (isSmallAccount) {
-    // Small Account entries go to #quantbot channel (per user request)
+    // Small Account entries go to #quantbot (bot activity)
     const qw = process.env.DISCORD_WEBHOOK_QUANTBOT;
     if (qw) webhookUrls.push(qw);
+    // If it's also a lotto-style play, send to #lotto too
+    if (trade.isLotto || source === 'lotto') {
+      const lw = process.env.DISCORD_WEBHOOK_LOTTO;
+      if (lw && lw !== qw) webhookUrls.push(lw);
+    }
   } else if (source === 'lotto' || trade.isLotto) {
-    // Lotto plays (not small account) go to #lottos channel
+    // Lotto plays go to BOTH #lotto AND #quantbot (for bot visibility)
     const lw = process.env.DISCORD_WEBHOOK_LOTTO;
     if (lw) webhookUrls.push(lw);
+    const qw = process.env.DISCORD_WEBHOOK_QUANTBOT;
+    if (qw && qw !== lw) webhookUrls.push(qw);
   } else {
     // All other options/quant entries go to #quantbot
     const qw = process.env.DISCORD_WEBHOOK_QUANTBOT;
@@ -353,8 +366,17 @@ export async function sendChartAnalysisToDiscord(analysis: any): Promise<boolean
 
 export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
   if (DISCORD_DISABLED) return;
-  const webhookUrl = process.env.DISCORD_WEBHOOK_LOTTO;
-  if (!webhookUrl) return;
+  
+  // MULTI-CHANNEL: Send lottos to BOTH #lotto AND #quantbot channels
+  const webhookUrls: string[] = [];
+  const lottoWebhook = process.env.DISCORD_WEBHOOK_LOTTO;
+  const quantbotWebhook = process.env.DISCORD_WEBHOOK_QUANTBOT;
+  
+  if (lottoWebhook) webhookUrls.push(lottoWebhook);
+  if (quantbotWebhook && quantbotWebhook !== lottoWebhook) webhookUrls.push(quantbotWebhook);
+  
+  if (webhookUrls.length === 0) return;
+  
   try {
     // Build title with option details if available
     const optionType = (idea as any).optionType ? (idea as any).optionType.toUpperCase() : '';
@@ -367,21 +389,33 @@ export async function sendLottoToDiscord(idea: TradeIdea): Promise<void> {
       ? ` ${optionType} ${strike} ${expiry ? `(${expiry})` : ''}`
       : '';
     
+    const confidence = (idea as any).confidenceScore || 0;
+    const grade = getLetterGrade(confidence);
+    
     const embed: DiscordEmbed = {
       title: `🎰 LOTTO: ${idea.symbol}${titleSuffix}`,
       description: idea.analysis || 'New lotto detected',
       color: COLORS.LOTTO,
       fields: [
-        { name: 'Entry', value: `$${idea.entryPrice.toFixed(2)}`, inline: true }
+        { name: 'Entry', value: `$${idea.entryPrice.toFixed(2)}`, inline: true },
+        { name: 'Target', value: idea.targetPrice ? `$${idea.targetPrice.toFixed(2)}` : 'N/A', inline: true },
+        { name: 'Confidence', value: `${confidence}% (${grade})`, inline: true }
       ],
+      footer: { text: '🎰 Small Account Lotto Bot' },
       timestamp: new Date().toISOString()
     };
-    await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ embeds: [embed] }),
-    });
-  } catch (e) {}
+    
+    // Send to all applicable channels
+    await Promise.all(webhookUrls.map(url => 
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ embeds: [embed] }),
+      }).catch(e => logger.warn(`[DISCORD] Failed to send to webhook: ${e.message}`))
+    ));
+  } catch (e) {
+    logger.warn(`[DISCORD] Lotto notification error: ${e}`);
+  }
 }
 
 export async function sendBatchTradeIdeasToDiscord(ideas: TradeIdea[], source: string): Promise<void> {

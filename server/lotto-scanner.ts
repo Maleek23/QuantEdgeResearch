@@ -630,13 +630,14 @@ export async function runLottoScanner(): Promise<void> {
         const createdIdea = await storage.createTradeIdea(idea);
         successCount++;
         
-        // 🛡️ DISABLED: Lotto Discord notifications (user requested to stop spam)
-        // Lotto plays are educational/research ideas only - no Discord alerts
-        // try {
-        //   await sendLottoToDiscord(createdIdea as TradeIdea);
-        // } catch (discordError) {
-        //   logger.warn(`🎰 [LOTTO] Discord notification failed for ${candidate.underlying}:`, discordError);
-        // }
+        // ✅ RE-ENABLED: Lotto Discord notifications (user wants multi-channel alerts)
+        // Lottos now go to both #lotto AND #quantbot channels
+        try {
+          await sendLottoToDiscord(createdIdea as TradeIdea);
+          logger.info(`🎰 [LOTTO] Discord notification sent for ${candidate.underlying}`);
+        } catch (discordError) {
+          logger.warn(`🎰 [LOTTO] Discord notification failed for ${candidate.underlying}:`, discordError);
+        }
         
         // Auto-execute in paper trading portfolio
         try {
