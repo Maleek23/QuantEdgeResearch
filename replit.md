@@ -32,7 +32,7 @@ Key features include:
 -   **Unified Win Rate System**: Provides consistent win rate metrics.
 -   **Watchlist Grading System**: Evaluates watchlist assets using quantitative technical analysis for a tier-based score (S-F).
 -   **Elite Setup Trade Generator**: Converts high-grade watchlist items into small-account friendly trade ideas with strict risk management.
--   **Best Setups System**: Enforces trading discipline by highlighting top high-conviction setups daily/weekly.
+-   **Best Setups System**: Enforces trading discipline by highlighting top high-conviction setups daily/weekly. Enhanced conviction scoring integrates ML Intelligence (±20 points for direction alignment), hourly breakout confirmation (+15-20 for confirmed breakouts), and historical win rate by symbol (+15 for 70%+ win rate, -10 penalty for <40%).
 -   **Adaptive Loss Intelligence System**: Learns from trading mistakes, diagnosing loss categories and adaptively adjusting bot parameters.
 -   **Auto-Lotto Bot Risk Controls**: Advanced entry thresholds, confluence validation, post-loss cooldowns, tiered premium caps, and position sizing. Includes a "Pro Trader Checklist" and a DTE-Aware Smart Exit Strategy with tiered stop-loss logic and thesis revalidation. It features Momentum-Direction Alignment, Post-Exit Cooldown, an Exit Callback Hook System, and a Duplicate Position Guard.
 -   **Unified Entry Gate System**: Centralized, regime-aware trading safeguards using a Market Context Service to analyze trading sessions and market regimes.
