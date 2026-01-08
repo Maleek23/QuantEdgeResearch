@@ -358,6 +358,177 @@ function isOnExitCooldown(symbol: string, optionType?: string, strike?: number):
   return { onCooldown: false, reason: '' };
 }
 // ═══════════════════════════════════════════════════════════════════════════
+// 🧠 TRADING ENGINE GATE - Institutional-grade entry validation
+// Integrates IV Rank, Confluence Scoring, and Catalyst Intelligence
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface TradingEngineGateResult {
+  allowed: boolean;
+  reasons: string[];
+  confluenceScore: number;
+  ivRank: number | null;
+  hasCatalyst: boolean;
+  catalystType: string | null;
+  adjustedConfidence: number;
+  recommendation: string;
+}
+
+/**
+ * 🧠 TRADING ENGINE GATE - Smarter than Trade Desk
+ * Validates entry using:
+ * 1. IV Rank - Avoid overpriced premium (block if IV Rank > 70%)
+ * 2. Confluence Scoring - Only enter on 70%+ scores
+ * 3. Catalyst Intelligence - Avoid or boost based on earnings/SEC filings
+ */
+async function checkTradingEngineGate(
+  symbol: string,
+  direction: 'long' | 'short',
+  entryPrice: number,
+  confidence: number,
+  assetClass: AssetClass = 'options'
+): Promise<TradingEngineGateResult> {
+  const reasons: string[] = [];
+  let allowed = true;
+  let confluenceScore = 50; // Default neutral
+  let ivRank: number | null = null;
+  let hasCatalyst = false;
+  let catalystType: string | null = null;
+  let adjustedConfidence = confidence;
+  
+  try {
+    // 1. IV RANK CHECK - Avoid overpriced premium
+    try {
+      const volatilityData = await analyzeVolatility(symbol);
+      if (volatilityData && volatilityData.ivRank !== undefined) {
+        ivRank = volatilityData.ivRank;
+        
+        // Block if IV Rank > 70% (premium likely overpriced)
+        if (ivRank > 70) {
+          reasons.push(`⚠️ IV Rank ${ivRank.toFixed(0)}% > 70% - premium overpriced`);
+          adjustedConfidence -= 15; // Heavy penalty
+          if (ivRank > 85) {
+            allowed = false;
+            reasons.push(`🛑 IV Rank ${ivRank.toFixed(0)}% EXTREME - blocking entry`);
+          }
+        } else if (ivRank < 30) {
+          reasons.push(`✅ IV Rank ${ivRank.toFixed(0)}% - cheap premium`);
+          adjustedConfidence += 5; // Bonus for cheap premium
+        } else {
+          reasons.push(`📊 IV Rank ${ivRank.toFixed(0)}% - neutral`);
+        }
+      }
+    } catch (ivError) {
+      logger.debug(`[ENGINE-GATE] IV check failed for ${symbol}, continuing without IV data`);
+    }
+    
+    // 2. CONFLUENCE SCORING - Multi-factor validation
+    try {
+      const [fundamental, technical] = await Promise.all([
+        analyzeFundamentals(symbol, assetClass),
+        analyzeTechnicals(symbol)
+      ]);
+      
+      const confluence = validateConfluence(fundamental, technical);
+      confluenceScore = confluence.score;
+      
+      // Block if confluence < 50% (weak setup)
+      if (confluenceScore < 50) {
+        allowed = false;
+        reasons.push(`🛑 Confluence ${confluenceScore}% < 50% - weak setup`);
+      } else if (confluenceScore < 70) {
+        reasons.push(`⚠️ Confluence ${confluenceScore}% - moderate setup`);
+        adjustedConfidence -= 10;
+      } else if (confluenceScore >= 80) {
+        reasons.push(`✅ Confluence ${confluenceScore}% - strong setup`);
+        adjustedConfidence += 10; // Bonus for strong confluence
+      } else {
+        reasons.push(`📊 Confluence ${confluenceScore}% - decent setup`);
+      }
+      
+      // Check bias alignment with direction
+      if (direction === 'long' && fundamental.bias === 'bearish') {
+        reasons.push(`⚠️ Direction conflict: LONG but fundamental bias is BEARISH`);
+        adjustedConfidence -= 10;
+      } else if (direction === 'short' && fundamental.bias === 'bullish') {
+        reasons.push(`⚠️ Direction conflict: SHORT but fundamental bias is BULLISH`);
+        adjustedConfidence -= 10;
+      }
+    } catch (confluenceError) {
+      logger.debug(`[ENGINE-GATE] Confluence check failed for ${symbol}, using default score`);
+    }
+    
+    // 3. CATALYST INTELLIGENCE - Earnings/SEC filing awareness
+    try {
+      const catalystData = await calculateCatalystScore(symbol);
+      if (catalystData && catalystData.score > 0) {
+        hasCatalyst = true;
+        
+        // Check for recent catalysts that might affect the trade
+        if (catalystData.recentCatalysts && catalystData.recentCatalysts.length > 0) {
+          const recentEvent = catalystData.recentCatalysts[0];
+          catalystType = recentEvent.eventType;
+          
+          // Check event type and timing
+          const eventDate = recentEvent.eventDate ? new Date(recentEvent.eventDate) : null;
+          const daysFromNow = eventDate ? Math.ceil((eventDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 999;
+          
+          if (daysFromNow > 0 && daysFromNow <= 3 && recentEvent.eventType === 'earnings') {
+            reasons.push(`⚠️ EARNINGS in ${daysFromNow} days - IV crush risk`);
+            adjustedConfidence -= 20; // Heavy penalty near earnings
+          } else if (daysFromNow > 0 && daysFromNow <= 7 && recentEvent.eventType === 'earnings') {
+            reasons.push(`📊 Earnings in ${daysFromNow} days - elevated IV`);
+          } else if (recentEvent.eventType === 'sec_filing') {
+            reasons.push(`📋 Recent SEC filing: ${recentEvent.title?.slice(0, 50) || 'N/A'}`);
+          } else if (recentEvent.eventType === 'gov_contract') {
+            reasons.push(`📋 Govt contract: ${recentEvent.title?.slice(0, 50) || 'N/A'}`);
+            adjustedConfidence += 5; // Boost for positive catalyst
+          }
+        }
+        
+        reasons.push(`📊 Catalyst score: ${catalystData.score} (${catalystData.catalystCount} events)`);
+      }
+    } catch (catalystError) {
+      logger.debug(`[ENGINE-GATE] Catalyst check failed for ${symbol}, continuing without catalyst data`);
+    }
+    
+  } catch (error) {
+    logger.warn(`[ENGINE-GATE] Error in trading engine gate for ${symbol}:`, error);
+    reasons.push('⚠️ Trading engine validation partially failed');
+  }
+  
+  // Ensure confidence stays in reasonable bounds
+  adjustedConfidence = Math.max(30, Math.min(100, adjustedConfidence));
+  
+  // Generate recommendation
+  let recommendation = '';
+  if (!allowed) {
+    recommendation = 'BLOCK: Trading engine conditions not met';
+  } else if (adjustedConfidence >= 85) {
+    recommendation = 'STRONG BUY: Excellent conditions';
+  } else if (adjustedConfidence >= 70) {
+    recommendation = 'BUY: Good conditions';
+  } else if (adjustedConfidence >= 55) {
+    recommendation = 'CAUTIOUS: Reduced position size recommended';
+  } else {
+    recommendation = 'WEAK: Consider skipping this trade';
+    allowed = false;
+  }
+  
+  logger.info(`🧠 [ENGINE-GATE] ${symbol} ${direction.toUpperCase()}: ${allowed ? '✅ ALLOWED' : '🛑 BLOCKED'} | Confluence: ${confluenceScore}% | IV Rank: ${ivRank?.toFixed(0) || 'N/A'}% | Adjusted: ${adjustedConfidence.toFixed(0)}%`);
+  
+  return {
+    allowed,
+    reasons,
+    confluenceScore,
+    ivRank,
+    hasCatalyst,
+    catalystType,
+    adjustedConfidence,
+    recommendation
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // 🔄 PER-SYMBOL SCAN THROTTLE - Prevents scanning same ticker repeatedly
 // ═══════════════════════════════════════════════════════════════════════════
 const SCAN_THROTTLE_MS = 10 * 60 * 1000; // 10 minute cooldown between scans of same symbol
@@ -2341,12 +2512,23 @@ async function executeImmediateTrade(
       return false;
     }
     
+    // 🧠 TRADING ENGINE GATE - Institutional-grade validation (IV, Confluence, Catalysts)
+    const engineGate = await checkTradingEngineGate(opp.symbol, direction as 'long' | 'short', opp.price, adjustedConfidence, 'options');
+    if (!engineGate.allowed) {
+      logger.info(`🧠 [ENGINE-GATE] ⛔ BLOCKED: ${opp.symbol} - ${engineGate.reasons.join(', ')}`);
+      return false;
+    }
+    
+    // Use engine-adjusted confidence for final decision
+    const finalConfidence = engineGate.adjustedConfidence;
+    logger.info(`🧠 [ENGINE-GATE] ✅ PASSED: ${opp.symbol} | Confluence: ${engineGate.confluenceScore}% | IV Rank: ${engineGate.ivRank?.toFixed(0) || 'N/A'}% | ${engineGate.recommendation}`);
+    
     logger.info(`🤖 [BOT] 🟢 IMMEDIATE BUYING ${opp.symbol} ${opp.optionType.toUpperCase()} $${opp.strike} @ $${opp.price.toFixed(2)}`);
     logger.info(`🤖 [BOT] 📊 REASON: ${decision.reason}`);
-    logger.info(`🤖 [BOT] 📊 CONFIDENCE: ${adjustedConfidence.toFixed(0)}% (adjusted from ${decision.confidence.toFixed(0)}%)`);
+    logger.info(`🤖 [BOT] 📊 CONFIDENCE: ${finalConfidence.toFixed(0)}% (original: ${decision.confidence.toFixed(0)}%, session: ${adjustedConfidence.toFixed(0)}%, engine: ${finalConfidence.toFixed(0)}%)`);
     
-    // Use adjusted confidence for the trade idea
-    const adjustedDecision = { ...decision, confidence: adjustedConfidence };
+    // Use final engine-adjusted confidence for the trade idea
+    const adjustedDecision = { ...decision, confidence: finalConfidence };
     const ideaData = createTradeIdea(opp, adjustedDecision);
     
     // 🛑 DEDUPLICATION CHECK
@@ -2908,7 +3090,12 @@ export async function runAutonomousBotScan(): Promise<void> {
       let isSmallAcctTrade = false;
       const premiumCentsForCheck = Math.round(opp.price * 100);
       
-      const smallAccountCheck = isSmallAccountEligible(opp.symbol, decision.confidence, premiumCentsForCheck, opp.dte || 7);
+      // Calculate DTE from expiration date
+      const expirationDate = new Date(opp.expiration);
+      const nowDate = new Date();
+      const oppDte = Math.max(0, Math.ceil((expirationDate.getTime() - nowDate.getTime()) / (1000 * 60 * 60 * 24)));
+      
+      const smallAccountCheck = isSmallAccountEligible(opp.symbol, decision.confidence, premiumCentsForCheck, oppDte);
       if (smallAccountCheck.eligible) {
         const smallAcct = await getSmallAccountPortfolio();
         if (smallAcct) {
@@ -3007,6 +3194,14 @@ export async function autoExecuteLotto(idea: TradeIdea): Promise<boolean> {
       logger.info(`🎰 [LOTTO-EXEC] ⛔ UNIFIED GATE BLOCKED ${idea.symbol}: ${entryGate.reasons.join(', ')}`);
       return false;
     }
+    
+    // 🧠 TRADING ENGINE GATE - Institutional-grade validation (IV, Confluence, Catalysts)
+    const engineGate = await checkTradingEngineGate(idea.symbol, ideaDirection, idea.entryPrice, entryGate.adjustedConfidence, 'options');
+    if (!engineGate.allowed) {
+      logger.info(`🎰 [LOTTO-EXEC] 🧠 ENGINE GATE BLOCKED ${idea.symbol}: ${engineGate.reasons.join(', ')}`);
+      return false;
+    }
+    logger.info(`🎰 [LOTTO-EXEC] 🧠 ENGINE GATE PASSED: ${idea.symbol} | Confluence: ${engineGate.confluenceScore}% | IV Rank: ${engineGate.ivRank?.toFixed(0) || 'N/A'}%`);
     
     if (idea.assetType === 'option') {
       if (!idea.strikePrice || !idea.expiryDate || !idea.optionType) {
@@ -3410,7 +3605,7 @@ export async function monitorLottoPositions(): Promise<void> {
             eventType: 'exit',
             symbol: pos.symbol,
             optionType: pos.optionType as 'call' | 'put' | undefined,
-            strike: pos.strikePrice || undefined,
+            strike: pos.strikePrice ?? undefined,
             price: pos.exitPrice || pos.currentPrice,
             quantity: pos.quantity,
             pnl,
@@ -3722,7 +3917,6 @@ export async function runFuturesBotScan(): Promise<void> {
                 quantity,
                 targetPrice,
                 stopLoss,
-                direction: bestFuturesOpp.direction,
                 analysis: `Futures ${bestFuturesOpp.direction.toUpperCase()} setup`,
                 signals: bestFuturesOpp.signals,
                 confidence: bestFuturesOpp.confidence,
