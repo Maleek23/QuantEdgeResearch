@@ -136,3 +136,39 @@ Complete invite-only beta access system with email-based onboarding:
 - bcrypt password hashing
 - Rate limiting on public beta endpoints
 - Failed attempt logging
+
+### ML Intelligence System (Jan 2026)
+Comprehensive machine learning system for enhanced trading signals:
+
+**5 Core ML Capabilities:**
+1. **Price Direction Prediction** - Statistical analysis using RSI, MACD, momentum indicators
+2. **Sentiment Analysis** - Keyword-based scoring of news headlines
+3. **Chart Pattern Recognition** - Detects breakouts, engulfing patterns, double top/bottom, trends
+4. **Adaptive Position Sizing** - Kelly Criterion-based sizing with regime adjustments
+5. **Market Regime Detection** - Clustering-based identification (trending, ranging, volatile states)
+
+**ML API Endpoints:**
+- `GET /api/ml/status` - System status and model health
+- `GET /api/ml/predict/:symbol` - Price direction prediction
+- `GET /api/ml/sentiment/:symbol` - Sentiment analysis for a symbol
+- `GET /api/ml/patterns/:symbol` - Chart pattern detection
+- `GET /api/ml/regime` - Current market regime (uses SPY as proxy)
+- `GET /api/ml/position-size/:symbol` - Adaptive position sizing
+- `GET /api/ml/signal/:symbol` - Full composite ML signal
+- `GET /api/ml/scan` - Scan multiple symbols by ML signal strength
+- `POST /api/ml/record-trade` - Record trade results for learning (admin)
+- `POST /api/ml/clear-cache` - Clear ML caches (admin)
+
+**Bot Integration:**
+- Auto-Lotto Bot now uses ML predictions to boost/reduce confidence scores
+- ML direction alignment: +10 confidence when ML agrees with option type, -10 when conflicts
+- ML enhancement is optional - bot continues without it if ML fails
+
+**Dashboard:**
+- New `/ml-intelligence` page with symbol analysis, market scanning, regime details
+- Real-time data via React Query integration
+
+**Caching:**
+- Predictions: 5 min TTL
+- Sentiment: 15 min TTL
+- Regime: 30 min TTL
