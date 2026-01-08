@@ -4436,9 +4436,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Calculate conviction score for each idea
-      // Conviction = Confidence + (Signals * 5) + (R:R ratio * 10) + bonus factors
-      const scoredIdeas = openIdeas.map(idea => {
+      // Import ML and breakout services for enhanced scoring
+      const { predictPriceDirection } = await import("./ml-intelligence-service");
+      const { scanSymbolForBreakout } = await import("./breakout-scanner");
+      
+      // Calculate historical win rate by symbol (from all closed trade ideas)
+      // Uses actual outcome statuses: 'hit_target', 'stopped_out', 'expired'
+      const calculateSymbolWinRate = (symbol: string): { winRate: number; sampleSize: number } => {
+        const symbolIdeas = allIdeas.filter(i => 
+          i.symbol === symbol && 
+          (i.outcomeStatus === 'hit_target' || i.outcomeStatus === 'stopped_out' || i.outcomeStatus === 'expired')
+        );
+        if (symbolIdeas.length < 3) return { winRate: 50, sampleSize: symbolIdeas.length };
+        const wins = symbolIdeas.filter(i => i.outcomeStatus === 'hit_target').length;
+        return { winRate: Math.round((wins / symbolIdeas.length) * 100), sampleSize: symbolIdeas.length };
+      };
+      
+      // Enhanced conviction scoring with ML, breakout, and historical data
+      // Conviction = Base + Signals + R:R + Grade + ML + Breakout + WinRate
+      const scoredIdeas = await Promise.all(openIdeas.map(async idea => {
         const confidence = idea.confidenceScore || 50;
         const signalCount = idea.qualitySignals?.length || 0;
         const riskReward = idea.targetPrice && idea.entryPrice && idea.stopLoss
@@ -4459,13 +4475,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (grade === 'A+' || grade === 'A') convictionScore += 10;
         else if (grade === 'A-' || grade === 'B+') convictionScore += 5;
         
+        // ML Intelligence bonus
+        let mlBoost = 0;
+        let mlDirection = 'neutral';
+        try {
+          const mlPrediction = await predictPriceDirection(idea.symbol, idea.assetType as any);
+          if (mlPrediction) {
+            mlDirection = mlPrediction.direction;
+            const isAligned = (idea.direction === 'long' && mlPrediction.direction === 'bullish') ||
+                              (idea.direction === 'short' && mlPrediction.direction === 'bearish');
+            if (isAligned) {
+              mlBoost = Math.round(mlPrediction.confidence * 0.2); // Up to +20 for strong ML alignment
+            } else if (mlPrediction.direction !== 'neutral' && !isAligned) {
+              mlBoost = -10; // Penalty if ML disagrees
+            }
+          }
+        } catch (e) { /* ML unavailable */ }
+        convictionScore += mlBoost;
+        
+        // Breakout confirmation bonus (for stocks/crypto)
+        let breakoutBonus = 0;
+        let hourlyConfirmed = false;
+        if (idea.assetType === 'stock' || idea.assetType === 'crypto') {
+          try {
+            const breakoutSignal = await scanSymbolForBreakout(idea.symbol);
+            if (breakoutSignal) {
+              hourlyConfirmed = breakoutSignal.hourlyConfirmed;
+              if (breakoutSignal.hourlyConfirmed) breakoutBonus = 15;
+              if (breakoutSignal.hourlyMomentum === 'strong') breakoutBonus += 5;
+            }
+          } catch (e) { /* Breakout scan unavailable */ }
+        }
+        convictionScore += breakoutBonus;
+        
+        // Historical win rate bonus
+        const { winRate, sampleSize } = calculateSymbolWinRate(idea.symbol);
+        let winRateBonus = 0;
+        if (sampleSize >= 5) {
+          if (winRate >= 70) winRateBonus = 15;
+          else if (winRate >= 60) winRateBonus = 10;
+          else if (winRate >= 50) winRateBonus = 5;
+          else if (winRate < 40) winRateBonus = -10;
+        }
+        convictionScore += winRateBonus;
+        
         return {
           ...idea,
-          convictionScore: Math.round(convictionScore),
+          convictionScore: Math.round(Math.max(convictionScore, 0)),
           signalCount,
-          riskReward: Math.round(riskReward * 100) / 100
+          riskReward: Math.round(riskReward * 100) / 100,
+          mlDirection,
+          mlBoost,
+          hourlyConfirmed,
+          breakoutBonus,
+          historicalWinRate: winRate,
+          historicalSampleSize: sampleSize,
+          winRateBonus
         };
-      });
+      }));
       
       // Sort by conviction score descending
       scoredIdeas.sort((a, b) => b.convictionScore - a.convictionScore);
@@ -4489,7 +4556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Take top N unique symbols
       const topSetups = uniqueBySymbol.slice(0, limit);
       
-      logger.info(`[BEST-SETUPS] Returning ${topSetups.length} top setups for ${period} (from ${openIdeas.length} open ideas)`);
+      logger.info(`[BEST-SETUPS] Returning ${topSetups.length} top setups for ${period} (from ${openIdeas.length} open ideas, ML+Breakout+WinRate enhanced)`);
       
       res.json({
         period,
