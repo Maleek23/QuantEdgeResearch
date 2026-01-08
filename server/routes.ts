@@ -14898,7 +14898,8 @@ CONSTRAINTS:
         try {
           const symbol = pos.symbol.toUpperCase();
           const strike = parseFloat(pos.strikePrice?.toString() || '0');
-          const expiry = pos.expirationDate;
+          // Use expiryDate (from database column expiry_date) - NOT expirationDate
+          const expiry = pos.expiryDate || pos.expiry_date;
           const optType = pos.optionType?.toLowerCase() === 'put' ? 'P' : 'C';
           
           if (symbol && strike > 0 && expiry) {
