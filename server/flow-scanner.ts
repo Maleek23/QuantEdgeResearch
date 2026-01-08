@@ -13,6 +13,7 @@ import { isLottoCandidate, calculateLottoTargets } from './lotto-detector';
 import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennyStock } from './sector-detector';
 import { getLetterGrade } from './grading';
 import { sendFlowAlertToDiscord, VALID_DISCORD_GRADES } from './discord-service';
+import { getFullUniverse } from './ticker-universe';
 
 // 🛡️ QUALITY GATE: Only send B-grade or better to Discord (user requested)
 // B = 65+, B+ = 70+, A = 75+, A+ = 85+
@@ -138,145 +139,8 @@ function hasEnoughTradingTime(expirationDate: string, minutesUntilClose: number)
   return { hasTime: true, reason: 'Sufficient trading time', dte: daysToExpiry };
 }
 
-// EXPANDED FLOW SCAN UNIVERSE (500+ tickers) - Comprehensive market coverage
-// Covers: Mega caps, Growth, Value, Sectors, ETFs, Penny stocks, and emerging themes
-const FLOW_SCAN_TICKERS = [
-  // === 📈 MEGA CAP TECH (25) ===
-  'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'AMZN', 'NVDA', 'META', 'TSLA', 'AVGO', 'ORCL',
-  'ADBE', 'CRM', 'CSCO', 'ACN', 'IBM', 'INTC', 'TXN', 'QCOM', 'NOW', 'INTU',
-  'AMD', 'MU', 'AMAT', 'LRCX', 'ADI',
-
-  // === 💵 FINANCIALS (40) ===
-  'JPM', 'BAC', 'WFC', 'GS', 'MS', 'C', 'BLK', 'SCHW', 'AXP', 'SPGI',
-  'ICE', 'CME', 'MCO', 'PNC', 'USB', 'TFC', 'COF', 'BK', 'STT', 'FITB',
-  'KEY', 'RF', 'CFG', 'HBAN', 'ZION', 'CMA', 'MTB', 'NTRS', 'DFS', 'SYF',
-  'ALLY', 'SOFI', 'HOOD', 'COIN', 'AFRM', 'UPST', 'PYPL', 'NU', 'XYZ', 'V', 'MA',
-
-  // === 🏥 HEALTHCARE & PHARMA (45) ===
-  'JNJ', 'UNH', 'PFE', 'ABBV', 'MRK', 'LLY', 'TMO', 'ABT', 'DHR', 'BMY',
-  'AMGN', 'GILD', 'VRTX', 'REGN', 'ISRG', 'MDT', 'SYK', 'BSX', 'ELV', 'CI',
-  'HUM', 'CVS', 'MCK', 'CAH', 'ABC', 'ZTS', 'DXCM', 'IDXX', 'IQV', 'A',
-  'MRNA', 'BNTX', 'NVAX', 'CRSP', 'EDIT', 'NTLA', 'BEAM', 'INO', 'VXRT', 'NKTR',
-  'IMVT', 'RXRX', 'HIMS', 'TDOC', 'DOCS',
-
-  // === 🏭 INDUSTRIALS (35) ===
-  'CAT', 'DE', 'HON', 'UNP', 'UPS', 'RTX', 'LMT', 'BA', 'GE', 'MMM',
-  'ETN', 'EMR', 'ITW', 'PH', 'CMI', 'PCAR', 'NSC', 'CSX', 'FDX', 'DAL',
-  'UAL', 'AAL', 'LUV', 'JBLU', 'ALK', 'SAVE', 'GD', 'NOC', 'TXT', 'HII',
-  'LHX', 'LDOS', 'KTOS', 'AVAV', 'AXON',
-
-  // === 🛒 CONSUMER DISCRETIONARY (45) ===
-  'AMZN', 'TSLA', 'HD', 'LOW', 'NKE', 'MCD', 'SBUX', 'TGT', 'COST', 'WMT',
-  'TJX', 'ROST', 'BURL', 'DG', 'DLTR', 'BBY', 'ULTA', 'LULU', 'GPS', 'ANF',
-  'AEO', 'URBN', 'FL', 'DKS', 'HIBB', 'ASO', 'BOOT', 'VFC', 'PVH', 'RL',
-  'GRMN', 'POOL', 'LKQ', 'ORO', 'CMG', 'YUM', 'DPZ', 'QSR', 'CAKE', 'DINE',
-  'PLAY', 'SIX', 'FUN', 'SEAS', 'MTN',
-
-  // === 🍔 CONSUMER STAPLES (25) ===
-  'PG', 'KO', 'PEP', 'PM', 'MO', 'MDLZ', 'CL', 'GIS', 'K', 'KHC',
-  'HSY', 'SJM', 'CPB', 'HRL', 'TSN', 'BG', 'ADM', 'INGR', 'STZ', 'TAP',
-  'BUD', 'SAM', 'MNST', 'CELH', 'KDP',
-
-  // === ⚡ ENERGY (35) ===
-  'XOM', 'CVX', 'COP', 'EOG', 'SLB', 'MPC', 'VLO', 'PSX', 'OXY', 'PXD',
-  'DVN', 'FANG', 'HAL', 'BKR', 'MRO', 'APA', 'OVV', 'EQT', 'AR', 'RRC',
-  'SWN', 'CHK', 'CTRA', 'MTDR', 'PR', 'CHRD', 'SM', 'PDCE', 'GPOR', 'MGY',
-  'VTLE', 'ESTE', 'TRGP', 'WMB', 'KMI',
-
-  // === 🔌 UTILITIES & CLEAN ENERGY (40) ===
-  'NEE', 'DUK', 'SO', 'D', 'AEP', 'XEL', 'SRE', 'WEC', 'ED', 'EXC',
-  'PCG', 'EIX', 'AWK', 'ES', 'DTE', 'PPL', 'FE', 'AES', 'CEG', 'VST',
-  'PLUG', 'FCEL', 'BE', 'ENPH', 'SEDG', 'FSLR', 'RUN', 'NOVA', 'ARRY', 'MAXN',
-  'EOSE', 'ENVX', 'QS', 'STEM', 'CLNE', 'BLDP', 'BLNK', 'CHPT', 'EVGO', 'NKLA',
-
-  // === 🏠 REAL ESTATE (20) ===
-  'AMT', 'PLD', 'EQIX', 'CCI', 'PSA', 'SPG', 'O', 'WELL', 'DLR', 'AVB',
-  'EQR', 'VTR', 'ARE', 'BXP', 'SLG', 'VNO', 'KIM', 'REG', 'FRT', 'HST',
-
-  // === 📱 COMMUNICATION SERVICES (25) ===
-  'GOOGL', 'META', 'DIS', 'NFLX', 'CMCSA', 'VZ', 'T', 'TMUS', 'CHTR', 'PARA',
-  'WBD', 'FOXA', 'FOX', 'VIAC', 'DISH', 'LYV', 'SPOT', 'SNAP', 'PINS', 'MTCH',
-  'TTWO', 'EA', 'RBLX', 'DKNG', 'PENN',
-
-  // === 🔬 QUANTUM COMPUTING (15) ===
-  'IONQ', 'RGTI', 'QUBT', 'QBTS', 'ARQQ', 'QMCO', 'QTUM', 'FORM', 'IBM', 'GOOG',
-  'HON', 'MSFT', 'AMZN', 'GOOGL', 'IQM',
-
-  // === ⚛️ NUCLEAR & URANIUM (20) ===
-  'NNE', 'OKLO', 'SMR', 'LEU', 'CCJ', 'UEC', 'UUUU', 'DNN', 'NXE', 'BWXT',
-  'CEG', 'VST', 'URG', 'UROY', 'LTBR', 'GEV', 'FLR', 'BWC', 'AEHR', 'AEIS',
-
-  // === 🤖 AI & SOFTWARE (40) ===
-  'PLTR', 'AI', 'SOUN', 'BBAI', 'PATH', 'SNOW', 'DDOG', 'MDB', 'ESTC', 'GTLB',
-  'TEAM', 'ZM', 'DOCU', 'TWLO', 'OKTA', 'ZS', 'CRWD', 'S', 'PANW', 'NET',
-  'FSLY', 'CFLT', 'NEWR', 'DT', 'SPLK', 'SUMO', 'ASAN', 'MNDY', 'BILL', 'COUP',
-  'VEEV', 'WDAY', 'HUBS', 'ZEN', 'RNG', 'FIVN', 'NICE', 'APPN', 'AGYS', 'PRFT',
-
-  // === 🚀 SPACE & SATELLITES (15) ===
-  'ASTS', 'RKLB', 'LUNR', 'RDW', 'SPCE', 'BKSY', 'IRDM', 'GSAT', 'VSAT', 'GILT',
-  'MAXR', 'SATS', 'VORB', 'ASTR', 'BA',
-
-  // === 🚗 EV & AUTONOMOUS (20) ===
-  'TSLA', 'RIVN', 'LCID', 'NIO', 'XPEV', 'LI', 'FSR', 'PSNY', 'VFS', 'HYLN',
-  'WKHS', 'RIDE', 'LEV', 'GOEV', 'NKLA', 'LAZR', 'MVIS', 'INVZ', 'LIDR', 'OUST',
-
-  // === 💰 CRYPTO & BLOCKCHAIN (15) ===
-  'COIN', 'MSTR', 'MARA', 'RIOT', 'CLSK', 'HUT', 'BITF', 'BTBT', 'CIFR', 'WULF',
-  'IREN', 'CORZ', 'ARBK', 'GREE', 'SDIG',
-
-  // === 💎 SEMICONDUCTORS EXTENDED (30) ===
-  'NVDA', 'AMD', 'INTC', 'AVGO', 'QCOM', 'TXN', 'ADI', 'MU', 'LRCX', 'AMAT',
-  'KLAC', 'MRVL', 'ON', 'NXPI', 'SWKS', 'QRVO', 'MCHP', 'MPWR', 'SMCI', 'ARM',
-  'ASML', 'TSM', 'WOLF', 'CRUS', 'SITM', 'RMBS', 'LSCC', 'ACLS', 'UCTT', 'OLED',
-
-  // === 🛡️ DEFENSE & AEROSPACE (20) ===
-  'LMT', 'RTX', 'NOC', 'GD', 'BA', 'TXT', 'HII', 'LHX', 'LDOS', 'KTOS',
-  'AVAV', 'RCAT', 'JOBY', 'ACHR', 'UAVS', 'PLTR', 'AXON', 'TDG', 'HWM', 'SPR',
-
-  // === 🌿 CANNABIS (10) ===
-  'TLRY', 'CGC', 'SNDL', 'ACB', 'CRON', 'GRWG', 'VFF', 'CURLF', 'GTBIF', 'TCNNF',
-
-  // === ⛏️ COMMODITIES & MATERIALS (30) ===
-  'MP', 'LAC', 'ALB', 'FCX', 'NEM', 'GOLD', 'AEM', 'KGC', 'BTG', 'HL',
-  'PAAS', 'FSM', 'AG', 'EXK', 'SLI', 'PLL', 'LTHM', 'SQM', 'CLF', 'X',
-  'NUE', 'STLD', 'AA', 'CENX', 'CMC', 'RS', 'ATI', 'HAYN', 'KALU', 'ZEUS',
-
-  // === 🎮 GAMING & ENTERTAINMENT (15) ===
-  'EA', 'TTWO', 'RBLX', 'U', 'DKNG', 'PENN', 'MGM', 'LVS', 'WYNN', 'CZR',
-  'RRR', 'BYD', 'GDEN', 'CHDN', 'BALY',
-
-  // === 📦 E-COMMERCE & LOGISTICS (15) ===
-  'AMZN', 'SHOP', 'ETSY', 'W', 'CHWY', 'WISH', 'RVLV', 'POSH', 'REAL', 'OSTK',
-  'BIGC', 'CPNG', 'MELI', 'SE', 'GRAB',
-
-  // === 🏦 REGIONAL BANKS & SPECIALTY FINANCE (20) ===
-  'SIVB', 'FRC', 'WAL', 'PACW', 'EWBC', 'SBNY', 'OZK', 'BOKF', 'FHN', 'SNV',
-  'GBCI', 'UMBF', 'PNFP', 'IBOC', 'TCBI', 'COLB', 'FFIN', 'STBA', 'FIBK', 'BANF',
-
-  // === 📡 TELECOM & 5G (10) ===
-  'VZ', 'T', 'TMUS', 'LUMN', 'FYBR', 'USM', 'TDS', 'SHEN', 'GOGO', 'IRDM',
-
-  // === 🧬 BIOTECH PENNY PLAYS (20) ===
-  'SRNE', 'ADVM', 'FATE', 'GRTS', 'TGTX', 'XNCR', 'RAPT', 'RCKT', 'MGNX', 'SELB',
-  'BCYC', 'CMPS', 'MNMD', 'ATAI', 'PRAX', 'SAGE', 'ALNY', 'IONS', 'ARWR', 'RARE',
-
-  // === 📺 STREAMING & MEDIA (15) ===
-  'NFLX', 'DIS', 'WBD', 'PARA', 'CMCSA', 'ROKU', 'FUBO', 'AMC', 'CNK', 'IMAX',
-  'LGF.A', 'MSGS', 'EDR', 'TKO', 'WWE',
-
-  // === 🏗️ CONSTRUCTION & HOUSING (15) ===
-  'DHI', 'LEN', 'PHM', 'NVR', 'TOL', 'KBH', 'TMHC', 'MHO', 'CCS', 'MTH',
-  'MDC', 'BLD', 'BLDR', 'FRHC', 'IBP',
-
-  // === 📊 ETFs - MAJOR (30) ===
-  'SPY', 'QQQ', 'IWM', 'DIA', 'VOO', 'VTI', 'VT', 'SCHD', 'JEPI', 'JEPQ',
-  'ARKK', 'ARKG', 'ARKF', 'ARKW', 'XLK', 'XLF', 'XLE', 'XLV', 'XLI', 'XLY',
-  'XLP', 'XLU', 'XLB', 'XLRE', 'SMH', 'SOXX', 'IGV', 'FXI', 'EEM', 'TLT',
-
-  // === 📊 ETFs - LEVERAGED (15) ===
-  'TQQQ', 'SQQQ', 'UPRO', 'SPXU', 'TNA', 'TZA', 'SOXL', 'SOXS', 'LABU', 'LABD',
-  'NUGT', 'DUST', 'UVXY', 'SVXY', 'VXX'
-];
+// UNIFIED FLOW SCAN UNIVERSE (500+ tickers) - Shared across all platform scanners
+const FLOW_SCAN_TICKERS = getFullUniverse();
 
 // Unusual activity thresholds (adjusted for Tradier Sandbox limitations)
 // NOTE: Tradier Sandbox doesn't provide average_volume data, so we use absolute volume

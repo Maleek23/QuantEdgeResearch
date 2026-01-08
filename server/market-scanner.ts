@@ -1,4 +1,5 @@
 import { logger } from './logger';
+import { getFullUniverse, getSectorTickers, PREMIUM_WATCHLIST, LOTTO_ELIGIBLE } from './ticker-universe';
 
 const YAHOO_FINANCE_API = "https://query1.finance.yahoo.com/v8/finance/chart";
 const YAHOO_SCREENER_API = "https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved";
@@ -94,7 +95,7 @@ const ETF_UNIVERSE = [
   'TQQQ', 'SQQQ', 'UPRO', 'SPXU', 'TNA', 'TZA', 'SOXL', 'SOXS', 'LABU', 'LABD',
 ];
 
-export function getStockUniverse(category: 'all' | 'sp500' | 'growth' | 'penny' | 'etf' = 'all'): string[] {
+export function getStockUniverse(category: 'all' | 'sp500' | 'growth' | 'penny' | 'etf' | 'premium' | 'lotto' = 'all'): string[] {
   switch (category) {
     case 'sp500':
       return SP500_SYMBOLS;
@@ -104,10 +105,14 @@ export function getStockUniverse(category: 'all' | 'sp500' | 'growth' | 'penny' 
       return PENNY_STOCKS;
     case 'etf':
       return ETF_UNIVERSE;
+    case 'premium':
+      return PREMIUM_WATCHLIST;
+    case 'lotto':
+      return LOTTO_ELIGIBLE;
     case 'all':
     default:
-      const allSymbols = new Set([...SP500_SYMBOLS, ...GROWTH_STOCKS, ...PENNY_STOCKS, ...ETF_UNIVERSE]);
-      return Array.from(allSymbols);
+      // Use unified ticker universe (500+ tickers)
+      return getFullUniverse();
   }
 }
 
