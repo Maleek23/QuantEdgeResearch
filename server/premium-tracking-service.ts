@@ -287,3 +287,72 @@ export async function getPremiumTrend(watchlistId: string): Promise<{
     }))
   };
 }
+
+/**
+ * Check all watchlist items for premium buying opportunities and send Discord alerts
+ */
+export async function checkPremiumOpportunities(): Promise<void> {
+  const items = await storage.getWatchlistItemsWithPremiumTracking();
+  const opportunities: Array<{
+    symbol: string;
+    percentile: number;
+    currentPremium: number;
+    avg30d: number | null;
+    change7d: number | null;
+    strike?: string;
+    expiry?: string;
+  }> = [];
+  
+  for (const item of items) {
+    try {
+      const trend = await getPremiumTrend(item.id);
+      
+      // Only alert on genuine opportunities (25th percentile or lower = cheap premiums)
+      if (trend.isOpportunity && trend.current !== null && trend.percentile !== null) {
+        opportunities.push({
+          symbol: item.symbol,
+          percentile: trend.percentile,
+          currentPremium: trend.current,
+          avg30d: trend.avg30d,
+          change7d: trend.change7d,
+          strike: item.preferredStrike?.toString() ?? undefined,
+          expiry: item.preferredExpiry ?? undefined
+        });
+      }
+    } catch (error) {
+      logger.error(`[PREMIUM] Error checking ${item.symbol} for opportunities: ${error}`);
+    }
+  }
+  
+  if (opportunities.length === 0) {
+    logger.info('[PREMIUM] No premium opportunities found today');
+    return;
+  }
+  
+  // Sort by percentile (cheapest first)
+  opportunities.sort((a, b) => a.percentile - b.percentile);
+  
+  // Send Discord alert
+  try {
+    const { sendDiscordAlert } = await import('./discord-service');
+    
+    // Build alert message with opportunities
+    const oppsText = opportunities.slice(0, 10).map(opp => {
+      const parts = [
+        `**${opp.symbol}** - ${opp.percentile}th percentile`,
+        `Current: $${opp.currentPremium.toFixed(2)}`
+      ];
+      if (opp.avg30d) parts.push(`30d Avg: $${opp.avg30d.toFixed(2)}`);
+      if (opp.change7d) parts.push(`7d: ${opp.change7d > 0 ? '+' : ''}${opp.change7d.toFixed(1)}%`);
+      return parts.join(' | ');
+    }).join('\n');
+    
+    const message = `💰 **Premium Buying Opportunities**\n\nFound ${opportunities.length} watchlist items with historically cheap premiums:\n\n${oppsText}\n\n_Lower percentile = cheaper than usual. Consider buying when premiums are cheap!_`;
+    
+    await sendDiscordAlert(message, 'info');
+    
+    logger.info(`[PREMIUM] Sent Discord alert for ${opportunities.length} premium opportunities`);
+  } catch (discordError) {
+    logger.error('[PREMIUM] Failed to send Discord alert:', discordError);
+  }
+}

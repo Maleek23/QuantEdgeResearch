@@ -1308,5 +1308,55 @@ app.use((req, res, next) => {
     });
     
     log('📅 Monthly Report Generator started - generating 1st of month at 12:01 AM CT');
+    
+    // ============================================================================
+    // DAILY PREMIUM TRACKING - Track option premiums for watchlist items
+    // Runs at 4:30 PM CT (after market close) on weekdays
+    // ============================================================================
+    let lastPremiumTrackingDate = '';
+    cron.default.schedule('*/5 * * * *', async () => {
+      try {
+        const ctTime = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+        const dayOfWeek = ctTime.getDay(); // 0 = Sunday, 6 = Saturday
+        const hour = ctTime.getHours();
+        const minute = ctTime.getMinutes();
+        const dateKey = ctTime.toISOString().split('T')[0];
+        
+        // Skip weekends
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          return;
+        }
+        
+        // Check if it's 4:30-4:35 PM CT (after market close)
+        const isPremiumTrackingTime = hour === 16 && minute >= 30 && minute < 35;
+        
+        if (!isPremiumTrackingTime) {
+          return;
+        }
+        
+        // Check if we already tracked today
+        if (lastPremiumTrackingDate === dateKey) {
+          return;
+        }
+        
+        lastPremiumTrackingDate = dateKey;
+        
+        logger.info('💰 [PREMIUM-TRACKER] Starting daily premium tracking for watchlist items...');
+        
+        const { trackAllPremiums } = await import('./premium-tracking-service');
+        const result = await trackAllPremiums();
+        
+        logger.info(`💰 [PREMIUM-TRACKER] Completed: ${result.tracked} items tracked, ${result.failed} failed`);
+        
+        // Check for premium opportunities and send alerts
+        const { checkPremiumOpportunities } = await import('./premium-tracking-service');
+        await checkPremiumOpportunities();
+        
+      } catch (error: any) {
+        logger.error('💰 [PREMIUM-TRACKER] Failed to track premiums:', error);
+      }
+    });
+    
+    log('💰 Premium Tracker started - tracking option premiums at 4:30 PM CT weekdays');
   });
 })();

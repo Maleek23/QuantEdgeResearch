@@ -17633,6 +17633,89 @@ Use this checklist before entering any trade:
     }
   });
 
+  // GET /api/platform/learning-insights - Comprehensive platform learning summary
+  app.get("/api/platform/learning-insights", async (_req, res) => {
+    try {
+      const { getLearningState, getAdaptiveParameters, getLossPatternSummary } = await import("./loss-analyzer-service");
+      const { getWeightsSummary } = await import("./dynamic-signal-weights");
+      const { getWatchlistInsightsSummary } = await import("./watchlist-priority-service");
+      
+      const [learningState, params, lossPatterns, signalWeights, watchlistInsights] = await Promise.all([
+        getLearningState().catch(() => null),
+        getAdaptiveParameters(),
+        getLossPatternSummary().catch(() => ({ totalDiagnosed: 0, lossCount: 0, winCount: 0, topCauses: [] })),
+        getWeightsSummary().catch(() => ({ enabled: false, totalSignals: 0, boostedCount: 0, reducedCount: 0, neutralCount: 0, overriddenCount: 0, topBoosted: [], topReduced: [] })),
+        getWatchlistInsightsSummary().catch(() => ({ prioritySymbols: [], eliteCount: 0, cheapPremiumCount: 0, lastUpdated: new Date().toISOString() })),
+      ]);
+      
+      // Build comprehensive learning summary
+      const summary = {
+        platformLearning: {
+          totalTradesAnalyzed: lossPatterns.totalDiagnosed || 0,
+          winRate: lossPatterns.totalDiagnosed > 0 
+            ? ((lossPatterns.winCount / lossPatterns.totalDiagnosed) * 100).toFixed(1) + '%'
+            : 'N/A',
+          lossesAnalyzed: lossPatterns.lossCount || 0,
+          patternsDetected: lossPatterns.topCauses?.length || 0,
+        },
+        adaptiveParameters: {
+          confidenceThreshold: params.confidenceThreshold,
+          stopLossMultiplier: params.stopLossMultiplier,
+          positionSizeMultiplier: params.positionSizeMultiplier,
+        },
+        signalPerformance: {
+          totalSignals: signalWeights.totalSignals,
+          boosted: signalWeights.boostedCount,
+          reduced: signalWeights.reducedCount,
+          neutral: signalWeights.neutralCount,
+          topPerformers: signalWeights.topBoosted?.slice(0, 5).map((s: any) => ({
+            name: s.signalName,
+            winRate: s.winRate?.toFixed(1) + '%',
+            weight: s.dynamicWeight?.toFixed(2),
+          })) || [],
+          worstPerformers: signalWeights.topReduced?.slice(0, 5).map((s: any) => ({
+            name: s.signalName,
+            winRate: s.winRate?.toFixed(1) + '%',
+            weight: s.dynamicWeight?.toFixed(2),
+          })) || [],
+        },
+        lossPatterns: {
+          topCauses: lossPatterns.topCauses?.slice(0, 5).map((c: any) => ({
+            cause: c.cause?.replace(/_/g, ' ') || 'Unknown',
+            count: c.count || 0,
+            avgLoss: c.avgLoss?.toFixed(1) + '%' || 'N/A',
+          })) || [],
+        },
+        watchlistIntelligence: {
+          eliteSetups: watchlistInsights.eliteCount,
+          cheapPremiums: watchlistInsights.cheapPremiumCount,
+          totalTracked: watchlistInsights.prioritySymbols.length,
+          topSymbols: watchlistInsights.prioritySymbols.slice(0, 5).map(s => ({
+            symbol: s.symbol,
+            grade: s.grade,
+            boost: s.confidenceBoost,
+            reasons: s.reasons.slice(0, 2),
+          })),
+          lastUpdated: watchlistInsights.lastUpdated,
+        },
+        symbolAdjustments: learningState?.symbolAdjustments 
+          ? Object.entries(learningState.symbolAdjustments).slice(0, 10).map(([sym, adj]: [string, any]) => ({
+              symbol: sym,
+              boost: adj.confidenceBoost || 0,
+              lossStreak: adj.lossStreak || 0,
+              winStreak: adj.winStreak || 0,
+            }))
+          : [],
+        lastUpdated: new Date().toISOString(),
+      };
+      
+      res.json(summary);
+    } catch (error: any) {
+      logger.error("Error getting platform learning insights", { error });
+      res.status(500).json({ error: "Failed to get platform learning insights" });
+    }
+  });
+
   // ═══════════════════════════════════════════════════════════════════════════
   // 🧠 ML INTELLIGENCE SYSTEM - Machine Learning Trading Signals
   // ═══════════════════════════════════════════════════════════════════════════

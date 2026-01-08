@@ -394,24 +394,56 @@ export async function getSymbolAdjustment(symbol: string): Promise<{
   confidenceBoost: number;
   shouldAvoid: boolean;
   lossStreak: number;
+  watchlistGrade?: string;
+  isEliteSetup?: boolean;
+  isPremiumOpportunity?: boolean;
 }> {
   try {
     const state = await storage.getBotLearningState(BOT_LEARNING_ID);
-    if (!state || !state.symbolAdjustments) {
-      return { confidenceBoost: 0, shouldAvoid: false, lossStreak: 0 };
+    
+    let baseBoost = 0;
+    let shouldAvoid = false;
+    let lossStreak = 0;
+    
+    if (state?.symbolAdjustments) {
+      const adj = state.symbolAdjustments[symbol];
+      if (adj) {
+        baseBoost = adj.confidenceBoost || 0;
+        shouldAvoid = adj.avoidUntil ? new Date(adj.avoidUntil) > new Date() : false;
+        lossStreak = adj.lossStreak || 0;
+      }
     }
     
-    const adj = state.symbolAdjustments[symbol];
-    if (!adj) {
-      return { confidenceBoost: 0, shouldAvoid: false, lossStreak: 0 };
-    }
+    // 📊 WATCHLIST INTELLIGENCE: Apply confidence boost from watchlist grading
+    let watchlistGrade: string | undefined;
+    let isEliteSetup = false;
+    let isPremiumOpportunity = false;
     
-    const shouldAvoid = adj.avoidUntil ? new Date(adj.avoidUntil) > new Date() : false;
+    try {
+      const { getWatchlistConfidenceBoost } = await import('./watchlist-priority-service');
+      const watchlistInsight = await getWatchlistConfidenceBoost(symbol);
+      
+      if (watchlistInsight.boost !== 0) {
+        baseBoost += watchlistInsight.boost;
+        watchlistGrade = watchlistInsight.isElite ? 'Elite' : undefined;
+        isEliteSetup = watchlistInsight.isElite;
+        isPremiumOpportunity = watchlistInsight.isPremiumOpportunity;
+        
+        if (watchlistInsight.reasons.length > 0) {
+          logger.debug(`[LEARNING] ${symbol}: Watchlist boost +${watchlistInsight.boost} (${watchlistInsight.reasons.join(', ')})`);
+        }
+      }
+    } catch (watchlistError) {
+      // Watchlist intelligence is optional - continue without it
+    }
     
     return {
-      confidenceBoost: adj.confidenceBoost || 0,
+      confidenceBoost: baseBoost,
       shouldAvoid,
-      lossStreak: adj.lossStreak || 0,
+      lossStreak,
+      watchlistGrade,
+      isEliteSetup,
+      isPremiumOpportunity,
     };
   } catch (error) {
     return { confidenceBoost: 0, shouldAvoid: false, lossStreak: 0 };
