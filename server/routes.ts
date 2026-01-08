@@ -9807,7 +9807,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { getPremiumTrend } = await import('./premium-tracking-service');
       const trend = await getPremiumTrend(req.params.id);
-      res.json(trend);
+      
+      // Map to UI-expected format
+      const getOpportunityScore = (percentile: number | null, isOpportunity: boolean) => {
+        if (percentile === null) return null;
+        if (percentile < 10) return 'Strong Buy';
+        if (percentile < 25 || isOpportunity) return 'Good Opportunity';
+        if (percentile < 50) return 'Fair Value';
+        if (percentile < 75) return 'Expensive';
+        return 'Very Expensive';
+      };
+      
+      // Calculate dollar change (from previous day's premium)
+      const previousPremium = trend.history.length > 1 ? trend.history[1].premium : null;
+      const dollarChange = trend.current !== null && previousPremium !== null 
+        ? trend.current - previousPremium 
+        : null;
+      
+      res.json({
+        currentPremium: trend.current,
+        previousPremium,
+        change: dollarChange,
+        changePercent: trend.change7d,
+        trend: trend.trend,
+        percentile: trend.percentile,
+        avg30d: trend.avg30d,
+        opportunityScore: getOpportunityScore(trend.percentile, trend.isOpportunity),
+      });
     } catch (error) {
       logError(error as Error, { context: 'GET /api/watchlist/:id/premium-trend' });
       res.status(500).json({ error: "Failed to fetch premium trend" });

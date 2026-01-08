@@ -207,6 +207,122 @@ function SignalCommandBar({ items }: { items: WatchlistItem[] }) {
   );
 }
 
+// Premium Tracking Section
+function PremiumTrackingSection({ item }: { item: WatchlistItem }) {
+  const { data: premiumTrend, isLoading } = useQuery<{
+    currentPremium: number | null;
+    previousPremium: number | null;
+    change: number | null;
+    changePercent: number | null;
+    trend: 'rising' | 'falling' | 'stable' | 'unknown';
+    percentile: number | null;
+    avg30d: number | null;
+    opportunityScore: string | null;
+  }>({
+    queryKey: ['/api/watchlist', item.id, 'premium-trend'],
+    enabled: !!item.trackPremiums,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  if (!item.trackPremiums) return null;
+
+  const getTrendIcon = (trend?: string) => {
+    switch (trend) {
+      case 'rising': return <TrendingUp className="h-4 w-4 text-red-500" />;
+      case 'falling': return <TrendingDown className="h-4 w-4 text-green-500" />;
+      case 'stable': return <Minus className="h-4 w-4 text-amber-500" />;
+      case 'unknown': return <Activity className="h-4 w-4 text-muted-foreground" />;
+      default: return null;
+    }
+  };
+
+  const getOpportunityBadge = (score?: string | null) => {
+    if (!score) return null;
+    const variants: Record<string, { bg: string; text: string }> = {
+      'Strong Buy': { bg: 'bg-green-500/15', text: 'text-green-600 dark:text-green-400' },
+      'Good Opportunity': { bg: 'bg-emerald-500/15', text: 'text-emerald-600 dark:text-emerald-400' },
+      'Fair Value': { bg: 'bg-cyan-500/15', text: 'text-cyan-600 dark:text-cyan-400' },
+      'Expensive': { bg: 'bg-amber-500/15', text: 'text-amber-600 dark:text-amber-400' },
+      'Very Expensive': { bg: 'bg-red-500/15', text: 'text-red-600 dark:text-red-400' },
+    };
+    const v = variants[score] || { bg: 'bg-muted', text: 'text-muted-foreground' };
+    return <Badge className={`${v.bg} ${v.text}`}>{score}</Badge>;
+  };
+
+  if (isLoading) {
+    return (
+      <div className="mt-4 p-3 rounded-lg bg-muted/30 border">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 p-3 rounded-lg bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20">
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-cyan-400 mb-3 flex items-center gap-2">
+        <BarChart3 className="h-3 w-3" />
+        Premium Tracking
+        {item.preferredStrike && item.preferredExpiry && (
+          <span className="font-mono text-xs font-normal text-muted-foreground">
+            ${item.preferredStrike} {item.preferredOptionType?.toUpperCase() || 'CALL'} {item.preferredExpiry}
+          </span>
+        )}
+      </h4>
+      
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="space-y-1">
+          <span className="text-xs text-muted-foreground">Current</span>
+          <div className="flex items-center gap-1">
+            <span className="font-mono font-semibold text-lg">
+              {item.lastPremium ? formatCurrency(item.lastPremium) : '-'}
+            </span>
+            {premiumTrend?.trend && getTrendIcon(premiumTrend.trend)}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <span className="text-xs text-muted-foreground">30d Avg</span>
+          <span className="font-mono font-semibold text-lg">
+            {premiumTrend?.avg30d ? formatCurrency(premiumTrend.avg30d) : item.avgPremium ? formatCurrency(item.avgPremium) : '-'}
+          </span>
+        </div>
+
+        <div className="space-y-1">
+          <span className="text-xs text-muted-foreground">Percentile</span>
+          <div className="flex items-center gap-2">
+            <span className={`font-mono font-semibold text-lg ${
+              (item.premiumPercentile ?? 50) < 25 ? 'text-green-600 dark:text-green-400' :
+              (item.premiumPercentile ?? 50) > 75 ? 'text-red-600 dark:text-red-400' : ''
+            }`}>
+              {item.premiumPercentile != null ? `${item.premiumPercentile}%` : '-'}
+            </span>
+            {(item.premiumPercentile ?? 50) < 25 && (
+              <Badge variant="outline" className="text-xs text-green-600 dark:text-green-400 border-green-500/30">
+                Cheap
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <span className="text-xs text-muted-foreground">Opportunity</span>
+          {getOpportunityBadge(premiumTrend?.opportunityScore)}
+        </div>
+      </div>
+
+      {item.premiumAlertThreshold && (
+        <div className="mt-3 pt-3 border-t border-cyan-500/20 flex items-center gap-2 text-xs text-muted-foreground">
+          <Bell className="h-3 w-3" />
+          Alert when premium drops to {formatCurrency(item.premiumAlertThreshold)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Grade Explanation Panel
 function GradeExplanation({ item }: { item: WatchlistItem }) {
   const tier = item.tier || 'C';
@@ -686,6 +802,11 @@ function WatchlistItemCard({ item }: { item: WatchlistItem }) {
       <AccordionContent className="px-4 pb-4">
         {/* Grade Explanation */}
         <GradeExplanation item={item} />
+
+        {/* Premium Tracking Section */}
+        {item.trackPremiums && (
+          <PremiumTrackingSection item={item} />
+        )}
 
         {/* Actions */}
         <div className="flex items-center gap-2 mt-4 pt-4 border-t">

@@ -267,6 +267,9 @@ export async function getPremiumTrend(watchlistId: string): Promise<{
   const isOpportunity = (percentile !== null && percentile < 25) || 
                         (trend === 'falling' && change7d !== null && change7d < -10);
 
+  // Get stored 30-day average from most recent snapshot
+  const avg30d = history[0].avgPremium30d ?? null;
+  
   return {
     current,
     percentile,
@@ -274,9 +277,11 @@ export async function getPremiumTrend(watchlistId: string): Promise<{
     change7d,
     change30d,
     isOpportunity,
+    avg30d,
     history: history.slice(0, 30).map(h => ({
       date: h.snapshotDate,
-      premium: h.premium
+      premium: h.premium,
+      avgPremium30d: h.avgPremium30d
     }))
   };
 }
