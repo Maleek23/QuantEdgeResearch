@@ -14989,6 +14989,43 @@ CONSTRAINTS:
       // Check if user has beta access (admin or explicit beta access)
       const hasBetaAccess = isAdmin || user?.hasBetaAccess === true;
       
+      // Calculate actual Options P&L from positions (realized + unrealized)
+      const optionsRealizedPnL = closedPositions.reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
+      const optionsUnrealizedPnL = openPositions.reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0);
+      const optionsTotalPnL = optionsRealizedPnL + optionsUnrealizedPnL;
+      
+      // Calculate actual Futures P&L from positions
+      const futuresRealizedPnL = futuresPositions.filter(p => p.status === 'closed').reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
+      const futuresUnrealizedPnL = futuresPositions.filter(p => p.status === 'open').reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0);
+      const futuresTotalPnL = futuresRealizedPnL + futuresUnrealizedPnL;
+      
+      // Calculate actual Crypto P&L from positions
+      const cryptoRealizedPnL = cryptoPositions.filter(p => p.status === 'closed').reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
+      const cryptoUnrealizedPnL = cryptoPositions.filter(p => p.status === 'open').reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0);
+      const cryptoTotalPnL = cryptoRealizedPnL + cryptoUnrealizedPnL;
+      
+      // Calculate actual Small Account P&L from positions
+      const smallRealizedPnL = smallAccountPositions.filter(p => p.status === 'closed').reduce((sum, p) => sum + (p.realizedPnL || 0), 0);
+      const smallUnrealizedPnL = smallAccountPositions.filter(p => p.status === 'open').reduce((sum, p) => sum + (p.unrealizedPnL || 0), 0);
+      const smallTotalPnL = smallRealizedPnL + smallUnrealizedPnL;
+      
+      // Update portfolio stats with actual calculated P&L
+      if (futuresStats) {
+        futuresStats.totalPnL = futuresTotalPnL;
+        futuresStats.realizedPnL = futuresRealizedPnL;
+        futuresStats.unrealizedPnL = futuresUnrealizedPnL;
+      }
+      if (cryptoStats) {
+        cryptoStats.totalPnL = cryptoTotalPnL;
+        cryptoStats.realizedPnL = cryptoRealizedPnL;
+        cryptoStats.unrealizedPnL = cryptoUnrealizedPnL;
+      }
+      if (smallAccountStats) {
+        smallAccountStats.totalPnL = smallTotalPnL;
+        smallAccountStats.realizedPnL = smallRealizedPnL;
+        smallAccountStats.unrealizedPnL = smallUnrealizedPnL;
+      }
+      
       if (hasBetaAccess) {
         // Admin/Beta users get full access to bot trading data
         res.json({
@@ -14997,7 +15034,9 @@ CONSTRAINTS:
             startingCapital: portfolio.startingCapital,
             cashBalance: portfolio.cashBalance,
             totalValue: portfolio.totalValue,
-            totalPnL: portfolio.totalPnL,
+            totalPnL: optionsTotalPnL, // Use calculated P&L, not stored value
+            realizedPnL: optionsRealizedPnL,
+            unrealizedPnL: optionsUnrealizedPnL,
             createdAt: portfolio.createdAt,
           },
           futuresPortfolio: futuresStats,
