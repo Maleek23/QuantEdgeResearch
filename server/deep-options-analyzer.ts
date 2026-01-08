@@ -94,11 +94,52 @@ export interface ProbabilityAnalysis {
   expectedValue: number;
 }
 
+export interface PriceScenario {
+  price: number;
+  priceChange: number;
+  priceChangePercent: number;
+  optionValue: number;
+  pnl: number;
+  pnlPercent: number;
+  probability: number;
+  label: string;
+}
+
+export interface TimeDecayScenario {
+  daysRemaining: number;
+  date: string;
+  estimatedValue: number;
+  valueDecay: number;
+  decayPercent: number;
+}
+
 export interface ScenarioAnalysis {
+  // Core scenarios
   bullCase: { price: number; pnl: number; pnlPercent: number };
   baseCase: { price: number; pnl: number; pnlPercent: number };
   bearCase: { price: number; pnl: number; pnlPercent: number };
   atExpiry: { itm: boolean; intrinsicValue: number };
+  
+  // Advanced: Price ladder (what-if at different prices)
+  priceLadder: PriceScenario[];
+  
+  // Advanced: Time decay projection
+  timeDecayProjection: TimeDecayScenario[];
+  
+  // Key price levels
+  targetPrices: {
+    doubler: number;      // Price needed for 100% gain
+    tripler: number;      // Price needed for 200% gain
+    fiveBagger: number;   // Price needed for 400% gain
+    tenBagger: number;    // Price needed for 900% gain
+  };
+  
+  // Risk metrics
+  riskMetrics: {
+    daysToBurn50Percent: number;   // Days until 50% of premium is lost to theta
+    priceFor50PercentLoss: number; // Price at which you lose 50%
+    safeExitPrice: number;         // Price to exit with small profit
+  };
 }
 
 export interface DeepOptionsAnalysis {
@@ -258,6 +299,166 @@ function getLetterGrade(score: number): string {
   if (score >= 45) return 'D+';
   if (score >= 40) return 'D';
   return 'F';
+}
+
+// =====================================================
+// ENHANCED SCENARIO ANALYSIS FUNCTIONS
+// =====================================================
+
+function generatePriceLadder(
+  stockPrice: number,
+  strike: number,
+  optionType: 'call' | 'put',
+  premium: number,
+  iv: number,
+  daysToExpiry: number
+): PriceScenario[] {
+  const scenarios: PriceScenario[] = [];
+  const volatility = iv * Math.sqrt(daysToExpiry / 365);
+  
+  // Generate price levels from -15% to +15% in 2.5% increments
+  const percentages = [-15, -10, -7.5, -5, -2.5, 0, 2.5, 5, 7.5, 10, 15];
+  
+  for (const pct of percentages) {
+    const price = stockPrice * (1 + pct / 100);
+    const priceChange = price - stockPrice;
+    
+    // Calculate option value at expiry
+    const intrinsicValue = optionType === 'call' 
+      ? Math.max(0, price - strike)
+      : Math.max(0, strike - price);
+    
+    const pnl = (intrinsicValue - premium) * 100;
+    const pnlPercent = (pnl / (premium * 100)) * 100;
+    
+    // Simple probability using log-normal approximation
+    const logReturn = Math.log(price / stockPrice);
+    const zscore = logReturn / (volatility || 0.20);
+    const probability = Math.max(0.1, Math.min(99.9, 50 * (1 - Math.abs(zscore) / 3)));
+    
+    let label = '';
+    if (pct === 0) label = 'Current Price';
+    else if (pct > 10) label = 'Strong Rally';
+    else if (pct > 5) label = 'Moderate Rally';
+    else if (pct > 0) label = 'Small Rally';
+    else if (pct < -10) label = 'Strong Drop';
+    else if (pct < -5) label = 'Moderate Drop';
+    else label = 'Small Drop';
+    
+    scenarios.push({
+      price: Math.round(price * 100) / 100,
+      priceChange: Math.round(priceChange * 100) / 100,
+      priceChangePercent: pct,
+      optionValue: Math.round(intrinsicValue * 100) / 100,
+      pnl: Math.round(pnl * 100) / 100,
+      pnlPercent: Math.round(pnlPercent * 10) / 10,
+      probability: Math.round(probability * 10) / 10,
+      label
+    });
+  }
+  
+  return scenarios;
+}
+
+function generateTimeDecayProjection(
+  premium: number,
+  theta: number,
+  daysToExpiry: number
+): TimeDecayScenario[] {
+  const scenarios: TimeDecayScenario[] = [];
+  const now = new Date();
+  
+  // Generate projections for each day until expiry (max 10 days shown)
+  const daysToShow = Math.min(daysToExpiry, 10);
+  let currentValue = premium;
+  
+  for (let d = 0; d <= daysToShow; d++) {
+    const date = new Date(now);
+    date.setDate(date.getDate() + d);
+    
+    // Theta accelerates near expiry - use decay factor
+    const remainingDays = daysToExpiry - d;
+    const decayFactor = remainingDays > 0 ? Math.sqrt(daysToExpiry / remainingDays) : 2;
+    const dailyDecay = Math.abs(theta) * decayFactor;
+    
+    if (d > 0) {
+      currentValue = Math.max(0, currentValue - dailyDecay);
+    }
+    
+    const valueDecay = premium - currentValue;
+    const decayPercent = (valueDecay / premium) * 100;
+    
+    scenarios.push({
+      daysRemaining: remainingDays,
+      date: date.toISOString().split('T')[0],
+      estimatedValue: Math.round(currentValue * 100) / 100,
+      valueDecay: Math.round(valueDecay * 100) / 100,
+      decayPercent: Math.round(decayPercent * 10) / 10
+    });
+  }
+  
+  return scenarios;
+}
+
+function calculateTargetPrices(
+  stockPrice: number,
+  strike: number,
+  optionType: 'call' | 'put',
+  premium: number
+): { doubler: number; tripler: number; fiveBagger: number; tenBagger: number } {
+  // For a call: profit = (stock - strike) - premium
+  // For 2x (100% gain): need intrinsic = 2 * premium, so stock = strike + 2*premium
+  // For 3x (200% gain): need intrinsic = 3 * premium, so stock = strike + 3*premium
+  
+  if (optionType === 'call') {
+    return {
+      doubler: Math.round((strike + 2 * premium) * 100) / 100,
+      tripler: Math.round((strike + 3 * premium) * 100) / 100,
+      fiveBagger: Math.round((strike + 5 * premium) * 100) / 100,
+      tenBagger: Math.round((strike + 10 * premium) * 100) / 100
+    };
+  } else {
+    return {
+      doubler: Math.round((strike - 2 * premium) * 100) / 100,
+      tripler: Math.round((strike - 3 * premium) * 100) / 100,
+      fiveBagger: Math.round((strike - 5 * premium) * 100) / 100,
+      tenBagger: Math.round((strike - 10 * premium) * 100) / 100
+    };
+  }
+}
+
+function calculateRiskMetrics(
+  stockPrice: number,
+  strike: number,
+  optionType: 'call' | 'put',
+  premium: number,
+  theta: number,
+  daysToExpiry: number
+): { daysToBurn50Percent: number; priceFor50PercentLoss: number; safeExitPrice: number } {
+  // Days to burn 50% of premium to theta
+  const dailyDecay = Math.abs(theta);
+  const halfPremium = premium / 2;
+  const daysToBurn50 = dailyDecay > 0 ? Math.ceil(halfPremium / dailyDecay) : daysToExpiry;
+  
+  // Price at which you lose 50% (at expiry)
+  // For calls: 50% loss means intrinsic = 0.5 * premium
+  // So stock = strike + 0.5 * premium
+  let priceFor50Loss: number;
+  let safeExitPrice: number;
+  
+  if (optionType === 'call') {
+    priceFor50Loss = strike + 0.5 * premium;
+    safeExitPrice = strike + 1.2 * premium; // 20% profit target
+  } else {
+    priceFor50Loss = strike - 0.5 * premium;
+    safeExitPrice = strike - 1.2 * premium;
+  }
+  
+  return {
+    daysToBurn50Percent: Math.min(daysToBurn50, daysToExpiry),
+    priceFor50PercentLoss: Math.round(priceFor50Loss * 100) / 100,
+    safeExitPrice: Math.round(safeExitPrice * 100) / 100
+  };
 }
 
 export async function analyzeOption(
@@ -581,6 +782,7 @@ export async function analyzeOption(
       },
       
       scenarios: {
+        // Core scenarios
         bullCase: { 
           price: bullMove, 
           pnl: bullCasePnL * 100, 
@@ -601,7 +803,19 @@ export async function analyzeOption(
           intrinsicValue: optionType === 'call' 
             ? Math.max(0, stockPrice - strike) 
             : Math.max(0, strike - stockPrice)
-        }
+        },
+        
+        // Advanced: Price ladder (what-if at different prices)
+        priceLadder: generatePriceLadder(stockPrice, strike, optionType, midPrice, currentIV / 100, daysToExpiry),
+        
+        // Advanced: Time decay projection
+        timeDecayProjection: generateTimeDecayProjection(midPrice, theta, daysToExpiry),
+        
+        // Key price levels
+        targetPrices: calculateTargetPrices(stockPrice, strike, optionType, midPrice),
+        
+        // Risk metrics
+        riskMetrics: calculateRiskMetrics(stockPrice, strike, optionType, midPrice, theta, daysToExpiry)
       },
       
       overallScore,
@@ -690,11 +904,45 @@ export function formatAnalysisReport(analysis: DeepOptionsAnalysis): string {
   lines.push(`   Max Loss: $${analysis.probability.maxLoss.toFixed(2)} | Max Profit: ${analysis.probability.maxProfit === 999999 ? 'Unlimited' : '$' + analysis.probability.maxProfit.toFixed(2)}`);
   lines.push('');
   
-  // Scenarios
+  // Core Scenarios
   lines.push(`📊 SCENARIO ANALYSIS`);
   lines.push(`   Bull Case ($${analysis.scenarios.bullCase.price.toFixed(2)}): ${analysis.scenarios.bullCase.pnl >= 0 ? '+' : ''}$${analysis.scenarios.bullCase.pnl.toFixed(0)} (${analysis.scenarios.bullCase.pnlPercent.toFixed(0)}%)`);
   lines.push(`   Base Case ($${analysis.scenarios.baseCase.price.toFixed(2)}): ${analysis.scenarios.baseCase.pnl >= 0 ? '+' : ''}$${analysis.scenarios.baseCase.pnl.toFixed(0)} (${analysis.scenarios.baseCase.pnlPercent.toFixed(0)}%)`);
   lines.push(`   Bear Case ($${analysis.scenarios.bearCase.price.toFixed(2)}): ${analysis.scenarios.bearCase.pnl >= 0 ? '+' : ''}$${analysis.scenarios.bearCase.pnl.toFixed(0)} (${analysis.scenarios.bearCase.pnlPercent.toFixed(0)}%)`);
+  lines.push('');
+  
+  // Target Prices (Baggers)
+  lines.push(`🎯 TARGET PRICES (What You Need)`);
+  lines.push(`   2x (100% gain): $${analysis.scenarios.targetPrices.doubler.toFixed(2)} (${((analysis.scenarios.targetPrices.doubler / analysis.currentPrice - 1) * 100).toFixed(1)}% move)`);
+  lines.push(`   3x (200% gain): $${analysis.scenarios.targetPrices.tripler.toFixed(2)} (${((analysis.scenarios.targetPrices.tripler / analysis.currentPrice - 1) * 100).toFixed(1)}% move)`);
+  lines.push(`   5x (400% gain): $${analysis.scenarios.targetPrices.fiveBagger.toFixed(2)} (${((analysis.scenarios.targetPrices.fiveBagger / analysis.currentPrice - 1) * 100).toFixed(1)}% move)`);
+  lines.push(`   10x (900% gain): $${analysis.scenarios.targetPrices.tenBagger.toFixed(2)} (${((analysis.scenarios.targetPrices.tenBagger / analysis.currentPrice - 1) * 100).toFixed(1)}% move)`);
+  lines.push('');
+  
+  // Risk Metrics
+  lines.push(`⚠️ RISK METRICS`);
+  lines.push(`   Days to Burn 50%: ${analysis.scenarios.riskMetrics.daysToBurn50Percent} days (theta alone)`);
+  lines.push(`   50% Loss Price: $${analysis.scenarios.riskMetrics.priceFor50PercentLoss.toFixed(2)} at expiry`);
+  lines.push(`   Safe Exit Target: $${analysis.scenarios.riskMetrics.safeExitPrice.toFixed(2)} (20% profit)`);
+  lines.push('');
+  
+  // Price Ladder (Top 5 most relevant)
+  lines.push(`📈 PRICE LADDER (What-If Analysis)`);
+  const relevantLadder = analysis.scenarios.priceLadder.filter(s => Math.abs(s.priceChangePercent) <= 10);
+  relevantLadder.forEach(scenario => {
+    const sign = scenario.pnl >= 0 ? '+' : '';
+    const emoji = scenario.pnl > 0 ? '🟢' : scenario.pnl < 0 ? '🔴' : '⚪';
+    lines.push(`   ${emoji} $${scenario.price.toFixed(2)} (${scenario.priceChangePercent >= 0 ? '+' : ''}${scenario.priceChangePercent.toFixed(1)}%): ${sign}$${scenario.pnl.toFixed(0)} (${sign}${scenario.pnlPercent.toFixed(0)}%)`);
+  });
+  lines.push('');
+  
+  // Time Decay (Next 5 days)
+  lines.push(`⏰ TIME DECAY PROJECTION`);
+  const decayToShow = analysis.scenarios.timeDecayProjection.slice(0, 6);
+  decayToShow.forEach(day => {
+    const emoji = day.decayPercent < 20 ? '🟢' : day.decayPercent < 50 ? '🟡' : '🔴';
+    lines.push(`   ${emoji} ${day.date} (${day.daysRemaining} DTE): $${day.estimatedValue.toFixed(2)} (-${day.decayPercent.toFixed(0)}% decay)`);
+  });
   lines.push('');
   
   // Key Points
