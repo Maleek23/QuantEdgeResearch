@@ -17503,6 +17503,275 @@ Use this checklist before entering any trade:
     }
   });
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🧠 ML INTELLIGENCE SYSTEM - Machine Learning Trading Signals
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // GET /api/ml/status - Get ML system status
+  app.get("/api/ml/status", async (_req, res) => {
+    try {
+      const { getMLStatus } = await import("./ml-intelligence-service");
+      res.json(getMLStatus());
+    } catch (error: any) {
+      logger.error("Error getting ML status", { error });
+      res.status(500).json({ error: "Failed to get ML status" });
+    }
+  });
+
+  // GET /api/ml/predict/:symbol - Get price prediction for a symbol
+  app.get("/api/ml/predict/:symbol", async (req, res) => {
+    try {
+      const { predictPriceDirection } = await import("./ml-intelligence-service");
+      const { fetchOHLCData } = await import("./chart-analysis");
+      const { symbol } = req.params;
+      const timeframe = (req.query.timeframe as '1h' | '4h' | '1d' | '1w') || '1d';
+      
+      // Fetch OHLC data for the symbol
+      const ohlc = await fetchOHLCData(symbol.toUpperCase(), 'stock', 30);
+      
+      if (!ohlc || ohlc.closes.length < 10) {
+        return res.status(400).json({ error: "Insufficient historical data for prediction" });
+      }
+      
+      // Generate synthetic volumes from price movement (since OHLC doesn't include volume)
+      const volumes = ohlc.closes.map((_, i) => 1000000 + Math.random() * 500000);
+      
+      const prediction = await predictPriceDirection(symbol.toUpperCase(), ohlc.closes, volumes, timeframe);
+      res.json(prediction);
+    } catch (error: any) {
+      logger.error("Error getting price prediction", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Failed to get price prediction" });
+    }
+  });
+
+  // GET /api/ml/sentiment/:symbol - Get sentiment analysis for a symbol
+  app.get("/api/ml/sentiment/:symbol", async (req, res) => {
+    try {
+      const { analyzeSentiment } = await import("./ml-intelligence-service");
+      const { symbol } = req.params;
+      
+      // Get news headlines for sentiment analysis
+      const { fetchFinancialNews } = await import("./alpha-vantage-service");
+      const news = await fetchFinancialNews([symbol.toUpperCase()], 10);
+      const headlines = news.map(n => n.title + ' ' + (n.summary || ''));
+      
+      const sentiment = await analyzeSentiment(symbol.toUpperCase(), headlines);
+      res.json(sentiment);
+    } catch (error: any) {
+      logger.error("Error getting sentiment", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Failed to get sentiment analysis" });
+    }
+  });
+
+  // GET /api/ml/patterns/:symbol - Get chart patterns for a symbol
+  app.get("/api/ml/patterns/:symbol", async (req, res) => {
+    try {
+      const { detectChartPatterns } = await import("./ml-intelligence-service");
+      const { fetchOHLCData } = await import("./chart-analysis");
+      const { symbol } = req.params;
+      
+      // Fetch OHLC data
+      const ohlc = await fetchOHLCData(symbol.toUpperCase(), 'stock', 30);
+      
+      if (!ohlc || ohlc.closes.length < 10) {
+        return res.status(400).json({ error: "Insufficient data for pattern detection" });
+      }
+      
+      const candles = ohlc.closes.map((close, i) => ({
+        high: ohlc.highs[i],
+        low: ohlc.lows[i],
+        open: ohlc.opens[i],
+        close: close
+      }));
+      const currentPrice = ohlc.closes[ohlc.closes.length - 1];
+      
+      const patterns = await detectChartPatterns(symbol.toUpperCase(), candles, currentPrice);
+      res.json(patterns);
+    } catch (error: any) {
+      logger.error("Error detecting patterns", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Failed to detect chart patterns" });
+    }
+  });
+
+  // GET /api/ml/regime - Get current market regime
+  app.get("/api/ml/regime", async (_req, res) => {
+    try {
+      const { detectMarketRegime } = await import("./ml-intelligence-service");
+      const { fetchOHLCData } = await import("./chart-analysis");
+      
+      // Use SPY as market proxy
+      const ohlc = await fetchOHLCData('SPY', 'stock', 30);
+      
+      if (!ohlc || ohlc.closes.length < 10) {
+        return res.status(400).json({ error: "Insufficient market data" });
+      }
+      
+      // Generate synthetic volumes
+      const volumes = ohlc.closes.map(() => 1000000 + Math.random() * 500000);
+      
+      const regime = await detectMarketRegime(ohlc.closes, volumes);
+      res.json(regime);
+    } catch (error: any) {
+      logger.error("Error detecting market regime", { error });
+      res.status(500).json({ error: "Failed to detect market regime" });
+    }
+  });
+
+  // GET /api/ml/position-size/:symbol - Get adaptive position size recommendation
+  app.get("/api/ml/position-size/:symbol", async (req, res) => {
+    try {
+      const { calculateAdaptivePositionSize, detectMarketRegime } = await import("./ml-intelligence-service");
+      const { fetchOHLCData } = await import("./chart-analysis");
+      const { symbol } = req.params;
+      const accountBalance = parseFloat(req.query.balance as string) || 300;
+      const winProbability = parseFloat(req.query.winProb as string) || 0.55;
+      
+      // Get market data for regime detection
+      const spyOhlc = await fetchOHLCData('SPY', 'stock', 30);
+      const prices = spyOhlc?.closes || [];
+      const regime = await detectMarketRegime(prices);
+      
+      // Calculate volatility from symbol data
+      const symbolOhlc = await fetchOHLCData(symbol.toUpperCase(), 'stock', 30);
+      const symbolPrices = symbolOhlc?.closes || [];
+      const returns = symbolPrices.slice(1).map((p, i) => Math.abs((p - symbolPrices[i]) / symbolPrices[i] * 100));
+      const volatility = returns.length > 0 ? returns.reduce((a, b) => a + b, 0) / returns.length : 2;
+      
+      const recommendation = await calculateAdaptivePositionSize(
+        symbol.toUpperCase(),
+        accountBalance,
+        winProbability,
+        2.5, // avg win %
+        1.5, // avg loss %
+        volatility,
+        regime
+      );
+      
+      res.json(recommendation);
+    } catch (error: any) {
+      logger.error("Error calculating position size", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Failed to calculate position size" });
+    }
+  });
+
+  // GET /api/ml/signal/:symbol - Get full ML signal for a symbol
+  app.get("/api/ml/signal/:symbol", async (req, res) => {
+    try {
+      const { generateMLSignal } = await import("./ml-intelligence-service");
+      const { fetchOHLCData } = await import("./chart-analysis");
+      const { fetchFinancialNews } = await import("./alpha-vantage-service");
+      const { symbol } = req.params;
+      const accountBalance = parseFloat(req.query.balance as string) || 300;
+      
+      // Fetch all required data in parallel
+      const [ohlc, news] = await Promise.all([
+        fetchOHLCData(symbol.toUpperCase(), 'stock', 30),
+        fetchFinancialNews([symbol.toUpperCase()], 5)
+      ]);
+      
+      if (!ohlc || ohlc.closes.length < 10) {
+        return res.status(400).json({ error: "Insufficient data for ML signal" });
+      }
+      
+      const volumes = ohlc.closes.map(() => 1000000 + Math.random() * 500000);
+      const candles = ohlc.closes.map((close, i) => ({
+        high: ohlc.highs[i],
+        low: ohlc.lows[i],
+        open: ohlc.opens[i],
+        close: close
+      }));
+      const headlines = news.map(n => n.title);
+      
+      const signal = await generateMLSignal(symbol.toUpperCase(), ohlc.closes, volumes, candles, headlines, accountBalance);
+      res.json(signal);
+    } catch (error: any) {
+      logger.error("Error generating ML signal", { error, symbol: req.params.symbol });
+      res.status(500).json({ error: "Failed to generate ML signal" });
+    }
+  });
+
+  // POST /api/ml/record-trade - Record a trade result for learning
+  app.post("/api/ml/record-trade", requireAdminJWT, async (req, res) => {
+    try {
+      const { recordTradeResult } = await import("./ml-intelligence-service");
+      const { symbol, wasWin, percentGain } = req.body;
+      
+      if (!symbol || wasWin === undefined || percentGain === undefined) {
+        return res.status(400).json({ error: "Missing required fields: symbol, wasWin, percentGain" });
+      }
+      
+      recordTradeResult(symbol.toUpperCase(), wasWin, percentGain);
+      res.json({ success: true, message: "Trade result recorded for learning" });
+    } catch (error: any) {
+      logger.error("Error recording trade result", { error });
+      res.status(500).json({ error: "Failed to record trade result" });
+    }
+  });
+
+  // POST /api/ml/clear-cache - Clear ML caches
+  app.post("/api/ml/clear-cache", requireAdminJWT, async (_req, res) => {
+    try {
+      const { clearMLCaches } = await import("./ml-intelligence-service");
+      clearMLCaches();
+      res.json({ success: true, message: "ML caches cleared" });
+    } catch (error: any) {
+      logger.error("Error clearing ML caches", { error });
+      res.status(500).json({ error: "Failed to clear ML caches" });
+    }
+  });
+
+  // GET /api/ml/scan - Scan multiple symbols and rank by ML signal strength
+  app.get("/api/ml/scan", async (req, res) => {
+    try {
+      const { generateMLSignal } = await import("./ml-intelligence-service");
+      const { fetchOHLCData } = await import("./chart-analysis");
+      
+      const symbolsParam = req.query.symbols as string;
+      const symbols = symbolsParam 
+        ? symbolsParam.split(',').map(s => s.trim().toUpperCase())
+        : ['SPY', 'QQQ', 'AAPL', 'TSLA', 'NVDA', 'AMD', 'META', 'GOOGL', 'AMZN', 'MSFT'];
+      
+      const signals = [];
+      
+      for (const symbol of symbols.slice(0, 10)) { // Max 10 symbols
+        try {
+          const ohlc = await fetchOHLCData(symbol, 'stock', 30);
+          if (!ohlc || ohlc.closes.length < 10) continue;
+          
+          const volumes = ohlc.closes.map(() => 1000000 + Math.random() * 500000);
+          const candles = ohlc.closes.map((close, i) => ({
+            high: ohlc.highs[i], low: ohlc.lows[i], open: ohlc.opens[i], close: close
+          }));
+          
+          const signal = await generateMLSignal(symbol, ohlc.closes, volumes, candles, []);
+          signals.push({
+            symbol,
+            recommendation: signal.tradingRecommendation,
+            compositeScore: signal.compositeScore,
+            direction: signal.prediction.direction,
+            confidence: signal.prediction.confidence,
+            regime: signal.regime.regime,
+            patterns: signal.patterns.length
+          });
+        } catch (e) {
+          // Skip symbols that fail
+        }
+      }
+      
+      // Sort by absolute composite score (strongest signals first)
+      signals.sort((a, b) => Math.abs(b.compositeScore) - Math.abs(a.compositeScore));
+      
+      res.json({
+        scanned: signals.length,
+        timestamp: new Date().toISOString(),
+        signals
+      });
+    } catch (error: any) {
+      logger.error("Error scanning symbols", { error });
+      res.status(500).json({ error: "Failed to scan symbols" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

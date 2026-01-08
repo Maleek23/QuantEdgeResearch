@@ -63,6 +63,7 @@ const MyAccountPage = lazy(() => import("@/pages/my-account"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const WatchlistPage = lazy(() => import("@/pages/watchlist"));
 const TradingEnginePage = lazy(() => import("@/pages/trading-engine"));
+const MLIntelligence = lazy(() => import("@/pages/ml-intelligence"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const JoinBeta = lazy(() => import("@/pages/join-beta"));
 
@@ -114,6 +115,7 @@ function Router() {
       </Route>
       <Route path="/dashboard" component={withBetaProtection(Dashboard)} />
       <Route path="/trading-engine" component={withBetaProtection(TradingEnginePage)} />
+      <Route path="/ml-intelligence" component={withBetaProtection(MLIntelligence)} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/join-beta" component={JoinBeta} />
