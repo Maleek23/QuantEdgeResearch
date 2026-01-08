@@ -12,7 +12,7 @@ import { calculateATR } from './technical-indicators';
 import { isLottoCandidate, calculateLottoTargets } from './lotto-detector';
 import { detectSectorFocus, detectRiskProfile, detectResearchHorizon, isPennyStock } from './sector-detector';
 import { getLetterGrade } from './grading';
-import { sendFlowAlertToDiscord, VALID_DISCORD_GRADES, isAffordablePremium } from './discord-service';
+import { sendFlowAlertToDiscord, VALID_DISCORD_GRADES } from './discord-service';
 
 // 🛡️ QUALITY GATE: Only send B-grade or better to Discord (user requested)
 // B = 65+, B+ = 70+, A = 75+, A+ = 85+
@@ -232,6 +232,11 @@ const FLOW_SCAN_TICKERS = [
   'STEM',   // Stem Inc - AI energy storage ($0.50-2 range - TRUE PENNY LOTTO)
   'CLNE',   // Clean Energy Fuels ($2-5 range - TRUE PENNY)
   'BLDP',   // Ballard Power - Fuel cells ($1-5 range - TRUE PENNY LOTTO)
+  'EOSE',   // Eos Energy - Battery storage ($1-5 range - PENNY LOTTO)
+  'FSLR',   // First Solar - Solar panels
+  'ARRY',   // Array Technologies - Solar tracking
+  'MAXN',   // Maxeon Solar ($3-10 range - PENNY LOTTO)
+  'NOVA',   // Sunnova Energy - Residential solar
   
   // === 🚗 EV & AUTONOMOUS ===
   'RIVN',   // Rivian - Electric trucks ($10-20 range)
@@ -304,7 +309,34 @@ const FLOW_SCAN_TICKERS = [
   'UROY',   // Uranium Royalty Corp
   'LI',     // Lithium stocks
   'SLI',    // Standard Lithium ($1-5 range - TRUE PENNY LOTTO)
-  'PLL'     // Piedmont Lithium
+  'PLL',    // Piedmont Lithium
+
+  // === ☕ CONSUMER / RETAIL (POPULAR OPTIONS) ===
+  'SBUX',   // Starbucks - Coffee chain
+  'NKE',    // Nike - Athletic apparel
+  'MCD',    // McDonald's - Fast food
+  'COST',   // Costco - Warehouse retail
+  'TGT',    // Target - Retail
+  'WMT',    // Walmart - Retail giant
+  'HD',     // Home Depot - Home improvement
+  'LOW',    // Lowe's - Home improvement
+  'LULU',   // Lululemon - Athletic apparel
+  'CMG',    // Chipotle - Fast casual
+  'YUM',    // Yum Brands - KFC, Taco Bell
+  'BURL',   // Burlington - Off-price retail
+  'ROST',   // Ross Stores - Off-price retail
+  'TJX',    // TJ Maxx - Off-price retail
+  'UAA',    // Under Armour - Athletic apparel
+  'GPS',    // Gap - Apparel ($10-25 range)
+
+  // === 📰 MEDIA / ENTERTAINMENT ===
+  'PARA',   // Paramount - Media ($10-20 range)
+  'WBD',    // Warner Bros Discovery - Media ($5-15 range)
+  'LYV',    // Live Nation - Concerts/Events
+  'SPOT',   // Spotify - Music streaming
+  'SNAP',   // Snapchat - Social media ($10-20 range)
+  'PINS',   // Pinterest - Social media
+  'MTCH'    // Match Group - Dating apps
 ];
 
 // Unusual activity thresholds (adjusted for Tradier Sandbox limitations)
