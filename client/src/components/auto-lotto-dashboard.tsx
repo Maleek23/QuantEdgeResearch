@@ -1152,9 +1152,9 @@ export function AutoLottoDashboard() {
 
       {/* Portfolio Trades Modal */}
       <Dialog open={selectedPortfolio !== null} onOpenChange={(open) => !open && setSelectedPortfolio(null)}>
-        <DialogContent className="max-w-2xl bg-background border border-border shadow-2xl" data-testid="modal-portfolio-trades">
+        <DialogContent className="max-w-2xl bg-slate-900 dark:bg-slate-900 border border-slate-700 shadow-2xl" data-testid="modal-portfolio-trades">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-foreground">
+            <DialogTitle className="flex items-center gap-3 text-white">
               <div className={cn(
                 "p-2 rounded-lg border",
                 selectedInfo?.color === 'cyan' && "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
@@ -1170,8 +1170,8 @@ export function AutoLottoDashboard() {
               <span data-testid="text-modal-title">{selectedInfo?.name || 'Portfolio'}</span>
             </DialogTitle>
             <DialogDescription className="flex items-center gap-4 pt-2">
-              <span className="text-muted-foreground">
-                Balance: <span className="font-mono text-foreground">${selectedInfo?.portfolio?.totalValue?.toFixed(2) || '0.00'}</span>
+              <span className="text-slate-400">
+                Balance: <span className="font-mono text-white">${selectedInfo?.portfolio?.totalValue?.toFixed(2) || '0.00'}</span>
               </span>
               <span className={cn(
                 "font-mono font-medium",
@@ -1203,7 +1203,7 @@ export function AutoLottoDashboard() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-muted-foreground">
+                <div className="text-center py-12 text-slate-400">
                   <Activity className="h-12 w-12 mx-auto mb-3 opacity-30" />
                   <p>No {portfolioTab === 'all' ? '' : portfolioTab} trades in this portfolio</p>
                 </div>
