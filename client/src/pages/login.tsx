@@ -253,9 +253,9 @@ export default function Login() {
             
             <div className="flex flex-col gap-4 mt-6">
               <div className="text-sm text-muted-foreground text-center">
-                Don't have an account?{" "}
-                <Link href="/signup" className="text-cyan-400 hover:text-cyan-300 transition-colors font-medium" data-testid="link-signup">
-                  Sign up
+                Have an invite code?{" "}
+                <Link href="/join-beta" className="text-cyan-400 hover:text-cyan-300 transition-colors font-medium" data-testid="link-join-beta">
+                  Join Beta
                 </Link>
               </div>
               

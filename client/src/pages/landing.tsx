@@ -132,11 +132,11 @@ export default function Landing() {
                     Login
                   </Button>
                   <Button 
-                    onClick={() => setLocation('/signup')}
+                    onClick={() => setWaitlistOpen(true)}
                     className="bg-cyan-500 text-slate-950"
-                    data-testid="button-signup"
+                    data-testid="button-join-beta"
                   >
-                    Sign Up
+                    Join Beta
                   </Button>
                 </>
               )}
@@ -466,10 +466,10 @@ export default function Landing() {
                 <Button 
                   variant="outline" 
                   className="w-full border-slate-700"
-                  onClick={() => setLocation('/signup')}
+                  onClick={() => setWaitlistOpen(true)}
                   data-testid="button-pricing-free"
                 >
-                  Get Started Free
+                  Join Waitlist
                 </Button>
               </CardContent>
             </Card>
@@ -520,11 +520,11 @@ export default function Landing() {
                 
                 <Button 
                   className="w-full bg-cyan-500 text-slate-950"
-                  onClick={() => setLocation('/signup')}
+                  onClick={() => setWaitlistOpen(true)}
                   data-testid="button-pricing-advanced"
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
-                  Get Advanced
+                  Join Waitlist
                 </Button>
               </CardContent>
             </Card>

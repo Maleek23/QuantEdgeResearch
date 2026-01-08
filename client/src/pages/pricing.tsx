@@ -409,13 +409,13 @@ export default function Pricing() {
                       Current Plan
                     </Button>
                   ) : plan.id === 'free' ? (
-                    <Link href="/signup">
+                    <Link href="/">
                       <Button 
                         variant="glass-secondary"
                         className="w-full"
                         data-testid={`button-plan-${plan.id}`}
                       >
-                        Get Started Free
+                        Join Waitlist
                       </Button>
                     </Link>
                   ) : plan.comingSoon ? (

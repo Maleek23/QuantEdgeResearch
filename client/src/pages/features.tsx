@@ -98,11 +98,11 @@ export default function Features() {
                     Login
                   </Button>
                   <Button 
-                    onClick={() => setLocation('/signup')}
+                    onClick={() => setLocation('/')}
                     className="bg-cyan-500 text-slate-950"
-                    data-testid="button-signup"
+                    data-testid="button-join-beta"
                   >
-                    Sign Up
+                    Join Beta
                   </Button>
                 </>
               )}
@@ -601,10 +601,10 @@ export default function Features() {
             <div className="flex flex-wrap justify-center gap-4">
               <Button 
                 className="bg-cyan-500 text-slate-950"
-                onClick={() => setLocation('/signup')}
-                data-testid="button-cta-signup"
+                onClick={() => setLocation('/')}
+                data-testid="button-cta-join-beta"
               >
-                Get Started Free <ArrowRight className="ml-2 h-4 w-4" />
+                Join Waitlist <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
               <Button 
                 variant="outline"
