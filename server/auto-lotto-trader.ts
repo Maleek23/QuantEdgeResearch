@@ -4628,7 +4628,8 @@ export async function monitorPropFirmPositions(): Promise<void> {
               quantity,
               realizedPnL: unrealizedPnL,
               exitReason: 'hit_stop',
-              source: 'futures', // Route to #future-trade-id channel
+              portfolio: 'futures', // Route to #future-trade-id channel with correct labeling
+              source: 'futures',
             });
             logger.info(`🔮 [FUTURES-MONITOR] 📱 Discord exit notification sent to #future-trade-id`);
           } catch (discordError) {
@@ -4658,7 +4659,8 @@ export async function monitorPropFirmPositions(): Promise<void> {
               quantity,
               realizedPnL: unrealizedPnL,
               exitReason: 'hit_target',
-              source: 'futures', // Route to #future-trade-id channel
+              portfolio: 'futures', // Route to #future-trade-id channel with correct labeling
+              source: 'futures',
             });
             logger.info(`🔮 [FUTURES-MONITOR] 📱 Discord exit notification sent to #future-trade-id`);
           } catch (discordError) {

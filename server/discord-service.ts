@@ -214,7 +214,29 @@ export async function sendBotTradeExitToDiscord(exit: {
 }): Promise<void> {
   if (DISCORD_DISABLED) return;
 
-  const portfolioId = exit.portfolio || (exit.isSmallAccount ? 'small_account' : 'options');
+  // Determine portfolio type - handle both type strings ('futures') and UUIDs
+  // Auto-detect from assetType if portfolio not provided or is a UUID (not a known type)
+  let portfolioId = exit.portfolio || (exit.isSmallAccount ? 'small_account' : 'options');
+  
+  // If portfolioId is not a known type (probably a UUID), infer from assetType
+  const knownTypes = ['options', 'small_account', 'futures', 'crypto'];
+  if (!knownTypes.includes(portfolioId)) {
+    // Infer from asset type or symbol
+    if (exit.assetType === 'future' || exit.assetType === 'futures') {
+      portfolioId = 'futures';
+    } else if (exit.assetType === 'crypto') {
+      portfolioId = 'crypto';
+    } else if (exit.isSmallAccount || exit.source === 'small_account') {
+      portfolioId = 'small_account';
+    } else if (exit.symbol?.match(/^(NQ|GC|ES|CL|MNQ|MGC|MES|MCL)/i)) {
+      // Futures contract symbols start with NQ, GC, ES, CL, etc.
+      portfolioId = 'futures';
+    } else {
+      portfolioId = 'options';
+    }
+    logger.debug(`📱 [DISCORD] Auto-detected portfolio type: ${portfolioId} for ${exit.symbol} (asset: ${exit.assetType})`);
+  }
+  
   const meta = PORTFOLIO_METADATA[portfolioId] || { name: 'Bot Portfolio', emoji: '🤖' };
   
   // Small Account entries/exits go to #quantbot channel (per user request)
