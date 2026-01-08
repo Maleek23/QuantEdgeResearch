@@ -67,6 +67,7 @@ const MLIntelligence = lazy(() => import("@/pages/ml-intelligence"));
 const HistoricalIntelligence = lazy(() => import("@/pages/historical-intelligence"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const JoinBeta = lazy(() => import("@/pages/join-beta"));
+const OptionsAnalyzer = lazy(() => import("@/pages/options-analyzer"));
 
 function PageLoader() {
   return (
@@ -128,6 +129,7 @@ function Router() {
       <Route path="/watchlist-bot" component={withBetaProtection(WatchlistBot)} />
       <Route path="/automations" component={withBetaProtection(AutomationsPage)} />
       <Route path="/chart-analysis" component={withBetaProtection(ChartAnalysis)} />
+      <Route path="/options-analyzer" component={withBetaProtection(OptionsAnalyzer)} />
       <Route path="/backtest" component={withBetaProtection(BacktestPage)} />
       <Route path="/performance" component={withBetaProtection(PerformancePage)} />
       <Route path="/trade-ideas/:id/audit" component={withBetaProtection(TradeAudit)} />
