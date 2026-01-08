@@ -38,6 +38,16 @@ import {
 } from "./loss-analyzer-service";
 import { analyzePosition, ExitAdvisory } from "./position-monitor-service";
 import { broadcastBotEvent } from "./bot-notification-service";
+import { 
+  runTradingEngine, 
+  analyzeFundamentals, 
+  analyzeTechnicals, 
+  validateConfluence,
+  type AssetClass,
+  type TradingEngineResult
+} from "./trading-engine";
+import { analyzeVolatility } from "./volatility-analysis-service";
+import { getCatalystsForSymbol, getUpcomingCatalysts, calculateCatalystScore } from "./catalyst-intelligence-service";
 
 // User preferences interface with defaults
 interface BotPreferences {
