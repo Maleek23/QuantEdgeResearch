@@ -18519,6 +18519,71 @@ Use this checklist before entering any trade:
   });
 
   // =====================================================
+  // DEEP OPTIONS ANALYZER ROUTES
+  // =====================================================
+
+  // POST /api/options/analyze - Deep analysis of a specific option
+  app.post("/api/options/analyze", async (req, res) => {
+    try {
+      const { analyzeOption, formatAnalysisReport } = await import("./deep-options-analyzer");
+      const { symbol, strike, expiration, optionType } = req.body;
+      
+      if (!symbol || !strike || !expiration || !optionType) {
+        return res.status(400).json({ 
+          error: "Missing required fields: symbol, strike, expiration, optionType" 
+        });
+      }
+      
+      const analysis = await analyzeOption(
+        symbol.toUpperCase(), 
+        parseFloat(strike), 
+        expiration, 
+        optionType.toLowerCase() as 'call' | 'put'
+      );
+      
+      if (!analysis) {
+        return res.status(404).json({ error: "Could not analyze option - check symbol/strike/expiration" });
+      }
+      
+      // Return both structured data and formatted report
+      res.json({
+        analysis,
+        report: formatAnalysisReport(analysis)
+      });
+    } catch (error: any) {
+      logger.error("Error analyzing option", { error });
+      res.status(500).json({ error: error.message || "Failed to analyze option" });
+    }
+  });
+
+  // GET /api/options/analyze/:symbol/:strike/:expiration/:type - Quick analysis endpoint
+  app.get("/api/options/analyze/:symbol/:strike/:expiration/:type", async (req, res) => {
+    try {
+      const { analyzeOption, formatAnalysisReport } = await import("./deep-options-analyzer");
+      const { symbol, strike, expiration, type } = req.params;
+      
+      const analysis = await analyzeOption(
+        symbol.toUpperCase(), 
+        parseFloat(strike), 
+        expiration, 
+        type.toLowerCase() as 'call' | 'put'
+      );
+      
+      if (!analysis) {
+        return res.status(404).json({ error: "Could not analyze option" });
+      }
+      
+      res.json({
+        analysis,
+        report: formatAnalysisReport(analysis)
+      });
+    } catch (error: any) {
+      logger.error("Error analyzing option", { error });
+      res.status(500).json({ error: error.message || "Failed to analyze option" });
+    }
+  });
+
+  // =====================================================
   // BACKTESTING & BREAKOUT SCANNER ROUTES
   // =====================================================
 
