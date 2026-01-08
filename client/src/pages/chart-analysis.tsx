@@ -2402,7 +2402,7 @@ export default function ChartAnalysis() {
 
   const promoteMutation = useMutation({
     mutationFn: async (tradeIdeaId: string) => {
-      const response = await apiRequest('POST', `/api/trade-ideas/${tradeIdeaId}/promote`);
+      const response = await apiRequest('PATCH', `/api/trade-ideas/${tradeIdeaId}/promote`);
       return response.json();
     },
     onSuccess: () => {
@@ -3266,20 +3266,6 @@ export default function ChartAnalysis() {
                     </div>
                     
                     <div className="flex gap-3">
-                      <Button
-                        onClick={handleSendToTradeDesk}
-                        disabled={sendToTradeDeskMutation.isPending}
-                        variant="outline"
-                        className="flex-1 border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
-                        data-testid="button-send-trade-desk"
-                      >
-                        {sendToTradeDeskMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <ArrowRight className="h-4 w-4 mr-2" />
-                        )}
-                        Send to Trade Desk
-                      </Button>
                       <Button
                         onClick={handleSendToDiscord}
                         disabled={sendToDiscordMutation.isPending}
