@@ -529,7 +529,35 @@ app.use((req, res, next) => {
         
         if (savedIdeas.length > 0) {
           logger.info(`✅ [QUANT-CRON] Generated ${savedIdeas.length} quant trade ideas`);
-          const { sendBatchSummaryToDiscord } = await import('./discord-service');
+          const { sendBatchSummaryToDiscord, sendPremiumOptionsAlertToDiscord } = await import('./discord-service');
+          
+          // 🎯 Send premium A/A+ alerts for options
+          for (const idea of savedIdeas) {
+            const grade = idea.probabilityBand || '';
+            if (['A+', 'A'].includes(grade) && idea.assetType === 'option') {
+              const dte = idea.expiryDate 
+                ? Math.ceil((new Date(idea.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                : undefined;
+              sendPremiumOptionsAlertToDiscord({
+                symbol: idea.symbol,
+                optionType: (idea.optionType as 'call' | 'put') || 'call',
+                strikePrice: idea.strikePrice || 0,
+                expiryDate: idea.expiryDate || '',
+                entryPrice: idea.entryPrice || 0,
+                targetPrice: idea.targetPrice || 0,
+                stopLoss: idea.stopLoss || 0,
+                confidence: idea.confidence || 90,
+                grade,
+                delta: (idea as any).delta,
+                dte,
+                tradeType: dte && dte <= 1 ? 'day' : dte && dte <= 7 ? 'swing' : 'swing',
+                signals: (idea as any).signals || [],
+                source: 'quant'
+              }).catch(err => logger.error(`[QUANT-CRON] Premium alert failed for ${idea.symbol}:`, err));
+              logger.info(`📣 [QUANT-CRON] Premium A/A+ alert sent: ${idea.symbol} [${grade}]`);
+            }
+          }
+          
           sendBatchSummaryToDiscord(savedIdeas, 'quant').catch(err => 
             logger.error('[QUANT-CRON] Discord notification failed:', err)
           );
@@ -588,7 +616,35 @@ app.use((req, res, next) => {
         
         if (savedIdeas.length > 0) {
           logger.info(`✅ [QUANT-STARTUP] Generated ${savedIdeas.length} fresh quant trade ideas on startup`);
-          const { sendBatchSummaryToDiscord } = await import('./discord-service');
+          const { sendBatchSummaryToDiscord, sendPremiumOptionsAlertToDiscord } = await import('./discord-service');
+          
+          // 🎯 Send premium A/A+ alerts for options
+          for (const idea of savedIdeas) {
+            const grade = idea.probabilityBand || '';
+            if (['A+', 'A'].includes(grade) && idea.assetType === 'option') {
+              const dte = idea.expiryDate 
+                ? Math.ceil((new Date(idea.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                : undefined;
+              sendPremiumOptionsAlertToDiscord({
+                symbol: idea.symbol,
+                optionType: (idea.optionType as 'call' | 'put') || 'call',
+                strikePrice: idea.strikePrice || 0,
+                expiryDate: idea.expiryDate || '',
+                entryPrice: idea.entryPrice || 0,
+                targetPrice: idea.targetPrice || 0,
+                stopLoss: idea.stopLoss || 0,
+                confidence: idea.confidence || 90,
+                grade,
+                delta: (idea as any).delta,
+                dte,
+                tradeType: dte && dte <= 1 ? 'day' : dte && dte <= 7 ? 'swing' : 'swing',
+                signals: (idea as any).signals || [],
+                source: 'quant'
+              }).catch(err => logger.error(`[QUANT-STARTUP] Premium alert failed for ${idea.symbol}:`, err));
+              logger.info(`📣 [QUANT-STARTUP] Premium A/A+ alert sent: ${idea.symbol} [${grade}]`);
+            }
+          }
+          
           sendBatchSummaryToDiscord(savedIdeas, 'quant').catch(err => 
             logger.error('[QUANT-STARTUP] Discord notification failed:', err)
           );
@@ -861,26 +917,50 @@ app.use((req, res, next) => {
             const isAffordable = entryPrice <= maxPremiumFor5Contracts;
             
             if (isValidGrade && isAffordable) {
-              const { sendFlowAlertToDiscord } = await import('./discord-service');
+              const { sendFlowAlertToDiscord, sendPremiumOptionsAlertToDiscord } = await import('./discord-service');
               const targetPercent = tradeIdea.targetPrice && entryPrice 
                 ? ((tradeIdea.targetPrice - entryPrice) / entryPrice * 100).toFixed(0)
                 : '?';
               const rr = tradeIdea.riskRewardRatio?.toFixed(1) || '?';
               
-              sendFlowAlertToDiscord({
-                symbol: tradeIdea.symbol,
-                optionType: tradeIdea.optionType || 'call',
-                strikePrice: tradeIdea.strikePrice || 0,
-                expiryDate: tradeIdea.expiryDate || '',
-                entryPrice: entryPrice,
-                targetPrice: tradeIdea.targetPrice || 0,
-                targetPercent,
-                grade,
-                riskReward: rr,
-                isLotto: (tradeIdea as any).isLottoPlay || false
-              }).catch(err => logger.error(`📊 [FLOW-CRON] Discord alert failed for ${tradeIdea.symbol}:`, err));
-              
-              logger.info(`📣 [FLOW-CRON] Discord alert sent: ${tradeIdea.symbol} ${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} (${grade})`);
+              // 🎯 PREMIUM A/A+ FORMAT - Use premium template for high-conviction options
+              if (['A+', 'A'].includes(grade) && tradeIdea.assetType === 'option') {
+                const dte = tradeIdea.expiryDate 
+                  ? Math.ceil((new Date(tradeIdea.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                  : undefined;
+                sendPremiumOptionsAlertToDiscord({
+                  symbol: tradeIdea.symbol,
+                  optionType: (tradeIdea.optionType as 'call' | 'put') || 'call',
+                  strikePrice: tradeIdea.strikePrice || 0,
+                  expiryDate: tradeIdea.expiryDate || '',
+                  entryPrice: entryPrice,
+                  targetPrice: tradeIdea.targetPrice || 0,
+                  stopLoss: tradeIdea.stopLoss || 0,
+                  confidence: tradeIdea.confidence || 90,
+                  grade,
+                  delta: (tradeIdea as any).delta,
+                  dte,
+                  tradeType: dte && dte <= 1 ? 'day' : dte && dte <= 7 ? 'swing' : 'swing',
+                  signals: (tradeIdea as any).signals || [],
+                  source: 'flow'
+                }).catch(err => logger.error(`📊 [FLOW-CRON] Premium alert failed for ${tradeIdea.symbol}:`, err));
+                logger.info(`📣 [FLOW-CRON] Premium A/A+ alert sent: ${tradeIdea.symbol} ${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} [${grade}]`);
+              } else {
+                // Standard format for B+ and below
+                sendFlowAlertToDiscord({
+                  symbol: tradeIdea.symbol,
+                  optionType: tradeIdea.optionType || 'call',
+                  strikePrice: tradeIdea.strikePrice || 0,
+                  expiryDate: tradeIdea.expiryDate || '',
+                  entryPrice: entryPrice,
+                  targetPrice: tradeIdea.targetPrice || 0,
+                  targetPercent,
+                  grade,
+                  riskReward: rr,
+                  isLotto: (tradeIdea as any).isLottoPlay || false
+                }).catch(err => logger.error(`📊 [FLOW-CRON] Discord alert failed for ${tradeIdea.symbol}:`, err));
+                logger.info(`📣 [FLOW-CRON] Discord alert sent: ${tradeIdea.symbol} ${tradeIdea.optionType?.toUpperCase()} $${tradeIdea.strikePrice} (${grade})`);
+              }
             }
             
           } catch (error: any) {

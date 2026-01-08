@@ -870,3 +870,99 @@ export async function sendPreMoveAlertToDiscord(signal: {
     logger.error(`[DISCORD] Failed to send pre-move alert: ${e}`);
   }
 }
+
+// PREMIUM A/A+ OPTIONS ALERT - Premium template for high-conviction options trades
+export async function sendPremiumOptionsAlertToDiscord(trade: {
+  symbol: string;
+  optionType: 'call' | 'put';
+  strikePrice: number;
+  expiryDate: string;
+  entryPrice: number;
+  targetPrice: number;
+  stopLoss: number;
+  confidence: number;
+  grade: string;
+  delta?: number;
+  dte?: number;
+  tradeType?: 'day' | 'swing' | 'lotto';
+  signals?: string[];
+  analysis?: string;
+  source?: string;
+}): Promise<void> {
+  if (DISCORD_DISABLED) return;
+  
+  // Only send A+ and A grades with this premium format
+  if (!['A+', 'A'].includes(trade.grade)) {
+    logger.debug(`[DISCORD] Skipping premium format for ${trade.symbol} - grade ${trade.grade} not A/A+`);
+    return;
+  }
+  
+  const webhookUrl = process.env.DISCORD_WEBHOOK_QUANTFLOOR || process.env.DISCORD_WEBHOOK_QUANTBOT || process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) return;
+  
+  try {
+    const isCall = trade.optionType === 'call';
+    const directionEmoji = isCall ? '🟢' : '🔴';
+    const directionLabel = isCall ? 'LONG' : 'SHORT';
+    const sourceLabel = trade.source?.toUpperCase() || 'QUANT';
+    
+    // Calculate R:R and multiplier
+    const riskAmount = trade.entryPrice - trade.stopLoss;
+    const rewardAmount = trade.targetPrice - trade.entryPrice;
+    const rrRatio = riskAmount > 0 ? (rewardAmount / riskAmount).toFixed(1) : '0';
+    const multiplier = trade.entryPrice > 0 ? (trade.targetPrice / trade.entryPrice).toFixed(1) : '1';
+    const maxLossPercent = trade.entryPrice > 0 ? ((trade.stopLoss / trade.entryPrice - 1) * 100).toFixed(0) : '0';
+    
+    // Delta display
+    let deltaDisplay = 'N/A';
+    if (trade.delta !== undefined) {
+      const absDelta = Math.abs(trade.delta);
+      const deltaLabel = absDelta < 0.20 ? 'Far OTM' : 
+                         absDelta < 0.35 ? 'OTM' : 
+                         absDelta < 0.55 ? 'ATM' : 'ITM';
+      deltaDisplay = `${absDelta.toFixed(2)} (${deltaLabel})`;
+    }
+    
+    // DTE display
+    const dteDisplay = trade.dte !== undefined ? `${trade.dte} days` : 'N/A';
+    
+    // Trade type label
+    const tradeTypeLabel = trade.tradeType === 'lotto' ? 'lotto play' : 
+                           trade.tradeType === 'swing' ? 'swing trade' : 'day trade';
+    
+    // Format signals
+    const signalsDisplay = trade.signals?.slice(0, 4).join(', ') || 'Technical confluence';
+    
+    // Build premium embed format
+    const embed: DiscordEmbed = {
+      title: `${directionEmoji} ${sourceLabel} ${directionLabel}`,
+      description: `**[${trade.grade}] ${trade.confidence}% Conviction**\n\n**TRADE:** ${trade.symbol} ${trade.optionType.toUpperCase()} $${trade.strikePrice} (${tradeTypeLabel})`,
+      color: isCall ? COLORS.LONG : COLORS.SHORT,
+      fields: [
+        { name: '📊 GREEKS', value: `Delta: ${deltaDisplay}\nDTE: ${dteDisplay}`, inline: true },
+        { name: '📈 TECHNICALS', value: signalsDisplay, inline: true },
+        { name: '\u200B', value: '\u200B', inline: true },
+        { name: '💰 Entry', value: `$${trade.entryPrice.toFixed(2)}`, inline: true },
+        { name: '🎯 Target', value: `$${trade.targetPrice.toFixed(2)} (${multiplier}x)`, inline: true },
+        { name: '🛡️ Stop', value: `$${trade.stopLoss.toFixed(2)} (${maxLossPercent}% max loss)`, inline: true },
+        { name: '⚖️ R:R', value: `${rrRatio}:1`, inline: true },
+        { name: '📅 Expiry', value: trade.expiryDate.split('T')[0], inline: true },
+      ],
+      footer: { text: `Quant Edge Labs • ${trade.grade} ${trade.confidence}% • ${tradeTypeLabel.toUpperCase()}` },
+      timestamp: new Date().toISOString()
+    };
+    
+    await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        content: `🎯 **${trade.grade} OPTIONS ALERT**: ${trade.symbol} ${trade.optionType.toUpperCase()} $${trade.strikePrice}`,
+        embeds: [embed] 
+      }),
+    });
+    
+    logger.info(`[DISCORD] Sent premium options alert: ${trade.symbol} ${trade.optionType.toUpperCase()} $${trade.strikePrice} [${trade.grade}]`);
+  } catch (e) {
+    logger.error(`[DISCORD] Failed to send premium options alert: ${e}`);
+  }
+}
