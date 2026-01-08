@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, keepPreviousData } from "@tanstack/react-query";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -466,13 +466,15 @@ export function AutoLottoDashboard() {
   const [selectedPortfolio, setSelectedPortfolio] = useState<PortfolioType | null>(null);
   const [portfolioTab, setPortfolioTab] = useState<'open' | 'closed' | 'all'>('all');
 
-  const { data: botStatus, isLoading: statusLoading, refetch: refetchStatus } = useQuery<BotStatus>({
+  const { data: botStatus, isPending: statusPending, refetch: refetchStatus } = useQuery<BotStatus>({
     queryKey: ["/api/auto-lotto-bot/status"],
-    refetchInterval: 10000,
+    refetchInterval: 30000, // Reduced from 10s to 30s to prevent flickering
+    staleTime: 0, // Always considered stale for polling
+    placeholderData: keepPreviousData, // Keep old data while refetching - prevents flickering
   });
 
   // Fetch from the correct endpoint that returns all portfolio positions
-  const { data: botData, isLoading: tradesLoading } = useQuery<{
+  const { data: botData, isPending: tradesPending } = useQuery<{
     portfolio: any;
     futuresPortfolio: any;
     cryptoPortfolio: any;
@@ -485,7 +487,9 @@ export function AutoLottoDashboard() {
     isAdmin: boolean;
   }>({
     queryKey: ["/api/auto-lotto-bot"],
-    refetchInterval: 15000,
+    refetchInterval: 30000, // Reduced from 15s to 30s to prevent flickering
+    staleTime: 0, // Always considered stale for polling
+    placeholderData: keepPreviousData, // Keep old data while refetching - prevents flickering
   });
 
   const toggleBot = useMutation({
@@ -677,7 +681,8 @@ export function AutoLottoDashboard() {
     sum + (p.status === 'closed' ? (p.realizedPnL || 0) : (p.unrealizedPnL || 0)), 0
   );
 
-  if (statusLoading) {
+  // Only show skeleton on INITIAL load (isPending), not during refetches (fixes flickering)
+  if (statusPending && tradesPending) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-32 w-full" />
@@ -1081,7 +1086,7 @@ export function AutoLottoDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              {tradesLoading ? (
+              {tradesPending && filteredPositions.length === 0 ? (
                 <div className="space-y-2">
                   {[1, 2, 3].map(i => <Skeleton key={i} className="h-20" />)}
                 </div>

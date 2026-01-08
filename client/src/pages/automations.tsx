@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, keepPreviousData } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -95,10 +95,11 @@ interface ExitIntelligenceResponse {
 }
 
 function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
-  const { data: exitIntel, isLoading, refetch } = useQuery<ExitIntelligenceResponse>({
+  const { data: exitIntel, isPending, refetch } = useQuery<ExitIntelligenceResponse>({
     queryKey: ['/api/auto-lotto/exit-intelligence'],
-    refetchInterval: 15000,
-    staleTime: 10000,
+    refetchInterval: 30000, // Reduced from 15s to 30s to prevent flickering
+    staleTime: 0,
+    placeholderData: keepPreviousData, // Prevents flickering during refetch
   });
 
   const getExitWindowBadge = (window: ExitAdvisory['exitWindow']) => {
@@ -179,7 +180,7 @@ function ExitIntelligenceCard({ botOnly = false }: { botOnly?: boolean }) {
         </p>
       </CardHeader>
       <CardContent className="p-3">
-        {isLoading ? (
+        {isPending && positions.length === 0 ? (
           <div className="space-y-2">
             {[1, 2].map((i) => (
               <Skeleton key={i} className="h-16 w-full" />
@@ -467,14 +468,18 @@ export default function AutomationsPage() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("overview");
 
-  const { data: status, isLoading } = useQuery<AutomationsStatus>({
+  const { data: status, isPending } = useQuery<AutomationsStatus>({
     queryKey: ["/api/automations/status"],
-    refetchInterval: 5000,
+    refetchInterval: 30000, // Reduced from 5s to 30s to prevent flickering
+    staleTime: 0,
+    placeholderData: keepPreviousData,
   });
 
   const { data: cryptoData } = useQuery<CryptoBotData>({
     queryKey: ["/api/bot/crypto"],
-    refetchInterval: 5000,
+    refetchInterval: 30000, // Reduced from 5s to 30s to prevent flickering
+    staleTime: 0,
+    placeholderData: keepPreviousData,
   });
 
   // Main portfolio bots data
@@ -487,7 +492,9 @@ export default function AutomationsPage() {
     botStatus: string;
   }>({
     queryKey: ["/api/auto-lotto-bot"],
-    refetchInterval: 5000,
+    refetchInterval: 30000, // Reduced from 5s to 30s to prevent flickering
+    staleTime: 0,
+    placeholderData: keepPreviousData,
   });
 
   const { data: weeklyReport } = useQuery<{
@@ -608,7 +615,8 @@ export default function AutomationsPage() {
     },
   });
 
-  if (isLoading) {
+  // Only show loading spinner on INITIAL load, not during refetches (prevents flickering)
+  if (isPending && !status) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
