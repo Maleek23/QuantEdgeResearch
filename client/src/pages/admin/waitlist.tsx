@@ -71,7 +71,7 @@ function AdminWaitlistContent() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showInviteDialog, setShowInviteDialog] = useState(false);
 
-  const { data: waitlistData, isLoading, refetch } = useQuery<{ waitlist: WaitlistEntry[] }>({
+  const { data: waitlistData, isLoading, refetch } = useQuery<{ entries: WaitlistEntry[], count: number }>({
     queryKey: ['/api/admin/waitlist'],
     queryFn: async () => {
       const res = await fetch('/api/admin/waitlist', { credentials: 'include' });
@@ -154,9 +154,9 @@ function AdminWaitlistContent() {
     }
   });
 
-  const waitlist = waitlistData?.waitlist || [];
+  const waitlist = waitlistData?.entries || [];
 
-  const filteredWaitlist = waitlist.filter((entry) => {
+  const filteredWaitlist = waitlist.filter((entry: WaitlistEntry) => {
     const matchesSearch = entry.email.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || entry.status === statusFilter;
     return matchesSearch && matchesStatus;
